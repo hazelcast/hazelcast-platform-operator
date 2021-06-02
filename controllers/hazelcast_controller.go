@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,22 +45,30 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Check if the statefulSet already exists, if not create a new one
 	found := &appsv1.StatefulSet{}
 	err = r.Get(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, found)
+	expected, err2 := r.statefulSetForHazelcast(h)
+	if err2 != nil {
+		logger.Error(err, "Failed to create new StatefulSet resource")
+		return ctrl.Result{}, err
+	}
 	if err != nil && errors.IsNotFound(err) {
-		sts, err := r.statefulSetForHazelcast(h)
+		logger.Info("Creating a new StatefulSet", "StatefulSet.Namespace", expected.Namespace, "StatefulSet.Name", expected.Name)
+		err = r.Create(ctx, expected)
 		if err != nil {
-			logger.Error(err,"Failed to create new StatefulSet resource")
-			return ctrl.Result{}, err
-		}
-		logger.Info("Creating a new StatefulSet", "StatefulSet.Namespace", sts.Namespace, "StatefulSet.Name", sts.Name)
-		err = r.Create(ctx, sts)
-		if err != nil {
-			logger.Error(err, "Failed to create new StatefulSet", "StatefulSet.Namespace", sts.Namespace, "StatefulSet.Name", sts.Name)
+			logger.Error(err, "Failed to create new StatefulSet", "StatefulSet.Namespace", expected.Namespace, "StatefulSet.Name", expected.Name)
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{Requeue: true}, nil
 	} else if err != nil {
 		logger.Error(err, "Failed to get StatefulSet")
 		return ctrl.Result{}, err
+	}
+
+	// TODO Find a better comparison mechanism. Currently found object has so much default props.
+	if !apiequality.Semantic.DeepEqual(found.Spec, expected.Spec) {
+		logger.Info("Updating a StatefulSet", "StatefulSet.Namespace", expected.Namespace, "StatefulSet.Name", expected.Name)
+		if err := r.Update(ctx, expected); err != nil {
+			logger.Error(err, "Failed to update StatefulSet")
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -72,9 +81,8 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-
 // deploymentForMemcached returns a memcached Deployment object
-func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazelcast ) (*appsv1.StatefulSet, error) {
+func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazelcast) (*appsv1.StatefulSet, error) {
 	ls := labelsForHazelcast()
 	replicas := h.Spec.ClusterSize
 
@@ -94,8 +102,8 @@ func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazel
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{{
-						Image:   ImageForCluster(h),
-						Name:    "hazelcast",
+						Image: ImageForCluster(h),
+						Name:  "hazelcast",
 						Ports: []v1.ContainerPort{{
 							ContainerPort: 5701,
 							Name:          "hazelcast",
@@ -116,7 +124,7 @@ func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazel
 
 func labelsForHazelcast() map[string]string {
 	return map[string]string{
-		"app.kubernetes.io/name": "hazelcast",
+		"app.kubernetes.io/name":       "hazelcast",
 		"app.kubernetes.io/managed-by": "hazelcast-enterprise-operator",
 	}
 }
