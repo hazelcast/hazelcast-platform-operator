@@ -81,7 +81,6 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// deploymentForMemcached returns a memcached Deployment object
 func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazelcast) (*appsv1.StatefulSet, error) {
 	ls := labelsForHazelcast()
 	replicas := h.Spec.ClusterSize
@@ -90,6 +89,7 @@ func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazel
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      h.Name,
 			Namespace: h.Namespace,
+			Labels:    ls,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas: &replicas,
@@ -108,6 +108,20 @@ func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazel
 							ContainerPort: 5701,
 							Name:          "hazelcast",
 						}},
+						Env: []v1.EnvVar{
+							{
+								Name:  "HZ_NETWORK_JOIN_KUBERNETES_ENABLED",
+								Value: "true",
+							},
+							{
+								Name:  "HZ_NETWORK_JOIN_KUBERNETES_PODLABELNAME",
+								Value: "hazelcast",
+							},
+							{
+								Name:  "HZ_NETWORK_JOIN_KUBERNETES_PODLABELVALUE",
+								Value: h.Name,
+							},
+						},
 					}},
 				},
 			},
