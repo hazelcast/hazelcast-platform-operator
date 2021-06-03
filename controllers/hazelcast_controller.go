@@ -2,12 +2,11 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -71,6 +70,66 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
+	// Check if the ServiceAccount already exists, if not create a new one
+	foundServiceAccount := &corev1.ServiceAccount{}
+	err = r.Get(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, foundServiceAccount)
+	expectedServiceAccount, err2 := r.serviceAccountForDiscovery(h)
+	if err2 != nil {
+		logger.Error(err, "Failed to create new ServiceAccount resource")
+		return ctrl.Result{}, err
+	}
+	if err != nil && errors.IsNotFound(err) {
+		logger.Info("Creating a new ServiceAccount", "ServiceAccount.Namespace", expectedServiceAccount.Namespace, "ServiceAccount.Name", expectedServiceAccount.Name)
+		err = r.Create(ctx, expectedServiceAccount)
+		if err != nil {
+			logger.Error(err, "Failed to create new ServiceAccount", "ServiceAccount.Namespace", expectedServiceAccount.Namespace, "ServiceAccount.Name", expectedServiceAccount.Name)
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{Requeue: true}, nil
+	} else if err != nil {
+		logger.Error(err, "Failed to get ServiceAccount")
+	}
+
+	// Check if the ClusterRole already exists, if not create a new one
+	foundClusterRole := &rbacv1.ClusterRole{}
+	err = r.Get(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, foundClusterRole)
+	expectedClusterRole, err2 := r.clusterRoleForDiscovery(h)
+	if err2 != nil {
+		logger.Error(err, "Failed to create new ClusterRole resource")
+		return ctrl.Result{}, err
+	}
+	if err != nil && errors.IsNotFound(err) {
+		logger.Info("Creating a new ClusterRole", "ClusterRole.Namespace", expectedClusterRole.Namespace, "ClusterRole.Name", expectedClusterRole.Name)
+		err = r.Create(ctx, expectedClusterRole)
+		if err != nil {
+			logger.Error(err, "Failed to create new ClusterRole", "ClusterRole.Namespace", expectedClusterRole.Namespace, "ClusterRole.Name", expectedClusterRole.Name)
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{Requeue: true}, nil
+	} else if err != nil {
+		logger.Error(err, "Failed to get ClusterRole")
+	}
+
+	// Check if the ClusterRoleBinding already exists, if not create a new one
+	foundClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	err = r.Get(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, foundClusterRoleBinding)
+	expectedClusterRoleBinding, err2 := r.clusterRoleBindingForDiscovery(h)
+	if err2 != nil {
+		logger.Error(err, "Failed to create new ClusterRoleBinding resource")
+		return ctrl.Result{}, err
+	}
+	if err != nil && errors.IsNotFound(err) {
+		logger.Info("Creating a new ClusterRoleBinding", "ClusterRoleBinding.Namespace", expectedClusterRoleBinding.Namespace, "ClusterRoleBinding.Name", expectedClusterRoleBinding.Name)
+		err = r.Create(ctx, expectedClusterRoleBinding)
+		if err != nil {
+			logger.Error(err, "Failed to create new ClusterRoleBinding", "ClusterRoleBinding.Namespace", expectedClusterRoleBinding.Namespace, "ClusterRoleBinding.Name", expectedClusterRoleBinding.Name)
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{Requeue: true}, nil
+	} else if err != nil {
+		logger.Error(err, "Failed to get ClusterRoleBinding")
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -78,72 +137,9 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Hazelcast{}).
 		Owns(&appsv1.StatefulSet{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.ClusterRole{}).
+		Owns(&rbacv1.ClusterRoleBinding{}).
 		Complete(r)
 }
 
-func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazelcast) (*appsv1.StatefulSet, error) {
-	ls := labelsForHazelcast(h)
-	replicas := h.Spec.ClusterSize
-
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      h.Name,
-			Namespace: h.Namespace,
-			Labels:    ls,
-		},
-		Spec: appsv1.StatefulSetSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
-			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: ls,
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{{
-						Image: ImageForCluster(h),
-						Name:  "hazelcast",
-						Ports: []v1.ContainerPort{{
-							ContainerPort: 5701,
-							Name:          "hazelcast",
-						}},
-						Env: []v1.EnvVar{
-							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_ENABLED",
-								Value: "true",
-							},
-							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_PODLABELNAME",
-								Value: "app.kubernetes.io/instance",
-							},
-							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_PODLABELVALUE",
-								Value: h.Name,
-							},
-						},
-					}},
-				},
-			},
-		},
-	}
-	// Set Hazelcast instance as the owner and controller
-	err := ctrl.SetControllerReference(h, sts, r.Scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	return sts, nil
-}
-
-func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	return map[string]string{
-		"app.kubernetes.io/name":       "hazelcast",
-		"app.kubernetes.io/instance":   h.Name,
-		"app.kubernetes.io/managed-by": "hazelcast-enterprise-operator",
-	}
-}
-
-func ImageForCluster(h *hazelcastv1alpha1.Hazelcast) string {
-	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
-}
