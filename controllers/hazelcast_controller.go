@@ -82,7 +82,7 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazelcast) (*appsv1.StatefulSet, error) {
-	ls := labelsForHazelcast()
+	ls := labelsForHazelcast(h)
 	replicas := h.Spec.ClusterSize
 
 	sts := &appsv1.StatefulSet{
@@ -115,7 +115,7 @@ func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazel
 							},
 							{
 								Name:  "HZ_NETWORK_JOIN_KUBERNETES_PODLABELNAME",
-								Value: "hazelcast",
+								Value: "app.kubernetes.io/instance",
 							},
 							{
 								Name:  "HZ_NETWORK_JOIN_KUBERNETES_PODLABELVALUE",
@@ -136,9 +136,10 @@ func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazel
 	return sts, nil
 }
 
-func labelsForHazelcast() map[string]string {
+func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name":       "hazelcast",
+		"app.kubernetes.io/instance":   h.Name,
 		"app.kubernetes.io/managed-by": "hazelcast-enterprise-operator",
 	}
 }
