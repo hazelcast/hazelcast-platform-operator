@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,6 +14,10 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+)
+
+const (
+	ComparisonHashLabelName = "hazelcast.com/comparison-hash"
 )
 
 // HazelcastReconciler reconciles a Hazelcast object
@@ -63,8 +66,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	// TODO Find a better comparison mechanism. Currently found object has so much default props.
-	if !apiequality.Semantic.DeepEqual(found.Spec, expected.Spec) {
+	if found.Labels[ComparisonHashLabelName] != expected.Labels[ComparisonHashLabelName] {
 		logger.Info("Updating a StatefulSet", "StatefulSet.Namespace", expected.Namespace, "StatefulSet.Name", expected.Name)
 		if err := r.Update(ctx, expected); err != nil {
 			logger.Error(err, "Failed to update StatefulSet")
@@ -127,6 +129,10 @@ func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazel
 			},
 		},
 	}
+
+	// store a hash of the Statefulset Spec in its labels for comparison purposes
+	sts.Labels[ComparisonHashLabelName] = HashObject(sts.Spec)
+
 	// Set Hazelcast instance as the owner and controller
 	err := ctrl.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
