@@ -1,27 +1,41 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
+	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazelcast) (*appsv1.StatefulSet, error) {
-	ls := labelsForHazelcast(h)
-	replicas := h.Spec.ClusterSize
+const finalizer = "hazelcast.com/finalizer"
 
+func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      h.Name,
 			Namespace: h.Namespace,
-			Labels:    ls,
+			Labels:    labelsForHazelcast(h),
 		},
-		Spec: appsv1.StatefulSetSpec{
+	}
+
+	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
+	if err != nil {
+		logger.Error(err, "Failed to set owner reference on Statefulset")
+		return err
+	}
+
+	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
+		ls := labelsForHazelcast(h)
+		replicas := h.Spec.ClusterSize
+		sts.Spec = appsv1.StatefulSetSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
@@ -56,18 +70,16 @@ func (r *HazelcastReconciler) statefulSetForHazelcast(h *hazelcastv1alpha1.Hazel
 					ServiceAccountName: h.Name,
 				},
 			},
-		},
+		}
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
 	}
-	// Set Hazelcast instance as the owner and controller
-	err := ctrl.SetControllerReference(h, sts, r.Scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	return sts, nil
+	return err
 }
 
-func (r *HazelcastReconciler) serviceAccountForDiscovery(h *hazelcastv1alpha1.Hazelcast) (*corev1.ServiceAccount, error) {
+func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	serviceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      h.Name,
@@ -76,62 +88,114 @@ func (r *HazelcastReconciler) serviceAccountForDiscovery(h *hazelcastv1alpha1.Ha
 		},
 	}
 
-	err := ctrl.SetControllerReference(h, serviceAccount, r.Scheme)
+	err := controllerutil.SetControllerReference(h, serviceAccount, r.Scheme)
 	if err != nil {
-		return nil, err
+		logger.Error(err, "Failed to set owner reference on ServiceAccount")
+		return err
 	}
-	return serviceAccount, nil
+
+	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "ServiceAccount", h.Name, "result", opResult)
+	}
+	return err
 }
 
-func (r *HazelcastReconciler) clusterRoleForDiscovery(h *hazelcastv1alpha1.Hazelcast) (*rbacv1.ClusterRole, error) {
+func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      h.Name,
-			Namespace: h.Namespace,
-			Labels:    labelsForHazelcast(h),
+			Name:   h.Name,
+			Labels: labelsForHazelcast(h),
 		},
-		Rules: []rbacv1.PolicyRule{
+	}
+
+	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
+		clusterRole.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
 				Resources: []string{"endpoints", "pods", "nodes", "services"},
 				Verbs:     []string{"get", "list"},
 			},
-		},
+		}
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "ClusterRole", h.Name, "result", opResult)
 	}
-
-	err := ctrl.SetControllerReference(h, clusterRole, r.Scheme)
-	if err != nil {
-		return nil, err
-	}
-	return clusterRole, nil
+	return err
 }
 
-func (r *HazelcastReconciler) clusterRoleBindingForDiscovery(h *hazelcastv1alpha1.Hazelcast) (*rbacv1.ClusterRoleBinding, error) {
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
+func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	roleBinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      h.Name,
 			Namespace: h.Namespace,
 			Labels:    labelsForHazelcast(h),
 		},
-		Subjects: []rbacv1.Subject{
+	}
+
+	err := controllerutil.SetControllerReference(h, roleBinding, r.Scheme)
+	if err != nil {
+		return err
+	}
+
+	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, roleBinding, func() error {
+		roleBinding.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
 				Name:      h.Name,
 				Namespace: h.Namespace,
 			},
-		},
-		RoleRef: rbacv1.RoleRef{
+		}
+		roleBinding.RoleRef = rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
 			Name:     h.Name,
+		}
+
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "RoleBinding", h.Name, "result", opResult)
+	}
+	return err
+}
+
+func (r *HazelcastReconciler) AddFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(h, finalizer) {
+		controllerutil.AddFinalizer(h, finalizer)
+		err := r.Update(ctx, h)
+		if err != nil {
+			logger.Error(err, "Failed to add finalizer into custom resource")
+			return err
+		}
+		logger.V(1).Info("Finalizer added into custom resource successfully")
+	}
+	return nil
+}
+
+func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	clusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: h.Name,
 		},
 	}
-
-	err := ctrl.SetControllerReference(h, clusterRoleBinding, r.Scheme)
-	if err != nil {
-		return nil, err
+	err := r.Get(ctx, client.ObjectKey{Name: clusterRole.Name}, clusterRole)
+	if err != nil && errors.IsNotFound(err) {
+		logger.V(1).Info("ClusterRole is not created yet. Or it is already removed.")
+		return nil
 	}
-	return clusterRoleBinding, nil
+
+	err = r.Delete(ctx, clusterRole)
+	if err != nil {
+		logger.Error(err, "Failed to clean up ClusterRole")
+		return err
+	}
+	logger.V(1).Info("ClusterRole removed successfully")
+	return nil
 }
 
 func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
