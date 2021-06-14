@@ -40,7 +40,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	//Add finalizer for Hazelcast CR to cleanup ClusterRole
-	err = r.AddFinalizer(ctx, h, logger)
+	err = r.addFinalizer(ctx, h, logger)
 	if err != nil {
 		logger.Error(err, "Failed to add finalizer into custom resource")
 		return ctrl.Result{}, err
@@ -94,6 +94,7 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&hazelcastv1alpha1.Hazelcast{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Complete(r)
 }
