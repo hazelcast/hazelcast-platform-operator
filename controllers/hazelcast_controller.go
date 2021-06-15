@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // HazelcastReconciler reconciles a Hazelcast object
@@ -39,7 +38,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	//Add finalizer for Hazelcast CR to cleanup ClusterRole
+	// Add finalizer for Hazelcast CR to cleanup ClusterRole
 	err = r.addFinalizer(ctx, h, logger)
 	if err != nil {
 		logger.Error(err, "Failed to add finalizer into custom resource")
@@ -48,16 +47,13 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	//Check if the Hazelcast CR is marked to be deleted
 	if h.GetDeletionTimestamp() != nil {
-		if err := r.removeClusterRole(ctx, h, logger); err != nil {
-			return ctrl.Result{}, err
-		}
-		// Remove Hazelcast finalizer
-		controllerutil.RemoveFinalizer(h, finalizer)
-		err := r.Update(ctx, h)
+		// Execute finalizer's pre-delete function to cleanup ClusterRole
+		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
+			logger.Error(err, "Finalizer execution failed")
 			return ctrl.Result{}, err
 		}
-		logger.V(1).Info("Finalizer removed from custom resource", "Name:", finalizer)
+		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", finalizer)
 		return ctrl.Result{}, nil
 	}
 

@@ -17,6 +17,33 @@ import (
 
 const finalizer = "hazelcast.com/finalizer"
 
+func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(h, finalizer) {
+		controllerutil.AddFinalizer(h, finalizer)
+		err := r.Update(ctx, h)
+		if err != nil {
+			logger.Error(err, "Failed to add finalizer into custom resource")
+			return err
+		}
+		logger.V(1).Info("Finalizer added into custom resource successfully")
+	}
+	return nil
+}
+
+func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if err := r.removeClusterRole(ctx, h, logger); err != nil {
+		logger.Error(err, "ClusterRole could not be removed")
+		return err
+	}
+	controllerutil.RemoveFinalizer(h, finalizer)
+	err := r.Update(ctx, h)
+	if err != nil {
+		logger.Error(err, "Failed to remove finalizer from custom resource")
+		return err
+	}
+	return nil
+}
+
 func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 
 	clusterRole := &rbacv1.ClusterRole{
@@ -164,26 +191,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
-func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(h, finalizer) {
-		controllerutil.AddFinalizer(h, finalizer)
-		err := r.Update(ctx, h)
-		if err != nil {
-			logger.Error(err, "Failed to add finalizer into custom resource")
-			return err
-		}
-		logger.V(1).Info("Finalizer added into custom resource successfully")
-	}
-	return nil
-}
-
 func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: h.Name,
-		},
-	}
-	err := r.Get(ctx, client.ObjectKey{Name: clusterRole.Name}, clusterRole)
+	clusterRole := &rbacv1.ClusterRole{}
+	err := r.Get(ctx, client.ObjectKey{Name: h.Name}, clusterRole)
 	if err != nil && errors.IsNotFound(err) {
 		logger.V(1).Info("ClusterRole is not created yet. Or it is already removed.")
 		return nil
