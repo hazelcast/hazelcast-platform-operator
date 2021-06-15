@@ -11,6 +11,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -129,6 +130,44 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 	return err
 }
 
+func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	ls := labelsForHazelcast(h)
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      h.Name,
+			Namespace: h.Namespace,
+			Labels:    ls,
+		},
+	}
+
+	err := controllerutil.SetControllerReference(h, service, r.Scheme)
+	if err != nil {
+		logger.Error(err, "Failed to set owner reference on Service")
+		return err
+	}
+
+	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
+		service.Spec = corev1.ServiceSpec{
+			Type:      v1.ServiceTypeClusterIP,
+			ClusterIP: corev1.ClusterIPNone,
+			Selector:  ls,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "hazelcast-port",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       5701,
+					TargetPort: intstr.FromString("hazelcast"),
+				},
+			},
+		}
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Service", h.Name, "result", opResult)
+	}
+	return err
+}
+
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -152,11 +191,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
+			ServiceName: h.Name,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
 				},
 				Spec: v1.PodSpec{
+					ServiceAccountName: h.Name,
 					Containers: []v1.Container{{
 						Image: imageForCluster(h),
 						Name:  "hazelcast",
@@ -170,16 +211,15 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								Value: "true",
 							},
 							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_PODLABELNAME",
-								Value: "app.kubernetes.io/instance",
+								Name:  "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME",
+								Value: h.Name,
 							},
 							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_PODLABELVALUE",
-								Value: h.Name,
+								Name:  "HZ_NETWORK_JOIN_KUBERNETES_NAMESPACE",
+								Value: h.Namespace,
 							},
 						},
 					}},
-					ServiceAccountName: h.Name,
 				},
 			},
 		}
