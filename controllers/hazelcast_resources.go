@@ -48,10 +48,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 
 	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   h.Name,
-			Labels: labelsForHazelcast(h),
-		},
+		ObjectMeta: objectMetadataForHazelcast(h),
 	}
 
 	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
@@ -72,11 +69,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 
 func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      h.Name,
-			Namespace: h.Namespace,
-			Labels:    labelsForHazelcast(h),
-		},
+		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
 	}
 
 	err := controllerutil.SetControllerReference(h, serviceAccount, r.Scheme)
@@ -96,11 +89,7 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 
 func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	roleBinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      h.Name,
-			Namespace: h.Namespace,
-			Labels:    labelsForHazelcast(h),
-		},
+		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
 	}
 
 	err := controllerutil.SetControllerReference(h, roleBinding, r.Scheme)
@@ -131,13 +120,8 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 }
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	ls := labelsForHazelcast(h)
 	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      h.Name,
-			Namespace: h.Namespace,
-			Labels:    ls,
-		},
+		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
 	}
 
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
@@ -150,7 +134,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		service.Spec = corev1.ServiceSpec{
 			Type:      v1.ServiceTypeClusterIP,
 			ClusterIP: corev1.ClusterIPNone,
-			Selector:  ls,
+			Selector:  labelsForHazelcast(h),
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "hazelcast-port",
@@ -170,11 +154,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      h.Name,
-			Namespace: h.Namespace,
-			Labels:    labelsForHazelcast(h),
-		},
+		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -214,10 +194,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								Name:  "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME",
 								Value: h.Name,
 							},
-							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_NAMESPACE",
-								Value: h.Namespace,
-							},
 						},
 					}},
 				},
@@ -253,6 +229,21 @@ func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 		"app.kubernetes.io/name":       "hazelcast",
 		"app.kubernetes.io/instance":   h.Name,
 		"app.kubernetes.io/managed-by": "hazelcast-enterprise-operator",
+	}
+}
+
+func objectNamespacedMetadataForHazelcast(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      h.Name,
+		Namespace: h.Namespace,
+		Labels:    labelsForHazelcast(h),
+	}
+}
+
+func objectMetadataForHazelcast(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:   h.Name,
+		Labels: labelsForHazelcast(h),
 	}
 }
 
