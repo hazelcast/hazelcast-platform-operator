@@ -19,6 +19,10 @@ type HazelcastSpec struct {
 	// +kubebuilder:default:="5.0-SNAPSHOT"
 	// +optional
 	Version string `json:"version"`
+	// Name of the secret where the Hazelcast Enterprise License Key is stored
+	// +kubebuilder:default:="hz-license-key-secret"
+	// +optional
+	LicenseKeySecret string `json:"licenseKeySecret"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

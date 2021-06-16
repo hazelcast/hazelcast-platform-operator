@@ -42,6 +42,11 @@ spec:
                 format: int32
                 minimum: 1
                 type: integer
+              licenseKeySecret:
+                default: hz-license-key-secret
+                description: Name of the secret where the Hazelcast Enterprise License
+                  Key is stored
+                type: string
               repository:
                 default: docker.io/hazelcast/hazelcast-enterprise
                 description: Repository to pull the Hazelcast Platform image from.
@@ -50,6 +55,8 @@ spec:
                 default: 5.0-SNAPSHOT
                 description: Version of Hazelcast Platform.
                 type: string
+            required:
+            - licenseKeySecret
             type: object
           status:
             description: HazelcastStatus defines the observed state of Hazelcast
