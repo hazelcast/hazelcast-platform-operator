@@ -6,4 +6,4 @@ spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
   version: '5.0-SNAPSHOT'
-  licenseKeySecret: hz-license-key-secret
+  licenseKeySecret: hazelcast-license-key

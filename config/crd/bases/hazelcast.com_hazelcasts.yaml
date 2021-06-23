@@ -43,9 +43,9 @@ spec:
                 minimum: 1
                 type: integer
               licenseKeySecret:
-                default: hz-license-key-secret
-                description: Name of the secret where the Hazelcast Enterprise License
-                  Key is stored
+                default: hazelcast-license-key
+                description: Name of the secret with Hazelcast Enterprise License
+                  Key
                 type: string
               repository:
                 default: docker.io/hazelcast/hazelcast-enterprise

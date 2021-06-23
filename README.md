@@ -15,7 +15,7 @@ kubectl create namespace <YOUR NAMESPACE>
 ### Step 2: Create Secret with Hazelcast License Key
 
 ```shell
-kubectl create secret generic hz-license-key-secret --namespace <YOUR NAMESPACE> --from-literal=key=<YOUR LICENSE KEY>
+kubectl create secret generic hazelcast-license-key --from-literal=license-key=<YOUR LICENSE KEY>
 ```
 
 ### Step 3: Start Operator Locally
@@ -70,7 +70,7 @@ spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
   version: '5.0-SNAPSHOT'
-  licenseKeySecret: hz-license-key-secret
+  licenseKeySecret: hazelcast-license-key
 ```
 
 Check your local operator's logs again, you will see resource creation logs:

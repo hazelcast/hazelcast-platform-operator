@@ -164,9 +164,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		return err
 	}
 
+	ls := labelsForHazelcast(h)
+	licenseKey, licenseErr := getLicenseKeyFromSecret(ctx, r.Client, h, logger)
+
 	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
-		ls := labelsForHazelcast(h)
-		licenseErr, licenseKey := getLicenseKeyFromSecret(ctx, r.Client, h, logger)
 		if licenseErr != nil {
 			logger.Error(err, "Failed to fetch license key from the secret.")
 			return err
@@ -261,18 +262,18 @@ func imageForCluster(h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
 }
 
-func getLicenseKeyFromSecret(ctx context.Context, apiClient client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) (error, string) {
+func getLicenseKeyFromSecret(ctx context.Context, apiClient client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) (string, error) {
 	licenseKeySecret := &corev1.Secret{}
 	err := apiClient.Get(ctx, client.ObjectKey{Name: h.Spec.LicenseKeySecret, Namespace: h.Namespace}, licenseKeySecret)
 	if err != nil && errors.IsNotFound(err) {
-		logger.Error(err, "License Key Secret is not found.", licenseKeySecret.Name)
-		return nil, ""
+		logger.Error(err, "License Key Secret is not found.")
+		return "", nil
 	}
-	encoded := base64.StdEncoding.EncodeToString(licenseKeySecret.Data["key"])
+	encoded := base64.StdEncoding.EncodeToString(licenseKeySecret.Data["license-key"])
 	decoded, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
 		logger.Error(err, "License Key Decode Error.")
-		return err, ""
+		return "", err
 	}
-	return nil, string(decoded)
+	return string(decoded), nil
 }
