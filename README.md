@@ -9,16 +9,10 @@ Kubernetes cluster (with admin rights), and the kubectl command configured.
 ### Step 1: Create Secret with Hazelcast License Key
 
 ```shell
-kubectl create namespace <YOUR NAMESPACE>
-```
-
-### Step 2: Create Secret with Hazelcast License Key
-
-```shell
 kubectl create secret generic hazelcast-license-key --from-literal=license-key=<YOUR LICENSE KEY>
 ```
 
-### Step 3: Start Operator Locally
+### Step 2: Start Operator Locally
 
 You need to clone this repository before start operator container:
 
@@ -54,7 +48,7 @@ I0616 16:28:05.675445   41482 request.go:655] Throttling request took 1.00101278
 2021-06-16T16:28:07.447+0300    INFO    controller-runtime.manager.controller.hazelcast Starting workers        {"reconciler group": "hazelcast.com", "reconciler kind": "Hazelcast", "worker count": 1}
 ```
 
-### Step 4: Start Hazelcast Enterprise Cluster
+### Step 3: Start Hazelcast Enterprise Cluster
 
 Run the following command to start Hazelcast Enterprise Cluster via applying CR yaml:
 
