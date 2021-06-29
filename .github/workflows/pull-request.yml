@@ -1,9 +1,8 @@
 name: Pull Request
 on:
-  push:
+  pull_request:
     branches:
-      - main
-      - CN-75-gh-actions
+      - master
     paths-ignore:
       - '**.md'
 
