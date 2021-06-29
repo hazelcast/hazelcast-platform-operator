@@ -25,6 +25,10 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const (
+	WatchNamespaceEnv = "WATCH_NAMESPACE"
+)
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
@@ -49,6 +53,17 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	// Get watch namespace from environment variable.
+	namespace, found := os.LookupEnv(WatchNamespaceEnv)
+	if !found || namespace == "" {
+		setupLog.Info("No namespace specified in the WATCH_NAMESPACE env variable, watching all namespaces")
+	} else if namespace == "*" {
+		setupLog.Info("Watching all namespaces")
+		namespace = ""
+	} else {
+		setupLog.Info("Watching namespace: " + namespace)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -56,6 +71,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "8d830316.hazelcast.com",
+		Namespace:              namespace,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
