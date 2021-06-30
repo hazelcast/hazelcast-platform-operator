@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -17,7 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const finalizer = "hazelcast.com/finalizer"
+const (
+	finalizer      = "hazelcast.com/finalizer"
+	licenseDataKey = "license-key"
+)
 
 func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, finalizer) {
@@ -164,15 +166,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		return err
 	}
 
-	ls := labelsForHazelcast(h)
-	licenseKey, licenseErr := getLicenseKeyFromSecret(ctx, r.Client, h, logger)
-
 	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
-		if licenseErr != nil {
-			logger.Error(err, "Failed to fetch license key from the secret.")
-			return err
-		}
 		replicas := h.Spec.ClusterSize
+		ls := labelsForHazelcast(h)
 		sts.Spec = appsv1.StatefulSetSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
@@ -194,8 +190,15 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 						}},
 						Env: []v1.EnvVar{
 							{
-								Name:  "HZ_LICENSEKEY",
-								Value: licenseKey,
+								Name: "HZ_LICENSEKEY",
+								ValueFrom: &v1.EnvVarSource{
+									SecretKeyRef: &v1.SecretKeySelector{
+										LocalObjectReference: v1.LocalObjectReference{
+											Name: h.Spec.LicenseKeySecret,
+										},
+										Key: licenseDataKey,
+									},
+								},
 							},
 							{
 								Name:  "HZ_NETWORK_JOIN_KUBERNETES_ENABLED",
@@ -260,20 +263,4 @@ func objectMetadataForHazelcast(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMet
 
 func imageForCluster(h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
-}
-
-func getLicenseKeyFromSecret(ctx context.Context, apiClient client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) (string, error) {
-	licenseKeySecret := &corev1.Secret{}
-	err := apiClient.Get(ctx, client.ObjectKey{Name: h.Spec.LicenseKeySecret, Namespace: h.Namespace}, licenseKeySecret)
-	if err != nil && errors.IsNotFound(err) {
-		logger.Error(err, "License Key Secret is not found.")
-		return "", nil
-	}
-	encoded := base64.StdEncoding.EncodeToString(licenseKeySecret.Data["license-key"])
-	decoded, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		logger.Error(err, "License Key Decode Error.")
-		return "", err
-	}
-	return string(decoded), nil
 }
