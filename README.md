@@ -1,6 +1,6 @@
 # Hazelcast Enterprise Operator
 
-## Local Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -12,41 +12,15 @@ Kubernetes cluster (with admin rights), and the kubectl command configured.
 kubectl create secret generic hazelcast-license-key --from-literal=license-key=<YOUR LICENSE KEY>
 ```
 
-### Step 2: Start Operator Locally
-
-You need to clone this repository before start operator container:
+### Step 2: Start Hazelcast Enterprise Operator
 
 ```shell
 git clone git@github.com:hazelcast/hazelcast-enterprise-operator.git
 cd hazelcast-enterprise-operator
+make deploy IMG=hazelcast/hazelcast-enterprise-operator:5-preview-snapshot
 ```
 
-Then run below make command to deploy required resources like CRD, RBAC and run operator locally:  
-```shell
-make install run
-```
-Output:
-```
-hazelcast-enterprise-operator/bin/controller-gen "crd:trivialVersions=true,preserveUnknownFields=false" rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-hazelcast-enterprise-operator/bin/kustomize build config/crd | kubectl apply -f -
-customresourcedefinition.apiextensions.k8s.io/hazelcasts.hazelcast.com configured
-hazelcast-enterprise-operator/bin/controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
-go fmt ./...
-controllers/hazelcast_resources.go
-go vet ./...
-go run ./main.go
-I0616 16:28:05.675445   41482 request.go:655] Throttling request took 1.001012789s, request: GET:https://34.122.123.43/apis/autoscaling.k8s.io/v1?timeout=32s
-2021-06-16T16:28:06.035+0300    INFO    controller-runtime.metrics      metrics server is starting to listen    {"addr": ":8080"}
-2021-06-16T16:28:06.035+0300    INFO    setup   starting manager
-2021-06-16T16:28:06.036+0300    INFO    controller-runtime.manager      starting metrics server {"path": "/metrics"}
-2021-06-16T16:28:06.036+0300    INFO    controller-runtime.manager.controller.hazelcast Starting EventSource    {"reconciler group": "hazelcast.com", "reconciler kind": "Hazelcast", "source": "kind source: /, Kind="}
-2021-06-16T16:28:06.336+0300    INFO    controller-runtime.manager.controller.hazelcast Starting EventSource    {"reconciler group": "hazelcast.com", "reconciler kind": "Hazelcast", "source": "kind source: /, Kind="}
-2021-06-16T16:28:06.537+0300    INFO    controller-runtime.manager.controller.hazelcast Starting EventSource    {"reconciler group": "hazelcast.com", "reconciler kind": "Hazelcast", "source": "kind source: /, Kind="}
-2021-06-16T16:28:06.738+0300    INFO    controller-runtime.manager.controller.hazelcast Starting EventSource    {"reconciler group": "hazelcast.com", "reconciler kind": "Hazelcast", "source": "kind source: /, Kind="}
-2021-06-16T16:28:07.142+0300    INFO    controller-runtime.manager.controller.hazelcast Starting EventSource    {"reconciler group": "hazelcast.com", "reconciler kind": "Hazelcast", "source": "kind source: /, Kind="}
-2021-06-16T16:28:07.446+0300    INFO    controller-runtime.manager.controller.hazelcast Starting Controller     {"reconciler group": "hazelcast.com", "reconciler kind": "Hazelcast"}
-2021-06-16T16:28:07.447+0300    INFO    controller-runtime.manager.controller.hazelcast Starting workers        {"reconciler group": "hazelcast.com", "reconciler kind": "Hazelcast", "worker count": 1}
-```
+Note: If you want to run the operator locally, you can execute `make install run` instead of `make deploy`.
 
 ### Step 3: Start Hazelcast Enterprise Cluster
 
@@ -67,8 +41,9 @@ spec:
   licenseKeySecret: hazelcast-license-key
 ```
 
-Check your local operator's logs again, you will see resource creation logs:
+You can check the operator's logs to see the resource creation logs:
 ```
+$ kubectl logs deployment.apps/hazelcast-enterprise-controller-manager manager -n hazelcast-enterprise-operator-system
 ...
 2021-06-16T16:37:09.539+0300    DEBUG   controllers.Hazelcast   Finalizer added into custom resource successfully       {"hazelcast": "default/hazelcast-sample"}
 2021-06-16T16:37:09.743+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast-sample", "ClusterRole": "hazelcast-sample", "result": "created"}
@@ -90,3 +65,14 @@ Members {size:3, ver:3} [
         Member [10.131.1.2]:5701 - 0fa2a21a-d159-4cac-ab08-bdac994d912a
 ]
 ```
+
+### Step 4: Clean up
+
+To clean up your Kubernetes cluster execute the following commands.
+
+```shell
+kubectl delete -f config/samples/_v1alpha1_hazelcast.yaml
+make undeploy
+kubectl delete secret hazelcast-license-key
+```
+
