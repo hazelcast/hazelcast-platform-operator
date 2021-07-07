@@ -1,138 +1,149 @@
 package controllers
 
 import (
+	"context"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
-	"github.com/stretchr/testify/assert"
-	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"context"
-	"k8s.io/apimachinery/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"testing"
+	"k8s.io/utils/pointer"
+	"time"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func TestHazelcastReconcile(t *testing.T) {
+var _ = Describe("Hazelcast controller", func() {
+	const (
+		hzKeyName = "hazelcast-test"
+		finalizer = "hazelcast.com/finalizer"
 
-	type fields struct {
-		scheme *runtime.Scheme
-		objs   []runtime.Object
-	}
+		timeout  = time.Second * 10
+		interval = time.Millisecond * 250
+	)
 
-	type args struct {
-		hz hazelcastv1alpha1.Hazelcast
-	}
+	Context("Hazelcast CustomResource with default specs", func() {
+		It("Should handle CR and sub resources correctly", func() {
 
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "Should work with default values",
-			fields: fields{
-				objs: []runtime.Object{&hzWithoutSpec},
-			},
-			args: args{
-				hz: hzWithoutSpec,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+			lookupKey := types.NamespacedName{
+				Name:      hzKeyName,
+				Namespace: "default",
+			}
 
-			h := buildReconcileWithFakeClientWithMocks(tt.fields.objs)
-
-			// mock request to simulate Reconcile() being called on an event for a watched resource
-			req := reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      tt.args.hz.Name,
-					Namespace: tt.args.hz.Namespace,
+			toCreate := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      3,
+					Repository:       "hazelcast/hazelcast-enterprise",
+					Version:          "5.0-SNAPSHOT",
+					LicenseKeySecret: "hazelcast-license-key",
 				},
 			}
 
-			ctx := context.Background()
+			By("Creating the CR with specs successfully")
+			Expect(k8sClient.Create(context.Background(), toCreate)).Should(Succeed())
+			time.Sleep(time.Second * 5)
 
-			_, err := h.Reconcile(ctx, req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TestReconcileDatabase reconcile: error = %v, wantErr %v", err, tt.wantErr)
-				return
+			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), lookupKey, fetchedCR)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			Expect(fetchedCR.Spec.ClusterSize).Should(Equal(int32(3)))
+			Expect(fetchedCR.Spec.Repository).Should(Equal("hazelcast/hazelcast-enterprise"))
+			Expect(fetchedCR.Spec.Version).Should(Equal("5.0-SNAPSHOT"))
+			Expect(fetchedCR.Spec.LicenseKeySecret).Should(Equal("hazelcast-license-key"))
+
+			By("Ensuring the finalizer added successfully")
+			Expect(fetchedCR.Finalizers).To(ContainElement(finalizer))
+
+			By("Creating the sub resources successfully")
+			expectedOwnerReference := metav1.OwnerReference{
+				Kind:               "Hazelcast",
+				APIVersion:         "hazelcast.com/v1alpha1",
+				UID:                fetchedCR.UID,
+				Name:               fetchedCR.Name,
+				Controller:         pointer.BoolPtr(true),
+				BlockOwnerDeletion: pointer.BoolPtr(true),
 			}
 
-			clusterRole := &rbacv1.ClusterRole{}
-			err = h.Client.Get(ctx, client.ObjectKey{Name: tt.args.hz.Name}, clusterRole)
-			if err != nil {
-				t.Errorf("TestReconcileHazelcast get ClusterRole error = %v", err)
-				return
-			}
+			fetchedClusterRole := &rbacv1.ClusterRole{}
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), lookupKey, fetchedClusterRole)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
 
-			serviceAccount := &corev1.ServiceAccount{}
-			err = h.Client.Get(ctx, types.NamespacedName{Name: tt.args.hz.Name, Namespace: tt.args.hz.Namespace}, serviceAccount)
-			if err != nil {
-				t.Errorf("TestReconcileHazelcast get ServiceAccount error = %v", err)
-				return
-			}
+			fetchedServiceAccount := &corev1.ServiceAccount{}
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), lookupKey, fetchedServiceAccount)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+			Expect(fetchedServiceAccount.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
-			roleBinding := &rbacv1.RoleBinding{}
-			err = h.Client.Get(ctx, types.NamespacedName{Name: tt.args.hz.Name, Namespace: tt.args.hz.Namespace}, roleBinding)
-			if err != nil {
-				t.Errorf("TestReconcileHazelcast get RoleBinding error = %v", err)
-				return
-			}
+			fetchedRoleBinding := &rbacv1.RoleBinding{}
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), lookupKey, fetchedRoleBinding)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+			Expect(fetchedRoleBinding.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
-			service := &corev1.Service{}
-			err = h.Client.Get(ctx, types.NamespacedName{Name: tt.args.hz.Name, Namespace: tt.args.hz.Namespace}, service)
-			if err != nil {
-				t.Errorf("TestReconcileHazelcast get Service error = %v", err)
-				return
-			}
+			fetchedService := &corev1.Service{}
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), lookupKey, fetchedService)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
-			sts := &appsv1.StatefulSet{}
-			err = h.Client.Get(ctx, types.NamespacedName{Name: tt.args.hz.Name, Namespace: tt.args.hz.Namespace}, sts)
-			if err != nil {
-				t.Errorf("TestReconcileHazelcast get StatefulSet error = %v", err)
-				return
-			}
+			fetchedSts := &v1.StatefulSet{}
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), lookupKey, fetchedSts)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(imageForCluster(fetchedCR)))
+
+			By("Expecting to delete CR successfully")
+			Eventually(func() error {
+				fetchedCR = &hazelcastv1alpha1.Hazelcast{}
+				_ = k8sClient.Get(context.Background(), lookupKey, fetchedCR)
+				return k8sClient.Delete(context.Background(), fetchedCR)
+			}, timeout, interval).Should(Succeed())
+
+			By("Expecting to CR delete finish")
+			Eventually(func() error {
+				fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+				return k8sClient.Get(context.Background(), lookupKey, fetchedCR)
+			}, timeout, interval).ShouldNot(Succeed())
+
+			By("Expecting to ClusterRole removed via finalizer")
+			Eventually(func() error {
+				fetchedClusterRole := &rbacv1.ClusterRole{}
+				return k8sClient.Get(context.Background(), lookupKey, fetchedClusterRole)
+			}, timeout, interval).ShouldNot(Succeed())
 		})
-	}
-}
-
-func TestHazelcastReconcile_EnsureFinalizerAdded(t *testing.T) {
-	// objects to track in the fake client
-	objs := []runtime.Object{
-		&hzWithoutSpec,
-	}
-
-	r := buildReconcileWithFakeClientWithMocks(objs)
-	// mock request to simulate Reconcile() being called on an event for a watched resource
-	req := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      hzWithoutSpec.Name,
-			Namespace: hzWithoutSpec.Namespace,
-		},
-	}
-
-	ctx := context.Background()
-	_, err := r.Reconcile(ctx, req)
-	if err != nil {
-		t.Fatalf("reconcile: (%v)", err)
-	}
-
-	h := &hazelcastv1alpha1.Hazelcast{}
-	r.Client.Get(ctx, types.NamespacedName{Name: hzWithoutSpec.Name, Namespace: hzWithoutSpec.Namespace}, h)
-	if err != nil {
-		t.Errorf("get Hazelcast CR error = %v", err)
-		return
-	}
-
-	assert.Equal(t, finalizer, h.ObjectMeta.Finalizers[0])
-}
-
-func TestHazelcastReconcile_EnsureClusterRoleRemovedWithCR(t *testing.T) {
-
-}
+	})
+})

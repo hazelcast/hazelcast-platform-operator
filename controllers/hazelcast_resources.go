@@ -264,4 +264,3 @@ func objectMetadataForHazelcast(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMet
 func imageForCluster(h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
 }
-
