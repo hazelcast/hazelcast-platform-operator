@@ -209,6 +209,14 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								Name:  "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME",
 								Value: h.Name,
 							},
+							{
+								Name:  "HZ_NETWORK_RESTAPI_ENABLED",
+								Value: "true",
+							},
+							{
+								Name:  "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED",
+								Value: "true",
+							},
 						},
 						LivenessProbe: &v1.Probe{
 							Handler: v1.Handler{
