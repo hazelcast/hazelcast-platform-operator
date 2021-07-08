@@ -251,7 +251,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							RunAsUser:                &[]int64{65534}[0],
 							Privileged:               &[]bool{false}[0],
 							ReadOnlyRootFilesystem:   &[]bool{true}[0],
-							AllowPrivilegeEscalation: &[]bool{true}[0],
+							AllowPrivilegeEscalation: &[]bool{false}[0],
 							Capabilities: &v1.Capabilities{
 								Drop: []v1.Capability{
 									v1.Capability("ALL")},
