@@ -28,7 +28,7 @@ var testEnv *envtest.Environment
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecsWithDefaultAndCustomReporters(t,
+	RunSpecsWithDefaultAndCustomReporters(t,s
 		"Controller Suite",
 		[]Reporter{printer.NewlineReporter{}})
 }
