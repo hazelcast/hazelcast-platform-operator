@@ -12,21 +12,13 @@ rules:
   - endpoints
   - nodes
   - pods
-  - resources=configmaps
-  - serviceaccounts
   - services
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
-  - clusterrolebindings
   - clusterroles
   verbs:
   - create
@@ -43,15 +35,24 @@ kind: Role
 metadata:
   creationTimestamp: null
   name: manager-role
-  namespace: hazelcast
+  namespace: system
 rules:
 - apiGroups:
   - ""
   resources:
   - configmaps
-  - endpoints
-  - nodes
-  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - rolebindings
   - serviceaccounts
   - services
   verbs:
