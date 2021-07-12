@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,9 +21,15 @@ type HazelcastReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts,verbs=get;list;watch;create;update;patch;delete,namespace=hazelcast
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=hazelcast
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=hazelcast
+//+kubebuilder:rbac:groups="",resources=configmaps;serviceaccounts;endpoints;pods;nodes;services,verbs=get;list;watch;create;update;patch;delete,namespace=hazelcast
+//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=hazelcast
+//+kubebuilder:rbac:groups="coordination.k8s.io",resources=leases,verbs=get;list;watch;create;update;patch;delete,namespace=hazelcast
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings;roles,verbs=get;list;watch;create;update;patch;delete,namespace=hazelcast
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=resources=configmaps;serviceaccounts;endpoints;pods;nodes;services,verbs=get;list;watch;create;update;patch;delete
 
 func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast", req.NamespacedName)
