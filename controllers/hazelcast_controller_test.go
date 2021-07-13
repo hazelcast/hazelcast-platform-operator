@@ -135,14 +135,12 @@ var _ = Describe("Hazelcast controller", func() {
 
 			By("Expecting to CR delete finish")
 			Eventually(func() error {
-				fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-				return k8sClient.Get(context.Background(), lookupKey, fetchedCR)
+				return k8sClient.Get(context.Background(), lookupKey, &hazelcastv1alpha1.Hazelcast{})
 			}, timeout, interval).ShouldNot(Succeed())
 
 			By("Expecting to ClusterRole removed via finalizer")
 			Eventually(func() error {
-				fetchedClusterRole := &rbacv1.ClusterRole{}
-				return k8sClient.Get(context.Background(), lookupKey, fetchedClusterRole)
+				return k8sClient.Get(context.Background(), lookupKey, &rbacv1.ClusterRole{})
 			}, timeout, interval).ShouldNot(Succeed())
 		})
 	})
