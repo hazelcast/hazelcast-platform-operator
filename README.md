@@ -43,7 +43,7 @@ spec:
 
 You can check the operator's logs to see the resource creation logs:
 ```
-$ kubectl logs deployment.apps/hazelcast-enterprise-controller-manager manager -n hazelcast-enterprise-operator-system
+$ kubectl logs deployment.apps/hazelcast-enterprise-controller-manager manager
 ...
 2021-06-16T16:37:09.539+0300    DEBUG   controllers.Hazelcast   Finalizer added into custom resource successfully       {"hazelcast": "default/hazelcast-sample"}
 2021-06-16T16:37:09.743+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast-sample", "ClusterRole": "hazelcast-sample", "result": "created"}
