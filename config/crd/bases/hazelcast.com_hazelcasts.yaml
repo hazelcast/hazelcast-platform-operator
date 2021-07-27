@@ -42,10 +42,35 @@ spec:
                 format: int32
                 minimum: 1
                 type: integer
+              exposeExternally:
+                description: Configuration to expose Hazelcast cluster to external
+                  clients.
+                properties:
+                  discoveryServiceType:
+                    default: LoadBalancer
+                    description: Type of the service used to discover Hazelcast cluster.
+                    type: string
+                  memberAccess:
+                    default: NodeExternalIP
+                    description: Method of how each member is accessed from the external
+                      client.
+                    enum:
+                    - NodeExternalIP
+                    - NodeName
+                    - LoadBalancer
+                    type: string
+                  type:
+                    default: Smart
+                    description: Method of how members are exposed.
+                    enum:
+                    - Unisocket
+                    - Smart
+                    type: string
+                type: object
               licenseKeySecret:
                 default: hazelcast-license-key
                 description: Name of the secret with Hazelcast Enterprise License
-                  Key
+                  Key.
                 type: string
               repository:
                 default: docker.io/hazelcast/hazelcast-enterprise
