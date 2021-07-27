@@ -33,25 +33,59 @@ type HazelcastSpec struct {
 	ExposeExternally ExposeExternallyConfiguration `json:"exposeExternally"`
 }
 
+func (c ExposeExternallyConfiguration) isEnabled() bool {
+	return !(c == (ExposeExternallyConfiguration{}))
+}
+
 // ExposeExternallyConfiguration defines how to expose Hazelcast cluster to external clients
 type ExposeExternallyConfiguration struct {
-	// Method of how members are exposed.
-	// +kubebuilder:default:=Smart
-	// +kubebuilder:validation:Enum=Unisocket;Smart
+	// Specifies how members are exposed.
+	// Valid values are:
+	// - "Smart" (default): each member pod is exposed with a separate external address
+	// - "Unisocket": all member pods are exposed with one external address
 	// +optional
-	Type string `json:"type"`
+	Type ExposeExternallyType `json:"type,omitempty"`
 
 	// Type of the service used to discover Hazelcast cluster.
-	// +kubebuilder:default:=LoadBalancer
+	// +kubebuilder:default:=ClusterIP
 	// +optional
-	DiscoveryServiceType corev1.ServiceType `json:"discoveryServiceType"`
+	DiscoveryServiceType corev1.ServiceType `json:"discoveryServiceType,omitempty"`
 
 	// Method of how each member is accessed from the external client.
-	// +kubebuilder:default:=NodeExternalIP
-	// +kubebuilder:validation:Enum=NodeExternalIP;NodeName;LoadBalancer
+	// Valid values are:
+	// - "NodeExternalIP" (default): each member is accessed by the NodePort service and the node external IP/hostname
+	// - "NodeName": each member is accessed by the NodePort service and the node name
+	// - "LoadBalancer": each member is accessed by the LoadBalancer service external address
 	// +optional
-	MemberAccess string `json:"memberAccess"`
+	MemberAccess MemberAccess `json:"memberAccess,omitempty"`
 }
+
+// ExposeExternallyType describes how Hazelcast members are exposed.
+// +kubebuilder:validation:Enum=Smart;Unisocket
+type ExposeExternallyType string
+
+const (
+	// SmartExposeExternallyType exposes each Hazelcast member with a separate external address.
+	SmartExposeExternallyType ExposeExternallyType = "Smart"
+
+	// UnisocketExposeExternallyType exposes all Hazelcast members with one external address.
+	UnisocketExposeExternallyType ExposeExternallyType = "Unisocket"
+)
+
+// MemberAccess describes how each Hazelcast member is accessed from the external client.
+// +kubebuilder:validation:Enum=NodeExternalIP;NodeName;LoadBalancer
+type MemberAccess string
+
+const (
+	// NodeExternalIPMemberAccess lets the client access Hazelcast member with the NodePort service and the node external IP/hostname
+	NodeExternalIPMemberAccess MemberAccess = "NodeExternalIP"
+
+	// NodeNameMemberAccess lets the client access Hazelcast member with the NodePort service and the node name
+	NodeNameMemberAccess MemberAccess = "NodeName"
+
+	// LoadBalancerMemberAccess lets the client access Hazelcast member with the LoadBalancer service
+	LoadBalancerMemberAccess MemberAccess = "LoadBalancer"
+)
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {

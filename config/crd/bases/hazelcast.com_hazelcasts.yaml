@@ -47,24 +47,29 @@ spec:
                   clients.
                 properties:
                   discoveryServiceType:
-                    default: LoadBalancer
+                    default: ClusterIP
                     description: Type of the service used to discover Hazelcast cluster.
                     type: string
                   memberAccess:
-                    default: NodeExternalIP
-                    description: Method of how each member is accessed from the external
-                      client.
+                    description: 'Method of how each member is accessed from the external
+                      client. Valid values are: - "NodeExternalIP" (default): each
+                      member is accessed by the NodePort service and the node external
+                      IP/hostname - "NodeName": each member is accessed by the NodePort
+                      service and the node name - "LoadBalancer": each member is accessed
+                      by the LoadBalancer service external address'
                     enum:
                     - NodeExternalIP
                     - NodeName
                     - LoadBalancer
                     type: string
                   type:
-                    default: Smart
-                    description: Method of how members are exposed.
+                    description: 'Specifies how members are exposed. Valid values
+                      are: - "Smart" (default): each member pod is exposed with a
+                      separate external address - "Unisocket": all member pods are
+                      exposed with one external address'
                     enum:
-                    - Unisocket
                     - Smart
+                    - Unisocket
                     type: string
                 type: object
               licenseKeySecret:
