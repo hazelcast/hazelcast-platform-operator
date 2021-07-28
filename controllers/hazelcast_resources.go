@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -175,6 +176,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		replicas := h.Spec.ClusterSize
 		ls := labelsForHazelcast(h)
+		sts.ObjectMeta.Annotations = annotationsForStatefulSet(h)
 		sts.Spec = appsv1.StatefulSetSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
@@ -184,7 +186,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      ls,
-					Annotations: annotationsForHazelcast(h),
+					Annotations: annotationsForPod(h),
 				},
 				Spec: v1.PodSpec{
 					ServiceAccountName: h.Name,
@@ -319,6 +321,43 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			return err
 		}
 	}
+
+	// Delete unused services
+	sts := &appsv1.StatefulSet{}
+	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Not found, StatefulSet is not created yet, no need to delete any services
+			return nil
+		}
+		return err
+	}
+	count, err := strconv.Atoi(sts.ObjectMeta.Annotations["hazelcast.com/service-per-pod-count"])
+	if err != nil {
+		// Annotation not found, no need to delete any services
+		return nil
+	}
+
+	for i := int(h.Spec.ClusterSize); i < count; i++ {
+		s := &v1.Service{}
+		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Not found, no need to remove the service
+				continue
+			}
+			return err
+		}
+		err = r.Client.Delete(ctx, s)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Not found, no need to remove the service
+				continue
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -384,7 +423,15 @@ func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	}
 }
 
-func annotationsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+func annotationsForStatefulSet(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+	ans := map[string]string{}
+	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.SmartExposeExternallyType {
+		ans["hazelcast.com/service-per-pod-count"] = strconv.Itoa(int(h.Spec.ClusterSize))
+	}
+	return ans
+}
+
+func annotationsForPod(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.SmartExposeExternallyType {
 		ans["hazelcast.com/expose-externally"] = "true"
