@@ -8,11 +8,11 @@ import (
 
 func TestExposeExternallyConfigurationEnabled(t *testing.T) {
 	c := ExposeExternallyConfiguration{}
-	assert.False(t, c.isEnabled(), "Expose externally configuration should not be enabled when not set explicitly")
+	assert.False(t, c.IsEnabled(), "Expose externally configuration should not be enabled when not set explicitly")
 
 	c = ExposeExternallyConfiguration{Type: UnisocketExposeExternallyType, DiscoveryServiceType: v1.ServiceTypeLoadBalancer}
-	assert.True(t, c.isEnabled(), "Expose externally configuration should be enabled for Unisocket client configuration")
+	assert.True(t, c.IsEnabled(), "Expose externally configuration should be enabled for Unisocket client configuration")
 
 	c = ExposeExternallyConfiguration{Type: SmartExposeExternallyType, DiscoveryServiceType: v1.LoadBalancerPortsError, MemberAccess: NodeExternalIPMemberAccess}
-	assert.True(t, c.isEnabled(), "Expose externally configuration should be enabled for Smart client configuration")
+	assert.True(t, c.IsEnabled(), "Expose externally configuration should be enabled for Smart client configuration")
 }

@@ -33,7 +33,7 @@ type HazelcastSpec struct {
 	ExposeExternally ExposeExternallyConfiguration `json:"exposeExternally"`
 }
 
-func (c ExposeExternallyConfiguration) isEnabled() bool {
+func (c ExposeExternallyConfiguration) IsEnabled() bool {
 	return !(c == (ExposeExternallyConfiguration{}))
 }
 
@@ -47,7 +47,6 @@ type ExposeExternallyConfiguration struct {
 	Type ExposeExternallyType `json:"type,omitempty"`
 
 	// Type of the service used to discover Hazelcast cluster.
-	// +kubebuilder:default:=ClusterIP
 	// +optional
 	DiscoveryServiceType corev1.ServiceType `json:"discoveryServiceType,omitempty"`
 

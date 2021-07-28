@@ -87,6 +87,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
+	err = r.reconcileServicePerPod(ctx, h, logger)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {

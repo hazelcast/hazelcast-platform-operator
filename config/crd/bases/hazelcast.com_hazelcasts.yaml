@@ -47,7 +47,6 @@ spec:
                   clients.
                 properties:
                   discoveryServiceType:
-                    default: ClusterIP
                     description: Type of the service used to discover Hazelcast cluster.
                     type: string
                   memberAccess:
