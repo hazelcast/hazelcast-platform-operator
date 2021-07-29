@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -90,6 +91,10 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err = r.reconcileServicePerPod(ctx, h, logger)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+	if !r.isServicePerPodReady(ctx, h, logger) {
+		logger.Info("Service per pod is not ready, waiting.")
+		return ctrl.Result{Requeue: true, RequeueAfter: 10 * time.Second}, nil
 	}
 
 	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {

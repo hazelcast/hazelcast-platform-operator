@@ -10,4 +10,4 @@ spec:
   exposeExternally:
     type: Smart
     discoveryServiceType: LoadBalancer
-    memberAccess: LoadBalancer
+    memberAccess: NodeExternalIP

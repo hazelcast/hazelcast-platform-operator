@@ -361,6 +361,27 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 	return nil
 }
 
+func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) bool {
+	if h.Spec.ExposeExternally.Type != hazelcastv1alpha1.SmartExposeExternallyType {
+		// Service per pod is created only when Smart type is used
+		return true
+	}
+	for i := 0; i < int(h.Spec.ClusterSize); i++ {
+		s := &v1.Service{}
+		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
+		if err != nil {
+			return false
+		}
+		if s.Spec.Type == v1.ServiceTypeLoadBalancer {
+			if len(s.Status.LoadBalancer.Ingress) == 0 {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 func hazelcastPorts() []v1.ServicePort {
 	return []corev1.ServicePort{
 		{
