@@ -197,39 +197,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							ContainerPort: 5701,
 							Name:          "hazelcast",
 						}},
-						Env: []v1.EnvVar{
-							{
-								Name: "HZ_LICENSEKEY",
-								ValueFrom: &v1.EnvVarSource{
-									SecretKeyRef: &v1.SecretKeySelector{
-										LocalObjectReference: v1.LocalObjectReference{
-											Name: h.Spec.LicenseKeySecret,
-										},
-										Key: licenseDataKey,
-									},
-								},
-							},
-							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_ENABLED",
-								Value: "true",
-							},
-							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME",
-								Value: h.Name,
-							},
-							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS",
-								Value: isExposeExternallyWithNodeName(h),
-							},
-							{
-								Name:  "HZ_NETWORK_RESTAPI_ENABLED",
-								Value: "true",
-							},
-							{
-								Name:  "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED",
-								Value: "true",
-							},
-						},
+						Env: env(h),
 						LivenessProbe: &v1.Probe{
 							Handler: v1.Handler{
 								HTTPGet: &v1.HTTPGetAction{
@@ -282,6 +250,44 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
+func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
+	hzConf := map[string]string{
+		"HZ_NETWORK_JOIN_KUBERNETES_ENABLED":                    "true",
+		"HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME":                h.Name,
+		"HZ_NETWORK_RESTAPI_ENABLED":                            "true",
+		"HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED": "true",
+	}
+
+	if isExposeExternallyWithNodeName(h) == "true" {
+		hzConf["HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS"] = "true"
+	}
+
+	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.ExposeExternallyTypeSmart {
+		hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME"] = "hazelcast.com/service-per-pod"
+		hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE"] = "true"
+	}
+
+	envs := []v1.EnvVar{
+		{
+			Name: "HZ_LICENSEKEY",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: h.Spec.LicenseKeySecret,
+					},
+					Key: licenseDataKey,
+				},
+			},
+		},
+	}
+
+	for k, v := range hzConf {
+		envs = append(envs, v1.EnvVar{Name: k, Value: v})
+	}
+
+	return envs
+}
+
 func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if h.Spec.ExposeExternally.Type != hazelcastv1alpha1.ExposeExternallyTypeSmart {
 		// No need to create a service per pod since Smart type is not used
@@ -294,7 +300,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      servicePerPodName(i, h),
 				Namespace: h.Namespace,
-				Labels:    labelsForHazelcast(h),
+				Labels:    labelsForServicePerPod(h),
 			},
 			Spec: corev1.ServiceSpec{
 				Selector:                 selectorForServicePerPod(i, h),
@@ -405,9 +411,15 @@ func isExposeExternallyWithNodeName(h *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func selectorForServicePerPod(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	labels := labelsForHazelcast(h)
-	labels["statefulset.kubernetes.io/pod-name"] = servicePerPodName(i, h)
-	return labels
+	ls := labelsForHazelcast(h)
+	ls["statefulset.kubernetes.io/pod-name"] = servicePerPodName(i, h)
+	return ls
+}
+
+func labelsForServicePerPod(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+	ls := labelsForHazelcast(h)
+	ls["hazelcast.com/service-per-pod"] = "true"
+	return ls
 }
 
 func servicePerPodType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
