@@ -263,8 +263,9 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	}
 
 	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.ExposeExternallyTypeSmart {
-		hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME"] = "hazelcast.com/service-per-pod"
-		hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE"] = "true"
+		// Temporarily disable, because of the following issue in 5.0-SNAPSHOT: https://github.com/hazelcast/hazelcast/issues/19152
+		//hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME"] = "hazelcast.com/service-per-pod"
+		//hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE"] = "true"
 	}
 
 	envs := []v1.EnvVar{
