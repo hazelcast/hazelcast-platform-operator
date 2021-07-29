@@ -128,8 +128,8 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	service := &corev1.Service{
 		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
 		Spec: corev1.ServiceSpec{
-			Selector: labelsForHazelcast(h),
-			Ports:    hazelcastPorts(),
+			Selector: labels(h),
+			Ports:    ports(),
 		},
 	}
 
@@ -156,6 +156,85 @@ func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
 	return corev1.ServiceTypeClusterIP
 }
 
+func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if h.Spec.ExposeExternally.IsSmart() {
+		// No need to create a service per pod since Smart type is not used
+		return nil
+	}
+
+	// Create a separate service for each pod
+	for i := 0; i < int(h.Spec.ClusterSize); i++ {
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      servicePerPodName(i, h),
+				Namespace: h.Namespace,
+				Labels:    labelsForServicePerPod(h),
+			},
+			Spec: corev1.ServiceSpec{
+				Selector:                 selectorForServicePerPod(i, h),
+				Ports:                    ports(),
+				PublishNotReadyAddresses: true,
+			},
+		}
+
+		err := controllerutil.SetControllerReference(h, service, r.Scheme)
+		if err != nil {
+			logger.Error(err, "Failed to set owner reference on Service")
+			return err
+		}
+
+		opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
+			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
+			return nil
+		})
+
+		if opResult != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Service", servicePerPodName(i, h), "result", opResult)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete unused services
+	sts := &appsv1.StatefulSet{}
+	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Not found, StatefulSet is not created yet, no need to delete any services
+			return nil
+		}
+		return err
+	}
+	count, err := strconv.Atoi(sts.ObjectMeta.Annotations["hazelcast.com/service-per-pod-count"])
+	if err != nil {
+		// Annotation not found, no need to delete any services
+		return nil
+	}
+
+	for i := int(h.Spec.ClusterSize); i < count; i++ {
+		s := &v1.Service{}
+		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Not found, no need to remove the service
+				continue
+			}
+			return err
+		}
+		err = r.Client.Delete(ctx, s)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Not found, no need to remove the service
+				continue
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
@@ -169,7 +248,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 
 	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		replicas := h.Spec.ClusterSize
-		ls := labelsForHazelcast(h)
+		ls := labels(h)
 		sts.ObjectMeta.Annotations = annotationsForStatefulSet(h)
 		sts.Spec = appsv1.StatefulSetSpec{
 			Replicas: &replicas,
@@ -283,85 +362,6 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	return envs
 }
 
-func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if h.Spec.ExposeExternally.IsSmart() {
-		// No need to create a service per pod since Smart type is not used
-		return nil
-	}
-
-	// Create a separate service for each pod
-	for i := 0; i < int(h.Spec.ClusterSize); i++ {
-		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      servicePerPodName(i, h),
-				Namespace: h.Namespace,
-				Labels:    labelsForServicePerPod(h),
-			},
-			Spec: corev1.ServiceSpec{
-				Selector:                 selectorForServicePerPod(i, h),
-				Ports:                    hazelcastPorts(),
-				PublishNotReadyAddresses: true,
-			},
-		}
-
-		err := controllerutil.SetControllerReference(h, service, r.Scheme)
-		if err != nil {
-			logger.Error(err, "Failed to set owner reference on Service")
-			return err
-		}
-
-		opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
-			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
-			return nil
-		})
-
-		if opResult != controllerutil.OperationResultNone {
-			logger.Info("Operation result", "Service", servicePerPodName(i, h), "result", opResult)
-		}
-		if err != nil {
-			return err
-		}
-	}
-
-	// Delete unused services
-	sts := &appsv1.StatefulSet{}
-	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Not found, StatefulSet is not created yet, no need to delete any services
-			return nil
-		}
-		return err
-	}
-	count, err := strconv.Atoi(sts.ObjectMeta.Annotations["hazelcast.com/service-per-pod-count"])
-	if err != nil {
-		// Annotation not found, no need to delete any services
-		return nil
-	}
-
-	for i := int(h.Spec.ClusterSize); i < count; i++ {
-		s := &v1.Service{}
-		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				// Not found, no need to remove the service
-				continue
-			}
-			return err
-		}
-		err = r.Client.Delete(ctx, s)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				// Not found, no need to remove the service
-				continue
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) bool {
 	if h.Spec.ExposeExternally.IsSmart() {
 		// Service per pod is created only when Smart type is used
@@ -383,7 +383,7 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	return true
 }
 
-func hazelcastPorts() []v1.ServicePort {
+func ports() []v1.ServicePort {
 	return []corev1.ServicePort{
 		{
 			Name:       "hazelcast-port",
@@ -399,13 +399,13 @@ func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func selectorForServicePerPod(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := labelsForHazelcast(h)
+	ls := labels(h)
 	ls["statefulset.kubernetes.io/pod-name"] = servicePerPodName(i, h)
 	return ls
 }
 
 func labelsForServicePerPod(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := labelsForHazelcast(h)
+	ls := labels(h)
 	ls["hazelcast.com/service-per-pod"] = "true"
 	return ls
 }
@@ -427,7 +427,7 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 	return nil
 }
 
-func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name":       "hazelcast",
 		"app.kubernetes.io/instance":   h.Name,
@@ -455,14 +455,14 @@ func objectNamespacedMetadataForHazelcast(h *hazelcastv1alpha1.Hazelcast) metav1
 	return metav1.ObjectMeta{
 		Name:      h.Name,
 		Namespace: h.Namespace,
-		Labels:    labelsForHazelcast(h),
+		Labels:    labels(h),
 	}
 }
 
 func objectMetadataForHazelcast(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:   h.Name,
-		Labels: labelsForHazelcast(h),
+		Labels: labels(h),
 	}
 }
 

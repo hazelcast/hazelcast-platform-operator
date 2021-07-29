@@ -92,6 +92,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
 	if !r.isServicePerPodReady(ctx, h, logger) {
 		logger.Info("Service per pod is not ready, waiting.")
 		return ctrl.Result{Requeue: true, RequeueAfter: 10 * time.Second}, nil
