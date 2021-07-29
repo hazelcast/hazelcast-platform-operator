@@ -124,7 +124,7 @@ var _ = Describe("Hazelcast controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
-			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(imageForCluster(fetchedCR)))
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(dockerImage(fetchedCR)))
 
 			By("Expecting to delete CR successfully")
 			Eventually(func() error {
