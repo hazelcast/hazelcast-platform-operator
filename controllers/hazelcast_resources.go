@@ -283,7 +283,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 }
 
 func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if h.Spec.ExposeExternally.Type != hazelcastv1alpha1.SmartExposeExternallyType {
+	if h.Spec.ExposeExternally.Type != hazelcastv1alpha1.ExposeExternallyTypeSmart {
 		// No need to create a service per pod since Smart type is not used
 		return nil
 	}
@@ -362,7 +362,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 }
 
 func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) bool {
-	if h.Spec.ExposeExternally.Type != hazelcastv1alpha1.SmartExposeExternallyType {
+	if h.Spec.ExposeExternally.Type != hazelcastv1alpha1.ExposeExternallyTypeSmart {
 		// Service per pod is created only when Smart type is used
 		return true
 	}
@@ -398,7 +398,7 @@ func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func isExposeExternallyWithNodeName(h *hazelcastv1alpha1.Hazelcast) string {
-	if h.Spec.ExposeExternally.MemberAccess == hazelcastv1alpha1.NodeNameMemberAccess {
+	if h.Spec.ExposeExternally.MemberAccess == hazelcastv1alpha1.MemberAccessNodePortNodeName {
 		return "true"
 	}
 	return "false"
@@ -412,7 +412,7 @@ func selectorForServicePerPod(i int, h *hazelcastv1alpha1.Hazelcast) map[string]
 
 func servicePerPodType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
 	switch h.Spec.ExposeExternally.MemberAccess {
-	case hazelcastv1alpha1.LoadBalancerMemberAccess:
+	case hazelcastv1alpha1.MemberAccessLoadBalancer:
 		return v1.ServiceTypeLoadBalancer
 	default:
 		return v1.ServiceTypeNodePort
@@ -446,7 +446,7 @@ func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 
 func annotationsForStatefulSet(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
-	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.SmartExposeExternallyType {
+	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.ExposeExternallyTypeSmart {
 		ans["hazelcast.com/service-per-pod-count"] = strconv.Itoa(int(h.Spec.ClusterSize))
 	}
 	return ans
@@ -454,7 +454,7 @@ func annotationsForStatefulSet(h *hazelcastv1alpha1.Hazelcast) map[string]string
 
 func annotationsForPod(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
-	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.SmartExposeExternallyType {
+	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.ExposeExternallyTypeSmart {
 		ans["hazelcast.com/expose-externally"] = "true"
 	}
 	return ans

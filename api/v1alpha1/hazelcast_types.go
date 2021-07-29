@@ -52,8 +52,8 @@ type ExposeExternallyConfiguration struct {
 
 	// Method of how each member is accessed from the external client.
 	// Valid values are:
-	// - "NodeExternalIP" (default): each member is accessed by the NodePort service and the node external IP/hostname
-	// - "NodeName": each member is accessed by the NodePort service and the node name
+	// - "NodePortExternalIP" (default): each member is accessed by the NodePort service and the node external IP/hostname
+	// - "NodePortNodeName": each member is accessed by the NodePort service and the node name
 	// - "LoadBalancer": each member is accessed by the LoadBalancer service external address
 	// +optional
 	MemberAccess MemberAccess `json:"memberAccess,omitempty"`
@@ -64,26 +64,26 @@ type ExposeExternallyConfiguration struct {
 type ExposeExternallyType string
 
 const (
-	// SmartExposeExternallyType exposes each Hazelcast member with a separate external address.
-	SmartExposeExternallyType ExposeExternallyType = "Smart"
+	// ExposeExternallyTypeSmart exposes each Hazelcast member with a separate external address.
+	ExposeExternallyTypeSmart ExposeExternallyType = "Smart"
 
-	// UnisocketExposeExternallyType exposes all Hazelcast members with one external address.
-	UnisocketExposeExternallyType ExposeExternallyType = "Unisocket"
+	// ExposeExternallyTypeUnisocket exposes all Hazelcast members with one external address.
+	ExposeExternallyTypeUnisocket ExposeExternallyType = "Unisocket"
 )
 
 // MemberAccess describes how each Hazelcast member is accessed from the external client.
-// +kubebuilder:validation:Enum=NodeExternalIP;NodeName;LoadBalancer
+// +kubebuilder:validation:Enum=NodePortExternalIP;NodePortNodeName;LoadBalancer
 type MemberAccess string
 
 const (
-	// NodeExternalIPMemberAccess lets the client access Hazelcast member with the NodePort service and the node external IP/hostname
-	NodeExternalIPMemberAccess MemberAccess = "NodeExternalIP"
+	// MemberAccessNodePortExternalIP lets the client access Hazelcast member with the NodePort service and the node external IP/hostname
+	MemberAccessNodePortExternalIP MemberAccess = "NodePortExternalIP"
 
-	// NodeNameMemberAccess lets the client access Hazelcast member with the NodePort service and the node name
-	NodeNameMemberAccess MemberAccess = "NodeName"
+	// MemberAccessNodePortNodeName lets the client access Hazelcast member with the NodePort service and the node name
+	MemberAccessNodePortNodeName MemberAccess = "NodePortNodeName"
 
-	// LoadBalancerMemberAccess lets the client access Hazelcast member with the LoadBalancer service
-	LoadBalancerMemberAccess MemberAccess = "LoadBalancer"
+	// MemberAccessLoadBalancer lets the client access Hazelcast member with the LoadBalancer service
+	MemberAccessLoadBalancer MemberAccess = "LoadBalancer"
 )
 
 // HazelcastStatus defines the observed state of Hazelcast

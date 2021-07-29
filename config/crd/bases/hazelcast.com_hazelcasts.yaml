@@ -51,14 +51,15 @@ spec:
                     type: string
                   memberAccess:
                     description: 'Method of how each member is accessed from the external
-                      client. Valid values are: - "NodeExternalIP" (default): each
-                      member is accessed by the NodePort service and the node external
-                      IP/hostname - "NodeName": each member is accessed by the NodePort
-                      service and the node name - "LoadBalancer": each member is accessed
-                      by the LoadBalancer service external address'
+                      client. Valid values are: - "NodePortExternalIP" (default):
+                      each member is accessed by the NodePort service and the node
+                      external IP/hostname - "NodePortNodeName": each member is accessed
+                      by the NodePort service and the node name - "LoadBalancer":
+                      each member is accessed by the LoadBalancer service external
+                      address'
                     enum:
-                    - NodeExternalIP
-                    - NodeName
+                    - NodePortExternalIP
+                    - NodePortNodeName
                     - LoadBalancer
                     type: string
                   type:
