@@ -151,13 +151,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 
 func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
 	if h.Spec.ExposeExternally.IsEnabled() {
-		switch h.Spec.ExposeExternally.DiscoveryServiceType {
-		case v1.ServiceTypeNodePort:
-			return v1.ServiceTypeNodePort
-		default:
-			return v1.ServiceTypeLoadBalancer
-
-		}
+		return h.Spec.ExposeExternally.DiscoveryK8ServiceType()
 	}
 	return corev1.ServiceTypeClusterIP
 }
@@ -258,11 +252,11 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		"HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED": "true",
 	}
 
-	if isExposeExternallyWithNodeName(h) == "true" {
+	if h.Spec.ExposeExternally.UsesNodeName() {
 		hzConf["HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS"] = "true"
 	}
 
-	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.ExposeExternallyTypeSmart {
+	if h.Spec.ExposeExternally.IsSmart() {
 		// Temporarily disable, because of the following issue in 5.0-SNAPSHOT: https://github.com/hazelcast/hazelcast/issues/19152
 		//hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME"] = "hazelcast.com/service-per-pod"
 		//hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE"] = "true"
@@ -290,7 +284,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 }
 
 func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if h.Spec.ExposeExternally.Type != hazelcastv1alpha1.ExposeExternallyTypeSmart {
+	if h.Spec.ExposeExternally.IsSmart() {
 		// No need to create a service per pod since Smart type is not used
 		return nil
 	}
@@ -317,7 +311,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		}
 
 		opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
-			service.Spec.Type = servicePerPodType(h)
+			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 			return nil
 		})
 
@@ -369,7 +363,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 }
 
 func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) bool {
-	if h.Spec.ExposeExternally.Type != hazelcastv1alpha1.ExposeExternallyTypeSmart {
+	if h.Spec.ExposeExternally.IsSmart() {
 		// Service per pod is created only when Smart type is used
 		return true
 	}
@@ -404,13 +398,6 @@ func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("%s-%d", h.Name, i)
 }
 
-func isExposeExternallyWithNodeName(h *hazelcastv1alpha1.Hazelcast) string {
-	if h.Spec.ExposeExternally.MemberAccess == hazelcastv1alpha1.MemberAccessNodePortNodeName {
-		return "true"
-	}
-	return "false"
-}
-
 func selectorForServicePerPod(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ls := labelsForHazelcast(h)
 	ls["statefulset.kubernetes.io/pod-name"] = servicePerPodName(i, h)
@@ -421,15 +408,6 @@ func labelsForServicePerPod(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ls := labelsForHazelcast(h)
 	ls["hazelcast.com/service-per-pod"] = "true"
 	return ls
-}
-
-func servicePerPodType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
-	switch h.Spec.ExposeExternally.MemberAccess {
-	case hazelcastv1alpha1.MemberAccessLoadBalancer:
-		return v1.ServiceTypeLoadBalancer
-	default:
-		return v1.ServiceTypeNodePort
-	}
 }
 
 func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -459,7 +437,7 @@ func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 
 func annotationsForStatefulSet(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
-	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.ExposeExternallyTypeSmart {
+	if h.Spec.ExposeExternally.IsSmart() {
 		ans["hazelcast.com/service-per-pod-count"] = strconv.Itoa(int(h.Spec.ClusterSize))
 	}
 	return ans
@@ -467,7 +445,7 @@ func annotationsForStatefulSet(h *hazelcastv1alpha1.Hazelcast) map[string]string
 
 func annotationsForPod(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
-	if h.Spec.ExposeExternally.Type == hazelcastv1alpha1.ExposeExternallyTypeSmart {
+	if h.Spec.ExposeExternally.IsSmart() {
 		ans["hazelcast.com/expose-externally"] = "true"
 	}
 	return ans

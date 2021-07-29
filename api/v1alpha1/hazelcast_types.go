@@ -33,10 +33,6 @@ type HazelcastSpec struct {
 	ExposeExternally ExposeExternallyConfiguration `json:"exposeExternally"`
 }
 
-func (c ExposeExternallyConfiguration) IsEnabled() bool {
-	return !(c == (ExposeExternallyConfiguration{}))
-}
-
 // ExposeExternallyConfiguration defines how to expose Hazelcast cluster to external clients
 type ExposeExternallyConfiguration struct {
 	// Specifies how members are exposed.
@@ -57,6 +53,41 @@ type ExposeExternallyConfiguration struct {
 	// - "LoadBalancer": each member is accessed by the LoadBalancer service external address
 	// +optional
 	MemberAccess MemberAccess `json:"memberAccess,omitempty"`
+}
+
+// Returns true if exposeExternally configuration is specified.
+func (c *ExposeExternallyConfiguration) IsEnabled() bool {
+	return !(*c == (ExposeExternallyConfiguration{}))
+}
+
+// Returns true if Smart configuration is specified and each Hazelcast member needs to be exposed with a separate address.
+func (c *ExposeExternallyConfiguration) IsSmart() bool {
+	return c.Type == ExposeExternallyTypeSmart
+}
+
+// Returns true if Hazelcast client wants to use Node Name instead of External IP.
+func (c *ExposeExternallyConfiguration) UsesNodeName() bool {
+	return c.MemberAccess == MemberAccessNodePortNodeName
+}
+
+// Returns service type that is used for the cluster discovery (LoadBalancer by default).
+func (c *ExposeExternallyConfiguration) DiscoveryK8ServiceType() corev1.ServiceType {
+	switch c.DiscoveryServiceType {
+	case corev1.ServiceTypeNodePort:
+		return corev1.ServiceTypeNodePort
+	default:
+		return corev1.ServiceTypeLoadBalancer
+	}
+}
+
+// Returns service type that is used for the communication with each member (NodePort by default).
+func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.ServiceType {
+	switch c.MemberAccess {
+	case MemberAccessLoadBalancer:
+		return corev1.ServiceTypeLoadBalancer
+	default:
+		return corev1.ServiceTypeNodePort
+	}
 }
 
 // ExposeExternallyType describes how Hazelcast members are exposed.
