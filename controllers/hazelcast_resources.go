@@ -24,7 +24,7 @@ const (
 	servicePerPodLabelName       = "hazelcast.com/service-per-pod"
 	servicePerPodLabelValue      = "true"
 	servicePerPodCountAnnotation = "hazelcast.com/service-per-pod-count"
-	exposeExternallyAnnotation = "hazelcast.com/expose-externally"
+	exposeExternallyAnnotation   = "hazelcast.com/expose-externally"
 )
 
 func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -181,13 +181,13 @@ func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
 }
 
 func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !h.Spec.ExposeExternally.IsSmart() {
-		// Service per pod applies only to Smart type
-		return nil
+	var n int
+	if h.Spec.ExposeExternally.IsSmart() {
+		n = int(h.Spec.ClusterSize)
 	}
 
 	// Create a separate service for each pod
-	for i := 0; i < int(h.Spec.ClusterSize); i++ {
+	for i := 0; i < n; i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      servicePerPodName(i, h),
@@ -231,15 +231,15 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		}
 		return err
 	}
-	count, err := strconv.Atoi(sts.ObjectMeta.Annotations[servicePerPodCountAnnotation])
+	p, err := strconv.Atoi(sts.ObjectMeta.Annotations[servicePerPodCountAnnotation])
 	if err != nil {
 		// Annotation not found, no need to delete any services
 		return nil
 	}
 
-	for i := int(h.Spec.ClusterSize); i < count; i++ {
+	for i := n; i < p; i++ {
 		s := &v1.Service{}
-		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i,h), Namespace: h.Namespace}, s)
+		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Not found, no need to remove the service
@@ -277,7 +277,7 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 }
 
 func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) bool {
-	if h.Spec.ExposeExternally.IsSmart() {
+	if !h.Spec.ExposeExternally.IsSmart() {
 		// Service per pod applies only to Smart type
 		return true
 	}
@@ -450,7 +450,7 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
-		ans["hazelcast.com/service-per-pod-count"] = strconv.Itoa(int(h.Spec.ClusterSize))
+		ans[servicePerPodCountAnnotation] = strconv.Itoa(int(h.Spec.ClusterSize))
 	}
 	return ans
 }
