@@ -113,6 +113,9 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "ServiceAccount", h.Name, "result", opResult)
 	}
+	if errors.IsAlreadyExists(err) {
+		return nil
+	}
 	return err
 }
 
@@ -145,6 +148,9 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "RoleBinding", h.Name, "result", opResult)
 	}
+	if errors.IsAlreadyExists(err) {
+		return nil
+	}
 	return err
 }
 
@@ -169,6 +175,9 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Service", h.Name, "result", opResult)
+	}
+	if errors.IsAlreadyExists(err) {
+		return nil
 	}
 	return err
 }
@@ -203,7 +212,6 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 
 		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
-			logger.Error(err, "Failed to set owner reference on Service")
 			return err
 		}
 
@@ -215,7 +223,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		if opResult != controllerutil.OperationResultNone {
 			logger.Info("Operation result", "Service", servicePerPodName(i, h), "result", opResult)
 		}
-		if err != nil {
+		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -385,6 +393,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
+	}
+	if errors.IsAlreadyExists(err) {
+		return nil
 	}
 	return err
 }
