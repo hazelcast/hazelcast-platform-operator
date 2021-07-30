@@ -80,7 +80,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 	}
 
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
+	opResult, err := createOrUpdate(ctx, r.Client, clusterRole, func() error {
 		clusterRole.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
@@ -107,14 +107,11 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 		return err
 	}
 
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
+	opResult, err := createOrUpdate(ctx, r.Client, serviceAccount, func() error {
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "ServiceAccount", h.Name, "result", opResult)
-	}
-	if errors.IsAlreadyExists(err) {
-		return nil
 	}
 	return err
 }
@@ -129,7 +126,7 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 		return err
 	}
 
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, roleBinding, func() error {
+	opResult, err := createOrUpdate(ctx, r.Client, roleBinding, func() error {
 		roleBinding.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
@@ -147,9 +144,6 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "RoleBinding", h.Name, "result", opResult)
-	}
-	if errors.IsAlreadyExists(err) {
-		return nil
 	}
 	return err
 }
@@ -169,15 +163,12 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		return err
 	}
 
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
+	opResult, err := createOrUpdate(ctx, r.Client, service, func() error {
 		service.Spec.Type = serviceType(h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Service", h.Name, "result", opResult)
-	}
-	if errors.IsAlreadyExists(err) {
-		return nil
 	}
 	return err
 }
@@ -215,7 +206,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			return err
 		}
 
-		opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
+		opResult, err := createOrUpdate(ctx, r.Client, service, func() error {
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 			return nil
 		})
@@ -223,7 +214,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		if opResult != controllerutil.OperationResultNone {
 			logger.Info("Operation result", "Service", servicePerPodName(i, h), "result", opResult)
 		}
-		if err != nil && !errors.IsAlreadyExists(err) {
+		if err != nil {
 			return err
 		}
 	}
@@ -320,7 +311,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		return err
 	}
 
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
+	opResult, err := createOrUpdate(ctx, r.Client, sts, func() error {
 		replicas := h.Spec.ClusterSize
 		ls := labels(h)
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
@@ -393,9 +384,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
-	}
-	if errors.IsAlreadyExists(err) {
-		return nil
 	}
 	return err
 }
@@ -484,4 +472,14 @@ func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
 
 func dockerImage(h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
+}
+
+func createOrUpdate(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+	opResult, err := controllerutil.CreateOrUpdate(ctx, c, obj, f)
+	if errors.IsAlreadyExists(err) {
+		// Ignore "already exists" error.
+		// Inside createOrUpdate() there's is a race condition between Get() and Create(), so this error is expected from time to time.
+		return opResult, nil
+	}
+	return opResult, err
 }
