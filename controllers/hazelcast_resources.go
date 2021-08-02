@@ -389,23 +389,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
-	hzConf := map[string]string{
-		"HZ_NETWORK_JOIN_KUBERNETES_ENABLED":                    "true",
-		"HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME":                h.Name,
-		"HZ_NETWORK_RESTAPI_ENABLED":                            "true",
-		"HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED": "true",
-	}
-
-	if h.Spec.ExposeExternally.UsesNodeName() {
-		hzConf["HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS"] = "true"
-	}
-
-	if h.Spec.ExposeExternally.IsSmart() {
-		// Temporarily disable, because of the following issue in 5.0-SNAPSHOT: https://github.com/hazelcast/hazelcast/issues/19152
-		//hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME"] = servicePerPodLabelName
-		//hzConf["HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE"] = servicePerPodLabelValue
-	}
-
 	envs := []v1.EnvVar{
 		{
 			Name: "HZ_LICENSEKEY",
@@ -418,10 +401,23 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 				},
 			},
 		},
+		{Name: "HZ_NETWORK_JOIN_KUBERNETES_ENABLED", Value: "true"},
+		{Name: "HZ_NETWORK_JOIN_KUBERNETES_ENABLED", Value: "true"},
+		{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME", Value: h.Name},
+		{Name: "HZ_NETWORK_RESTAPI_ENABLED", Value: "true"},
+		{Name: "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED", Value: "true"},
 	}
 
-	for k, v := range hzConf {
-		envs = append(envs, v1.EnvVar{Name: k, Value: v})
+	if h.Spec.ExposeExternally.UsesNodeName() {
+		envs = append(envs, v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS", Value: "true"})
+	}
+
+	if h.Spec.ExposeExternally.IsSmart() {
+		// Temporarily disable, because of the following issue in 5.0-SNAPSHOT: https://github.com/hazelcast/hazelcast/issues/19152
+		//envs = append(envs,
+		//	v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME", Value: servicePerPodLabelName},
+		//	v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE", Value: servicePerPodLabelValue},
+		//)
 	}
 
 	return envs
