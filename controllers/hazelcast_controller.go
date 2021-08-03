@@ -80,7 +80,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Status(), h, failedPhase(err))
 	}
 
-	err = r.reconcileRoleBinding(ctx, h, logger)
+	err = r.reconcileClusterRoleBinding(ctx, h, logger)
 	if err != nil {
 		return update(ctx, r.Status(), h, failedPhase(err))
 	}

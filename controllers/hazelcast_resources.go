@@ -45,6 +45,10 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 		logger.Error(err, "ClusterRole could not be removed")
 		return err
 	}
+	if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
+		logger.Error(err, "ClusterRoleBinding could not be removed")
+		return err
+	}
 	controllerutil.RemoveFinalizer(h, finalizer)
 	err := r.Update(ctx, h)
 	if err != nil {
@@ -68,6 +72,23 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 		return err
 	}
 	logger.V(1).Info("ClusterRole removed successfully")
+	return nil
+}
+
+func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	crb := &rbacv1.ClusterRoleBinding{}
+	err := r.Get(ctx, client.ObjectKey{Name: h.Name}, crb)
+	if err != nil && errors.IsNotFound(err) {
+		logger.V(1).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
+		return nil
+	}
+
+	err = r.Delete(ctx, crb)
+	if err != nil {
+		logger.Error(err, "Failed to clean up ClusterRoleBinding")
+		return err
+	}
+	logger.V(1).Info("ClusterRoleBinding removed successfully")
 	return nil
 }
 
@@ -116,25 +137,23 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	roleBinding := &rbacv1.RoleBinding{
-		ObjectMeta: metadata(h),
+func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	crb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   h.Name,
+			Labels: labels(h),
+		},
 	}
 
-	err := controllerutil.SetControllerReference(h, roleBinding, r.Scheme)
-	if err != nil {
-		return err
-	}
-
-	opResult, err := createOrUpdate(ctx, r.Client, roleBinding, func() error {
-		roleBinding.Subjects = []rbacv1.Subject{
+	opResult, err := createOrUpdate(ctx, r.Client, crb, func() error {
+		crb.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
 				Name:      h.Name,
 				Namespace: h.Namespace,
 			},
 		}
-		roleBinding.RoleRef = rbacv1.RoleRef{
+		crb.RoleRef = rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
 			Name:     h.Name,
