@@ -40,7 +40,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Spec: hazelcastv1alpha1.HazelcastSpec{
 					ClusterSize:      3,
 					Repository:       "hazelcast/hazelcast-enterprise",
-					Version:          "5.0-SNAPSHOT",
+					Version:          "5.0-BETA-1",
 					LicenseKeySecret: "hazelcast-license-key",
 				},
 			}
@@ -60,7 +60,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			Expect(fetchedCR.Spec.ClusterSize).Should(Equal(int32(3)))
 			Expect(fetchedCR.Spec.Repository).Should(Equal("hazelcast/hazelcast-enterprise"))
-			Expect(fetchedCR.Spec.Version).Should(Equal("5.0-SNAPSHOT"))
+			Expect(fetchedCR.Spec.Version).Should(Equal("5.0-BETA-1"))
 			Expect(fetchedCR.Spec.LicenseKeySecret).Should(Equal("hazelcast-license-key"))
 
 			By("Ensures that the status is correct")
@@ -98,15 +98,14 @@ var _ = Describe("Hazelcast controller", func() {
 			}, timeout, interval).Should(BeTrue())
 			Expect(fetchedServiceAccount.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
-			fetchedRoleBinding := &rbacv1.RoleBinding{}
+			fetchedClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedRoleBinding)
+				err := k8sClient.Get(context.Background(), lookupKey, fetchedClusterRoleBinding)
 				if err != nil {
 					return false
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-			Expect(fetchedRoleBinding.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedService := &corev1.Service{}
 			Eventually(func() bool {

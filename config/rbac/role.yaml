@@ -19,6 +19,7 @@ rules:
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
+  - clusterrolebindings
   - clusterroles
   verbs:
   - create
@@ -41,7 +42,6 @@ rules:
   - ""
   resources:
   - events
-  - rolebindings
   - serviceaccounts
   - services
   verbs:
@@ -90,16 +90,3 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  - roles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
