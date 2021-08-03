@@ -301,41 +301,27 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	ls := labels(h)
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metadata(h),
-	}
-
-	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
-	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Statefulset")
-		return err
-	}
-
-	opResult, err := createOrUpdate(ctx, r.Client, sts, func() error {
-		replicas := h.Spec.ClusterSize
-		ls := labels(h)
-		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
-		sts.Spec = appsv1.StatefulSetSpec{
-			Replicas: &replicas,
+		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
 			ServiceName: h.Name,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      ls,
-					Annotations: podAnnotations(h),
+					Labels: ls,
 				},
 				Spec: v1.PodSpec{
 					ServiceAccountName: h.Name,
 					Containers: []v1.Container{{
-						Image: dockerImage(h),
-						Name:  "hazelcast",
+						Name: "hazelcast",
 						Ports: []v1.ContainerPort{{
 							ContainerPort: 5701,
 							Name:          "hazelcast",
+							Protocol:      v1.ProtocolTCP,
 						}},
-						Env: env(h),
 						LivenessProbe: &v1.Probe{
 							Handler: v1.Handler{
 								HTTPGet: &v1.HTTPGetAction{
@@ -378,7 +364,21 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					TerminationGracePeriodSeconds: &[]int64{600}[0],
 				},
 			},
-		}
+		},
+	}
+
+	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
+	if err != nil {
+		logger.Error(err, "Failed to set owner reference on Statefulset")
+		return err
+	}
+
+	opResult, err := createOrUpdate(ctx, r.Client, sts, func() error {
+		sts.Spec.Replicas = &h.Spec.ClusterSize
+		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
+		sts.Spec.Template.Annotations = podAnnotations(h)
+		sts.Spec.Template.Spec.Containers[0].Image = dockerImage(h)
+		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -406,6 +406,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		{Name: "HZ_NETWORK_RESTAPI_ENABLED", Value: "true"},
 		{Name: "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED", Value: "true"},
 	}
+
 	if h.Spec.ExposeExternally.UsesNodeName() {
 		envs = append(envs, v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS", Value: "true"})
 	}
