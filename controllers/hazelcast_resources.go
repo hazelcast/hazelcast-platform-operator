@@ -341,7 +341,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(5701),
-									Scheme: v1.URIScheme("HTTP"),
+									Scheme: "HTTP",
 								},
 							},
 							InitialDelaySeconds: 0,
@@ -355,7 +355,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(5701),
-									Scheme: v1.URIScheme("HTTP"),
+									Scheme: "HTTP",
 								},
 							},
 							InitialDelaySeconds: 0,
@@ -371,8 +371,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							ReadOnlyRootFilesystem:   &[]bool{true}[0],
 							AllowPrivilegeEscalation: &[]bool{false}[0],
 							Capabilities: &v1.Capabilities{
-								Drop: []v1.Capability{
-									v1.Capability("ALL")},
+								Drop: []v1.Capability{"ALL"},
 							},
 						},
 					}},
@@ -407,7 +406,6 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		{Name: "HZ_NETWORK_RESTAPI_ENABLED", Value: "true"},
 		{Name: "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED", Value: "true"},
 	}
-
 	if h.Spec.ExposeExternally.UsesNodeName() {
 		envs = append(envs, v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS", Value: "true"})
 	}
@@ -421,6 +419,22 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	}
 
 	return envs
+}
+
+func (r *HazelcastReconciler) checkIfRunning(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) bool {
+	sts := &appsv1.StatefulSet{}
+	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
+	if err != nil {
+		return false
+	}
+	return isStatefulSetReady(sts, h.Spec.ClusterSize)
+}
+
+func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
+	allUpdated := expectedReplicas == sts.Status.UpdatedReplicas
+	allReady := expectedReplicas == sts.Status.ReadyReplicas
+	atExpectedGeneration := sts.Generation == sts.Status.ObservedGeneration
+	return allUpdated && allReady && atExpectedGeneration
 }
 
 func ports() []v1.ServicePort {

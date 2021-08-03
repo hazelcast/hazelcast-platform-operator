@@ -5,6 +5,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Phase represents the current state of the cluster
+type Phase string
+
+const (
+	// Running phase is the state when all the members of the cluster are successfully started
+	Running Phase = "Running"
+	// Failed phase is the state of error during the cluster startup
+	Failed Phase = "Failed"
+	// Pending phase is the state of starting the cluster when not all the members are started yet
+	Pending Phase = "Pending"
+)
+
 // HazelcastSpec defines the desired state of Hazelcast
 type HazelcastSpec struct {
 	// Number of Hazelcast members in the cluster.
@@ -119,12 +131,15 @@ const (
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
+	Phase Phase `json:"phase"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
 // Hazelcast is the Schema for the hazelcasts API
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 type Hazelcast struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

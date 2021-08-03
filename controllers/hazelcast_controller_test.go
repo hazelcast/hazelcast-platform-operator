@@ -63,6 +63,9 @@ var _ = Describe("Hazelcast controller", func() {
 			Expect(fetchedCR.Spec.Version).Should(Equal("5.0-SNAPSHOT"))
 			Expect(fetchedCR.Spec.LicenseKeySecret).Should(Equal("hazelcast-license-key"))
 
+			By("Ensures that the status is correct")
+			Expect(fetchedCR.Status.Phase).Should(Equal(hazelcastv1alpha1.Pending))
+
 			By("Ensuring the finalizer added successfully")
 			Expect(fetchedCR.Finalizers).To(ContainElement(finalizer))
 

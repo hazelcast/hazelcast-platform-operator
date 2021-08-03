@@ -16,7 +16,12 @@ spec:
     singular: hazelcast
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the Hazelcast deployment
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Hazelcast is the Schema for the hazelcasts API
@@ -88,6 +93,11 @@ spec:
             type: object
           status:
             description: HazelcastStatus defines the observed state of Hazelcast
+            properties:
+              phase:
+                type: string
+            required:
+            - phase
             type: object
         type: object
     served: true
