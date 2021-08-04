@@ -67,12 +67,39 @@ type ExposeExternallyConfiguration struct {
 	MemberAccess MemberAccess `json:"memberAccess,omitempty"`
 }
 
+// ExposeExternallyType describes how Hazelcast members are exposed.
+// +kubebuilder:validation:Enum=Smart;Unisocket
+type ExposeExternallyType string
+
+const (
+	// ExposeExternallyTypeSmart exposes each Hazelcast member with a separate external address.
+	ExposeExternallyTypeSmart ExposeExternallyType = "Smart"
+
+	// ExposeExternallyTypeUnisocket exposes all Hazelcast members with one external address.
+	ExposeExternallyTypeUnisocket ExposeExternallyType = "Unisocket"
+)
+
+// MemberAccess describes how each Hazelcast member is accessed from the external client.
+// +kubebuilder:validation:Enum=NodePortExternalIP;NodePortNodeName;LoadBalancer
+type MemberAccess string
+
+const (
+	// MemberAccessNodePortExternalIP lets the client access Hazelcast member with the NodePort service and the node external IP/hostname
+	MemberAccessNodePortExternalIP MemberAccess = "NodePortExternalIP"
+
+	// MemberAccessNodePortNodeName lets the client access Hazelcast member with the NodePort service and the node name
+	MemberAccessNodePortNodeName MemberAccess = "NodePortNodeName"
+
+	// MemberAccessLoadBalancer lets the client access Hazelcast member with the LoadBalancer service
+	MemberAccessLoadBalancer MemberAccess = "LoadBalancer"
+)
+
 // Returns true if exposeExternally configuration is specified.
 func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return !(*c == (ExposeExternallyConfiguration{}))
 }
 
-// Returns true if Smart configuration is specified and each Hazelcast member needs to be exposed with a separate address.
+// Returns true if Smart configuration is specified and therefore each Hazelcast member needs to be exposed with a separate address.
 func (c *ExposeExternallyConfiguration) IsSmart() bool {
 	return c.Type == ExposeExternallyTypeSmart
 }
@@ -101,33 +128,6 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 		return corev1.ServiceTypeNodePort
 	}
 }
-
-// ExposeExternallyType describes how Hazelcast members are exposed.
-// +kubebuilder:validation:Enum=Smart;Unisocket
-type ExposeExternallyType string
-
-const (
-	// ExposeExternallyTypeSmart exposes each Hazelcast member with a separate external address.
-	ExposeExternallyTypeSmart ExposeExternallyType = "Smart"
-
-	// ExposeExternallyTypeUnisocket exposes all Hazelcast members with one external address.
-	ExposeExternallyTypeUnisocket ExposeExternallyType = "Unisocket"
-)
-
-// MemberAccess describes how each Hazelcast member is accessed from the external client.
-// +kubebuilder:validation:Enum=NodePortExternalIP;NodePortNodeName;LoadBalancer
-type MemberAccess string
-
-const (
-	// MemberAccessNodePortExternalIP lets the client access Hazelcast member with the NodePort service and the node external IP/hostname
-	MemberAccessNodePortExternalIP MemberAccess = "NodePortExternalIP"
-
-	// MemberAccessNodePortNodeName lets the client access Hazelcast member with the NodePort service and the node name
-	MemberAccessNodePortNodeName MemberAccess = "NodePortNodeName"
-
-	// MemberAccessLoadBalancer lets the client access Hazelcast member with the LoadBalancer service
-	MemberAccessLoadBalancer MemberAccess = "LoadBalancer"
-)
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {

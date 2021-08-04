@@ -238,8 +238,8 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		}
 	}
 
-	// Delete unused services (when the cluster was scaled down and number of decreased)
-	// The current number of service per pod is stored in the StatefulSet annotations
+	// Delete unused services (when the cluster was scaled down)
+	// The current number of service per pod is always stored in the StatefulSet annotations
 	sts := &appsv1.StatefulSet{}
 	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
 	if err != nil {
@@ -294,7 +294,7 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return ls
 }
 
-func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) bool {
+func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, _ logr.Logger) bool {
 	if !h.Spec.ExposeExternally.IsSmart() {
 		// Service per pod applies only to Smart type
 		return true
@@ -431,11 +431,12 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	}
 
 	if h.Spec.ExposeExternally.IsSmart() {
+		// Related Jira: https://hazelcast.atlassian.net/browse/CN-163
 		// Temporarily disable, because of the following issue in 5.0-SNAPSHOT: https://github.com/hazelcast/hazelcast/issues/19152
-		//envs = append(envs,
-		//	v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME", Value: servicePerPodLabelName},
-		//	v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE", Value: servicePerPodLabelValue},
-		//)
+		//  envs = append(envs,
+		//	  v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME", Value: servicePerPodLabelName},
+		//	  v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE", Value: servicePerPodLabelValue},
+		//  )
 	}
 
 	return envs
