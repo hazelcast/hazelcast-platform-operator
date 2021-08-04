@@ -24,7 +24,7 @@ const (
 	servicePerPodLabelName       = "hazelcast.com/service-per-pod"
 	servicePerPodLabelValue      = "true"
 	servicePerPodCountAnnotation = "hazelcast.com/service-per-pod-count"
-	exposeExternallyAnnotation   = "hazelcast.com/expose-externally"
+	exposeExternallyAnnotation   = "hazelcast.com/expose-externally-member-access"
 )
 
 func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -488,7 +488,7 @@ func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func podAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
-		ans[exposeExternallyAnnotation] = "true"
+		ans[exposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccess)
 	}
 	return ans
 }
