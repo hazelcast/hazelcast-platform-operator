@@ -431,12 +431,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	}
 
 	if h.Spec.ExposeExternally.IsSmart() {
-		// Related Jira: https://hazelcast.atlassian.net/browse/CN-163
-		// Temporarily disable, because of the following issue in 5.0-SNAPSHOT: https://github.com/hazelcast/hazelcast/issues/19152
-		//  envs = append(envs,
-		//	  v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME", Value: servicePerPodLabelName},
-		//	  v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE", Value: servicePerPodLabelValue},
-		//  )
+		envs = append(envs,
+			v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME", Value: servicePerPodLabelName},
+			v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE", Value: servicePerPodLabelValue},
+		)
 	}
 
 	return envs
