@@ -200,13 +200,12 @@ func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
 }
 
 func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	var n int
-	if h.Spec.ExposeExternally.IsSmart() {
-		n = int(h.Spec.ClusterSize)
+	if !h.Spec.ExposeExternally.IsSmart() {
+		// Service per pod applies only to Smart type
+		return nil
 	}
 
-	// Create a separate service for each pod
-	for i := 0; i < n; i++ {
+	for i := 0; i < int(h.Spec.ClusterSize); i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      servicePerPodName(i, h),
@@ -236,6 +235,15 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	var n int
+	if h.Spec.ExposeExternally.IsSmart() {
+		n = int(h.Spec.ClusterSize)
 	}
 
 	// Delete unused services (when the cluster was scaled down)
