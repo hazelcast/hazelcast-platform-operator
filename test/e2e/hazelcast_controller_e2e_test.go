@@ -29,8 +29,8 @@ var _ = Describe("Hazelcast", func() {
 	}
 
 	var controllerManagerName = types.NamespacedName{
-		Namespace: hzNamespace,
 		Name:      "hazelcast-enterprise-controller-manager",
+		Namespace: hzNamespace,
 	}
 
 	BeforeEach(func() {
@@ -55,7 +55,7 @@ var _ = Describe("Hazelcast", func() {
 
 		It("Creating Hazelcast CR with default values", func() {
 
-			By("Checking hazelcast-enterprise-controller-manager readiness", func() {
+			By("Checking hazelcast-enterprise-controller-manager running", func() {
 				controllerDep := &appsv1.Deployment{}
 				Eventually(func() (int32, error) {
 					return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
@@ -70,7 +70,7 @@ var _ = Describe("Hazelcast", func() {
 				Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 			})
 
-			By("Checking Hazelcast CR readiness", func() {
+			By("Checking Hazelcast CR running", func() {
 				hz := &hazelcastcomv1alpha1.Hazelcast{}
 				Eventually(func() bool {
 					k8sClient.Get(context.Background(), lookupKey, hz)
@@ -82,21 +82,8 @@ var _ = Describe("Hazelcast", func() {
 	})
 })
 
-func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
-	return &hazelcastcomv1alpha1.Hazelcast{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      hzName,
-			Namespace: hzNamespace,
-		},
-	}
-}
-
-func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
-	if hz.Status.Phase == "Running" {
-		return true
-	} else {
-		return false
-	}
+func useExistingCluster() bool {
+	return strings.ToLower(os.Getenv("USE_EXISTING_CLUSTER")) == "true"
 }
 
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
@@ -109,6 +96,15 @@ func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, 
 	}
 
 	return deploy.Status.ReadyReplicas, nil
+}
+
+func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
+	return &hazelcastcomv1alpha1.Hazelcast{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      hzName,
+			Namespace: hzNamespace,
+		},
+	}
 }
 
 func loadHazelcastFromFile(hazelcast *hazelcastcomv1alpha1.Hazelcast, fileName string) error {
@@ -126,6 +122,10 @@ func decodeYAML(r io.Reader, obj interface{}) error {
 	return decoder.Decode(obj)
 }
 
-func useExistingCluster() bool {
-	return strings.ToLower(os.Getenv("USE_EXISTING_CLUSTER")) == "true"
+func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
+	if hz.Status.Phase == "Running" {
+		return true
+	} else {
+		return false
+	}
 }
