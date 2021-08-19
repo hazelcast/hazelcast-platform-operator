@@ -1,0 +1,24 @@
+# permissions for end users to edit managementcenters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: managementcenter-editor-role
+rules:
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - managementcenters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - managementcenters/status
+  verbs:
+  - get

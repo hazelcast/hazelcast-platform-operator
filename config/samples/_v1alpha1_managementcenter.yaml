@@ -1,0 +1,7 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: ManagementCenter
+metadata:
+  name: managementcenter-sample
+spec:
+  # Add fields here
+  foo: bar
