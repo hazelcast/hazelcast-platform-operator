@@ -4,16 +4,81 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// ManagementCenterSpec defines the desired state of ManagementCenter
+// HazelcastSpec defines the desired state of Hazelcast
 type ManagementCenterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Repository to pull the Hazelcast Platform image from.
+	// +kubebuilder:default:="docker.io/hazelcast/management-center"
+	// +optional
+	Repository string `json:"repository"`
 
-	// Foo is an example field of ManagementCenter. Edit managementcenter_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Version of Hazelcast Platform.
+	// +kubebuilder:default:="5.0-SNAPSHOT"
+	// +optional
+	Version string `json:"version"`
+
+	// Name of the secret with Hazelcast Enterprise License Key.
+	// +kubebuilder:default:="hazelcast-license-key"
+	// +optional
+	LicenseKeySecret string `json:"licenseKeySecret"`
+
+	// Connection configuration for Hazelcast Clusters Management Center will monitor.
+	// +optional
+	HazelcastClusters []HazelcastClusterConfig `json:"hazelcastClusters"`
+
+	// Configuration to expose Management Center to outside.
+	// +optional
+	ExternalConnectivity ExternalConnectivityConfiguration `json:"externalConnectivity"`
+
+	// Configuration for Management Center persistence
+	// +optional
+	Persistence PersistenceConfiguration `json:"persistence"`
+}
+
+type HazelcastClusterConfig struct {
+	// Name of the Hazelcast cluster Management Center will connect to
+	// +optional
+	Name string `json:"name"`
+	// Address of one of the members of Hazelcast cluster
+	// Can be IP address or DNS name. For Hazelcast cluster exposed with a service name in
+	// different namespace address can be given as "<service-name>.<service-namespace>."
+	Address string `json:"address"`
+}
+
+// ExternalConnectivityConfiguration defines how to expose Management Center pod
+type ExternalConnectivityConfiguration struct {
+	// Specifies how Management Center is exposed
+	// Valid values are:
+	// - "ClusterIP"
+	// - "NodePort"
+	// - "Loadbalancer
+	// +optional
+	Type ExternalConnectivityType `json:"type,omitempty"`
+}
+
+// ExternalConnectivityType describes how Management Center is exposed.
+// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer
+type ExternalConnectivityType string
+
+const (
+	// ExternalConnectivityTypeClusterIP exposes Management Center with ClusterIP service.
+	ExternalConnectivityTypeClusterIP ExposeExternallyType = "ClusterIP"
+
+	// ExternalConnectivityTypeNodePort exposes Management Center with NodePort service.
+	ExternalConnectivityTypeNodePort ExposeExternallyType = "NodePort"
+
+	// ExternalConnectivityTypeLoadBalancer exposes Management Center with LoadBalancer service.
+	ExternalConnectivityTypeLoadBalancer ExposeExternallyType = "LoadBalancer"
+)
+
+type PersistenceConfiguration struct {
+	// +optional
+	Enabled bool `json:"enabled"`
+
+	// +optional
+	StorageClass string `json:"storageClass"`
+
+	// +optional
+	Size string `json:"size"`
 }
 
 // ManagementCenterStatus defines the observed state of ManagementCenter
