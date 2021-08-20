@@ -1,4 +1,4 @@
-package controllers
+package hazelcast
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -101,7 +102,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 	}
 
-	opResult, err := createOrUpdate(ctx, r.Client, clusterRole, func() error {
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
 		clusterRole.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
@@ -128,7 +129,7 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 		return err
 	}
 
-	opResult, err := createOrUpdate(ctx, r.Client, serviceAccount, func() error {
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -145,7 +146,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 		},
 	}
 
-	opResult, err := createOrUpdate(ctx, r.Client, crb, func() error {
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, crb, func() error {
 		crb.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
@@ -182,7 +183,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		return err
 	}
 
-	opResult, err := createOrUpdate(ctx, r.Client, service, func() error {
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 		service.Spec.Type = serviceType(h)
 		return nil
 	})
@@ -224,7 +225,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			return err
 		}
 
-		opResult, err := createOrUpdate(ctx, r.Client, service, func() error {
+		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 			return nil
 		})
@@ -400,7 +401,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		return err
 	}
 
-	opResult, err := createOrUpdate(ctx, r.Client, sts, func() error {
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		sts.Spec.Replicas = &h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
 		sts.Spec.Template.Annotations = podAnnotations(h)
@@ -509,14 +510,4 @@ func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
 
 func dockerImage(h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
-}
-
-func createOrUpdate(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
-	opResult, err := controllerutil.CreateOrUpdate(ctx, c, obj, f)
-	if errors.IsAlreadyExists(err) {
-		// Ignore "already exists" error.
-		// Inside createOrUpdate() there's is a race condition between Get() and Create(), so this error is expected from time to time.
-		return opResult, nil
-	}
-	return opResult, err
 }

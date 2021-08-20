@@ -3,5 +3,6 @@ kind: ManagementCenter
 metadata:
   name: managementcenter-sample
 spec:
-  # Add fields here
-  foo: bar
+  repository: 'hazelcast/management-center'
+  version: '5.0-BETA-2'
+  licenseKeySecret: 'hazelcast-license-key'

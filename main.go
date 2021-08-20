@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/hazelcast"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/managementcenter"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -16,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -78,7 +79,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.HazelcastReconciler{
+	if err = (&hazelcast.HazelcastReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Hazelcast"),
 		Scheme: mgr.GetScheme(),
@@ -86,8 +87,9 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Hazelcast")
 		os.Exit(1)
 	}
-	if err = (&controllers.ManagementCenterReconciler{
+	if err = (&managementcenter.ManagementCenterReconciler{
 		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Management Center"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ManagementCenter")
