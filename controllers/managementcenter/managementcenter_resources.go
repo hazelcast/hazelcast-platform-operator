@@ -3,12 +3,15 @@ package managementcenter
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -74,4 +77,46 @@ func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
 
 func dockerImage(mc *hazelcastv1alpha1.ManagementCenter) string {
 	return fmt.Sprintf("%s:%s", mc.Spec.Repository, mc.Spec.Version)
+}
+
+func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	service := &corev1.Service{
+		ObjectMeta: metadata(mc),
+		Spec: corev1.ServiceSpec{
+			Selector: labels(mc),
+			Ports:    ports(),
+		},
+	}
+
+	err := controllerutil.SetControllerReference(mc, service, r.Scheme)
+	if err != nil {
+		logger.Error(err, "Failed to set owner reference on Service")
+		return err
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+		service.Spec.Type = mc.Spec.ExternalConnectivity.Type.ManagementCenterServiceType()
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Service", mc.Name, "result", opResult)
+	}
+	return err
+}
+
+func ports() []v1.ServicePort {
+	return []corev1.ServicePort{
+		{
+			Name:       "http",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       8080,
+			TargetPort: intstr.FromString("mancenter"),
+		},
+		{
+			Name:       "https",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       443,
+			TargetPort: intstr.FromString("mancenter"),
+		},
+	}
 }

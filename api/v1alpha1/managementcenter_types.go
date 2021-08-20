@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -50,7 +51,7 @@ type ExternalConnectivityConfiguration struct {
 	// Valid values are:
 	// - "ClusterIP"
 	// - "NodePort"
-	// - "Loadbalancer
+	// - "Loadbalancer" (default)
 	// +optional
 	Type ExternalConnectivityType `json:"type,omitempty"`
 }
@@ -110,4 +111,12 @@ type ManagementCenterList struct {
 
 func init() {
 	SchemeBuilder.Register(&ManagementCenter{}, &ManagementCenterList{})
+}
+
+// Returns service type that is used by Management Center (LoadBalancer by default).
+func (t ExternalConnectivityType) ManagementCenterServiceType() corev1.ServiceType {
+	if t != ExternalConnectivityType("") {
+		return corev1.ServiceType(t)
+	}
+	return corev1.ServiceType("LoadBalancer")
 }
