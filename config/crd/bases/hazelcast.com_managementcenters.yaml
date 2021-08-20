@@ -41,10 +41,10 @@ spec:
                 properties:
                   type:
                     description: 'Specifies how Management Center is exposed Valid
-                      values are: - "ClusterIP" - "NodePort" - "Loadbalancer (default)'
+                      values are: - "ClusterIP" - "NodePort" - "Loadbalancer" (default)'
                     enum:
-                    - NodePort
                     - ClusterIP
+                    - NodePort
                     - LoadBalancer
                     type: string
                 type: object

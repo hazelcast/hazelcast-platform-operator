@@ -7,4 +7,7 @@ spec:
   version: '5.0-BETA-2'
   licenseKeySecret: 'hazelcast-license-key'
   externalConnectivity:
-    type: LoadBalancer
+    type: ClusterIP
+  hazelcastClusters:
+    - address: hazelcast-sample
+      name: dev

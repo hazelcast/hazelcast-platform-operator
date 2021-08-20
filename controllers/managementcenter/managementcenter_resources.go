@@ -3,6 +3,7 @@ package managementcenter
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -51,6 +52,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		// Management Center StatefulSet size is always 1
 		sts.Spec.Replicas = &[]int32{1}[0]
 		sts.Spec.Template.Spec.Containers[0].Image = dockerImage(mc)
+		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -77,6 +79,13 @@ func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
 
 func dockerImage(mc *hazelcastv1alpha1.ManagementCenter) string {
 	return fmt.Sprintf("%s:%s", mc.Spec.Repository, mc.Spec.Version)
+}
+
+func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
+	envs := []v1.EnvVar{
+		{Name: "MC_INIT_CMD", Value: clusterAddCommand(mc)},
+	}
+	return envs
 }
 
 func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
@@ -119,4 +128,18 @@ func ports() []v1.ServicePort {
 			TargetPort: intstr.FromString("mancenter"),
 		},
 	}
+}
+
+func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
+	clusters := mc.Spec.HazelcastClusters
+	var sb strings.Builder
+	size := len(clusters)
+	for i, cluster := range clusters {
+		if i < size-1 {
+			sb.WriteString(fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data -cn %s -ma %s && ", cluster.Name, cluster.Address))
+		} else {
+			sb.WriteString(fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data -cn %s -ma %s", cluster.Name, cluster.Address))
+		}
+	}
+	return sb.String()
 }
