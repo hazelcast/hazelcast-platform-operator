@@ -104,7 +104,7 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
-		service.Spec.Type = mc.Spec.ExternalConnectivity.Type.ManagementCenterServiceType()
+		service.Spec.Type = mc.Spec.ExternalConnectivity.ManagementCenterServiceType()
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

@@ -62,13 +62,13 @@ type ExternalConnectivityType string
 
 const (
 	// ExternalConnectivityTypeClusterIP exposes Management Center with ClusterIP service.
-	ExternalConnectivityTypeClusterIP ExposeExternallyType = "ClusterIP"
+	ExternalConnectivityTypeClusterIP ExternalConnectivityType = "ClusterIP"
 
 	// ExternalConnectivityTypeNodePort exposes Management Center with NodePort service.
-	ExternalConnectivityTypeNodePort ExposeExternallyType = "NodePort"
+	ExternalConnectivityTypeNodePort ExternalConnectivityType = "NodePort"
 
 	// ExternalConnectivityTypeLoadBalancer exposes Management Center with LoadBalancer service.
-	ExternalConnectivityTypeLoadBalancer ExposeExternallyType = "LoadBalancer"
+	ExternalConnectivityTypeLoadBalancer ExternalConnectivityType = "LoadBalancer"
 )
 
 type PersistenceConfiguration struct {
@@ -114,9 +114,13 @@ func init() {
 }
 
 // Returns service type that is used by Management Center (LoadBalancer by default).
-func (t ExternalConnectivityType) ManagementCenterServiceType() corev1.ServiceType {
-	if t != ExternalConnectivityType("") {
-		return corev1.ServiceType(t)
+func (c *ExternalConnectivityConfiguration) ManagementCenterServiceType() corev1.ServiceType {
+	switch c.Type {
+	case ExternalConnectivityTypeClusterIP:
+		return corev1.ServiceTypeClusterIP
+	case ExternalConnectivityTypeNodePort:
+		return corev1.ServiceTypeNodePort
+	default:
+		return corev1.ServiceTypeLoadBalancer
 	}
-	return corev1.ServiceType("LoadBalancer")
 }
