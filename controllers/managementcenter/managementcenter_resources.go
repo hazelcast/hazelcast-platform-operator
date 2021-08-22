@@ -36,7 +36,46 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 							Name:          "mancenter",
 							Protocol:      v1.ProtocolTCP,
 						}},
+						LivenessProbe: &v1.Probe{
+							Handler: v1.Handler{
+								HTTPGet: &v1.HTTPGetAction{
+									Path:   "/health",
+									Port:   intstr.FromInt(8081),
+									Scheme: "HTTP",
+								},
+							},
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      10,
+							PeriodSeconds:       10,
+							SuccessThreshold:    1,
+							FailureThreshold:    10,
+						},
+						ReadinessProbe: &v1.Probe{
+							Handler: v1.Handler{
+								HTTPGet: &v1.HTTPGetAction{
+									Path:   "/health",
+									Port:   intstr.FromInt(8081),
+									Scheme: "HTTP",
+								},
+							},
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      10,
+							PeriodSeconds:       10,
+							SuccessThreshold:    1,
+							FailureThreshold:    10,
+						},
+						SecurityContext: &v1.SecurityContext{
+							RunAsNonRoot:             &[]bool{true}[0],
+							RunAsUser:                &[]int64{65534}[0],
+							Privileged:               &[]bool{false}[0],
+							ReadOnlyRootFilesystem:   &[]bool{false}[0],
+							AllowPrivilegeEscalation: &[]bool{false}[0],
+							Capabilities: &v1.Capabilities{
+								Drop: []v1.Capability{"ALL"},
+							},
+						},
 					}},
+					TerminationGracePeriodSeconds: &[]int64{300}[0],
 				},
 			},
 		},
@@ -84,6 +123,7 @@ func dockerImage(mc *hazelcastv1alpha1.ManagementCenter) string {
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{Name: "MC_INIT_CMD", Value: clusterAddCommand(mc)},
+		{Name: "JAVA_OPTS", Value: "-Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
 	}
 	return envs
 }
