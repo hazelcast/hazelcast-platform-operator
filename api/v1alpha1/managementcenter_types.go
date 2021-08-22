@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,6 +54,7 @@ type ExternalConnectivityConfiguration struct {
 	// - "NodePort"
 	// - "Loadbalancer" (default)
 	// +optional
+	// +kubebuilder:default:="LoadBalancer"
 	Type ExternalConnectivityType `json:"type,omitempty"`
 }
 
@@ -73,13 +75,15 @@ const (
 
 type PersistenceConfiguration struct {
 	// +optional
+	// +kubebuilder:default:=true
 	Enabled bool `json:"enabled"`
 
 	// +optional
 	StorageClass string `json:"storageClass"`
 
 	// +optional
-	Size string `json:"size"`
+	// +kubebuilder:default:="10Gi"
+	Size resource.Quantity `json:"size"`
 }
 
 // ManagementCenterStatus defines the observed state of ManagementCenter

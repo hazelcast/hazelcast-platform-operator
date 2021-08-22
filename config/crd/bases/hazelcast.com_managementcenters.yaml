@@ -40,6 +40,7 @@ spec:
                 description: Configuration to expose Management Center to outside.
                 properties:
                   type:
+                    default: LoadBalancer
                     description: 'Specifies how Management Center is exposed Valid
                       values are: - "ClusterIP" - "NodePort" - "Loadbalancer" (default)'
                     enum:
@@ -76,9 +77,15 @@ spec:
                 description: Configuration for Management Center persistence
                 properties:
                   enabled:
+                    default: true
                     type: boolean
                   size:
-                    type: string
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    default: 10Gi
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   storageClass:
                     type: string
                 type: object
