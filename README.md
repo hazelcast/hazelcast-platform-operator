@@ -76,11 +76,20 @@ make undeploy
 kubectl delete secret hazelcast-license-key
 ```
 
-## Running end-to-end tests 
+## Running Tests
 
-First, you need a Kubernetes cluster and also your local kubectl should be connected to it. 
+There are different types of tests related to Hazelcast Enterprise Operator.
 
-You should run commands below to run end-to-end tests:
+### Running unit & integration tests
+To run unit & integration tests, execute the following command.
+
+```shell
+make test
+```
+
+### Running end-to-end tests 
+
+You need a Kubernetes cluster and also your local kubectl context configured. Then, execute the following commands.
 
 ```shell
 kubectl create ns <YOUR NAMESPACE>
@@ -89,6 +98,6 @@ make deploy NAMESPACE=<YOUR NAMESPACE> IMG=hazelcast/hazelcast-enterprise-operat
 
 kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE> --from-literal=license-key=<YOUR LICENSE KEY>
 
-make test-e2e
+make test-e2e NAMESPACE=<YOUR NAMESPACE>
 ```
 
