@@ -14,7 +14,12 @@ spec:
     singular: hazelcast
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the Hazelcast deployment
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Hazelcast is the Schema for the hazelcasts API
@@ -36,9 +41,29 @@ spec:
                 format: int32
                 minimum: 1
                 type: integer
+              exposeExternally:
+                description: Configuration to expose Hazelcast cluster to external clients.
+                properties:
+                  discoveryServiceType:
+                    description: Type of the service used to discover Hazelcast cluster.
+                    type: string
+                  memberAccess:
+                    description: 'Method of how each member is accessed from the external client. Valid values are: - "NodePortExternalIP" (default): each member is accessed by the NodePort service and the node external IP/hostname - "NodePortNodeName": each member is accessed by the NodePort service and the node name - "LoadBalancer": each member is accessed by the LoadBalancer service external address'
+                    enum:
+                    - NodePortExternalIP
+                    - NodePortNodeName
+                    - LoadBalancer
+                    type: string
+                  type:
+                    description: 'Specifies how members are exposed. Valid values are: - "Smart" (default): each member pod is exposed with a separate external address - "Unisocket": all member pods are exposed with one external address'
+                    enum:
+                    - Smart
+                    - Unisocket
+                    type: string
+                type: object
               licenseKeySecret:
                 default: hazelcast-license-key
-                description: Name of the secret with Hazelcast Enterprise License Key
+                description: Name of the secret with Hazelcast Enterprise License Key.
                 type: string
               repository:
                 default: docker.io/hazelcast/hazelcast-enterprise
@@ -51,6 +76,12 @@ spec:
             type: object
           status:
             description: HazelcastStatus defines the observed state of Hazelcast
+            properties:
+              phase:
+                description: Phase represents the current state of the cluster
+                type: string
+            required:
+            - phase
             type: object
         type: object
     served: true
@@ -81,7 +112,6 @@ rules:
   - ""
   resources:
   - events
-  - rolebindings
   - serviceaccounts
   - services
   verbs:
@@ -130,19 +160,6 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  - roles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -163,6 +180,7 @@ rules:
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
+  - clusterrolebindings
   - clusterroles
   verbs:
   - create
