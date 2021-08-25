@@ -79,7 +79,7 @@ type PersistenceConfiguration struct {
 	Enabled bool `json:"enabled"`
 
 	// +optional
-	StorageClass string `json:"storageClass"`
+	StorageClass *string `json:"storageClass"`
 
 	// +optional
 	// +kubebuilder:default:="10Gi"
@@ -127,4 +127,9 @@ func (c *ExternalConnectivityConfiguration) ManagementCenterServiceType() corev1
 	default:
 		return corev1.ServiceTypeLoadBalancer
 	}
+}
+
+// Returns true if persistence configuration is specified.
+func (c *PersistenceConfiguration) IsEnabled() bool {
+	return c.Enabled
 }

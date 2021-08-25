@@ -48,3 +48,32 @@ func TestExternalConnectivityConfigurationType(t *testing.T) {
 		})
 	}
 }
+
+func TestPersistenceConfigurationIsEnabled(t *testing.T) {
+	tests := []struct {
+		name string
+		conf PersistenceConfiguration
+		want bool
+	}{
+		{
+			name: "Default configuration",
+			conf: PersistenceConfiguration{},
+			want: false,
+		},
+		{
+			name: "Enabled configuration",
+			conf: PersistenceConfiguration{
+				Enabled: true,
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.conf.IsEnabled(); got != tt.want {
+				t.Errorf("IsEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

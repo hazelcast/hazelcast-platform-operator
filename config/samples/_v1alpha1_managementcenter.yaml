@@ -5,9 +5,13 @@ metadata:
 spec:
   repository: 'hazelcast/management-center'
   version: '5.0-BETA-2'
-  licenseKeySecret: 'hazelcast-license-key'
+  licenseKeySecret: hazelcast-license-key
   externalConnectivity:
-    type: ClusterIP
+    type: LoadBalancer
   hazelcastClusters:
     - address: hazelcast-sample
       name: dev
+  persistence:
+    enabled: true
+    storageClass: standard
+    size: 10Gi

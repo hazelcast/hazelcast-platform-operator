@@ -18,73 +18,85 @@ import (
 
 func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
 	ls := labels(mc)
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metadata(mc),
-		Spec: appsv1.StatefulSetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
-			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: ls,
+	var (
+		sts = &appsv1.StatefulSet{
+			ObjectMeta: metadata(mc),
+			Spec: appsv1.StatefulSetSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: ls,
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{{
-						Name: "management-center",
-						Ports: []v1.ContainerPort{{
-							ContainerPort: 8080,
-							Name:          "mancenter",
-							Protocol:      v1.ProtocolTCP,
+				Template: v1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: ls,
+					},
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{{
+							Name: "management-center",
+							Ports: []v1.ContainerPort{{
+								ContainerPort: 8080,
+								Name:          "mancenter",
+								Protocol:      v1.ProtocolTCP,
+							}},
+							VolumeMounts: []corev1.VolumeMount{},
+							LivenessProbe: &v1.Probe{
+								Handler: v1.Handler{
+									HTTPGet: &v1.HTTPGetAction{
+										Path:   "/health",
+										Port:   intstr.FromInt(8081),
+										Scheme: "HTTP",
+									},
+								},
+								InitialDelaySeconds: 10,
+								TimeoutSeconds:      10,
+								PeriodSeconds:       10,
+								SuccessThreshold:    1,
+								FailureThreshold:    10,
+							},
+							ReadinessProbe: &v1.Probe{
+								Handler: v1.Handler{
+									HTTPGet: &v1.HTTPGetAction{
+										Path:   "/health",
+										Port:   intstr.FromInt(8081),
+										Scheme: "HTTP",
+									},
+								},
+								InitialDelaySeconds: 10,
+								TimeoutSeconds:      10,
+								PeriodSeconds:       10,
+								SuccessThreshold:    1,
+								FailureThreshold:    10,
+							},
+							SecurityContext: &v1.SecurityContext{
+								RunAsNonRoot:             &[]bool{true}[0],
+								RunAsUser:                &[]int64{65534}[0],
+								Privileged:               &[]bool{false}[0],
+								ReadOnlyRootFilesystem:   &[]bool{false}[0],
+								AllowPrivilegeEscalation: &[]bool{false}[0],
+								Capabilities: &v1.Capabilities{
+									Drop: []v1.Capability{"ALL"},
+								},
+							},
 						}},
-						LivenessProbe: &v1.Probe{
-							Handler: v1.Handler{
-								HTTPGet: &v1.HTTPGetAction{
-									Path:   "/health",
-									Port:   intstr.FromInt(8081),
-									Scheme: "HTTP",
-								},
-							},
-							InitialDelaySeconds: 10,
-							TimeoutSeconds:      10,
-							PeriodSeconds:       10,
-							SuccessThreshold:    1,
-							FailureThreshold:    10,
+						SecurityContext: &v1.PodSecurityContext{
+							FSGroup: &[]int64{65534}[0],
 						},
-						ReadinessProbe: &v1.Probe{
-							Handler: v1.Handler{
-								HTTPGet: &v1.HTTPGetAction{
-									Path:   "/health",
-									Port:   intstr.FromInt(8081),
-									Scheme: "HTTP",
-								},
-							},
-							InitialDelaySeconds: 10,
-							TimeoutSeconds:      10,
-							PeriodSeconds:       10,
-							SuccessThreshold:    1,
-							FailureThreshold:    10,
-						},
-						SecurityContext: &v1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							RunAsUser:                &[]int64{65534}[0],
-							Privileged:               &[]bool{false}[0],
-							ReadOnlyRootFilesystem:   &[]bool{false}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
-							Capabilities: &v1.Capabilities{
-								Drop: []v1.Capability{"ALL"},
-							},
-						},
-					}},
-					TerminationGracePeriodSeconds: &[]int64{300}[0],
+						TerminationGracePeriodSeconds: &[]int64{300}[0],
+					},
 				},
+				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{},
 			},
-		},
-	}
-
+		}
+	)
 	err := controllerutil.SetControllerReference(mc, sts, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on Statefulset")
 		return err
+	}
+
+	if mc.Spec.Persistence.IsEnabled() {
+		sts.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(sts.Spec.Template.Spec.Containers[0].VolumeMounts, persistentVolumeMount())
+		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, persistentVolumeClaim(mc))
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
@@ -182,4 +194,30 @@ func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
 		}
 	}
 	return sb.String()
+}
+
+func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.PersistentVolumeClaim {
+	return corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mancenter-storage",
+			Namespace: mc.Namespace,
+			Labels:    labels(mc),
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			StorageClassName: mc.Spec.Persistence.StorageClass,
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: mc.Spec.Persistence.Size,
+				},
+			},
+		},
+	}
+}
+
+func persistentVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      "mancenter-storage",
+		MountPath: "/data",
+	}
 }
