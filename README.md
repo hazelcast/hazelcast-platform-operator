@@ -37,7 +37,7 @@ metadata:
 spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
-  version: '5.0-SNAPSHOT'
+  version: '5.0-BETA-2-slim'
   licenseKeySecret: hazelcast-license-key
 ```
 
@@ -65,6 +65,45 @@ Members {size:3, ver:3} [
         Member [10.131.1.2]:5701 - 0fa2a21a-d159-4cac-ab08-bdac994d912a
 ]
 ```
+### Step 4: Start Management Center
+Run the following command to start Management Center via applying CR yaml:
+
+```shell
+kubectl apply -f config/samples/_v1alpha1_managementcenter.yaml
+```
+```yaml
+apiVersion: hazelcast.com/v1alpha1
+kind: ManagementCenter
+metadata:
+  name: managementcenter-sample
+spec:
+  repository: 'hazelcast/management-center'
+  version: '5.0-BETA-2'
+  licenseKeySecret: hazelcast-license-key
+  externalConnectivity:
+    type: LoadBalancer
+  hazelcastClusters:
+    # Change address to Hazelcast cluster service name if different
+    - address: hazelcast-sample
+      name: dev
+  persistence:
+    enabled: true
+    size: 10Gi
+```
+
+You can check Management Center's log:
+
+```shell
+$ kubectl logs managementcenter-sample-0
+
+...
+2021-08-26 15:21:04,842 [ INFO] [MC-Client-dev.lifecycle-1] [c.h.w.s.MCClientManager]: MC Client connected to cluster dev.
+2021-08-26 15:21:05,241 [ INFO] [MC-Client-dev.event-1] [c.h.w.s.MCClientManager]: Started communication with member: Member [10.52.2.9]:5701 - f4df86c9-bc6b-4f62-b3e7-72b85fbbc74e
+2021-08-26 15:21:05,245 [ INFO] [MC-Client-dev.event-1] [c.h.w.s.MCClientManager]: Started communication with member: Member [10.52.1.4]:5701 - 4c3b692e-0b56-4606-bf34-bd2b86c9f443
+2021-08-26 15:21:05,251 [ INFO] [MC-Client-dev.event-1] [c.h.w.s.MCClientManager]: Started communication with member: Member [10.52.0.13]:5701 - 25cf88bb-f40b-40d5-b5a0-43c1da81b2bd
+2021-08-26 15:21:07,234 [ INFO] [main] [c.h.w.Launcher]: Hazelcast Management Center successfully started at http://localhost:8080/
+
+```
 
 ### Step 4: Clean up
 
@@ -72,6 +111,7 @@ To clean up your Kubernetes cluster execute the following commands.
 
 ```shell
 kubectl delete -f config/samples/_v1alpha1_hazelcast.yaml
+kubectl delete -f config/samples/_v1alpha1_managementcenter.yaml
 make undeploy
 kubectl delete secret hazelcast-license-key
 ```
@@ -84,8 +124,10 @@ There are different types of tests related to Hazelcast Enterprise Operator.
 To run unit & integration tests, execute the following command.
 
 ```shell
-make test
+make test-all
 ```
+
+You can also run unit & integration tests separately by `make test-unit` and `make test-it` commands.
 
 ### Running end-to-end tests 
 

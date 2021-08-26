@@ -9,9 +9,8 @@ spec:
   externalConnectivity:
     type: LoadBalancer
   hazelcastClusters:
-    - address: hazelcast
+    - address: hazelcast-sample
       name: dev
   persistence:
     enabled: true
-    storageClass: standard
     size: 10Gi
