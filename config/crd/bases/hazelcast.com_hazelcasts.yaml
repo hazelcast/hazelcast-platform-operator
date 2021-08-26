@@ -87,7 +87,7 @@ spec:
                 description: Repository to pull the Hazelcast Platform image from.
                 type: string
               version:
-                default: 5.0-SNAPSHOT
+                default: 5.0-BETA-2-slim
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
