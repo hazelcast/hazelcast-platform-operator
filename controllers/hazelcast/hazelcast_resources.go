@@ -405,7 +405,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Replicas = &h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
 		sts.Spec.Template.Annotations = podAnnotations(h)
-		sts.Spec.Template.Spec.Containers[0].Image = dockerImage(h)
+		sts.Spec.Template.Spec.Containers[0].Image = util.HazelcastDockerImage(h)
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		return nil
 	})
@@ -506,8 +506,4 @@ func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
 		Namespace: h.Namespace,
 		Labels:    labels(h),
 	}
-}
-
-func dockerImage(h *hazelcastv1alpha1.Hazelcast) string {
-	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
 }

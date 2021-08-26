@@ -102,7 +102,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		// Management Center StatefulSet size is always 1
 		sts.Spec.Replicas = &[]int32{1}[0]
-		sts.Spec.Template.Spec.Containers[0].Image = dockerImage(mc)
+		sts.Spec.Template.Spec.Containers[0].Image = util.MCDockerImage(mc)
 		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
 		return nil
 	})
@@ -126,10 +126,6 @@ func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
 		Namespace: mc.Namespace,
 		Labels:    labels(mc),
 	}
-}
-
-func dockerImage(mc *hazelcastv1alpha1.ManagementCenter) string {
-	return fmt.Sprintf("%s:%s", mc.Spec.Repository, mc.Spec.Version)
 }
 
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {

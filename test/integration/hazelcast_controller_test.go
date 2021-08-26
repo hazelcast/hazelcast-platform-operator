@@ -1,8 +1,9 @@
-package hazelcast
+package integration
 
 import (
 	"context"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -126,7 +127,7 @@ var _ = Describe("Hazelcast controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
-			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(dockerImage(fetchedCR)))
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(util.HazelcastDockerImage(fetchedCR)))
 
 			By("Expecting to delete CR successfully")
 			Eventually(func() error {
