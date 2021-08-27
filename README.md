@@ -33,7 +33,7 @@ kubectl apply -f config/samples/_v1alpha1_hazelcast.yaml
 apiVersion: hazelcast.com/v1alpha1
 kind: Hazelcast
 metadata:
-  name: hazelcast-sample
+  name: hazelcast
 spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
@@ -45,18 +45,18 @@ You can check the operator's logs to see the resource creation logs:
 ```
 $ kubectl logs deployment.apps/hazelcast-enterprise-controller-manager manager
 ...
-2021-06-16T16:37:09.539+0300    DEBUG   controllers.Hazelcast   Finalizer added into custom resource successfully       {"hazelcast": "default/hazelcast-sample"}
-2021-06-16T16:37:09.743+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast-sample", "ClusterRole": "hazelcast-sample", "result": "created"}
-2021-06-16T16:37:09.932+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast-sample", "ServiceAccount": "hazelcast-sample", "result": "created"}
-2021-06-16T16:37:10.370+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast-sample", "RoleBinding": "hazelcast-sample", "result": "created"}
-2021-06-16T16:37:10.992+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast-sample", "Statefulset": "hazelcast-sample", "result": "created"}
-2021-06-16T16:37:11.291+0300    DEBUG   controllers.Hazelcast   Statefulset resource version has been changed during create/update process.     {"hazelcast": "default/hazelcast-sample"}
-2021-06-16T16:37:11.559+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast-sample", "Statefulset": "hazelcast-sample", "result": "updated"}
+2021-06-16T16:37:09.539+0300    DEBUG   controllers.Hazelcast   Finalizer added into custom resource successfully       {"hazelcast": "default/hazelcast"}
+2021-06-16T16:37:09.743+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast", "ClusterRole": "hazelcast", "result": "created"}
+2021-06-16T16:37:09.932+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast", "ServiceAccount": "hazelcast", "result": "created"}
+2021-06-16T16:37:10.370+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast", "RoleBinding": "hazelcast", "result": "created"}
+2021-06-16T16:37:10.992+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast", "Statefulset": "hazelcast", "result": "created"}
+2021-06-16T16:37:11.291+0300    DEBUG   controllers.Hazelcast   Statefulset resource version has been changed during create/update process.     {"hazelcast": "default/hazelcast"}
+2021-06-16T16:37:11.559+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast", "Statefulset": "hazelcast", "result": "updated"}
 ```
 
 Check Hazelcast member's log:
 ```shell
-$ kubectl logs hazelcast-sample-0
+$ kubectl logs hazelcast-0
 
 ....
 Members {size:3, ver:3} [
@@ -75,7 +75,7 @@ kubectl apply -f config/samples/_v1alpha1_managementcenter.yaml
 apiVersion: hazelcast.com/v1alpha1
 kind: ManagementCenter
 metadata:
-  name: managementcenter-sample
+  name: managementcenter
 spec:
   repository: 'hazelcast/management-center'
   version: '5.0-BETA-2'
@@ -84,7 +84,7 @@ spec:
     type: LoadBalancer
   hazelcastClusters:
     # Change address to Hazelcast cluster service name if different
-    - address: hazelcast-sample
+    - address: hazelcast
       name: dev
   persistence:
     enabled: true
@@ -94,7 +94,7 @@ spec:
 You can check Management Center's log:
 
 ```shell
-$ kubectl logs managementcenter-sample-0
+$ kubectl logs managementcenter-0
 
 ...
 2021-08-26 15:21:04,842 [ INFO] [MC-Client-dev.lifecycle-1] [c.h.w.s.MCClientManager]: MC Client connected to cluster dev.

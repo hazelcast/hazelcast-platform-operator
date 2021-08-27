@@ -1,7 +1,7 @@
 apiVersion: hazelcast.com/v1alpha1
 kind: ManagementCenter
 metadata:
-  name: managementcenter-sample
+  name: managementcenter
 spec:
   repository: 'hazelcast/management-center'
   version: '5.0-BETA-2'
@@ -9,7 +9,7 @@ spec:
   externalConnectivity:
     type: LoadBalancer
   hazelcastClusters:
-    - address: hazelcast-sample
+    - address: hazelcast
       name: dev
   persistence:
     enabled: true
