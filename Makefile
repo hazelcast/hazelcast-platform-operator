@@ -87,7 +87,9 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-test-all: test-unit test-it
+test-all: test test-e2e
+
+test: test-unit test-it
 
 test-unit: manifests generate fmt vet
 	go test -v ./controllers/... -coverprofile cover.out
@@ -110,7 +112,7 @@ build: generate fmt vet ## Build manager binary.
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
-docker-build: test-it test-unit ## Build docker image with the manager.
+docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG} .
 
 docker-push: ## Push docker image with the manager.

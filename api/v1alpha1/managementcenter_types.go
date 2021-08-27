@@ -6,14 +6,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// HazelcastSpec defines the desired state of Hazelcast
+// ManagementCenterSpec defines the desired state of ManagementCenter.
 type ManagementCenterSpec struct {
-	// Repository to pull the Hazelcast Platform image from.
+	// Repository to pull the Management Center image from.
 	// +kubebuilder:default:="docker.io/hazelcast/management-center"
 	// +optional
 	Repository string `json:"repository"`
 
-	// Version of Hazelcast Platform.
+	// Version of Management Center.
 	// +kubebuilder:default:="5.0-BETA-2"
 	// +optional
 	Version string `json:"version"`
@@ -23,7 +23,7 @@ type ManagementCenterSpec struct {
 	// +optional
 	LicenseKeySecret string `json:"licenseKeySecret"`
 
-	// Connection configuration for Hazelcast Clusters Management Center will monitor.
+	// Connection configuration for Hazelcast clusters Management Center will monitor.
 	// +optional
 	HazelcastClusters []HazelcastClusterConfig `json:"hazelcastClusters"`
 
@@ -37,16 +37,17 @@ type ManagementCenterSpec struct {
 }
 
 type HazelcastClusterConfig struct {
-	// Name of the Hazelcast cluster Management Center will connect to
+	// Name of the Hazelcast cluster Management Center will connect to, default is dev.
 	// +optional
+	// +kubebuilder:default:="dev"
 	Name string `json:"name"`
 	// Address of Hazelcast cluster
 	// Can be IP address or DNS name. For Hazelcast cluster exposed with a service name in
-	// different namespace address can be given as "<service-name>.<service-namespace>."
+	// different namespace address can be given as "<service-name>.<service-namespace>".
 	Address string `json:"address"`
 }
 
-// ExternalConnectivityConfiguration defines how to expose Management Center pod
+// ExternalConnectivityConfiguration defines how to expose Management Center pod.
 type ExternalConnectivityConfiguration struct {
 	// Specifies how Management Center is exposed
 	// Valid values are:
@@ -86,10 +87,8 @@ type PersistenceConfiguration struct {
 	Size resource.Quantity `json:"size"`
 }
 
-// ManagementCenterStatus defines the observed state of ManagementCenter
+// ManagementCenterStatus defines the observed state of ManagementCenter.
 type ManagementCenterStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 //+kubebuilder:object:root=true

@@ -83,7 +83,6 @@ spec:
   externalConnectivity:
     type: LoadBalancer
   hazelcastClusters:
-    # Change address to Hazelcast cluster service name if different
     - address: hazelcast
       name: dev
   persistence:
@@ -124,7 +123,7 @@ There are different types of tests related to Hazelcast Enterprise Operator.
 To run unit & integration tests, execute the following command.
 
 ```shell
-make test-all
+make test
 ```
 
 You can also run unit & integration tests separately by `make test-unit` and `make test-it` commands.
