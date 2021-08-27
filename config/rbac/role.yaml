@@ -17,32 +17,6 @@ rules:
   - get
   - list
 - apiGroups:
-  - hazelcast.com
-  resources:
-  - managementcenters
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - managementcenters/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - managementcenters/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
@@ -112,6 +86,26 @@ rules:
   - hazelcast.com
   resources:
   - hazelcasts/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - managementcenters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - managementcenters/status
   verbs:
   - get
   - patch

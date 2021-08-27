@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: HazelcastSpec defines the desired state of Hazelcast
+            description: ManagementCenterSpec defines the desired state of ManagementCenter.
             properties:
               externalConnectivity:
                 description: Configuration to expose Management Center to outside.
@@ -50,19 +50,19 @@ spec:
                     type: string
                 type: object
               hazelcastClusters:
-                description: Connection configuration for Hazelcast Clusters Management
+                description: Connection configuration for Hazelcast clusters Management
                   Center will monitor.
                 items:
                   properties:
                     address:
-                      description: Address of one of the members of Hazelcast cluster
-                        Can be IP address or DNS name. For Hazelcast cluster exposed
-                        with a service name in different namespace address can be
-                        given as "<service-name>.<service-namespace>."
+                      description: Address of Hazelcast cluster Can be IP address
+                        or DNS name. For Hazelcast cluster exposed with a service
+                        name in different namespace address can be given as "<service-name>.<service-namespace>".
                       type: string
                     name:
+                      default: dev
                       description: Name of the Hazelcast cluster Management Center
-                        will connect to
+                        will connect to, default is dev.
                       type: string
                   required:
                   - address
@@ -74,7 +74,7 @@ spec:
                   Key.
                 type: string
               persistence:
-                description: Configuration for Management Center persistence
+                description: Configuration for Management Center persistence.
                 properties:
                   enabled:
                     default: true
@@ -91,15 +91,15 @@ spec:
                 type: object
               repository:
                 default: docker.io/hazelcast/management-center
-                description: Repository to pull the Hazelcast Platform image from.
+                description: Repository to pull the Management Center image from.
                 type: string
               version:
                 default: 5.0-BETA-2
-                description: Version of Hazelcast Platform.
+                description: Version of Management Center.
                 type: string
             type: object
           status:
-            description: ManagementCenterStatus defines the observed state of ManagementCenter
+            description: ManagementCenterStatus defines the observed state of ManagementCenter.
             type: object
         type: object
     served: true
