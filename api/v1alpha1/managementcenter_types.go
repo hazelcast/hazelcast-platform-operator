@@ -31,7 +31,7 @@ type ManagementCenterSpec struct {
 	// +optional
 	ExternalConnectivity ExternalConnectivityConfiguration `json:"externalConnectivity"`
 
-	// Configuration for Management Center persistence
+	// Configuration for Management Center persistence.
 	// +optional
 	Persistence PersistenceConfiguration `json:"persistence"`
 }
@@ -40,7 +40,7 @@ type HazelcastClusterConfig struct {
 	// Name of the Hazelcast cluster Management Center will connect to
 	// +optional
 	Name string `json:"name"`
-	// Address of one of the members of Hazelcast cluster
+	// Address of Hazelcast cluster
 	// Can be IP address or DNS name. For Hazelcast cluster exposed with a service name in
 	// different namespace address can be given as "<service-name>.<service-namespace>."
 	Address string `json:"address"`
