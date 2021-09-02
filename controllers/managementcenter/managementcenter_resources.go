@@ -200,13 +200,9 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 
 func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
 	clusters := mc.Spec.HazelcastClusters
-	var sb strings.Builder
-	size := len(clusters)
+	strs := make([]string, len(clusters))
 	for i, cluster := range clusters {
-		sb.WriteString(fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data -cn %s -ma %s", cluster.Name, cluster.Address))
-		if i < size-1 {
-			sb.WriteString(" && ")
-		}
+		strs[i] = fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data -cn %s -ma %s", cluster.Name, cluster.Address)
 	}
-	return sb.String()
+	return strings.Join(strs, " && ")
 }
