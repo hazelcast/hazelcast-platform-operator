@@ -135,6 +135,9 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 							},
 						},
 					}},
+					SecurityContext: &v1.PodSecurityContext{
+						FSGroup: &[]int64{65534}[0],
+					},
 				},
 			},
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{},
