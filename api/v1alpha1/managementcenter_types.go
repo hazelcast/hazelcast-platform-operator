@@ -105,8 +105,8 @@ type ManagementCenter struct {
 	Status ManagementCenterStatus `json:"status,omitempty"`
 }
 
-func (h *ManagementCenter) DockerImage() string {
-	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
+func (mc *ManagementCenter) DockerImage() string {
+	return fmt.Sprintf("%s:%s", mc.Spec.Repository, mc.Spec.Version)
 }
 
 //+kubebuilder:object:root=true
