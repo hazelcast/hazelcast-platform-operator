@@ -135,7 +135,6 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 							},
 						},
 					}},
-					TerminationGracePeriodSeconds: &[]int64{300}[0],
 				},
 			},
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{},
