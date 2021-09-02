@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -101,6 +103,10 @@ type ManagementCenter struct {
 
 	Spec   ManagementCenterSpec   `json:"spec,omitempty"`
 	Status ManagementCenterStatus `json:"status,omitempty"`
+}
+
+func (h *ManagementCenter) DockerImage() string {
+	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
 }
 
 //+kubebuilder:object:root=true

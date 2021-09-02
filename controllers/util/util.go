@@ -2,8 +2,7 @@ package util
 
 import (
 	"context"
-	"fmt"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -17,12 +16,4 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 		return opResult, nil
 	}
 	return opResult, err
-}
-
-func HazelcastDockerImage(h *hazelcastv1alpha1.Hazelcast) string {
-	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
-}
-
-func MCDockerImage(mc *hazelcastv1alpha1.ManagementCenter) string {
-	return fmt.Sprintf("%s:%s", mc.Spec.Repository, mc.Spec.Version)
 }

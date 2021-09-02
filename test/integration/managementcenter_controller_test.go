@@ -5,7 +5,6 @@ import (
 	"time"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -113,7 +112,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			}, timeout, interval).Should(BeTrue())
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(*fetchedSts.Spec.Replicas).Should(Equal(int32(1)))
-			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(util.MCDockerImage(fetchedCR)))
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(BeNil())
 
 			By("Expecting to delete CR successfully")

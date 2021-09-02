@@ -2,15 +2,15 @@ package integration
 
 import (
 	"context"
+	"time"
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -127,7 +127,7 @@ var _ = Describe("Hazelcast controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
-			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(util.HazelcastDockerImage(fetchedCR)))
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 
 			By("Expecting to delete CR successfully")
 			Eventually(func() error {
