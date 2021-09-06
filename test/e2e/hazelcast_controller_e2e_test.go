@@ -4,16 +4,19 @@ import (
 	"context"
 	"fmt"
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"io"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strconv"
 	"strings"
 )
 
@@ -37,6 +40,13 @@ var _ = Describe("Hazelcast", func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
 		}
+
+		By("Checking hazelcast-enterprise-controller-manager running", func() {
+			controllerDep := &appsv1.Deployment{}
+			Eventually(func() (int32, error) {
+				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
+			}, timeout, interval).Should(Equal(int32(1)))
+		})
 	})
 
 	AfterEach(func() {
@@ -51,34 +61,108 @@ var _ = Describe("Hazelcast", func() {
 		}, deleteTimeout, interval).Should(BeTrue())
 	})
 
-	Describe("Creating CR", func() {
+	Create := func(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+		By("Creating Hazelcast CR", func() {
+			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
+		})
 
-		It("Creating Hazelcast CR with default values", func() {
+		By("Checking Hazelcast CR running", func() {
+			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), lookupKey, hz)
+				Expect(err).ToNot(HaveOccurred())
+				return isHazelcastRunning(hz)
+			}, timeout, interval).Should(BeTrue())
+		})
+	}
 
-			By("Checking hazelcast-enterprise-controller-manager running", func() {
-				controllerDep := &appsv1.Deployment{}
-				Eventually(func() (int32, error) {
-					return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-				}, timeout, interval).Should(Equal(int32(1)))
+	Describe("default CR", func() {
+		It("should create default Hazelcast CR", func() {
+			hazelcast := defaultHazelcast()
+			Create(hazelcast)
+		})
+	})
+
+	Describe("expose externally feature", func() {
+		AssertUseHazelcast := func(unisocket bool) {
+			It("should use Hazelcast cluster", func() {
+				ctx := context.Background()
+
+				By("checking Hazelcast discovery service external IP")
+				s := &corev1.Service{}
+				err := k8sClient.Get(context.Background(), lookupKey, s)
+				Expect(err).ToNot(HaveOccurred())
+				ip := s.Status.LoadBalancer.Ingress[0].IP
+				Expect(ip).Should(Not(Equal("")))
+
+				By("connecting Hazelcast client")
+				config := hzClient.Config{}
+				config.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", ip))
+				config.Cluster.Unisocket = unisocket
+				client, err := hzClient.StartNewClient(ctx)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("using Hazelcast client")
+				m, err := client.GetMap(ctx, "map")
+				Expect(err).ToNot(HaveOccurred())
+				for i := 0; i < 10_000; i++ {
+					fmt.Println("Inserting: (", strconv.Itoa(i), ", ", strconv.Itoa(i), ")")
+					_, err = m.Put(ctx, strconv.Itoa(i), strconv.Itoa(i))
+					Expect(err).ToNot(HaveOccurred())
+				}
+			})
+		}
+
+		Context("smart client", func() {
+			AssertUseHazelcastSmart := func() {
+				AssertUseHazelcast(false)
+			}
+
+			Context("each member accessed via LoadBalancer", func() {
+				It("should use Hazelcast cluster", func() {
+					hazelcast := defaultHazelcast()
+					hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+						Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+						DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+						MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+					}
+					Create(hazelcast)
+
+					AssertUseHazelcastSmart()
+				})
 			})
 
-			hazelcast := emptyHazelcast()
-			err := loadHazelcastFromFile(hazelcast, "_v1alpha1_hazelcast.yaml")
-			Expect(err).ToNot(HaveOccurred())
+			Context("each member accessed via NodePort", func() {
+				It("should use Hazelcast cluster", func() {
+					hazelcast := defaultHazelcast()
+					hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+						Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+						DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+						MemberAccess:         hazelcastcomv1alpha1.MemberAccessNodePortExternalIP,
+					}
+					Create(hazelcast)
 
-			By("Creating Hazelcast CR", func() {
-				Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
-			})
-
-			By("Checking Hazelcast CR running", func() {
-				hz := &hazelcastcomv1alpha1.Hazelcast{}
-				Eventually(func() bool {
-					k8sClient.Get(context.Background(), lookupKey, hz)
-					return isHazelcastRunning(hz)
-				}, timeout, interval).Should(BeTrue())
+					AssertUseHazelcastSmart()
+				})
 			})
 		})
 
+		Context("unisocket client", func() {
+			It("should use Hazelcast cluster", func() {
+				assertUseHazelcastUnisocket := func() {
+					AssertUseHazelcast(true)
+				}
+
+				hazelcast := defaultHazelcast()
+				hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
+					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				}
+				Create(hazelcast)
+
+				assertUseHazelcastUnisocket()
+			})
+		})
 	})
 })
 
@@ -96,6 +180,13 @@ func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, 
 	}
 
 	return deploy.Status.ReadyReplicas, nil
+}
+
+func defaultHazelcast() *hazelcastcomv1alpha1.Hazelcast {
+	h := emptyHazelcast()
+	err := loadHazelcastFromFile(h, "_v1alpha1_hazelcast.yaml")
+	Expect(err).ToNot(HaveOccurred())
+	return h
 }
 
 func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
