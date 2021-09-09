@@ -7,7 +7,7 @@ on:
       - '**.md'
 
 jobs:
-  build:
+  publish-snapshot-image:
     name: Publish Snapshot to Docker Hub
     runs-on: ubuntu-latest
 

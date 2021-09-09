@@ -7,10 +7,9 @@ on:
       - '**.md'
 
 jobs:
-  build:
-    name: Pull Request
-    runs-on: ubuntu-latest
-
+  unit-tests:
+    name: Run unit and integration tests
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -30,3 +29,54 @@ jobs:
 
       - name: Run Tests
         run: make test
+
+  e2e-tests:
+    name: Run e2e tests
+    runs-on: ubuntu-20.04
+    env:
+      IMG: kind-local/hazelcast-enterprise-operator:${GITHUB_SHA::8}
+      NAMESPACE: test-operator
+      KUBECTL_VERSION: 1.22.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Set up Kubernetes in Docker
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: "v0.11.1"
+
+      - name: Build Operator Image and Push to KIND
+        run: |
+          make docker-build-ci IMG=${{ env.IMG }}
+          kind load docker-image ${{ env.IMG }}
+
+      - name: Install kubectl
+        run: |
+          mkdir -p ${GITHUB_WORKSPACE}/bin
+          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
+          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+
+      - name: Deploy Operator
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }}
+          make install
+          make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.IMG }}
+
+      - name: Run Hazelcast E2E tests
+        run: |
+          kubectl create secret generic hazelcast-license-key --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+          make test-e2e NAMESPACE=${{ env.NAMESPACE }}
