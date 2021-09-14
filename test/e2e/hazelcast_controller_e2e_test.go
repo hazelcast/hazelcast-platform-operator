@@ -108,7 +108,6 @@ var _ = Describe("Hazelcast", func() {
 			m, err := client.GetMap(ctx, "map")
 			Expect(err).ToNot(HaveOccurred())
 			for i := 0; i < 100; i++ {
-				fmt.Println("Inserting: (", strconv.Itoa(i), ", ", strconv.Itoa(i), ")")
 				_, err = m.Put(ctx, strconv.Itoa(i), strconv.Itoa(i))
 				Expect(err).ToNot(HaveOccurred())
 			}
