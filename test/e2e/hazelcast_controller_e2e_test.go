@@ -85,54 +85,58 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("expose externally feature", func() {
 		AssertUseHazelcast := func(unisocket bool) {
-			It("should use Hazelcast cluster", func() {
-				ctx := context.Background()
+			ctx := context.Background()
 
-				By("checking Hazelcast discovery service external IP")
-				s := &corev1.Service{}
+			By("checking Hazelcast discovery service external IP")
+			s := &corev1.Service{}
+			Eventually(func() bool {
 				err := k8sClient.Get(context.Background(), lookupKey, s)
 				Expect(err).ToNot(HaveOccurred())
-				ip := s.Status.LoadBalancer.Ingress[0].IP
-				Expect(ip).Should(Not(Equal("")))
+				return len(s.Status.LoadBalancer.Ingress) > 0
+			}, timeout, interval).Should(BeTrue())
+			ip := s.Status.LoadBalancer.Ingress[0].IP
+			Expect(ip).Should(Not(Equal("")))
 
-				By("connecting Hazelcast client")
-				config := hzClient.Config{}
-				config.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", ip))
-				config.Cluster.Unisocket = unisocket
-				client, err := hzClient.StartNewClient(ctx)
-				Expect(err).ToNot(HaveOccurred())
+			By("connecting Hazelcast client")
+			config := hzClient.Config{}
+			config.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", ip))
+			config.Cluster.Unisocket = unisocket
+			client, err := hzClient.StartNewClientWithConfig(ctx, config)
+			Expect(err).ToNot(HaveOccurred())
 
-				By("using Hazelcast client")
-				m, err := client.GetMap(ctx, "map")
+			By("using Hazelcast client")
+			m, err := client.GetMap(ctx, "map")
+			Expect(err).ToNot(HaveOccurred())
+			for i := 0; i < 100; i++ {
+				fmt.Println("Inserting: (", strconv.Itoa(i), ", ", strconv.Itoa(i), ")")
+				_, err = m.Put(ctx, strconv.Itoa(i), strconv.Itoa(i))
 				Expect(err).ToNot(HaveOccurred())
-				for i := 0; i < 10_000; i++ {
-					fmt.Println("Inserting: (", strconv.Itoa(i), ", ", strconv.Itoa(i), ")")
-					_, err = m.Put(ctx, strconv.Itoa(i), strconv.Itoa(i))
-					Expect(err).ToNot(HaveOccurred())
-				}
-			})
+			}
+			client.Shutdown(ctx)
 		}
+
+		Context("unisocket client", func() {
+			AssertUseHazelcastUnisocket := func() {
+				AssertUseHazelcast(true)
+			}
+
+			It("should use Hazelcast cluster", func() {
+				hazelcast := defaultHazelcast()
+				hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
+					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				}
+				Create(hazelcast)
+				AssertUseHazelcastUnisocket()
+			})
+		})
 
 		Context("smart client", func() {
 			AssertUseHazelcastSmart := func() {
 				AssertUseHazelcast(false)
 			}
 
-			Context("each member accessed via LoadBalancer", func() {
-				It("should use Hazelcast cluster", func() {
-					hazelcast := defaultHazelcast()
-					hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-						Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
-						DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-						MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
-					}
-					Create(hazelcast)
-
-					AssertUseHazelcastSmart()
-				})
-			})
-
-			Context("each member accessed via NodePort", func() {
+			Context("each member exposed via NodePort service", func() {
 				It("should use Hazelcast cluster", func() {
 					hazelcast := defaultHazelcast()
 					hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
@@ -141,26 +145,21 @@ var _ = Describe("Hazelcast", func() {
 						MemberAccess:         hazelcastcomv1alpha1.MemberAccessNodePortExternalIP,
 					}
 					Create(hazelcast)
-
 					AssertUseHazelcastSmart()
 				})
 			})
-		})
 
-		Context("unisocket client", func() {
-			It("should use Hazelcast cluster", func() {
-				assertUseHazelcastUnisocket := func() {
-					AssertUseHazelcast(true)
-				}
-
-				hazelcast := defaultHazelcast()
-				hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
-					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-				}
-				Create(hazelcast)
-
-				assertUseHazelcastUnisocket()
+			Context("each member exposed via LoadBalancer service", func() {
+				It("should use Hazelcast cluster", func() {
+					hazelcast := defaultHazelcast()
+					hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+						Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+						DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+						MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+					}
+					Create(hazelcast)
+					AssertUseHazelcastSmart()
+				})
 			})
 		})
 	})
