@@ -185,6 +185,11 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 		service.Spec.Type = serviceType(h)
+		if serviceType(h) == corev1.ServiceTypeClusterIP {
+			// dirty hack to prevent the error when changing the service type
+			service.Spec.Ports[0].NodePort = 0
+		}
+
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
