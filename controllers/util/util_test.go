@@ -1,9 +1,10 @@
-package hazelcast
+package util
 
 import (
+	"testing"
+
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 func Test_isStatefulSetReady(t *testing.T) {
@@ -35,7 +36,7 @@ func Test_isStatefulSetReady(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isStatefulSetReady(tt.sts, 3); got != tt.want {
+			if got := IsStatefulSetReady(tt.sts, 3); got != tt.want {
 				t.Errorf("isStatefulSetReady() = %v, want %v", got, tt.want)
 			}
 		})

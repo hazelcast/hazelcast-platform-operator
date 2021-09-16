@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
+	util "github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -455,14 +455,7 @@ func (r *HazelcastReconciler) checkIfRunning(ctx context.Context, h *hazelcastv1
 	if err != nil {
 		return false
 	}
-	return isStatefulSetReady(sts, h.Spec.ClusterSize)
-}
-
-func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
-	allUpdated := expectedReplicas == sts.Status.UpdatedReplicas
-	allReady := expectedReplicas == sts.Status.ReadyReplicas
-	atExpectedGeneration := sts.Generation == sts.Status.ObservedGeneration
-	return allUpdated && allReady && atExpectedGeneration
+	return util.IsStatefulSetReady(sts, h.Spec.ClusterSize)
 }
 
 func ports() []v1.ServicePort {
