@@ -93,7 +93,7 @@ test: test-unit test-it
 
 test-unit: manifests generate fmt vet
 	go test -v ./controllers/... -coverprofile cover.out
-	go test -v ./api/.. -coverprofile cover.out
+	go test -v ./api/... -coverprofile cover.out
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 test-it: manifests generate fmt vet ## Run tests.
