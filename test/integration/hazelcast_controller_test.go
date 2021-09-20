@@ -193,228 +193,180 @@ var _ = Describe("Hazelcast controller", func() {
 			return serviceList
 		}
 
-		Context("unisocket client", func() {
-			It("should create CR", func() {
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      lookupKey.Name,
-						Namespace: lookupKey.Namespace,
+		It("should create Hazelcast cluster exposed for unisocket client", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      clusterSize,
+					Repository:       repository,
+					Version:          version,
+					LicenseKeySecret: licenseKeySecret,
+					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+						Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+						DiscoveryServiceType: corev1.ServiceTypeNodePort,
 					},
-					Spec: hazelcastv1alpha1.HazelcastSpec{
-						ClusterSize:      clusterSize,
-						Repository:       repository,
-						Version:          version,
-						LicenseKeySecret: licenseKeySecret,
-						ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-							Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-							DiscoveryServiceType: corev1.ServiceTypeNodePort,
-						},
-					},
-				}
-				Create(hz)
+				},
+			}
+			Create(hz)
 
-				fetchedCR := Fetch()
-				Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeUnisocket))
-				Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
-				EnsureStatus(fetchedCR)
+			fetchedCR := Fetch()
+			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeUnisocket))
+			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
+			EnsureStatus(fetchedCR)
 
-				By("checking created services")
-				serviceList := FetchServices(1)
+			By("checking created services")
+			serviceList := FetchServices(1)
 
-				service := serviceList.Items[0]
-				Expect(service.Name).Should(Equal(hz.Name))
-				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
+			service := serviceList.Items[0]
+			Expect(service.Name).Should(Equal(hz.Name))
+			Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 
-				Delete()
-			})
+			Delete()
 		})
 
-		Context("smart client", func() {
-			It("should create Hazelcast cluster", func() {
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      lookupKey.Name,
-						Namespace: lookupKey.Namespace,
+		It("should create Hazelcast cluster exposed for smart client", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      clusterSize,
+					Repository:       repository,
+					Version:          version,
+					LicenseKeySecret: licenseKeySecret,
+					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+						Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+						DiscoveryServiceType: corev1.ServiceTypeNodePort,
+						MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
 					},
-					Spec: hazelcastv1alpha1.HazelcastSpec{
-						ClusterSize:      clusterSize,
-						Repository:       repository,
-						Version:          version,
-						LicenseKeySecret: licenseKeySecret,
-						ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-							Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
-							DiscoveryServiceType: corev1.ServiceTypeNodePort,
-							MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
-						},
-					},
+				},
+			}
+			Create(hz)
+
+			fetchedCR := Fetch()
+			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeSmart))
+			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
+			Expect(fetchedCR.Spec.ExposeExternally.MemberAccess).Should(Equal(hazelcastv1alpha1.MemberAccessNodePortExternalIP))
+			EnsureStatus(fetchedCR)
+
+			By("checking created services")
+			serviceList := FetchServices(4)
+
+			for _, s := range serviceList.Items {
+				if s.Name == lookupKey.Name {
+					// discovery service
+					Expect(s.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
+				} else {
+					// member access service
+					Expect(s.Name).Should(ContainSubstring(lookupKey.Name))
+					Expect(s.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 				}
-				Create(hz)
+			}
 
-				fetchedCR := Fetch()
-				Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeSmart))
-				Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
-				Expect(fetchedCR.Spec.ExposeExternally.MemberAccess).Should(Equal(hazelcastv1alpha1.MemberAccessNodePortExternalIP))
-				EnsureStatus(fetchedCR)
-
-				By("checking created services")
-				serviceList := FetchServices(4)
-
-				for _, s := range serviceList.Items {
-					if s.Name == lookupKey.Name {
-						// discovery service
-						Expect(s.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
-					} else {
-						// member access service
-						Expect(s.Name).Should(ContainSubstring(lookupKey.Name))
-						Expect(s.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
-					}
-				}
-
-				Delete()
-			})
-
-			It("should scale Hazelcast cluster", func() {
-				By("creating the cluster of size 3")
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      lookupKey.Name,
-						Namespace: lookupKey.Namespace,
-					},
-					Spec: hazelcastv1alpha1.HazelcastSpec{
-						ClusterSize:      3,
-						Repository:       repository,
-						Version:          version,
-						LicenseKeySecret: licenseKeySecret,
-						ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-							Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
-							DiscoveryServiceType: corev1.ServiceTypeNodePort,
-							MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
-						},
-					},
-				}
-				Create(hz)
-				fetchedCR := Fetch()
-				EnsureStatus(fetchedCR)
-				FetchServices(4)
-
-				By("scaling the cluster to 6 members")
-				fetchedCR.Spec.ClusterSize = 6
-				Update(fetchedCR)
-				fetchedCR = Fetch()
-				EnsureStatus(fetchedCR)
-				FetchServices(7)
-
-				By("scaling the cluster to 1 member")
-				fetchedCR.Spec.ClusterSize = 1
-				Update(fetchedCR)
-				fetchedCR = Fetch()
-				EnsureStatus(fetchedCR)
-				FetchServices(2)
-
-				By("deleting the cluster")
-				Delete()
-			})
-
-			It("should scale Hazelcast cluster", func() {
-				By("creating the cluster of size 3")
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      lookupKey.Name,
-						Namespace: lookupKey.Namespace,
-					},
-					Spec: hazelcastv1alpha1.HazelcastSpec{
-						ClusterSize:      3,
-						Repository:       repository,
-						Version:          version,
-						LicenseKeySecret: licenseKeySecret,
-						ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-							Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
-							DiscoveryServiceType: corev1.ServiceTypeNodePort,
-							MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
-						},
-					},
-				}
-				Create(hz)
-				fetchedCR := Fetch()
-				EnsureStatus(fetchedCR)
-				FetchServices(4)
-
-				By("scaling the cluster to 6 members")
-				fetchedCR.Spec.ClusterSize = 6
-				Update(fetchedCR)
-				fetchedCR = Fetch()
-				EnsureStatus(fetchedCR)
-				FetchServices(7)
-
-				By("scaling the cluster to 1 member")
-				fetchedCR.Spec.ClusterSize = 1
-				Update(fetchedCR)
-				fetchedCR = Fetch()
-				EnsureStatus(fetchedCR)
-				FetchServices(2)
-
-				By("deleting the cluster")
-				Delete()
-			})
+			Delete()
 		})
 
-		Context("changing unisocket and smart client", func() {
-			It("should update expose externally configuration", func() {
-				By("creating the cluster with smart client")
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      lookupKey.Name,
-						Namespace: lookupKey.Namespace,
+		It("should scale Hazelcast cluster exposed for smart client", func() {
+			By("creating the cluster of size 3")
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      3,
+					Repository:       repository,
+					Version:          version,
+					LicenseKeySecret: licenseKeySecret,
+					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+						Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+						DiscoveryServiceType: corev1.ServiceTypeNodePort,
+						MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
 					},
-					Spec: hazelcastv1alpha1.HazelcastSpec{
-						ClusterSize:      3,
-						Repository:       repository,
-						Version:          version,
-						LicenseKeySecret: licenseKeySecret,
-						ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-							Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
-							DiscoveryServiceType: corev1.ServiceTypeNodePort,
-							MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
-						},
+				},
+			}
+			Create(hz)
+			fetchedCR := Fetch()
+			EnsureStatus(fetchedCR)
+			FetchServices(4)
+
+			By("scaling the cluster to 6 members")
+			fetchedCR.Spec.ClusterSize = 6
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			FetchServices(7)
+
+			By("scaling the cluster to 1 member")
+			fetchedCR.Spec.ClusterSize = 1
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			FetchServices(2)
+
+			By("deleting the cluster")
+			Delete()
+		})
+
+		It("should allow updating expose externally configuration", func() {
+			By("creating the cluster with smart client")
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      3,
+					Repository:       repository,
+					Version:          version,
+					LicenseKeySecret: licenseKeySecret,
+					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+						Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+						DiscoveryServiceType: corev1.ServiceTypeNodePort,
+						MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
 					},
-				}
-				Create(hz)
-				fetchedCR := Fetch()
-				EnsureStatus(fetchedCR)
-				FetchServices(4)
+				},
+			}
+			Create(hz)
+			fetchedCR := Fetch()
+			EnsureStatus(fetchedCR)
+			FetchServices(4)
 
-				By("updating type to unisocket")
-				fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
-				Update(fetchedCR)
-				fetchedCR = Fetch()
-				EnsureStatus(fetchedCR)
-				FetchServices(1)
+			By("updating type to unisocket")
+			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			FetchServices(1)
 
-				By("updating discovery service to LoadBalancer")
-				fetchedCR.Spec.ExposeExternally.DiscoveryServiceType = corev1.ServiceTypeLoadBalancer
-				Update(fetchedCR)
-				fetchedCR = Fetch()
-				EnsureStatus(fetchedCR)
-				serviceList := FetchServices(1)
-				Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
+			By("updating discovery service to LoadBalancer")
+			fetchedCR.Spec.ExposeExternally.DiscoveryServiceType = corev1.ServiceTypeLoadBalancer
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			serviceList := FetchServices(1)
+			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
 
-				By("updating type to smart")
-				fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeSmart
-				Update(fetchedCR)
-				fetchedCR = Fetch()
-				EnsureStatus(fetchedCR)
-				FetchServices(4)
+			By("updating type to smart")
+			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeSmart
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			FetchServices(4)
 
-				By("deleting expose externally configuration")
-				fetchedCR.Spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{}
-				Update(fetchedCR)
-				fetchedCR = Fetch()
-				EnsureStatus(fetchedCR)
-				serviceList = FetchServices(1)
-				Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
+			By("deleting expose externally configuration")
+			fetchedCR.Spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{}
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			serviceList = FetchServices(1)
+			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
 
-				Delete()
-			})
+			Delete()
 		})
 	})
 })
