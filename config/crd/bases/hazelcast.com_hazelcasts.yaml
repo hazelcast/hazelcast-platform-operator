@@ -41,6 +41,10 @@ spec:
           spec:
             description: HazelcastSpec defines the desired state of Hazelcast
             properties:
+              clusterName:
+                default: dev
+                description: Name of the Hazelcast cluster.
+                type: string
               clusterSize:
                 default: 3
                 description: Number of Hazelcast members in the cluster.

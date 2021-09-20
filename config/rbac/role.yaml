@@ -41,6 +41,7 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
   - events
   - serviceaccounts
   - services

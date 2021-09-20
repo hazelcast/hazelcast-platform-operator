@@ -45,6 +45,11 @@ type HazelcastSpec struct {
 	// Configuration to expose Hazelcast cluster to external clients.
 	// +optional
 	ExposeExternally ExposeExternallyConfiguration `json:"exposeExternally"`
+
+	// Name of the Hazelcast cluster.
+	// +kubebuilder:default:="dev"
+	// +optional
+	ClusterName string `json:"clusterName"`
 }
 
 // ExposeExternallyConfiguration defines how to expose Hazelcast cluster to external clients
