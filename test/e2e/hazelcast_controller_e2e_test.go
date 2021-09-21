@@ -60,7 +60,7 @@ var _ = Describe("Hazelcast", func() {
 		}, deleteTimeout, interval).Should(BeTrue())
 	})
 
-	Create := func(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+	create := func(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 		By("Creating Hazelcast CR", func() {
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 		})
@@ -75,15 +75,15 @@ var _ = Describe("Hazelcast", func() {
 		})
 	}
 
-	Describe("default CR", func() {
-		It("should create default Hazelcast CR", func() {
+	Describe("Default Hazelcast CR", func() {
+		It("should create Hazelcast cluster", func() {
 			hazelcast := load("default.yaml")
-			Create(hazelcast)
+			create(hazelcast)
 		})
 	})
 
-	Describe("expose externally feature", func() {
-		AssertUseHazelcast := func(unisocket bool) {
+	Describe("Hazelcast CR with expose externally feature", func() {
+		assertUseHazelcast := func(unisocket bool) {
 			ctx := context.Background()
 
 			By("checking Hazelcast discovery service external IP")
@@ -108,7 +108,6 @@ var _ = Describe("Hazelcast", func() {
 			m, err := client.GetMap(ctx, "map")
 			Expect(err).ToNot(HaveOccurred())
 			for i := 0; i < 100; i++ {
-				fmt.Println("Inserting ", i)
 				_, err = m.Put(ctx, strconv.Itoa(i), strconv.Itoa(i))
 				Expect(err).ToNot(HaveOccurred())
 			}
@@ -116,33 +115,33 @@ var _ = Describe("Hazelcast", func() {
 			Expect(err).ToNot(HaveOccurred())
 		}
 
-		It("should create Hazelcast cluster and connect with unisocket client", func() {
-			AssertUseHazelcastUnisocket := func() {
-				AssertUseHazelcast(true)
+		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
+			assertUseHazelcastUnisocket := func() {
+				assertUseHazelcast(true)
 			}
 
 			hazelcast := load("expose_externally_unisocket.yaml")
-			Create(hazelcast)
-			AssertUseHazelcastUnisocket()
+			create(hazelcast)
+			assertUseHazelcastUnisocket()
 		})
 
-		It("should create Hazelcast cluster exposed with NodePort services and connect with smart client", func() {
-			AssertUseHazelcastSmart := func() {
-				AssertUseHazelcast(false)
+		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
+			assertUseHazelcastSmart := func() {
+				assertUseHazelcast(false)
 			}
 
 			hazelcast := load("expose_externally_smart_nodeport.yaml")
-			Create(hazelcast)
-			AssertUseHazelcastSmart()
+			create(hazelcast)
+			assertUseHazelcastSmart()
 		})
 
-		It("should create Hazelcast cluster exposed with LoadBalancer services and connect with smart client", func() {
-			AssertUseHazelcastSmart := func() {
-				AssertUseHazelcast(false)
+		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", func() {
+			assertUseHazelcastSmart := func() {
+				assertUseHazelcast(false)
 			}
 			hazelcast := load("expose_externally_smart_loadbalancer.yaml")
-			Create(hazelcast)
-			AssertUseHazelcastSmart()
+			create(hazelcast)
+			assertUseHazelcastSmart()
 		})
 	})
 })
