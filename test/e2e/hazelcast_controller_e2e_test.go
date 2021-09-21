@@ -7,7 +7,6 @@ import (
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"io"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -78,7 +77,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("default CR", func() {
 		It("should create default Hazelcast CR", func() {
-			hazelcast := defaultHazelcast()
+			hazelcast := load("default.yaml")
 			Create(hazelcast)
 		})
 	})
@@ -101,6 +100,7 @@ var _ = Describe("Hazelcast", func() {
 			config := hzClient.Config{}
 			config.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", ip))
 			config.Cluster.Unisocket = unisocket
+			config.Cluster.Discovery.UsePublicIP = true
 			client, err := hzClient.StartNewClientWithConfig(ctx, config)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -108,58 +108,41 @@ var _ = Describe("Hazelcast", func() {
 			m, err := client.GetMap(ctx, "map")
 			Expect(err).ToNot(HaveOccurred())
 			for i := 0; i < 100; i++ {
+				fmt.Println("Inserting ", i)
 				_, err = m.Put(ctx, strconv.Itoa(i), strconv.Itoa(i))
 				Expect(err).ToNot(HaveOccurred())
 			}
-			client.Shutdown(ctx)
+			err = client.Shutdown(ctx)
+			Expect(err).ToNot(HaveOccurred())
 		}
 
-		Context("unisocket client", func() {
+		It("should create Hazelcast cluster and connect with unisocket client", func() {
 			AssertUseHazelcastUnisocket := func() {
 				AssertUseHazelcast(true)
 			}
 
-			It("should use Hazelcast cluster", func() {
-				hazelcast := defaultHazelcast()
-				hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
-					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-				}
-				Create(hazelcast)
-				AssertUseHazelcastUnisocket()
-			})
+			hazelcast := load("expose_externally_unisocket.yaml")
+			Create(hazelcast)
+			AssertUseHazelcastUnisocket()
 		})
 
-		Context("smart client", func() {
+		It("should create Hazelcast cluster exposed with NodePort services and connect with smart client", func() {
 			AssertUseHazelcastSmart := func() {
 				AssertUseHazelcast(false)
 			}
 
-			Context("each member exposed via NodePort service", func() {
-				It("should use Hazelcast cluster", func() {
-					hazelcast := defaultHazelcast()
-					hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-						Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
-						DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-						MemberAccess:         hazelcastcomv1alpha1.MemberAccessNodePortExternalIP,
-					}
-					Create(hazelcast)
-					AssertUseHazelcastSmart()
-				})
-			})
+			hazelcast := load("expose_externally_smart_nodeport.yaml")
+			Create(hazelcast)
+			AssertUseHazelcastSmart()
+		})
 
-			Context("each member exposed via LoadBalancer service", func() {
-				It("should use Hazelcast cluster", func() {
-					hazelcast := defaultHazelcast()
-					hazelcast.Spec.ExposeExternally = hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-						Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
-						DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-						MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
-					}
-					Create(hazelcast)
-					AssertUseHazelcastSmart()
-				})
-			})
+		It("should create Hazelcast cluster exposed with LoadBalancer services and connect with smart client", func() {
+			AssertUseHazelcastSmart := func() {
+				AssertUseHazelcast(false)
+			}
+			hazelcast := load("expose_externally_smart_loadbalancer.yaml")
+			Create(hazelcast)
+			AssertUseHazelcastSmart()
 		})
 	})
 })
@@ -180,10 +163,17 @@ func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, 
 	return deploy.Status.ReadyReplicas, nil
 }
 
-func defaultHazelcast() *hazelcastcomv1alpha1.Hazelcast {
+func load(fileName string) *hazelcastcomv1alpha1.Hazelcast {
 	h := emptyHazelcast()
-	err := loadHazelcastFromFile(h, "_v1alpha1_hazelcast.yaml")
+
+	f, err := os.Open(fmt.Sprintf("config/%s", fileName))
 	Expect(err).ToNot(HaveOccurred())
+	defer f.Close()
+
+	decoder := yaml.NewYAMLToJSONDecoder(f)
+	err = decoder.Decode(h)
+	Expect(err).ToNot(HaveOccurred())
+
 	return h
 }
 
@@ -194,21 +184,6 @@ func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
 			Namespace: hzNamespace,
 		},
 	}
-}
-
-func loadHazelcastFromFile(hazelcast *hazelcastcomv1alpha1.Hazelcast, fileName string) error {
-	f, err := os.Open(fmt.Sprintf("../../config/samples/%s", fileName))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return decodeYAML(f, hazelcast)
-}
-
-func decodeYAML(r io.Reader, obj interface{}) error {
-	decoder := yaml.NewYAMLToJSONDecoder(r)
-	return decoder.Decode(obj)
 }
 
 func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
