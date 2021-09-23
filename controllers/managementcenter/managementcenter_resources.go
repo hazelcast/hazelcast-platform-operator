@@ -16,6 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const (
+	licenseDataKey = "license-key"
+)
+
 func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
 	service := &corev1.Service{
 		ObjectMeta: metadata(mc),
@@ -194,8 +198,19 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{
+		{
+			Name: "MC_LICENSE_KEY",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: mc.Spec.LicenseKeySecret,
+					},
+					Key: licenseDataKey,
+				},
+			},
+		},
 		{Name: "MC_INIT_CMD", Value: clusterAddCommand(mc)},
-		{Name: "JAVA_OPTS", Value: "-Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
+		{Name: "JAVA_OPTS", Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
 	}
 	return envs
 }
