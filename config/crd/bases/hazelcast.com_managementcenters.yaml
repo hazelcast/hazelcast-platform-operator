@@ -16,7 +16,12 @@ spec:
     singular: managementcenter
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the Management Center deployment
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ManagementCenter is the Schema for the managementcenters API
@@ -100,6 +105,12 @@ spec:
             type: object
           status:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
+            properties:
+              phase:
+                description: Phase represents the current state of the cluster
+                type: string
+            required:
+            - phase
             type: object
         type: object
     served: true

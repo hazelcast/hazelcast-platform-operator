@@ -2,6 +2,7 @@ package managementcenter
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -14,6 +15,8 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 )
+
+const retryAfter = 10 * time.Second
 
 // ManagementCenterReconciler reconciles a ManagementCenter object
 type ManagementCenterReconciler struct {
@@ -36,24 +39,28 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Failed to get ManagementCenter")
-		return ctrl.Result{}, err
+		return update(ctx, r.Status(), mc, failedPhase(err))
 	}
 
 	err = r.reconcileService(ctx, mc, logger)
 	if err != nil {
-		return ctrl.Result{}, err
+		return update(ctx, r.Status(), mc, failedPhase(err))
 	}
 
-	if err = r.reconcileStatefulset(ctx, mc, logger); err != nil {
+	err = r.reconcileStatefulset(ctx, mc, logger)
+	if err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, nil
 		} else {
-			return ctrl.Result{}, err
+			return update(ctx, r.Status(), mc, failedPhase(err))
 		}
 	}
 
-	return ctrl.Result{}, nil
+	if !r.checkIfRunning(ctx, mc) {
+		return update(ctx, r.Status(), mc, pendingPhase(retryAfter))
+	}
+	return update(ctx, r.Status(), mc, runningPhase())
 }
 
 // SetupWithManager sets up the controller with the Manager.
