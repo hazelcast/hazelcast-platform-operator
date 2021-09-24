@@ -106,7 +106,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		clusterRole.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"endpoints", "pods", "nodes", "services", "configmaps"},
+				Resources: []string{"endpoints", "pods", "nodes", "services"},
 				Verbs:     []string{"get", "list"},
 			},
 		}
@@ -333,31 +333,6 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	return true
 }
 
-func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	ls := labels(h)
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      h.Name + "-configuration",
-			Namespace: h.Namespace,
-			Labels:    ls,
-		},
-		Data: map[string]string{"HZ_CLUSTERNAME": h.Spec.ClusterName},
-	}
-	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
-	if err != nil {
-		logger.Error(err, "Failed to set owner reference on ConfigMap")
-		return err
-	}
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
-		return nil
-	})
-	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "ConfigMap", h.Name, "result", opResult)
-	}
-
-	return err
-}
-
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	ls := labels(h)
 	sts := &appsv1.StatefulSet{
@@ -474,6 +449,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME", Value: servicePerPodLabelName},
 			v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE", Value: servicePerPodLabelValue},
 		)
+	}
+
+	if h.Spec.ClusterName != "" {
+		envs = append(envs, v1.EnvVar{Name: "HZ_CLUSTERNAME", Value: h.Spec.ClusterName})
 	}
 
 	return envs

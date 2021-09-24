@@ -32,7 +32,6 @@ type HazelcastReconciler struct {
 //+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
 // Role related to Reconcile()
 //+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
 // ClusterRole related to Reconcile()
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
@@ -103,10 +102,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if !r.isServicePerPodReady(ctx, h, logger) {
 		logger.Info("Service per pod is not ready, waiting.")
 		return update(ctx, r.Status(), h, pendingPhase(retryAfter))
-	}
-
-	if err = r.reconcileConfigMap(ctx, h, logger); err != nil {
-		return update(ctx, r.Status(), h, failedPhase(err))
 	}
 
 	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {
