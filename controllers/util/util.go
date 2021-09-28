@@ -3,7 +3,9 @@ package util
 import (
 	"context"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -16,4 +18,20 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 		return opResult, nil
 	}
 	return opResult, err
+}
+
+func CheckIfRunning(ctx context.Context, cl client.Client, namespacedName types.NamespacedName, expectedReplicas int32) bool {
+	sts := &appsv1.StatefulSet{}
+	err := cl.Get(ctx, client.ObjectKey{Name: namespacedName.Name, Namespace: namespacedName.Namespace}, sts)
+	if err != nil {
+		return false
+	}
+	return isStatefulSetReady(sts, expectedReplicas)
+}
+
+func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
+	allUpdated := expectedReplicas == sts.Status.UpdatedReplicas
+	allReady := expectedReplicas == sts.Status.ReadyReplicas
+	atExpectedGeneration := sts.Generation == sts.Status.ObservedGeneration
+	return allUpdated && allReady && atExpectedGeneration
 }

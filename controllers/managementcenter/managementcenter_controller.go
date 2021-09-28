@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 )
 
 const retryAfter = 10 * time.Second
@@ -57,7 +58,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 
-	if !r.checkIfRunning(ctx, mc) {
+	if !util.CheckIfRunning(ctx, r.Client, req.NamespacedName, int32(1)) {
 		return update(ctx, r.Status(), mc, pendingPhase(retryAfter))
 	}
 	return update(ctx, r.Status(), mc, runningPhase())

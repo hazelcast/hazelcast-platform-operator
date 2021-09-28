@@ -2,8 +2,11 @@ package hazelcast
 
 import (
 	"context"
+	"time"
+
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -11,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 // retryAfter is the time in seconds to requeue for the Pending phase
@@ -112,7 +114,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return update(ctx, r.Status(), h, failedPhase(err))
 		}
 	}
-	if !r.checkIfRunning(ctx, h) {
+	if !util.CheckIfRunning(ctx, r.Client, req.NamespacedName, h.Spec.ClusterSize) {
 		return update(ctx, r.Status(), h, pendingPhase(retryAfter))
 	}
 	return update(ctx, r.Status(), h, runningPhase())

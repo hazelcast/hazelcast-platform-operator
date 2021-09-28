@@ -13,7 +13,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -208,20 +207,4 @@ func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
 		strs[i] = fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data -cn %s -ma %s", cluster.Name, cluster.Address)
 	}
 	return strings.Join(strs, " && ")
-}
-
-func (r *ManagementCenterReconciler) checkIfRunning(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter) bool {
-	sts := &appsv1.StatefulSet{}
-	err := r.Client.Get(ctx, client.ObjectKey{Name: mc.Name, Namespace: mc.Namespace}, sts)
-	if err != nil {
-		return false
-	}
-	return isStatefulSetReady(sts, 1)
-}
-
-func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
-	allUpdated := expectedReplicas == sts.Status.UpdatedReplicas
-	allReady := expectedReplicas == sts.Status.ReadyReplicas
-	atExpectedGeneration := sts.Generation == sts.Status.ObservedGeneration
-	return allUpdated && allReady && atExpectedGeneration
 }

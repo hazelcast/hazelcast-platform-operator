@@ -1,9 +1,10 @@
-package hazelcast
+package util
 
 import (
+	"testing"
+
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 func Test_isStatefulSetReady(t *testing.T) {
@@ -40,7 +41,6 @@ func Test_isStatefulSetReady(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func statefulSet(updatedReplicas int32, readyReplicas int32, observedGeneration int64, generation int64) *appsv1.StatefulSet {
