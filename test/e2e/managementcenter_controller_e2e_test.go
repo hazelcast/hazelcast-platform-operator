@@ -22,7 +22,7 @@ const (
 	mcName = "managementcenter"
 )
 
-var _ = FDescribe("Management-Center", func() {
+var _ = Describe("Management-Center", func() {
 
 	var lookupKey = types.NamespacedName{
 		Name:      mcName,
@@ -52,6 +52,7 @@ var _ = FDescribe("Management-Center", func() {
 	AfterEach(func() {
 		Expect(k8sClient.Delete(context.Background(), emptyManagementCenter(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 		assertDoesNotExist(lookupKey, &hazelcastcomv1alpha1.ManagementCenter{})
+
 		pvcLookupKey := types.NamespacedName{
 			Name:      fmt.Sprintf("mancenter-storage-%s-0", lookupKey.Name),
 			Namespace: lookupKey.Namespace,
@@ -80,7 +81,6 @@ var _ = FDescribe("Management-Center", func() {
 			create(mc)
 
 			By("Checking if it created PVC with correct size", func() {
-				defaultPVCSize := resource.MustParse("10Gi")
 				fetchedPVC := &corev1.PersistentVolumeClaim{}
 				pvcLookupKey := types.NamespacedName{
 					Name:      fmt.Sprintf("mancenter-storage-%s-0", lookupKey.Name),
@@ -89,7 +89,7 @@ var _ = FDescribe("Management-Center", func() {
 				assertExists(pvcLookupKey, fetchedPVC)
 
 				expectedResourceList := corev1.ResourceList{
-					corev1.ResourceStorage: defaultPVCSize,
+					corev1.ResourceStorage: resource.MustParse("10Gi"),
 				}
 				Expect(fetchedPVC.Status.Capacity).Should(Equal(expectedResourceList))
 			})

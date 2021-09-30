@@ -15,7 +15,6 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -57,14 +56,7 @@ var _ = Describe("Hazelcast", func() {
 
 	AfterEach(func() {
 		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
-
-		Eventually(func() bool {
-			err := k8sClient.Get(context.Background(), lookupKey, &hazelcastcomv1alpha1.Hazelcast{})
-			if err == nil {
-				return false
-			}
-			return errors.IsNotFound(err)
-		}, deleteTimeout, interval).Should(BeTrue())
+		assertDoesNotExist(lookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
 	create := func(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
