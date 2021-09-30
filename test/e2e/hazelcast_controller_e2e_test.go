@@ -177,7 +177,7 @@ var _ = Describe("Hazelcast", func() {
 func loadHazelcast(fileName string) *hazelcastcomv1alpha1.Hazelcast {
 	h := emptyHazelcast()
 
-	f, err := os.Open(fmt.Sprintf("config/%s", fileName))
+	f, err := os.Open(fmt.Sprintf("config/hazelcast/%s", fileName))
 	Expect(err).ToNot(HaveOccurred())
 	defer f.Close()
 
