@@ -36,11 +36,17 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	err := r.Client.Get(ctx, req.NamespacedName, mc)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logger.Info("Management Center resource not found. Ignoring since object must be deleted")
+			logger.Info("Management Center resource not found. Ignoring since object must be deleted.")
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Failed to get ManagementCenter")
 		return update(ctx, r.Status(), mc, failedPhase(err))
+	}
+
+	//Check if the ManagementCenter CR is marked to be deleted
+	if mc.GetDeletionTimestamp() != nil {
+		logger.V(1).Info("Management Center resource is getting deleted. Ignoring since all child objects must be deleted.")
+		return ctrl.Result{}, nil
 	}
 
 	err = r.reconcileService(ctx, mc, logger)
