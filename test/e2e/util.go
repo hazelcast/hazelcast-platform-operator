@@ -5,9 +5,11 @@ import (
 	"os"
 	"strings"
 
+	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func useExistingCluster() bool {
@@ -28,4 +30,33 @@ func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, 
 	}
 
 	return deploy.Status.ReadyReplicas, nil
+}
+func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
+	Eventually(func() bool {
+		err := k8sClient.Get(context.Background(), name, obj)
+		if err == nil {
+			return false
+		}
+		return errors.IsNotFound(err)
+	}, deleteTimeout, interval).Should(BeTrue())
+}
+
+func assertExists(name types.NamespacedName, obj client.Object) {
+	Eventually(func() bool {
+		err := k8sClient.Get(context.Background(), name, obj)
+		return err == nil
+	}, timeout, interval).Should(BeTrue())
+}
+
+func deleteIfExists(name types.NamespacedName, obj client.Object) error {
+	err := k8sClient.Get(context.Background(), name, obj)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	err = k8sClient.Delete(context.Background(), obj)
+	return err
 }
