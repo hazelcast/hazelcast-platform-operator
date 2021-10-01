@@ -43,15 +43,15 @@ var _ = Describe("Hazelcast", func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
 		}
-
-		if !runningLocally() {
-			By("Checking hazelcast-enterprise-controller-manager running", func() {
-				controllerDep := &appsv1.Deployment{}
-				Eventually(func() (int32, error) {
-					return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-				}, timeout, interval).Should(Equal(int32(1)))
-			})
+		if runningLocally() {
+			return
 		}
+		By("Checking hazelcast-enterprise-controller-manager running", func() {
+			controllerDep := &appsv1.Deployment{}
+			Eventually(func() (int32, error) {
+				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
+			}, timeout, interval).Should(Equal(int32(1)))
+		})
 	})
 
 	AfterEach(func() {
