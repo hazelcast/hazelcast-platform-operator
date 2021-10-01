@@ -142,6 +142,18 @@ kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE>
 make test-e2e NAMESPACE=<YOUR NAMESPACE>
 ```
 
+If you want to run manager locally by `make install run` and run the end-to-end tests. Then, execute the following commands.
+
+```shell
+kubectl create ns <YOUR NAMESPACE>
+
+make install run
+
+kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE> --from-literal=license-key=<YOUR LICENSE KEY>
+
+RUN_MANAGER_LOCALLY=true make test-e2e NAMESPACE=<YOUR NAMESPACE>
+```
+
 ## Running operator locally
 
 Hazelcast Enterprise Operator uses `hazelcast go-client` to connect to the cluster.
