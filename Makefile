@@ -102,7 +102,7 @@ test-it: manifests generate fmt vet ## Run tests.
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test -v ./test/integration/... -coverprofile cover.out
 
 test-e2e: generate fmt vet ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -test-timeout 15m -delete-timeout 15m
+	USE_EXISTING_CLUSTER=true go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -timeout 15m -delete-timeout 15m
 
 ##@ Build
 
