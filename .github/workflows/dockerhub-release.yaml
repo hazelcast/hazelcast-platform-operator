@@ -15,10 +15,10 @@ jobs:
 
       - name: Set Release Version
         run: |
-        IMAGE_REPOSITORY=hazelcast/hazelcast-enterprise-operator
-        IMAGE_VERSION=${GITHUB_REF:11}
+          IMAGE_REPOSITORY=hazelcast/hazelcast-enterprise-operator
+          IMAGE_VERSION=${GITHUB_REF:11}
 
-        echo "IMAGE_NAME=${IMAGE_REPOSITORY}:${IMAGE_VERSION}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${IMAGE_REPOSITORY}:${IMAGE_VERSION}" >> $GITHUB_ENV
 
       - name: Set up Golang
         uses: actions/setup-go@v2
