@@ -1,0 +1,44 @@
+name: Publish Tag Docker Hub
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish-stable-image:
+    name: Publish Stable Version to Docker Hub
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set Release Version
+        run: |
+        IMAGE_REPOSITORY=hazelcast/hazelcast-enterprise-operator
+        IMAGE_VERSION=${GITHUB_REF:11}
+
+        echo "IMAGE_NAME=${IMAGE_REPOSITORY}:${IMAGE_VERSION}" >> $GITHUB_ENV
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build Operator Image
+        run: make docker-build IMG="${IMAGE_NAME}"
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Push Operator Image
+        run: make docker-push IMG="${IMAGE_NAME}"
+
