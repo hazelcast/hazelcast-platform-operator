@@ -16,6 +16,7 @@ type optionsBuilder struct {
 	retryAfter   time.Duration
 	err          error
 	readyMembers int
+	message      string
 }
 
 func failedPhase(err error) optionsBuilder {
@@ -43,10 +44,16 @@ func (o optionsBuilder) withReadyMembers(m int) optionsBuilder {
 	return o
 }
 
+func (o optionsBuilder) withMessage(m string) optionsBuilder {
+	o.message = m
+	return o
+}
+
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
 func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status.Phase = options.phase
 	h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", options.readyMembers, h.Spec.ClusterSize)
+	h.Status.Message = options.message
 	if err := c.Status().Update(ctx, h); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {

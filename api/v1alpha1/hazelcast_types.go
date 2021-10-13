@@ -140,6 +140,7 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 type HazelcastStatus struct {
 	Phase   Phase                  `json:"phase"`
 	Cluster HazelcastClusterStatus `json:"hazelcastClusterStatus"`
+	Message string                 `json:"message,omitempty"`
 }
 
 // HazelcastClusterStatus defines the status of the Hazelcast cluster

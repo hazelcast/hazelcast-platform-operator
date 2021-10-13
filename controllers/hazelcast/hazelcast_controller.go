@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -88,6 +89,13 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
+	err = r.validateSpec(h)
+	if err != nil {
+		return update(ctx, r.Client, h,
+			failedPhase(err).
+				withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
+	}
+
 	err = r.reconcileClusterRole(ctx, h, logger)
 	if err != nil {
 		return update(ctx, r.Client, h, failedPhase(err))
@@ -136,6 +144,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	r.createHazelcastClient(ctx, req, h)
+
+	err = r.updateLastSuccessfulConfiguration(ctx, h, logger)
+	if err != nil {
+		logger.Info("Could not save the current successful spec as annotation to the custom resource")
+	}
 
 	return update(ctx, r.Client, h, r.runningPhaseWithMembers(req))
 }

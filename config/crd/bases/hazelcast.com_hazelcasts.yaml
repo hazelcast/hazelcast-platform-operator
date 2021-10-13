@@ -114,6 +114,8 @@ spec:
                 required:
                 - readyMembers
                 type: object
+              message:
+                type: string
               phase:
                 description: Phase represents the current state of the cluster
                 type: string

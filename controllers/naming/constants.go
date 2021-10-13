@@ -9,9 +9,10 @@ const (
 	// LicenseKeySecret default license key secret
 	LicenseKeySecret = "hazelcast-license-key"
 	// ServicePerPodLabelName set to true when the service is a Service per pod
-	ServicePerPodLabelName       = "hazelcast.com/service-per-pod"
-	ServicePerPodCountAnnotation = "hazelcast.com/service-per-pod-count"
-	ExposeExternallyAnnotation   = "hazelcast.com/expose-externally-member-access"
+	ServicePerPodLabelName         = "hazelcast.com/service-per-pod"
+	ServicePerPodCountAnnotation   = "hazelcast.com/service-per-pod-count"
+	ExposeExternallyAnnotation     = "hazelcast.com/expose-externally-member-access"
+	LastSuccessfulConfigAnnotation = "hazelcast.com/last-successful-config"
 
 	// PodNameLabel label that represents the name of the pod in the StatefulSet
 	PodNameLabel = "statefulset.kubernetes.io/pod-name"

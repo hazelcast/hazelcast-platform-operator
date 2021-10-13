@@ -88,6 +88,11 @@ var _ = Describe("Hazelcast controller", func() {
 		Expect(hz.Status.Phase).Should(Equal(hazelcastv1alpha1.Pending))
 	}
 
+	EnsureFailedStatus := func(hz *hazelcastv1alpha1.Hazelcast) {
+		By("ensuring that the status is correct")
+		Expect(hz.Status.Phase).Should(Equal(hazelcastv1alpha1.Failed))
+	}
+
 	Context("Hazelcast CustomResource with default specs", func() {
 		It("should handle CR and sub resources correctly", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
@@ -369,6 +374,37 @@ var _ = Describe("Hazelcast controller", func() {
 			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
 
 			Delete()
+		})
+
+		It("should return expected messages when exposeExternally is misconfigured", func() {
+			By("creating the cluster with smart client with incorrect configuration")
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      3,
+					Repository:       repository,
+					Version:          version,
+					LicenseKeySecret: licenseKeySecret,
+					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+						Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+						DiscoveryServiceType: corev1.ServiceTypeNodePort,
+					},
+				},
+			}
+			Create(hz)
+			fetchedCR := Fetch()
+			EnsureFailedStatus(fetchedCR)
+			Expect(fetchedCR.Status.Message).To(ContainSubstring("exposeExternally"))
+
+			By("fixing the incorrect correct configuration")
+			fetchedCR.Spec.ExposeExternally.MemberAccess = hazelcastv1alpha1.MemberAccessNodePortExternalIP
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			Expect(fetchedCR.Status.Message).To(Equal(""))
 		})
 	})
 })
