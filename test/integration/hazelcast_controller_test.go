@@ -345,6 +345,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			By("updating type to unisocket")
 			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
+			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
 			Update(fetchedCR)
 			fetchedCR = Fetch()
 			EnsureStatus(fetchedCR)
@@ -377,7 +378,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		It("should return expected messages when exposeExternally is misconfigured", func() {
-			By("creating the cluster with smart client with incorrect configuration")
+			By("creating the cluster with unisocket client with incorrect configuration")
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      lookupKey.Name,
@@ -389,8 +390,9 @@ var _ = Describe("Hazelcast controller", func() {
 					Version:          version,
 					LicenseKeySecret: licenseKeySecret,
 					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-						Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+						Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 						DiscoveryServiceType: corev1.ServiceTypeNodePort,
+						MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 					},
 				},
 			}
@@ -399,12 +401,14 @@ var _ = Describe("Hazelcast controller", func() {
 			EnsureFailedStatus(fetchedCR)
 			Expect(fetchedCR.Status.Message).To(ContainSubstring("exposeExternally"))
 
-			By("fixing the incorrect correct configuration")
-			fetchedCR.Spec.ExposeExternally.MemberAccess = hazelcastv1alpha1.MemberAccessNodePortExternalIP
+			By("fixing the incorrect configuration")
+			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
 			Update(fetchedCR)
 			fetchedCR = Fetch()
 			EnsureStatus(fetchedCR)
-			Expect(fetchedCR.Status.Message).To(Equal(""))
+			Expect(fetchedCR.Status.Message).To(BeEmpty())
+
+			Delete()
 		})
 	})
 })
