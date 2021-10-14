@@ -89,7 +89,7 @@ var _ = Describe("Hazelcast controller", func() {
 	}
 
 	EnsureFailedStatus := func(hz *hazelcastv1alpha1.Hazelcast) {
-		By("ensuring that the status is correct")
+		By("ensuring that the status is failed")
 		Expect(hz.Status.Phase).Should(Equal(hazelcastv1alpha1.Failed))
 	}
 
