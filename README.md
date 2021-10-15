@@ -17,7 +17,7 @@ kubectl create secret generic hazelcast-license-key --from-literal=license-key=<
 ```shell
 git clone git@github.com:hazelcast/hazelcast-enterprise-operator.git
 cd hazelcast-enterprise-operator
-make deploy IMG=hazelcast/hazelcast-enterprise-operator:5-preview-snapshot
+make deploy IMG=hazelcast/hazelcast-enterprise-operator:5-preview-snapshot NAMESPACE=<YOUR NAMESPACE>
 ```
 
 > Note: If you want to run the operator locally, you can execute `make install run` instead of `make deploy`.
@@ -37,7 +37,7 @@ metadata:
 spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
-  version: '5.0-BETA-2-slim'
+  version: '5.0'
   licenseKeySecret: hazelcast-license-key
 ```
 

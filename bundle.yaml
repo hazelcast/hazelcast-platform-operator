@@ -19,6 +19,10 @@ spec:
       jsonPath: .status.phase
       name: Status
       type: string
+    - description: Current numbers of ready Hazelcast members
+      jsonPath: .status.hazelcastClusterStatus.readyMembers
+      name: Members
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -35,6 +39,10 @@ spec:
           spec:
             description: HazelcastSpec defines the desired state of Hazelcast
             properties:
+              clusterName:
+                default: dev
+                description: Name of the Hazelcast cluster.
+                type: string
               clusterSize:
                 default: 3
                 description: Number of Hazelcast members in the cluster.
@@ -70,17 +78,27 @@ spec:
                 description: Repository to pull the Hazelcast Platform image from.
                 type: string
               version:
-                default: 5.0-BETA-2-slim
+                default: "5.0"
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
           status:
             description: HazelcastStatus defines the observed state of Hazelcast
             properties:
+              hazelcastClusterStatus:
+                description: HazelcastClusterStatus defines the status of the Hazelcast cluster
+                properties:
+                  readyMembers:
+                    description: ReadyMembers represents the number of members that are connected to cluster from the desired number of members in the format <ready>/<desired>
+                    type: string
+                required:
+                - readyMembers
+                type: object
               phase:
                 description: Phase represents the current state of the cluster
                 type: string
             required:
+            - hazelcastClusterStatus
             - phase
             type: object
         type: object
@@ -111,7 +129,12 @@ spec:
     singular: managementcenter
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the Management Center deployment
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ManagementCenter is the Schema for the managementcenters API
@@ -179,12 +202,18 @@ spec:
                 description: Repository to pull the Management Center image from.
                 type: string
               version:
-                default: 5.0-BETA-2
+                default: "5.0"
                 description: Version of Management Center.
                 type: string
             type: object
           status:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
+            properties:
+              phase:
+                description: Phase represents the current state of the cluster
+                type: string
+            required:
+            - phase
             type: object
         type: object
     served: true
