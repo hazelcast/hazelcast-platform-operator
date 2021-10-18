@@ -399,7 +399,7 @@ var _ = Describe("Hazelcast controller", func() {
 			Create(hz)
 			fetchedCR := Fetch()
 			EnsureFailedStatus(fetchedCR)
-			Expect(fetchedCR.Status.Message).To(ContainSubstring("exposeExternally"))
+			Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set"))
 
 			By("fixing the incorrect configuration")
 			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
