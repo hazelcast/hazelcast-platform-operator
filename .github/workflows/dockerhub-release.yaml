@@ -1,12 +1,12 @@
-name: Publish Tag Docker Hub
+name: Publish Release
 on:
   push:
     tags:
       - "v*"
 
 jobs:
-  publish-stable-image:
-    name: Publish Stable Version to Docker Hub
+  publish-image:
+    name: Publish Release to Docker Hub
     runs-on: ubuntu-latest
 
     steps:
