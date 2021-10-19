@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/hazelcast/validation"
 	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -89,7 +90,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	err = r.validateSpec(h)
+	err = validation.ValidateSpec(h)
 	if err != nil {
 		return update(ctx, r.Client, h,
 			failedPhase(err).

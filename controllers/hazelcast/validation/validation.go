@@ -6,16 +6,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 )
 
-func ValidateInitalSpec(h *hazelcastv1alpha1.Hazelcast) error {
-	return validateSpec(h)
-}
-
-func ValidateUpdatedSpec(h *hazelcastv1alpha1.Hazelcast, oldSpec *hazelcastv1alpha1.HazelcastSpec) error {
-	// We can check for fields whose states we want to trace between updates.
-	return validateSpec(h)
-}
-
-func validateSpec(h *hazelcastv1alpha1.Hazelcast) error {
+func ValidateSpec(h *hazelcastv1alpha1.Hazelcast) error {
 	err := validateExposeExternally(h)
 	if err != nil {
 		return err

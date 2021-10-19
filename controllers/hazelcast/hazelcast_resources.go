@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/hazelcast/validation"
 	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -115,21 +114,6 @@ func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *h
 	}
 	logger.V(1).Info("ClusterRoleBinding removed successfully")
 	return nil
-}
-
-func (r *HazelcastReconciler) validateSpec(h *hazelcastv1alpha1.Hazelcast) error {
-	lastSuccessfulConfig, ok := h.Annotations[n.LastSuccessfulConfigAnnotation]
-	if !ok {
-		return validation.ValidateInitalSpec(h)
-	}
-
-	lastSpec := hazelcastv1alpha1.HazelcastSpec{}
-	err := json.Unmarshal([]byte(lastSuccessfulConfig), &lastSpec)
-	if err != nil {
-		return err
-	}
-
-	return validation.ValidateUpdatedSpec(h, &lastSpec)
 }
 
 func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
