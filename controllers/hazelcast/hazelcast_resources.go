@@ -530,7 +530,9 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, h, func() error {
-		h.ObjectMeta.Annotations[n.LastSuccessfulConfigAnnotation] = string(hs)
+		ans := map[string]string{}
+		ans[n.LastSuccessfulConfigAnnotation] = string(hs)
+		h.ObjectMeta.Annotations = ans
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
