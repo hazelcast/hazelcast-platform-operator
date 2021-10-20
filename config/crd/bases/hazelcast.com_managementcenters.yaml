@@ -46,8 +46,8 @@ spec:
                 properties:
                   type:
                     default: LoadBalancer
-                    description: 'Specifies how Management Center is exposed Valid
-                      values are: - "ClusterIP" - "NodePort" - "Loadbalancer" (default)'
+                    description: 'How Management Center is exposed. Valid values are:
+                      - "ClusterIP" - "NodePort" - "Loadbalancer" (default)'
                     enum:
                     - ClusterIP
                     - NodePort
@@ -55,18 +55,18 @@ spec:
                     type: string
                 type: object
               hazelcastClusters:
-                description: Connection configuration for Hazelcast clusters Management
-                  Center will monitor.
+                description: Connection configuration for the Hazelcast clusters that
+                  Management Center will monitor.
                 items:
                   properties:
                     address:
-                      description: Address of Hazelcast cluster Can be IP address
-                        or DNS name. For Hazelcast cluster exposed with a service
-                        name in different namespace address can be given as "<service-name>.<service-namespace>".
+                      description: IP address or DNS name of the Hazelcast cluster.
+                        If the cluster is exposed with a service name in a different
+                        namespace, use the following syntax "<service-name>.<service-namespace>".
                       type: string
                     name:
                       default: dev
-                      description: Name of the Hazelcast cluster Management Center
+                      description: Name of the Hazelcast cluster that Management Center
                         will connect to, default is dev.
                       type: string
                   required:

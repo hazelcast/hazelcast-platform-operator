@@ -65,7 +65,7 @@ type ExposeExternallyConfiguration struct {
 	// +optional
 	DiscoveryServiceType corev1.ServiceType `json:"discoveryServiceType,omitempty"`
 
-	// Method of how each member is accessed from the external client.
+	// How each member is accessed from the external client.
 	// Valid values are:
 	// - "NodePortExternalIP" (default): each member is accessed by the NodePort service and the node external IP/hostname
 	// - "NodePortNodeName": each member is accessed by the NodePort service and the node name

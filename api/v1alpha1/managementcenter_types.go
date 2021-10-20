@@ -25,7 +25,7 @@ type ManagementCenterSpec struct {
 	// +optional
 	LicenseKeySecret string `json:"licenseKeySecret"`
 
-	// Connection configuration for Hazelcast clusters Management Center will monitor.
+	// Connection configuration for the Hazelcast clusters that Management Center will monitor.
 	// +optional
 	HazelcastClusters []HazelcastClusterConfig `json:"hazelcastClusters"`
 
@@ -39,19 +39,18 @@ type ManagementCenterSpec struct {
 }
 
 type HazelcastClusterConfig struct {
-	// Name of the Hazelcast cluster Management Center will connect to, default is dev.
+	// Name of the Hazelcast cluster that Management Center will connect to, default is dev.
 	// +optional
 	// +kubebuilder:default:="dev"
 	Name string `json:"name"`
-	// Address of Hazelcast cluster
-	// Can be IP address or DNS name. For Hazelcast cluster exposed with a service name in
-	// different namespace address can be given as "<service-name>.<service-namespace>".
+	// IP address or DNS name of the Hazelcast cluster.
+	// If the cluster is exposed with a service name in a different namespace, use the following syntax "<service-name>.<service-namespace>".
 	Address string `json:"address"`
 }
 
 // ExternalConnectivityConfiguration defines how to expose Management Center pod.
 type ExternalConnectivityConfiguration struct {
-	// Specifies how Management Center is exposed
+	// How Management Center is exposed.
 	// Valid values are:
 	// - "ClusterIP"
 	// - "NodePort"
