@@ -1,4 +1,4 @@
-# Hazelcast Enterprise Operator
+# Hazelcast Platform Operator
 
 ## Quick Start
 
