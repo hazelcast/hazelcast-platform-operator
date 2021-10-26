@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -30,7 +30,7 @@ var _ = Describe("Management-Center", func() {
 	}
 
 	var controllerManagerName = types.NamespacedName{
-		Name:      "hazelcast-enterprise-controller-manager",
+		Name:      "hazelcast-platform-controller-manager",
 		Namespace: hzNamespace,
 	}
 
@@ -42,7 +42,7 @@ var _ = Describe("Management-Center", func() {
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-enterprise-controller-manager running", func() {
+		By("Checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)

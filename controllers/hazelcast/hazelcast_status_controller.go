@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"

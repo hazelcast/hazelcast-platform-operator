@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 
 	"github.com/go-logr/logr"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"

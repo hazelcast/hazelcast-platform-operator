@@ -26,7 +26,7 @@ const (
 	LabelValueTrue  = "true"
 	LabelValueFalse = "false"
 
-	OperatorName      = "hazelcast-enterprise-operator"
+	OperatorName      = "hazelcast-platform-operator"
 	Hazelcast         = "hazelcast"
 	HazelcastPortName = "hazelcast-port"
 

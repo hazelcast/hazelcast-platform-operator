@@ -12,12 +12,12 @@ Kubernetes cluster (with admin rights), and the kubectl command configured.
 kubectl create secret generic hazelcast-license-key --from-literal=license-key=<YOUR LICENSE KEY>
 ```
 
-### Step 2: Start Hazelcast Enterprise Operator
+### Step 2: Start Hazelcast Platform Operator
 
 ```shell
-git clone git@github.com:hazelcast/hazelcast-enterprise-operator.git
-cd hazelcast-enterprise-operator
-make deploy IMG=hazelcast/hazelcast-enterprise-operator:5-preview-snapshot
+git clone git@github.com:hazelcast/hazelcast-platform-operator.git
+cd hazelcast-platform-operator
+make deploy IMG=hazelcast/hazelcast-platform-operator:5-preview-snapshot
 ```
 
 > Note: If you want to run the operator locally, you can execute `make install run` instead of `make deploy`.
@@ -26,7 +26,7 @@ make deploy IMG=hazelcast/hazelcast-enterprise-operator:5-preview-snapshot
 
 ### Step 3: Start Hazelcast Enterprise Cluster
 
-Run the following command to start Hazelcast Enterprise Cluster via applying CR yaml:
+Run the following command to start Hazelcast Platform Cluster via applying CR yaml:
 
 ```shell
 kubectl apply -f config/samples/_v1alpha1_hazelcast.yaml
@@ -45,7 +45,7 @@ spec:
 
 You can check the operator's logs to see the resource creation logs:
 ```
-$ kubectl logs deployment.apps/hazelcast-enterprise-controller-manager manager
+$ kubectl logs deployment.apps/hazelcast-platform-controller-manager manager
 ...
 2021-06-16T16:37:09.539+0300    DEBUG   controllers.Hazelcast   Finalizer added into custom resource successfully       {"hazelcast": "default/hazelcast"}
 2021-06-16T16:37:09.743+0300    INFO    controllers.Hazelcast   Operation result        {"hazelcast": "default/hazelcast", "ClusterRole": "hazelcast", "result": "created"}
@@ -119,7 +119,7 @@ kubectl delete secret hazelcast-license-key
 
 ## Running Tests
 
-There are different types of tests related to Hazelcast Enterprise Operator.
+There are different types of tests related to Hazelcast Platform Operator.
 
 ### Running unit & integration tests
 To run unit & integration tests, execute the following command.
@@ -141,7 +141,7 @@ Execute the following commands to run the end-to-end tests.
 ```shell
 kubectl create ns <YOUR NAMESPACE>
 
-make deploy NAMESPACE=<YOUR NAMESPACE> IMG=hazelcast/hazelcast-enterprise-operator:5-preview-snapshot
+make deploy NAMESPACE=<YOUR NAMESPACE> IMG=hazelcast/hazelcast-platform-operator:5-preview-snapshot
 
 kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE> --from-literal=license-key=<YOUR LICENSE KEY>
 
@@ -194,7 +194,7 @@ The `readyMembers` field represents the number of Hazelcast members that are con
 
 ## Running operator locally
 
-Hazelcast Enterprise Operator uses `hazelcast go-client` to connect to the cluster.
+Hazelcast Platform Operator uses `hazelcast go-client` to connect to the cluster.
 For these reason the pods needs to be exposed outside the cluster.
 Run `make expose-local` command that will expose Hazelcast member to `localhost:8000`.
 

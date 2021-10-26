@@ -1,4 +1,4 @@
-module github.com/hazelcast/hazelcast-enterprise-operator
+module github.com/hazelcast/hazelcast-platform-operator
 
 go 1.15
 

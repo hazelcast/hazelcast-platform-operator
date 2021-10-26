@@ -4,8 +4,8 @@ layout:
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
-projectName: hazelcast-enterprise-operator
-repo: github.com/hazelcast/hazelcast-enterprise-operator
+projectName: hazelcast-platform-operator
+repo: github.com/hazelcast/hazelcast-platform-operator
 resources:
 - api:
     crdVersion: v1
@@ -13,7 +13,7 @@ resources:
   controller: true
   domain: hazelcast.com
   kind: Hazelcast
-  path: github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1
+  path: github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -21,6 +21,6 @@ resources:
   controller: true
   domain: hazelcast.com
   kind: ManagementCenter
-  path: github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1
+  path: github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

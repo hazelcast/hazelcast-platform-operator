@@ -3,7 +3,7 @@ package managementcenter
 import (
 	"testing"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
 func Test_clusterAddCommand(t *testing.T) {

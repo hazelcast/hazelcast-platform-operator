@@ -94,6 +94,8 @@ spec:
                 required:
                 - readyMembers
                 type: object
+              message:
+                type: string
               phase:
                 description: Phase represents the current state of the cluster
                 type: string
@@ -230,14 +232,14 @@ status:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: hazelcast-enterprise-controller-manager
+  name: hazelcast-platform-controller-manager
   namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   creationTimestamp: null
-  name: hazelcast-enterprise-manager-role
+  name: hazelcast-platform-manager-role
   namespace: default
 rules:
 - apiGroups:
@@ -317,7 +319,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: hazelcast-enterprise-manager-role
+  name: hazelcast-platform-manager-role
 rules:
 - apiGroups:
   - ""
@@ -346,28 +348,28 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: hazelcast-enterprise-manager-rolebinding
+  name: hazelcast-platform-manager-rolebinding
   namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: hazelcast-enterprise-manager-role
+  name: hazelcast-platform-manager-role
 subjects:
 - kind: ServiceAccount
-  name: hazelcast-enterprise-controller-manager
+  name: hazelcast-platform-controller-manager
   namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: hazelcast-enterprise-manager-clusterrolebinding
+  name: hazelcast-platform-manager-clusterrolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: hazelcast-enterprise-manager-role
+  name: hazelcast-platform-manager-role
 subjects:
 - kind: ServiceAccount
-  name: hazelcast-enterprise-controller-manager
+  name: hazelcast-platform-controller-manager
   namespace: default
 ---
 apiVersion: apps/v1
@@ -375,7 +377,7 @@ kind: Deployment
 metadata:
   labels:
     control-plane: controller-manager
-  name: hazelcast-enterprise-controller-manager
+  name: hazelcast-platform-controller-manager
   namespace: default
 spec:
   replicas: 1
@@ -397,7 +399,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: hazelcast/hazelcast-enterprise-operator:5-preview-snapshot
+        image: controller:latest
         livenessProbe:
           httpGet:
             path: /healthz
@@ -422,5 +424,5 @@ spec:
           allowPrivilegeEscalation: false
       securityContext:
         runAsNonRoot: true
-      serviceAccountName: hazelcast-enterprise-controller-manager
+      serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10

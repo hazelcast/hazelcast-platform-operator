@@ -3,7 +3,7 @@ package validation
 import (
 	"errors"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
 func ValidateSpec(h *hazelcastv1alpha1.Hazelcast) error {

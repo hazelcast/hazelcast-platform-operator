@@ -34,7 +34,7 @@ jobs:
     name: Run e2e tests
     runs-on: ubuntu-20.04
     env:
-      IMG: eu.gcr.io/hazelcast-33/hazelcast-enterprise-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
+      IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
       NAMESPACE: test-operator
       KUBECTL_VERSION: 1.22.0
       GCP_PROJECT_ID: hazelcast-33

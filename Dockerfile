@@ -21,13 +21,13 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager 
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM registry.access.redhat.com/ubi8/ubi-minimal:8.4
 
-LABEL name="Hazelcast Enterprise Operator" \
+LABEL name="Hazelcast Platform Operator" \
       maintainer="info@hazelcast.com" \
       vendor="Hazelcast, Inc." \
       version="5-preview-snapshot" \
       release="1" \
-      summary="Hazelcast Enterprise Operator Image" \
-      description="Hazelcast Enterprise Operator Image"
+      summary="Hazelcast Platform Operator Image" \
+      description="Hazelcast Platform Operator Image"
 
 WORKDIR /
 COPY --from=builder /workspace/manager .

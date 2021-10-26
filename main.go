@@ -2,9 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/hazelcast"
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/managementcenter"
 	"os"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -17,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 

@@ -12,7 +12,7 @@ jobs:
       GCP_PROJECT_ID: hazelcast-33
       GKE_ZONE: europe-west1-b
       KUBECTL_VERSION: 1.22.0
-      IMG: eu.gcr.io/hazelcast-33/hazelcast-enterprise-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
+      IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
       NAMESPACE: test-operator
     steps:
       - name: Checkout

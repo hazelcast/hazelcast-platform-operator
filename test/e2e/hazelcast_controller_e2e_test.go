@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -38,7 +38,7 @@ var _ = Describe("Hazelcast", func() {
 	}
 
 	var controllerManagerName = types.NamespacedName{
-		Name:      "hazelcast-enterprise-controller-manager",
+		Name:      "hazelcast-platform-controller-manager",
 		Namespace: hzNamespace,
 	}
 
@@ -49,7 +49,7 @@ var _ = Describe("Hazelcast", func() {
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-enterprise-controller-manager running", func() {
+		By("Checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)

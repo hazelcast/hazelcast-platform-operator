@@ -6,10 +6,10 @@ package hazelcast
 import (
 	"fmt"
 
-	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-go-client"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
 func buildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
