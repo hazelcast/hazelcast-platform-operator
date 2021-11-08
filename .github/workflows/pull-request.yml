@@ -8,8 +8,12 @@ on:
 
 jobs:
   unit-tests:
-    name: Run unit tests
+    name: Run unit and integration tests
     runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [ 'os', 'ee' ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -37,11 +41,12 @@ jobs:
     name: Run e2e tests
     runs-on: ubuntu-20.04
     strategy:
+      fail-fast: false
       matrix:
         tag: [ 'os', 'ee' ]
     env:
       IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
-      NAMESPACE: test-operator
+      NAMESPACE: test-operator-${{ matrix.tag }}
       KUBECTL_VERSION: 1.22.0
       GCP_PROJECT_ID: hazelcast-33
       GKE_ZONE: europe-west1-b
