@@ -4,19 +4,19 @@ import (
 	"context"
 	"time"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
 var _ = Describe("Hazelcast controller", func() {
@@ -42,6 +42,13 @@ var _ = Describe("Hazelcast controller", func() {
 	labelFilter := client.MatchingLabels{
 		n.ApplicationNameLabel:      n.Hazelcast,
 		n.ApplicationManagedByLabel: n.OperatorName,
+	}
+
+	defaultSpecValues := &test.HazelcastSpecValues{
+		ClusterSize: clusterSize,
+		Repository:  repository,
+		Version:     version,
+		LicenseKey:  licenseKeySecret,
 	}
 
 	Create := func(hz *hazelcastv1alpha1.Hazelcast) {
@@ -100,20 +107,12 @@ var _ = Describe("Hazelcast controller", func() {
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      clusterSize,
-					Repository:       repository,
-					Version:          version,
-					LicenseKeySecret: licenseKeySecret,
-				},
+				Spec: test.HazelcastSpec(defaultSpecValues),
 			}
 			Create(hz)
 
 			fetchedCR := Fetch()
-			Expect(fetchedCR.Spec.ClusterSize).Should(Equal(int32(clusterSize)))
-			Expect(fetchedCR.Spec.Repository).Should(Equal(repository))
-			Expect(fetchedCR.Spec.Version).Should(Equal(version))
-			Expect(fetchedCR.Spec.LicenseKeySecret).Should(Equal(licenseKeySecret))
+			test.CheckHazelcastCR(fetchedCR, defaultSpecValues)
 			EnsureStatus(fetchedCR)
 
 			By("ensuring the finalizer added successfully")
@@ -201,21 +200,17 @@ var _ = Describe("Hazelcast controller", func() {
 		}
 
 		It("should create Hazelcast cluster exposed for unisocket client", func() {
+			spec := test.HazelcastSpec(defaultSpecValues)
+			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+				DiscoveryServiceType: corev1.ServiceTypeNodePort,
+			}
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      clusterSize,
-					Repository:       repository,
-					Version:          version,
-					LicenseKeySecret: licenseKeySecret,
-					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-						Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-						DiscoveryServiceType: corev1.ServiceTypeNodePort,
-					},
-				},
+				Spec: spec,
 			}
 			Create(hz)
 
@@ -235,22 +230,18 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		It("should create Hazelcast cluster exposed for smart client", func() {
+			spec := test.HazelcastSpec(defaultSpecValues)
+			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+				DiscoveryServiceType: corev1.ServiceTypeNodePort,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
+			}
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      clusterSize,
-					Repository:       repository,
-					Version:          version,
-					LicenseKeySecret: licenseKeySecret,
-					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-						Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
-						DiscoveryServiceType: corev1.ServiceTypeNodePort,
-						MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
-					},
-				},
+				Spec: spec,
 			}
 			Create(hz)
 
@@ -279,22 +270,19 @@ var _ = Describe("Hazelcast controller", func() {
 
 		It("should scale Hazelcast cluster exposed for smart client", func() {
 			By("creating the cluster of size 3")
+			spec := test.HazelcastSpec(defaultSpecValues)
+			spec.ClusterSize = 3
+			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+				DiscoveryServiceType: corev1.ServiceTypeNodePort,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
+			}
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      3,
-					Repository:       repository,
-					Version:          version,
-					LicenseKeySecret: licenseKeySecret,
-					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-						Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
-						DiscoveryServiceType: corev1.ServiceTypeNodePort,
-						MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
-					},
-				},
+				Spec: spec,
 			}
 			Create(hz)
 			fetchedCR := Fetch()
@@ -321,22 +309,19 @@ var _ = Describe("Hazelcast controller", func() {
 
 		It("should allow updating expose externally configuration", func() {
 			By("creating the cluster with smart client")
+			spec := test.HazelcastSpec(defaultSpecValues)
+			spec.ClusterSize = 3
+			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+				DiscoveryServiceType: corev1.ServiceTypeNodePort,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
+			}
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      3,
-					Repository:       repository,
-					Version:          version,
-					LicenseKeySecret: licenseKeySecret,
-					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-						Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
-						DiscoveryServiceType: corev1.ServiceTypeNodePort,
-						MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
-					},
-				},
+				Spec: spec,
 			}
 			Create(hz)
 			fetchedCR := Fetch()
@@ -379,22 +364,19 @@ var _ = Describe("Hazelcast controller", func() {
 
 		It("should return expected messages when exposeExternally is misconfigured", func() {
 			By("creating the cluster with unisocket client with incorrect configuration")
+			spec := test.HazelcastSpec(defaultSpecValues)
+			spec.ClusterSize = 3
+			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+				DiscoveryServiceType: corev1.ServiceTypeNodePort,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			}
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      3,
-					Repository:       repository,
-					Version:          version,
-					LicenseKeySecret: licenseKeySecret,
-					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
-						Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-						DiscoveryServiceType: corev1.ServiceTypeNodePort,
-						MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
-					},
-				},
+				Spec: spec,
 			}
 			Create(hz)
 			fetchedCR := Fetch()

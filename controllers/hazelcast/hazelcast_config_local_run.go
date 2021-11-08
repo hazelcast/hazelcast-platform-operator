@@ -1,5 +1,6 @@
 //go:build localrun
 // +build localrun
+
 // This file is used  for running operator locally and connect to the cluster that uses ExposeExternally feature
 
 package hazelcast

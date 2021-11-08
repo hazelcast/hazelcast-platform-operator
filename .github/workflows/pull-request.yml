@@ -33,6 +33,9 @@ jobs:
   e2e-tests:
     name: Run e2e tests
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        tag: [ 'os', 'ee' ]
     env:
       IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
       NAMESPACE: test-operator
@@ -96,7 +99,7 @@ jobs:
       - name: Run Hazelcast E2E tests at GKE
         run: |
           kubectl create secret generic hazelcast-license-key --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
-          make test-e2e NAMESPACE=${{ env.NAMESPACE }}
+          make test-e2e GO_TEST_TAGS=${{ matrix.tag }} NAMESPACE=${{ env.NAMESPACE }}
 
       # Clean up
       - name: Delete GKE cluster

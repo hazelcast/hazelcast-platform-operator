@@ -456,21 +456,25 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
-		{
-			Name: hzLicenseKey,
-			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: h.Spec.LicenseKeySecret,
-					},
-					Key: n.LicenseDataKey,
-				},
-			},
-		},
 		{Name: kubernetesEnabled, Value: n.LabelValueTrue},
 		{Name: kubernetesServiceName, Value: h.Name},
 		{Name: restEnabled, Value: n.LabelValueTrue},
 		{Name: restHealthCheckEnabled, Value: n.LabelValueTrue},
+	}
+	if h.Spec.LicenseKeySecret != "" {
+		envs = append([]v1.EnvVar{
+			{
+				Name: hzLicenseKey,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: h.Spec.LicenseKeySecret,
+						},
+						Key: n.LicenseDataKey,
+					},
+				},
+			},
+		}, envs...)
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {

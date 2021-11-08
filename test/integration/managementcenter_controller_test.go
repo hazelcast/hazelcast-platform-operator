@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -14,8 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
 var _ = Describe("ManagementCenter controller", func() {
@@ -26,6 +26,12 @@ var _ = Describe("ManagementCenter controller", func() {
 		interval = time.Millisecond * 250
 	)
 
+	defaultSpecValues := &test.MCSpecValues{
+		Repository: n.MCRepo,
+		Version:    n.MCVersion,
+		LicenseKey: n.LicenseKeySecret,
+	}
+
 	Context("ManagementCenter CustomResource with default specs", func() {
 		It("Should handle CR and sub resources correctly", func() {
 
@@ -34,23 +40,14 @@ var _ = Describe("ManagementCenter controller", func() {
 				Namespace: "default",
 			}
 
+			spec := test.ManagementCenterSpec(defaultSpecValues)
+
 			toCreate := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: hazelcastv1alpha1.ManagementCenterSpec{
-					Repository:       n.MCRepo,
-					Version:          n.MCVersion,
-					LicenseKeySecret: n.LicenseKeySecret,
-					ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
-						Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
-					},
-					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
-					Persistence: hazelcastv1alpha1.PersistenceConfiguration{
-						StorageClass: &[]string{""}[0],
-					},
-				},
+				Spec: spec,
 			}
 
 			By("Creating the CR with specs successfully")
@@ -66,9 +63,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			Expect(fetchedCR.Spec.Repository).Should(Equal(n.MCRepo))
-			Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
-			Expect(fetchedCR.Spec.LicenseKeySecret).Should(Equal(n.LicenseKeySecret))
+			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues)
 
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(Equal([]hazelcastv1alpha1.HazelcastClusterConfig{}))
 

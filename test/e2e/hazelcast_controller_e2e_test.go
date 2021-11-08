@@ -5,25 +5,23 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-
 	hzClient "github.com/hazelcast/hazelcast-go-client"
-
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 const (
@@ -79,7 +77,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Default Hazelcast CR", func() {
 		It("should create Hazelcast cluster", func() {
-			hazelcast := loadHazelcast("default.yaml")
+			hazelcast := loadHazelcast(hazelcastconfig.Default())
 			create(hazelcast)
 		})
 	})
@@ -122,7 +120,7 @@ var _ = Describe("Hazelcast", func() {
 				assertUseHazelcast(true)
 			}
 
-			hazelcast := loadHazelcast("expose_externally_unisocket.yaml")
+			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallyUnisocket())
 			create(hazelcast)
 			assertUseHazelcastUnisocket()
 		})
@@ -132,7 +130,7 @@ var _ = Describe("Hazelcast", func() {
 				assertUseHazelcast(false)
 			}
 
-			hazelcast := loadHazelcast("expose_externally_smart_nodeport.yaml")
+			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallySmartNodePort())
 			create(hazelcast)
 			assertUseHazelcastSmart()
 		})
@@ -141,7 +139,7 @@ var _ = Describe("Hazelcast", func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
 			}
-			hazelcast := loadHazelcast("expose_externally_smart_loadbalancer.yaml")
+			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallySmartLoadBalancer())
 			create(hazelcast)
 			assertUseHazelcastSmart()
 		})
@@ -149,7 +147,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Hazelcast cluster name", func() {
 		It("should create a Hazelcust cluster with Cluster name: development", func() {
-			hazelcast := loadHazelcast("cluster_name.yaml")
+			hazelcast := loadHazelcast(hazelcastconfig.ClusterName())
 			create(hazelcast)
 
 			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
@@ -168,7 +166,7 @@ var _ = Describe("Hazelcast", func() {
 		}
 
 		It("should update HZ ready members status", func() {
-			h := loadHazelcast("default.yaml")
+			h := loadHazelcast(hazelcastconfig.Default())
 			create(h)
 
 			evaluateReadyMembers(h)
@@ -188,18 +186,9 @@ var _ = Describe("Hazelcast", func() {
 	})
 })
 
-func loadHazelcast(fileName string) *hazelcastcomv1alpha1.Hazelcast {
-	h := emptyHazelcast()
-
-	f, err := os.Open(fmt.Sprintf("config/hazelcast/%s", fileName))
-	Expect(err).ToNot(HaveOccurred())
-	defer f.Close()
-
-	decoder := yaml.NewYAMLToJSONDecoder(f)
-	err = decoder.Decode(h)
-	Expect(err).ToNot(HaveOccurred())
-
-	return h
+func loadHazelcast(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+	hazelcast.Namespace = hzNamespace
+	return hazelcast
 }
 
 func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {

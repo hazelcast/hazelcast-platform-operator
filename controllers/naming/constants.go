@@ -46,6 +46,8 @@ const (
 	DefaultClusterSize = 3
 	// HazelcastRepo image repository for Hazelcast
 	HazelcastRepo = "hazelcast/hazelcast"
+	// HazelcastEERepo image repository for Hazelcast EE
+	HazelcastEERepo = "hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
 	HazelcastVersion = "5.0"
 )

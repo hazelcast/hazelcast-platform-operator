@@ -5,10 +5,12 @@ import (
 	"time"
 )
 
-var hzNamespace string
-var interval time.Duration
-var timeout time.Duration
-var deleteTimeout time.Duration
+var (
+	hzNamespace   string
+	interval      time.Duration
+	timeout       time.Duration
+	deleteTimeout time.Duration
+)
 
 func init() {
 	flag.StringVar(&hzNamespace, "namespace", "default", "The namespace to run e2e tests")
