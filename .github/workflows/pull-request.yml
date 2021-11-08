@@ -8,7 +8,7 @@ on:
 
 jobs:
   unit-tests:
-    name: Run unit and integration tests
+    name: Run unit tests
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout
@@ -27,8 +27,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Run Tests
-        run: make test
+      - name: Run unit tests
+        run: make test-unit
+
+      - name: Run integration tests
+        run: make GO_TEST_TAGS=${{ matrix.tag }} test-it
 
   e2e-tests:
     name: Run e2e tests
