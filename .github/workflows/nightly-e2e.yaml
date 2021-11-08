@@ -50,7 +50,7 @@ jobs:
 
       - name: Create GKE cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${{ matrix.tag }}-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           gcloud container clusters create ${CLUSTER_NAME} --zone=${{ env.GKE_ZONE }} --project=${{ env.GCP_PROJECT_ID }} --machine-type=n1-standard-2 --num-nodes=2
           sleep 30
@@ -72,10 +72,12 @@ jobs:
           make install
           make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.IMG }}
 
+      - name: Create secret
+        if: ${{ matrix.tag == 'ee' }}
+        run: kubectl create secret generic hazelcast-license-key --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+
       - name: Run Hazelcast E2E tests at GKE
-        run: |
-          kubectl create secret generic hazelcast-license-key --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
-          make test-e2e GO_TEST_TAGS=${{ matrix.tag }} NAMESPACE=${{ env.NAMESPACE }}
+        run: make test-e2e GO_TEST_TAGS=${{ matrix.tag }} NAMESPACE=${{ env.NAMESPACE }}
 
       # Clean up
       - name: Delete GKE cluster
