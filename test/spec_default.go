@@ -1,5 +1,5 @@
-//go:build !ee && !os
-// +build !ee,!os
+//go:build !ee
+// +build !ee
 
 package test
 
