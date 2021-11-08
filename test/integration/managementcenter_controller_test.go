@@ -40,14 +40,12 @@ var _ = Describe("ManagementCenter controller", func() {
 				Namespace: "default",
 			}
 
-			spec := test.ManagementCenterSpec(defaultSpecValues)
-
 			toCreate := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: spec,
+				Spec: test.ManagementCenterSpec(defaultSpecValues),
 			}
 
 			By("Creating the CR with specs successfully")
