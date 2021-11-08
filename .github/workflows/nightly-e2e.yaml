@@ -73,7 +73,6 @@ jobs:
           make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.IMG }}
 
       - name: Create secret
-        if: ${{ matrix.tag == 'ee' }}
         run: kubectl create secret generic hazelcast-license-key --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
       - name: Run Hazelcast E2E tests at GKE
