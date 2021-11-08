@@ -398,7 +398,7 @@ var _ = Describe("Hazelcast controller", func() {
 			ClusterSize:      n.DefaultClusterSize,
 			Repository:       n.HazelcastRepo,
 			Version:          n.HazelcastVersion,
-			LicenseKeySecret: n.LicenseKeySecret,
+			LicenseKeySecret: "",
 		}
 		It("should create CR with default values when empty specs are applied", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
