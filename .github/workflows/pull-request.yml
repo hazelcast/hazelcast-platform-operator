@@ -81,7 +81,7 @@ jobs:
 
       - name: Create GKE cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${{ matrix.tag }}-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           gcloud container clusters create ${CLUSTER_NAME} --zone=${{ env.GKE_ZONE }} --project=${{ env.GCP_PROJECT_ID }} --machine-type=n1-standard-2 --num-nodes=2
           sleep 30
