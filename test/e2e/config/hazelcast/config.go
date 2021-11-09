@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	ClusterName = func(ee bool) *hazelcastv1alpha1.Hazelcast {
+	ClusterName = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name: "hazelcast",
+				Name:      "hazelcast",
+				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
@@ -24,10 +25,11 @@ var (
 		}
 	}
 
-	Default = func(ee bool) *hazelcastv1alpha1.Hazelcast {
+	Default = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name: "hazelcast",
+				Name:      "hazelcast",
+				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
@@ -38,10 +40,11 @@ var (
 		}
 	}
 
-	ExposeExternallySmartLoadBalancer = func(ee bool) *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallySmartLoadBalancer = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name: "hazelcast",
+				Name:      "hazelcast",
+				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
@@ -57,10 +60,11 @@ var (
 		}
 	}
 
-	ExposeExternallySmartNodePort = func(ee bool) *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallySmartNodePort = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name: "hazelcast",
+				Name:      "hazelcast",
+				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
@@ -76,10 +80,11 @@ var (
 		}
 	}
 
-	ExposeExternallyUnisocket = func(ee bool) *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallyUnisocket = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name: "hazelcast",
+				Name:      "hazelcast",
+				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,

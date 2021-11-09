@@ -77,7 +77,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Default Hazelcast CR", func() {
 		It("should create Hazelcast cluster", func() {
-			hazelcast := loadHazelcast(hazelcastconfig.Default(ee))
+			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 		})
 	})
@@ -120,7 +120,7 @@ var _ = Describe("Hazelcast", func() {
 				assertUseHazelcast(true)
 			}
 
-			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallyUnisocket(ee))
+			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee)
 			create(hazelcast)
 			assertUseHazelcastUnisocket()
 		})
@@ -130,7 +130,7 @@ var _ = Describe("Hazelcast", func() {
 				assertUseHazelcast(false)
 			}
 
-			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallySmartNodePort(ee))
+			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee)
 			create(hazelcast)
 			assertUseHazelcastSmart()
 		})
@@ -139,7 +139,7 @@ var _ = Describe("Hazelcast", func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
 			}
-			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallySmartLoadBalancer(ee))
+			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee)
 			create(hazelcast)
 			assertUseHazelcastSmart()
 		})
@@ -147,7 +147,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Hazelcast cluster name", func() {
 		It("should create a Hazelcust cluster with Cluster name: development", func() {
-			hazelcast := loadHazelcast(hazelcastconfig.ClusterName(ee))
+			hazelcast := hazelcastconfig.ClusterName(hzNamespace, ee)
 			create(hazelcast)
 
 			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
@@ -166,7 +166,7 @@ var _ = Describe("Hazelcast", func() {
 		}
 
 		It("should update HZ ready members status", func() {
-			h := loadHazelcast(hazelcastconfig.Default(ee))
+			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
 			evaluateReadyMembers(h)
@@ -185,11 +185,6 @@ var _ = Describe("Hazelcast", func() {
 		})
 	})
 })
-
-func loadHazelcast(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
-	hazelcast.Namespace = hzNamespace
-	return hazelcast
-}
 
 func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
 	return &hazelcastcomv1alpha1.Hazelcast{
