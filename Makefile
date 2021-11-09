@@ -96,14 +96,14 @@ test-unit: manifests generate fmt vet
 	go test -v ./api/... -coverprofile cover.out
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
-GO_TEST_TAGS ?= "ee"
+GO_TEST_FLAGS ?= "-ee=true"
 test-it: manifests generate fmt vet ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test -v ./test/integration/... -coverprofile cover.out -tags ${GO_TEST_TAGS}
+	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS)
 
 test-e2e: generate fmt vet ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true go test -v ./test/e2e -tags ${GO_TEST_TAGS} -coverprofile cover.out -namespace $(NAMESPACE) -timeout 20m -delete-timeout 15m
+	USE_EXISTING_CLUSTER=true go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -timeout 20m -delete-timeout 15m $(GO_TEST_FLAGS)
 
 ##@ Build
 

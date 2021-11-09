@@ -77,7 +77,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Default Hazelcast CR", func() {
 		It("should create Hazelcast cluster", func() {
-			hazelcast := loadHazelcast(hazelcastconfig.Default())
+			hazelcast := loadHazelcast(hazelcastconfig.Default(ee))
 			create(hazelcast)
 		})
 	})
@@ -120,7 +120,7 @@ var _ = Describe("Hazelcast", func() {
 				assertUseHazelcast(true)
 			}
 
-			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallyUnisocket())
+			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallyUnisocket(ee))
 			create(hazelcast)
 			assertUseHazelcastUnisocket()
 		})
@@ -130,7 +130,7 @@ var _ = Describe("Hazelcast", func() {
 				assertUseHazelcast(false)
 			}
 
-			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallySmartNodePort())
+			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallySmartNodePort(ee))
 			create(hazelcast)
 			assertUseHazelcastSmart()
 		})
@@ -139,7 +139,7 @@ var _ = Describe("Hazelcast", func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
 			}
-			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallySmartLoadBalancer())
+			hazelcast := loadHazelcast(hazelcastconfig.ExposeExternallySmartLoadBalancer(ee))
 			create(hazelcast)
 			assertUseHazelcastSmart()
 		})
@@ -147,7 +147,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Hazelcast cluster name", func() {
 		It("should create a Hazelcust cluster with Cluster name: development", func() {
-			hazelcast := loadHazelcast(hazelcastconfig.ClusterName())
+			hazelcast := loadHazelcast(hazelcastconfig.ClusterName(ee))
 			create(hazelcast)
 
 			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
@@ -166,7 +166,7 @@ var _ = Describe("Hazelcast", func() {
 		}
 
 		It("should update HZ ready members status", func() {
-			h := loadHazelcast(hazelcastconfig.Default())
+			h := loadHazelcast(hazelcastconfig.Default(ee))
 			create(h)
 
 			evaluateReadyMembers(h)

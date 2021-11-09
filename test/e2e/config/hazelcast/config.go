@@ -6,11 +6,10 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
 var (
-	ClusterName = func() *hazelcastv1alpha1.Hazelcast {
+	ClusterName = func(ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "hazelcast",
@@ -18,37 +17,37 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
 				ClusterName:      "development",
-				Repository:       repo(),
+				Repository:       repo(ee),
 				Version:          "5.0",
-				LicenseKeySecret: licenseKey(),
+				LicenseKeySecret: licenseKey(ee),
 			},
 		}
 	}
 
-	Default = func() *hazelcastv1alpha1.Hazelcast {
+	Default = func(ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "hazelcast",
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
-				Repository:       repo(),
+				Repository:       repo(ee),
 				Version:          "5.0",
-				LicenseKeySecret: licenseKey(),
+				LicenseKeySecret: licenseKey(ee),
 			},
 		}
 	}
 
-	ExposeExternallySmartLoadBalancer = func() *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallySmartLoadBalancer = func(ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "hazelcast",
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
-				Repository:       repo(),
+				Repository:       repo(ee),
 				Version:          "latest-snapshot-slim",
-				LicenseKeySecret: licenseKey(),
+				LicenseKeySecret: licenseKey(ee),
 				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -58,16 +57,16 @@ var (
 		}
 	}
 
-	ExposeExternallySmartNodePort = func() *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallySmartNodePort = func(ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "hazelcast",
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
-				Repository:       repo(),
+				Repository:       repo(ee),
 				Version:          "latest-snapshot-slim",
-				LicenseKeySecret: licenseKey(),
+				LicenseKeySecret: licenseKey(ee),
 				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -77,16 +76,16 @@ var (
 		}
 	}
 
-	ExposeExternallyUnisocket = func() *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallyUnisocket = func(ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "hazelcast",
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
-				Repository:       repo(),
+				Repository:       repo(ee),
 				Version:          "latest-snapshot-slim",
-				LicenseKeySecret: licenseKey(),
+				LicenseKeySecret: licenseKey(ee),
 				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -96,16 +95,16 @@ var (
 	}
 )
 
-func repo() string {
-	if test.IsEE() {
+func repo(ee bool) string {
+	if ee {
 		return naming.HazelcastEERepo
 	} else {
 		return naming.HazelcastRepo
 	}
 }
 
-func licenseKey() string {
-	if test.IsEE() {
+func licenseKey(ee bool) string {
+	if ee {
 		return naming.LicenseKeySecret
 	} else {
 		return ""

@@ -107,12 +107,12 @@ var _ = Describe("Hazelcast controller", func() {
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: test.HazelcastSpec(defaultSpecValues),
+				Spec: test.HazelcastSpec(defaultSpecValues, ee),
 			}
 			Create(hz)
 
 			fetchedCR := Fetch()
-			test.CheckHazelcastCR(fetchedCR, defaultSpecValues)
+			test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
 			EnsureStatus(fetchedCR)
 
 			By("ensuring the finalizer added successfully")
@@ -200,7 +200,7 @@ var _ = Describe("Hazelcast controller", func() {
 		}
 
 		It("should create Hazelcast cluster exposed for unisocket client", func() {
-			spec := test.HazelcastSpec(defaultSpecValues)
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
@@ -230,7 +230,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		It("should create Hazelcast cluster exposed for smart client", func() {
-			spec := test.HazelcastSpec(defaultSpecValues)
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
@@ -270,7 +270,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 		It("should scale Hazelcast cluster exposed for smart client", func() {
 			By("creating the cluster of size 3")
-			spec := test.HazelcastSpec(defaultSpecValues)
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = 3
 			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -309,7 +309,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 		It("should allow updating expose externally configuration", func() {
 			By("creating the cluster with smart client")
-			spec := test.HazelcastSpec(defaultSpecValues)
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = 3
 			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -364,7 +364,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 		It("should return expected messages when exposeExternally is misconfigured", func() {
 			By("creating the cluster with unisocket client with incorrect configuration")
-			spec := test.HazelcastSpec(defaultSpecValues)
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = 3
 			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,

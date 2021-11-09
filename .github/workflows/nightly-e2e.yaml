@@ -11,13 +11,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tag: [ 'os', 'ee' ]
+        edition: [ 'os', 'ee' ]
     env:
       GCP_PROJECT_ID: hazelcast-33
       GKE_ZONE: europe-west1-b
       KUBECTL_VERSION: 1.22.0
       IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
-      NAMESPACE: test-operator-nightly-${{ matrix.tag }}
+      NAMESPACE: test-operator-nightly-${{ matrix.edition }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -50,7 +50,7 @@ jobs:
 
       - name: Create GKE cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${{ matrix.tag }}-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${{ matrix.edition }}-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           gcloud container clusters create ${CLUSTER_NAME} --zone=${{ env.GKE_ZONE }} --project=${{ env.GCP_PROJECT_ID }} --machine-type=n1-standard-2 --num-nodes=2
           sleep 30
@@ -76,7 +76,13 @@ jobs:
         run: kubectl create secret generic hazelcast-license-key --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
       - name: Run Hazelcast E2E tests at GKE
-        run: make test-e2e GO_TEST_TAGS=${{ matrix.tag }} NAMESPACE=${{ env.NAMESPACE }}
+        run: |
+          case ${{ matrix.edition }} in
+            os) GO_TEST_FLAGS=-ee=false;;
+            ee) GO_TEST_FLAGS=-ee=true;;
+            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
+          esac
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${{ env.NAMESPACE }}
 
       # Clean up
       - name: Delete GKE cluster

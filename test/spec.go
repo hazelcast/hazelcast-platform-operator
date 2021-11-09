@@ -13,23 +13,23 @@ type HazelcastSpecValues struct {
 	LicenseKey  string
 }
 
-func HazelcastSpec(values *HazelcastSpecValues) hazelcastv1alpha1.HazelcastSpec {
+func HazelcastSpec(values *HazelcastSpecValues, ee bool) hazelcastv1alpha1.HazelcastSpec {
 	spec := hazelcastv1alpha1.HazelcastSpec{
 		ClusterSize: values.ClusterSize,
 		Repository:  values.Repository,
 		Version:     values.Version,
 	}
-	if IsEE() {
+	if ee {
 		spec.LicenseKeySecret = values.LicenseKey
 	}
 	return spec
 }
 
-func CheckHazelcastCR(hazelcast *hazelcastv1alpha1.Hazelcast, expected *HazelcastSpecValues) {
+func CheckHazelcastCR(hazelcast *hazelcastv1alpha1.Hazelcast, expected *HazelcastSpecValues, ee bool) {
 	Expect(hazelcast.Spec.ClusterSize).Should(Equal(expected.ClusterSize))
 	Expect(hazelcast.Spec.Repository).Should(Equal(expected.Repository))
 	Expect(hazelcast.Spec.Version).Should(Equal(expected.Version))
-	if IsEE() {
+	if ee {
 		Expect(hazelcast.Spec.LicenseKeySecret).Should(Equal(expected.LicenseKey))
 	}
 }
@@ -40,7 +40,7 @@ type MCSpecValues struct {
 	LicenseKey string
 }
 
-func ManagementCenterSpec(values *MCSpecValues) hazelcastv1alpha1.ManagementCenterSpec {
+func ManagementCenterSpec(values *MCSpecValues, ee bool) hazelcastv1alpha1.ManagementCenterSpec {
 	spec := hazelcastv1alpha1.ManagementCenterSpec{
 		Repository: values.Repository,
 		Version:    values.Version,
@@ -52,16 +52,16 @@ func ManagementCenterSpec(values *MCSpecValues) hazelcastv1alpha1.ManagementCent
 			StorageClass: &[]string{""}[0],
 		},
 	}
-	if IsEE() {
+	if ee {
 		spec.LicenseKeySecret = values.LicenseKey
 	}
 	return spec
 }
 
-func CheckManagementCenterCR(mc *hazelcastv1alpha1.ManagementCenter, expected *MCSpecValues) {
+func CheckManagementCenterCR(mc *hazelcastv1alpha1.ManagementCenter, expected *MCSpecValues, ee bool) {
 	Expect(mc.Spec.Repository).Should(Equal(expected.Repository))
 	Expect(mc.Spec.Version).Should(Equal(expected.Version))
-	if IsEE() {
+	if ee {
 		Expect(mc.Spec.LicenseKeySecret).Should(Equal(expected.LicenseKey))
 	}
 }

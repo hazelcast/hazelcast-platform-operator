@@ -45,7 +45,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					Name:      lookupKey.Name,
 					Namespace: lookupKey.Namespace,
 				},
-				Spec: test.ManagementCenterSpec(defaultSpecValues),
+				Spec: test.ManagementCenterSpec(defaultSpecValues, ee),
 			}
 
 			By("Creating the CR with specs successfully")
@@ -61,7 +61,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues)
+			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues, ee)
 
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(Equal([]hazelcastv1alpha1.HazelcastClusterConfig{}))
 

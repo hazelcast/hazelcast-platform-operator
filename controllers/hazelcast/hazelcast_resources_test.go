@@ -8,11 +8,6 @@ import (
 )
 
 func Test_mergeHazelcastSpecs(t *testing.T) {
-	defaultHzSpec := hazelcastv1alpha1.HazelcastSpec{
-		ClusterSize: n.DefaultClusterSize,
-		Version:     n.HazelcastVersion,
-		Repository:  n.HazelcastRepo,
-	}
 	tests := []struct {
 		name   string
 		target *hazelcastv1alpha1.HazelcastSpec
@@ -31,7 +26,7 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 		{
 			name:   "Empty license key secret",
 			target: &hazelcastv1alpha1.HazelcastSpec{ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion},
-			want:   defaultHzSpec,
+			want:   hazelcastv1alpha1.HazelcastSpec{ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion},
 		},
 		{
 			name:   "Empty cluster size",
