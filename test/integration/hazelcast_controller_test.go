@@ -414,5 +414,29 @@ var _ = Describe("Hazelcast controller", func() {
 			Expect(fetchedCR.Spec).To(Equal(defaultHzSpecs))
 			Delete()
 		})
+		It("should update the CR with the default values when updating the empty specs are applied", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      5,
+					Repository:       "myorg/hazelcast",
+					Version:          "1.0",
+					LicenseKeySecret: "licenseKeySecret",
+				},
+			}
+			Create(hz)
+			fetchedCR := Fetch()
+			EnsureStatus(fetchedCR)
+
+			fetchedCR.Spec = hazelcastv1alpha1.HazelcastSpec{}
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			Expect(fetchedCR.Spec).To(Equal(defaultHzSpecs))
+			Delete()
+		})
 	})
 })

@@ -76,8 +76,10 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	if c, ok := r.hzClients.Load(key); ok {
 		r.hzClients.Delete(key)
-		// shutdown error is ignored and does not need to be handled
-		_ = c.(*HazelcastClient).Client.Shutdown(ctx)
+		if cl := c.(*HazelcastClient).Client; cl != nil {
+			// shutdown error is ignored and does not need to be handled
+			_ = cl.Shutdown(ctx)
+		}
 	}
 	return nil
 }
@@ -545,14 +547,22 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	return err
 }
 
-func applyDefaultHazelcastSpecs(target *hazelcastv1alpha1.HazelcastSpec) {
-	if target.Repository == "" {
-		target.Repository = n.HazelcastRepo
+func (r *HazelcastReconciler) applyDefaultHazelcastSpecs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+	changed := false
+	if h.Spec.Repository == "" {
+		h.Spec.Repository = n.HazelcastRepo
+		changed = true
 	}
-	if target.Version == "" {
-		target.Version = n.HazelcastVersion
+	if h.Spec.Version == "" {
+		h.Spec.Version = n.HazelcastVersion
+		changed = true
 	}
-	if target.ClusterSize == 0 {
-		target.ClusterSize = n.DefaultClusterSize
+	if h.Spec.ClusterSize == 0 {
+		h.Spec.ClusterSize = n.DefaultClusterSize
+		changed = true
 	}
+	if !changed {
+		return nil
+	}
+	return r.Update(ctx, h)
 }

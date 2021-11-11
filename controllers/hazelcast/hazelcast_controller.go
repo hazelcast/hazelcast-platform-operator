@@ -62,7 +62,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err := r.Client.Get(ctx, req.NamespacedName, h)
-	applyDefaultHazelcastSpecs(&h.Spec)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Info("Hazelcast resource not found. Ignoring since object must be deleted")
@@ -72,6 +71,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
+	err = r.applyDefaultHazelcastSpecs(ctx, h)
+	if err != nil {
+		logger.Error(err, "Failed to apply default specs")
+		return update(ctx, r.Client, h, failedPhase(err))
+	}
 	// Add finalizer for Hazelcast CR to cleanup ClusterRole
 	err = r.addFinalizer(ctx, h, logger)
 	if err != nil {

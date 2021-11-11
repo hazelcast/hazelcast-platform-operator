@@ -6,5 +6,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: hazelcast/hazelcast-enterprise-operator
+  newName: hazelcast/hazelcast-platform-operator
   newTag: 5-preview-snapshot
