@@ -3,8 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"os"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -12,10 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
 
 const (
@@ -79,7 +77,7 @@ var _ = Describe("Management-Center", func() {
 
 	Describe("Default ManagementCenter CR", func() {
 		It("Should create ManagementCenter resources", func() {
-			mc := loadManagementCenter("default.yaml")
+			mc := mcconfig.Default(hzNamespace, ee)
 			create(mc)
 
 			By("Checking if it created PVC with correct size", func() {
@@ -102,7 +100,7 @@ var _ = Describe("Management-Center", func() {
 
 	Describe("ManagementCenter CR without Persistence", func() {
 		It("Should create ManagementCenter resources and no PVC", func() {
-			mc := loadManagementCenter("persistence_disabled.yaml")
+			mc := mcconfig.PersistenceDisabled(hzNamespace, ee)
 			create(mc)
 
 			By("Checking if PVC does not exist", func() {
@@ -119,20 +117,6 @@ var _ = Describe("Management-Center", func() {
 	})
 
 })
-
-func loadManagementCenter(fileName string) *hazelcastcomv1alpha1.ManagementCenter {
-	h := emptyManagementCenter()
-
-	f, err := os.Open(fmt.Sprintf("config/managementcenter/%s", fileName))
-	Expect(err).ToNot(HaveOccurred())
-	defer f.Close()
-
-	decoder := yaml.NewYAMLToJSONDecoder(f)
-	err = decoder.Decode(h)
-	Expect(err).ToNot(HaveOccurred())
-
-	return h
-}
 
 func emptyManagementCenter() *hazelcastcomv1alpha1.ManagementCenter {
 	return &hazelcastcomv1alpha1.ManagementCenter{

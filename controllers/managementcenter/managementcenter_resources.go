@@ -204,20 +204,33 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 }
 
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
-	envs := []v1.EnvVar{
-		{
-			Name: mcLicenseKey,
-			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: mc.Spec.LicenseKeySecret,
+	envs := []v1.EnvVar{{Name: mcInitCmd, Value: clusterAddCommand(mc)}}
+
+	if mc.Spec.LicenseKeySecret != "" {
+		envs = append(envs,
+			v1.EnvVar{
+				Name: mcLicenseKey,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: mc.Spec.LicenseKeySecret,
+						},
+						Key: n.LicenseDataKey,
 					},
-					Key: n.LicenseDataKey,
 				},
 			},
-		},
-		{Name: mcInitCmd, Value: clusterAddCommand(mc)},
-		{Name: javaOpts, Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
+			v1.EnvVar{
+				Name:  javaOpts,
+				Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false",
+			},
+		)
+	} else {
+		envs = append(envs,
+			v1.EnvVar{
+				Name:  javaOpts,
+				Value: "-Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false",
+			},
+		)
 	}
 	return envs
 }
