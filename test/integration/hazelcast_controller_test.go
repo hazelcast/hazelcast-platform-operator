@@ -29,10 +29,14 @@ var _ = Describe("Hazelcast controller", func() {
 		interval = time.Millisecond * 250
 
 		clusterSize      = n.DefaultClusterSize
-		repository       = n.HazelcastRepo
 		version          = n.HazelcastVersion
 		licenseKeySecret = n.LicenseKeySecret
 	)
+
+	repository := n.HazelcastRepo
+	if ee {
+		repository = n.HazelcastEERepo
+	}
 
 	lookupKey := types.NamespacedName{
 		Name:      hzKeyName,
@@ -437,6 +441,41 @@ var _ = Describe("Hazelcast controller", func() {
 			EnsureStatus(fetchedCR)
 			Expect(fetchedCR.Spec).To(Equal(defaultHzSpecs))
 			Delete()
+		})
+	})
+
+	Context("Hazelcast license validation", func() {
+		When("EE repository is used", func() {
+			It("should raise error if no license key secret is provided", func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.LicenseKeySecret = ""
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      lookupKey.Name,
+						Namespace: lookupKey.Namespace,
+					},
+					Spec: spec,
+				}
+
+				Create(hz)
+
+				fetchedCR := Fetch()
+				EnsureFailedStatus(fetchedCR)
+				Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when Hazelcast Enterprise is deployed, licenseKeySecret must be set"))
+
+				By("filling the licenseSecretKey should fix it")
+				fetchedCR.Spec.LicenseKeySecret = n.LicenseKeySecret
+				Update(fetchedCR)
+				fetchedCR = Fetch()
+				EnsureStatus(fetchedCR)
+				Expect(fetchedCR.Status.Message).To(BeEmpty())
+
+				Delete()
+			})
 		})
 	})
 })

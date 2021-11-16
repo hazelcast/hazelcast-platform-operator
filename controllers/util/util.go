@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,4 +35,12 @@ func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
 	allReady := expectedReplicas == sts.Status.ReadyReplicas
 	atExpectedGeneration := sts.Generation == sts.Status.ObservedGeneration
 	return allUpdated && allReady && atExpectedGeneration
+}
+
+func IsEnterprise(repo string) bool {
+	path := strings.Split(repo, "/")
+	if len(path) == 0 {
+		return false
+	}
+	return strings.HasSuffix(path[len(path)-1], "-enterprise")
 }
