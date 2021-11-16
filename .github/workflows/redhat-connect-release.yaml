@@ -1,0 +1,194 @@
+name: Publish Red Hat Connect Release
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish_image:
+    name: Build and Publish
+    defaults:
+      run:
+        shell: bash
+    env:
+      SCAN_REGISTRY: "scan.connect.redhat.com"
+      OPERATOR_NAME: "hazelcast-platform-operator"
+      TIMEOUT_IN_MINS: "60"
+      RHEL_API_KEY: ${{ secrets.RHEL_API_KEY }}
+      RHEL_REPOSITORY: ${{ secrets.RHEL_REPOSITORY }}
+      RHEL_REPO_PASSWORD: ${{ secrets.RHEL_REPO_PASSWORD }}
+      OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
+      OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
+      OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
+      HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Set Release Version
+        run: echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV
+
+      - name: Checkout to hazelcast-operator
+        uses: actions/checkout@v2
+
+      - name: Generate Operator and Operator Image
+        run: |
+          RHEL_IMAGE=${RHEL_REPOSITORY}:${RELEASE_VERSION}
+          echo "RHEL_IMAGE=${RHEL_IMAGE}" >> $GITHUB_ENV
+
+          #echo "Building the operator image"
+          #make docker-build IMG=${RHEL_IMAGE}
+
+      - name: Push Hazelcast-Platform-Operator image to RHEL scan registry
+        run: |
+          docker login ${SCAN_REGISTRY} -u unused -p ${RHEL_REPO_PASSWORD}
+          make docker-push IMG=${RHEL_IMAGE}
+
+      - name: Wait for Scan to Complete
+        run: |
+          PROJECT_ID=$( echo ${RHEL_REPOSITORY} | grep -m 1 -Po "/\K.+(?=/)" )
+          source .github/scripts/publish-rhel.sh
+
+          wait_for_container_scan "$PROJECT_ID" "$RELEASE_VERSION" "$RHEL_API_KEY" "$TIMEOUT_IN_MINS"
+
+      - name: Deploy Hazelcast-Platform-Operator to OCP
+        run: |
+          NAMESPACE=oc-e2e-test-${{ github.run_id}}
+          echo "NAMESPACE=${NAMESPACE}" >> $GITHUB_ENV
+          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc new-project $NAMESPACE
+
+          oc create secret docker-registry pull-secret \
+          --docker-server=$SCAN_REGISTRY \
+          --docker-username=unused \
+          --docker-password=$RHEL_REPO_PASSWORD \
+          --docker-email=unused
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: hazelcast-platform-controller-manager
+            namespace: $NAMESPACE
+          EOF
+
+          oc secrets link hazelcast-platform-controller-manager pull-secret --for=pull
+          make deploy  IMG=$RHEL_IMAGE  NAMESPACE=$NAMESPACE
+          kubectl rollout status deployment hazelcast-platform-controller-manager
+
+      - name: Test the Operator
+        id: e2e-test
+        run: |
+          kubectl create secret generic hazelcast-license-key --from-literal=license-key=${HZ_LICENSE_KEY}
+          make test-e2e NAMESPACE=$NAMESPACE
+
+      - name: Clean up after Tests
+        if: always()
+        run: |
+          DEPLOY_NAME=hazelcast-platform-controller-manager
+          hz=$(kubectl get hazelcast -o name); [[ "$hz" != "" ]] && kubectl delete $hz --wait=false || echo "no hazelcast resources"
+          mc=$(kubectl get managementcenter -o name); [[ "$mc" != "" ]] && kubectl delete $mc --wait=false || echo "no managementcenter resources"
+          if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
+            i=0
+            while ! kubectl rollout status deployment $DEPLOY_NAME; do
+              kubectl rollout restart deployment $DEPLOY_NAME
+              if [[ $i == 2 ]]; then echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"; exit 1; fi
+              ((i++))
+            done
+          fi
+          sleep 10
+
+          hz=$(kubectl get hazelcast -o name)
+          mc=$(kubectl get managementcenter -o name)
+          if [[ $hz != "" ]] || [[ $mc != "" ]]; then
+            echo "Failure deleting hazelcast and managementcenter resources, namespace $NAMESPACE requires manual clean up"; exit 1
+          fi
+
+          make undeploy 
+          oc delete project $NAMESPACE --wait=false  
+
+      - name: Build Bundle
+        run: |
+          make bundle IMG=${RHEL_IMAGE} VERSION=${RELEASE_VERSION}
+
+          cat >> ./bundle/metadata/annotations.yaml <<EOF
+            # OpenShift annotations.
+            com.redhat.openshift.versions: "v4.6"
+          EOF
+
+      - name: Publish the Hazelcast-Platform-Operator image
+        run: |
+          PROJECT_ID=$( echo ${RHEL_REPOSITORY} | grep -m 1 -Po "/\K.+(?=/)" )
+          source .github/scripts/publish-rhel.sh
+
+          publish_the_image "$PROJECT_ID" "$RELEASE_VERSION" "$RHEL_API_KEY"
+
+          # We need to wait for operator image publish to be able to push operator bundle image
+          wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$RHEL_API_KEY" "$TIMEOUT_IN_MINS"
+
+      - name: Checkout to devOpsHelm/certified-operators
+        uses: actions/checkout@v2
+        with:
+          repository: devOpsHelm/certified-operators
+          path: certified-operators
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Update main branch of the fork
+        working-directory: certified-operators
+        run: |
+          export REPO_OWNER=redhat-openshift-ecosystem
+          export REPO_NAME=certified-operators
+          echo "REPO_OWNER=${REPO_OWNER}" >> $GITHUB_ENV
+          echo "REPO_NAME=${REPO_NAME}" >> $GITHUB_ENV
+
+          git checkout main
+
+          git remote add upstream https://github.com/${REPO_OWNER}/${REPO_NAME}.git
+
+          git pull upstream main 
+
+          git push origin main
+
+      - name: Set Bundle Release Version
+        run: |
+          BUNDLE_RELEASE_VERSION=$RELEASE_VERSION
+          VERSIONS=(${RELEASE_VERSION//./ })
+          PATCH_VERSION=${VERSIONS[2]}
+          if [[ $PATCH_VERSION == "" ]]; then
+            BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}.0
+          fi
+          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_ENV
+
+      - name: Create a PR for Operatorhub-bundle, k8s-operatorhub
+        working-directory: certified-operators
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+
+          git checkout -b ${OPERATOR_NAME}-${RELEASE_VERSION}-${{ github.run_id }}
+
+          mkdir -p operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}
+          cp -r ../bundle/manifests ../bundle/metadata operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}/
+
+          git add  ./operators/${OPERATOR_NAME}
+
+          git commit --signoff -m "Update ${OPERATOR_NAME} to ${RELEASE_VERSION}"
+
+          git push -u origin ${OPERATOR_NAME}-${RELEASE_VERSION}-${{ github.run_id }}
+
+          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+
+          gh pr create --title "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+
+  slack_notify:
+    name: Slack Notify
+    needs: publish_image
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
+        if: needs.publish_image.result != 'success'
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: ${{ needs.publish_image.result }}
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
