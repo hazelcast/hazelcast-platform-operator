@@ -95,12 +95,16 @@ var _ = Describe("Hazelcast", func() {
 				Expect(err).ToNot(HaveOccurred())
 				return len(s.Status.LoadBalancer.Ingress) > 0
 			}, timeout, interval).Should(BeTrue())
-			ip := s.Status.LoadBalancer.Ingress[0].IP
-			Expect(ip).Should(Not(Equal("")))
+
+			addr := s.Status.LoadBalancer.Ingress[0].IP
+			if addr == "" {
+				addr = s.Status.LoadBalancer.Ingress[0].Hostname
+			}
+			Expect(addr).Should(Not(BeEmpty()))
 
 			By("connecting Hazelcast client")
 			config := hzClient.Config{}
-			config.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", ip))
+			config.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", addr))
 			config.Cluster.Unisocket = unisocket
 			config.Cluster.Discovery.UsePublicIP = true
 			client, err := hzClient.StartNewClientWithConfig(ctx, config)
