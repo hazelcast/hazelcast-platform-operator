@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -125,16 +126,29 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 			Name:   h.Name,
 			Labels: labels(h),
 		},
-	}
-
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
-		clusterRole.Rules = []rbacv1.PolicyRule{
+		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
 				Resources: []string{"endpoints", "pods", "nodes", "services"},
 				Verbs:     []string{"get", "list"},
 			},
-		}
+		},
+	}
+
+	pt, err := platform.GetType()
+	if err != nil {
+		return err
+	}
+	if pt == platform.OpenShift {
+		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
+			APIGroups: []string{"security.openshift.io"},
+			Resources: []string{"securitycontextconstraints"},
+			Verbs:     []string{"use"},
+		},
+		)
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

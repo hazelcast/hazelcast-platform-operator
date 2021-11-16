@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"strings"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -26,6 +27,111 @@ const (
 	mcInitCmd = "MC_INIT_CMD"
 	javaOpts  = "JAVA_OPTS"
 )
+
+func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	pt, err := platform.GetType()
+	if err != nil {
+		return err
+	}
+
+	if pt == platform.Kubernetes {
+		return nil
+	}
+
+	role := &rbacv1.Role{
+		ObjectMeta: metadata(mc),
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"security.openshift.io"},
+				Resources: []string{"securitycontextconstraints"},
+				Verbs:     []string{"use"},
+			},
+		},
+	}
+
+	err = controllerutil.SetControllerReference(mc, role, r.Scheme)
+	if err != nil {
+		logger.Error(err, "Failed to set owner reference on Role")
+		return err
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Role", mc.Name, "result", opResult)
+	}
+	return err
+}
+
+func (r *ManagementCenterReconciler) reconcileServiceAccount(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	pt, err := platform.GetType()
+	if err != nil {
+		return err
+	}
+
+	if pt == platform.Kubernetes {
+		return nil
+	}
+
+	serviceAccount := &corev1.ServiceAccount{
+		ObjectMeta: metadata(mc),
+	}
+
+	err = controllerutil.SetControllerReference(mc, serviceAccount, r.Scheme)
+	if err != nil {
+		logger.Error(err, "Failed to set owner reference on ServiceAccount")
+		return err
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "ServiceAccount", mc.Name, "result", opResult)
+	}
+	return err
+}
+
+func (r *ManagementCenterReconciler) reconcileRoleBinding(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	pt, err := platform.GetType()
+	if err != nil {
+		return err
+	}
+
+	if pt == platform.Kubernetes {
+		return nil
+	}
+
+	rb := &rbacv1.RoleBinding{
+		ObjectMeta: metadata(mc),
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      mc.Name,
+				Namespace: mc.Namespace,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     mc.Name,
+		},
+	}
+	err = controllerutil.SetControllerReference(mc, rb, r.Scheme)
+	if err != nil {
+		logger.Error(err, "Failed to set owner reference on RoleBinding")
+		return err
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, rb, func() error {
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "RoleBinding", mc.Name, "result", opResult)
+	}
+	return err
+}
 
 func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
 	service := &corev1.Service{
@@ -155,7 +261,16 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		},
 	}
 
-	err := controllerutil.SetControllerReference(mc, sts, r.Scheme)
+	pt, err := platform.GetType()
+	if err != nil {
+		return err
+	}
+
+	if pt == platform.OpenShift {
+		sts.Spec.Template.Spec.ServiceAccountName = mc.Name
+	}
+
+	err = controllerutil.SetControllerReference(mc, sts, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on Statefulset")
 		return err

@@ -29,6 +29,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - security.openshift.io
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -105,8 +111,27 @@ rules:
 - apiGroups:
   - hazelcast.com
   resources:
+  - managementcenters/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
   - managementcenters/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
