@@ -5,6 +5,14 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 5-preview-snapshot
 
+BUNDLE_VERSION := $(VERSION)
+VERSION_PARTS := $(subst ., ,$(VERSION))
+PATCH_VERSION := $(word 3,$(VERSION_PARTS))
+ifeq (,$(PATCH_VERSION))
+BUNDLE_VERSION := $(BUNDLE_VERSION).0
+endif
+
+
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -163,11 +171,11 @@ rm -rf $$TMP_DIR ;\
 endef
 
 .PHONY: bundle
-bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
-	operator-sdk generate kustomize manifests -q
+bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
+	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
-	operator-sdk bundle validate ./bundle
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(BUNDLE_VERSION) $(BUNDLE_METADATA_OPTS)
+	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
@@ -230,3 +238,21 @@ expose-local: ## Port forward hazelcast Pod so that it's accessible from localho
 	done;
 	kubectl wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
 	kubectl port-forward statefulset/$(STS_NAME) 8000:5701
+
+# Detect the OS to set per-OS defaults
+OS_NAME = $(shell uname -s)
+
+OPERATOR_SDK_VERSION ?= v1.13.1
+ifeq ($(OS_NAME), Linux)
+    OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_linux_amd64
+else ifeq ($(OS_NAME), Darwin)
+    OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_darwin_amd64
+endif
+
+OPERATOR_SDK=${shell pwd}/bin/operator-sdk
+.PHONY: operator-sdk
+operator-sdk: $(OPERATOR_SDK)
+
+$(OPERATOR_SDK):
+	curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
+	chmod +x $(OPERATOR_SDK)
