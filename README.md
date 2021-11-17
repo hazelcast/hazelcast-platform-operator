@@ -31,6 +31,7 @@ Run the following command to start Hazelcast Platform Cluster via applying CR ya
 ```shell
 kubectl apply -f config/samples/_v1alpha1_hazelcast.yaml
 ```
+
 ```yaml
 apiVersion: hazelcast.com/v1alpha1
 kind: Hazelcast
@@ -43,7 +44,21 @@ spec:
   licenseKeySecret: hazelcast-license-key
 ```
 
+or you can run Hazelcast OS version. In this case you do not need to set `licenseKeySecret` field.
+
+```yaml
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  clusterSize: 3
+  repository: 'docker.io/hazelcast/hazelcast'
+  version: '5.0'
+```
+
 You can check the operator's logs to see the resource creation logs:
+
 ```
 $ kubectl logs deployment.apps/hazelcast-platform-controller-manager manager
 ...
@@ -57,6 +72,7 @@ $ kubectl logs deployment.apps/hazelcast-platform-controller-manager manager
 ```
 
 Check Hazelcast member's log:
+
 ```shell
 $ kubectl logs hazelcast-0
 
@@ -67,12 +83,15 @@ Members {size:3, ver:3} [
         Member [10.131.1.2]:5701 - 0fa2a21a-d159-4cac-ab08-bdac994d912a
 ]
 ```
+
 ### Step 4: Start Management Center
+
 Run the following command to start Management Center via applying CR yaml:
 
 ```shell
 kubectl apply -f config/samples/_v1alpha1_managementcenter.yaml
 ```
+
 ```yaml
 apiVersion: hazelcast.com/v1alpha1
 kind: ManagementCenter
@@ -122,6 +141,7 @@ kubectl delete secret hazelcast-license-key
 There are different types of tests related to Hazelcast Platform Operator.
 
 ### Running unit & integration tests
+
 To run unit & integration tests, execute the following command.
 
 ```shell
@@ -130,9 +150,10 @@ make test
 
 You can also run unit & integration tests separately by `make test-unit` and `make test-it` commands.
 
-### Running end-to-end tests 
+### Running end-to-end tests
 
-You need a Kubernetes cluster and your local kubectl context configured. You can run end-to-end tests by either deploying manager to cluster or running manager locally.
+You need a Kubernetes cluster and your local kubectl context configured. You can run end-to-end tests by either
+deploying manager to cluster or running manager locally.
 
 #### Deploy Manager to Cluster
 
@@ -167,12 +188,14 @@ RUN_MANAGER_LOCALLY=true make test-e2e NAMESPACE=<YOUR NAMESPACE>
 To check if a cluster is running, see the `status` field of the Hazelcast resource.
 
 The status can be checked with `kubectl get hazelcast`:
+
 ```shell
 NAME        STATUS    MEMBERS
 hazelcast   Running   3/3
 ```
 
 Or `kubectl get hazelcast -o=yaml` for the long format:
+
 ```yaml
 status:
   hazelcastClusterStatus:
@@ -194,20 +217,22 @@ The `readyMembers` field represents the number of Hazelcast members that are con
 
 ## Running operator locally
 
-Hazelcast Platform Operator uses `hazelcast go-client` to connect to the cluster.
-For these reason the pods needs to be exposed outside the cluster.
-Run `make expose-local` command that will expose Hazelcast member to `localhost:8000`.
+Hazelcast Platform Operator uses `hazelcast go-client` to connect to the cluster. For these reason the pods needs to be
+exposed outside the cluster. Run `make expose-local` command that will expose Hazelcast member to `localhost:8000`.
 
 The operator run must be build with `build constraint` tag `localrun`:
 
 ```shell
 go build -o bin/manager -tags localrun main.go
 ```
+
 Or using `make` that will include the tag by default:
+
 ```shell
 make build
 make run
 ```
+
 You can override the build tags in the `make` commands by setting `GO_BUILD_TAGS` env variable.
 
 > Note: Before running operator you need to run `make install` command to install the CRDs.
