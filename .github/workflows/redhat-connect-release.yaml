@@ -34,8 +34,8 @@ jobs:
           RHEL_IMAGE=${RHEL_REPOSITORY}:${RELEASE_VERSION}
           echo "RHEL_IMAGE=${RHEL_IMAGE}" >> $GITHUB_ENV
 
-          #echo "Building the operator image"
-          #make docker-build IMG=${RHEL_IMAGE}
+          echo "Building the operator image"
+          make docker-build IMG=${RHEL_IMAGE}
 
       - name: Push Hazelcast-Platform-Operator image to RHEL scan registry
         run: |
@@ -121,7 +121,6 @@ jobs:
 
           publish_the_image "$PROJECT_ID" "$RELEASE_VERSION" "$RHEL_API_KEY"
 
-          # We need to wait for operator image publish to be able to push operator bundle image
           wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$RHEL_API_KEY" "$TIMEOUT_IN_MINS"
 
       - name: Checkout to devOpsHelm/certified-operators
