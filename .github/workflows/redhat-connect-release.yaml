@@ -103,6 +103,8 @@ jobs:
           fi
 
           make undeploy 
+          oc delete secret hazelcast-license-key --wait=false
+          oc delete secret pull-secret --wait=false
           oc delete project $NAMESPACE --wait=false  
 
       - name: Build Bundle
