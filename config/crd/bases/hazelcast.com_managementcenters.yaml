@@ -74,7 +74,6 @@ spec:
                   type: object
                 type: array
               licenseKeySecret:
-                default: hazelcast-license-key
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string
@@ -92,6 +91,7 @@ spec:
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                   storageClass:
+                    nullable: true
                     type: string
                 type: object
               repository:

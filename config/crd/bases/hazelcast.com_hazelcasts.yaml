@@ -85,7 +85,6 @@ spec:
                     type: string
                 type: object
               licenseKeySecret:
-                default: hazelcast-license-key
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string

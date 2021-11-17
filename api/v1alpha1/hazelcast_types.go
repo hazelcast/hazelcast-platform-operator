@@ -38,7 +38,6 @@ type HazelcastSpec struct {
 	Version string `json:"version"`
 
 	// Name of the secret with Hazelcast Enterprise License Key.
-	// +kubebuilder:default:="hazelcast-license-key"
 	// +optional
 	LicenseKeySecret string `json:"licenseKeySecret"`
 

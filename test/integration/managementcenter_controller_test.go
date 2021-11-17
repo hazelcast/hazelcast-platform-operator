@@ -72,7 +72,7 @@ var _ = Describe("ManagementCenter controller", func() {
 
 			expectedPersistence := hazelcastv1alpha1.PersistenceConfiguration{
 				Enabled:      false,
-				StorageClass: &[]string{""}[0],
+				StorageClass: nil,
 				Size:         resource.MustParse("0"),
 			}
 			Expect(fetchedCR.Spec.Persistence).Should(Equal(expectedPersistence))

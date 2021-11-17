@@ -464,8 +464,8 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		{Name: restHealthCheckEnabled, Value: n.LabelValueTrue},
 	}
 	if h.Spec.LicenseKeySecret != "" {
-		envs = append([]v1.EnvVar{
-			{
+		envs = append(envs,
+			v1.EnvVar{
 				Name: hzLicenseKey,
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
@@ -475,8 +475,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 						Key: n.LicenseDataKey,
 					},
 				},
-			},
-		}, envs...)
+			})
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {

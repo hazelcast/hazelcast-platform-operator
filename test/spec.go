@@ -49,7 +49,7 @@ func ManagementCenterSpec(values *MCSpecValues, ee bool) hazelcastv1alpha1.Manag
 		},
 		HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
 		Persistence: hazelcastv1alpha1.PersistenceConfiguration{
-			StorageClass: &[]string{""}[0],
+			StorageClass: nil,
 		},
 	}
 	if ee {
