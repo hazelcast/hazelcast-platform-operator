@@ -62,7 +62,7 @@ jobs:
           --docker-password=$RHEL_REPO_PASSWORD \
           --docker-email=unused
 
-          cat <<EOF | kubectl apply -f -
+          cat <<EOF | oc apply -f -
           apiVersion: v1
           kind: ServiceAccount
           metadata:
@@ -72,32 +72,32 @@ jobs:
 
           oc secrets link hazelcast-platform-controller-manager pull-secret --for=pull
           make deploy  IMG=$RHEL_IMAGE  NAMESPACE=$NAMESPACE
-          kubectl rollout status deployment hazelcast-platform-controller-manager
+          oc rollout status deployment hazelcast-platform-controller-manager
 
       - name: Test the Operator
         id: e2e-test
         run: |
-          kubectl create secret generic hazelcast-license-key --from-literal=license-key=${HZ_LICENSE_KEY}
+          oc create secret generic hazelcast-license-key --from-literal=license-key=${HZ_LICENSE_KEY}
           make test-e2e NAMESPACE=$NAMESPACE
 
       - name: Clean up after Tests
         if: always()
         run: |
           DEPLOY_NAME=hazelcast-platform-controller-manager
-          hz=$(kubectl get hazelcast -o name); [[ "$hz" != "" ]] && kubectl delete $hz --wait=false || echo "no hazelcast resources"
-          mc=$(kubectl get managementcenter -o name); [[ "$mc" != "" ]] && kubectl delete $mc --wait=false || echo "no managementcenter resources"
+          hz=$(oc get hazelcast -o name); [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
+          mc=$(oc get managementcenter -o name); [[ "$mc" != "" ]] && oc delete $mc --wait=false || echo "no managementcenter resources"
           if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
             i=0
-            while ! kubectl rollout status deployment $DEPLOY_NAME; do
-              kubectl rollout restart deployment $DEPLOY_NAME
+            while ! oc rollout status deployment $DEPLOY_NAME; do
+              oc rollout restart deployment $DEPLOY_NAME
               if [[ $i == 2 ]]; then echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"; exit 1; fi
               ((i++))
             done
           fi
           sleep 10
 
-          hz=$(kubectl get hazelcast -o name)
-          mc=$(kubectl get managementcenter -o name)
+          hz=$(oc get hazelcast -o name)
+          mc=$(oc get managementcenter -o name)
           if [[ $hz != "" ]] || [[ $mc != "" ]]; then
             echo "Failure deleting hazelcast and managementcenter resources, namespace $NAMESPACE requires manual clean up"; exit 1
           fi
