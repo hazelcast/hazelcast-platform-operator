@@ -45,6 +45,8 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme)
 	}
 }
 
+// Openshift related permissions
+//+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=use
 // Role related to CRs
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=system

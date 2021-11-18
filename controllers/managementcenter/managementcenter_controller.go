@@ -26,8 +26,13 @@ type ManagementCenterReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters,verbs=get;list;watch;create;update;patch;delete,namespace=system
-// +kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/status,verbs=get;update;patch,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/status,verbs=get;update;patch,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/finalizers,verbs=update,namespace=system
+// Role related to Reconcile()
+//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=system
 
 func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("management-center", req.NamespacedName)
@@ -47,6 +52,21 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if mc.GetDeletionTimestamp() != nil {
 		logger.V(1).Info("Management Center resource is getting deleted. Ignoring since all child objects must be deleted.")
 		return ctrl.Result{}, nil
+	}
+
+	err = r.reconcileRole(ctx, mc, logger)
+	if err != nil {
+		return update(ctx, r.Client, mc, failedPhase(err))
+	}
+
+	err = r.reconcileServiceAccount(ctx, mc, logger)
+	if err != nil {
+		return update(ctx, r.Client, mc, failedPhase(err))
+	}
+
+	err = r.reconcileRoleBinding(ctx, mc, logger)
+	if err != nil {
+		return update(ctx, r.Client, mc, failedPhase(err))
 	}
 
 	err = r.reconcileService(ctx, mc, logger)
