@@ -14,6 +14,7 @@ jobs:
         edition: [ 'os', 'ee' ]
     env:
       GCP_PROJECT_ID: hazelcast-33
+      GCP_NETWORK: operator-test-network
       GKE_ZONE: europe-west1-b
       KUBECTL_VERSION: 1.22.0
       IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
