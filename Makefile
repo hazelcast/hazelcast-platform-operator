@@ -253,6 +253,10 @@ OPERATOR_SDK=${shell pwd}/bin/operator-sdk
 .PHONY: operator-sdk
 operator-sdk: $(OPERATOR_SDK)
 
+.PHONY: print-bundle-version
+print-bundle-version:
+	@echo -n $(BUNDLE_VERSION)
+
 $(OPERATOR_SDK):
 	curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
 	chmod +x $(OPERATOR_SDK)

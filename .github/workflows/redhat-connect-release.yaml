@@ -150,12 +150,7 @@ jobs:
 
       - name: Set Bundle Release Version
         run: |
-          BUNDLE_RELEASE_VERSION=$RELEASE_VERSION
-          VERSIONS=(${RELEASE_VERSION//./ })
-          PATCH_VERSION=${VERSIONS[2]}
-          if [[ $PATCH_VERSION == "" ]]; then
-            BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}.0
-          fi
+          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
           echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_ENV
 
       - name: Create a PR for Operatorhub-bundle, k8s-operatorhub
