@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/types"
 	"sync"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -187,21 +187,16 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 }
 
 func (r *HazelcastReconciler) podFailedUpdates(pod client.Object) []reconcile.Request {
-	pod0, ok := pod.(*corev1.Pod)
+	p, ok := pod.(*corev1.Pod)
 	if !ok {
 		return []reconcile.Request{}
 	}
 
-	switch pod0.Status.Phase {
-	case corev1.PodFailed, corev1.PodUnknown, corev1.PodPending:
-		break
-	default:
+	if p.Status.Phase == corev1.PodRunning {
 		return []reconcile.Request{}
 	}
-	if pod0.Status.Phase != corev1.PodFailed {
-		return []reconcile.Request{}
-	}
-	name, ok := getHazelcastCRName(pod0)
+
+	name, ok := getHazelcastCRName(p)
 	if !ok {
 		return []reconcile.Request{}
 	}
@@ -210,7 +205,7 @@ func (r *HazelcastReconciler) podFailedUpdates(pod client.Object) []reconcile.Re
 		{
 			NamespacedName: types.NamespacedName{
 				Name:      name,
-				Namespace: pod0.GetNamespace(),
+				Namespace: p.GetNamespace(),
 			},
 		},
 	}
