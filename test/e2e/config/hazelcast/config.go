@@ -98,6 +98,21 @@ var (
 			},
 		}
 	}
+
+	Faulty = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "hazelcast",
+				Namespace: ns,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:      3,
+				Repository:       repo(ee),
+				Version:          "not-exists",
+				LicenseKeySecret: licenseKey(ee),
+			},
+		}
+	}
 )
 
 func repo(ee bool) string {

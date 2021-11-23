@@ -30,7 +30,7 @@ type ManagementCenterReconciler struct {
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/status,verbs=get;update;patch,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/finalizers,verbs=update,namespace=system
 // Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=system
 
@@ -84,9 +84,14 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 
-	if !util.CheckIfRunning(ctx, r.Client, req.NamespacedName, int32(1)) {
-		return update(ctx, r.Status(), mc, pendingPhase(retryAfter))
+	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, 1); !ok {
+		if err == nil {
+			return update(ctx, r.Status(), mc, pendingPhase(retryAfter))
+		} else {
+			return update(ctx, r.Status(), mc, failedPhase(err))
+		}
 	}
+
 	return update(ctx, r.Status(), mc, runningPhase())
 }
 

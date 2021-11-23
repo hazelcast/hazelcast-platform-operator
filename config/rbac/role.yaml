@@ -48,6 +48,7 @@ rules:
   - ""
   resources:
   - events
+  - pods
   - serviceaccounts
   - services
   verbs:
