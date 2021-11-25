@@ -61,6 +61,20 @@ var (
 			},
 		}
 	}
+
+	Faulty = func(ns string, ee bool) *hazelcastv1alpha1.ManagementCenter {
+		return &hazelcastv1alpha1.ManagementCenter{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "managementcenter",
+				Namespace: ns,
+			},
+			Spec: hazelcastv1alpha1.ManagementCenterSpec{
+				Repository:       naming.MCRepo,
+				Version:          "not-exists",
+				LicenseKeySecret: licenseKey(ee),
+			},
+		}
+	}
 )
 
 func licenseKey(ee bool) string {

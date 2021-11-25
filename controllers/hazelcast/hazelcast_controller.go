@@ -153,7 +153,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err == nil {
 			return update(ctx, r.Client, h, pendingPhase(retryAfter))
 		} else {
-			return update(ctx, r.Client, h, failedPhase(err))
+			return update(ctx, r.Client, h, failedPhase(err).withMessage(err.Error()))
 		}
 	}
 

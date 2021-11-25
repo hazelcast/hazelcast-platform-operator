@@ -196,18 +196,19 @@ var _ = Describe("Hazelcast", func() {
 	})
 
 	Describe("External API errors", func() {
-		assertStatusEventually := func(phase hazelcastcomv1alpha1.Phase) {
+		assertStatusAndMessageEventually := func(phase hazelcastcomv1alpha1.Phase) {
+			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			Eventually(func() hazelcastcomv1alpha1.Phase {
-				hz := &hazelcastcomv1alpha1.Hazelcast{}
 				err := k8sClient.Get(context.Background(), lookupKey, hz)
 				Expect(err).ToNot(HaveOccurred())
 				return hz.Status.Phase
 			}, timeout, interval).Should(Equal(phase))
+			Expect(hz.Status.Message).Should(Not(BeEmpty()))
 		}
 
 		It("should be reflected to Hazelcast CR status", func() {
 			createWithoutCheck(hazelcastconfig.Faulty(hzNamespace, ee))
-			assertStatusEventually(hazelcastcomv1alpha1.Failed)
+			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
 	})
 })

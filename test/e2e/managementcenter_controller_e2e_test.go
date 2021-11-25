@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -75,6 +76,12 @@ var _ = Describe("Management-Center", func() {
 		})
 	}
 
+	createWithoutCheck := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
+		By("Creating ManagementCenter CR", func() {
+			Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
+		})
+	}
+
 	Describe("Default ManagementCenter CR", func() {
 		It("Should create ManagementCenter resources", func() {
 			mc := mcconfig.Default(hzNamespace, ee)
@@ -114,6 +121,23 @@ var _ = Describe("Management-Center", func() {
 
 		})
 
+	})
+
+	Describe("External API errors", func() {
+		assertStatusEventually := func(phase hazelcastcomv1alpha1.Phase) {
+			Eventually(func() hazelcastcomv1alpha1.Phase {
+				mc := &hazelcastcomv1alpha1.ManagementCenter{}
+				err := k8sClient.Get(context.Background(), lookupKey, mc)
+				Expect(err).ToNot(HaveOccurred())
+				return mc.Status.Phase
+			}, timeout, interval).Should(Equal(phase))
+		}
+
+		It("should be reflected to Management CR status", func() {
+			createWithoutCheck(mcconfig.Faulty(hzNamespace, ee))
+			assertStatusEventually(hazelcastcomv1alpha1.Failed)
+
+		})
 	})
 
 })
