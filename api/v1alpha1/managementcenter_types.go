@@ -90,7 +90,8 @@ type PersistenceConfiguration struct {
 
 // ManagementCenterStatus defines the observed state of ManagementCenter.
 type ManagementCenterStatus struct {
-	Phase Phase `json:"phase"`
+	Phase   Phase  `json:"phase"`
+	Message string `json:"message,omitempty"`
 }
 
 //+kubebuilder:object:root=true

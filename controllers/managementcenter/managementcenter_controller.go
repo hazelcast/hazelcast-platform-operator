@@ -88,7 +88,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if err == nil {
 			return update(ctx, r.Status(), mc, pendingPhase(retryAfter))
 		} else {
-			return update(ctx, r.Status(), mc, failedPhase(err))
+			return update(ctx, r.Status(), mc, failedPhase(err).withMessage(err.Error()))
 		}
 	}
 
