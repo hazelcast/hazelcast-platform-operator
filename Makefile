@@ -175,7 +175,9 @@ bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metada
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(BUNDLE_VERSION) $(BUNDLE_METADATA_OPTS)
-	$(OPERATOR_SDK) bundle validate ./bundle
+	sed -i  "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml 
+	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.

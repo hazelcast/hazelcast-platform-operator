@@ -4,6 +4,11 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Seamless Upgrades
+    categories: Database
+    containerImage: REPLACE_IMG
+    createdAt: REPLACE_DATE
+    description: Install Hazelcast clusters in Kubernetes environments.
+    support: Hazelcast, Inc
   name: hazelcast-platform-operator.v5.0.0
   namespace: placeholder
 spec:
@@ -54,6 +59,7 @@ spec:
   - email: alparslan@hazelcast.com
     name: alparslanavci
   maturity: alpha
+  minKubeVersion: "1.16"
   provider:
     name: Hazelcast, Inc
   version: 5.0.0
