@@ -242,14 +242,10 @@ expose-local: ## Port forward hazelcast Pod so that it's accessible from localho
 	kubectl port-forward statefulset/$(STS_NAME) 8000:5701
 
 # Detect the OS to set per-OS defaults
-OS_NAME = $(shell uname -s)
+OS_NAME = $(shell uname -s | tr A-Z a-z)
 
 OPERATOR_SDK_VERSION ?= v1.13.1
-ifeq ($(OS_NAME), Linux)
-    OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_linux_amd64
-else ifeq ($(OS_NAME), Darwin)
-    OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_darwin_amd64
-endif
+OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
 
 OPERATOR_SDK=${shell pwd}/bin/operator-sdk
 .PHONY: operator-sdk
@@ -262,3 +258,17 @@ print-bundle-version:
 $(OPERATOR_SDK):
 	curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
 	chmod +x $(OPERATOR_SDK)
+
+
+OCP_OLM_CATALOG_VALIDATOR=${shell pwd}/bin/ocp-olm-catalog-validator
+OCP_OLM_CATALOG_VALIDATOR_VERSION ?= v0.0.1
+OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
+.PHONY: ocp-olm-catalog-validator
+ocp-olm-catalog-validator: $(OCP_OLM_CATALOG_VALIDATOR)
+
+$(OCP_OLM_CATALOG_VALIDATOR):
+	curl -sSL $(OCP_OLM_CATALOG_VALIDATOR_URL) -o $(OCP_OLM_CATALOG_VALIDATOR) --create-dirs || (echo "curl returned $$? trying to fetch ocp-olm-catalog-validator."; exit 1)
+	chmod +x $(OCP_OLM_CATALOG_VALIDATOR)
+
+bundle-ocp-validate: ocp-olm-catalog-validator
+	 $(OCP_OLM_CATALOG_VALIDATOR) ./bundle  --optional-values="file=./bundle/metadata/annotations.yaml"
