@@ -17,7 +17,7 @@ jobs:
       GCP_NETWORK: operator-test-network
       GKE_ZONE: europe-west1-b
       KUBECTL_VERSION: 1.22.0
-      IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
+      IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${{github.sha}}-${{github.run_number}}
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
     steps:
       - name: Checkout
@@ -64,7 +64,7 @@ jobs:
 
       - name: Build Operator Image and Push to GCR
         run: |
-          make docker-build-ci IMG=${{ env.IMG }}
+          make docker-build-ci IMG=${{ env.IMG }} VERSION=${{github.sha}}-${{github.run_number}}
           make docker-push IMG=${{ env.IMG }}
 
       - name: Deploy Operator to GKE
