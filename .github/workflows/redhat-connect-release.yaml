@@ -136,9 +136,6 @@ jobs:
             
           - repo-name: certified-operators
             repo-owner: redhat-openshift-ecosystem
-
-          - repo-name: community-operators-prod
-            repo-owner: redhat-openshift-ecosystem
     env:
       REPO_NAME: ${{ matrix.repo-name }}
       REPO_OWNER: ${{ matrix.repo-owner }}
