@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/equality"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	v1 "k8s.io/api/rbac/v1"
@@ -78,7 +80,7 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 			if err != nil {
 				t.Errorf("Unexpected error have occured: %v", err)
 			}
-			if h.Spec != tt.want {
+			if !equality.Semantic.DeepEqual(h.Spec, tt.want) {
 				t.Errorf("HazelcastSpec = %v, want %v", tt.target, tt.want)
 			}
 		})
