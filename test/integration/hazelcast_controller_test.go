@@ -190,7 +190,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			By("Expecting to ClusterRole removed via finalizer")
 			Eventually(func() error {
-				return k8sClient.Get(context.Background(), lookupKey, &rbacv1.ClusterRole{})
+				return k8sClient.Get(context.Background(), clusterScopedLookupKey, &rbacv1.ClusterRole{})
 			}, timeout, interval).ShouldNot(Succeed())
 		})
 	})
