@@ -43,6 +43,11 @@ var _ = Describe("Hazelcast controller", func() {
 		Namespace: namespace,
 	}
 
+	clusterScopedLookupKey := types.NamespacedName{
+		Name:      (&hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{Name: hzKeyName, Namespace: namespace}}).ClusterScopedName(),
+		Namespace: "",
+	}
+
 	labelFilter := client.MatchingLabels{
 		n.ApplicationNameLabel:      n.Hazelcast,
 		n.ApplicationManagedByLabel: n.OperatorName,
@@ -134,7 +139,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			fetchedClusterRole := &rbacv1.ClusterRole{}
 			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedClusterRole)
+				err := k8sClient.Get(context.Background(), clusterScopedLookupKey, fetchedClusterRole)
 				if err != nil {
 					return false
 				}
@@ -153,7 +158,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			fetchedClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedClusterRoleBinding)
+				err := k8sClient.Get(context.Background(), clusterScopedLookupKey, fetchedClusterRoleBinding)
 				if err != nil {
 					return false
 				}

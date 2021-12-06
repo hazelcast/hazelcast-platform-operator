@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"hash/fnv"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -179,4 +180,14 @@ type HazelcastList struct {
 
 func init() {
 	SchemeBuilder.Register(&Hazelcast{}, &HazelcastList{})
+}
+
+func FNV32a(txt string) uint32 {
+	alg := fnv.New32a()
+	alg.Write([]byte(txt))
+	return alg.Sum32()
+}
+
+func (h *Hazelcast) ClusterScopedName() string {
+	return fmt.Sprintf("%s-%d", h.Name, FNV32a(h.Namespace))
 }
