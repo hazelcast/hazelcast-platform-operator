@@ -31,7 +31,7 @@ jobs:
 
       - name: Create EKS cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${{ matrix.edition }}-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           eksctl create cluster --name "${CLUSTER_NAME}" --version 1.18 --region us-west-1 --zones us-west-1a --zones us-west-1c --with-oidc --without-nodegroup
 
   eks-e2e-tests:
@@ -76,7 +76,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
   delete-eks-cluster:
-    name: Create EKS cluster
+    name: Delete EKS cluster
     runs-on: ubuntu-20.04
     if: ${{ always() }}
     needs: ["create-eks-cluster", "eks-e2e-tests"]
@@ -98,6 +98,6 @@ jobs:
 
       - name: Create EKS cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${{ matrix.edition }}-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           eksctl delete cluster "${CLUSTER_NAME}" --wait
 
