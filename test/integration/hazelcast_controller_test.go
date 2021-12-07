@@ -3,8 +3,9 @@ package integration
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/uuid"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -56,7 +57,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	GetRandomObjectMeta := func() metav1.ObjectMeta {
 		return metav1.ObjectMeta{
-			Name:      fmt.Sprintf("hazelcast-test-%6d", rand.Intn(1000000)),
+			Name:      fmt.Sprintf("hazelcast-test-%s", uuid.NewUUID()),
 			Namespace: namespace,
 		}
 	}
