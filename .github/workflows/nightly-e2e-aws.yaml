@@ -1,8 +1,8 @@
 name: Nightly E2E tests on AWS
 on:
   workflow_dispatch:
-#  schedule:
-#    - cron: "0 9 * * *"
+  schedule:
+    - cron: "0 9 * * *"
 
 jobs:
   create-eks-cluster:
