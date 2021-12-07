@@ -1,7 +1,6 @@
 name: Nightly E2E tests on AWS
 on:
   workflow_dispatch:
-  push:
 #  schedule:
 #    - cron: "0 9 * * *"
 
@@ -23,9 +22,16 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Tests AWS EKS
+      - name: Install eksctl
         run: |-
-          aws eks --help
+          curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+          sudo mv /tmp/eksctl /usr/local/bin
+          eksctl version
+
+      - name: Create EKS cluster
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${{ matrix.edition }}-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          eksctl create cluster --name "${CLUSTER_NAME}" --version 1.18 --region us-west-1 --zones us-west-1a --zones us-west-1c --with-oidc --without-nodegroup
 
   eks-e2e-tests:
     name: Run e2e test on EKS
@@ -82,3 +88,15 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install eksctl
+        run: |-
+          curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+          sudo mv /tmp/eksctl /usr/local/bin
+          eksctl version
+
+      - name: Create EKS cluster
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${{ matrix.edition }}-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          eksctl delete cluster "${CLUSTER_NAME}" --wait
+
