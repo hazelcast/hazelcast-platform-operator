@@ -1,4 +1,4 @@
-name: Nightly E2E tests
+name: Nightly E2E tests on AWS
 on:
   workflow_dispatch:
   push:
