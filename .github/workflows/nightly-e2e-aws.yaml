@@ -32,7 +32,7 @@ jobs:
       - name: Create EKS cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          eksctl create cluster --name "${CLUSTER_NAME}" --version 1.18 --region us-west-1 --zones us-west-1a --zones us-west-1c --with-oidc --without-nodegroup
+          eksctl create cluster --name "${CLUSTER_NAME}" --version 1.18 --region ${{ env.AWS_REGION }} --zones ${{ env.AWS_REGION }}a --zones ${{ env.AWS_REGION }}c --with-oidc --without-nodegroup
 
   eks-e2e-tests:
     name: Run e2e test on EKS
