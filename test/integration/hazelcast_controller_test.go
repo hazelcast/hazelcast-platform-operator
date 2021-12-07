@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -24,9 +23,6 @@ var _ = Describe("Hazelcast controller", func() {
 		hzKeyName = "hazelcast-test"
 		namespace = "default"
 		finalizer = n.Finalizer
-
-		timeout  = time.Second * 10
-		interval = time.Millisecond * 250
 
 		clusterSize      = n.DefaultClusterSize
 		version          = n.HazelcastVersion
@@ -63,50 +59,47 @@ var _ = Describe("Hazelcast controller", func() {
 	Create := func(hz *hazelcastv1alpha1.Hazelcast) {
 		By("creating the CR with specs successfully")
 		Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-		time.Sleep(time.Second * 2)
 	}
 
 	Update := func(hz *hazelcastv1alpha1.Hazelcast) {
 		By("updating the CR with specs successfully")
 		Expect(k8sClient.Update(context.Background(), hz)).Should(Succeed())
-		time.Sleep(time.Second * 2)
 	}
 
 	Fetch := func() *hazelcastv1alpha1.Hazelcast {
 		By("fetching Hazelcast")
 		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-		Eventually(func() bool {
-			err := k8sClient.Get(context.Background(), lookupKey, fetchedCR)
-			if err != nil {
-				return false
-			}
-			return true
-		}, timeout, interval).Should(BeTrue())
+		assertExists(lookupKey, fetchedCR)
 		return fetchedCR
 	}
 
 	Delete := func() {
 		By("expecting to delete CR successfully")
-		Eventually(func() error {
-			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-			_ = k8sClient.Get(context.Background(), lookupKey, fetchedCR)
-			return k8sClient.Delete(context.Background(), fetchedCR)
-		}, timeout, interval).Should(Succeed())
+		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+
+		deleteIfExists(lookupKey, fetchedCR)
 
 		By("expecting to CR delete finish")
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), lookupKey, &hazelcastv1alpha1.Hazelcast{})
-		}, timeout, interval).ShouldNot(Succeed())
+		assertDoesNotExist(lookupKey, fetchedCR)
 	}
 
-	EnsureStatus := func(hz *hazelcastv1alpha1.Hazelcast) {
+	EnsureStatus := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		By("ensuring that the status is correct")
-		Expect(hz.Status.Phase).Should(Equal(hazelcastv1alpha1.Pending))
+		Eventually(func() hazelcastv1alpha1.Phase {
+			hz = Fetch()
+			return hz.Status.Phase
+		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
+		return hz
+
 	}
 
-	EnsureFailedStatus := func(hz *hazelcastv1alpha1.Hazelcast) {
+	EnsureFailedStatus := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		By("ensuring that the status is failed")
-		Expect(hz.Status.Phase).Should(Equal(hazelcastv1alpha1.Failed))
+		Eventually(func() hazelcastv1alpha1.Phase {
+			hz = Fetch()
+			return hz.Status.Phase
+		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Failed))
+		return hz
 	}
 
 	Context("Hazelcast CustomResource with default specs", func() {
@@ -118,11 +111,13 @@ var _ = Describe("Hazelcast controller", func() {
 				},
 				Spec: test.HazelcastSpec(defaultSpecValues, ee),
 			}
+
+			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+
 			Create(hz)
 
-			fetchedCR := Fetch()
+			fetchedCR = EnsureStatus(fetchedCR)
 			test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
-			EnsureStatus(fetchedCR)
 
 			By("ensuring the finalizer added successfully")
 			Expect(fetchedCR.Finalizers).To(ContainElement(finalizer))
@@ -138,60 +133,28 @@ var _ = Describe("Hazelcast controller", func() {
 			}
 
 			fetchedClusterRole := &rbacv1.ClusterRole{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), clusterScopedLookupKey, fetchedClusterRole)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			assertExists(clusterScopedLookupKey, fetchedClusterRole)
 
 			fetchedServiceAccount := &corev1.ServiceAccount{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedServiceAccount)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			assertExists(lookupKey, fetchedServiceAccount)
 			Expect(fetchedServiceAccount.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), clusterScopedLookupKey, fetchedClusterRoleBinding)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			assertExists(clusterScopedLookupKey, fetchedClusterRoleBinding)
 
 			fetchedService := &corev1.Service{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedService)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			assertExists(lookupKey, fetchedService)
 			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedSts := &v1.StatefulSet{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedSts)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			assertExists(lookupKey, fetchedSts)
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 
 			Delete()
 
 			By("Expecting to ClusterRole removed via finalizer")
-			Eventually(func() error {
-				return k8sClient.Get(context.Background(), clusterScopedLookupKey, &rbacv1.ClusterRole{})
-			}, timeout, interval).ShouldNot(Succeed())
+			assertDoesNotExist(clusterScopedLookupKey, &rbacv1.ClusterRole{})
 		})
 	})
 
@@ -221,12 +184,12 @@ var _ = Describe("Hazelcast controller", func() {
 				},
 				Spec: spec,
 			}
-			Create(hz)
+			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
 
-			fetchedCR := Fetch()
+			Create(hz)
+			fetchedCR = EnsureStatus(fetchedCR)
 			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeUnisocket))
 			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
-			EnsureStatus(fetchedCR)
 
 			By("checking created services")
 			serviceList := FetchServices(1)
@@ -252,13 +215,13 @@ var _ = Describe("Hazelcast controller", func() {
 				},
 				Spec: spec,
 			}
-			Create(hz)
+			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
 
-			fetchedCR := Fetch()
+			Create(hz)
+			fetchedCR = EnsureStatus(fetchedCR)
 			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeSmart))
 			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
 			Expect(fetchedCR.Spec.ExposeExternally.MemberAccess).Should(Equal(hazelcastv1alpha1.MemberAccessNodePortExternalIP))
-			EnsureStatus(fetchedCR)
 
 			By("checking created services")
 			serviceList := FetchServices(4)
@@ -276,7 +239,6 @@ var _ = Describe("Hazelcast controller", func() {
 
 			Delete()
 		})
-
 		It("should scale Hazelcast cluster exposed for smart client", func() {
 			By("creating the cluster of size 3")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
@@ -293,23 +255,21 @@ var _ = Describe("Hazelcast controller", func() {
 				},
 				Spec: spec,
 			}
+			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+
 			Create(hz)
-			fetchedCR := Fetch()
-			EnsureStatus(fetchedCR)
 			FetchServices(4)
 
 			By("scaling the cluster to 6 members")
+			fetchedCR = Fetch()
 			fetchedCR.Spec.ClusterSize = 6
 			Update(fetchedCR)
-			fetchedCR = Fetch()
-			EnsureStatus(fetchedCR)
 			FetchServices(7)
 
 			By("scaling the cluster to 1 member")
+			fetchedCR = Fetch()
 			fetchedCR.Spec.ClusterSize = 1
 			Update(fetchedCR)
-			fetchedCR = Fetch()
-			EnsureStatus(fetchedCR)
 			FetchServices(2)
 
 			By("deleting the cluster")
@@ -332,41 +292,41 @@ var _ = Describe("Hazelcast controller", func() {
 				},
 				Spec: spec,
 			}
+			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+
 			Create(hz)
-			fetchedCR := Fetch()
-			EnsureStatus(fetchedCR)
 			FetchServices(4)
 
 			By("updating type to unisocket")
+			fetchedCR = Fetch()
 			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
 			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
 			Update(fetchedCR)
-			fetchedCR = Fetch()
-			EnsureStatus(fetchedCR)
 			FetchServices(1)
 
 			By("updating discovery service to LoadBalancer")
+			fetchedCR = Fetch()
 			fetchedCR.Spec.ExposeExternally.DiscoveryServiceType = corev1.ServiceTypeLoadBalancer
 			Update(fetchedCR)
-			fetchedCR = Fetch()
-			EnsureStatus(fetchedCR)
-			serviceList := FetchServices(1)
-			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
+			Eventually(func() corev1.ServiceType {
+				serviceList := FetchServices(1)
+				return serviceList.Items[0].Spec.Type
+			}, timeout, interval).Should(Equal(corev1.ServiceTypeLoadBalancer))
 
 			By("updating type to smart")
+			fetchedCR = Fetch()
 			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeSmart
 			Update(fetchedCR)
-			fetchedCR = Fetch()
-			EnsureStatus(fetchedCR)
 			FetchServices(4)
 
 			By("deleting expose externally configuration")
+			fetchedCR = Fetch()
 			fetchedCR.Spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{}
 			Update(fetchedCR)
-			fetchedCR = Fetch()
-			EnsureStatus(fetchedCR)
-			serviceList = FetchServices(1)
-			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
+			Eventually(func() corev1.ServiceType {
+				serviceList := FetchServices(1)
+				return serviceList.Items[0].Spec.Type
+			}, timeout, interval).Should(Equal(corev1.ServiceTypeClusterIP))
 
 			Delete()
 		})
@@ -387,16 +347,17 @@ var _ = Describe("Hazelcast controller", func() {
 				},
 				Spec: spec,
 			}
+
+			var fetchedCR *hazelcastv1alpha1.Hazelcast
+
 			Create(hz)
-			fetchedCR := Fetch()
-			EnsureFailedStatus(fetchedCR)
+			fetchedCR = EnsureFailedStatus(fetchedCR)
 			Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set"))
 
 			By("fixing the incorrect configuration")
 			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
 			Update(fetchedCR)
-			fetchedCR = Fetch()
-			EnsureStatus(fetchedCR)
+			fetchedCR = EnsureStatus(fetchedCR)
 			Expect(fetchedCR.Status.Message).To(BeEmpty())
 
 			Delete()
@@ -416,11 +377,13 @@ var _ = Describe("Hazelcast controller", func() {
 					Namespace: lookupKey.Namespace,
 				},
 			}
-			Create(hz)
-			fetchedCR := Fetch()
-			EnsureStatus(fetchedCR)
 
+			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+
+			Create(hz)
+			fetchedCR = EnsureStatus(fetchedCR)
 			Expect(fetchedCR.Spec).To(Equal(defaultHzSpecs))
+
 			Delete()
 		})
 		It("should update the CR with the default values when updating the empty specs are applied", func() {
@@ -436,15 +399,18 @@ var _ = Describe("Hazelcast controller", func() {
 					LicenseKeySecret: "licenseKeySecret",
 				},
 			}
+			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+
 			Create(hz)
-			fetchedCR := Fetch()
-			EnsureStatus(fetchedCR)
+			fetchedCR = EnsureStatus(fetchedCR)
 
 			fetchedCR.Spec = hazelcastv1alpha1.HazelcastSpec{}
 			Update(fetchedCR)
-			fetchedCR = Fetch()
-			EnsureStatus(fetchedCR)
-			Expect(fetchedCR.Spec).To(Equal(defaultHzSpecs))
+			Eventually(func() hazelcastv1alpha1.HazelcastSpec {
+				fetchedCR = Fetch()
+				return fetchedCR.Spec
+			}, timeout, interval).Should(Equal(defaultHzSpecs))
+
 			Delete()
 		})
 	})
@@ -465,18 +431,16 @@ var _ = Describe("Hazelcast controller", func() {
 					},
 					Spec: spec,
 				}
+				fetchedCR := &hazelcastv1alpha1.Hazelcast{}
 
 				Create(hz)
-
-				fetchedCR := Fetch()
-				EnsureFailedStatus(fetchedCR)
+				fetchedCR = EnsureFailedStatus(fetchedCR)
 				Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when Hazelcast Enterprise is deployed, licenseKeySecret must be set"))
 
 				By("filling the licenseSecretKey should fix it")
 				fetchedCR.Spec.LicenseKeySecret = n.LicenseKeySecret
 				Update(fetchedCR)
-				fetchedCR = Fetch()
-				EnsureStatus(fetchedCR)
+				fetchedCR = EnsureStatus(fetchedCR)
 				Expect(fetchedCR.Status.Message).To(BeEmpty())
 
 				Delete()

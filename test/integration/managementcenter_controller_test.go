@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -22,9 +21,6 @@ import (
 var _ = Describe("ManagementCenter controller", func() {
 	const (
 		mcKeyName = "management-center-test"
-
-		timeout  = time.Second * 10
-		interval = time.Millisecond * 250
 	)
 
 	defaultSpecValues := &test.MCSpecValues{
@@ -33,11 +29,23 @@ var _ = Describe("ManagementCenter controller", func() {
 		LicenseKey: n.LicenseKeySecret,
 	}
 
+	lookupKey := types.NamespacedName{
+		Name:      mcKeyName,
+		Namespace: "default",
+	}
+
+	Delete := func() {
+		By("expecting to delete CR successfully")
+		fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
+
+		deleteIfExists(lookupKey, fetchedCR)
+
+		By("expecting to CR delete finish")
+		assertDoesNotExist(lookupKey, fetchedCR)
+	}
+
 	Context("ManagementCenter CustomResource with default specs", func() {
-		lookupKey := types.NamespacedName{
-			Name:      mcKeyName,
-			Namespace: "default",
-		}
+
 		It("Should handle CR and sub resources correctly", func() {
 			toCreate := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: metav1.ObjectMeta{
@@ -51,13 +59,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			Expect(k8sClient.Create(context.Background(), toCreate)).Should(Succeed())
 
 			fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedCR)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			assertExists(lookupKey, fetchedCR)
 
 			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues, ee)
 
@@ -86,40 +88,19 @@ var _ = Describe("ManagementCenter controller", func() {
 			}
 
 			fetchedService := &corev1.Service{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedService)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			assertExists(lookupKey, fetchedService)
 			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(fetchedService.Spec.Type).Should(Equal(corev1.ServiceType("LoadBalancer")))
 
 			fetchedSts := &v1.StatefulSet{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedSts)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			assertExists(lookupKey, fetchedSts)
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(*fetchedSts.Spec.Replicas).Should(Equal(int32(1)))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(BeNil())
 
-			By("Expecting to delete CR successfully")
-			Eventually(func() error {
-				fetchedCR = &hazelcastv1alpha1.ManagementCenter{}
-				_ = k8sClient.Get(context.Background(), lookupKey, fetchedCR)
-				return k8sClient.Delete(context.Background(), fetchedCR)
-			}, timeout, interval).Should(Succeed())
+			Delete()
 
-			By("Expecting to CR delete finish")
-			Eventually(func() error {
-				return k8sClient.Get(context.Background(), lookupKey, &hazelcastv1alpha1.ManagementCenter{})
-			}, timeout, interval).ShouldNot(Succeed())
 		})
 		It("should create CR with default values when empty specs are applied", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
@@ -142,6 +123,8 @@ var _ = Describe("ManagementCenter controller", func() {
 				return fetchedCR.Spec.Repository
 			}, timeout, interval).Should(Equal(n.MCRepo))
 			Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
+
+			Delete()
 		})
 	})
 })
