@@ -54,7 +54,7 @@ func checkPodsForFailure(ctx context.Context, cl client.Client, sts *appsv1.Stat
 		phase := pod.Status.Phase
 		if phase == corev1.PodFailed || phase == corev1.PodUnknown {
 			errs = append(errs, NewPodError(&pod))
-		} else if phase == corev1.PodPending {
+		} else if hasPodFailedWhilePending(&pod) {
 			errs = append(errs, errorsFromPendingPod(&pod)...)
 		}
 	}
@@ -62,6 +62,26 @@ func checkPodsForFailure(ctx context.Context, cl client.Client, sts *appsv1.Stat
 		return nil
 	}
 	return errs
+}
+
+func hasPodFailedWhilePending(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodPending {
+		return false
+	}
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.State.Waiting != nil {
+			switch status.State.Waiting.Reason {
+			case
+				"ImagePullBackOff",
+				"ImageInspectError",
+				"ErrImagePull",
+				"ErrImageNeverPull",
+				"RegistryUnavailable":
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func errorsFromPendingPod(pod *corev1.Pod) PodErrors {
