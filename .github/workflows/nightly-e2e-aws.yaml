@@ -5,13 +5,15 @@ on:
   schedule:
     - cron: "0 9 * * *"
 
+env:
+  AWS_REGION: us-east-1
+  KUBECTL_VERSION: 1.22.0
 jobs:
   create-eks-cluster:
     name: Create EKS cluster
     runs-on: ubuntu-20.04
-    env:
-      AWS_REGION: us-east-1
-      KUBECTL_VERSION: 1.22.0
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -20,19 +22,47 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
-
       - name: Install eksctl
         run: |-
           curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
           sudo mv /tmp/eksctl /usr/local/bin
-          eksctl version
 
       - name: Create EKS cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          eksctl create cluster --name "${CLUSTER_NAME}" --version 1.18 --region ${{ env.AWS_REGION }} --zones ${{ env.AWS_REGION }}a --zones ${{ env.AWS_REGION }}c --with-oidc --without-nodegroup
+          eksctl create cluster --name "${CLUSTER_NAME}" --zones ${{ env.AWS_REGION }}a --zones ${{ env.AWS_REGION }}c --with-oidc --without-nodegroup
+          eksctl create nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1 --node-type t3.medium --nodes 3 --nodes-min 2 --nodes-max 4 --managed
+
+      # Build and push operator image
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build Operator Image and Push to GCR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: hazelcast-platform-operator
+          IMAGE_TAG: ${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
+        run: |
+          make docker-build-ci IMG=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          make docker-push IMG=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
   eks-e2e-tests:
     name: Run e2e test on EKS
@@ -43,7 +73,7 @@ jobs:
       matrix:
         edition: [ 'os', 'ee' ]
     env:
-      AWS_REGION: us-east-1
+      IMG: ${{ needs.create-eks-cluster.outputs.image }}
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
     steps:
       - name: Checkout
@@ -75,13 +105,35 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Update kubeconfig
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          aws eks update-kubeconfig --name "${CLUSTER_NAME}"
+
+      - name: Deploy Operator to EKS
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }}
+          make install
+          make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.IMG }}
+
+      - name: Create secret
+        if: matrix.edition == 'ee'
+        run: kubectl create secret generic hazelcast-license-key --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+
+      - name: Run Hazelcast E2E tests on EKS
+        run: |
+          case ${{ matrix.edition }} in
+            os) GO_TEST_FLAGS=-ee=false;;
+            ee) GO_TEST_FLAGS=-ee=true;;
+            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
+          esac
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${{ env.NAMESPACE }}
+
   delete-eks-cluster:
     name: Delete EKS cluster
     runs-on: ubuntu-20.04
     if: ${{ always() }}
     needs: ["create-eks-cluster", "eks-e2e-tests"]
-    env:
-      AWS_REGION: us-east-1
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -94,10 +146,9 @@ jobs:
         run: |-
           curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
           sudo mv /tmp/eksctl /usr/local/bin
-          eksctl version
 
-      - name: Create EKS cluster
+      - name: Delete EKS cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          eksctl delete nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1
           eksctl delete cluster "${CLUSTER_NAME}" --wait
-
