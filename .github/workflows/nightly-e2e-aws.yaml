@@ -117,10 +117,11 @@ jobs:
       - name: Deploy Operator to EKS
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMG: ${{ needs.prepare-env.outputs.image }}
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
           make install
-          make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.ECR_REGISTRY }}/${{ needs.prepare-env.outputs.image }}
+          make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.ECR_REGISTRY }}/${{ env.IMG }}
 
       - name: Create secret
         if: matrix.edition == 'ee'
