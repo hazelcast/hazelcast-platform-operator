@@ -71,12 +71,8 @@ func hasPodFailedWhilePending(pod *corev1.Pod) bool {
 	for _, status := range pod.Status.ContainerStatuses {
 		if status.State.Waiting != nil {
 			switch status.State.Waiting.Reason {
-			case
-				"ImagePullBackOff",
-				"ImageInspectError",
-				"ErrImagePull",
-				"ErrImageNeverPull",
-				"RegistryUnavailable":
+			case "ContainerCreating", "PodInitializing", "":
+			default:
 				return true
 			}
 		}
@@ -88,12 +84,16 @@ func errorsFromPendingPod(pod *corev1.Pod) PodErrors {
 	podErrors := make(PodErrors, 0, len(pod.Spec.Containers))
 	for _, status := range pod.Status.ContainerStatuses {
 		if status.State.Waiting != nil {
-			podErrors = append(podErrors, &PodError{
-				Name:      pod.Name,
-				Namespace: pod.Namespace,
-				Message:   status.State.Waiting.Message,
-				Reason:    status.State.Waiting.Reason,
-			})
+			switch status.State.Waiting.Reason {
+			case "ContainerCreating", "PodInitializing", "":
+			default:
+				podErrors = append(podErrors, &PodError{
+					Name:      pod.Name,
+					Namespace: pod.Namespace,
+					Message:   status.State.Waiting.Message,
+					Reason:    status.State.Waiting.Reason,
+				})
+			}
 		}
 	}
 	return podErrors
