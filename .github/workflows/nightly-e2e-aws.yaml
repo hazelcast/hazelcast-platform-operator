@@ -59,11 +59,11 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: hazelcast-platform-operator
-          IMAGE_TAG: ${GITHUB_SHA}-${GITHUB_RUN_NUMBER}
+          IMAGE_TAG: ${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
         run: |
           make docker-build-ci IMG=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           make docker-push IMG=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "::set-output name=image::$ECR_REPOSITORY:$IMAGE_TAG"
 
   eks-e2e-tests:
     name: Run e2e test on EKS
@@ -110,11 +110,17 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
       - name: Deploy Operator to EKS
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
           make install
-          make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ needs.prepare-env.outputs.image }}
+          make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.ECR_REGISTRY }}/${{ needs.prepare-env.outputs.image }}
 
       - name: Create secret
         if: matrix.edition == 'ee'
