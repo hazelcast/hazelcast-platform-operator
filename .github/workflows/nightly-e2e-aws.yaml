@@ -9,7 +9,7 @@ env:
   AWS_REGION: us-east-1
   KUBECTL_VERSION: 1.22.0
 jobs:
-  create-eks-cluster:
+  prepare-env:
     name: Create EKS cluster
     runs-on: ubuntu-20.04
     outputs:
@@ -68,13 +68,13 @@ jobs:
   eks-e2e-tests:
     name: Run e2e test on EKS
     runs-on: ubuntu-20.04
-    needs: "create-eks-cluster"
+    needs: "prepare-env"
     strategy:
       fail-fast: false
       matrix:
         edition: [ 'os', 'ee' ]
     env:
-      IMG: ${{ needs.create-eks-cluster.outputs.image }}
+      IMG: ${{ needs.prepare-env.outputs.image }}
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
     steps:
       - name: Checkout
@@ -130,11 +130,11 @@ jobs:
           esac
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${{ env.NAMESPACE }}
 
-  delete-eks-cluster:
+  clean-up:
     name: Delete EKS cluster
     runs-on: ubuntu-20.04
     if: ${{ always() }}
-    needs: ["create-eks-cluster", "eks-e2e-tests"]
+    needs: ["prepare-env", "eks-e2e-tests"]
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
