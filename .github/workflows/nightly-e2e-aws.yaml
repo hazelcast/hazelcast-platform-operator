@@ -51,6 +51,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Build Operator Image and Push to GCR
