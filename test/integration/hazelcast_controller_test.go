@@ -465,7 +465,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Pod scheduling parameters", func() {
 		When("NodeSelector is used", func() {
-			It("should passed the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
@@ -488,7 +488,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		When("Affinity is used", func() {
-			It("should passed the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: corev1.Affinity{
@@ -541,7 +541,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		When("Toleration is used", func() {
-			It("should passed the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
