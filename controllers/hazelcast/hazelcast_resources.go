@@ -87,7 +87,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 
 func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	clusterRole := &rbacv1.ClusterRole{}
-	err := r.Get(ctx, client.ObjectKey{Name: h.Name}, clusterRole)
+	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, clusterRole)
 	if err != nil && errors.IsNotFound(err) {
 		logger.V(1).Info("ClusterRole is not created yet. Or it is already removed.")
 		return nil
@@ -104,7 +104,7 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 
 func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	crb := &rbacv1.ClusterRoleBinding{}
-	err := r.Get(ctx, client.ObjectKey{Name: h.Name}, crb)
+	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, crb)
 	if err != nil && errors.IsNotFound(err) {
 		logger.V(1).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
 		return nil
@@ -123,7 +123,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   h.Name,
+			Name:   h.ClusterScopedName(),
 			Labels: labels(h),
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -152,7 +152,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "ClusterRole", h.Name, "result", opResult)
+		logger.Info("Operation result", "ClusterRole", h.ClusterScopedName(), "result", opResult)
 	}
 	return err
 }
@@ -178,9 +178,10 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 }
 
 func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	csName := h.ClusterScopedName()
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   h.Name,
+			Name:   csName,
 			Labels: labels(h),
 		},
 	}
@@ -196,13 +197,13 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 		crb.RoleRef = rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     h.Name,
+			Name:     csName,
 		}
 
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "RoleBinding", h.Name, "result", opResult)
+		logger.Info("Operation result", "ClusterRoleBinding", csName, "result", opResult)
 	}
 	return err
 }

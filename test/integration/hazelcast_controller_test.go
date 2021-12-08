@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/uuid"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/apps/v1"
@@ -14,6 +12,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -45,6 +44,13 @@ var _ = Describe("Hazelcast controller", func() {
 			n.ApplicationNameLabel:         n.Hazelcast,
 			n.ApplicationManagedByLabel:    n.OperatorName,
 			n.ApplicationInstanceNameLabel: hz.Name,
+		}
+	}
+
+	clusterScopedLookupKey := func(hz *hazelcastv1alpha1.Hazelcast) types.NamespacedName {
+		return types.NamespacedName{
+			Name:      (&hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{Name: hz.Name, Namespace: namespace}}).ClusterScopedName(),
+			Namespace: "",
 		}
 	}
 
@@ -147,32 +153,20 @@ var _ = Describe("Hazelcast controller", func() {
 			}
 
 			fetchedClusterRole := &rbacv1.ClusterRole{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedClusterRole)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), clusterScopedLookupKey(hz), fetchedClusterRole)
+			}, timeout, interval).Should(Succeed())
 
 			fetchedServiceAccount := &corev1.ServiceAccount{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedServiceAccount)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedServiceAccount)
+			}, timeout, interval).Should(Succeed())
 			Expect(fetchedServiceAccount.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedClusterRoleBinding)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), clusterScopedLookupKey(hz), fetchedClusterRoleBinding)
+			}, timeout, interval).Should(Succeed())
 
 			fetchedService := &corev1.Service{}
 			Eventually(func() bool {
@@ -199,7 +193,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			By("Expecting to ClusterRole removed via finalizer")
 			Eventually(func() error {
-				return k8sClient.Get(context.Background(), types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, &rbacv1.ClusterRole{})
+				return k8sClient.Get(context.Background(), clusterScopedLookupKey(hz), &rbacv1.ClusterRole{})
 			}, timeout, interval).ShouldNot(Succeed())
 		})
 	})
