@@ -261,7 +261,7 @@ var _ = Describe("Hazelcast controller", func() {
 			FetchServices(4)
 
 			By("scaling the cluster to 6 members")
-			fetchedCR = Fetch()
+			fetchedCR = EnsureStatus(hz)
 			fetchedCR.Spec.ClusterSize = 6
 			Update(fetchedCR)
 			FetchServices(7)
@@ -298,7 +298,7 @@ var _ = Describe("Hazelcast controller", func() {
 			FetchServices(4)
 
 			By("updating type to unisocket")
-			fetchedCR = Fetch()
+			fetchedCR = EnsureStatus(hz)
 			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
 			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
 			Update(fetchedCR)
