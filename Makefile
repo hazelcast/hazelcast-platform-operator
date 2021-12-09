@@ -236,11 +236,11 @@ generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle
 STS_NAME ?= hazelcast
 expose-local: ## Port forward hazelcast Pod so that it's accessible from localhost
 	while [ true ] ; do \
-		kubectl get sts $(STS_NAME) &> /dev/null && break ; \
+		$(KUBECTL) get sts $(STS_NAME) &> /dev/null && break ; \
 		sleep 5 ; \
 	done;
-	kubectl wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
-	kubectl port-forward statefulset/$(STS_NAME) 8000:5701
+	$(KUBECTL) wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
+	$(KUBECTL) port-forward statefulset/$(STS_NAME) 8000:5701
 
 # Detect the OS to set per-OS defaults
 OS_NAME = $(shell uname -s)
