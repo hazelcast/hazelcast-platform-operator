@@ -8,6 +8,7 @@ on:
 env:
   AWS_REGION: us-east-1
   KUBECTL_VERSION: 1.22.0
+  IMG: hazelcast/hazelcast-platform-operator:5-preview-snapshot
 jobs:
   prepare-env:
     name: Create EKS cluster
@@ -32,38 +33,6 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           eksctl create cluster --name "${CLUSTER_NAME}" --zones ${{ env.AWS_REGION }}a --zones ${{ env.AWS_REGION }}c --with-oidc --without-nodegroup
           eksctl create nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1 --node-type t3.medium --nodes 3 --nodes-min 2 --nodes-max 4 --managed
-
-      # Build and push operator image
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Set up Golang
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.16'
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Build Operator Image and Push to ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: hazelcast-platform-operator
-          IMAGE_TAG: ${GITHUB_SHA}-${GITHUB_RUN_NUMBER}
-        run: |
-          make docker-build-ci IMG=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          make docker-push IMG=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "::set-output name=image::$ECR_REPOSITORY:$IMAGE_TAG"
 
   eks-e2e-tests:
     name: Run e2e test on EKS
@@ -110,18 +79,13 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
       - name: Deploy Operator to EKS
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMG: ${{ needs.prepare-env.outputs.image }}
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
-          make install
-          make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.ECR_REGISTRY }}/${{ env.IMG }}
+          make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.IMG }}
 
       - name: Create secret
         if: matrix.edition == 'ee'
