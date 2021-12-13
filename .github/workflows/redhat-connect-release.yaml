@@ -38,7 +38,7 @@ jobs:
           RHEL_IMAGE=${RHEL_REPOSITORY}:${RELEASE_VERSION}
           echo "RHEL_IMAGE=${RHEL_IMAGE}" >> $GITHUB_ENV
           echo "::set-output name=RELEASE_VERSION::${RELEASE_VERSION}"
-      
+
       - name: Generate Operator and Operator Image
         run: |
           echo "Building the operator image"
@@ -47,7 +47,7 @@ jobs:
       - name: Push Hazelcast-Platform-Operator image to RHEL scan registry
         run: |
           docker login ${SCAN_REGISTRY} -u unused -p ${RHEL_REPO_PASSWORD}
-          make docker-push IMG=${RHEL_IMAGE} 
+          make docker-push IMG=${RHEL_IMAGE}
 
       - name: Wait for Scan to Complete
         run: |
@@ -91,13 +91,20 @@ jobs:
         if: always()
         run: |
           DEPLOY_NAME=hazelcast-platform-controller-manager
-          hz=$(oc get hazelcast -o name); [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
-          mc=$(oc get managementcenter -o name); [[ "$mc" != "" ]] && oc delete $mc --wait=false || echo "no managementcenter resources"
+
+          hz=$(oc get hazelcast -o name)
+          [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
+
+          mc=$(oc get managementcenter -o name)
+          [[ "$mc" != "" ]] && oc delete $mc --wait=false || echo "no managementcenter resources"
           if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
             i=0
             while ! oc rollout status deployment $DEPLOY_NAME; do
               oc rollout restart deployment $DEPLOY_NAME
-              if [[ $i == 2 ]]; then echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"; exit 1; fi
+              if [[ $i == 2 ]]; then
+                echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"
+                exit 1
+              fi
               ((i++))
             done
           fi
@@ -106,13 +113,15 @@ jobs:
           hz=$(oc get hazelcast -o name)
           mc=$(oc get managementcenter -o name)
           if [[ $hz != "" ]] || [[ $mc != "" ]]; then
-            echo "Failure deleting hazelcast and managementcenter resources, namespace $NAMESPACE requires manual clean up"; exit 1
+            echo -n "Failure deleting hazelcast and managementcenter resources,"
+            echo "namespace $NAMESPACE requires manual clean up"
+            exit 1
           fi
 
-          make undeploy 
+          make undeploy
           oc delete secret hazelcast-license-key --wait=false
           oc delete secret pull-secret --wait=false
-          oc delete project $NAMESPACE --wait=false  
+          oc delete project $NAMESPACE --wait=false
 
       - name: Publish the Hazelcast-Platform-Operator image
         run: |
@@ -124,7 +133,7 @@ jobs:
           wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$RHEL_API_KEY" "$TIMEOUT_IN_MINS"
 
   redhat_bundle_release:
-    name: Create a PR in 
+    name: Create a PR in
     runs-on: ubuntu-latest
     needs: publish_image
     strategy:
@@ -132,8 +141,8 @@ jobs:
       matrix:
         include:
           - repo-name: redhat-marketplace-operators
-            repo-owner: redhat-openshift-ecosystem  
-            
+            repo-owner: redhat-openshift-ecosystem
+
           - repo-name: certified-operators
             repo-owner: redhat-openshift-ecosystem
     env:
@@ -171,7 +180,7 @@ jobs:
         run: |
           git checkout main
           git remote add upstream https://github.com/${REPO_OWNER}/${REPO_NAME}.git
-          git pull upstream main 
+          git pull upstream main
           git push origin main
 
       - name: Set Bundle Release Version
@@ -195,15 +204,16 @@ jobs:
           git commit --signoff -m "Update ${OPERATOR_NAME} to ${RELEASE_VERSION}"
           git push -u origin ${OPERATOR_NAME}-${BUNDLE_RELEASE_VERSION}-${{ github.run_id }}
 
-      - name: Create PR 
+      - name: Create PR
         working-directory: ${{ env.REPO_NAME }}
         run: |
           echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          gh pr create --title "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+          gh pr create --title "operator ${OPERATOR_NAME} \
+            (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
 
   slack_notify:
     name: Slack Notify
-    needs: ['publish_image', 'redhat_bundle_release']
+    needs: [ 'publish_image', 'redhat_bundle_release' ]
     runs-on: ubuntu-latest
     if: always()
     steps:
