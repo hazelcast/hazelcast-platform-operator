@@ -21,10 +21,24 @@ jobs:
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2.5.2
+        if: always()
         with:
           args: --timeout 2m
           skip-go-installation: true
 
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        if: always()
+        with:
+          config_data: |
+            extends: default
+            rules:
+              document-start: disable
+              line-length:
+                max: 150
+              brackets:
+                max-spaces-inside: 1
+  
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-20.04
