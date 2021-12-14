@@ -131,8 +131,8 @@ jobs:
           fi
           make undeploy-keep-crd
 
-          pvc=$(kubectl get pvc -o name); [[ "$pvc" != "" ]] && kubectl delete $pvc --wait=true --timeout=1m || echo "No PVC or error deleting PVCs"
-          svc=$(kubectl get svc -o name); [[ "$svc" != "" ]] && kubectl delete $svc --wait=true --timeout=4m || echo "No SVC or error deleting SVCs"
+          kubectl delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator --wait=true --timeout=1m
+          kubectl delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator --wait=true --timeout=4m
 
           kubectl delete namespace $NAMESPACE --wait=true --timeout=1m
 
