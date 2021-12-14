@@ -30,19 +30,7 @@ jobs:
         uses: ibiqlik/action-yamllint@v3
         if: always()
         with:
-          config_data: |
-            extends: default
-            rules:
-              document-start: disable
-              line-length:
-                max: 200
-              brackets:
-                max-spaces-inside: 1
-              truthy:
-                check-keys: false
-              indentation:
-                spaces: 2
-                indent-sequences: consistent
+          config_file: hack/yamllint.yaml
 
   unit-tests:
     name: Run unit and integration tests
