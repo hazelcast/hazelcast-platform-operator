@@ -130,7 +130,11 @@ jobs:
             kubectl delete secret hazelcast-license-key --wait=false
           fi
           make undeploy-keep-crd
-          kubectl delete namespace $NAMESPACE --wait=false
+
+          pvc=$(kubectl get pvc -o name); [[ "$pvc" != "" ]] && kubectl delete $pvc --wait=true --timeout=1m || echo "No PVC or error deleting PVCs"
+          svc=$(kubectl get svc -o name); [[ "$svc" != "" ]] && kubectl delete $svc --wait=true --timeout=4m || echo "No SVC or error deleting SVCs"
+
+          kubectl delete namespace $NAMESPACE --wait=true --timeout=1m
 
   delete-cluster:
     name: Run E2E tests
