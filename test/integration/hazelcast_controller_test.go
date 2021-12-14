@@ -75,13 +75,9 @@ var _ = Describe("Hazelcast controller", func() {
 	Fetch := func() *hazelcastv1alpha1.Hazelcast {
 		By("fetching Hazelcast")
 		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-		Eventually(func() bool {
-			err := k8sClient.Get(context.Background(), lookupKey, fetchedCR)
-			if err != nil {
-				return false
-			}
-			return true
-		}, timeout, interval).Should(BeTrue())
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), lookupKey, fetchedCR)
+		}, timeout, interval).Should(Succeed())
 		return fetchedCR
 	}
 
@@ -138,51 +134,31 @@ var _ = Describe("Hazelcast controller", func() {
 			}
 
 			fetchedClusterRole := &rbacv1.ClusterRole{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), clusterScopedLookupKey, fetchedClusterRole)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), clusterScopedLookupKey, fetchedClusterRole)
+			}, timeout, interval).Should(Succeed())
 
 			fetchedServiceAccount := &corev1.ServiceAccount{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedServiceAccount)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), lookupKey, fetchedServiceAccount)
+			}, timeout, interval).Should(Succeed())
 			Expect(fetchedServiceAccount.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), clusterScopedLookupKey, fetchedClusterRoleBinding)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), clusterScopedLookupKey, fetchedClusterRoleBinding)
+			}, timeout, interval).Should(Succeed())
 
 			fetchedService := &corev1.Service{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedService)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), lookupKey, fetchedService)
+			}, timeout, interval).Should(Succeed())
 			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedSts := &v1.StatefulSet{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedSts)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), lookupKey, fetchedSts)
+			}, timeout, interval).Should(Succeed())
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 

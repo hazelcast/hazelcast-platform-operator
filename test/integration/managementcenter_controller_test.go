@@ -13,10 +13,11 @@ import (
 
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/test"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
 var _ = Describe("ManagementCenter controller", func() {
@@ -51,13 +52,9 @@ var _ = Describe("ManagementCenter controller", func() {
 			Expect(k8sClient.Create(context.Background(), toCreate)).Should(Succeed())
 
 			fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedCR)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), lookupKey, fetchedCR)
+			}, timeout, interval).Should(Succeed())
 
 			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues, ee)
 
@@ -86,24 +83,16 @@ var _ = Describe("ManagementCenter controller", func() {
 			}
 
 			fetchedService := &corev1.Service{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedService)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), lookupKey, fetchedService)
+			}, timeout, interval).Should(Succeed())
 			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(fetchedService.Spec.Type).Should(Equal(corev1.ServiceType("LoadBalancer")))
 
 			fetchedSts := &v1.StatefulSet{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, fetchedSts)
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), lookupKey, fetchedSts)
+			}, timeout, interval).Should(Succeed())
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(*fetchedSts.Spec.Replicas).Should(Equal(int32(1)))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))

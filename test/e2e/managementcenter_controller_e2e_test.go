@@ -58,7 +58,7 @@ var _ = Describe("Management-Center", func() {
 			Name:      fmt.Sprintf("mancenter-storage-%s-0", lookupKey.Name),
 			Namespace: lookupKey.Namespace,
 		}
-		deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
+		Expect(deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})).Should(Succeed())
 	})
 
 	create := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
