@@ -127,6 +127,7 @@ jobs:
           if [[ ${{ matrix.edition }} == 'ee' ]]; then
             kubectl delete secret hazelcast-license-key --wait=false
           fi
+          kubectl delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator
           make undeploy-keep-crd
           kubectl delete namespace $NAMESPACE --wait=false
 
