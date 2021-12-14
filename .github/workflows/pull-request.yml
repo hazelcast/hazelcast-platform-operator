@@ -191,7 +191,7 @@ jobs:
           kubectl delete namespace $NAMESPACE --wait=true --timeout=1m
 
   delete-cluster:
-    name: Run E2E tests
+    name: Delete Cluster
     runs-on: ubuntu-20.04
     if: always()
     needs: [create-gke-cluster, gke-e2e-tests]
