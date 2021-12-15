@@ -1,6 +1,7 @@
 name: Nightly E2E tests on AWS
 on:
   workflow_dispatch:
+  push:
   schedule:
     - cron: "0 9 * * *"
 
@@ -108,28 +109,7 @@ jobs:
       - name: Clean up after Tests
         if: ${{ always() }}
         run: |
-          hz=$(kubectl get hazelcast -o name); [[ "$hz" != "" ]] && kubectl delete $hz --wait=false || echo "no hazelcast resources"
-          mc=$(kubectl get managementcenter -o name); [[ "$mc" != "" ]] && kubectl delete $mc --wait=false || echo "no managementcenter resources"
-          if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
-            i=0
-            while ! kubectl rollout status deployment ${DEPLOY_NAME}; do
-              kubectl rollout restart deployment ${DEPLOY_NAME}
-              if [[ $i == 2 ]]; then echo "Failure testing the operator, namespace ${NAMESPACE} requires manual clean up"; exit 1; fi
-              ((i++))
-            done
-          fi
-          sleep 10
-          hz=$(kubectl get hazelcast -o name)
-          mc=$(kubectl get managementcenter -o name)
-          if [[ $hz != "" ]] || [[ $mc != "" ]]; then
-            echo "Failure deleting hazelcast and managementcenter resources, namespace ${NAMESPACE} requires manual clean up"; exit 1
-          fi
-          if [[ ${{ matrix.edition }} == 'ee' ]]; then
-            kubectl delete secret hazelcast-license-key --wait=false
-          fi
-          kubectl delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator
-          make undeploy-keep-crd
-          kubectl delete namespace $NAMESPACE --wait=false
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
 
   clean-up:
     name: Delete EKS cluster

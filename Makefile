@@ -157,6 +157,39 @@ undeploy-keep-crd:
 	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
+clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
+	$(eval mc := $(shell $(KUBECTL) get managementcenter -n $(NAMESPACE) -o name))
+	$(eval hz := $(shell $(KUBECTL) get hazelcast -n $(NAMESPACE) -o name))
+	[[ "${hz}" != "" ]] && $(KUBECTL) delete ${hz} -n $(NAMESPACE) --wait=true || echo "no hazelcast resources"
+	[[ "${mc}" != "" ]] && $(KUBECTL) delete ${mc} -n $(NAMESPACE) --wait=true || echo "no managementcenter resources"
+	sleep 10
+	@if [[ -n "$($(KUBECTL) get hazelcast -n $(NAMESPACE) -o name)" ]]; then \
+		echo "Failure deleting hazelcast resources, namespace ${NAMESPACE} requires manual clean up"; exit 1; \
+	fi
+	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
+		echo "Failure deleting managementcenter resources, namespace ${NAMESPACE} requires manual clean up"; exit 1; \
+	fi
+	$(KUBECTL) delete secret hazelcast-license-key -n $(NAMESPACE) --wait=false || echo "no hazelcast-license-key secret found"
+	$(KUBECTL) delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=1m
+	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=4m
+	$(MAKE) undeploy-keep-crd
+	$(KUBECTL) delete namespace $(NAMESPACE) --wait=false
+
+do-it:
+	$(eval mc := $(shell echo ""))
+	echo "${mc}"
+ifeq (,$(strip mc))
+	echo "ifeq Are you freaking empty or not?"
+endif
+ifneq (,$(strip mc))
+	echo "ifneq Are you freaking empty or not?"
+endif
+	@if [[ ! -z "${mc}" ]]; then \
+		echo "I'm not empty!"; exit 15; \
+	fi
+	echo "Finishing"
+
+
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
