@@ -162,17 +162,16 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 	$(eval hz := $(shell $(KUBECTL) get hazelcast -n $(NAMESPACE) -o name))
 	[[ "$(hz)" != "" ]] && $(KUBECTL) delete $(hz) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no hazelcast resources"
 	[[ "$(mc)" != "" ]] && $(KUBECTL) delete $(mc) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no managementcenter resources"
-	sleep 10
-	@if [[ -n "$($(KUBECTL) get hazelcast -n $(NAMESPACE) -o name)" ]]; then \
-		echo "Failure deleting hazelcast resources, namespace ${NAMESPACE} requires manual clean up"; exit 1; \
-	fi
-	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
-		echo "Failure deleting managementcenter resources, namespace ${NAMESPACE} requires manual clean up"; exit 1; \
-	fi
 	$(KUBECTL) delete secret hazelcast-license-key -n $(NAMESPACE) --wait=false || echo "no hazelcast-license-key secret found"
 	$(KUBECTL) delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=1m
 	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=4m
 	$(MAKE) undeploy-keep-crd
+	@if [[ -n "$($(KUBECTL) get hazelcast -n $(NAMESPACE) -o name)" ]]; then \
+		$(KUBECTL) patch hazelcast $(hz) -p '{"metadata":{"finalizers":null}}' --type=merge; \
+	fi
+	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
+		$(KUBECTL) patch managementcenter $(mc) -p '{"metadata":{"finalizers":null}}' --type=merge; \
+	fi
 	$(KUBECTL) delete namespace $(NAMESPACE) --wait=false
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
