@@ -160,8 +160,8 @@ undeploy-keep-crd:
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
 	$(eval mc := $(shell $(KUBECTL) get managementcenter -n $(NAMESPACE) -o name))
 	$(eval hz := $(shell $(KUBECTL) get hazelcast -n $(NAMESPACE) -o name))
-	[[ "${hz}" != "" ]] && $(KUBECTL) delete ${hz} -n $(NAMESPACE) --wait=true || echo "no hazelcast resources"
-	[[ "${mc}" != "" ]] && $(KUBECTL) delete ${mc} -n $(NAMESPACE) --wait=true || echo "no managementcenter resources"
+	[[ "$(hz)" != "" ]] && $(KUBECTL) delete $(hz) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no hazelcast resources"
+	[[ "$(mc)" != "" ]] && $(KUBECTL) delete $(mc) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no managementcenter resources"
 	sleep 10
 	@if [[ -n "$($(KUBECTL) get hazelcast -n $(NAMESPACE) -o name)" ]]; then \
 		echo "Failure deleting hazelcast resources, namespace ${NAMESPACE} requires manual clean up"; exit 1; \
