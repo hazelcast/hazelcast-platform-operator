@@ -172,7 +172,7 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
 		$(KUBECTL) patch managementcenter $(mc) -p '{"metadata":{"finalizers":null}}' --type=merge; \
 	fi
-	$(KUBECTL) delete namespace $(NAMESPACE) --wait=false
+	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 1m
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
