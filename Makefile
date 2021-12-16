@@ -167,7 +167,7 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=4m
 	$(MAKE) undeploy-keep-crd
 	@if [[ -n "$($(KUBECTL) get hazelcast -n $(NAMESPACE) -o name)" ]]; then \
-		$(KUBECTL) patch hazelcast $(hz) -p '{"metadata":{"finalizers":null}}' --type=merge; \
+		$(KUBECTL) patch $(hz) -p '{"metadata":{"finalizers":null}}' --type=merge; \
 	fi
 	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
 		$(KUBECTL) patch managementcenter $(mc) -p '{"metadata":{"finalizers":null}}' --type=merge; \
