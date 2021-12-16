@@ -175,21 +175,6 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 	$(MAKE) undeploy-keep-crd
 	$(KUBECTL) delete namespace $(NAMESPACE) --wait=false
 
-do-it:
-	$(eval mc := $(shell echo ""))
-	echo "${mc}"
-ifeq (,$(strip mc))
-	echo "ifeq Are you freaking empty or not?"
-endif
-ifneq (,$(strip mc))
-	echo "ifneq Are you freaking empty or not?"
-endif
-	@if [[ ! -z "${mc}" ]]; then \
-		echo "I'm not empty!"; exit 15; \
-	fi
-	echo "Finishing"
-
-
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
