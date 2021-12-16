@@ -170,7 +170,7 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 		$(KUBECTL) patch $(hz) -p '{"metadata":{"finalizers":null}}' --type=merge; \
 	fi
 	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
-		$(KUBECTL) patch managementcenter $(mc) -p '{"metadata":{"finalizers":null}}' --type=merge; \
+		$(KUBECTL) patch $(mc) -p '{"metadata":{"finalizers":null}}' --type=merge; \
 	fi
 	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 1m
 
