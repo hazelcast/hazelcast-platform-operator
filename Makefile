@@ -106,6 +106,14 @@ test-unit: manifests generate fmt vet
 	go test -v ./controllers/... -coverprofile cover.out
 	go test -v ./api/... -coverprofile cover.out
 
+lint: lint-go lint-yaml
+
+lint-go:
+	golangci-lint run
+
+lint-yaml:
+	yamllint -c ./hack/yamllint.yaml .
+
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 GO_TEST_FLAGS ?= "-ee=true"
 test-it: manifests generate fmt vet ## Run tests.
