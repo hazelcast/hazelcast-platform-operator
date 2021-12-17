@@ -105,14 +105,12 @@ jobs:
         run: |
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
-          BRANCH_NAME=${OPERATOR_NAME}-${RELEASE_VERSION}-${{ github.run_id }}
-          echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
-
+          BRANCH_NAME=${OPERATOR_NAME}-${BUNDLE_RELEASE_VERSION}-${{ github.run_id }}
 
           # Copy bundle files under new version of the operator
           git checkout -b $BRANCH_NAME
           mkdir -p operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}
-          cp -r ../bundle/manifests ../bundle/metadata operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}/
+          cp -r ../bundle/* operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}/
 
           # Commit and push changes
           git add  ./operators/${OPERATOR_NAME}

@@ -184,16 +184,17 @@ jobs:
         run: |
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
+          BRANCH_NAME=${OPERATOR_NAME}-${BUNDLE_RELEASE_VERSION}-${{ github.run_id }}
 
           # Copy bundle files under new version of the operator
-          git checkout -b ${OPERATOR_NAME}-${RELEASE_VERSION}-${{ github.run_id }}
+          git checkout -b $BRANCH_NAME
           mkdir -p operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}
-          cp -r ../bundle/manifests ../bundle/metadata operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}/
+          cp -r ../bundle/* operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}/
 
           # Commit and push changes
           git add  ./operators/${OPERATOR_NAME}
-          git commit --signoff -m "Update ${OPERATOR_NAME} to ${RELEASE_VERSION}"
-          git push -u origin ${OPERATOR_NAME}-${BUNDLE_RELEASE_VERSION}-${{ github.run_id }}
+          git commit --signoff -m "Update ${OPERATOR_NAME} to ${BUNDLE_RELEASE_VERSION}"
+          git push -u origin $BRANCH_NAME
 
       - name: Create PR 
         working-directory: ${{ env.REPO_NAME }}
