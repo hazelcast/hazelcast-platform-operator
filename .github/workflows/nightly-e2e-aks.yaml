@@ -6,7 +6,6 @@ on:
     - cron: "0 9 * * *"
 
 env:
-  AWS_REGION: us-east-1
   KUBECTL_VERSION: 1.22.0
 jobs:
   prepare-env:
@@ -24,7 +23,7 @@ jobs:
           azcliversion: 2.31.0
           inlineScript: |
             CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-            az aks create --resource-group hazelcast-platform-operator --name "${CLUSTER_NAME}" --node-count 2
+            az aks create --resource-group hazelcast-platform-operator --name "${CLUSTER_NAME}" --node-count 2 --generate-ssh-keys
 
   aks-e2e-tests:
     name: Run e2e test on AKS
@@ -92,7 +91,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create AKS cluster
+      - name: Delete AKS cluster
         uses: azure/CLI@v1
         with:
           azcliversion: 2.31.0
