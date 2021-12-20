@@ -16,7 +16,7 @@ jobs:
       run:
         shell: bash
     env:
-      IMG: hazelcast/hazelcast-platform-operator:5-preview-snapshot
+      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       GCP_PROJECT_ID: hazelcast-33
       GCP_NETWORK: operator-test-network
       GKE_ZONE: europe-west1-b
