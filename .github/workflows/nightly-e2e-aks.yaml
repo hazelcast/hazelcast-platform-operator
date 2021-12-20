@@ -119,4 +119,4 @@ jobs:
           azcliversion: 2.31.0
           inlineScript: |
             CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-            az aks delete --name sbishyr-aks --resource-group hazelcast-platform-operator -y
+            az aks delete --name "${CLUSTER_NAME}" --resource-group hazelcast-platform-operator -y
