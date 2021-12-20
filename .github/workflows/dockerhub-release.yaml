@@ -138,7 +138,7 @@ jobs:
       - name: Convert changes to latest-snapshot
         run: |
           sed -i  "s|ARG version=\"${RELEASE_VERSION}\"|ARG version=\"latest-snapshot\"|" Dockerfile
-          sed -i  "s|VERSION ?= ${RELEASE_VERSION}|VERSION ?= latest-snapshot" Makefile
+          sed -i  "s|VERSION ?= ${RELEASE_VERSION}|VERSION ?= latest-snapshot|" Makefile
 
           make generate-bundle-yaml
 
