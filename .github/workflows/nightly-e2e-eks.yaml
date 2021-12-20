@@ -93,7 +93,6 @@ jobs:
           kubectl config set-context --current --namespace=${NAMESPACE}
 
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
-          echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
 
           make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
           kubectl rollout status deployment $DEPLOY_NAME

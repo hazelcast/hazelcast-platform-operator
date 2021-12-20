@@ -68,11 +68,39 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Test k8s cluster
+      - name: Update kubeconfig
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           az aks get-credentials --resource-group hazelcast-platform-operator --name "${CLUSTER_NAME}"
           kubectl get po --all-namespaces
+
+      - name: Deploy Operator to EKS
+        run: |
+          kubectl create namespace ${NAMESPACE}
+          kubectl config set-context --current --namespace=${NAMESPACE}
+
+          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
+          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+          kubectl rollout status deployment $DEPLOY_NAME
+
+      - name: Create secret
+        if: matrix.edition == 'ee'
+        run: kubectl create secret generic hazelcast-license-key --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+
+      - name: Run Hazelcast E2E tests on EKS
+        id: e2e-test
+        run: |
+          case ${{ matrix.edition }} in
+            os) GO_TEST_FLAGS=-ee=false;;
+            ee) GO_TEST_FLAGS=-ee=true;;
+            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
+          esac
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX}
+
+      - name: Clean up after Tests
+        if: ${{ always() }}
+        run: |
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
 
   clean-up:
     name: Delete AKS cluster
