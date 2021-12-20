@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager 
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:8.4
 
-ARG version="5-preview-snapshot"
+ARG version="latest-snapshot"
 LABEL name="Hazelcast Platform Operator" \
       maintainer="info@hazelcast.com" \
       vendor="Hazelcast, Inc." \

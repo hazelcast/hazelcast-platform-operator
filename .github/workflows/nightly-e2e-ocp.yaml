@@ -16,7 +16,7 @@ jobs:
       run:
         shell: bash
     env:
-      IMG: hazelcast/hazelcast-platform-operator:5-preview-snapshot
+      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
       OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
       OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}

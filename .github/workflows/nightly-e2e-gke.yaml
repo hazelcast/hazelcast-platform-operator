@@ -41,7 +41,7 @@ jobs:
       matrix:
         edition: [ 'os', 'ee' ]
     env:
-      IMG: hazelcast/hazelcast-platform-operator:5-preview-snapshot
+      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-

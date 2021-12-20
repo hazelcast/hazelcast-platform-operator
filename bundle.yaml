@@ -70,7 +70,6 @@ spec:
                     type: string
                 type: object
               licenseKeySecret:
-                default: hazelcast-license-key
                 description: Name of the secret with Hazelcast Enterprise License Key.
                 type: string
               repository:
@@ -180,7 +179,6 @@ spec:
                   type: object
                 type: array
               licenseKeySecret:
-                default: hazelcast-license-key
                 description: Name of the secret with Hazelcast Enterprise License Key.
                 type: string
               persistence:
@@ -197,6 +195,7 @@ spec:
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                   storageClass:
+                    nullable: true
                     type: string
                 type: object
               repository:
@@ -211,6 +210,8 @@ spec:
           status:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
             properties:
+              message:
+                type: string
               phase:
                 description: Phase represents the current state of the cluster
                 type: string
@@ -246,6 +247,7 @@ rules:
   - ""
   resources:
   - events
+  - pods
   - serviceaccounts
   - services
   verbs:
@@ -309,11 +311,30 @@ rules:
 - apiGroups:
   - hazelcast.com
   resources:
+  - managementcenters/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
   - managementcenters/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -344,6 +365,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - security.openshift.io
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -399,7 +426,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: hazelcast/hazelcast-platform-operator:5-preview-snapshot
+        image: hazelcast/hazelcast-platform-operator:latest-snapshot
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /healthz
@@ -415,11 +443,11 @@ spec:
           periodSeconds: 10
         resources:
           limits:
-            cpu: 100m
-            memory: 30Mi
+            cpu: 200m
+            memory: 300Mi
           requests:
             cpu: 100m
-            memory: 20Mi
+            memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
       securityContext:
