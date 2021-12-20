@@ -51,6 +51,8 @@ jobs:
 
       - name: Upload Bundle to Jfrog
         run: |
+          make generate-bundle-yaml VERSION=${RELEASE_VERSION}
+
           curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
                -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-latest.yaml" \
                -T bundle.yaml
