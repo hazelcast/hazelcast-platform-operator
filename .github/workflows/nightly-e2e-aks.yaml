@@ -1,4 +1,4 @@
-name: Nightly E2E tests on AWS
+name: Nightly E2E tests on Azure
 on:
   push:
   workflow_dispatch:
@@ -99,4 +99,3 @@ jobs:
           inlineScript: |
             CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
             az aks delete --name sbishyr-aks --resource-group hazelcast-platform-operator -y
-
