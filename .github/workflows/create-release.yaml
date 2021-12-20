@@ -1,0 +1,38 @@
+name: Create Release
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_VERSION:
+        description: "Version in the form of vX.Y[.Z]"
+        required: true
+
+jobs:
+  create_release:
+    name: Create release
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Convert latest-snapshot to release version
+        run: |
+          sed -i  "s|ARG version=\"latest-snapshot\"|ARG version=\"${RELEASE_VERSION}\"|" Dockerfile
+          sed -i  "s|VERSION ?= latest-snapshot|VERSION ?= ${RELEASE_VERSION}|" Makefile
+
+          make generate-bundle-yaml
+
+      - name: Commit and push changes
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+
+          git add Makefile Dockerfile bundle.yaml config/
+          git commit --signoff -m "${RELEASE_VERSION:1}"
+          git push origin main
+
+      - name: Create a new tag
+        run: |
+          git tag ${RELEASE_VERSION}
+          git push origin ${RELEASE_VERSION}
