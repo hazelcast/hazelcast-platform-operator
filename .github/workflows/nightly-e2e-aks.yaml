@@ -68,16 +68,10 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create AKS cluster
-        uses: azure/CLI@v1
-        with:
-          azcliversion: 2.31.0
-          inlineScript: |
-            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-            az aks get-credentials --resource-group hazelcast-platform-operator --name "${CLUSTER_NAME}"
-
       - name: Test k8s cluster
         run: |-
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          az aks get-credentials --resource-group hazelcast-platform-operator --name "${CLUSTER_NAME}"
           kubectl get po --all-namespaces
 
   clean-up:
