@@ -13,6 +13,10 @@ jobs:
     env:
       RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VERSION }}
     steps:
+      - name: Validate version
+        run: | 
+          echo ${RELEASE_VERSION} | egrep "^v[0-9].[0-9](.[0-9])?$"
+
       - name: Checkout
         uses: actions/checkout@v2
 
