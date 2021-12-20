@@ -1,0 +1,102 @@
+name: Nightly E2E tests on AWS
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *"
+
+env:
+  AWS_REGION: us-east-1
+  KUBECTL_VERSION: 1.22.0
+jobs:
+  prepare-env:
+    name: Create AKS cluster
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create AKS cluster
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.31.0
+          inlineScript: |
+            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+            az aks create --resource-group hazelcast-platform-operator --name "${CLUSTER_NAME}" --node-count 2
+
+  aks-e2e-tests:
+    name: Run e2e test on AKS
+    runs-on: ubuntu-20.04
+    needs: "prepare-env"
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [ 'os', 'ee' ]
+    env:
+      NAMESPACE: test-operator-nightly-${{ matrix.edition }}
+      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
+      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install kubectl
+        run: |
+          mkdir -p ${GITHUB_WORKSPACE}/bin
+          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
+          curl -L https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create AKS cluster
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.31.0
+          inlineScript: |
+            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+            az aks get-credentials --resource-group hazelcast-platform-operator --name "${CLUSTER_NAME}"
+
+      - name: Test k8s cluster
+        run: |-
+          kubectl get po --all-namespaces
+
+  clean-up:
+    name: Delete AKS cluster
+    runs-on: ubuntu-20.04
+    if: ${{ always() }}
+    needs: ["prepare-env", "aks-e2e-tests"]
+    steps:
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create AKS cluster
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.31.0
+          inlineScript: |
+            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+            az aks delete --name sbishyr-aks --resource-group hazelcast-platform-operator -y
+
