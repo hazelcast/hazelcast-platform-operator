@@ -117,7 +117,7 @@ lint-yaml: setup-linters
 	PATH=${LINTER_PATH} yamllint -c ./hack/yamllint.yaml .
 
 setup-linters:
-	source hack/setup-linters.sh; get_linters ${LINTER_SETUP_DIR};
+	source hack/setup-linters.sh; get_linters ${LINTER_SETUP_DIR}
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 GO_TEST_FLAGS ?= "-ee=true"

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -x
 set -o errexit
 set -o pipefail
 set -o nounset
@@ -13,7 +12,7 @@ function check_linters {
 }
 
 function get_linters {
-  if [[ $# -ne 1 ]]; then
+  if [[ ${#} -ne 1 ]]; then
     echo "get_linters expects LINTER_SETUP_DIR argument"
     exit 1
   fi
@@ -27,12 +26,15 @@ function get_linters {
   if [[ -x "${lintbin}/bin/yamllint" ]]; then
     echo "yamllint is installed, skipping..."
   else
-    pip3 install --target "${lintbin}" yamllint
+    echo "installing yamllint..."
+    pip3 install --target "${lintbin}" yamllint &> /dev/null
   fi
 
   if [[ -x "${lintbin}/bin/golangci-lint" ]]; then
     echo "golangci-lint is installed, skipping..."
   else
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "${lintbin}/bin" v1.43.0
+    echo "installing golangci-lint..."
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
+      | sh -s -- -b "${lintbin}/bin" v1.43.0 &> /dev/null
   fi
 }
