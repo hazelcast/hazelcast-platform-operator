@@ -108,11 +108,16 @@ test-unit: manifests generate fmt vet
 
 lint: lint-go lint-yaml
 
-lint-go:
-	golangci-lint run
+LINTER_SETUP_DIR=$(shell pwd)/lintbin
+LINTER_PATH="${LINTER_SETUP_DIR}/bin:${PATH}"
+lint-go: setup-linters
+	PATH=${LINTER_PATH} golangci-lint run
 
-lint-yaml:
-	yamllint -c ./hack/yamllint.yaml .
+lint-yaml: setup-linters
+	PATH=${LINTER_PATH} yamllint -c ./hack/yamllint.yaml .
+
+setup-linters:
+	source hack/setup-linters.sh; get_linters ${LINTER_SETUP_DIR};
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 GO_TEST_FLAGS ?= "-ee=true"
