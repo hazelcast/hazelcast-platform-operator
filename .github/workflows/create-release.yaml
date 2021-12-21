@@ -34,7 +34,7 @@ jobs:
           git config user.name "devOpsHelm"
 
           git add Makefile Dockerfile bundle.yaml config/
-          git commit --signoff -m "${RELEASE_VERSION:1}"
+          git commit --signoff -m "${RELEASE_VERSION}"
           git push origin main
 
       - name: Create a new tag
