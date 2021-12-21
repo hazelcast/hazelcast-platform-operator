@@ -72,7 +72,6 @@ jobs:
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
-          kubectl get po --all-namespaces
 
       - name: Deploy Operator to EKS
         run: |
