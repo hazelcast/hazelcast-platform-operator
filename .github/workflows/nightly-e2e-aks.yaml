@@ -23,7 +23,8 @@ jobs:
           azcliversion: 2.31.0
           inlineScript: |
             CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-            az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" --node-count 2 --generate-ssh-keys
+            az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" \
+              --node-count 2 --generate-ssh-keys
 
   aks-e2e-tests:
     name: Run e2e test on AKS
@@ -61,7 +62,8 @@ jobs:
         run: |
           mkdir -p ${GITHUB_WORKSPACE}/bin
           echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-          curl -L https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+          curl -L https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl \
+            -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Azure login
         uses: azure/login@v1
@@ -84,7 +86,9 @@ jobs:
 
       - name: Create secret
         if: matrix.edition == 'ee'
-        run: kubectl create secret generic hazelcast-license-key --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+        run: | 
+          kubectl create secret generic hazelcast-license-key --namespace ${NAMESPACE} \
+            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
