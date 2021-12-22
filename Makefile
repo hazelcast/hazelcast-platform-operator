@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 5-preview-snapshot
+VERSION ?= latest-snapshot
 
 BUNDLE_VERSION := $(VERSION)
 VERSION_PARTS := $(subst ., ,$(VERSION))
@@ -44,11 +44,14 @@ IMAGE_TAG_BASE ?= hazelcast.com/hazelcast-platform-operator
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= hazelcast/hazelcast-platform-operator:$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # Default namespace
 NAMESPACE ?= default
+
+# Path to the kubectl command, if it is not in $PATH
+KUBECTL ?= kubectl
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -103,16 +106,29 @@ test-unit: manifests generate fmt vet
 	go test -v ./controllers/... -coverprofile cover.out
 	go test -v ./api/... -coverprofile cover.out
 
+lint: lint-go lint-yaml
+
+LINTER_SETUP_DIR=$(shell pwd)/lintbin
+LINTER_PATH="${LINTER_SETUP_DIR}/bin:${PATH}"
+lint-go: setup-linters
+	PATH=${LINTER_PATH} golangci-lint run
+
+lint-yaml: setup-linters
+	PATH=${LINTER_PATH} yamllint -c ./hack/yamllint.yaml .
+
+setup-linters:
+	source hack/setup-linters.sh; get_linters ${LINTER_SETUP_DIR}
+
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 GO_TEST_FLAGS ?= "-ee=true"
 test-it: manifests generate fmt vet ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS)
+	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
 test-e2e: generate fmt vet ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -timeout 20m -delete-timeout 15m $(GO_TEST_FLAGS)
-
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
+	
 ##@ Build
 
 GO_BUILD_TAGS ?= "localrun"
@@ -133,20 +149,43 @@ docker-push: ## Push docker image with the manager.
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+ifneq (,$(NAME_PREFIX))
+	cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
+endif
 	cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f -
+
+undeploy-keep-crd:
+	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
+clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
+	$(eval mc := $(shell $(KUBECTL) get managementcenter -n $(NAMESPACE) -o name))
+	$(eval hz := $(shell $(KUBECTL) get hazelcast -n $(NAMESPACE) -o name))
+	[[ "$(hz)" != "" ]] && $(KUBECTL) delete $(hz) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no hazelcast resources"
+	[[ "$(mc)" != "" ]] && $(KUBECTL) delete $(mc) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no managementcenter resources"
+	$(KUBECTL) delete secret hazelcast-license-key -n $(NAMESPACE) --wait=false || echo "no hazelcast-license-key secret found"
+	$(KUBECTL) delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=1m
+	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=4m
+	$(MAKE) undeploy-keep-crd
+	@if [[ -n "$($(KUBECTL) get hazelcast -n $(NAMESPACE) -o name)" ]]; then \
+		$(KUBECTL) patch $(hz) -p '{"metadata":{"finalizers":null}}' --type=merge; \
+	fi
+	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
+		$(KUBECTL) patch $(mc) -p '{"metadata":{"finalizers":null}}' --type=merge; \
+	fi
+	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 1m
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
@@ -175,7 +214,9 @@ bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metada
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(BUNDLE_VERSION) $(BUNDLE_METADATA_OPTS)
-	$(OPERATOR_SDK) bundle validate ./bundle
+	sed -i  "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
@@ -233,21 +274,17 @@ generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle
 STS_NAME ?= hazelcast
 expose-local: ## Port forward hazelcast Pod so that it's accessible from localhost
 	while [ true ] ; do \
-		kubectl get sts $(STS_NAME) &> /dev/null && break ; \
+		$(KUBECTL) get sts $(STS_NAME) &> /dev/null && break ; \
 		sleep 5 ; \
 	done;
-	kubectl wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
-	kubectl port-forward statefulset/$(STS_NAME) 8000:5701
+	$(KUBECTL) wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
+	$(KUBECTL) port-forward statefulset/$(STS_NAME) 8000:5701
 
 # Detect the OS to set per-OS defaults
-OS_NAME = $(shell uname -s)
+OS_NAME = $(shell uname -s | tr A-Z a-z)
 
 OPERATOR_SDK_VERSION ?= v1.13.1
-ifeq ($(OS_NAME), Linux)
-    OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_linux_amd64
-else ifeq ($(OS_NAME), Darwin)
-    OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_darwin_amd64
-endif
+OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
 
 OPERATOR_SDK=${shell pwd}/bin/operator-sdk
 .PHONY: operator-sdk
@@ -260,3 +297,17 @@ print-bundle-version:
 $(OPERATOR_SDK):
 	curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
 	chmod +x $(OPERATOR_SDK)
+
+
+OCP_OLM_CATALOG_VALIDATOR=${shell pwd}/bin/ocp-olm-catalog-validator
+OCP_OLM_CATALOG_VALIDATOR_VERSION ?= v0.0.1
+OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
+.PHONY: ocp-olm-catalog-validator
+ocp-olm-catalog-validator: $(OCP_OLM_CATALOG_VALIDATOR)
+
+$(OCP_OLM_CATALOG_VALIDATOR):
+	curl -sSL $(OCP_OLM_CATALOG_VALIDATOR_URL) -o $(OCP_OLM_CATALOG_VALIDATOR) --create-dirs || (echo "curl returned $$? trying to fetch ocp-olm-catalog-validator."; exit 1)
+	chmod +x $(OCP_OLM_CATALOG_VALIDATOR)
+
+bundle-ocp-validate: ocp-olm-catalog-validator
+	 $(OCP_OLM_CATALOG_VALIDATOR) ./bundle  --optional-values="file=./bundle/metadata/annotations.yaml"

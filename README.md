@@ -17,7 +17,7 @@ kubectl create secret generic hazelcast-license-key --from-literal=license-key=<
 ```shell
 git clone git@github.com:hazelcast/hazelcast-platform-operator.git
 cd hazelcast-platform-operator
-make deploy IMG=hazelcast/hazelcast-platform-operator:5-preview-snapshot
+make deploy IMG=hazelcast/hazelcast-platform-operator:5.0
 ```
 
 > Note: If you want to run the operator locally, you can execute `make install run` instead of `make deploy`.
@@ -162,7 +162,7 @@ Execute the following commands to run the end-to-end tests.
 ```shell
 kubectl create ns <YOUR NAMESPACE>
 
-make deploy NAMESPACE=<YOUR NAMESPACE> IMG=hazelcast/hazelcast-platform-operator:5-preview-snapshot
+make deploy NAMESPACE=<YOUR NAMESPACE> IMG=hazelcast/hazelcast-platform-operator:5.0
 
 kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE> --from-literal=license-key=<YOUR LICENSE KEY>
 

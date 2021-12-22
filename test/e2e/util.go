@@ -20,6 +20,14 @@ func runningLocally() bool {
 	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
 }
 
+func controllerManagerName() string {
+	np := os.Getenv("NAME_PREFIX")
+	if np == "" {
+		return "hazelcast-platform-controller-manager"
+	}
+
+	return np + "controller-manager"
+}
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
 	err := k8sClient.Get(ctx, name, deploy)
 	if err != nil {
@@ -48,15 +56,16 @@ func assertExists(name types.NamespacedName, obj client.Object) {
 	}, timeout, interval).Should(BeTrue())
 }
 
-func deleteIfExists(name types.NamespacedName, obj client.Object) error {
-	err := k8sClient.Get(context.Background(), name, obj)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
+func deleteIfExists(name types.NamespacedName, obj client.Object) {
+	Eventually(func() error {
+		err := k8sClient.Get(context.Background(), name, obj)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return nil
+			}
+			return err
 		}
-		return err
-	}
 
-	err = k8sClient.Delete(context.Background(), obj)
-	return err
+		return k8sClient.Delete(context.Background(), obj)
+	}, timeout, interval).Should(Succeed())
 }

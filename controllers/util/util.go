@@ -54,7 +54,7 @@ func checkPodsForFailure(ctx context.Context, cl client.Client, sts *appsv1.Stat
 		phase := pod.Status.Phase
 		if phase == corev1.PodFailed || phase == corev1.PodUnknown {
 			errs = append(errs, NewPodError(&pod))
-		} else if phase == corev1.PodPending {
+		} else if hasPodFailedWhilePending(&pod) {
 			errs = append(errs, errorsFromPendingPod(&pod)...)
 		}
 	}
@@ -64,16 +64,36 @@ func checkPodsForFailure(ctx context.Context, cl client.Client, sts *appsv1.Stat
 	return errs
 }
 
+func hasPodFailedWhilePending(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodPending {
+		return false
+	}
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.State.Waiting != nil {
+			switch status.State.Waiting.Reason {
+			case "ContainerCreating", "PodInitializing", "":
+			default:
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func errorsFromPendingPod(pod *corev1.Pod) PodErrors {
 	podErrors := make(PodErrors, 0, len(pod.Spec.Containers))
 	for _, status := range pod.Status.ContainerStatuses {
 		if status.State.Waiting != nil {
-			podErrors = append(podErrors, &PodError{
-				Name:      pod.Name,
-				Namespace: pod.Namespace,
-				Message:   status.State.Waiting.Message,
-				Reason:    status.State.Waiting.Reason,
-			})
+			switch status.State.Waiting.Reason {
+			case "ContainerCreating", "PodInitializing", "":
+			default:
+				podErrors = append(podErrors, &PodError{
+					Name:      pod.Name,
+					Namespace: pod.Namespace,
+					Message:   status.State.Waiting.Message,
+					Reason:    status.State.Waiting.Reason,
+				})
+			}
 		}
 	}
 	return podErrors

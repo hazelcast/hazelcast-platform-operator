@@ -29,7 +29,7 @@ var _ = Describe("Management-Center", func() {
 	}
 
 	var controllerManagerName = types.NamespacedName{
-		Name:      "hazelcast-platform-controller-manager",
+		Name:      controllerManagerName(),
 		Namespace: hzNamespace,
 	}
 

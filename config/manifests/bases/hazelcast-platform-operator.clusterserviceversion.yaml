@@ -4,6 +4,11 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Seamless Upgrades
+    categories: Database
+    containerImage: REPLACE_IMG
+    createdAt: REPLACE_DATE
+    description: Install Hazelcast clusters in Kubernetes environments.
+    support: Hazelcast, Inc
   name: hazelcast-platform-operator.v5.0.0
   namespace: placeholder
 spec:
@@ -46,14 +51,15 @@ spec:
   - database
   - caching
   links:
-  - name: Hazelcast Documentation
-    url: https://docs.hazelcast.org/
+  - name: Documentation
+    url: https://docs.hazelcast.com/operator/latest/
+  - name: Source Code
+    url: https://github.com/hazelcast/hazelcast-platform-operator
   maintainers:
-  - email: hasan@hazelcast.com
-    name: hasancelik
-  - email: alparslan@hazelcast.com
-    name: alparslanavci
+  - email: cloudnative@hazelcast.com
+    name: Hazelcast Cloud Native Team
   maturity: alpha
+  minKubeVersion: "1.16"
   provider:
     name: Hazelcast, Inc
   version: 5.0.0

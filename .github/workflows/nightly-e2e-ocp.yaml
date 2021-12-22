@@ -1,0 +1,101 @@
+name: Nightly E2E tests on OCP
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *"
+
+jobs:
+  ocp-e2e-tests:
+    name: Run e2e tests at OCP
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [ 'os', 'ee' ]
+    defaults:
+      run:
+        shell: bash
+    env:
+      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
+      OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
+      OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
+      OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
+      HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
+      NAMESPACE: oc-e2e-test-operator-nightly-${{ matrix.edition }}-${{ github.run_id }}
+      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+    steps:
+      - name: Checkout to hazelcast-operator
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Deploy Hazelcast-Platform-Operator to OCP
+        run: |
+          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc new-project $NAMESPACE
+
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          oc rollout status deployment ${NAME_PREFIX}controller-manager
+
+      - name: Create secret
+        if: matrix.edition == 'ee'
+        run: oc create secret generic hazelcast-license-key --from-literal=license-key=${HZ_LICENSE_KEY}
+
+      - name: Run Hazelcast E2E tests at OCP
+        id: e2e-test
+        run: |
+          case ${{ matrix.edition }} in
+            os) GO_TEST_FLAGS=-ee=false;;
+            ee) GO_TEST_FLAGS=-ee=true;;
+            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
+          esac
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          echo "RUNNING TESTS in $NAMESPACE"
+
+      - name: Clean up after Tests
+        if: always()
+        run: |
+          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+
+          hz=$(oc get hazelcast -o name)
+          [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
+
+          mc=$(oc get managementcenter -o name)
+          [[ "$mc" != "" ]] && oc delete $mc --wait=false || echo "no managementcenter resources"
+
+          if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
+            i=0
+            while ! oc rollout status deployment $DEPLOY_NAME; do
+              oc rollout restart deployment $DEPLOY_NAME
+              if [[ $i == 2 ]]; then
+                echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"
+                exit 1
+              fi
+              ((i++))
+            done
+          fi
+          sleep 10
+
+          hz=$(oc get hazelcast -o name)
+          mc=$(oc get managementcenter -o name)
+          if [[ $hz != "" ]] || [[ $mc != "" ]]; then
+            echo "Failure deleting hazelcast and managementcenter resources, \
+              namespace $NAMESPACE requires manual clean up"; exit 1
+          fi
+
+          if [[ ${{ matrix.edition }} == 'ee' ]]; then
+            oc delete secret hazelcast-license-key --wait=false
+          fi
+          make undeploy-keep-crd
+          oc delete project $NAMESPACE --wait=false
