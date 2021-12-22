@@ -17,7 +17,7 @@ jobs:
         run: |
           NUMBER='(0|[1-9][0-9]*)'
           echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
-          
+
       - name: Checkout
         uses: actions/checkout@v2
 
