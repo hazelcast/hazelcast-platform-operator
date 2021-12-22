@@ -51,6 +51,18 @@ jobs:
       - name: Push Operator Image
         run: make docker-push IMG="${IMAGE_NAME}"
 
+      - name: Upload Bundle to Jfrog
+        run: |
+          make generate-bundle-yaml VERSION=${RELEASE_VERSION}
+
+          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+               -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-latest.yaml" \
+               -T bundle.yaml
+
+          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+               -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-${RELEASE_VERSION}.yaml" \
+               -T bundle.yaml
+
   operatorhub_release:
     name: Create a PR in
     runs-on: ubuntu-latest
