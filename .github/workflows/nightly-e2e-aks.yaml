@@ -86,7 +86,7 @@ jobs:
 
       - name: Create secret
         if: matrix.edition == 'ee'
-        run: | 
+        run: |
           kubectl create secret generic hazelcast-license-key --namespace ${NAMESPACE} \
             --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
