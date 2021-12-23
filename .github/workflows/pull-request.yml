@@ -80,6 +80,7 @@ jobs:
   create-gke-cluster:
     name: Create GKE cluster and push image
     runs-on: ubuntu-20.04
+    needs: unit-tests
     outputs:
       CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
     env:
@@ -132,7 +133,7 @@ jobs:
   gke-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-20.04
-    needs: [ create-gke-cluster, linter ]
+    needs: create-gke-cluster
     strategy:
       fail-fast: false
       matrix:
