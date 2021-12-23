@@ -106,16 +106,29 @@ test-unit: manifests generate fmt vet
 	go test -v ./controllers/... -coverprofile cover.out
 	go test -v ./api/... -coverprofile cover.out
 
+lint: lint-go lint-yaml
+
+LINTER_SETUP_DIR=$(shell pwd)/lintbin
+LINTER_PATH="${LINTER_SETUP_DIR}/bin:${PATH}"
+lint-go: setup-linters
+	PATH=${LINTER_PATH} golangci-lint run
+
+lint-yaml: setup-linters
+	PATH=${LINTER_PATH} yamllint -c ./hack/yamllint.yaml .
+
+setup-linters:
+	source hack/setup-linters.sh; get_linters ${LINTER_SETUP_DIR}
+
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 GO_TEST_FLAGS ?= "-ee=true"
 test-it: manifests generate fmt vet ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS)
+	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
 test-e2e: generate fmt vet ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -timeout 30m -delete-timeout 20m $(GO_TEST_FLAGS)
-
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
+	
 ##@ Build
 
 GO_BUILD_TAGS ?= "localrun"

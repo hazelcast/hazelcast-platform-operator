@@ -399,6 +399,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 				},
 				Spec: v1.PodSpec{
 					ServiceAccountName: h.Name,
+					Affinity:           &h.Spec.Scheduling.Affinity,
+					Tolerations:        h.Spec.Scheduling.Tolerations,
+					NodeSelector:       h.Spec.Scheduling.NodeSelector,
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
 						Ports: []v1.ContainerPort{{

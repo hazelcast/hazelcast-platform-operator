@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 9 * * *"
- 
+
 jobs:
   ocp-e2e-tests:
     name: Run e2e tests at OCP
@@ -67,13 +67,21 @@ jobs:
         if: always()
         run: |
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
-          hz=$(oc get hazelcast -o name); [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
-          mc=$(oc get managementcenter -o name); [[ "$mc" != "" ]] && oc delete $mc --wait=false || echo "no managementcenter resources"
+
+          hz=$(oc get hazelcast -o name)
+          [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
+
+          mc=$(oc get managementcenter -o name)
+          [[ "$mc" != "" ]] && oc delete $mc --wait=false || echo "no managementcenter resources"
+
           if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
             i=0
             while ! oc rollout status deployment $DEPLOY_NAME; do
               oc rollout restart deployment $DEPLOY_NAME
-              if [[ $i == 2 ]]; then echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"; exit 1; fi
+              if [[ $i == 2 ]]; then
+                echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"
+                exit 1
+              fi
               ((i++))
             done
           fi
@@ -82,11 +90,12 @@ jobs:
           hz=$(oc get hazelcast -o name)
           mc=$(oc get managementcenter -o name)
           if [[ $hz != "" ]] || [[ $mc != "" ]]; then
-            echo "Failure deleting hazelcast and managementcenter resources, namespace $NAMESPACE requires manual clean up"; exit 1
+            echo "Failure deleting hazelcast and managementcenter resources, \
+              namespace $NAMESPACE requires manual clean up"; exit 1
           fi
 
           if [[ ${{ matrix.edition }} == 'ee' ]]; then
             oc delete secret hazelcast-license-key --wait=false
           fi
           make undeploy-keep-crd
-          oc delete project $NAMESPACE --wait=false 
+          oc delete project $NAMESPACE --wait=false

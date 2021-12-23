@@ -1,0 +1,14 @@
+extends: default
+rules:
+  document-start: disable
+  line-length:
+    max: 120
+  brackets:
+    max-spaces-inside: 1
+  truthy:
+    check-keys: false
+  indentation:
+    spaces: 2
+ignore: |
+  config/
+  bundle.yaml

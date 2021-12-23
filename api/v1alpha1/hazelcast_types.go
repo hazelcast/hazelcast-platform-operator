@@ -50,6 +50,25 @@ type HazelcastSpec struct {
 	// +kubebuilder:default:="dev"
 	// +optional
 	ClusterName string `json:"clusterName"`
+
+	// Scheduling details
+	// +optional
+	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
+}
+
+// SchedulingConfiguration defines the pods scheduling details
+type SchedulingConfiguration struct {
+	// Affinity
+	// +optional
+	Affinity corev1.Affinity `json:"affinity,omitempty"`
+
+	// Tolerations
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// NodeSelector
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // ExposeExternallyConfiguration defines how to expose Hazelcast cluster to external clients

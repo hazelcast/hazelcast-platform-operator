@@ -6,10 +6,41 @@ on:
     paths-ignore:
       - '**.md'
 
+env:
+  GCP_PROJECT_ID: hazelcast-33
+  GKE_ZONE: europe-west1-b
+  IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${{github.sha}}
+
 jobs:
+  linter:
+    name: Run linters
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v2.5.2
+        if: always()
+        with:
+          args: --timeout 2m
+          skip-go-installation: true
+
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        if: always()
+        with:
+          config_file: hack/yamllint.yaml
+
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-20.04
+    needs: linter
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -36,20 +67,71 @@ jobs:
       - name: Run integration tests (EE)
         run: make GO_TEST_TAGS=ee test-it
 
-  e2e-tests:
-    name: Run e2e tests
+  create-gke-cluster:
+    name: Create GKE cluster and push image
     runs-on: ubuntu-20.04
+    outputs:
+      CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
+    env:
+      GCP_NETWORK: operator-test-network
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Login to GCR
+        run: gcloud auth configure-docker -q
+
+      - name: Build Operator Image and Push to GCR
+        run: |
+          make docker-build-ci IMG=${{ env.IMG }} VERSION=${{github.sha}}
+          make docker-push IMG=${{ env.IMG }}
+
+      - name: Create GKE cluster
+        id: set-cluster-name
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
+          gcloud container clusters create ${CLUSTER_NAME} \
+            --zone=${{ env.GKE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --network=${{ env.GCP_NETWORK }} \
+            --machine-type=n1-standard-2 \
+            --num-nodes=2
+          sleep 30
+
+  gke-e2e-tests:
+    name: Run E2E tests
+    runs-on: ubuntu-20.04
+    needs: [ create-gke-cluster, linter ]
     strategy:
       fail-fast: false
       matrix:
         edition: [ 'os', 'ee' ]
     env:
-      IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${{github.sha}}-${{github.run_number}}
       NAMESPACE: test-operator-${{ matrix.edition }}
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
       KUBECTL_VERSION: 1.22.0
-      GCP_PROJECT_ID: hazelcast-33
-      GCP_NETWORK: operator-test-network
-      GKE_ZONE: europe-west1-b
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -71,7 +153,8 @@ jobs:
         run: |
           mkdir -p ${GITHUB_WORKSPACE}/bin
           echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
+            -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@master
@@ -80,45 +163,94 @@ jobs:
           service_account_key: ${{ secrets.GKE_SA_KEY }}
           export_default_credentials: true
 
-      - name: Create GKE cluster
-        run: |-
-          CLUSTER_NAME="operator-e2e-test-${{ matrix.edition }}-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
-          gcloud container clusters create ${CLUSTER_NAME} --zone=${{ env.GKE_ZONE }} --project=${{ env.GCP_PROJECT_ID }} --network=${{ env.GCP_NETWORK }} --machine-type=n1-standard-2 --num-nodes=2
-          sleep 30
-
       - name: Connect to the GKE cluster
-        run: gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --project ${{ env.GCP_PROJECT_ID }}
-
-      - name: Login to GCR
-        run: gcloud auth configure-docker -q
-
-      - name: Build Operator Image and Push to GCR
         run: |
-          make docker-build-ci IMG=${{ env.IMG }} VERSION=${{github.sha}}-${{github.run_number}}
-          make docker-push IMG=${{ env.IMG }}
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+            --zone ${{ env.GKE_ZONE }} \
+            --project ${{ env.GCP_PROJECT_ID }}
 
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
-          make install
-          make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.IMG }}
+          kubectl config set-context --current --namespace=$NAMESPACE
+
+          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+          echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
+
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secret
         if: matrix.edition == 'ee'
-        run: kubectl create secret generic hazelcast-license-key --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+        run: |
+          kubectl create secret generic hazelcast-license-key \
+            --namespace ${{ env.NAMESPACE }} \
+            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
       - name: Run Hazelcast E2E tests at GKE
+        id: e2e-test
         run: |
           case ${{ matrix.edition }} in
             os) GO_TEST_FLAGS=-ee=false;;
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${{ env.NAMESPACE }}
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
 
-      # Clean up
+      - name: Clean up after Tests
+        if: always()
+        run: |
+          hz=$(kubectl get hazelcast -o name); [[ "$hz" != "" ]] && kubectl delete $hz --wait=false \
+            || echo "no hazelcast resources"
+          mc=$(kubectl get managementcenter -o name); [[ "$mc" != "" ]] && kubectl delete $mc --wait=false \
+            || echo "no managementcenter resources"
+          if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
+            i=0
+            while ! kubectl rollout status deployment $DEPLOY_NAME; do
+              kubectl rollout restart deployment $DEPLOY_NAME
+              if [[ $i == 2 ]]; then
+                echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"
+                exit 1
+              fi
+              ((i++))
+            done
+          fi
+          sleep 10
+
+          hz=$(kubectl get hazelcast -o name)
+          mc=$(kubectl get managementcenter -o name)
+          if [[ $hz != "" ]] || [[ $mc != "" ]]; then
+            echo -n "Failure deleting hazelcast and managementcenter resources, "
+            echo "namespace $NAMESPACE requires manual clean up"
+            exit 1
+          fi
+
+          if [[ ${{ matrix.edition }} == 'ee' ]]; then
+            kubectl delete secret hazelcast-license-key --wait=false
+          fi
+          make undeploy-keep-crd
+
+          kubectl delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator --wait=true --timeout=1m
+          kubectl delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator --wait=true --timeout=4m
+
+          kubectl delete namespace $NAMESPACE --wait=true --timeout=1m
+
+  delete-cluster:
+    name: Delete Cluster
+    runs-on: ubuntu-20.04
+    if: always()
+    needs: [ create-gke-cluster, gke-e2e-tests ]
+    env:
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+    steps:
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          export_default_credentials: true
+
       - name: Delete GKE cluster
-        if: ${{ always() }}
+        if: always()
         run: |-
           gcloud container clusters delete ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --quiet

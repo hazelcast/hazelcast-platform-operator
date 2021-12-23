@@ -4,13 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	v1 "k8s.io/api/rbac/v1"
-
-	ctrl "sigs.k8s.io/controller-runtime"
-
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -78,7 +76,7 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 			if err != nil {
 				t.Errorf("Unexpected error have occured: %v", err)
 			}
-			if h.Spec != tt.want {
+			if !equality.Semantic.DeepEqual(h.Spec, tt.want) {
 				t.Errorf("HazelcastSpec = %v, want %v", tt.target, tt.want)
 			}
 		})

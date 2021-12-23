@@ -21,14 +21,20 @@ jobs:
 
       - name: Install eksctl
         run: |-
-          curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+          curl --silent --location \
+            "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" \
+            | tar xz -C /tmp
           sudo mv /tmp/eksctl /usr/local/bin
 
       - name: Create EKS cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          eksctl create cluster --name "${CLUSTER_NAME}" --zones ${AWS_REGION}a --zones ${AWS_REGION}c --with-oidc --without-nodegroup
-          eksctl create nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1 --node-type t3.medium --nodes 3 --nodes-min 2 --nodes-max 4 --managed
+          eksctl create cluster --name "${CLUSTER_NAME}" \
+            --zones ${AWS_REGION}a --zones ${AWS_REGION}c \
+            --with-oidc --without-nodegroup
+          eksctl create nodegroup --cluster "${CLUSTER_NAME}" \
+            --name node-group-1 --node-type t3.medium \
+            --nodes 3 --nodes-min 2 --nodes-max 4 --managed
 
   eks-e2e-tests:
     name: Run e2e test on EKS
@@ -66,7 +72,8 @@ jobs:
         run: |
           mkdir -p ${GITHUB_WORKSPACE}/bin
           echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-          curl -L https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+          curl -L https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl \
+            -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -93,7 +100,8 @@ jobs:
 
       - name: Create secret
         if: matrix.edition == 'ee'
-        run: kubectl create secret generic hazelcast-license-key --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+        run: kubectl create secret generic hazelcast-license-key \
+          --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
@@ -114,7 +122,7 @@ jobs:
     name: Delete EKS cluster
     runs-on: ubuntu-20.04
     if: ${{ always() }}
-    needs: ["prepare-env", "eks-e2e-tests"]
+    needs: [ "prepare-env", "eks-e2e-tests" ]
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -125,7 +133,9 @@ jobs:
 
       - name: Install eksctl
         run: |-
-          curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+          curl --silent --location \
+            "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" \
+            | tar xz -C /tmp
           sudo mv /tmp/eksctl /usr/local/bin
 
       - name: Delete EKS cluster
