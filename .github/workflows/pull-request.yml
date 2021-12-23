@@ -67,6 +67,16 @@ jobs:
       - name: Run integration tests (EE)
         run: make GO_TEST_TAGS=ee test-it
 
+      - name: Check if bundle.yaml is updated
+        run: |
+          mv bundle.yaml bundle.yaml.old
+          make generate-bundle-yaml
+
+          if ! cmp -s bundle.yaml bundle.yaml.old; then
+              echo "Please run generate-bundle.yaml"
+              exit 1
+          fi
+
   create-gke-cluster:
     name: Create GKE cluster and push image
     runs-on: ubuntu-20.04
