@@ -1,5 +1,9 @@
 package naming
 
+import (
+	corev1 "k8s.io/api/core/v1"
+)
+
 // Labels and label values
 const (
 	// Finalizer name used by operator
@@ -50,6 +54,8 @@ const (
 	HazelcastEERepo = "hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
 	HazelcastVersion = "5.0"
+	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
+	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
 
 // Management Center default configurations
@@ -58,4 +64,6 @@ const (
 	MCRepo = "hazelcast/management-center"
 	// MCVersion version of Management Center image
 	MCVersion = "5.0"
+	// MCImagePullPolicy pull policy for Management Center image
+	MCImagePullPolicy = corev1.PullIfNotPresent
 )

@@ -466,6 +466,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Annotations = podAnnotations(h)
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
+		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -572,6 +573,10 @@ func (r *HazelcastReconciler) applyDefaultHazelcastSpecs(ctx context.Context, h 
 	}
 	if h.Spec.Version == "" {
 		h.Spec.Version = n.HazelcastVersion
+		changed = true
+	}
+	if h.Spec.ImagePullPolicy == "" {
+		h.Spec.ImagePullPolicy = n.HazelcastImagePullPolicy
 		changed = true
 	}
 	if h.Spec.ClusterSize == 0 {

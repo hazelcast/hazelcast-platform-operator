@@ -284,6 +284,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
+		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -367,6 +368,10 @@ func (r *ManagementCenterReconciler) applyDefaultMCSpecs(ctx context.Context, mc
 	}
 	if mc.Spec.Version == "" {
 		mc.Spec.Version = n.MCVersion
+		changed = true
+	}
+	if mc.Spec.ImagePullPolicy == "" {
+		mc.Spec.ImagePullPolicy = n.MCImagePullPolicy
 		changed = true
 	}
 	if !changed {

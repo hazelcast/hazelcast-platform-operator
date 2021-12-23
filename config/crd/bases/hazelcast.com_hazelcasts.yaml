@@ -84,6 +84,10 @@ spec:
                     - Unisocket
                     type: string
                 type: object
+              imagePullPolicy:
+                default: IfNotPresent
+                description: Pull policy for the Hazelcast Platform image
+                type: string
               licenseKeySecret:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.

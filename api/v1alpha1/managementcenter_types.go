@@ -20,6 +20,11 @@ type ManagementCenterSpec struct {
 	// +optional
 	Version string `json:"version"`
 
+	// Pull policy for the Management Center image
+	// +kubebuilder:default:="IfNotPresent"
+	// +optional
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
 	LicenseKeySecret string `json:"licenseKeySecret"`
