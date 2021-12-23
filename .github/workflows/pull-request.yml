@@ -9,7 +9,7 @@ on:
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
-  IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${{github.sha}}
+  IMAGE: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${{github.sha}}
 
 jobs:
   linter:
@@ -114,8 +114,8 @@ jobs:
 
       - name: Build Operator Image and Push to GCR
         run: |
-          make docker-build-ci IMG=${{ env.IMG }} VERSION=${{github.sha}}
-          make docker-push IMG=${{ env.IMG }}
+          make docker-build-ci IMG=${{ env.IMAGE }} VERSION=${{github.sha}}
+          make docker-push IMG=${{ env.IMAGE }}
 
       - name: Create GKE cluster
         id: set-cluster-name
@@ -188,7 +188,7 @@ jobs:
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
 
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          make deploy IMG=$IMAGE NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secret
