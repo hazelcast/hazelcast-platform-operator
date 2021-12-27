@@ -28,6 +28,7 @@ var _ = Describe("Hazelcast controller", func() {
 		clusterSize      = n.DefaultClusterSize
 		version          = n.HazelcastVersion
 		licenseKeySecret = n.LicenseKeySecret
+		imagePullPolicy  = n.HazelcastImagePullPolicy
 	)
 
 	repository := n.HazelcastRepo
@@ -51,10 +52,11 @@ var _ = Describe("Hazelcast controller", func() {
 	}
 
 	defaultSpecValues := &test.HazelcastSpecValues{
-		ClusterSize: clusterSize,
-		Repository:  repository,
-		Version:     version,
-		LicenseKey:  licenseKeySecret,
+		ClusterSize:     clusterSize,
+		Repository:      repository,
+		Version:         version,
+		LicenseKey:      licenseKeySecret,
+		ImagePullPolicy: imagePullPolicy,
 	}
 
 	GetRandomObjectMeta := func() metav1.ObjectMeta {
@@ -168,14 +170,16 @@ var _ = Describe("Hazelcast controller", func() {
 
 			fetchedSts := &v1.StatefulSet{}
 			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedSts)
-
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].ImagePullPolicy).Should(Equal(fetchedCR.Spec.ImagePullPolicy))
 
 			Delete(hz)
 
-			By("Expecting to ClusterRole removed via finalizer")
+			By("Expecting to ClusterRole and ClusterRoleBinding removed via finalizer")
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRole{})
+			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRoleBinding{})
+
 		})
 	})
 
@@ -383,6 +387,7 @@ var _ = Describe("Hazelcast controller", func() {
 			Repository:       n.HazelcastRepo,
 			Version:          n.HazelcastVersion,
 			LicenseKeySecret: "",
+			ImagePullPolicy:  n.HazelcastImagePullPolicy,
 		}
 		It("should create CR with default values when empty specs are applied", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
@@ -401,6 +406,7 @@ var _ = Describe("Hazelcast controller", func() {
 					Repository:       "myorg/hazelcast",
 					Version:          "1.0",
 					LicenseKeySecret: "licenseKeySecret",
+					ImagePullPolicy:  corev1.PullAlways,
 				},
 			}
 
