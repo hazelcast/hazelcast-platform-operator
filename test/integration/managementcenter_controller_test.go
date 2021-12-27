@@ -95,9 +95,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			}
 
 			Create(mc)
-			fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
-
-			fetchedCR = EnsureStatus(mc)
+			fetchedCR := EnsureStatus(mc)
 			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues, ee)
 
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(BeNil())
