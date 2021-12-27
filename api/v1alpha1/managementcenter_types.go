@@ -30,7 +30,7 @@ type ManagementCenterSpec struct {
 	LicenseKeySecret string `json:"licenseKeySecret"`
 
 	// Connection configuration for the Hazelcast clusters that Management Center will monitor.
-	// +required
+	// +optional
 	HazelcastClusters []HazelcastClusterConfig `json:"hazelcastClusters,omitempty"`
 
 	// Configuration to expose Management Center to outside.
