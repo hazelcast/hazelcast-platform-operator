@@ -44,7 +44,7 @@ IMAGE_TAG_BASE ?= hazelcast.com/hazelcast-platform-operator
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
-IMG ?= hazelcast/hazelcast-platform-operator:$(VERSION)
+IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # Default namespace
@@ -146,8 +146,11 @@ docker-build-ci: ## Build docker image with the manager without running tests.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
-##@ Deployment
+docker-push-latest:
+	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
+	docker push ${IMAGE_TAG_BASE}:latest
 
+##@ Deployment
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 

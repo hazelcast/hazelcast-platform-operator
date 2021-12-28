@@ -49,7 +49,7 @@ jobs:
             docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push Operator Image
-        run: make docker-push IMG="${IMAGE_NAME}"
+        run: make docker-push docker-push-latest IMG="${IMAGE_NAME}"
 
       - name: Upload Bundle to Jfrog
         run: |
