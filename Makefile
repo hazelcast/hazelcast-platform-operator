@@ -143,6 +143,7 @@ docker-build: test docker-build-ci ## Build docker image with the manager.
 docker-build-ci: ## Build docker image with the manager without running tests.
 	docker build -t ${IMG} --build-arg version=${VERSION} .
 
+##@ Deployment
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
@@ -150,7 +151,6 @@ docker-push-latest:
 	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
 	docker push ${IMAGE_TAG_BASE}:latest
 
-##@ Deployment
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
