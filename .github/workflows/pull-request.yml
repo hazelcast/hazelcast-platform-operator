@@ -210,12 +210,15 @@ jobs:
           curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
             -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v0.4.3'
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GKE_SA_KEY }}
-          export_default_credentials: true
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Set up Cloud SDK
+          uses: google-github-actions/setup-gcloud@v0.3.0
+          with:
+            project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Connect to the GKE cluster
         run: |
@@ -297,12 +300,15 @@ jobs:
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v0.4.3'
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GKE_SA_KEY }}
-          export_default_credentials: true
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Set up Cloud SDK
+          uses: google-github-actions/setup-gcloud@v0.3.0
+          with:
+            project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Delete GKE cluster
         if: always()
