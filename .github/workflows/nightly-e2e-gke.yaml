@@ -83,9 +83,9 @@ jobs:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
       - name: Set up Cloud SDK
-          uses: google-github-actions/setup-gcloud@v0.3.0
-          with:
-            project_id: ${{ env.GCP_PROJECT_ID }}
+        uses: google-github-actions/setup-gcloud@v0.3.0
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Connect to the GKE cluster
         run: |
