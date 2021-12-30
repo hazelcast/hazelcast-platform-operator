@@ -131,12 +131,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v0.4.3'
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GKE_SA_KEY }}
-          export_default_credentials: true
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Set up Cloud SDK
+          uses: google-github-actions/setup-gcloud@v0.3.0
+          with:
+            project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Login to GCR
         run: gcloud auth configure-docker -q
