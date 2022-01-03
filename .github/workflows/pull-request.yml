@@ -132,7 +132,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.4.3'
+        uses: 'google-github-actions/auth@v0.4.4'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -212,7 +212,7 @@ jobs:
             -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.4.3'
+        uses: 'google-github-actions/auth@v0.4.4'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -270,7 +270,7 @@ jobs:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.4.3'
+        uses: 'google-github-actions/auth@v0.4.4'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
