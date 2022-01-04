@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/crc32"
 	"strconv"
 
 	config "github.com/hazelcast/hazelcast-platform-operator/controllers/config"
@@ -591,7 +592,8 @@ func podAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	}
 	cfg := config.HazelcastWrapper{Hazelcast: hazelcastConfigMapStruct(h).HazelcastConfigForcingRestart()}
 	cfgYaml, _ := yaml.Marshal(cfg)
-	ans[n.CurrentHazelcastConfigForcingRestart] = string(cfgYaml)
+	ans[n.CurrentHazelcastConfigForcingRestartChecksum] = fmt.Sprint(crc32.ChecksumIEEE(cfgYaml))
+
 	return ans
 }
 
