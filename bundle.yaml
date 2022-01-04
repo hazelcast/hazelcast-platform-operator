@@ -77,7 +77,7 @@ spec:
                 description: Name of the secret with Hazelcast Enterprise License Key.
                 type: string
               repository:
-                default: docker.io/hazelcast/hazelcast-enterprise
+                default: docker.io/hazelcast/hazelcast
                 description: Repository to pull the Hazelcast Platform image from.
                 type: string
               scheduling:
