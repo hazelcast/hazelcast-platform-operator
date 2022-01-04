@@ -103,7 +103,7 @@ spec:
                 description: Repository to pull the Management Center image from.
                 type: string
               version:
-                default: "5.0"
+                default: 5.0.4
                 description: Version of Management Center.
                 type: string
             type: object

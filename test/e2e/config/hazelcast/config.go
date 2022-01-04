@@ -19,7 +19,7 @@ var (
 				ClusterSize:      3,
 				ClusterName:      "development",
 				Repository:       repo(ee),
-				Version:          "5.0",
+				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
 			},
 		}
@@ -34,7 +34,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
 				Repository:       repo(ee),
-				Version:          "5.0",
+				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
 			},
 		}
@@ -49,7 +49,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
 				Repository:       repo(ee),
-				Version:          "latest-snapshot-slim",
+				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
 				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -69,7 +69,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
 				Repository:       repo(ee),
-				Version:          "latest-snapshot-slim",
+				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
 				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -89,7 +89,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      3,
 				Repository:       repo(ee),
-				Version:          "latest-snapshot-slim",
+				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
 				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,

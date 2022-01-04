@@ -4,7 +4,7 @@ metadata:
   name: managementcenter
 spec:
   repository: 'hazelcast/management-center'
-  version: '5.0'
+  version: '5.0.4'
   licenseKeySecret: hazelcast-license-key
   externalConnectivity:
     type: LoadBalancer
