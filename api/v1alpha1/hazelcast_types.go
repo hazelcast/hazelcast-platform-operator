@@ -29,7 +29,7 @@ type HazelcastSpec struct {
 	ClusterSize int32 `json:"clusterSize"`
 
 	// Repository to pull the Hazelcast Platform image from.
-	// +kubebuilder:default:="docker.io/hazelcast/hazelcast-enterprise"
+	// +kubebuilder:default:="docker.io/hazelcast/hazelcast"
 	// +optional
 	Repository string `json:"repository"`
 
