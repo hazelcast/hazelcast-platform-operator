@@ -400,20 +400,20 @@ func hazelcastConfigMapData(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	cfg := config.Hazelcast{
 		Jet: config.Jet{
-			Enabled: n.LabelValueTrue,
+			Enabled: &[]bool{true}[0],
 		},
 		Network: config.Network{
 			Join: config.Join{
 				Kubernetes: config.Kubernetes{
-					Enabled:     n.LabelValueTrue,
+					Enabled:     &[]bool{true}[0],
 					ServiceName: h.Name,
 				},
 			},
 			RestAPI: config.RestAPI{
-				Enabled: n.LabelValueTrue,
+				Enabled: &[]bool{true}[0],
 				EndpointGroups: config.EndpointGroups{
 					HealthCheck: config.HealthCheck{
-						Enabled: n.LabelValueTrue,
+						Enabled: &[]bool{true}[0],
 					},
 				},
 			},
@@ -421,7 +421,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
-		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = n.LabelValueTrue
+		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = &[]bool{true}[0]
 	}
 
 	if h.Spec.ExposeExternally.IsSmart() {
@@ -589,11 +589,9 @@ func podAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	if h.Spec.ExposeExternally.IsSmart() {
 		ans[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccess)
 	}
-	cfg := hazelcastConfigMapStruct(h)
-	cfgRestart := cfg.HazelcastConfigForcingRestart()
-	hzCfg := config.HazelcastWrapper{Hazelcast: cfgRestart}
-	hzCfgYaml, _ := yaml.Marshal(hzCfg)
-	ans[n.CurrentHazelcastConfigForcingRestart] = string(hzCfgYaml)
+	cfg := config.HazelcastWrapper{Hazelcast: hazelcastConfigMapStruct(h).HazelcastConfigForcingRestart()}
+	cfgYaml, _ := yaml.Marshal(cfg)
+	ans[n.CurrentHazelcastConfigForcingRestart] = string(cfgYaml)
 	return ans
 }
 
