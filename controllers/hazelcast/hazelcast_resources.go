@@ -384,8 +384,8 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
-		cm.Data = hazelcastConfigMapData(h)
-		return nil
+		cm.Data, err = hazelcastConfigMapData(h)
+		return err
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "ConfigMap", h.Name, "result", opResult)
@@ -393,10 +393,13 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 	return err
 }
 
-func hazelcastConfigMapData(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+func hazelcastConfigMapData(h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
 	cfg := hazelcastConfigMapStruct(h)
-	yml, _ := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
-	return map[string]string{"hazelcast.yaml": string(yml)}
+	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"hazelcast.yaml": string(yml)}, nil
 }
 
 func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
@@ -534,7 +537,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		sts.Spec.Replicas = &h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
-		sts.Spec.Template.Annotations = podAnnotations(h)
+		sts.Spec.Template.Annotations, err = podAnnotations(h)
+		if err != nil {
+			return err
+		}
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
@@ -587,16 +593,19 @@ func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return ans
 }
 
-func podAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+func podAnnotations(h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
 		ans[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccess)
 	}
 	cfg := config.HazelcastWrapper{Hazelcast: hazelcastConfigMapStruct(h).HazelcastConfigForcingRestart()}
-	cfgYaml, _ := yaml.Marshal(cfg)
+	cfgYaml, err := yaml.Marshal(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ans[n.CurrentHazelcastConfigForcingRestartChecksum] = fmt.Sprint(crc32.ChecksumIEEE(cfgYaml))
 
-	return ans
+	return ans, nil
 }
 
 func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
