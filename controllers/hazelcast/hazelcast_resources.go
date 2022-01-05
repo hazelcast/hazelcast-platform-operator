@@ -392,6 +392,7 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 	}
 	return err
 }
+
 func hazelcastConfigMapData(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	cfg := hazelcastConfigMapStruct(h)
 	yml, _ := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
@@ -547,9 +548,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
-		corev1.EnvVar{
+		{
 			Name:  "JAVA_OPTS",
-			Value: fmt.Sprintf("-Dhazelcast.config=%s/hazelcast.yaml", n.HazelcastMountPath)},
+			Value: fmt.Sprintf("-Dhazelcast.config=%s/hazelcast.yaml", n.HazelcastMountPath),
+		},
 	}
 	if h.Spec.LicenseKeySecret != "" {
 		envs = append(envs,
