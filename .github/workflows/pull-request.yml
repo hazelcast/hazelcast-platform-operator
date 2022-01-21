@@ -70,10 +70,10 @@ jobs:
         run: make test-unit
 
       - name: Run integration tests (OS)
-        run: make GO_TEST_TAGS=os test-it
+        run: make GO_TEST_FLAGS="-ee=false" test-it
 
       - name: Run integration tests (EE)
-        run: make GO_TEST_TAGS=ee test-it
+        run: make GO_TEST_FLAGS="-ee=true" test-it
 
       - name: Check if bundle.yaml is updated
         run: |
