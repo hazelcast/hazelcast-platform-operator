@@ -42,7 +42,7 @@ jobs:
       - name: Generate Operator and Operator Image
         run: |
           echo "Building the operator image"
-          make docker-build IMG=${RHEL_IMAGE} VERSION="${RELEASE_VERSION}"
+          make docker-build IMG=${RHEL_IMAGE} VERSION="${RELEASE_VERSION}" PARDOT_ID="redhat"
 
       - name: Push Hazelcast-Platform-Operator image to RHEL scan registry
         run: |

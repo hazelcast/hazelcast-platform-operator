@@ -140,8 +140,9 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
+PARDOT_ID ?= "dockerhub"
 docker-build-ci: ## Build docker image with the manager without running tests.
-	docker build -t ${IMG} --build-arg version=${VERSION} .
+	docker build -t ${IMG} --build-arg version=${VERSION} --build-arg pardotID=${PARDOT_ID} .
 
 ##@ Deployment
 docker-push: ## Push docker image with the manager.
