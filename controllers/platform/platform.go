@@ -22,7 +22,7 @@ const (
 type ProviderType string
 
 const (
-	AWS ProviderType = "AWS"
+	EKS ProviderType = "EKS"
 	AKS ProviderType = "AKS"
 	GKE ProviderType = "GKE"
 )
@@ -133,7 +133,7 @@ func getInfo() (Platform, error) {
 	for _, v := range apiList.Groups {
 		switch v.Name {
 		case "crd.k8s.amazonaws.com":
-			info.Provider = AWS
+			info.Provider = EKS
 			return info, nil
 		case "networking.gke.io":
 			info.Provider = GKE
