@@ -2,6 +2,7 @@ package platform
 
 import (
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
@@ -28,7 +29,12 @@ const (
 
 var (
 	plt Platform
+	cfg *rest.Config
 )
+
+func SetClientConfig(c *rest.Config) {
+	cfg = c
+}
 
 func GetPlatform() (Platform, error) {
 	if plt != (Platform{}) {
@@ -82,14 +88,25 @@ func GetVersion() (string, error) {
 	return plt.Version, nil
 }
 
-func getInfo() (Platform, error) {
-	info := Platform{Type: Kubernetes}
-	config, err := config.GetConfig()
-	if err != nil {
-		return Platform{}, err
+func newClient() (*discovery.DiscoveryClient, error) {
+
+	if cfg != nil {
+		return discovery.NewDiscoveryClientForConfig(cfg)
 	}
 
-	client, err := discovery.NewDiscoveryClientForConfig(config)
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return discovery.NewDiscoveryClientForConfig(config)
+
+}
+
+func getInfo() (Platform, error) {
+	info := Platform{Type: Kubernetes}
+
+	client, err := newClient()
 	if err != nil {
 		return Platform{}, err
 	}
