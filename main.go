@@ -82,7 +82,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	platform.SetClientConfig(cfg)
+	err = platform.FindAndSetPlatform(cfg)
+	if err != nil {
+		setupLog.Error(err, "unable to get platform info")
+		os.Exit(1)
+	}
 
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),

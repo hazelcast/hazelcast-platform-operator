@@ -29,12 +29,7 @@ const (
 )
 
 func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	pt, err := platform.GetType()
-	if err != nil {
-		return err
-	}
-
-	if pt == platform.Kubernetes {
+	if platform.GetType() == platform.Kubernetes {
 		return nil
 	}
 
@@ -49,7 +44,7 @@ func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *haze
 		},
 	}
 
-	err = controllerutil.SetControllerReference(mc, role, r.Scheme)
+	err := controllerutil.SetControllerReference(mc, role, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on Role")
 		return err
@@ -65,10 +60,7 @@ func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *haze
 }
 
 func (r *ManagementCenterReconciler) reconcileServiceAccount(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	pt, err := platform.GetType()
-	if err != nil {
-		return err
-	}
+	pt := platform.GetType()
 
 	if pt == platform.Kubernetes {
 		return nil
@@ -78,7 +70,7 @@ func (r *ManagementCenterReconciler) reconcileServiceAccount(ctx context.Context
 		ObjectMeta: metadata(mc),
 	}
 
-	err = controllerutil.SetControllerReference(mc, serviceAccount, r.Scheme)
+	err := controllerutil.SetControllerReference(mc, serviceAccount, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on ServiceAccount")
 		return err
@@ -94,12 +86,7 @@ func (r *ManagementCenterReconciler) reconcileServiceAccount(ctx context.Context
 }
 
 func (r *ManagementCenterReconciler) reconcileRoleBinding(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	pt, err := platform.GetType()
-	if err != nil {
-		return err
-	}
-
-	if pt == platform.Kubernetes {
+	if platform.GetType() == platform.Kubernetes {
 		return nil
 	}
 
@@ -118,7 +105,7 @@ func (r *ManagementCenterReconciler) reconcileRoleBinding(ctx context.Context, m
 			Name:     mc.Name,
 		},
 	}
-	err = controllerutil.SetControllerReference(mc, rb, r.Scheme)
+	err := controllerutil.SetControllerReference(mc, rb, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on RoleBinding")
 		return err
@@ -261,16 +248,11 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		},
 	}
 
-	pt, err := platform.GetType()
-	if err != nil {
-		return err
-	}
-
-	if pt == platform.OpenShift {
+	if platform.GetType() == platform.OpenShift {
 		sts.Spec.Template.Spec.ServiceAccountName = mc.Name
 	}
 
-	err = controllerutil.SetControllerReference(mc, sts, r.Scheme)
+	err := controllerutil.SetControllerReference(mc, sts, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on Statefulset")
 		return err

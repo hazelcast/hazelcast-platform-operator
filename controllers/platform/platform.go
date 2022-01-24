@@ -29,84 +29,37 @@ const (
 
 var (
 	plt Platform
-	cfg *rest.Config
 )
 
-func SetClientConfig(c *rest.Config) {
-	cfg = c
+func GetPlatform() Platform {
+	return plt
 }
 
-func GetPlatform() (Platform, error) {
-	if plt != (Platform{}) {
-		return plt, nil
-	}
+func GetType() PlatformType {
+	return plt.Type
+}
 
-	var err error
-	plt, err = getInfo()
+func GetProvider() ProviderType {
+	return plt.Provider
+}
+
+func GetVersion() string {
+	return plt.Version
+}
+
+func FindAndSetPlatform(cfg *rest.Config) error {
+	info, err := GetPlatformInfo(cfg)
 	if err != nil {
-		return Platform{}, err
+		return err
 	}
-	return plt, nil
+	plt = info
+	return nil
 }
 
-func GetProvider() (ProviderType, error) {
-	if plt != (Platform{}) {
-		return plt.Provider, nil
-	}
-
-	var err error
-	plt, err = getInfo()
-	if err != nil {
-		return "", err
-	}
-	return plt.Provider, nil
-}
-
-func GetType() (PlatformType, error) {
-	if plt.Type != "" {
-		return plt.Type, nil
-	}
-
-	var err error
-	plt, err = getInfo()
-	if err != nil {
-		return "", err
-	}
-	return plt.Type, nil
-}
-
-func GetVersion() (string, error) {
-	if plt.Version != "" {
-		return plt.Version, nil
-	}
-
-	var err error
-	plt, err = getInfo()
-	if err != nil {
-		return "", err
-	}
-	return plt.Version, nil
-}
-
-func newClient() (*discovery.DiscoveryClient, error) {
-
-	if cfg != nil {
-		return discovery.NewDiscoveryClientForConfig(cfg)
-	}
-
-	config, err := config.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	return discovery.NewDiscoveryClientForConfig(config)
-
-}
-
-func getInfo() (Platform, error) {
+func GetPlatformInfo(cfg *rest.Config) (Platform, error) {
 	info := Platform{Type: Kubernetes}
 
-	client, err := newClient()
+	client, err := newClient(cfg)
 	if err != nil {
 		return Platform{}, err
 	}
@@ -145,4 +98,17 @@ func getInfo() (Platform, error) {
 	}
 
 	return info, nil
+}
+
+func newClient(cfg *rest.Config) (*discovery.DiscoveryClient, error) {
+	if cfg != nil {
+		return discovery.NewDiscoveryClientForConfig(cfg)
+	}
+
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return discovery.NewDiscoveryClientForConfig(config)
 }

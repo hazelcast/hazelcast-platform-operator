@@ -52,7 +52,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	platform.SetClientConfig(cfg)
+	err = platform.FindAndSetPlatform(cfg)
+	Expect(err).NotTo(HaveOccurred())
 
 	err = hazelcastcomv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())

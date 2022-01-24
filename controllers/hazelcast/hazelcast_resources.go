@@ -123,11 +123,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 	}
 
-	pt, err := platform.GetType()
-	if err != nil {
-		return err
-	}
-	if pt == platform.OpenShift {
+	if platform.GetType() == platform.OpenShift {
 		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{"security.openshift.io"},
 			Resources: []string{"securitycontextconstraints"},
