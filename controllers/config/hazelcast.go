@@ -5,9 +5,10 @@ type HazelcastWrapper struct {
 }
 
 type Hazelcast struct {
-	Jet         Jet     `yaml:"jet,omitempty"`
-	Network     Network `yaml:"network,omitempty"`
-	ClusterName string  `yaml:"cluster-name,omitempty"`
+	Jet         Jet         `yaml:"jet,omitempty"`
+	Network     Network     `yaml:"network,omitempty"`
+	ClusterName string      `yaml:"cluster-name,omitempty"`
+	Persistence Persistence `yaml:"persistence,omitempty"`
 }
 
 type Jet struct {
@@ -21,6 +22,17 @@ type Network struct {
 
 type Join struct {
 	Kubernetes Kubernetes `yaml:"kubernetes,omitempty"`
+}
+
+type Persistence struct {
+	Enabled                   *bool  `yaml:"enabled,omitempty"`
+	BaseDir                   string `yaml:"base-dir"`
+	BackupDir                 string `yaml:"backup-dir,omitempty"`
+	Parallelism               int32  `yaml:"parallelism"`
+	ValidationTimeoutSec      int32  `yaml:"validation-timeout-seconds"`
+	DataLoadTimeoutSec        int32  `yaml:"data-load-timeout-seconds"`
+	ClusterDataRecoveryPolicy string `yaml:"cluster-data-recovery-policy"`
+	AutoRemoveStaleData       *bool  `yaml:"auto-remove-stale-data"`
 }
 
 type Kubernetes struct {
@@ -38,10 +50,11 @@ type RestAPI struct {
 }
 
 type EndpointGroups struct {
-	HealthCheck HealthCheck `yaml:"HEALTH_CHECK,omitempty"`
+	HealthCheck  EndpointGroup `yaml:"HEALTH_CHECK,omitempty"`
+	ClusterWrite EndpointGroup `yaml:"CLUSTER_WRITE,omitempty"`
 }
 
-type HealthCheck struct {
+type EndpointGroup struct {
 	Enabled *bool `yaml:"enabled,omitempty"`
 }
 
