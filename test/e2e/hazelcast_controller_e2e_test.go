@@ -213,32 +213,38 @@ var _ = Describe("Hazelcast", func() {
 	})
 
 	Describe("Hazelcast CR with Persistence feature enabled", func() {
-		hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
-		create(hazelcast)
+		It("should enable persistence for members successfully", func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
 
-		assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
-		assertMemberLogs(hazelcast, "Hot Restart procedure completed")
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
+			create(hazelcast)
 
-		pods := &corev1.PodList{}
-		podLabels := client.MatchingLabels{
-			n.ApplicationNameLabel:         n.Hazelcast,
-			n.ApplicationInstanceNameLabel: hazelcast.Name,
-			n.ApplicationManagedByLabel:    n.OperatorName,
-		}
-		if err := k8sClient.List(context.Background(), pods, client.InNamespace(hazelcast.Namespace), podLabels); err != nil {
-			Fail("Could not find Pods for Hazelcast " + hazelcast.Name)
-		}
+			assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
+			assertMemberLogs(hazelcast, "Hot Restart procedure completed")
 
-		for _, pod := range pods.Items {
-			Expect(pod.Spec.Volumes).Should(ConsistOf(corev1.Volume{
-				Name: n.PersistencePvcName,
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: n.PersistencePvcName + "-" + pod.Name,
+			pods := &corev1.PodList{}
+			podLabels := client.MatchingLabels{
+				n.ApplicationNameLabel:         n.Hazelcast,
+				n.ApplicationInstanceNameLabel: hazelcast.Name,
+				n.ApplicationManagedByLabel:    n.OperatorName,
+			}
+			if err := k8sClient.List(context.Background(), pods, client.InNamespace(hazelcast.Namespace), podLabels); err != nil {
+				Fail("Could not find Pods for Hazelcast " + hazelcast.Name)
+			}
+
+			for _, pod := range pods.Items {
+				Expect(pod.Spec.Volumes).Should(ConsistOf(corev1.Volume{
+					Name: n.PersistencePvcName,
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: n.PersistencePvcName + "-" + pod.Name,
+						},
 					},
-				},
-			}))
-		}
+				}))
+			}
+		})
 	})
 })
 
