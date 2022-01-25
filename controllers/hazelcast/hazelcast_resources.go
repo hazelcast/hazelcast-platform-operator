@@ -542,6 +542,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
+	if h.Spec.Persistence.IsEnabled() {
+		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+	}
+
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on Statefulset")
@@ -559,32 +563,33 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
-		if h.Spec.Persistence.IsEnabled() {
-			sts.Spec.VolumeClaimTemplates = []v1.PersistentVolumeClaim{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "hot-restart-persistence",
-						Namespace: h.Namespace,
-						Labels:    labels(h),
-					},
-					Spec: v1.PersistentVolumeClaimSpec{
-						AccessModes: h.Spec.Persistence.Pvc.AccessModes,
-						Resources: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								corev1.ResourceStorage: h.Spec.Persistence.Pvc.RequestStorage,
-							},
-						},
-						StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,
-					},
-				},
-			}
-		}
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
+	return []v1.PersistentVolumeClaim{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      n.PersistencePvcName,
+				Namespace: h.Namespace,
+				Labels:    labels(h),
+			},
+			Spec: v1.PersistentVolumeClaimSpec{
+				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
+				Resources: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						corev1.ResourceStorage: h.Spec.Persistence.Pvc.RequestStorage,
+					},
+				},
+				StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,
+			},
+		},
+	}
 }
 
 func persistentVolumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
@@ -596,7 +601,7 @@ func persistentVolumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount 
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
-			Name:      "hot-restart-persistence",
+			Name:      n.PersistencePvcName,
 			MountPath: "/data/hot-restart",
 		})
 	}
