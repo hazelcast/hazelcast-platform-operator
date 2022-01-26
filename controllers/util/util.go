@@ -2,12 +2,15 @@ package util
 
 import (
 	"context"
+	"os"
 	"strings"
 
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -114,4 +117,9 @@ func IsEnterprise(repo string) bool {
 		return false
 	}
 	return strings.HasSuffix(path[len(path)-1], "-enterprise")
+}
+
+func IsPhoneHomeEnabled() bool {
+	phEnabled, found := os.LookupEnv(n.PhoneHomeEnabledEnv)
+	return !found || phEnabled == "true"
 }

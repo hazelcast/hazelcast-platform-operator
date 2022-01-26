@@ -70,3 +70,8 @@ const (
 	// MCImagePullPolicy pull policy for Management Center image
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )
+
+// Operator Values
+const (
+	PhoneHomeEnabledEnv = "PHONE_HOME_ENABLED"
+)

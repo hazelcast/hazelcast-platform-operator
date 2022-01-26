@@ -23,6 +23,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 )
 
@@ -36,17 +37,21 @@ type HazelcastReconciler struct {
 	Scheme               *runtime.Scheme
 	hzClients            sync.Map
 	triggerReconcileChan chan event.GenericEvent
+	metrics              *phonehome.Metrics
 }
 
-func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme) *HazelcastReconciler {
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, m *phonehome.Metrics) *HazelcastReconciler {
 	return &HazelcastReconciler{
 		Client:               c,
 		Log:                  log,
 		Scheme:               s,
 		triggerReconcileChan: make(chan event.GenericEvent),
+		metrics:              m,
 	}
 }
 
+// Role related to Operator UUID
+//+kubebuilder:rbac:groups="apps",resources=deployments,verbs=get,namespace=system
 // Openshift related permissions
 //+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=use
 // Role related to CRs
@@ -75,11 +80,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
-	err = r.applyDefaultHazelcastSpecs(ctx, h)
-	if err != nil {
-		logger.Error(err, "Failed to apply default specs")
-		return update(ctx, r.Client, h, failedPhase(err))
-	}
 	// Add finalizer for Hazelcast CR to cleanup ClusterRole
 	err = r.addFinalizer(ctx, h, logger)
 	if err != nil {
@@ -97,6 +97,19 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
+	}
+
+	err = r.applyDefaultHazelcastSpecs(ctx, h)
+	if err != nil {
+		logger.Error(err, "Failed to apply default specs")
+		return update(ctx, r.Client, h, failedPhase(err))
+	}
+
+	if util.IsPhoneHomeEnabled() {
+		if _, ok := r.metrics.HazelcastMetrics[h.UID]; !ok {
+			r.metrics.HazelcastMetrics[h.UID] = &phonehome.HazelcastMetrics{}
+		}
+		r.metrics.HazelcastMetrics[h.UID].FillInitial(h)
 	}
 
 	err = validation.ValidateSpec(h)
@@ -163,6 +176,13 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	r.createHazelcastClient(ctx, req, h)
+
+	if util.IsPhoneHomeEnabled() {
+		firstDeployment := r.metrics.HazelcastMetrics[h.UID].FillAfterDeployment(h)
+		if firstDeployment {
+			phonehome.CallPhoneHome(r.metrics)
+		}
+	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, h, logger)
 	if err != nil {

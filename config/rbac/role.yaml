@@ -78,6 +78,12 @@ rules:
 - apiGroups:
   - apps
   resources:
+  - deployments
+  verbs:
+  - get
+- apiGroups:
+  - apps
+  resources:
   - statefulsets
   verbs:
   - create

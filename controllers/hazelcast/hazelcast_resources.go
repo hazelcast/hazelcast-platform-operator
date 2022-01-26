@@ -62,6 +62,9 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 		logger.Error(err, "Failed to remove finalizer from custom resource")
 		return err
 	}
+	if util.IsPhoneHomeEnabled() {
+		delete(r.metrics.HazelcastMetrics, h.UID)
+	}
 	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	if c, ok := r.hzClients.Load(key); ok {
 		r.hzClients.Delete(key)
@@ -553,6 +556,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		{
 			Name:  "JAVA_OPTS",
 			Value: fmt.Sprintf("-Dhazelcast.config=%s/hazelcast.yaml", n.HazelcastMountPath),
+		},
+		{
+			Name:  "HZ_PARDOT_ID",
+			Value: "operator",
 		},
 	}
 	if h.Spec.LicenseKeySecret != "" {
