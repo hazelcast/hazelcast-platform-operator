@@ -103,8 +103,8 @@ test-all: test test-e2e
 test: test-unit test-it
 
 test-unit: manifests generate fmt vet
-	go test -v ./controllers/... -coverprofile cover.out
-	go test -v ./api/... -coverprofile cover.out
+	PHONE_HOME_ENABLED=false go test -v ./controllers/... -coverprofile cover.out
+	PHONE_HOME_ENABLED=false go test -v ./api/... -coverprofile cover.out
 
 lint: lint-go lint-yaml
 
