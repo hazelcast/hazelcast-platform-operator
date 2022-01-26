@@ -14,4 +14,5 @@ type Metrics struct {
 	K8sDistibution   string
 	K8sVersion       string
 	HazelcastMetrics map[types.UID]*HazelcastMetrics
+	MCMetrics        map[types.UID]*MCMetrics
 }

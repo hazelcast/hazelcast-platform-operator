@@ -28,6 +28,32 @@ const (
 	javaOpts  = "JAVA_OPTS"
 )
 
+func (r *ManagementCenterReconciler) addFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
+		controllerutil.AddFinalizer(mc, n.Finalizer)
+		err := r.Update(ctx, mc)
+		if err != nil {
+			logger.Error(err, "Failed to add finalizer into custom resource")
+			return err
+		}
+		logger.V(1).Info("Finalizer added into custom resource successfully")
+	}
+	return nil
+}
+
+func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	controllerutil.RemoveFinalizer(mc, n.Finalizer)
+	err := r.Update(ctx, mc)
+	if err != nil {
+		logger.Error(err, "Failed to remove finalizer from custom resource")
+		return err
+	}
+	if util.IsPhoneHomeEnabled() {
+		delete(r.metrics.MCMetrics, mc.UID)
+	}
+	return nil
+}
+
 func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
 	if platform.GetType() == platform.Kubernetes {
 		return nil

@@ -2,19 +2,21 @@ package managementcenter
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/go-logr/logr"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const retryAfter = 10 * time.Second
@@ -22,10 +24,21 @@ const retryAfter = 10 * time.Second
 // ManagementCenterReconciler reconciles a ManagementCenter object
 type ManagementCenterReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log     logr.Logger
+	Scheme  *runtime.Scheme
+	metrics *phonehome.Metrics
 }
 
+func NewManagementCenterReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, m *phonehome.Metrics) *ManagementCenterReconciler {
+	return &ManagementCenterReconciler{
+		Client:  c,
+		Log:     log,
+		Scheme:  s,
+		metrics: m,
+	}
+}
+
+// Role related to CRs
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/status,verbs=get;update;patch,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/finalizers,verbs=update,namespace=system
@@ -48,9 +61,21 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return update(ctx, r.Status(), mc, failedPhase(err))
 	}
 
+	err = r.addFinalizer(ctx, mc, logger)
+	if err != nil {
+		logger.Error(err, "Failed to add finalizer into custom resource")
+		return update(ctx, r.Client, mc, failedPhase(err))
+	}
+
 	//Check if the ManagementCenter CR is marked to be deleted
 	if mc.GetDeletionTimestamp() != nil {
-		logger.V(1).Info("Management Center resource is getting deleted. Ignoring since all child objects must be deleted.")
+		// Execute finalizer's pre-delete function to delete MC metric
+		err = r.executeFinalizer(ctx, mc, logger)
+		if err != nil {
+			logger.Error(err, "Finalizer execution failed")
+			return update(ctx, r.Client, mc, failedPhase(err))
+		}
+		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
 	}
 
@@ -58,6 +83,13 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		logger.Error(err, "Failed to apply default specs")
 		return update(ctx, r.Client, mc, failedPhase(err))
+	}
+
+	if util.IsPhoneHomeEnabled() {
+		if _, ok := r.metrics.MCMetrics[mc.UID]; !ok {
+			r.metrics.MCMetrics[mc.UID] = &phonehome.MCMetrics{}
+		}
+		r.metrics.MCMetrics[mc.UID].FillInitial(mc)
 	}
 
 	err = r.reconcileRole(ctx, mc, logger)
@@ -98,6 +130,18 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 
+	if util.IsPhoneHomeEnabled() {
+		firstDeployment := r.metrics.MCMetrics[mc.UID].FillAfterDeployment(mc)
+		if firstDeployment {
+			phonehome.CallPhoneHome(r.metrics)
+		}
+	}
+
+	err = r.updateLastSuccessfulConfiguration(ctx, mc, logger)
+	if err != nil {
+		logger.Info("Could not save the current successful spec as annotation to the custom resource")
+	}
+
 	return update(ctx, r.Status(), mc, runningPhase())
 }
 
@@ -108,4 +152,24 @@ func (r *ManagementCenterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Complete(r)
+}
+
+func (r *ManagementCenterReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	hs, err := json.Marshal(h.Spec)
+	if err != nil {
+		return err
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, h, func() error {
+		if h.ObjectMeta.Annotations == nil {
+			ans := map[string]string{}
+			h.ObjectMeta.Annotations = ans
+		}
+		h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Management Center Annotation", h.Name, "result", opResult)
+	}
+	return err
 }
