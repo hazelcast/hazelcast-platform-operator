@@ -73,14 +73,16 @@ var _ = BeforeSuite(func() {
 		k8sManager.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
 		k8sManager.GetScheme(),
+		nil,
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&managementcenter.ManagementCenterReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Management Center"),
-	}).SetupWithManager(k8sManager)
+	err = managementcenter.NewManagementCenterReconciler(
+		k8sManager.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Management Center"),
+		k8sManager.GetScheme(),
+		nil,
+	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
