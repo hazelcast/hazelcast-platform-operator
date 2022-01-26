@@ -100,7 +100,7 @@ jobs:
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
 
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX PHONE_HOME_ENABLED=false
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secret

@@ -78,7 +78,7 @@ jobs:
           EOF
 
           oc secrets link hazelcast-platform-controller-manager pull-secret --for=pull
-          make deploy  IMG=$RHEL_IMAGE  NAMESPACE=$NAMESPACE
+          make deploy  IMG=$RHEL_IMAGE  NAMESPACE=$NAMESPACE PHONE_HOME_ENABLED=false
           oc rollout status deployment hazelcast-platform-controller-manager
 
       - name: Test the Operator

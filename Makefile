@@ -124,7 +124,7 @@ GO_TEST_FLAGS ?= "-ee=true"
 test-it: manifests generate fmt vet ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
+	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=false go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
 test-e2e: generate fmt vet ## Run end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
@@ -136,7 +136,7 @@ build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager -tags $(GO_BUILD_TAGS) main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run -tags $(GO_BUILD_TAGS)  ./main.go
+	PHONE_HOME_ENABLED=false go run -tags $(GO_BUILD_TAGS)  ./main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
@@ -161,6 +161,10 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 ifneq (,$(NAME_PREFIX))
 	cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
+endif
+	cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml
+ifeq (false,$(PHONE_HOME_ENABLED))
+	cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path disable_phone_home.yaml
 endif
 	cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
