@@ -47,6 +47,18 @@ func GetVersion() string {
 	return plt.Version
 }
 
+func GetDistribution() string {
+	if plt.Type == OpenShift {
+		return string(OpenShift)
+	}
+
+	if plt.Provider == "" {
+		return string(Kubernetes)
+	}
+
+	return string(plt.Provider)
+}
+
 func FindAndSetPlatform(cfg *rest.Config) error {
 	info, err := GetPlatformInfo(cfg)
 	if err != nil {

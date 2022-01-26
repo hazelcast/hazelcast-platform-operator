@@ -55,3 +55,26 @@ func statefulSet(updatedReplicas int32, readyReplicas int32, observedGeneration 
 		},
 	}
 }
+
+func Test_deploymentName(t *testing.T) {
+	tests := []struct {
+		podName        string
+		deploymentName string
+	}{
+		{
+			podName:        "hazelcast-platform-controller-manager-64696777fc-4zk9h",
+			deploymentName: "hazelcast-platform-controller-manager",
+		},
+		{
+			podName:        "a-64696777fc-4zk9h",
+			deploymentName: "a",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.podName, func(t *testing.T) {
+			if got := deploymentName(tt.podName); got != tt.deploymentName {
+				t.Errorf("deploymentName() = %v, podName %v", got, tt.podName)
+			}
+		})
+	}
+}

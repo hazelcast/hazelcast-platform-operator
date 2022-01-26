@@ -74,4 +74,8 @@ const (
 // Operator Values
 const (
 	PhoneHomeEnabledEnv = "PHONE_HOME_ENABLED"
+	PardotIDEnv         = "PARDOT_ID"
+	OperatorVersionEnv  = "OPERATOR_VERSION"
+	NamespaceEnv        = "NAMESPACE"
+	PodNameEnv          = "POD_NAME"
 )

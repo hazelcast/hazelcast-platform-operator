@@ -3,6 +3,11 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
@@ -88,19 +93,36 @@ func main() {
 		os.Exit(1)
 	}
 
+	var metrics *phonehome.Metrics
+	if util.IsPhoneHomeEnabled() {
+		metrics = &phonehome.Metrics{
+			UID:              util.GetOperatorID(cfg),
+			CreatedAt:        time.Now(),
+			HazelcastMetrics: make(map[types.UID]*phonehome.HazelcastMetrics),
+			MCMetrics:        make(map[types.UID]*phonehome.MCMetrics),
+			PardotID:         util.GetPardotID(),
+			Version:          util.GetOperatorVersion(),
+			K8sDistibution:   platform.GetDistribution(),
+			K8sVersion:       platform.GetVersion(),
+		}
+	}
+
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
 		mgr.GetScheme(),
+		metrics,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Hazelcast")
 		os.Exit(1)
 	}
-	if err = (&managementcenter.ManagementCenterReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Management Center"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+
+	if err = managementcenter.NewManagementCenterReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Management Center"),
+		mgr.GetScheme(),
+		metrics,
+	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ManagementCenter")
 		os.Exit(1)
 	}
@@ -113,6 +135,10 @@ func main() {
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
+	}
+
+	if util.IsPhoneHomeEnabled() {
+		phonehome.Start(metrics)
 	}
 
 	setupLog.Info("starting manager")
