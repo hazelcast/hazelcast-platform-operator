@@ -133,8 +133,7 @@ func GetOperatorVersion() string {
 }
 
 func GetPardotID() string {
-	pid, _ := os.LookupEnv(n.PardotIDEnv)
-	return pid
+	return os.Getenv(n.PardotIDEnv)
 }
 
 func GetOperatorID(c *rest.Config) types.UID {
