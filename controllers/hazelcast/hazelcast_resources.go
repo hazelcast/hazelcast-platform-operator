@@ -7,25 +7,24 @@ import (
 	"hash/crc32"
 	"strconv"
 
-	config "github.com/hazelcast/hazelcast-platform-operator/controllers/config"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
-	"gopkg.in/yaml.v2"
-
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/go-logr/logr"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	config "github.com/hazelcast/hazelcast-platform-operator/controllers/config"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 )
 
 // Environment variables used for Hazelcast cluster configuration

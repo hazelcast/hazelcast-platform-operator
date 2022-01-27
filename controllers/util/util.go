@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +16,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
 func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {

@@ -1,8 +1,9 @@
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	"testing"
+
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestExposeExternallyConfigurationIsEnabled(t *testing.T) {

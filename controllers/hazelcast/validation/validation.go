@@ -2,9 +2,9 @@ package validation
 
 import (
 	"errors"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 )
 
 func ValidateSpec(h *hazelcastv1alpha1.Hazelcast) error {

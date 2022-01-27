@@ -7,6 +7,7 @@ package hazelcast
 
 import (
 	"github.com/hazelcast/hazelcast-go-client"
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 

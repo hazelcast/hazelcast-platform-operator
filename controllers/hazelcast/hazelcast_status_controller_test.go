@@ -3,16 +3,16 @@ package hazelcast
 import (
 	"time"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hzTypes "github.com/hazelcast/hazelcast-go-client/types"
-	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
 var _ = Describe("Hazelcast status", func() {

@@ -9,10 +9,11 @@ import (
 	"github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
-	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
 type HazelcastClient struct {
