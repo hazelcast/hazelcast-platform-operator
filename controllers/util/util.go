@@ -129,8 +129,7 @@ func IsPhoneHomeEnabled() bool {
 }
 
 func GetOperatorVersion() string {
-	ov, _ := os.LookupEnv(n.OperatorVersionEnv)
-	return ov
+	return os.Getenv(n.OperatorVersionEnv)
 }
 
 func GetPardotID() string {
