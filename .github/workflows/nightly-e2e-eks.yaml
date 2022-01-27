@@ -94,7 +94,7 @@ jobs:
 
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
 
-          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX} PHONE_HOME_ENABLED=false
+          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secret

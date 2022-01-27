@@ -45,7 +45,7 @@ jobs:
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           oc new-project $NAMESPACE
 
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX PHONE_HOME_ENABLED=false
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
           oc rollout status deployment ${NAME_PREFIX}controller-manager
 
       - name: Create secret

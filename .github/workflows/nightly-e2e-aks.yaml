@@ -80,7 +80,7 @@ jobs:
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
-          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX} PHONE_HOME_ENABLED=false
+          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
           kubectl rollout status deployment $DEPLOY_NAME
 
