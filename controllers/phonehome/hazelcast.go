@@ -19,7 +19,7 @@ type HazelcastMetrics struct {
 }
 
 func (hm *HazelcastMetrics) creationLatency() time.Duration {
-	if hm.SuccessfullyDeployedAt != (time.Time{}) {
+	if !hm.SuccessfullyDeployedAt.IsZero() {
 		return hm.SuccessfullyDeployedAt.Sub(hm.CreatedAt)
 	}
 	// If the cluster is not successfuly deployed yet or it was created by previous operator runs
@@ -27,7 +27,7 @@ func (hm *HazelcastMetrics) creationLatency() time.Duration {
 }
 
 func (hm *HazelcastMetrics) FillInitial(h *hazelcastv1alpha1.Hazelcast) {
-	if hm.CreatedAt == (time.Time{}) {
+	if hm.CreatedAt.IsZero() {
 		hm.CreatedAt = time.Now()
 	}
 
@@ -39,7 +39,7 @@ func (hm *HazelcastMetrics) FillInitial(h *hazelcastv1alpha1.Hazelcast) {
 func (hm *HazelcastMetrics) FillAfterDeployment(h *hazelcastv1alpha1.Hazelcast) bool {
 	firstDeployment := false
 	// If operator is restarted, existing clusters won't be labeled as firstDeployment
-	if _, ok := h.Annotations[n.LastSuccessfulSpecAnnotation]; hm.SuccessfullyDeployedAt == (time.Time{}) && !ok {
+	if _, ok := h.Annotations[n.LastSuccessfulSpecAnnotation]; hm.SuccessfullyDeployedAt.IsZero() && !ok {
 		hm.SuccessfullyDeployedAt = time.Now()
 		firstDeployment = true
 	}

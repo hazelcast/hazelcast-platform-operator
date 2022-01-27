@@ -162,8 +162,7 @@ func (r *ManagementCenterReconciler) updateLastSuccessfulConfiguration(ctx conte
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, h, func() error {
 		if h.ObjectMeta.Annotations == nil {
-			ans := map[string]string{}
-			h.ObjectMeta.Annotations = ans
+			h.ObjectMeta.Annotations = map[string]string{}
 		}
 		h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
 		return nil
