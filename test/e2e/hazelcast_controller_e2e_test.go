@@ -208,10 +208,10 @@ var _ = Describe("Hazelcast", func() {
 	})
 
 	Describe("Hazelcast CR with Persistence feature enabled", func() {
-		if !ee {
-			Skip("This tests block will only run in EE configuration")
-		}
 		It("should enable persistence for members successfully", func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
 			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
 			create(hazelcast)
 
@@ -241,6 +241,9 @@ var _ = Describe("Hazelcast", func() {
 		})
 
 		It("should successfully trigger HotBackup", func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
 			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
 			create(hazelcast)
 
