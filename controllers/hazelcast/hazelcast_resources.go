@@ -729,6 +729,9 @@ func (r *HazelcastReconciler) applyDefaultHazelcastSpecs(ctx context.Context, h 
 		h.Spec.ClusterSize = n.DefaultClusterSize
 		changed = true
 	}
+	if h.Spec.ClusterName == "" {
+		h.Spec.ClusterName = n.DefaultClusterName
+	}
 	if !changed {
 		return nil
 	}

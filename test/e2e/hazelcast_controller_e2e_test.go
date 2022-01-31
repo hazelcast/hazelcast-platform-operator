@@ -57,6 +57,10 @@ var _ = Describe("Hazelcast", func() {
 
 	AfterEach(func() {
 		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
+		Expect(k8sClient.DeleteAllOf(
+			context.Background(), &hazelcastcomv1alpha1.HotBackup{}, client.InNamespace(hzNamespace))).Should(Succeed())
+		Expect(k8sClient.DeleteAllOf(
+			context.Background(), &corev1.PersistentVolumeClaim{}, client.InNamespace(hzNamespace))).Should(Succeed())
 		assertDoesNotExist(lookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
@@ -304,6 +308,7 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	scanner := bufio.NewScanner(logs)
 	for scanner.Scan() {
 		line := scanner.Text()
+		println(line)
 		if match, _ := regexp.MatchString(expected, line); match {
 			return
 		}

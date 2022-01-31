@@ -54,6 +54,8 @@ const (
 	DefaultHzPort = 5701
 	// DefaultClusterSize default number of members of Hazelcast cluster
 	DefaultClusterSize = 3
+	// DefaultClusterName default name of Hazelcast cluster
+	DefaultClusterName = "dev"
 	// HazelcastRepo image repository for Hazelcast
 	HazelcastRepo = "hazelcast/hazelcast"
 	// HazelcastEERepo image repository for Hazelcast EE
