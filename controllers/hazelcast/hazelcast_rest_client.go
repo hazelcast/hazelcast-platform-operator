@@ -51,6 +51,9 @@ func (c *RestClient) ChangeState(state ClusterState) error {
 		return err
 	}
 	res, err := c.executeRequest(req)
+	if err != nil {
+		return err
+	}
 	var rBody map[string]string
 	err = json.NewDecoder(res.Body).Decode(&rBody)
 	if err != nil {
