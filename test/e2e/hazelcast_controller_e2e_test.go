@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"regexp"
 	"strconv"
+	"time"
+
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo"
@@ -15,8 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -240,21 +240,36 @@ var _ = Describe("Hazelcast", func() {
 			}
 		})
 
-		FIt("should successfully trigger HotBackup", func() {
+		It("should successfully trigger HotBackup", func() {
 			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
 			create(hazelcast)
 
 			evaluateReadyMembers(lookupKey)
 
+			t := time.Now()
 			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
 			By("Creating HotBackup CR")
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
 			By("Check the HotBackup creation sequence")
-			assertMemberLogs(hazelcast, "ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}")
-			assertMemberLogs(hazelcast, "Starting new hot backup with sequence")
-			assertMemberLogs(hazelcast, "Backup of hot restart store \\S+ finished")
-			assertMemberLogs(hazelcast, "ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}")
+			logs := test.GetPodLogs(context.Background(), types.NamespacedName{
+				Name:      hzName + "-0",
+				Namespace: hzNamespace,
+			}, &corev1.PodLogOptions{
+				Follow:    true,
+				SinceTime: &v1.Time{Time: t},
+			})
+			defer logs.Close()
+			scanner := bufio.NewScanner(logs)
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("Starting new hot backup with sequence"))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(MatchRegexp("Backup of hot restart store \\S+ finished"))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
+			Expect(logs.Close()).Should(Succeed())
 		})
 	})
 })
@@ -272,38 +287,13 @@ func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
 	return hz.Status.Phase == "Running"
 }
 
-func getPodLogs(ctx context.Context, pod types.NamespacedName) io.ReadCloser {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
-	config, err := kubeConfig.ClientConfig()
-	if err != nil {
-		panic(err)
-	}
-	// creates the clientset
-	clientset := kubernetes.NewForConfigOrDie(config)
-	p, err := clientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, v1.GetOptions{})
-	if err != nil {
-		panic(err)
-	}
-	if p.Status.Phase != corev1.PodFailed && p.Status.Phase != corev1.PodRunning {
-		panic("Unable to get pod logs for the pod in Phase " + p.Status.Phase)
-	}
-	podLogOptions := corev1.PodLogOptions{}
-	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOptions)
-	podLogs, err := req.Stream(context.Background())
-	if err != nil {
-		panic(err)
-	}
-	return podLogs
-}
-
 // assertMemberLogs check that the given expected string can be found in the logs.
 // expected can be a regexp pattern.
 func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
-	logs := getPodLogs(context.Background(), types.NamespacedName{
+	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
 		Name:      h.Name + "-0",
 		Namespace: h.Namespace,
-	})
+	}, &corev1.PodLogOptions{})
 	defer logs.Close()
 	scanner := bufio.NewScanner(logs)
 	for scanner.Scan() {

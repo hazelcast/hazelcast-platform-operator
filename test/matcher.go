@@ -1,15 +1,17 @@
 package test
 
 import (
+	"bufio"
 	"fmt"
 
-	"github.com/onsi/gomega/format"
-	"github.com/onsi/gomega/types"
-	
+	. "github.com/onsi/gomega"
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/onsi/gomega/format"
+	. "github.com/onsi/gomega/types"
 )
 
-func EqualSpecs(expected *HazelcastSpecValues, ee bool) types.GomegaMatcher {
+func EqualSpecs(expected *HazelcastSpecValues, ee bool) GomegaMatcher {
 	return &HazelcastSpecEqual{
 		Expected: expected,
 		ee:       ee,
@@ -55,4 +57,15 @@ func (matcher HazelcastSpecEqual) FailureMessage(actual interface{}) (message st
 
 func (matcher HazelcastSpecEqual) NegatedFailureMessage(actual interface{}) (message string) {
 	return format.Message(actual, "not to equal", matcher.Expected)
+}
+
+func EventuallyInLogs(scanner *bufio.Scanner, intervals ...interface{}) AsyncAssertion {
+	return Eventually(func() string {
+		if scanner.Scan() {
+			text := scanner.Text()
+			println(text)
+			return text
+		}
+		return ""
+	}, intervals...)
 }
