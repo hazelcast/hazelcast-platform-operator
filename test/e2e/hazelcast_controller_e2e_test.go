@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
-	"strings"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo"
@@ -166,20 +166,11 @@ var _ = Describe("Hazelcast", func() {
 
 	Context("Hazelcast member status", func() {
 
-		evaluateReadyMembers := func() {
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
-			Eventually(func() string {
-				err := k8sClient.Get(context.Background(), lookupKey, hz)
-				Expect(err).ToNot(HaveOccurred())
-				return hz.Status.Cluster.ReadyMembers
-			}, timeout, interval).Should(Equal("3/3"))
-		}
-
 		It("should update HZ ready members status", func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
-			evaluateReadyMembers()
+			evaluateReadyMembers(lookupKey)
 
 			assertMemberLogs(h, "Members {size:3, ver:3}")
 
@@ -190,7 +181,7 @@ var _ = Describe("Hazelcast", func() {
 					n.ApplicationManagedByLabel:    n.OperatorName,
 				})
 				Expect(err).ToNot(HaveOccurred())
-				evaluateReadyMembers()
+				evaluateReadyMembers(lookupKey)
 			})
 		})
 	})
@@ -213,11 +204,10 @@ var _ = Describe("Hazelcast", func() {
 	})
 
 	Describe("Hazelcast CR with Persistence feature enabled", func() {
+		if !ee {
+			Skip("This tests block will only run in EE configuration")
+		}
 		It("should enable persistence for members successfully", func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
-
 			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
 			create(hazelcast)
 
@@ -244,6 +234,23 @@ var _ = Describe("Hazelcast", func() {
 					},
 				}))
 			}
+		})
+
+		FIt("should successfully trigger HotBackup", func() {
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
+			create(hazelcast)
+
+			evaluateReadyMembers(lookupKey)
+
+			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
+			By("Creating HotBackup CR")
+			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+
+			By("Check the HotBackup creation sequence")
+			assertMemberLogs(hazelcast, "ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}")
+			assertMemberLogs(hazelcast, "Starting new hot backup with sequence")
+			assertMemberLogs(hazelcast, "Backup of hot restart store \\S+ finished")
+			assertMemberLogs(hazelcast, "ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}")
 		})
 	})
 })
@@ -286,6 +293,8 @@ func getPodLogs(ctx context.Context, pod types.NamespacedName) io.ReadCloser {
 	return podLogs
 }
 
+// assertMemberLogs check that the given expected string can be found in the logs.
+// expected can be a regexp pattern.
 func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	logs := getPodLogs(context.Background(), types.NamespacedName{
 		Name:      h.Name + "-0",
@@ -295,9 +304,18 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	scanner := bufio.NewScanner(logs)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, expected) {
+		if match, _ := regexp.MatchString(expected, line); match {
 			return
 		}
 	}
 	Fail(fmt.Sprintf("Failed to find \"%s\" in member logs", expected))
+}
+
+func evaluateReadyMembers(lookupKey types.NamespacedName) {
+	hz := &hazelcastcomv1alpha1.Hazelcast{}
+	Eventually(func() string {
+		err := k8sClient.Get(context.Background(), lookupKey, hz)
+		Expect(err).ToNot(HaveOccurred())
+		return hz.Status.Cluster.ReadyMembers
+	}, timeout, interval).Should(Equal("3/3"))
 }

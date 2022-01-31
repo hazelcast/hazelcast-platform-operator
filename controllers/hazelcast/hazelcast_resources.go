@@ -421,6 +421,9 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 					ClusterWrite: config.EndpointGroup{
 						Enabled: &[]bool{true}[0],
 					},
+					Persistence: config.EndpointGroup{
+						Enabled: &[]bool{true}[0],
+					},
 				},
 			},
 		},

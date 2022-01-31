@@ -144,6 +144,18 @@ var (
 		}
 	}
 
+	HotBackup = func(hzName, ns string) *hazelcastv1alpha1.HotBackup {
+		return &hazelcastv1alpha1.HotBackup{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "hot-backup",
+				Namespace: ns,
+			},
+			Spec: hazelcastv1alpha1.HotBackupSpec{
+				HazelcastName: hzName,
+			},
+		}
+	}
+
 	Faulty = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{

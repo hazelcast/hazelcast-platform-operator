@@ -4,6 +4,7 @@
 resources:
 - bases/hazelcast.com_hazelcasts.yaml
 - bases/hazelcast.com_managementcenters.yaml
+- bases/hazelcast.com_hotbackups.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
