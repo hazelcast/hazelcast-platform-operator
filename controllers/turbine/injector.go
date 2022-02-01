@@ -69,7 +69,7 @@ func (i *Injector) Handle(ctx context.Context, req admission.Request) admission.
 }
 
 func injectTurbineSidecar(pod *v1.Pod) *v1.Pod {
-	pod.Spec.Containers = append(pod.Spec.Containers, v1.Container{
+	sidecar := v1.Container{
 		Name:  "turbine-sidecar",
 		Image: "hazelcast/turbine-sidecar",
 		Env: []v1.EnvVar{
@@ -82,7 +82,22 @@ func injectTurbineSidecar(pod *v1.Pod) *v1.Pod {
 				},
 			},
 		},
-	})
+	}
+
+	port := getAppPort(pod)
+	if port != "" {
+		sidecar.Env = append(sidecar.Env, v1.EnvVar{
+			Name:  "APP_HTTP_PORT",
+			Value: port,
+		})
+	}
+
+	cm := getConfigMapName(pod)
+	if cm != "" {
+		sidecar.EnvFrom = append(sidecar.EnvFrom, envFromConfigmap(cm))
+	}
+
+	pod.Spec.Containers = append(pod.Spec.Containers, sidecar)
 
 	return pod
 }
@@ -122,4 +137,22 @@ func inferMetadata(req admission.Request, pod *v1.Pod) (name string, namespace s
 	}
 
 	return
+}
+
+func envFromConfigmap(name string) v1.EnvFromSource {
+	return v1.EnvFromSource{
+		ConfigMapRef: &v1.ConfigMapEnvSource{
+			LocalObjectReference: v1.LocalObjectReference{
+				Name: name,
+			},
+		},
+	}
+}
+
+func getConfigMapName(p *v1.Pod) string {
+	return p.Annotations["turbine.hazelcast.com/configmap"]
+}
+
+func getAppPort(p *v1.Pod) string {
+	return p.Annotations["turbine.hazelcast.com/app-port"]
 }
