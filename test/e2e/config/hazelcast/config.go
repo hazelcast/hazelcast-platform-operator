@@ -80,6 +80,26 @@ var (
 		}
 	}
 
+	ExposeExternallySmartNodePortNodeName = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "hazelcast",
+				Namespace: ns,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:      3,
+				Repository:       repo(ee),
+				Version:          naming.HazelcastVersion,
+				LicenseKeySecret: licenseKey(ee),
+				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+					DiscoveryServiceType: corev1.ServiceTypeNodePort,
+					MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortNodeName,
+				},
+			},
+		}
+	}
+
 	ExposeExternallyUnisocket = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
