@@ -100,7 +100,7 @@ spec:
                     description: Configuration of PersistenceVolumeClaim.
                     properties:
                       accessModes:
-                        description: 'AccessModes contains the actual access modes the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
+                        description: 'AccessModes contains the actual access modes of the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                         items:
                           type: string
                         type: array
@@ -115,7 +115,7 @@ spec:
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                       storageClassName:
-                        description: Name of StorageClass to which this persistent volume belongs.
+                        description: Name of StorageClass which this persistent volume belongs to.
                         type: string
                     type: object
                 required:
