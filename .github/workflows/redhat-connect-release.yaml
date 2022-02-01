@@ -14,6 +14,7 @@ jobs:
         shell: bash
     outputs:
       RELEASE_VERSION: ${{ steps.set-outputs.outputs.RELEASE_VERSION }}
+      DIGEST: ${{ steps.set-digest.outputs.DIGEST }}
     env:
       SCAN_REGISTRY: "scan.connect.redhat.com"
       TIMEOUT_IN_MINS: "60"
@@ -40,9 +41,13 @@ jobs:
           echo "::set-output name=RELEASE_VERSION::${RELEASE_VERSION}"
 
       - name: Generate Operator and Operator Image
+        id: set-digest
         run: |
           echo "Building the operator image"
           make docker-build IMG=${RHEL_IMAGE} VERSION="${RELEASE_VERSION}" PARDOT_ID="redhat"
+
+          DIGEST=$(docker images --no-trunc --quiet $RHEL_IMAGE)
+          echo "::set-output name=DIGEST::${DIGEST}"
 
       - name: Push Hazelcast-Platform-Operator image to RHEL scan registry
         run: |
@@ -82,7 +87,6 @@ jobs:
           oc rollout status deployment hazelcast-platform-controller-manager
 
       - name: Test the Operator
-        id: e2e-test
         run: |
           oc create secret generic hazelcast-license-key --from-literal=license-key=${HZ_LICENSE_KEY}
           make test-e2e NAMESPACE=$NAMESPACE
@@ -90,38 +94,7 @@ jobs:
       - name: Clean up after Tests
         if: always()
         run: |
-          DEPLOY_NAME=hazelcast-platform-controller-manager
-
-          hz=$(oc get hazelcast -o name)
-          [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
-
-          mc=$(oc get managementcenter -o name)
-          [[ "$mc" != "" ]] && oc delete $mc --wait=false || echo "no managementcenter resources"
-          if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
-            i=0
-            while ! oc rollout status deployment $DEPLOY_NAME; do
-              oc rollout restart deployment $DEPLOY_NAME
-              if [[ $i == 2 ]]; then
-                echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"
-                exit 1
-              fi
-              ((i++))
-            done
-          fi
-          sleep 10
-
-          hz=$(oc get hazelcast -o name)
-          mc=$(oc get managementcenter -o name)
-          if [[ $hz != "" ]] || [[ $mc != "" ]]; then
-            echo -n "Failure deleting hazelcast and managementcenter resources,"
-            echo "namespace $NAMESPACE requires manual clean up"
-            exit 1
-          fi
-
-          make undeploy
-          oc delete secret hazelcast-license-key --wait=false
-          oc delete secret pull-secret --wait=false
-          oc delete project $NAMESPACE --wait=false
+          make clean-up-namespace NAMESPACE=$NAMESPACE
 
       - name: Publish the Hazelcast-Platform-Operator image
         run: |
@@ -149,20 +122,44 @@ jobs:
       REPO_NAME: ${{ matrix.repo-name }}
       REPO_OWNER: ${{ matrix.repo-owner }}
       RELEASE_VERSION: ${{ needs.publish_image.outputs.RELEASE_VERSION }}
+      DIGEST: ${{ needs.publish_image.outputs.DIGEST }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Add Annotation for redhat-marketplace-operators
+        if: env.REPO_NAME == 'redhat-marketplace-operators'
+        run: |
+          OPERATOR_NAME_RHPM=${OPERATOR_NAME}-rhmp
+          echo "OPERATOR_NAME_RHPM=${OPERATOR_NAME_RHPM}" >> $GITHUB_ENV
+
+          curl -sSLo ./bin/yq https://github.com/mikefarah/yq/releases/download/v4.18.1/yq_linux_amd64 --create-dirs
+          chmod +x ./bin/yq
+
+          ./bin/yq -i e ".metadata.annotations += \
+          {\"marketplace.openshift.io/remote-workflow\": \"https://marketplace.redhat.com/en-us/operators/${OPERATOR_NAME_RHPM}/pricing?utm_source=openshift_console\", \
+           \"marketplace.openshift.io/support-workflow\": \"https://marketplace.redhat.com/en-us/operators/${OPERATOR_NAME_RHPM}/support?utm_source=openshift_console\" }" \
+          config/manifests/bases/${OPERATOR_NAME}.clusterserviceversion.yaml
+
       - name: Build Bundle
         run: |
           RED_HAT_OPERATOR_REPOSITORY=registry.connect.redhat.com/hazelcast/${OPERATOR_NAME}
-          RED_HAT_OPERATOR_IMG=${RED_HAT_OPERATOR_REPOSITORY}:${RELEASE_VERSION}
+          RED_HAT_OPERATOR_IMG=${RED_HAT_OPERATOR_REPOSITORY}@${DIGEST}
 
           make bundle IMG=${RED_HAT_OPERATOR_IMG} VERSION=${RELEASE_VERSION}
           cat >> ./bundle/metadata/annotations.yaml <<EOF
             # OpenShift annotations.
             com.redhat.openshift.versions: "v4.6"
+            operators.operatorframework.io.bundle.channel.default.v1: alpha
           EOF
+
+      - name: Change package name for redhat-marketplace-operators
+        if: env.REPO_NAME == 'redhat-marketplace-operators'
+        run: |
+          sed -i "s|operators.operatorframework.io.bundle.package.v1: ${OPERATOR_NAME}|operators.operatorframework.io.bundle.package.v1: ${OPERATOR_NAME_RHPM}|" bundle/metadata/annotations.yaml
+          mv bundle/manifests/${OPERATOR_NAME}.clusterserviceversion.yaml bundle/manifests/${OPERATOR_NAME_RHPM}.clusterserviceversion.yaml
+
+          echo "OPERATOR_NAME=${OPERATOR_NAME_RHPM}" >> $GITHUB_ENV
 
       - name: Validate Bundle for OCP
         run: |
