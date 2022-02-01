@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ping-service
+  labels:
+    app: ping-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ping-service
+  template:
+    metadata:
+      labels:
+        app: ping-service
+      annotations:
+        turbine.hazelcast.com/enabled: "true"
+        turbine.hazelcast.com/configmap: "turbine-sidecar-config"
+    spec:
+      containers:
+        - name: ping-service
+          image: hakanmemisoglu/ping:0.1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ping-service
+  labels:
+    app: ping-service
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 3000
+      protocol: TCP
+  selector:
+    app: ping-service

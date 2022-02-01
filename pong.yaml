@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pong-service
+  labels:
+    app: pong-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pong-service
+  template:
+    metadata:
+      labels:
+        app: pong-service
+      annotations:
+        turbine.hazelcast.com/enabled: "true"
+        turbine.hazelcast.com/configmap: "turbine-sidecar-config"
+        turbine.hazelcast.com/app-port: "3001"
+    spec:
+      containers:
+        - name: pong-service
+          image: hakanmemisoglu/pong:0.1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pong-service
+  labels:
+    app: pong-service
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 3001
+      protocol: TCP
+  selector:
+    app: pong-service
