@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	. "github.com/onsi/gomega"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/onsi/gomega/format"
 	. "github.com/onsi/gomega/types"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
 func EqualSpecs(expected *HazelcastSpecValues, ee bool) GomegaMatcher {
