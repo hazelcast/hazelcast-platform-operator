@@ -5,7 +5,6 @@ import (
 	"hash/fnv"
 
 	"k8s.io/apimachinery/pkg/api/resource"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -91,7 +90,7 @@ type PersistencePvcConfiguration struct {
 	// +optional
 	Name string `json:"name,omitempty"`
 
-	// AccessModes contains the actual access modes the volume backing the PVC has.
+	// AccessModes contains the actual access modes of the volume backing the PVC has.
 	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
 	// +optional
 	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
@@ -100,7 +99,7 @@ type PersistencePvcConfiguration struct {
 	// +optional
 	RequestStorage resource.Quantity `json:"requestStorage,omitempty"`
 
-	// Name of StorageClass to which this persistent volume belongs.
+	// Name of StorageClass which this persistent volume belongs to.
 	// +optional
 	StorageClassName *string `json:"storageClassName,omitempty"`
 }
