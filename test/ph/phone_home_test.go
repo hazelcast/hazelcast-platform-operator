@@ -26,9 +26,8 @@ import (
 )
 
 const (
-	hzName        = "hazelcast"
-	mcName        = "managementcenter"
-	bigQueryTable = "hazelcast-33.callHome.operator_info" //todo make os env
+	hzName = "hazelcast"
+	mcName = "managementcenter"
 )
 
 type OperatorPhoneHome struct {
@@ -128,7 +127,8 @@ var _ = Describe("Hazelcast", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 	}
-	FDescribe("Phone Home Table", func() {
+
+	Describe("Phone Home Table", func() {
 		AfterEach(func() {
 			Expect(k8sClient.Delete(context.Background(), emptyHazelcast(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 			assertDoesNotExist(lookupKeyHz, &hazelcastcomv1alpha1.Hazelcast{})
@@ -152,113 +152,69 @@ var _ = Describe("Hazelcast", func() {
 				bigQueryTable := getBigQueryTable()
 				Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
 				Expect(bigQueryTable.PingTime.Truncate(time.Hour)).Should(BeTemporally("~", hzCreationTime), "Ping time should be near to current date")
-				Expect(bigQueryTable.OperatorID).Should(Equal(getOperatorId()), "Operator UID should be equal to Hazelcast Operator UID")
-				Expect(bigQueryTable.PardotID).Should(Equal("dockerhub"), "Pardot ID should be equal to dockerhub")
-				Expect(bigQueryTable.Version).Should(Equal("latest-snapshot"))
-				Expect(bigQueryTable.Uptime).ShouldNot(BeZero())
-				Expect(bigQueryTable.K8sDistribution).Should(Equal("GKE"))
-				Expect(bigQueryTable.K8sVersion).Should(Equal("1.21"))
-				Expect(bigQueryTable.CreatedClusterCount).Should(Equal(0))
-				Expect(bigQueryTable.CreatedEnterpriseClusterCount).Should(Equal(createdEnterpriseClusterCount))
-				Expect(bigQueryTable.AverageClusterCreationLatency).ShouldNot(BeZero())
-				Expect(bigQueryTable.AverageMCCreationLatency).Should(Equal(bigquery.NullInt64{}))
-				Expect(bigQueryTable.CreatedMemberCount).Should(Equal(3))
-				Expect(bigQueryTable.CreatedMCCount).Should(Equal(0))
-				Expect(bigQueryTable.ExposeExternally.Unisocket).Should(Equal(unisocket))
-				Expect(bigQueryTable.ExposeExternally.Smart).Should(Equal(smart))
-				Expect(bigQueryTable.ExposeExternally.DiscoveryLoadBalancer).Should(Equal(discoveryLoadBalancer))
-				Expect(bigQueryTable.ExposeExternally.DiscoveryNodePort).Should(Equal(discoveryNodePort))
-				Expect(bigQueryTable.ExposeExternally.MemberNodePortExternalIP).Should(Equal(memberNodePortExternalIP))
-				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName))
-				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer))
+				Expect(bigQueryTable.OperatorID).Should(Equal(getOperatorId()), "Operator UID metric")
+				Expect(bigQueryTable.PardotID).Should(Equal("dockerhub"), "Pardot ID metric")
+				Expect(bigQueryTable.Version).Should(Equal("latest-snapshot"), "Version metric")
+				Expect(bigQueryTable.Uptime).ShouldNot(BeZero(), "Version metric")
+				Expect(bigQueryTable.K8sDistribution).Should(Equal("GKE"), "K8sDistribution metric")
+				Expect(bigQueryTable.K8sVersion).Should(Equal("1.21"), "K8sVersion metric")
+				Expect(bigQueryTable.CreatedClusterCount).Should(Equal(0), "CreatedClusterCount metric")
+				Expect(bigQueryTable.CreatedEnterpriseClusterCount).Should(Equal(createdEnterpriseClusterCount), "CreatedEnterpriseClusterCount metric")
+				Expect(bigQueryTable.AverageClusterCreationLatency).ShouldNot(BeZero(), "AverageClusterCreationLatency metric")
+				Expect(bigQueryTable.AverageMCCreationLatency).Should(Equal(bigquery.NullInt64{}), "AverageMCCreationLatency metric")
+				Expect(bigQueryTable.CreatedMemberCount).Should(Equal(3), "CreatedMemberCount metric")
+				Expect(bigQueryTable.CreatedMCCount).Should(Equal(0), "CreatedMCCount metric")
+				Expect(bigQueryTable.ExposeExternally.Unisocket).Should(Equal(unisocket), "Unisocket metric")
+				Expect(bigQueryTable.ExposeExternally.Smart).Should(Equal(smart), "Smart metric")
+				Expect(bigQueryTable.ExposeExternally.DiscoveryLoadBalancer).Should(Equal(discoveryLoadBalancer), "DiscoveryLoadBalancer metric")
+				Expect(bigQueryTable.ExposeExternally.DiscoveryNodePort).Should(Equal(discoveryNodePort), "DiscoveryNodePort metric")
+				Expect(bigQueryTable.ExposeExternally.MemberNodePortExternalIP).Should(Equal(memberNodePortExternalIP), "MemberNodePortExternalIP metric")
+				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName), "MemberNodePortNodeName metric")
+				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer), "MemberLoadBalancer metric")
 			},
-			Entry("with ExposeExternallyUnisocket configuration", hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
-			FEntry("with ExposeExternallySmartNodePort configuration", hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
+			FEntry("with ExposeExternallyUnisocket configuration", hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
+			Entry("with ExposeExternallySmartNodePort configuration", hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
 			Entry("with ExposeExternallySmartLoadBalancer configuration", hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
 			Entry("with ExposeExternallySmartNodePortNodeName configuration", hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzNamespace, ee), 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
-	Describe("Phone Home table", func() {
-		When("Management Center was installed", func() {
-			It("should create MC", func() {
-				mc := mcconfig.Default(hzNamespace, ee)
-				createMc(mc)
-			})
+
+	Describe("Phone Home table with installed Management Center", func() {
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), emptyManagementCenter(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
+			assertDoesNotExist(lookupKeyMc, &hazelcastcomv1alpha1.ManagementCenter{})
+			pvcLookupKey := types.NamespacedName{
+				Name:      fmt.Sprintf("mancenter-storage-%s-0", lookupKeyMc.Name),
+				Namespace: lookupKeyMc.Namespace,
+			}
+			deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
+		})
+		It("should have metrics", func() {
+			mc := mcconfig.Default(hzNamespace, ee)
+			createMc(mc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
 			bigQueryTable := getBigQueryTable()
-
-			It("should have IP metric", func() {
-				Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
-			})
-			It("should have PingTime metric", func() {
-				Expect(bigQueryTable.PingTime.Truncate(time.Hour)).Should(BeTemporally("~", mcCreationTime), "Ping time should be near to current date")
-			})
-			It("should have OperatorID metric", func() {
-				Expect(bigQueryTable.OperatorID).Should(Equal(getOperatorId()), "Operator UID should be equal to Hazelcast Operator UID")
-			})
-			It("should have PardotID metric", func() {
-				Expect(bigQueryTable.PardotID).Should(Equal("dockerhub"), "Pardot ID should be equal to dockerhub")
-			})
-			It("should have Version metric", func() {
-				Expect(bigQueryTable.Version).Should(Equal("latest-snapshot"))
-			})
-			It("should have Uptime metric", func() {
-				Expect(bigQueryTable.Uptime).ShouldNot(BeZero())
-			})
-			It("should have K8sDistribution metric", func() {
-				Expect(bigQueryTable.K8sDistribution).Should(Equal("GKE"))
-			})
-			It("should have K8sVersion metric", func() {
-				Expect(bigQueryTable.K8sVersion).Should(Equal("1.21"))
-			})
-			It("should have CreatedClusterCount metric", func() {
-				Expect(bigQueryTable.CreatedClusterCount).Should(Equal(0))
-			})
-			It("should have CreatedEnterpriseClusterCount metric", func() {
-				Expect(bigQueryTable.CreatedEnterpriseClusterCount).Should(Equal(0))
-			})
-			It("should have AverageClusterCreationLatency metric", func() {
-				Expect(bigQueryTable.AverageClusterCreationLatency).Should(Equal(bigquery.NullInt64{}))
-			})
-			It("should have AverageMCCreationLatency metric", func() {
-				Expect(bigQueryTable.AverageMCCreationLatency).ShouldNot(BeZero())
-			})
-			It("should have CreatedMemberCount metric", func() {
-				Expect(bigQueryTable.CreatedMemberCount).Should(Equal(0))
-			})
-			It("should have CreatedMCCount metric", func() {
-				Expect(bigQueryTable.CreatedMCCount).Should(Equal(1))
-			})
-			It("should have Unisocket metric", func() {
-				Expect(bigQueryTable.ExposeExternally.Unisocket).Should(Equal(0))
-			})
-			It("should have Smart metric", func() {
-				Expect(bigQueryTable.ExposeExternally.Smart).Should(Equal(0))
-			})
-			It("should have DiscoveryLoadBalancer metric", func() {
-				Expect(bigQueryTable.ExposeExternally.DiscoveryLoadBalancer).Should(Equal(0))
-			})
-			It("should have DiscoveryNodePort metric", func() {
-				Expect(bigQueryTable.ExposeExternally.DiscoveryNodePort).Should(Equal(0))
-			})
-			It("should have MemberNodePortExternalIP metric", func() {
-				Expect(bigQueryTable.ExposeExternally.MemberNodePortExternalIP).Should(Equal(0))
-			})
-			It("should have MemberNodePortNodeName metric", func() {
-				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(0))
-			})
-			It("should have MemberLoadBalancer metric", func() {
-				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(0))
-			})
-			It("Delete MC", func() {
-				Expect(k8sClient.Delete(context.Background(), emptyManagementCenter(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
-				assertDoesNotExist(lookupKeyMc, &hazelcastcomv1alpha1.ManagementCenter{})
-				pvcLookupKey := types.NamespacedName{
-					Name:      fmt.Sprintf("mancenter-storage-%s-0", lookupKeyMc.Name),
-					Namespace: lookupKeyMc.Namespace,
-				}
-				deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
-			})
+			Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
+			Expect(bigQueryTable.PingTime.Truncate(time.Hour)).Should(BeTemporally("~", mcCreationTime), "Ping time should be near to current date")
+			Expect(bigQueryTable.OperatorID).Should(Equal(getOperatorId()), "Operator UID should be equal to Hazelcast Operator UID")
+			Expect(bigQueryTable.PardotID).Should(Equal("dockerhub"), "Pardot ID metric")
+			Expect(bigQueryTable.Version).Should(Equal("latest-snapshot"), "Version metric")
+			Expect(bigQueryTable.Uptime).ShouldNot(BeZero(), "Uptime metric")
+			Expect(bigQueryTable.K8sDistribution).Should(Equal("GKE"), "K8sDistribution metric")
+			Expect(bigQueryTable.K8sVersion).Should(Equal("1.21"), "K8sVersion metric")
+			Expect(bigQueryTable.CreatedClusterCount).Should(Equal(0), "CreatedClusterCount metric")
+			Expect(bigQueryTable.CreatedEnterpriseClusterCount).Should(Equal(0), "CreatedEnterpriseClusterCount metric")
+			Expect(bigQueryTable.AverageClusterCreationLatency).Should(Equal(bigquery.NullInt64{}), "AverageClusterCreationLatency metric")
+			Expect(bigQueryTable.AverageMCCreationLatency).ShouldNot(BeZero(), "AverageMCCreationLatency metric")
+			Expect(bigQueryTable.CreatedMemberCount).Should(Equal(0), "CreatedMemberCount metric")
+			Expect(bigQueryTable.CreatedMCCount).Should(Equal(1), "CreatedMCCount metric")
+			Expect(bigQueryTable.ExposeExternally.Unisocket).Should(Equal(0), "Unisocket metric")
+			Expect(bigQueryTable.ExposeExternally.Smart).Should(Equal(0), "Smart metric")
+			Expect(bigQueryTable.ExposeExternally.DiscoveryLoadBalancer).Should(Equal(0), "DiscoveryLoadBalancer metric")
+			Expect(bigQueryTable.ExposeExternally.DiscoveryNodePort).Should(Equal(0), "DiscoveryNodePort metric")
+			Expect(bigQueryTable.ExposeExternally.MemberNodePortExternalIP).Should(Equal(0), "MemberNodePortExternalIP metric")
+			Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(0), "MemberNodePortNodeName metric")
+			Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(0), "MemberLoadBalancer metric")
 		})
 	})
 })
@@ -297,9 +253,9 @@ func getOperatorId() string {
 
 func query(ctx context.Context, client *bigquery.Client) (*bigquery.RowIterator, error) {
 	query := client.Query(
-		`SELECT * FROM ` + bigQueryTable + `
+		`SELECT * FROM ` + bigQueryTable() + `
                 WHERE pingTime = (
-                SELECT max(pingTime) from ` + bigQueryTable + `
+                SELECT max(pingTime) from ` + bigQueryTable() + `
                 WHERE operatorID =  "` + getOperatorId() + `");`)
 	return query.Read(ctx)
 }

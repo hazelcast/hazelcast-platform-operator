@@ -37,6 +37,14 @@ func controllerManagerName() string {
 	return np + "controller-manager"
 }
 
+func bigQueryTable() string {
+	bigQueryTableName := os.Getenv("BIG_QUERY_TABLE")
+	if bigQueryTableName == "" {
+		return "hazelcast-33.callHome.operator_info"
+	}
+	return bigQueryTableName
+}
+
 func googleCloudProjectName() string {
 	projectID := os.Getenv("GCP_PROJECT_ID")
 	if projectID == "" {
