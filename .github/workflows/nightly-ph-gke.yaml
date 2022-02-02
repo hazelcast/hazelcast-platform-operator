@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: "0 9 * * *"
 
+
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
@@ -28,7 +29,7 @@ jobs:
       - name: Create GKE cluster
         id: set-cluster-name
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-ph-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
           gcloud container clusters create ${CLUSTER_NAME} \
             --zone=${{ env.GKE_ZONE }} \
@@ -38,8 +39,8 @@ jobs:
             --num-nodes=2
           sleep 30
 
-  gke-e2e-tests:
-    name: Run E2E tests
+  gke-ph-tests:
+    name: Run PhoneHome tests
     runs-on: ubuntu-20.04
     needs: [ create-gke-cluster ]
     strategy:
@@ -126,10 +127,10 @@ jobs:
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
   delete-cluster:
-    name: Run E2E tests
+    name: Run PhoneHome tests
     runs-on: ubuntu-20.04
     if: always()
-    needs: [ create-gke-cluster, gke-e2e-tests ]
+    needs: [ create-gke-cluster, gke-ph-tests ]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
