@@ -165,7 +165,7 @@ func googleCloudProjectName() string {
 func getKubectlVersion() string {
 	kubectlVersion := os.Getenv("KUBECTL_VERSION")
 	if kubectlVersion == "" {
-		return "1.2.1"
+		return "1.21"
 	}
 	return kubectlVersion
 }
