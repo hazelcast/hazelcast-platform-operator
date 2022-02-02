@@ -105,9 +105,13 @@ func getBigQueryTable() OperatorPhoneHome {
 	defer bigQueryclient.Close()
 
 	rows, err := query(ctx, bigQueryclient)
+	if err != nil {
+		log.Fatal(err)
+	}
 	var row OperatorPhoneHome
-	rows.Next(&row)
-	if err == iterator.Done {
+	iterErr := rows.Next(&row)
+	if iterErr == iterator.Done {
+		log.Fatalf("No more items in iterator: %v", iterErr)
 	}
 	return row
 
