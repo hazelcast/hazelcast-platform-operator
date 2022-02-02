@@ -1,9 +1,3 @@
-name: Nightly PhoneHome tests on GKE
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * *"
-
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
@@ -22,7 +16,8 @@ jobs:
         uses: google-github-actions/setup-gcloud@v0.3.0
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          export_default_credentials: true
 
       - name: Create GKE cluster
         id: set-cluster-name
