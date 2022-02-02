@@ -4,7 +4,6 @@ on:
   schedule:
     - cron: "0 9 * * *"
 
-
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
