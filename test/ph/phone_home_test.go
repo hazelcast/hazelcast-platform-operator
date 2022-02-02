@@ -5,12 +5,7 @@ import (
 	"context"
 	"fmt"
 	. "github.com/onsi/ginkgo/extensions/table"
-	"google.golang.org/api/iterator"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"log"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -24,39 +19,6 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
-
-const (
-	hzName = "hazelcast"
-	mcName = "managementcenter"
-)
-
-type OperatorPhoneHome struct {
-	IP                            string             `bigquery:"ip"`
-	PingTime                      time.Time          `bigquery:"pingTime"`
-	OperatorID                    string             `bigquery:"operatorID"`
-	PardotID                      string             `bigquery:"pardotID"`
-	Version                       string             `bigquery:"version"`
-	Uptime                        int                `bigquery:"uptime"`
-	K8sDistribution               string             `bigquery:"k8sDistribution"`
-	K8sVersion                    string             `bigquery:"k8sVersion"`
-	CreatedClusterCount           int                `bigquery:"createdClusterCount"`
-	CreatedEnterpriseClusterCount int                `bigquery:"createdEnterpriseClusterCount"`
-	AverageClusterCreationLatency bigquery.NullInt64 `bigquery:"averageClusterCreationLatency"`
-	AverageMCCreationLatency      bigquery.NullInt64 `bigquery:"averageMCCreationLatency"`
-	CreatedMemberCount            int                `bigquery:"createdMemberCount"`
-	CreatedMCCount                int                `bigquery:"createdMCCount"`
-	ExposeExternally              ExposeExternally   `bigquery:"exposeExternally"`
-}
-
-type ExposeExternally struct {
-	Unisocket                int `bigquery:"unisocket"`
-	Smart                    int `bigquery:"smart"`
-	DiscoveryLoadBalancer    int `bigquery:"discoveryLoadBalancer"`
-	DiscoveryNodePort        int `bigquery:"discoveryNodePort"`
-	MemberNodePortExternalIP int `bigquery:"memberNodePortExternalIP"`
-	MemberNodePortNodeName   int `bigquery:"memberNodePortNodeName"`
-	MemberLoadBalancer       int `bigquery:"memberLoadBalancer"`
-}
 
 var _ = Describe("Hazelcast", func() {
 
@@ -94,7 +56,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 		})
 
-		By("Checking Hazelcast running", func() {
+		By("Checking Hazelcast is running", func() {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			Eventually(func() bool {
 				err := k8sClient.Get(context.Background(), lookupKeyHz, hz)
@@ -114,11 +76,11 @@ var _ = Describe("Hazelcast", func() {
 	}
 
 	createMc := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
-		By("Creating ManagementCenter CR", func() {
+		By("Creating ManagementCenter", func() {
 			Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
 		})
 
-		By("Checking ManagementCenter CR running", func() {
+		By("Checking ManagementCenter is running", func() {
 			mc := &hazelcastcomv1alpha1.ManagementCenter{}
 			Eventually(func() bool {
 				err := k8sClient.Get(context.Background(), lookupKeyMc, mc)
@@ -128,7 +90,7 @@ var _ = Describe("Hazelcast", func() {
 		})
 	}
 
-	Describe("Phone Home Table", func() {
+	Describe("Phone Home Table with installed Hazelcast", func() {
 		AfterEach(func() {
 			Expect(k8sClient.Delete(context.Background(), emptyHazelcast(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 			assertDoesNotExist(lookupKeyHz, &hazelcastcomv1alpha1.Hazelcast{})
@@ -157,7 +119,7 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.Version).Should(Equal("latest-snapshot"), "Version metric")
 				Expect(bigQueryTable.Uptime).ShouldNot(BeZero(), "Version metric")
 				Expect(bigQueryTable.K8sDistribution).Should(Equal("GKE"), "K8sDistribution metric")
-				Expect(bigQueryTable.K8sVersion).Should(Equal("1.21"), "K8sVersion metric")
+				Expect(bigQueryTable.K8sVersion).Should(Equal(getKubectlVersion()), "K8sVersion metric")
 				Expect(bigQueryTable.CreatedClusterCount).Should(Equal(0), "CreatedClusterCount metric")
 				Expect(bigQueryTable.CreatedEnterpriseClusterCount).Should(Equal(createdEnterpriseClusterCount), "CreatedEnterpriseClusterCount metric")
 				Expect(bigQueryTable.AverageClusterCreationLatency).ShouldNot(BeZero(), "AverageClusterCreationLatency metric")
@@ -172,14 +134,14 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName), "MemberNodePortNodeName metric")
 				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer), "MemberLoadBalancer metric")
 			},
-			FEntry("with ExposeExternallyUnisocket configuration", hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
+			Entry("with ExposeExternallyUnisocket configuration", hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
 			Entry("with ExposeExternallySmartNodePort configuration", hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
-			Entry("with ExposeExternallySmartLoadBalancer configuration", hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
+			FEntry("with ExposeExternallySmartLoadBalancer configuration", hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
 			Entry("with ExposeExternallySmartNodePortNodeName configuration", hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzNamespace, ee), 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
 
-	Describe("Phone Home table with installed Management Center", func() {
+	FDescribe("Phone Home table with installed Management Center", func() {
 		AfterEach(func() {
 			Expect(k8sClient.Delete(context.Background(), emptyManagementCenter(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 			assertDoesNotExist(lookupKeyMc, &hazelcastcomv1alpha1.ManagementCenter{})
@@ -189,7 +151,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 			deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
 		})
-		It("should have metrics", func() {
+		It("should have correct metrics", func() {
 			mc := mcconfig.Default(hzNamespace, ee)
 			createMc(mc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
@@ -201,7 +163,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(bigQueryTable.Version).Should(Equal("latest-snapshot"), "Version metric")
 			Expect(bigQueryTable.Uptime).ShouldNot(BeZero(), "Uptime metric")
 			Expect(bigQueryTable.K8sDistribution).Should(Equal("GKE"), "K8sDistribution metric")
-			Expect(bigQueryTable.K8sVersion).Should(Equal("1.21"), "K8sVersion metric")
+			Expect(bigQueryTable.K8sVersion).Should(Equal(getKubectlVersion()), "K8sVersion metric")
 			Expect(bigQueryTable.CreatedClusterCount).Should(Equal(0), "CreatedClusterCount metric")
 			Expect(bigQueryTable.CreatedEnterpriseClusterCount).Should(Equal(0), "CreatedEnterpriseClusterCount metric")
 			Expect(bigQueryTable.AverageClusterCreationLatency).Should(Equal(bigquery.NullInt64{}), "AverageClusterCreationLatency metric")
@@ -218,71 +180,3 @@ var _ = Describe("Hazelcast", func() {
 		})
 	})
 })
-
-func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
-	return &hazelcastcomv1alpha1.Hazelcast{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      hzName,
-			Namespace: hzNamespace,
-		},
-	}
-}
-func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
-	return hz.Status.Phase == "Running"
-}
-
-func GetClientSet() *kubernetes.Clientset {
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
-	restConfig, err := kubeConfig.ClientConfig()
-	clientSet, err := kubernetes.NewForConfig(restConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return clientSet
-}
-func getOperatorId() string {
-	var uid string
-	operatorUid, _ := GetClientSet().AppsV1().Deployments(hzNamespace).List(context.Background(), metav1.ListOptions{})
-	for _, item := range operatorUid.Items {
-		if item.Name == controllerManagerName() {
-			uid = string(item.UID)
-		}
-	}
-	return uid
-}
-
-func query(ctx context.Context, client *bigquery.Client) (*bigquery.RowIterator, error) {
-	query := client.Query(
-		`SELECT * FROM ` + bigQueryTable() + `
-                WHERE pingTime = (
-                SELECT max(pingTime) from ` + bigQueryTable() + `
-                WHERE operatorID =  "` + getOperatorId() + `");`)
-	return query.Read(ctx)
-}
-
-func getBigQueryTable() OperatorPhoneHome {
-
-	ctx := context.Background()
-	bigQueryclient, err := bigquery.NewClient(ctx, googleCloudProjectName())
-	if err != nil {
-		log.Fatalf("bigquery.NewClient: %v", err)
-	}
-	defer bigQueryclient.Close()
-
-	rows, err := query(ctx, bigQueryclient)
-	var row OperatorPhoneHome
-	rows.Next(&row)
-	if err == iterator.Done {
-	}
-	return row
-
-}
-
-func emptyManagementCenter() *hazelcastcomv1alpha1.ManagementCenter {
-	return &hazelcastcomv1alpha1.ManagementCenter{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      mcName,
-			Namespace: hzNamespace,
-		},
-	}
-}
