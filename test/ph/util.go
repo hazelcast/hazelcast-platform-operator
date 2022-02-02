@@ -68,7 +68,7 @@ func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
 
 func GetClientSet() *kubernetes.Clientset {
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
-	restConfig, err := kubeConfig.ClientConfig()
+	restConfig, _ := kubeConfig.ClientConfig()
 	clientSet, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		log.Fatal(err)
