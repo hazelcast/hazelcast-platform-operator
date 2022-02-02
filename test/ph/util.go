@@ -9,6 +9,8 @@ import (
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
+
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
 func useExistingCluster() bool {
@@ -53,4 +55,22 @@ func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, 
 	}
 
 	return deploy.Status.ReadyReplicas, nil
+}
+
+func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
+	return mc.Status.Phase == "Running"
+}
+
+func deleteIfExists(name types.NamespacedName, obj client.Object) {
+	Eventually(func() error {
+		err := k8sClient.Get(context.Background(), name, obj)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+
+		return k8sClient.Delete(context.Background(), obj)
+	}, timeout, interval).Should(Succeed())
 }
