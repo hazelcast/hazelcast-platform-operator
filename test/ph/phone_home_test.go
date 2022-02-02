@@ -136,12 +136,12 @@ var _ = Describe("Hazelcast", func() {
 			},
 			Entry("with ExposeExternallyUnisocket configuration", hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
 			Entry("with ExposeExternallySmartNodePort configuration", hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
-			FEntry("with ExposeExternallySmartLoadBalancer configuration", hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
+			Entry("with ExposeExternallySmartLoadBalancer configuration", hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
 			Entry("with ExposeExternallySmartNodePortNodeName configuration", hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzNamespace, ee), 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
 
-	FDescribe("Phone Home table with installed Management Center", func() {
+	Describe("Phone Home table with installed Management Center", func() {
 		AfterEach(func() {
 			Expect(k8sClient.Delete(context.Background(), emptyManagementCenter(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 			assertDoesNotExist(lookupKeyMc, &hazelcastcomv1alpha1.ManagementCenter{})
