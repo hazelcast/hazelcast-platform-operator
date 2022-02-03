@@ -242,10 +242,10 @@ var _ = Describe("Hazelcast", func() {
 
 			for _, pod := range pods.Items {
 				Expect(pod.Spec.Volumes).Should(ContainElement(corev1.Volume{
-					Name: n.PersistencePvcName,
+					Name: n.PersistenceVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-							ClaimName: n.PersistencePvcName + "-" + pod.Name,
+							ClaimName: n.PersistenceVolumeName + "-" + pod.Name,
 						},
 					},
 				}))

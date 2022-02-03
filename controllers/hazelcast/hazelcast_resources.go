@@ -528,24 +528,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 						VolumeMounts: persistentVolumeMount(h),
 					}},
 					TerminationGracePeriodSeconds: &[]int64{600}[0],
-					Volumes: []v1.Volume{
-						{
-							Name: n.HazelcastStorageName,
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
-										Name: h.Name,
-									},
-								},
-							},
-						},
-					},
+					Volumes:                       volumes(h),
 				},
 			},
 		},
 	}
 
-	if h.Spec.Persistence.IsEnabled() {
+	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.Pvc.Name == "" {
 		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 	}
 
@@ -574,11 +563,37 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
+func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
+	v := []v1.Volume{
+		{
+			Name: n.HazelcastStorageName,
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: h.Name,
+					},
+				},
+			},
+		},
+	}
+	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.Pvc.Name == "" {
+		v = append(v, v1.Volume{
+			Name: n.PersistenceVolumeName,
+			VolumeSource: v1.VolumeSource{
+				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+					ClaimName: h.Spec.Persistence.Pvc.Name,
+				},
+			},
+		})
+	}
+	return v
+}
+
 func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
 	return []v1.PersistentVolumeClaim{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      n.PersistencePvcName,
+				Name:      n.PersistenceVolumeName,
 				Namespace: h.Namespace,
 				Labels:    labels(h),
 			},
@@ -604,8 +619,8 @@ func persistentVolumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount 
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
-			Name:      n.PersistencePvcName,
-			MountPath: "/data/hot-restart",
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
 		})
 	}
 	return mounts
