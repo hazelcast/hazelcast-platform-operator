@@ -4,9 +4,13 @@ metadata:
   name: mutating-webhook-configuration
 webhooks:
   - name: inject-turbine.hazelcast.com
-    namespaceSelector:
+    objectSelector:
       matchExpressions:
-        - key: "kubernetes.io/metadata.name"
+        - key: "turbine.hazelcast.com/enabled"
           operator: In
           values:
-            - hazelcast
+            - "true"
+        - key: "turbine.hazelcast.com/injected"
+          operator: NotIn
+          values:
+            - "true"

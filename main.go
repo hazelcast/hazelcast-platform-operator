@@ -129,7 +129,7 @@ func main() {
 	}
 	mgr.GetWebhookServer().Register(
 		"/inject-turbine",
-		&webhook.Admission{Handler: turbine.New(mgr.GetClient(), namespace)},
+		&webhook.Admission{Handler: turbine.New(mgr.GetClient(), ctrl.Log.WithName("webhook").WithName("Turbine"), namespace)},
 	)
 	//+kubebuilder:scaffold:builder
 

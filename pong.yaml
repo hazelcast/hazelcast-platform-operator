@@ -13,8 +13,8 @@ spec:
     metadata:
       labels:
         app: pong-service
-      annotations:
         turbine.hazelcast.com/enabled: "true"
+      annotations:
         turbine.hazelcast.com/configmap: "turbine-sidecar-config"
         turbine.hazelcast.com/app-port: "3001"
     spec:

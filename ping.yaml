@@ -13,8 +13,8 @@ spec:
     metadata:
       labels:
         app: ping-service
-      annotations:
         turbine.hazelcast.com/enabled: "true"
+      annotations:
         turbine.hazelcast.com/configmap: "turbine-sidecar-config"
     spec:
       containers:
