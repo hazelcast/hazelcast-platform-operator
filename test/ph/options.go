@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&hzNamespace, "namespace", "default", "The namespace to run e2e tests")
+	flag.StringVar(&hzNamespace, "namespace", "default", "The namespace to run phone home tests")
 	flag.DurationVar(&interval, "interval", 1*time.Second, "The length of time between checks")
 	flag.DurationVar(&timeout, "eventually-timeout", 5*time.Minute, "Timeout for test steps")
 	flag.BoolVar(&ee, "ee", true, "Flag to define whether Enterprise edition of Hazelcast will be used")
