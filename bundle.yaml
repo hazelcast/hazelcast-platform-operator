@@ -108,9 +108,6 @@ spec:
                         items:
                           type: string
                         type: array
-                      name:
-                        description: Name of the existing PVC.
-                        type: string
                       requestStorage:
                         anyOf:
                         - type: integer
