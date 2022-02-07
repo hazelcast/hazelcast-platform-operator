@@ -120,7 +120,7 @@ var (
 		}
 	}
 
-	PersistenceEnabled = func(ns string) *hazelcastv1alpha1.Hazelcast {
+	PersistenceEnabled = func(ns string, baseDir string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "hazelcast",
@@ -132,7 +132,7 @@ var (
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
 				Persistence: hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart",
+					BaseDir:                   baseDir,
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

@@ -224,7 +224,7 @@ var _ = Describe("Hazelcast", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
 			create(hazelcast)
 
 			assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
@@ -256,14 +256,14 @@ var _ = Describe("Hazelcast", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
 			create(hazelcast)
 
 			evaluateReadyMembers(lookupKey)
 
+			By("Creating HotBackup CR")
 			t := time.Now()
 			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
-			By("Creating HotBackup CR")
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
 			By("Check the HotBackup creation sequence")
@@ -284,6 +284,94 @@ var _ = Describe("Hazelcast", func() {
 				Should(MatchRegexp("Backup of hot restart store \\S+ finished"))
 			test.EventuallyInLogs(scanner, timeout, interval).
 				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
+			Expect(logs.Close()).Should(Succeed())
+		})
+
+		It("should successfully restart from HotBackup data", func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
+			create(hazelcast)
+
+			evaluateReadyMembers(lookupKey)
+
+			By("Creating HotBackup CR")
+			t := time.Now()
+			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
+			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+
+			By("Finding Backup sequence")
+			logs := test.GetPodLogs(context.Background(), types.NamespacedName{
+				Name:      hzName + "-0",
+				Namespace: hzNamespace,
+			}, &corev1.PodLogOptions{
+				Follow:    true,
+				SinceTime: &v1.Time{Time: t},
+			})
+			defer logs.Close()
+			scanner := bufio.NewScanner(logs)
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("Starting new hot backup with sequence"))
+			line := scanner.Text()
+			Expect(logs.Close()).Should(Succeed())
+
+			compRegEx := regexp.MustCompile("Starting new hot backup with sequence (?P<seq>\\d+)")
+			match := compRegEx.FindStringSubmatch(line)
+			var seq string
+			for i, name := range compRegEx.SubexpNames() {
+				if name == "seq" && i > 0 && i <= len(match) {
+					seq = match[i]
+				}
+			}
+			if seq == "" {
+				Fail("Backup sequence not found")
+			}
+			Expect(k8sClient.Delete(context.Background(), hazelcast, client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
+
+			By("Waiting for Hazelcast Pods to be removed", func() {
+				Eventually(func() error {
+					p := &corev1.Pod{}
+					return k8sClient.Get(context.Background(), types.NamespacedName{
+						Name:      hzName + "-0",
+						Namespace: hzNamespace,
+					}, p)
+				}, timeout, interval).ShouldNot(Succeed())
+			})
+			By("Waiting for Hazelcast CR to be removed", func() {
+				Eventually(func() error {
+					h := &hazelcastcomv1alpha1.Hazelcast{}
+					return k8sClient.Get(context.Background(), types.NamespacedName{
+						Name:      hzName,
+						Namespace: hzNamespace,
+					}, h)
+				}, timeout, interval).ShouldNot(Succeed())
+			})
+
+			By("Creating new Hazelcast cluster from existing backup")
+			baseDir := "/data/hot-restart/hot-backup/backup-" + seq
+			hazelcast = hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir)
+			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
+			evaluateReadyMembers(lookupKey)
+
+			logs = test.GetPodLogs(context.Background(), types.NamespacedName{
+				Name:      hzName + "-0",
+				Namespace: hzNamespace,
+			}, &corev1.PodLogOptions{Follow: true})
+			defer logs.Close()
+
+			scanner = bufio.NewScanner(logs)
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("Starting hot-restart service. Base directory: " + baseDir))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("Starting the Hot Restart procedure."))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("Local Hot Restart procedure completed with success."))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("Completed hot restart with final cluster state: ACTIVE"))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
+
 			Expect(logs.Close()).Should(Succeed())
 		})
 	})

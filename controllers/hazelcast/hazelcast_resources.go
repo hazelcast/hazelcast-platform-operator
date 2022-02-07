@@ -534,7 +534,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
-	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.Pvc.Name == "" {
+	if h.Spec.Persistence.IsEnabled() {
 		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 	}
 
@@ -564,7 +564,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 }
 
 func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
-	v := []v1.Volume{
+	return []v1.Volume{
 		{
 			Name: n.HazelcastStorageName,
 			VolumeSource: v1.VolumeSource{
@@ -576,17 +576,6 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 			},
 		},
 	}
-	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.Pvc.Name == "" {
-		v = append(v, v1.Volume{
-			Name: n.PersistenceVolumeName,
-			VolumeSource: v1.VolumeSource{
-				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-					ClaimName: h.Spec.Persistence.Pvc.Name,
-				},
-			},
-		})
-	}
-	return v
 }
 
 func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {

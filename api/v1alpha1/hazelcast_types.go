@@ -86,10 +86,6 @@ type HazelcastPersistenceConfiguration struct {
 }
 
 type PersistencePvcConfiguration struct {
-	// Name of the existing PVC.
-	// +optional
-	Name string `json:"name,omitempty"`
-
 	// AccessModes contains the actual access modes of the volume backing the PVC has.
 	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
 	// +optional

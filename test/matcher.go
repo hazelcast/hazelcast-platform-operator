@@ -59,11 +59,10 @@ func (matcher HazelcastSpecEqual) NegatedFailureMessage(actual interface{}) (mes
 	return format.Message(actual, "not to equal", matcher.Expected)
 }
 
-func EventuallyInLogs(scanner *bufio.Scanner, intervals ...interface{}) AsyncAssertion {
+func EventuallyInLogs(logs *bufio.Scanner, intervals ...interface{}) AsyncAssertion {
 	return Eventually(func() string {
-		if scanner.Scan() {
-			text := scanner.Text()
-			println(text)
+		if logs.Scan() {
+			text := logs.Text()
 			return text
 		}
 		return ""
