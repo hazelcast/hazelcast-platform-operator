@@ -598,7 +598,7 @@ func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func podAnnotations(h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
-		ans[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccess)
+		ans[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccessType())
 	}
 	cfg := config.HazelcastWrapper{Hazelcast: hazelcastConfigMapStruct(h).HazelcastConfigForcingRestart()}
 	cfgYaml, err := yaml.Marshal(cfg)
