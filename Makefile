@@ -89,7 +89,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -137,8 +137,11 @@ GO_BUILD_TAGS ?= "localrun"
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager -tags $(GO_BUILD_TAGS) main.go
 
+build-tilt: generate fmt vet
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/tilt/manager main.go  
+
 run: manifests generate fmt vet ## Run a controller from your host.
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go run -tags $(GO_BUILD_TAGS)  ./main.go
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go run -tags $(GO_BUILD_TAGS) ./main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
@@ -162,23 +165,32 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 ifneq (,$(NAME_PREFIX))
-	cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
+	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
 endif
-	cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml
+	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml &> /dev/null
 ifeq (false,$(PHONE_HOME_ENABLED))
-	cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path disable_phone_home.yaml
+	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path disable_phone_home.yaml
 endif
-	cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path remove_security_context.yaml &> /dev/null
+ifeq (true,$(REMOVE_SECURITY_CONTEXT))
+	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path remove_security_context.yaml
+endif
+	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
+	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
+	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+ifneq (false,$(APPLY_MANIFESTS))
+	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+else
+	@$(KUSTOMIZE) build config/default
+endif
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f -
+	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f - --ignore-not-found
 
 undeploy-keep-crd:
 	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found
+	cd config/default && $(KUSTOMIZE) edit add resource ../crd
 
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
 	$(eval mc := $(shell $(KUBECTL) get managementcenter -n $(NAMESPACE) -o name))
