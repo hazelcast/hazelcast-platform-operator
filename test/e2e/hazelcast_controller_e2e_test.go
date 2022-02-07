@@ -316,7 +316,7 @@ var _ = Describe("Hazelcast", func() {
 			line := scanner.Text()
 			Expect(logs.Close()).Should(Succeed())
 
-			compRegEx := regexp.MustCompile("Starting new hot backup with sequence (?P<seq>\\d+)")
+			compRegEx := regexp.MustCompile(`Starting new hot backup with sequence (?P<seq>\d+)`)
 			match := compRegEx.FindStringSubmatch(line)
 			var seq string
 			for i, name := range compRegEx.SubexpNames() {
