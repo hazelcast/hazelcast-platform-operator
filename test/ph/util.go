@@ -1,6 +1,11 @@
 package ph
 
 import (
+	"log"
+	"os"
+	"strings"
+	"time"
+
 	"cloud.google.com/go/bigquery"
 	"context"
 	. "github.com/onsi/gomega"
@@ -12,11 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"log"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
-	"time"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )

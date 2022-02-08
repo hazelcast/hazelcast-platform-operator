@@ -4,18 +4,19 @@ import (
 	"cloud.google.com/go/bigquery"
 	"context"
 	"fmt"
-	. "github.com/onsi/ginkgo/extensions/table"
-	corev1 "k8s.io/api/core/v1"
 	"time"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
@@ -66,13 +67,27 @@ var _ = Describe("Hazelcast", func() {
 		})
 	}
 
-	evaluateReadyMembers := func(h *hazelcastcomv1alpha1.Hazelcast) {
+	evaluateReadyMembers := func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
 		Eventually(func() string {
 			err := k8sClient.Get(context.Background(), lookupKeyHz, hz)
 			Expect(err).ToNot(HaveOccurred())
 			return hz.Status.Cluster.ReadyMembers
 		}, timeout, interval).Should(Equal("3/3"))
+	}
+
+	assertAnnotationExists := func() {
+		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		Eventually(func() bool {
+			err := k8sClient.Get(context.Background(), lookupKeyHz, hz)
+			if err != nil {
+				return false
+			}
+			test := hz.ObjectMeta.Annotations
+			fmt.Println(test)
+			_, ok := hz.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+			return ok
+		}, timeout, interval).Should(BeTrue())
 	}
 
 	createMc := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
@@ -90,7 +105,7 @@ var _ = Describe("Hazelcast", func() {
 		})
 	}
 
-	Describe("Phone Home Table with installed Hazelcast", func() {
+	FDescribe("Phone Home Table with installed Hazelcast", func() {
 		AfterEach(func() {
 			Expect(k8sClient.Delete(context.Background(), emptyHazelcast(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 			assertDoesNotExist(lookupKeyHz, &hazelcastcomv1alpha1.Hazelcast{})
@@ -109,7 +124,8 @@ var _ = Describe("Hazelcast", func() {
 
 				createHz(h)
 				hzCreationTime := time.Now().UTC().Truncate(time.Hour)
-				evaluateReadyMembers(h)
+				evaluateReadyMembers()
+				assertAnnotationExists()
 
 				bigQueryTable := getBigQueryTable()
 				Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
@@ -134,7 +150,7 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName), "MemberNodePortNodeName metric")
 				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer), "MemberLoadBalancer metric")
 			},
-			Entry("with ExposeExternallyUnisocket configuration", hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
+			FEntry("with ExposeExternallyUnisocket configuration", hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
 			Entry("with ExposeExternallySmartNodePort configuration", hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
 			Entry("with ExposeExternallySmartLoadBalancer configuration", hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
 			Entry("with ExposeExternallySmartNodePortNodeName configuration", hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzNamespace, ee), 1, 0, 1, 0, 1, 0, 1, 0),

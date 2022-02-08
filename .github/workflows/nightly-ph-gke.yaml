@@ -44,14 +44,12 @@ jobs:
     needs: [ create-gke-cluster ]
     strategy:
       fail-fast: false
-      matrix:
-        edition: [ 'ee' ]
     env:
       IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
-      NAMESPACE: test-operator-nightly-${{ matrix.edition }}
+      NAMESPACE: test-operator-nightly-ee
       PHONE_HOME_ENABLED: true
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+      NAME_PREFIX: hp-ee-${{ github.run_id }}-
       KUBECTL_VERSION: 1.22.0
 
     steps:
@@ -106,7 +104,6 @@ jobs:
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secret
-        if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
             --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
@@ -114,11 +111,7 @@ jobs:
       - name: Run Hazelcast Phone Home tests at GKE
         id: ph-test
         run: |
-          case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
+          GO_TEST_FLAGS=-ee=true
           make test-ph GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
 
       - name: Clean up after Tests
