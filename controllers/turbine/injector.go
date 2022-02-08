@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
@@ -28,6 +29,8 @@ const (
 
 	envPodIp       = "TURBINE_POD_IP"
 	envAppHttpPort = "APP_HTTP_PORT"
+
+	appHttpPortName = "app-http"
 )
 
 type Injector struct {
@@ -216,5 +219,17 @@ func getConfigMapName(p *v1.Pod) string {
 }
 
 func getAppPort(p *v1.Pod) string {
-	return p.Annotations[appPortAnnotationKey]
+	if port, ok := p.Annotations[appPortAnnotationKey]; ok && port != "" {
+		return port
+	}
+
+	for i := range p.Spec.Containers {
+		for j := range p.Spec.Containers[i].Ports {
+			if p.Spec.Containers[i].Ports[j].Name == appHttpPortName {
+				return strconv.FormatInt(int64(p.Spec.Containers[i].Ports[j].ContainerPort), 10)
+			}
+		}
+	}
+
+	return ""
 }
