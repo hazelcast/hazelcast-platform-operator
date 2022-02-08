@@ -166,7 +166,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Context("Hazelcast member status", func() {
 
-		evaluateReadyMembers := func(h *hazelcastcomv1alpha1.Hazelcast) {
+		evaluateReadyMembers := func() {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			Eventually(func() string {
 				err := k8sClient.Get(context.Background(), lookupKey, hz)
@@ -179,7 +179,7 @@ var _ = Describe("Hazelcast", func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
-			evaluateReadyMembers(h)
+			evaluateReadyMembers()
 
 			assertMemberLogs(h, "Members {size:3, ver:3}")
 
@@ -190,7 +190,7 @@ var _ = Describe("Hazelcast", func() {
 					n.ApplicationManagedByLabel:    n.OperatorName,
 				})
 				Expect(err).ToNot(HaveOccurred())
-				evaluateReadyMembers(h)
+				evaluateReadyMembers()
 			})
 		})
 	})
