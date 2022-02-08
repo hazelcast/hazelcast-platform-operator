@@ -1,11 +1,11 @@
 package ph
 
 import (
-	"cloud.google.com/go/bigquery"
 	"context"
 	"fmt"
 	"time"
 
+	"cloud.google.com/go/bigquery"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
