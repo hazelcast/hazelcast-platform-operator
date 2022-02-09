@@ -11,6 +11,11 @@ type HotBackupSpec struct {
 	// HazelcastResourceName defines the name of the Hazelcast resource
 	// +kubebuilder:validation:Required
 	HazelcastResourceName string `json:"hazelcastResourceName"`
+
+	// Schedule contains a crontab-like expression that defines the schedule in which HotBackup will be started.
+	// If the Schedule is empty the HotBackup will start only once when applied.
+	// +optional
+	Schedule string `json:"schedule"`
 }
 
 //+kubebuilder:object:root=true

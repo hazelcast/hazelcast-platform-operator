@@ -2,6 +2,12 @@ package hazelcast
 
 import (
 	"context"
+	"sync"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/robfig/cron/v3"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -18,7 +24,17 @@ import (
 
 type HotBackupReconciler struct {
 	client.Client
-	Log logr.Logger
+	Log       logr.Logger
+	scheduled sync.Map
+	cron      *cron.Cron
+}
+
+func NewHotBackupReconciler(c client.Client, log logr.Logger) *HotBackupReconciler {
+	return &HotBackupReconciler{
+		Client: c,
+		Log:    log,
+		cron:   cron.New(),
+	}
 }
 
 // Openshift related permissions
@@ -43,6 +59,24 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		logger.Error(err, "Failed to get HotBackup")
 		return ctrl.Result{}, err
 	}
+
+	err = r.addFinalizer(ctx, hb, logger)
+	if err != nil {
+		logger.Error(err, "Failed to add finalizer into custom resource")
+		return reconcile.Result{}, err
+	}
+
+	//Check if the HotBackup CR is marked to be deleted
+	if hb.GetDeletionTimestamp() != nil {
+		err = r.executeFinalizer(ctx, hb, logger)
+		if err != nil {
+			logger.Error(err, "Finalizer execution failed")
+			return ctrl.Result{}, err
+		}
+		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+		return ctrl.Result{}, nil
+	}
+
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: hb.Spec.HazelcastResourceName}, h)
 	if err != nil {
@@ -56,10 +90,67 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	}
 	rest := NewRestClient(h)
 
-	err = rest.ChangeState(Passive)
+	if hb.Spec.Schedule != "" {
+		entry, err := r.cron.AddFunc(hb.Spec.Schedule, func() {
+			logger.Info("Triggering scheduled HotBackup process.", "Schedule", hb.Spec.Schedule)
+			err := r.triggerHotBackup(rest, logger)
+			if err != nil {
+				logger.Error(err, "Hob Backups process failed")
+			}
+		})
+		if err != nil {
+			logger.Error(err, "Error creating new Schedule Hot Restart.")
+		}
+		logger.V(1).Info("Adding cron Job.", "EntryId", entry)
+		oldV, loaded := r.scheduled.LoadOrStore(req.NamespacedName, entry)
+		if loaded {
+			r.cron.Remove(oldV.(cron.EntryID))
+			r.scheduled.Store(req.NamespacedName, entry)
+		}
+		r.cron.Start()
+	} else {
+		err = r.triggerHotBackup(rest, logger)
+	}
+	return ctrl.Result{}, err
+}
+
+func (r *HotBackupReconciler) addFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(hb, n.Finalizer) {
+		controllerutil.AddFinalizer(hb, n.Finalizer)
+		err := r.Update(ctx, hb)
+		if err != nil {
+			return err
+		}
+		logger.V(1).Info("Finalizer added into custom resource successfully")
+	}
+	return nil
+}
+
+func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
+	key := types.NamespacedName{
+		Name:      hb.Name,
+		Namespace: hb.Namespace,
+	}
+	jobId, ok := r.scheduled.Load(key)
+	if ok {
+		logger.V(1).Info("Removing cron Job.", "EntryId", jobId)
+		r.cron.Remove(jobId.(cron.EntryID))
+		r.scheduled.Delete(key)
+	}
+	controllerutil.RemoveFinalizer(hb, n.Finalizer)
+	err := r.Update(ctx, hb)
+	if err != nil {
+		logger.Error(err, "Failed to remove finalizer from custom resource")
+		return err
+	}
+	return nil
+}
+
+func (r *HotBackupReconciler) triggerHotBackup(rest *RestClient, logger logr.Logger) error {
+	err := rest.ChangeState(Passive)
 	if err != nil {
 		logger.Error(err, "Error creating HotBackup. Could not change the cluster state to PASSIVE")
-		return reconcile.Result{}, err
+		return err
 	}
 	defer func(rest *RestClient) {
 		e := rest.ChangeState(Active)
@@ -70,9 +161,9 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	err = rest.HotBackup()
 	if err != nil {
 		logger.Error(err, "Error creating HotBackup.")
-		return reconcile.Result{}, err
+		return err
 	}
-	return ctrl.Result{}, nil
+	return nil
 }
 
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {

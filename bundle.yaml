@@ -576,6 +576,9 @@ spec:
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast resource
                 type: string
+              schedule:
+                description: Schedule contains a crontab-like expression that defines the schedule in which HotBackup will be started. If the Schedule is empty the HotBackup will start only once when applied.
+                type: string
             required:
             - hazelcastResourceName
             type: object
