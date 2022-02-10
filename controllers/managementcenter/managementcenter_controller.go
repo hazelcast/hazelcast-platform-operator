@@ -143,7 +143,8 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
 
-	return update(ctx, r.Status(), mc, runningPhase())
+	externalAddrs := util.GetExternalAddresses(ctx, r.Client, mc, logger)
+	return update(ctx, r.Status(), mc, runningPhase().withExternalAddresses(externalAddrs))
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -6,6 +6,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
 // ManagementCenterSpec defines the desired state of ManagementCenter.
@@ -95,8 +97,9 @@ type PersistenceConfiguration struct {
 
 // ManagementCenterStatus defines the observed state of ManagementCenter.
 type ManagementCenterStatus struct {
-	Phase   Phase  `json:"phase"`
-	Message string `json:"message,omitempty"`
+	Phase             Phase  `json:"phase"`
+	Message           string `json:"message,omitempty"`
+	ExternalAddresses string `json:"externalAddresses,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -105,6 +108,7 @@ type ManagementCenterStatus struct {
 // ManagementCenter is the Schema for the managementcenters API
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Management Center deployment"
+//+kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Management Center deployment"
 type ManagementCenter struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -142,7 +146,33 @@ func (c *ExternalConnectivityConfiguration) ManagementCenterServiceType() corev1
 	}
 }
 
+// IsEnabled returns true if external connectivity is enabled.
+func (ec *ExternalConnectivityConfiguration) IsEnabled() bool {
+	return *ec != ExternalConnectivityConfiguration{}
+}
+
 // Returns true if persistence configuration is specified.
 func (c *PersistenceConfiguration) IsEnabled() bool {
 	return c.Enabled
+}
+
+func (mc *ManagementCenter) PredefinedLabels() map[string]string {
+	return map[string]string{
+		n.ApplicationNameLabel:         n.ManagementCenter,
+		n.ApplicationInstanceNameLabel: mc.Name,
+		n.ApplicationManagedByLabel:    n.OperatorName,
+	}
+}
+
+func (mc *ManagementCenter) PredefinedMetadata() metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      mc.Name,
+		Namespace: mc.Namespace,
+		Labels:    mc.PredefinedLabels(),
+	}
+}
+
+func (mc *ManagementCenter) ExternalAddressEnabled() bool {
+	return mc.Spec.ExternalConnectivity.IsEnabled() &&
+		mc.Spec.ExternalConnectivity.Type == ExternalConnectivityTypeLoadBalancer
 }

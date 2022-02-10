@@ -21,6 +21,10 @@ spec:
       jsonPath: .status.phase
       name: Status
       type: string
+    - description: External addresses of the Management Center deployment
+      jsonPath: .status.externalAddresses
+      name: External-Addresses
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -110,6 +114,8 @@ spec:
           status:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
             properties:
+              externalAddresses:
+                type: string
               message:
                 type: string
               phase:

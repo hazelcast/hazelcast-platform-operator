@@ -125,6 +125,16 @@ var _ = Describe("Hazelcast", func() {
 			Expect(err).ToNot(HaveOccurred())
 		}
 
+		assertExternalAddressesNotEmpty := func() {
+			By("status external addresses should not be empty")
+			Eventually(func() string {
+				cr := hazelcastcomv1alpha1.Hazelcast{}
+				err := k8sClient.Get(context.Background(), lookupKey, &cr)
+				Expect(err).ToNot(HaveOccurred())
+				return cr.Status.ExternalAddresses
+			}, timeout, interval).Should(Not(BeEmpty()))
+		}
+
 		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
 			assertUseHazelcastUnisocket := func() {
 				assertUseHazelcast(true)
@@ -133,6 +143,7 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee)
 			create(hazelcast)
 			assertUseHazelcastUnisocket()
+			assertExternalAddressesNotEmpty()
 		})
 
 		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
@@ -143,6 +154,7 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee)
 			create(hazelcast)
 			assertUseHazelcastSmart()
+			assertExternalAddressesNotEmpty()
 		})
 
 		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", func() {

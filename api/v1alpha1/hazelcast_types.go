@@ -6,6 +6,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
 // Phase represents the current state of the cluster
@@ -170,9 +172,10 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
-	Phase   Phase                  `json:"phase"`
-	Cluster HazelcastClusterStatus `json:"hazelcastClusterStatus"`
-	Message string                 `json:"message,omitempty"`
+	Phase             Phase                  `json:"phase"`
+	Cluster           HazelcastClusterStatus `json:"hazelcastClusterStatus"`
+	Message           string                 `json:"message,omitempty"`
+	ExternalAddresses string                 `json:"externalAddresses,omitempty"`
 }
 
 // HazelcastClusterStatus defines the status of the Hazelcast cluster
@@ -189,6 +192,7 @@ type HazelcastClusterStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 // +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
+// +kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Hazelcast cluster"
 type Hazelcast struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -222,4 +226,25 @@ func FNV32a(txt string) uint32 {
 
 func (h *Hazelcast) ClusterScopedName() string {
 	return fmt.Sprintf("%s-%d", h.Name, FNV32a(h.Namespace))
+}
+
+func (h *Hazelcast) PredefinedLabels() map[string]string {
+	return map[string]string{
+		n.ApplicationNameLabel:         n.Hazelcast,
+		n.ApplicationInstanceNameLabel: h.Name,
+		n.ApplicationManagedByLabel:    n.OperatorName,
+	}
+}
+
+func (h *Hazelcast) PredefinedMetadata() metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      h.Name,
+		Namespace: h.Namespace,
+		Labels:    h.PredefinedLabels(),
+	}
+}
+
+func (h *Hazelcast) ExternalAddressEnabled() bool {
+	return h.Spec.ExposeExternally.IsEnabled() &&
+		h.Spec.ExposeExternally.DiscoveryServiceType == corev1.ServiceTypeLoadBalancer
 }

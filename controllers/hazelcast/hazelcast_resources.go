@@ -13,7 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	config "github.com/hazelcast/hazelcast-platform-operator/controllers/config"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
@@ -78,7 +78,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	clusterRole := &rbacv1.ClusterRole{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, clusterRole)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && kerrors.IsNotFound(err) {
 		logger.V(1).Info("ClusterRole is not created yet. Or it is already removed.")
 		return nil
 	}
@@ -95,7 +95,7 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	crb := &rbacv1.ClusterRoleBinding{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, crb)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && kerrors.IsNotFound(err) {
 		logger.V(1).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
 		return nil
 	}
@@ -114,7 +114,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   h.ClusterScopedName(),
-			Labels: labels(h),
+			Labels: h.PredefinedLabels(),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -145,7 +145,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 
 func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metadata(h),
+		ObjectMeta: h.PredefinedMetadata(),
 	}
 
 	err := controllerutil.SetControllerReference(h, serviceAccount, r.Scheme)
@@ -168,7 +168,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   csName,
-			Labels: labels(h),
+			Labels: h.PredefinedLabels(),
 		},
 	}
 
@@ -196,9 +196,9 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	service := &corev1.Service{
-		ObjectMeta: metadata(h),
+		ObjectMeta: h.PredefinedMetadata(),
 		Spec: corev1.ServiceSpec{
-			Selector: labels(h),
+			Selector: h.PredefinedLabels(),
 			Ports:    ports(),
 		},
 	}
@@ -283,7 +283,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 	sts := &appsv1.StatefulSet{}
 	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			// Not found, StatefulSet is not created yet, no need to delete any services
 			return nil
 		}
@@ -299,7 +299,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 		s := &v1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if kerrors.IsNotFound(err) {
 				// Not found, no need to remove the service
 				continue
 			}
@@ -307,7 +307,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 		}
 		err = r.Client.Delete(ctx, s)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if kerrors.IsNotFound(err) {
 				// Not found, no need to remove the service
 				continue
 			}
@@ -323,13 +323,13 @@ func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func servicePerPodSelector(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := labels(h)
+	ls := h.PredefinedLabels()
 	ls[n.PodNameLabel] = servicePerPodName(i, h)
 	return ls
 }
 
 func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := labels(h)
+	ls := h.PredefinedLabels()
 	ls[n.ServicePerPodLabelName] = n.LabelValueTrue
 	return ls
 }
@@ -372,7 +372,7 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 
 func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metadata(h),
+		ObjectMeta: h.PredefinedMetadata(),
 	}
 
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
@@ -439,9 +439,9 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	ls := labels(h)
+	ls := h.PredefinedLabels()
 	sts := &appsv1.StatefulSet{
-		ObjectMeta: metadata(h),
+		ObjectMeta: h.PredefinedMetadata(),
 		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
@@ -579,14 +579,6 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	return envs
 }
 
-func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	return map[string]string{
-		n.ApplicationNameLabel:         n.Hazelcast,
-		n.ApplicationInstanceNameLabel: h.Name,
-		n.ApplicationManagedByLabel:    n.OperatorName,
-	}
-}
-
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
@@ -608,14 +600,6 @@ func podAnnotations(h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
 	ans[n.CurrentHazelcastConfigForcingRestartChecksum] = fmt.Sprint(crc32.ChecksumIEEE(cfgYaml))
 
 	return ans, nil
-}
-
-func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
-	return metav1.ObjectMeta{
-		Name:      h.Name,
-		Namespace: h.Namespace,
-		Labels:    labels(h),
-	}
 }
 
 func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {

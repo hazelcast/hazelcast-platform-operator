@@ -11,10 +11,11 @@ import (
 )
 
 type optionsBuilder struct {
-	phase      hazelcastv1alpha1.Phase
-	retryAfter time.Duration
-	err        error
-	message    string
+	phase             hazelcastv1alpha1.Phase
+	retryAfter        time.Duration
+	err               error
+	message           string
+	externalAddresses string
 }
 
 func failedPhase(err error) optionsBuilder {
@@ -42,11 +43,17 @@ func (o optionsBuilder) withMessage(message string) optionsBuilder {
 	return o
 }
 
+func (o optionsBuilder) withExternalAddresses(externalAddrs string) optionsBuilder {
+	o.externalAddresses = externalAddrs
+	return o
+}
+
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Management Center resource
 func update(ctx context.Context, statusWriter client.StatusWriter, mc *hazelcastv1alpha1.ManagementCenter, options optionsBuilder) (ctrl.Result, error) {
 	mc.Status = hazelcastv1alpha1.ManagementCenterStatus{
-		Phase:   options.phase,
-		Message: options.message,
+		Phase:             options.phase,
+		Message:           options.message,
+		ExternalAddresses: options.externalAddresses,
 	}
 	if err := statusWriter.Update(ctx, mc); err != nil {
 		return ctrl.Result{}, err

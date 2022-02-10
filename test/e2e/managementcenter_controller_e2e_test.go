@@ -101,6 +101,14 @@ var _ = Describe("Management-Center", func() {
 				Expect(fetchedPVC.Status.Capacity).Should(Equal(expectedResourceList))
 			})
 
+			By("Assert status external addresses not empty", func() {
+				Eventually(func() string {
+					cr := hazelcastcomv1alpha1.ManagementCenter{}
+					err := k8sClient.Get(context.Background(), lookupKey, &cr)
+					Expect(err).ToNot(HaveOccurred())
+					return cr.Status.ExternalAddresses
+				}, timeout, interval).Should(Not(BeEmpty()))
+			})
 		})
 
 	})

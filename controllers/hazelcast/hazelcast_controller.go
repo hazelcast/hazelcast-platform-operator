@@ -189,7 +189,8 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
 
-	return update(ctx, r.Client, h, r.runningPhaseWithMembers(req))
+	externalAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
+	return update(ctx, r.Client, h, r.runningPhaseWithMembers(req).withExternalAddresses(externalAddrs))
 }
 
 func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsBuilder {
