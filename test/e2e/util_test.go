@@ -69,5 +69,3 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 		return k8sClient.Delete(context.Background(), obj)
 	}, timeout, interval).Should(Succeed())
 }
-
-var Some string
