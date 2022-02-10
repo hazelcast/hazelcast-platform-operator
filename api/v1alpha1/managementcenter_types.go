@@ -81,9 +81,9 @@ const (
 )
 
 type PersistenceConfiguration struct {
+	// When true, MC will use a PersistentVolumeClaim to store data.
 	// +optional
 	// +kubebuilder:default:=true
-	// When true MC will use a PersistentVolumeClaim to store data.
 	Enabled bool `json:"enabled"`
 
 	// Name of the PersistentVolumeClaim MC will use for persistence. If not empty,
