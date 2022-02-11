@@ -23,6 +23,10 @@ spec:
       jsonPath: .status.hazelcastClusterStatus.readyMembers
       name: Members
       type: string
+    - description: External addresses of the Hazelcast cluster
+      jsonPath: .status.externalAddresses
+      name: External-Addresses
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -461,6 +465,8 @@ spec:
           status:
             description: HazelcastStatus defines the observed state of Hazelcast
             properties:
+              externalAddresses:
+                type: string
               hazelcastClusterStatus:
                 description: HazelcastClusterStatus defines the status of the Hazelcast cluster
                 properties:
@@ -511,6 +517,10 @@ spec:
     - description: Current state of the Management Center deployment
       jsonPath: .status.phase
       name: Status
+      type: string
+    - description: External addresses of the Management Center deployment
+      jsonPath: .status.externalAddresses
+      name: External-Addresses
       type: string
     name: v1alpha1
     schema:
@@ -591,6 +601,8 @@ spec:
           status:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
             properties:
+              externalAddresses:
+                type: string
               message:
                 type: string
               phase:
