@@ -46,7 +46,7 @@ jobs:
           echo "Building the operator image"
           make docker-build IMG=${RHEL_IMAGE} VERSION="${RELEASE_VERSION}" PARDOT_ID="redhat"
 
-          DIGEST=$(docker images --no-trunc --quiet $RHEL_IMAGE)
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $RHEL_IMAGE | cut -d'@' -f2)
           echo "::set-output name=DIGEST::${DIGEST}"
 
       - name: Push Hazelcast-Platform-Operator image to RHEL scan registry
