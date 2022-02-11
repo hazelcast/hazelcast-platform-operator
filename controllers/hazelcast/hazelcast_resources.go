@@ -13,7 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -78,7 +78,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	clusterRole := &rbacv1.ClusterRole{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, clusterRole)
-	if err != nil && kerrors.IsNotFound(err) {
+	if err != nil && errors.IsNotFound(err) {
 		logger.V(1).Info("ClusterRole is not created yet. Or it is already removed.")
 		return nil
 	}
@@ -95,7 +95,7 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	crb := &rbacv1.ClusterRoleBinding{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, crb)
-	if err != nil && kerrors.IsNotFound(err) {
+	if err != nil && errors.IsNotFound(err) {
 		logger.V(1).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
 		return nil
 	}
@@ -283,7 +283,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 	sts := &appsv1.StatefulSet{}
 	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
 	if err != nil {
-		if kerrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			// Not found, StatefulSet is not created yet, no need to delete any services
 			return nil
 		}
@@ -299,7 +299,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 		s := &v1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
-			if kerrors.IsNotFound(err) {
+			if errors.IsNotFound(err) {
 				// Not found, no need to remove the service
 				continue
 			}
@@ -307,7 +307,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 		}
 		err = r.Client.Delete(ctx, s)
 		if err != nil {
-			if kerrors.IsNotFound(err) {
+			if errors.IsNotFound(err) {
 				// Not found, no need to remove the service
 				continue
 			}
