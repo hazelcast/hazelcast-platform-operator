@@ -174,27 +174,22 @@ func deploymentName(podName string) string {
 	return strings.Join(s[:len(s)-2], "-")
 }
 
-func GetLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
-	if lb.IP != "" {
-		return lb.IP
-	}
-	if lb.Hostname != "" {
-		return lb.Hostname
-	}
-	return ""
+type ExternalAddresser interface {
+	metav1.Object
+	ExternalAddressEnabled() bool
 }
 
 func GetExternalAddresses(
 	ctx context.Context,
 	cli client.Client,
-	cr Predefined,
+	cr ExternalAddresser,
 	logger logr.Logger,
 ) string {
 	if !cr.ExternalAddressEnabled() {
 		return ""
 	}
 
-	svc, err := GetDiscoveryService(ctx, cli, cr)
+	svc, err := getDiscoveryService(ctx, cli, cr)
 	if err != nil {
 		logger.Error(err, "Could not get the service")
 		return ""
@@ -204,9 +199,9 @@ func GetExternalAddresses(
 		return ""
 	}
 
-	externalAddrs := make([]string, 0, 4)
+	externalAddrs := make([]string, 0, len(svc.Status.LoadBalancer.Ingress)*len(svc.Spec.Ports))
 	for _, ingress := range svc.Status.LoadBalancer.Ingress {
-		addr := GetLoadBalancerAddress(&ingress)
+		addr := getLoadBalancerAddress(&ingress)
 		if addr == "" {
 			continue
 		}
@@ -223,12 +218,20 @@ func GetExternalAddresses(
 	return result
 }
 
-func GetDiscoveryService(ctx context.Context, cli client.Client, cr Predefined) (*corev1.Service, error) {
-	metadata := cr.PredefinedMetadata()
-
+func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.Service, error) {
 	svc := corev1.Service{}
-	if err := cli.Get(ctx, types.NamespacedName{Namespace: metadata.Namespace, Name: metadata.Name}, &svc); err != nil {
+	if err := cli.Get(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}, &svc); err != nil {
 		return nil, err
 	}
 	return &svc, nil
+}
+
+func getLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
+	if lb.IP != "" {
+		return lb.IP
+	}
+	if lb.Hostname != "" {
+		return lb.Hostname
+	}
+	return ""
 }

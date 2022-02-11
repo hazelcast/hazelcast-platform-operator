@@ -114,7 +114,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   h.ClusterScopedName(),
-			Labels: h.PredefinedLabels(),
+			Labels: labels(h),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -145,7 +145,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 
 func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: h.PredefinedMetadata(),
+		ObjectMeta: metadata(h),
 	}
 
 	err := controllerutil.SetControllerReference(h, serviceAccount, r.Scheme)
@@ -168,7 +168,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   csName,
-			Labels: h.PredefinedLabels(),
+			Labels: labels(h),
 		},
 	}
 
@@ -196,9 +196,9 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	service := &corev1.Service{
-		ObjectMeta: h.PredefinedMetadata(),
+		ObjectMeta: metadata(h),
 		Spec: corev1.ServiceSpec{
-			Selector: h.PredefinedLabels(),
+			Selector: labels(h),
 			Ports:    ports(),
 		},
 	}
@@ -323,13 +323,13 @@ func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func servicePerPodSelector(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := h.PredefinedLabels()
+	ls := labels(h)
 	ls[n.PodNameLabel] = servicePerPodName(i, h)
 	return ls
 }
 
 func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := h.PredefinedLabels()
+	ls := labels(h)
 	ls[n.ServicePerPodLabelName] = n.LabelValueTrue
 	return ls
 }
@@ -372,7 +372,7 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 
 func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	cm := &corev1.ConfigMap{
-		ObjectMeta: h.PredefinedMetadata(),
+		ObjectMeta: metadata(h),
 	}
 
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
@@ -439,9 +439,9 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	ls := h.PredefinedLabels()
+	ls := labels(h)
 	sts := &appsv1.StatefulSet{
-		ObjectMeta: h.PredefinedMetadata(),
+		ObjectMeta: metadata(h),
 		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
@@ -579,6 +579,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	return envs
 }
 
+func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+	return map[string]string{
+		n.ApplicationNameLabel:         n.Hazelcast,
+		n.ApplicationInstanceNameLabel: h.Name,
+		n.ApplicationManagedByLabel:    n.OperatorName,
+	}
+}
+
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
@@ -600,6 +608,14 @@ func podAnnotations(h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
 	ans[n.CurrentHazelcastConfigForcingRestartChecksum] = fmt.Sprint(crc32.ChecksumIEEE(cfgYaml))
 
 	return ans, nil
+}
+
+func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      h.Name,
+		Namespace: h.Namespace,
+		Labels:    labels(h),
+	}
 }
 
 func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {

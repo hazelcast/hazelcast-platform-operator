@@ -61,7 +61,7 @@ func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *haze
 	}
 
 	role := &rbacv1.Role{
-		ObjectMeta: mc.PredefinedMetadata(),
+		ObjectMeta: metadata(mc),
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{"security.openshift.io"},
@@ -94,7 +94,7 @@ func (r *ManagementCenterReconciler) reconcileServiceAccount(ctx context.Context
 	}
 
 	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: mc.PredefinedMetadata(),
+		ObjectMeta: metadata(mc),
 	}
 
 	err := controllerutil.SetControllerReference(mc, serviceAccount, r.Scheme)
@@ -118,7 +118,7 @@ func (r *ManagementCenterReconciler) reconcileRoleBinding(ctx context.Context, m
 	}
 
 	rb := &rbacv1.RoleBinding{
-		ObjectMeta: mc.PredefinedMetadata(),
+		ObjectMeta: metadata(mc),
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
@@ -149,9 +149,9 @@ func (r *ManagementCenterReconciler) reconcileRoleBinding(ctx context.Context, m
 
 func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
 	service := &corev1.Service{
-		ObjectMeta: mc.PredefinedMetadata(),
+		ObjectMeta: metadata(mc),
 		Spec: corev1.ServiceSpec{
-			Selector: mc.PredefinedLabels(),
+			Selector: labels(mc),
 			Ports:    ports(),
 		},
 	}
@@ -172,6 +172,21 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 	return err
 }
 
+func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      mc.Name,
+		Namespace: mc.Namespace,
+		Labels:    labels(mc),
+	}
+}
+func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
+	return map[string]string{
+		n.ApplicationNameLabel:         n.ManagementCenter,
+		n.ApplicationInstanceNameLabel: mc.Name,
+		n.ApplicationManagedByLabel:    n.OperatorName,
+	}
+}
+
 func ports() []v1.ServicePort {
 	return []corev1.ServicePort{
 		{
@@ -190,9 +205,9 @@ func ports() []v1.ServicePort {
 }
 
 func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	ls := mc.PredefinedLabels()
+	ls := labels(mc)
 	sts := &appsv1.StatefulSet{
-		ObjectMeta: mc.PredefinedMetadata(),
+		ObjectMeta: metadata(mc),
 		Spec: appsv1.StatefulSetSpec{
 			// Management Center StatefulSet size is always 1
 			Replicas: &[]int32{1}[0],
@@ -299,7 +314,7 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      n.MancenterStorageName,
 			Namespace: mc.Namespace,
-			Labels:    mc.PredefinedLabels(),
+			Labels:    labels(mc),
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

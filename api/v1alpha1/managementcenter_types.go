@@ -6,8 +6,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
 // ManagementCenterSpec defines the desired state of ManagementCenter.
@@ -154,22 +152,6 @@ func (ec *ExternalConnectivityConfiguration) IsEnabled() bool {
 // Returns true if persistence configuration is specified.
 func (c *PersistenceConfiguration) IsEnabled() bool {
 	return c.Enabled
-}
-
-func (mc *ManagementCenter) PredefinedLabels() map[string]string {
-	return map[string]string{
-		n.ApplicationNameLabel:         n.ManagementCenter,
-		n.ApplicationInstanceNameLabel: mc.Name,
-		n.ApplicationManagedByLabel:    n.OperatorName,
-	}
-}
-
-func (mc *ManagementCenter) PredefinedMetadata() metav1.ObjectMeta {
-	return metav1.ObjectMeta{
-		Name:      mc.Name,
-		Namespace: mc.Namespace,
-		Labels:    mc.PredefinedLabels(),
-	}
 }
 
 func (mc *ManagementCenter) ExternalAddressEnabled() bool {

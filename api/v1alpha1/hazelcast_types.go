@@ -6,8 +6,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
 // Phase represents the current state of the cluster
@@ -226,22 +224,6 @@ func FNV32a(txt string) uint32 {
 
 func (h *Hazelcast) ClusterScopedName() string {
 	return fmt.Sprintf("%s-%d", h.Name, FNV32a(h.Namespace))
-}
-
-func (h *Hazelcast) PredefinedLabels() map[string]string {
-	return map[string]string{
-		n.ApplicationNameLabel:         n.Hazelcast,
-		n.ApplicationInstanceNameLabel: h.Name,
-		n.ApplicationManagedByLabel:    n.OperatorName,
-	}
-}
-
-func (h *Hazelcast) PredefinedMetadata() metav1.ObjectMeta {
-	return metav1.ObjectMeta{
-		Name:      h.Name,
-		Namespace: h.Namespace,
-		Labels:    h.PredefinedLabels(),
-	}
 }
 
 func (h *Hazelcast) ExternalAddressEnabled() bool {
