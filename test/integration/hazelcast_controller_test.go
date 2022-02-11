@@ -552,4 +552,26 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
+	Context("Hazelcast Image configuration", func() {
+		When("ImagePullSecrets are defined", func() {
+			It("should pass the values to StatefulSet spec", func() {
+				pullSecrets := []corev1.LocalObjectReference{
+					{Name: "secret1"},
+					{Name: "secret2"},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.HazelcastSpec{
+						ImagePullSecrets: pullSecrets,
+					},
+				}
+				Create(hz)
+				EnsureStatus(hz)
+				fetchedSts := &v1.StatefulSet{}
+				assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedSts)
+				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
+				Delete(hz)
+			})
+		})
+	})
 })

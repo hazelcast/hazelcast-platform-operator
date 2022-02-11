@@ -157,4 +157,26 @@ var _ = Describe("ManagementCenter controller", func() {
 			Delete(mc)
 		})
 	})
+	Context("ManagementCenter Image configuration", func() {
+		When("ImagePullSecrets are defined", func() {
+			It("should pass the values to StatefulSet spec", func() {
+				pullSecrets := []corev1.LocalObjectReference{
+					{Name: "mc-secret1"},
+					{Name: "mc-secret2"},
+				}
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.ManagementCenterSpec{
+						ImagePullSecrets: pullSecrets,
+					},
+				}
+				Create(mc)
+				EnsureStatus(mc)
+				fetchedSts := &v1.StatefulSet{}
+				assertExists(types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, fetchedSts)
+				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
+				Delete(mc)
+			})
+		})
+	})
 })
