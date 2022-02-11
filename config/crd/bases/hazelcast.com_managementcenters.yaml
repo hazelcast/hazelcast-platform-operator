@@ -89,7 +89,7 @@ spec:
                 properties:
                   enabled:
                     default: true
-                    description: When true MC will use a PersistentVolumeClaim to
+                    description: When true, MC will use a PersistentVolumeClaim to
                       store data.
                     type: boolean
                   existingVolumeClaimName:
