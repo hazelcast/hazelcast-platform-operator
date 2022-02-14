@@ -44,6 +44,10 @@ type ManagementCenterSpec struct {
 	// Configuration for Management Center persistence.
 	// +optional
 	Persistence PersistenceConfiguration `json:"persistence"`
+
+	// Scheduling details
+	// +optional
+	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
 }
 
 type HazelcastClusterConfig struct {

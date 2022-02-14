@@ -4,7 +4,9 @@ import (
 	"context"
 
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -36,4 +38,20 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 		}
 		return k8sClient.Delete(context.Background(), obj)
 	}, timeout, interval).Should(Succeed())
+}
+
+func lookupKey(cr metav1.Object) types.NamespacedName {
+	return types.NamespacedName{
+		Name:      cr.GetName(),
+		Namespace: cr.GetNamespace(),
+	}
+}
+
+func getStatefulSet(cr metav1.Object) *v1.StatefulSet {
+	sts := &v1.StatefulSet{}
+	Eventually(func() error {
+		return k8sClient.Get(context.Background(), lookupKey(cr), sts)
+	}, timeout, interval).Should(Succeed())
+
+	return sts
 }

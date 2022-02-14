@@ -219,6 +219,9 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 					Labels: ls,
 				},
 				Spec: v1.PodSpec{
+					Affinity:     &mc.Spec.Scheduling.Affinity,
+					Tolerations:  mc.Spec.Scheduling.Tolerations,
+					NodeSelector: mc.Spec.Scheduling.NodeSelector,
 					Containers: []v1.Container{{
 						Name: n.ManagementCenter,
 						Ports: []v1.ContainerPort{{

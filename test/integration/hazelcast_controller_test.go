@@ -44,13 +44,6 @@ var _ = Describe("Hazelcast controller", func() {
 		}
 	}
 
-	lookupKey := func(mc *hazelcastv1alpha1.Hazelcast) types.NamespacedName {
-		return types.NamespacedName{
-			Name:      mc.Name,
-			Namespace: mc.Namespace,
-		}
-	}
-
 	clusterScopedLookupKey := func(hz *hazelcastv1alpha1.Hazelcast) types.NamespacedName {
 		return types.NamespacedName{
 			Name:      (&hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{Name: hz.Name, Namespace: namespace}}).ClusterScopedName(),
@@ -125,16 +118,6 @@ var _ = Describe("Hazelcast controller", func() {
 			return &hz.Spec
 		}, timeout, interval).Should(Equal(other))
 		return hz
-	}
-
-	GetStatefulSet := func(hz *hazelcastv1alpha1.Hazelcast) *v1.StatefulSet {
-		By("fetching statefulset")
-		sts := &v1.StatefulSet{}
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), lookupKey(hz), sts)
-		}, timeout, interval).Should(Succeed())
-
-		return sts
 	}
 
 	Context("Hazelcast CustomResource with default specs", func() {
@@ -472,7 +455,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 
 				Eventually(func() map[string]string {
-					ss := GetStatefulSet(hz)
+					ss := getStatefulSet(hz)
 					return ss.Spec.Template.Spec.NodeSelector
 				}, timeout, interval).Should(HaveKeyWithValue("node.selector", "1"))
 
@@ -525,7 +508,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 
 				Eventually(func() *corev1.Affinity {
-					ss := GetStatefulSet(hz)
+					ss := getStatefulSet(hz)
 					return ss.Spec.Template.Spec.Affinity
 				}, timeout, interval).Should(Equal(&spec.Scheduling.Affinity))
 
@@ -551,7 +534,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 
 				Eventually(func() []corev1.Toleration {
-					ss := GetStatefulSet(hz)
+					ss := getStatefulSet(hz)
 					return ss.Spec.Template.Spec.Tolerations
 				}, timeout, interval).Should(Equal(spec.Scheduling.Tolerations))
 
