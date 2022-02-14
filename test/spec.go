@@ -2,9 +2,9 @@ package test
 
 import (
 	. "github.com/onsi/gomega"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
 type HazelcastSpecValues struct {

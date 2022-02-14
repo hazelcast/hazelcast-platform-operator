@@ -166,7 +166,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Context("Hazelcast member status", func() {
 
-		evaluateReadyMembers := func(h *hazelcastcomv1alpha1.Hazelcast) {
+		evaluateReadyMembers := func() {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			Eventually(func() string {
 				err := k8sClient.Get(context.Background(), lookupKey, hz)
@@ -179,7 +179,7 @@ var _ = Describe("Hazelcast", func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
-			evaluateReadyMembers(h)
+			evaluateReadyMembers()
 
 			assertMemberLogs(h, "Members {size:3, ver:3}")
 
@@ -190,7 +190,7 @@ var _ = Describe("Hazelcast", func() {
 					n.ApplicationManagedByLabel:    n.OperatorName,
 				})
 				Expect(err).ToNot(HaveOccurred())
-				evaluateReadyMembers(h)
+				evaluateReadyMembers()
 			})
 		})
 	})
@@ -209,6 +209,41 @@ var _ = Describe("Hazelcast", func() {
 		It("should be reflected to Hazelcast CR status", func() {
 			createWithoutCheck(hazelcastconfig.Faulty(hzNamespace, ee))
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
+		})
+	})
+
+	Describe("Hazelcast CR with Persistence feature enabled", func() {
+		It("should enable persistence for members successfully", func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
+			create(hazelcast)
+
+			assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
+			assertMemberLogs(hazelcast, "Hot Restart procedure completed")
+
+			pods := &corev1.PodList{}
+			podLabels := client.MatchingLabels{
+				n.ApplicationNameLabel:         n.Hazelcast,
+				n.ApplicationInstanceNameLabel: hazelcast.Name,
+				n.ApplicationManagedByLabel:    n.OperatorName,
+			}
+			if err := k8sClient.List(context.Background(), pods, client.InNamespace(hazelcast.Namespace), podLabels); err != nil {
+				Fail("Could not find Pods for Hazelcast " + hazelcast.Name)
+			}
+
+			for _, pod := range pods.Items {
+				Expect(pod.Spec.Volumes).Should(ContainElement(corev1.Volume{
+					Name: n.PersistencePvcName,
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: n.PersistencePvcName + "-" + pod.Name,
+						},
+					},
+				}))
+			}
 		})
 	})
 })

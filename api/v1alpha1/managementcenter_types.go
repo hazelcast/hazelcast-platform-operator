@@ -25,6 +25,10 @@ type ManagementCenterSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
+	// Image pull secrets for the Management Center image
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
 	LicenseKeySecret string `json:"licenseKeySecret"`
@@ -39,7 +43,8 @@ type ManagementCenterSpec struct {
 
 	// Configuration for Management Center persistence.
 	// +optional
-	Persistence PersistenceConfiguration `json:"persistence"`
+	// +kubebuilder:default:={enabled: true, size: "10Gi"}
+	Persistence PersistenceConfiguration `json:"persistence,omitempty"`
 }
 
 type HazelcastClusterConfig struct {
@@ -80,14 +85,22 @@ const (
 )
 
 type PersistenceConfiguration struct {
+	// When true, MC will use a PersistentVolumeClaim to store data.
 	// +optional
 	// +kubebuilder:default:=true
 	Enabled bool `json:"enabled"`
 
+	// Name of the PersistentVolumeClaim MC will use for persistence. If not empty,
+	// MC will use the existing claim instead of creating a new one.
+	// +optional
+	ExistingVolumeClaimName string `json:"existingVolumeClaimName,omitempty"`
+
+	// StorageClass from which PersistentVolumeClaim will be created.
 	// +optional
 	// +nullable
 	StorageClass *string `json:"storageClass"`
 
+	// Size of the created PersistentVolumeClaim.
 	// +optional
 	// +kubebuilder:default:="10Gi"
 	Size resource.Quantity `json:"size"`

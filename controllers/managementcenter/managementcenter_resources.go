@@ -271,7 +271,6 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 					},
 				},
 			},
-			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{},
 		},
 	}
 
@@ -287,10 +286,15 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 
 	if mc.Spec.Persistence.IsEnabled() {
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = []v1.VolumeMount{persistentVolumeMount()}
-		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, persistentVolumeClaim(mc))
+		if mc.Spec.Persistence.ExistingVolumeClaimName == "" {
+			sts.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{persistentVolumeClaim(mc)}
+		} else {
+			sts.Spec.Template.Spec.Volumes = []v1.Volume{existingVolumeClaim(mc.Spec.Persistence.ExistingVolumeClaimName)}
+		}
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
+		sts.Spec.Template.Spec.ImagePullSecrets = mc.Spec.ImagePullSecrets
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
@@ -323,6 +327,17 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: mc.Spec.Persistence.Size,
 				},
+			},
+		},
+	}
+}
+
+func existingVolumeClaim(claimName string) v1.Volume {
+	return v1.Volume{
+		Name: n.MancenterStorageName,
+		VolumeSource: v1.VolumeSource{
+			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+				ClaimName: claimName,
 			},
 		},
 	}

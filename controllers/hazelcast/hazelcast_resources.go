@@ -415,7 +415,10 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			RestAPI: config.RestAPI{
 				Enabled: &[]bool{true}[0],
 				EndpointGroups: config.EndpointGroups{
-					HealthCheck: config.HealthCheck{
+					HealthCheck: config.EndpointGroup{
+						Enabled: &[]bool{true}[0],
+					},
+					ClusterWrite: config.EndpointGroup{
 						Enabled: &[]bool{true}[0],
 					},
 				},
@@ -434,6 +437,19 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	if h.Spec.ClusterName != "" {
 		cfg.ClusterName = h.Spec.ClusterName
+	}
+
+	if h.Spec.Persistence.IsEnabled() {
+		cfg.Persistence = config.Persistence{
+			Enabled:                   &[]bool{true}[0],
+			BaseDir:                   h.Spec.Persistence.BaseDir,
+			BackupDir:                 h.Spec.Persistence.BaseDir + "/hot-backup",
+			Parallelism:               1,
+			ValidationTimeoutSec:      120,
+			DataLoadTimeoutSec:        900,
+			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
+			AutoRemoveStaleData:       &[]bool{true}[0],
+		}
 	}
 	return cfg
 }
@@ -456,6 +472,11 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					Affinity:           &h.Spec.Scheduling.Affinity,
 					Tolerations:        h.Spec.Scheduling.Tolerations,
 					NodeSelector:       h.Spec.Scheduling.NodeSelector,
+					SecurityContext: &v1.PodSecurityContext{
+						FSGroup:      &[]int64{65534}[0],
+						RunAsNonRoot: &[]bool{true}[0],
+						RunAsUser:    &[]int64{65534}[0],
+					},
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
 						Ports: []v1.ContainerPort{{
@@ -495,18 +516,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							RunAsNonRoot:             &[]bool{true}[0],
 							RunAsUser:                &[]int64{65534}[0],
 							Privileged:               &[]bool{false}[0],
-							ReadOnlyRootFilesystem:   &[]bool{true}[0],
+							ReadOnlyRootFilesystem:   &[]bool{!h.Spec.Persistence.IsEnabled()}[0],
 							AllowPrivilegeEscalation: &[]bool{false}[0],
 							Capabilities: &v1.Capabilities{
 								Drop: []v1.Capability{"ALL"},
 							},
 						},
-						VolumeMounts: []v1.VolumeMount{
-							{
-								Name:      n.HazelcastStorageName,
-								MountPath: n.HazelcastMountPath,
-							},
-						},
+						VolumeMounts: persistentVolumeMount(h),
 					}},
 					TerminationGracePeriodSeconds: &[]int64{600}[0],
 					Volumes: []v1.Volume{
@@ -526,6 +542,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
+	if h.Spec.Persistence.IsEnabled() {
+		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+	}
+
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on Statefulset")
@@ -539,6 +559,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		if err != nil {
 			return err
 		}
+		sts.Spec.Template.Spec.ImagePullSecrets = h.Spec.ImagePullSecrets
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
@@ -548,6 +569,55 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
+	return []v1.PersistentVolumeClaim{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      n.PersistencePvcName,
+				Namespace: h.Namespace,
+				Labels:    labels(h),
+			},
+			Spec: v1.PersistentVolumeClaimSpec{
+				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
+				Resources: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						corev1.ResourceStorage: h.Spec.Persistence.Pvc.RequestStorage,
+					},
+				},
+				StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,
+			},
+		},
+	}
+}
+
+func persistentVolumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+	mounts := []v1.VolumeMount{
+		{
+			Name:      n.HazelcastStorageName,
+			MountPath: n.HazelcastMountPath,
+		},
+	}
+	if h.Spec.Persistence.IsEnabled() {
+		mounts = append(mounts, v1.VolumeMount{
+			Name:      n.PersistencePvcName,
+			MountPath: "/data/hot-restart",
+		})
+	}
+	return mounts
+}
+
+func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {
+	switch policyType {
+	case hazelcastv1alpha1.FullRecovery:
+		return "FULL_RECOVERY_ONLY"
+	case hazelcastv1alpha1.MostRecent:
+		return "PARTIAL_RECOVERY_MOST_RECENT"
+	case hazelcastv1alpha1.MostComplete:
+		return "PARTIAL_RECOVERY_MOST_COMPLETE"
+	}
+	return ""
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
@@ -598,7 +668,7 @@ func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func podAnnotations(h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
-		ans[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccess)
+		ans[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccessType())
 	}
 	cfg := config.HazelcastWrapper{Hazelcast: hazelcastConfigMapStruct(h).HazelcastConfigForcingRestart()}
 	cfgYaml, err := yaml.Marshal(cfg)

@@ -43,6 +43,9 @@ const (
 	Mancenter = "mancenter"
 	// MancenterStorageName storage name for MC
 	MancenterStorageName = Mancenter + "-storage"
+
+	// PersistencePvcName is the name the Persistence Volume Claim used in Persistence configuration.
+	PersistencePvcName = "hot-restart-persistence"
 )
 
 // Hazelcast default configurations

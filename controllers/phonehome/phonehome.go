@@ -44,7 +44,7 @@ type ExposeExternally struct {
 	Smart                    int `json:"s"`
 	DiscoveryLoadBalancer    int `json:"dlb"`
 	DiscoveryNodePort        int `json:"dnp"`
-	MemberNodePortExternalIP int `json:"mpei"`
+	MemberNodePortExternalIP int `json:"mnpei"`
 	MemberNodePortNodeName   int `json:"mnpnn"`
 	MemberLoadBalancer       int `json:"mlb"`
 }

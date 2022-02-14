@@ -134,6 +134,9 @@ test-it: manifests generate fmt vet ## Run tests.
 test-e2e: generate fmt vet ## Run end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
 	
+test-ph: generate fmt vet ## Run phone-home tests
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/ph -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
+
 ##@ Build
 
 GO_BUILD_TAGS ?= "localrun"
