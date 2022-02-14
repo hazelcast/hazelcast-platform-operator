@@ -47,8 +47,11 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
-# Default namespace
-NAMESPACE ?= default
+
+# If namespace is empty, override it as default
+ifeq (,$(NAMESPACE))
+override NAMESPACE = default
+endif
 
 # Path to the kubectl command, if it is not in $PATH
 KUBECTL ?= kubectl
@@ -129,7 +132,7 @@ test-it: manifests generate fmt vet ## Run tests.
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
 test-e2e: generate fmt vet ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
 	
 ##@ Build
 
