@@ -43,6 +43,10 @@ type HazelcastSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
+	// Image pull secrets for the Hazelcast Platform image
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
 	LicenseKeySecret string `json:"licenseKeySecret"`

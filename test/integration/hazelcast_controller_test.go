@@ -44,6 +44,13 @@ var _ = Describe("Hazelcast controller", func() {
 		}
 	}
 
+	lookupKey := func(mc *hazelcastv1alpha1.Hazelcast) types.NamespacedName {
+		return types.NamespacedName{
+			Name:      mc.Name,
+			Namespace: mc.Namespace,
+		}
+	}
+
 	clusterScopedLookupKey := func(hz *hazelcastv1alpha1.Hazelcast) types.NamespacedName {
 		return types.NamespacedName{
 			Name:      (&hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{Name: hz.Name, Namespace: namespace}}).ClusterScopedName(),
@@ -76,7 +83,7 @@ var _ = Describe("Hazelcast controller", func() {
 	Fetch := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		By("fetching Hazelcast")
 		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-		assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedCR)
+		assertExists(lookupKey(hz), fetchedCR)
 		return fetchedCR
 	}
 
@@ -88,9 +95,9 @@ var _ = Describe("Hazelcast controller", func() {
 	Delete := func(hz *hazelcastv1alpha1.Hazelcast) {
 		By("expecting to delete CR successfully")
 		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-		deleteIfExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedCR)
+		deleteIfExists(lookupKey(hz), fetchedCR)
 		By("expecting to CR delete finish")
-		assertDoesNotExist(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedCR)
+		assertDoesNotExist(lookupKey(hz), fetchedCR)
 	}
 
 	EnsureStatus := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
@@ -124,7 +131,7 @@ var _ = Describe("Hazelcast controller", func() {
 		By("fetching statefulset")
 		sts := &v1.StatefulSet{}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, sts)
+			return k8sClient.Get(context.Background(), lookupKey(hz), sts)
 		}, timeout, interval).Should(Succeed())
 
 		return sts
@@ -158,18 +165,18 @@ var _ = Describe("Hazelcast controller", func() {
 			assertExists(clusterScopedLookupKey(hz), fetchedClusterRole)
 
 			fetchedServiceAccount := &corev1.ServiceAccount{}
-			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedServiceAccount)
+			assertExists(lookupKey(hz), fetchedServiceAccount)
 			Expect(fetchedServiceAccount.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 			assertExists(clusterScopedLookupKey(hz), fetchedClusterRoleBinding)
 
 			fetchedService := &corev1.Service{}
-			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedService)
+			assertExists(lookupKey(hz), fetchedService)
 			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedSts := &v1.StatefulSet{}
-			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedSts)
+			assertExists(lookupKey(hz), fetchedSts)
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].ImagePullPolicy).Should(Equal(fetchedCR.Spec.ImagePullPolicy))
@@ -548,6 +555,28 @@ var _ = Describe("Hazelcast controller", func() {
 					return ss.Spec.Template.Spec.Tolerations
 				}, timeout, interval).Should(Equal(spec.Scheduling.Tolerations))
 
+				Delete(hz)
+			})
+		})
+	})
+	Context("Hazelcast Image configuration", func() {
+		When("ImagePullSecrets are defined", func() {
+			It("should pass the values to StatefulSet spec", func() {
+				pullSecrets := []corev1.LocalObjectReference{
+					{Name: "secret1"},
+					{Name: "secret2"},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.HazelcastSpec{
+						ImagePullSecrets: pullSecrets,
+					},
+				}
+				Create(hz)
+				EnsureStatus(hz)
+				fetchedSts := &v1.StatefulSet{}
+				assertExists(lookupKey(hz), fetchedSts)
+				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
 				Delete(hz)
 			})
 		})
