@@ -125,6 +125,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			Expect(*fetchedSts.Spec.Replicas).Should(Equal(int32(1)))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(BeNil())
+			Expect(fetchedSts.Spec.Template.Spec.Volumes).Should(BeNil())
 
 			Delete(mc)
 
@@ -149,6 +150,41 @@ var _ = Describe("ManagementCenter controller", func() {
 			Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
 
 			Delete(mc)
+		})
+	})
+	Context("ManagementCenter CustomResource with Persistence", func() {
+		When("persistence is enabled with existing Volume Claim", func() {
+			It("should add existing Volume Claim to statefulset", func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.ManagementCenterSpec{
+						Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+							Enabled:                 true,
+							ExistingVolumeClaimName: "ClaimName",
+						},
+					},
+				}
+				Create(mc)
+				fetchedCR := EnsureStatus(mc)
+				fetchedSts := &v1.StatefulSet{}
+				assertExists(lookupKey(fetchedCR), fetchedSts)
+				expectedVolume := corev1.Volume{
+					Name: n.MancenterStorageName,
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: "ClaimName",
+						},
+					},
+				}
+				Expect(fetchedSts.Spec.Template.Spec.Volumes).To(ConsistOf(expectedVolume))
+				Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(BeNil())
+				expectedVolumeMount := corev1.VolumeMount{
+					Name:      n.MancenterStorageName,
+					MountPath: "/data",
+				}
+				Expect(fetchedSts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(expectedVolumeMount))
+				Delete(mc)
+			})
 		})
 	})
 	Context("ManagementCenter Image configuration", func() {
