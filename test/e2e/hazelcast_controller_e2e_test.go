@@ -223,6 +223,41 @@ var _ = Describe("Hazelcast", func() {
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
 	})
+
+	Describe("Hazelcast CR with Persistence feature enabled", func() {
+		It("should enable persistence for members successfully", func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
+			create(hazelcast)
+
+			assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
+			assertMemberLogs(hazelcast, "Hot Restart procedure completed")
+
+			pods := &corev1.PodList{}
+			podLabels := client.MatchingLabels{
+				n.ApplicationNameLabel:         n.Hazelcast,
+				n.ApplicationInstanceNameLabel: hazelcast.Name,
+				n.ApplicationManagedByLabel:    n.OperatorName,
+			}
+			if err := k8sClient.List(context.Background(), pods, client.InNamespace(hazelcast.Namespace), podLabels); err != nil {
+				Fail("Could not find Pods for Hazelcast " + hazelcast.Name)
+			}
+
+			for _, pod := range pods.Items {
+				Expect(pod.Spec.Volumes).Should(ContainElement(corev1.Volume{
+					Name: n.PersistencePvcName,
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: n.PersistencePvcName + "-" + pod.Name,
+						},
+					},
+				}))
+			}
+		})
+	})
 })
 
 func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
