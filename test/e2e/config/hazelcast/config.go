@@ -151,7 +151,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HotBackupSpec{
-				HazelcastName: hzName,
+				HazelcastResourceName: hzName,
 			},
 		}
 	}

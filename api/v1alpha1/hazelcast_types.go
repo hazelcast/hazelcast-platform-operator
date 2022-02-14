@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"hash/fnv"
 
-	"k8s.io/apimachinery/pkg/api/resource"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -284,9 +284,9 @@ type HotBackupStatus struct {
 
 // HotBackupSpec defines the Spec of HotBackup
 type HotBackupSpec struct {
-	// HazelcastName defines the name of the Hazelcast resource
+	// HazelcastResourceName defines the name of the Hazelcast resource
 	// +kubebuilder:validation:Required
-	HazelcastName string `json:"hazelcastName"`
+	HazelcastResourceName string `json:"hazelcastResourceName"`
 }
 
 //+kubebuilder:object:root=true

@@ -44,7 +44,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return ctrl.Result{}, err
 	}
 	h := &hazelcastv1alpha1.Hazelcast{}
-	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: hb.Spec.HazelcastName}, h)
+	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: hb.Spec.HazelcastResourceName}, h)
 	if err != nil {
 		logger.Error(err, "Could not trigger Hot Backup: Hazelcast resource not found")
 		return ctrl.Result{}, err
