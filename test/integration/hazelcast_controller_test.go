@@ -101,8 +101,8 @@ var _ = Describe("Hazelcast controller", func() {
 					types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace},
 					cr),
 				).Should(Succeed())
-				for i := range fns {
-					cr = fns[i](cr)
+				for _, fn := range fns {
+					cr = fn(cr)
 				}
 				err := k8sClient.Update(context.Background(), cr)
 				if err == nil {
