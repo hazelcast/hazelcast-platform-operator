@@ -6,4 +6,4 @@ configurations:
   - kustomizeconfig.yaml
 
 patchesStrategicMerge:
-  - webhook_namespaceselector_patch.yaml
+  - webhook_objectselector_patch.yaml

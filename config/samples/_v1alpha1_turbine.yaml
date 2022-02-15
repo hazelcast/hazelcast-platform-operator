@@ -1,0 +1,15 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Turbine
+metadata:
+  name: turbine-ping-pong
+spec:
+  sidecar:
+    name: turbine
+    image: hazelcast/turbine-sidecar
+  hazelcast:
+    cluster:
+      name: hazelcast
+      namespace: hazelcast
+  pods:
+    portName: app-http
+

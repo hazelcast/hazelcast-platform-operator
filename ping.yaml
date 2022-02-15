@@ -13,9 +13,7 @@ spec:
     metadata:
       labels:
         app: ping-service
-        turbine.hazelcast.com/enabled: "true"
-      annotations:
-        turbine.hazelcast.com/configmap: "turbine-sidecar-config"
+        turbine.hazelcast.com/name: "turbine-ping-pong"
     spec:
       containers:
         - name: ping-service
@@ -23,6 +21,7 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
+              name: app-http
 ---
 apiVersion: v1
 kind: Service

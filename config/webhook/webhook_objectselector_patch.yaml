@@ -6,10 +6,8 @@ webhooks:
   - name: inject-turbine.hazelcast.com
     objectSelector:
       matchExpressions:
-        - key: "turbine.hazelcast.com/enabled"
-          operator: In
-          values:
-            - "true"
+        - key: "turbine.hazelcast.com/name"
+          operator: Exists
         - key: "turbine.hazelcast.com/injected"
           operator: NotIn
           values:
