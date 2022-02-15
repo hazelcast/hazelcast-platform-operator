@@ -596,7 +596,7 @@ var _ = Describe("Hazelcast controller", func() {
 				})
 
 				Eventually(func() []corev1.PersistentVolumeClaim {
-					ss := GetStatefulSet(hz)
+					ss := getStatefulSet(hz)
 					return ss.Spec.VolumeClaimTemplates
 				}, timeout, interval).Should(
 					ConsistOf(WithTransform(func(pvc corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaimSpec {

@@ -3,7 +3,7 @@ package test
 import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
