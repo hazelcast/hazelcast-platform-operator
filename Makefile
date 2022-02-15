@@ -124,6 +124,18 @@ lint-yaml: setup-linters
 setup-linters:
 	source hack/setup-linters.sh; get_linters ${LINTER_SETUP_DIR}
 
+# Use tilt tool to deploy operator and its resources to the local K8s cluster in the current context 
+tilt: 
+	tilt up
+
+# Use tilt tool to deploy operator and its resources to any K8s cluster in the current context 
+tilt-remote: 
+	 ALLOW_REMOTE=true tilt up 
+
+# Use tilt tool to deploy operator and its resources to any K8s cluster in the current context with ttl.sh configured for image registry.
+tilt-remote-ttl:
+	 ALLOW_REMOTE=true USE_TTL_REG=true tilt up 
+
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 GO_TEST_FLAGS ?= "-ee=true"
 test-it: manifests generate fmt vet ## Run tests.
