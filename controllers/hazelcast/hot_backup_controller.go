@@ -49,6 +49,11 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		logger.Error(err, "Could not trigger Hot Backup: Hazelcast resource not found")
 		return ctrl.Result{}, err
 	}
+	if h.Status.Phase != hazelcastv1alpha1.Running {
+		err = errors.NewServiceUnavailable("Hazelcast CR is not ready")
+		logger.Error(err, "Hazelcast CR is not in Running state")
+		return ctrl.Result{}, err
+	}
 	rest := NewRestClient(h)
 
 	err = rest.ChangeState(Passive)
