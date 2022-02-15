@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -80,9 +80,41 @@ var _ = Describe("Hazelcast controller", func() {
 		return fetchedCR
 	}
 
-	Update := func(hz *hazelcastv1alpha1.Hazelcast) {
+	type MutateFn func(*hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast
+
+	SetClusterSize := func(size int32) MutateFn {
+		return func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+			hz.Spec.ClusterSize = size
+			return hz
+		}
+	}
+
+	Update := func(hz *hazelcastv1alpha1.Hazelcast, fns ...MutateFn) {
 		By("updating the CR with specs successfully")
-		Expect(k8sClient.Update(context.Background(), hz)).Should(Succeed())
+		if len(fns) == 0 {
+			Expect(k8sClient.Update(context.Background(), hz)).Should(Succeed())
+		} else {
+			for {
+				cr := &hazelcastv1alpha1.Hazelcast{}
+				Expect(k8sClient.Get(
+					context.Background(),
+					types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace},
+					cr),
+				).Should(Succeed())
+				for i := range fns {
+					cr = fns[i](cr)
+				}
+				err := k8sClient.Update(context.Background(), cr)
+				if err == nil {
+					break
+				} else if errors.IsConflict(err) {
+					continue
+				} else {
+					Fail(err.Error())
+				}
+			}
+		}
+
 	}
 
 	Delete := func(hz *hazelcastv1alpha1.Hazelcast) {
@@ -266,16 +298,14 @@ var _ = Describe("Hazelcast controller", func() {
 
 			By("scaling the cluster to 6 members")
 			fetchedCR = EnsureStatus(hz)
-			fetchedCR.Spec.ClusterSize = 6
-			Update(fetchedCR)
+			Update(fetchedCR, SetClusterSize(6))
 			fetchedCR = Fetch(fetchedCR)
 			EnsureStatus(fetchedCR)
 			FetchServices(fetchedCR, 7)
 
 			By("scaling the cluster to 1 member")
 			fetchedCR = EnsureStatus(hz)
-			fetchedCR.Spec.ClusterSize = 1
-			Update(fetchedCR)
+			Update(fetchedCR, SetClusterSize(1))
 			fetchedCR = Fetch(fetchedCR)
 			EnsureStatus(fetchedCR)
 			FetchServices(fetchedCR, 2)
