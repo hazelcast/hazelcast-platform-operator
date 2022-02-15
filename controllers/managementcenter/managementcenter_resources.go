@@ -243,10 +243,8 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 						},
 						ReadinessProbe: &v1.Probe{
 							Handler: v1.Handler{
-								HTTPGet: &v1.HTTPGetAction{
-									Path:   "/health",
-									Port:   intstr.FromInt(8081),
-									Scheme: corev1.URISchemeHTTP,
+								TCPSocket: &v1.TCPSocketAction{
+									Port: intstr.FromInt(8080),
 								},
 							},
 							InitialDelaySeconds: 10,
