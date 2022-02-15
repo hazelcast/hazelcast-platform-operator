@@ -24,15 +24,15 @@ H --> J(Cluster connection)
 ```
 Above is the flowchart for the Hazelcast cluster reconciliation logic. Explanation for every step is as follows:
 
-- Finalizer: This step deals with finalizer addition and deletion when resource gets created or is tagged to be deleted. The reason for finalizer is for managing lifecycle of cluster scoped resources that is created for namespace scoped Hazelcast Custom Resource.
-- Apply Defaults: OpenAPIV3 schema allows to define default values for the Hazelcast `spec` field but it does not add default values when `spec` field is empty. In this step, we add default values for the Hazelcast Custom Resource when they are not present.
-- Validation: OpenAPIV3 schema has validation support but its validation support is limited. Here, operator validates if the Hazelcast Custom Resource is created/updated correctly.
-- RBAC Resources: Hazelcast members need RBAC permissions to be able to find each other. Here, we create ClusterRole, ClusterRoleBinding and ServiceAccount for Hazelcast pods.
-- Service: Operator creates the service for Hazelcast member discovery.
-- Service per Pod: If `exposeExternally` is enabled, operator creates a service for every Hazelcast member. It makes sure the services are ready before continuing with the following steps.
-- ConfigMap: It creates the ConfigMap for Hazelcast member configuration. The ConfigMap is the mounted into each Hazelcast member.
-- StatefulSet: It creates the StatefulSet for Hazelcast members and ensures they are all running before continuining with the next step.
-- Cluster connection: Creates a Hazelcast Go Client which connects to the cluster. Then, it updates the Hazelcast Custom Resource's `status` field.
+- **Finalizer:** This step deals with finalizer addition and deletion when resource gets created or is tagged to be deleted. The reason for finalizer is for managing lifecycle of cluster scoped resources that is created for namespace scoped Hazelcast Custom Resource.
+- **Apply Defaults:** OpenAPIV3 schema allows to define default values for the Hazelcast `spec` field but it does not add default values when `spec` field is empty. In this step, we add default values for the Hazelcast Custom Resource when they are not present.
+- **Validation:** OpenAPIV3 schema has validation support but its validation support is limited. Here, operator validates if the Hazelcast Custom Resource is created/updated correctly.
+- **RBAC Resources:** Hazelcast members need RBAC permissions to be able to find each other. Here, we create ClusterRole, ClusterRoleBinding and ServiceAccount for Hazelcast pods.
+- **Service:** Operator creates the service for Hazelcast member discovery.
+- **Service per Pod:** If `exposeExternally` is enabled, operator creates a service for every Hazelcast member. It makes sure the services are ready before continuing with the following steps.
+- **ConfigMap:** It creates the ConfigMap for Hazelcast member configuration. The ConfigMap is the mounted into each Hazelcast member.
+- **StatefulSet:** It creates the StatefulSet for Hazelcast members and ensures they are all running before continuining with the next step.
+- **Cluster connection:** Creates a Hazelcast Go Client which connects to the cluster. Then, it updates the Hazelcast Custom Resource's `status` field.
 
 
 ### HotBackup Custom Resource
@@ -50,11 +50,11 @@ D --> E(Active State)
 
 Above is the flowchart for the HotBackup reconciliation logic. Explanation for every step is as follows:
 
-- Get Hazelcast CR: Ensures that there is a Hazelcast Custom Resource with the given name and it is in `ready` state.
-- Client Creation: Create an HTTP client for accessing the Hazelcast REST API.
-- Passive State: Change Hazelcast cluster state to `PASSIVE`.
-- Take Hot Backup: Take hot backup of the cluster. Hot Backup preperation is synchronous and it continues asynchronously. 
-- Active State: Change the cluster state to active after the hot backup REST call is finished.
+- **Get Hazelcast CR:** Ensures that there is a Hazelcast Custom Resource with the given name and it is in `ready` state.
+- **Client Creation:** Create an HTTP client for accessing the Hazelcast REST API.
+- **Passive State:** Change Hazelcast cluster state to `PASSIVE`.
+- **Take Hot Backup:** Take hot backup of the cluster. Hot Backup preperation is synchronous and it continues asynchronously. 
+- **Active State:** Change the cluster state to active after the hot backup REST call is finished.
 
 ## ManagementCenter Custom Resource
 
@@ -70,8 +70,8 @@ D --> E(StatefulSet)
 ```
 Above is the flowchart for the ManagementCenter reconciliation logic. Explanation for every step is as follows:
 
-- Finalizer: This step deals with finalizer addition and deletion when resource gets created or is tagged to be deleted. 
-- Apply Defaults: OpenAPIV3 schema allows to define default values for the ManagementCenter `spec` field but it does not add default values when `spec` field is empty. In this step, we add default values for the ManagementCenter Custom Resource.
-- RBAC Resources: This step is only applies to Openshift clusters. Operator creates Role, RoleBinding and ServiceAccount for allowing pods use user IDs they want.
-- Service: This step creates the service for exposing Management Center instance.
-- StatefulSet: It creates the StatefulSet for Management Center and ensures it is ready.
+- **Finalizer:** This step deals with finalizer addition and deletion when resource gets created or is tagged to be deleted. 
+- **Apply Defaults:** OpenAPIV3 schema allows to define default values for the ManagementCenter `spec` field but it does not add default values when `spec` field is empty. In this step, we add default values for the ManagementCenter Custom Resource.
+- **RBAC Resources:** This step is only applies to Openshift clusters. Operator creates Role, RoleBinding and ServiceAccount for allowing pods use user IDs they want.
+- **Service:** This step creates the service for exposing Management Center instance.
+- **StatefulSet:** It creates the StatefulSet for Management Center and ensures it is ready.
