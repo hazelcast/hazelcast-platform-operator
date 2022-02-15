@@ -30,6 +30,9 @@ func TestHotBackupReconciler_shouldScheduleHotBackupExecution(t *testing.T) {
 			Name:      n.Name,
 			Namespace: n.Namespace,
 		},
+		Status: hazelcastv1alpha1.HazelcastStatus{
+			Phase: hazelcastv1alpha1.Running,
+		},
 	}
 	hb := &hazelcastv1alpha1.HotBackup{
 		ObjectMeta: metav1.ObjectMeta{
