@@ -22,7 +22,7 @@ make undeploy
 
 ## Development using Tilt
 
-[Tilt](https://tilt.dev/) is used for quick code deployment in live containers. You can deploy the operator to a K8s cluster and start developing by running the following command. 
+[Tilt](https://tilt.dev/) is used for quick code deployment in live containers. You can deploy the operator to a local K8s cluster and start developing by running the following command. 
 
 ```shell
 tilt up
@@ -38,16 +38,20 @@ After you run the command you can go to the local development wep page. There, y
 
 ### Using tilt with Remote Clusters
 
-Tilt will not connect to remote clusters by default. If you want to use Tilt with any cluster, you can run the following command.
+Tilt will not connect to remote clusters by default. If you want to use Tilt with any cluster, you can run one of the following commands
 
-```
+```shell
 ALLOW_REMOTE=true tilt up
+or
+make tilt-remote
 ```
 
 This will allow tilt to connect to cluster in its current context. However, if the cluster doesn't have a container registry, Tilt will not be able to push the operator image. You can use [ttl.sh](https://ttl.sh/) as the image registry by running the following command.
 
 ```shell
 ALLOW_REMOTE=true USE_TTL_REG=true tilt up
+or
+make tilt-remote-ttl
 ```
 
 ## Running the operator locally
