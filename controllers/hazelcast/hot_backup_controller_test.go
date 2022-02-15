@@ -37,8 +37,8 @@ func TestHotBackupReconciler_shouldScheduleHotBackupExecution(t *testing.T) {
 			Namespace: n.Namespace,
 		},
 		Spec: hazelcastv1alpha1.HotBackupSpec{
-			HazelcastName: "hazelcast",
-			Schedule:      "0 23 31 2 *",
+			HazelcastResourceName: "hazelcast",
+			Schedule:              "0 23 31 2 *",
 		},
 	}
 	r := hotBackupReconcilerWithCRs(h, hb)
@@ -75,8 +75,8 @@ func TestHotBackupReconciler_shouldRemoveScheduledBackup(t *testing.T) {
 			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 		},
 		Spec: hazelcastv1alpha1.HotBackupSpec{
-			HazelcastName: "hazelcast",
-			Schedule:      "0 23 31 2 *",
+			HazelcastResourceName: "hazelcast",
+			Schedule:              "0 23 31 2 *",
 		},
 	}
 
