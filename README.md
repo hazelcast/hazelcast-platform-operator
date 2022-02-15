@@ -28,7 +28,7 @@ Here is a short video to deploy a simple Hazelcast Platform cluster and Manageme
 Hazelcast Platform Operator supports the features below:
 
 * Custom resource for Hazelcast Platform (Open Source & Enterprise) and Management Center
-* Observe status of Hazelcast and Management Center clusters
+* Observe status of Hazelcast clusters and Management Center instances
 * Scale up and down Hazelcast clusters
 * Expose Hazelcast cluster to external
   clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/latest/clients/java#java-client-operation-modes))
@@ -41,6 +41,7 @@ Before you contribute to the Hazelcast Platform Operator, please read the follow
 
 * [Contributing to Hazelcast Platform Operator](CONTRIBUTING.md)
 * [Developing and testing Hazelcast Platform Operator](DEVELOPER.md)
+* [Hazelcast Platform Operator Architecture](ARCHITECTURE_OVERVIEW.md)
 
 ## License
 
