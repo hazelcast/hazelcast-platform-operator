@@ -13,13 +13,13 @@ if os.getenv("ALLOW_REMOTE", default= "false").lower() == "true":
 # to allow using ttl.sh as container image registry, if your k8s cluster does not have one.
 if os.getenv("USE_TTL_REG", default= "false").lower() == "true":
   registry_name='hpo-%s' % local('uuidgen')
-  default_registry('ttl.sh/%s' % registry_name.strip("\n"))
+  default_registry('ttl.sh/%s' % registry_name.strip("\n").lower())
 
 local_resource(
   'go-compile',
   'make build-tilt',
   deps=['./main.go','api/','controllers/',],
-  ignore=['api/v1alpha1/zz_generated.deepcopy.go'],
+  ignore=['api/v1alpha1/zz_generated.deepcopy.go*'],
 )
 
 local_resource(
