@@ -43,6 +43,9 @@ const (
 	Mancenter = "mancenter"
 	// MancenterStorageName storage name for MC
 	MancenterStorageName = Mancenter + "-storage"
+
+	// PersistencePvcName is the name the Persistence Volume Claim used in Persistence configuration.
+	PersistencePvcName = "hot-restart-persistence"
 )
 
 // Hazelcast default configurations
@@ -51,6 +54,8 @@ const (
 	DefaultHzPort = 5701
 	// DefaultClusterSize default number of members of Hazelcast cluster
 	DefaultClusterSize = 3
+	// DefaultClusterName default name of Hazelcast cluster
+	DefaultClusterName = "dev"
 	// HazelcastRepo image repository for Hazelcast
 	HazelcastRepo = "hazelcast/hazelcast"
 	// HazelcastEERepo image repository for Hazelcast EE

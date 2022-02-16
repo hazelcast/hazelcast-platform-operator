@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/apps/v1"
@@ -71,12 +73,10 @@ var _ = Describe("Hazelcast controller", func() {
 		Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 	}
 
-	type Mutator = func(*hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast
-
 	Fetch := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		By("fetching Hazelcast")
 		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-		assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedCR)
+		assertExists(lookupKey(hz), fetchedCR)
 		return fetchedCR
 	}
 
@@ -88,9 +88,9 @@ var _ = Describe("Hazelcast controller", func() {
 	Delete := func(hz *hazelcastv1alpha1.Hazelcast) {
 		By("expecting to delete CR successfully")
 		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-		deleteIfExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedCR)
+		deleteIfExists(lookupKey(hz), fetchedCR)
 		By("expecting to CR delete finish")
-		assertDoesNotExist(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedCR)
+		assertDoesNotExist(lookupKey(hz), fetchedCR)
 	}
 
 	EnsureStatus := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
@@ -111,23 +111,13 @@ var _ = Describe("Hazelcast controller", func() {
 		return hz
 	}
 
-	EnsureSpecEquals := func(hz *hazelcastv1alpha1.Hazelcast, other *hazelcastv1alpha1.HazelcastSpec) *hazelcastv1alpha1.Hazelcast {
+	EnsureSpecEquals := func(hz *hazelcastv1alpha1.Hazelcast, other *test.HazelcastSpecValues) *hazelcastv1alpha1.Hazelcast {
 		By("ensuring spec is defaulted")
 		Eventually(func() *hazelcastv1alpha1.HazelcastSpec {
 			hz = Fetch(hz)
 			return &hz.Spec
-		}, timeout, interval).Should(Equal(other))
+		}, timeout, interval).Should(test.EqualSpecs(other, ee))
 		return hz
-	}
-
-	GetStatefulSet := func(hz *hazelcastv1alpha1.Hazelcast) *v1.StatefulSet {
-		By("fetching statefulset")
-		sts := &v1.StatefulSet{}
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, sts)
-		}, timeout, interval).Should(Succeed())
-
-		return sts
 	}
 
 	Context("Hazelcast CustomResource with default specs", func() {
@@ -158,18 +148,18 @@ var _ = Describe("Hazelcast controller", func() {
 			assertExists(clusterScopedLookupKey(hz), fetchedClusterRole)
 
 			fetchedServiceAccount := &corev1.ServiceAccount{}
-			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedServiceAccount)
+			assertExists(lookupKey(hz), fetchedServiceAccount)
 			Expect(fetchedServiceAccount.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 			assertExists(clusterScopedLookupKey(hz), fetchedClusterRoleBinding)
 
 			fetchedService := &corev1.Service{}
-			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedService)
+			assertExists(lookupKey(hz), fetchedService)
 			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedSts := &v1.StatefulSet{}
-			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedSts)
+			assertExists(lookupKey(hz), fetchedSts)
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].ImagePullPolicy).Should(Equal(fetchedCR.Spec.ImagePullPolicy))
@@ -382,12 +372,12 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 	Context("Hazelcast CustomResource with default values", func() {
-		defaultHzSpecs := hazelcastv1alpha1.HazelcastSpec{
-			ClusterSize:      n.DefaultClusterSize,
-			Repository:       n.HazelcastRepo,
-			Version:          n.HazelcastVersion,
-			LicenseKeySecret: "",
-			ImagePullPolicy:  n.HazelcastImagePullPolicy,
+		defaultHzSpecs := &test.HazelcastSpecValues{
+			ClusterSize:     n.DefaultClusterSize,
+			Repository:      n.HazelcastRepo,
+			Version:         n.HazelcastVersion,
+			LicenseKey:      "",
+			ImagePullPolicy: n.HazelcastImagePullPolicy,
 		}
 		It("should create CR with default values when empty specs are applied", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
@@ -395,7 +385,7 @@ var _ = Describe("Hazelcast controller", func() {
 			}
 			Create(hz)
 			fetchedCR := EnsureStatus(hz)
-			Expect(fetchedCR.Spec).To(Equal(defaultHzSpecs))
+			EnsureSpecEquals(fetchedCR, defaultHzSpecs)
 			Delete(hz)
 		})
 		It("should update the CR with the default values when updating the empty specs are applied", func() {
@@ -415,8 +405,7 @@ var _ = Describe("Hazelcast controller", func() {
 			fetchedCR.Spec = hazelcastv1alpha1.HazelcastSpec{}
 			Update(fetchedCR)
 			fetchedCR = EnsureStatus(fetchedCR)
-			EnsureSpecEquals(fetchedCR, &defaultHzSpecs)
-
+			EnsureSpecEquals(fetchedCR, defaultHzSpecs)
 			Delete(hz)
 		})
 	})
@@ -465,7 +454,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 
 				Eventually(func() map[string]string {
-					ss := GetStatefulSet(hz)
+					ss := getStatefulSet(hz)
 					return ss.Spec.Template.Spec.NodeSelector
 				}, timeout, interval).Should(HaveKeyWithValue("node.selector", "1"))
 
@@ -518,7 +507,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 
 				Eventually(func() *corev1.Affinity {
-					ss := GetStatefulSet(hz)
+					ss := getStatefulSet(hz)
 					return ss.Spec.Template.Spec.Affinity
 				}, timeout, interval).Should(Equal(&spec.Scheduling.Affinity))
 
@@ -544,10 +533,87 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 
 				Eventually(func() []corev1.Toleration {
-					ss := GetStatefulSet(hz)
+					ss := getStatefulSet(hz)
 					return ss.Spec.Template.Spec.Tolerations
 				}, timeout, interval).Should(Equal(spec.Scheduling.Tolerations))
 
+				Delete(hz)
+			})
+		})
+	})
+	Context("Hazelcast Image configuration", func() {
+		When("ImagePullSecrets are defined", func() {
+			It("should pass the values to StatefulSet spec", func() {
+				pullSecrets := []corev1.LocalObjectReference{
+					{Name: "secret1"},
+					{Name: "secret2"},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.HazelcastSpec{
+						ImagePullSecrets: pullSecrets,
+					},
+				}
+				Create(hz)
+				EnsureStatus(hz)
+				fetchedSts := &v1.StatefulSet{}
+				assertExists(lookupKey(hz), fetchedSts)
+				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
+				Delete(hz)
+			})
+		})
+	})
+
+	Context("Hot Restart Persistence configuration", func() {
+		When("Persistence is configured", func() {
+			It("should create volumeClaimTemplates", func() {
+				s := test.HazelcastSpec(defaultSpecValues, ee)
+				s.Persistence = hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage:   resource.MustParse("8Gi"),
+						StorageClassName: &[]string{"standard"}[0],
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       s,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
+
+				By("Checking the Persistence CR configuration", func() {
+					Expect(fetchedCR.Spec.Persistence.BaseDir).Should(Equal("/data/hot-restart/"))
+					Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
+						Should(Equal(hazelcastv1alpha1.FullRecovery))
+					Expect(fetchedCR.Spec.Persistence.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
+					Expect(fetchedCR.Spec.Persistence.Pvc.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
+					Expect(*fetchedCR.Spec.Persistence.Pvc.StorageClassName).Should(Equal("standard"))
+				})
+
+				Eventually(func() []corev1.PersistentVolumeClaim {
+					ss := getStatefulSet(hz)
+					return ss.Spec.VolumeClaimTemplates
+				}, timeout, interval).Should(
+					ConsistOf(WithTransform(func(pvc corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaimSpec {
+						return pvc.Spec
+					}, Equal(
+						corev1.PersistentVolumeClaimSpec{
+							AccessModes: fetchedCR.Spec.Persistence.Pvc.AccessModes,
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceStorage: fetchedCR.Spec.Persistence.Pvc.RequestStorage,
+								},
+							},
+							StorageClassName: fetchedCR.Spec.Persistence.Pvc.StorageClassName,
+							VolumeMode:       &[]corev1.PersistentVolumeMode{corev1.PersistentVolumeFilesystem}[0],
+						},
+					))),
+				)
 				Delete(hz)
 			})
 		})

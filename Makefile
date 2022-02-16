@@ -47,8 +47,11 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
-# Default namespace
-NAMESPACE ?= default
+
+# If namespace is empty, override it as default
+ifeq (,$(NAMESPACE))
+override NAMESPACE = default
+endif
 
 # Path to the kubectl command, if it is not in $PATH
 KUBECTL ?= kubectl
@@ -89,7 +92,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -121,6 +124,18 @@ lint-yaml: setup-linters
 setup-linters:
 	source hack/setup-linters.sh; get_linters ${LINTER_SETUP_DIR}
 
+# Use tilt tool to deploy operator and its resources to the local K8s cluster in the current context 
+tilt: 
+	tilt up
+
+# Use tilt tool to deploy operator and its resources to any K8s cluster in the current context 
+tilt-remote: 
+	 ALLOW_REMOTE=true tilt up 
+
+# Use tilt tool to deploy operator and its resources to any K8s cluster in the current context with ttl.sh configured for image registry.
+tilt-remote-ttl:
+	 ALLOW_REMOTE=true USE_TTL_REG=true tilt up 
+
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 GO_TEST_FLAGS ?= "-ee=true"
 test-it: manifests generate fmt vet ## Run tests.
@@ -129,16 +144,22 @@ test-it: manifests generate fmt vet ## Run tests.
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
 test-e2e: generate fmt vet ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
 	
+test-ph: generate fmt vet ## Run phone-home tests
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/ph -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 30m -delete-timeout 8m $(GO_TEST_FLAGS)
+
 ##@ Build
 
 GO_BUILD_TAGS ?= "localrun"
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager -tags $(GO_BUILD_TAGS) main.go
 
+build-tilt: generate fmt vet
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/tilt/manager main.go  
+
 run: manifests generate fmt vet ## Run a controller from your host.
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go run -tags $(GO_BUILD_TAGS)  ./main.go
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go run -tags $(GO_BUILD_TAGS) ./main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
@@ -162,23 +183,32 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 ifneq (,$(NAME_PREFIX))
-	cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
+	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
 endif
-	cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml
+	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml &> /dev/null
 ifeq (false,$(PHONE_HOME_ENABLED))
-	cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path disable_phone_home.yaml
+	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path disable_phone_home.yaml
 endif
-	cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path remove_security_context.yaml &> /dev/null
+ifeq (true,$(REMOVE_SECURITY_CONTEXT))
+	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path remove_security_context.yaml
+endif
+	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
+	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
+	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+ifneq (false,$(APPLY_MANIFESTS))
+	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+else
+	@$(KUSTOMIZE) build config/default
+endif
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f -
+	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f - --ignore-not-found
 
 undeploy-keep-crd:
 	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found
+	cd config/default && $(KUSTOMIZE) edit add resource ../crd
 
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
 	$(eval mc := $(shell $(KUBECTL) get managementcenter -n $(NAMESPACE) -o name))

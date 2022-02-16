@@ -1,0 +1,4 @@
+FROM alpine
+WORKDIR /
+ADD bin/tilt/manager manager
+ENTRYPOINT ["./manager"]

@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,6 +44,10 @@ type HazelcastSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
+	// Image pull secrets for the Hazelcast Platform image
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
 	LicenseKeySecret string `json:"licenseKeySecret"`
@@ -59,7 +64,65 @@ type HazelcastSpec struct {
 	// Scheduling details
 	// +optional
 	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
+
+	// Persistence configuration
+	// +optional
+	Persistence HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 }
+
+// HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
+type HazelcastPersistenceConfiguration struct {
+
+	// Persistence base directory.
+	BaseDir string `json:"baseDir"`
+
+	// Configuration of the cluster recovery strategy.
+	// +kubebuilder:default:="FullRecovery"
+	// +optional
+	ClusterDataRecoveryPolicy DataRecoveryPolicyType `json:"clusterDataRecoveryPolicy"`
+
+	// Configuration of PersistenceVolumeClaim.
+	Pvc PersistencePvcConfiguration `json:"pvc"`
+}
+
+type PersistencePvcConfiguration struct {
+	// Name of the existing PVC.
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// AccessModes contains the actual access modes of the volume backing the PVC has.
+	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
+	// +optional
+	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
+
+	// A description of the PVC request capacity.
+	// +optional
+	RequestStorage resource.Quantity `json:"requestStorage,omitempty"`
+
+	// Name of StorageClass which this persistent volume belongs to.
+	// +optional
+	StorageClassName *string `json:"storageClassName,omitempty"`
+}
+
+// DataRecoveryPolicyType represents the options for data recovery policy when the whole cluster restarts.
+type DataRecoveryPolicyType string
+
+const (
+	// FullRecovery does not allow partial start of the cluster
+	// and corresponds to cluster-data-recovery-policy.FULL_RECOVERY_ONLY configuration option.
+	FullRecovery DataRecoveryPolicyType = "FullRecoveryOnly"
+
+	// MostRecent allow partial start with the members that have most up-to-date partition table
+	// and corresponds to cluster-data-recovery-policy.PARTIAL_RECOVERY_MOST_RECENT configuration option.
+	MostRecent DataRecoveryPolicyType = "PartialRecoveryMostRecent"
+
+	// MostComplete allow partial start with the members that have most complete partition table
+	// and corresponds to cluster-data-recovery-policy.PARTIAL_RECOVERY_MOST_COMPLETE configuration option.
+	MostComplete DataRecoveryPolicyType = "PartialRecoveryMostComplete"
+
+	// ForceStart deletes all data in your cluster members' persistence stores when the cluster recovery fails.
+	ForceStart DataRecoveryPolicyType = "PartialRecoveryForceStart"
+)
 
 // SchedulingConfiguration defines the pods scheduling details
 type SchedulingConfiguration struct {
@@ -150,6 +213,14 @@ func (c *ExposeExternallyConfiguration) DiscoveryK8ServiceType() corev1.ServiceT
 	}
 }
 
+// Returns the member access type that is used for the communication with each member (NodePortExternalIP by default).
+func (c *ExposeExternallyConfiguration) MemberAccessType() MemberAccess {
+	if c.MemberAccess != "" {
+		return c.MemberAccess
+	}
+	return MemberAccessNodePortExternalIP
+}
+
 // Returns service type that is used for the communication with each member (NodePort by default).
 func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.ServiceType {
 	switch c.MemberAccess {
@@ -160,11 +231,17 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 	}
 }
 
+// Returns true if exposeExternally configuration is specified.
+func (c *HazelcastPersistenceConfiguration) IsEnabled() bool {
+	return c.BaseDir != ""
+}
+
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
-	Phase   Phase                  `json:"phase"`
-	Cluster HazelcastClusterStatus `json:"hazelcastClusterStatus"`
-	Message string                 `json:"message,omitempty"`
+	Phase             Phase                  `json:"phase"`
+	Cluster           HazelcastClusterStatus `json:"hazelcastClusterStatus"`
+	Message           string                 `json:"message,omitempty"`
+	ExternalAddresses string                 `json:"externalAddresses,omitempty"`
 }
 
 // HazelcastClusterStatus defines the status of the Hazelcast cluster
@@ -181,6 +258,7 @@ type HazelcastClusterStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 // +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
+// +kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Hazelcast cluster"
 type Hazelcast struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -214,4 +292,9 @@ func FNV32a(txt string) uint32 {
 
 func (h *Hazelcast) ClusterScopedName() string {
 	return fmt.Sprintf("%s-%d", h.Name, FNV32a(h.Namespace))
+}
+
+func (h *Hazelcast) ExternalAddressEnabled() bool {
+	return h.Spec.ExposeExternally.IsEnabled() &&
+		h.Spec.ExposeExternally.DiscoveryServiceType == corev1.ServiceTypeLoadBalancer
 }

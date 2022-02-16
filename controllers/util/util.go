@@ -2,13 +2,15 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -22,7 +24,7 @@ import (
 
 func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 	opResult, err := controllerutil.CreateOrUpdate(ctx, c, obj, f)
-	if errors.IsAlreadyExists(err) {
+	if kerrors.IsAlreadyExists(err) {
 		// Ignore "already exists" error.
 		// Inside createOrUpdate() there's is a race condition between Get() and Create(), so this error is expected from time to time.
 		return opResult, nil
@@ -170,4 +172,66 @@ func getOperatorDeploymentUID(c *rest.Config) (types.UID, error) {
 func deploymentName(podName string) string {
 	s := strings.Split(podName, "-")
 	return strings.Join(s[:len(s)-2], "-")
+}
+
+type ExternalAddresser interface {
+	metav1.Object
+	ExternalAddressEnabled() bool
+}
+
+func GetExternalAddresses(
+	ctx context.Context,
+	cli client.Client,
+	cr ExternalAddresser,
+	logger logr.Logger,
+) string {
+	if !cr.ExternalAddressEnabled() {
+		return ""
+	}
+
+	svc, err := getDiscoveryService(ctx, cli, cr)
+	if err != nil {
+		logger.Error(err, "Could not get the service")
+		return ""
+	}
+	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
+		logger.Error(errors.New("unexpected service type"), "Service type is not LoadBalancer")
+		return ""
+	}
+
+	externalAddrs := make([]string, 0, len(svc.Status.LoadBalancer.Ingress)*len(svc.Spec.Ports))
+	for _, ingress := range svc.Status.LoadBalancer.Ingress {
+		addr := getLoadBalancerAddress(&ingress)
+		if addr == "" {
+			continue
+		}
+		for _, port := range svc.Spec.Ports {
+			externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+		}
+	}
+
+	result := strings.Join(externalAddrs, ",")
+	if result == "" {
+		logger.Info("LoadBalancer external IP is not ready")
+		return ""
+	}
+	return result
+}
+
+func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.Service, error) {
+	svc := corev1.Service{}
+	if err := cli.Get(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}, &svc); err != nil {
+		return nil, err
+	}
+	return &svc, nil
+}
+
+func getLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
+	if lb.IP != "" {
+		return lb.IP
+	}
+	if lb.Hostname != "" {
+		return lb.Hostname
+	}
+	return ""
 }

@@ -25,6 +25,10 @@ type ManagementCenterSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
+	// Image pull secrets for the Management Center image
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
 	LicenseKeySecret string `json:"licenseKeySecret"`
@@ -39,7 +43,12 @@ type ManagementCenterSpec struct {
 
 	// Configuration for Management Center persistence.
 	// +optional
-	Persistence PersistenceConfiguration `json:"persistence"`
+	// +kubebuilder:default:={enabled: true, size: "10Gi"}
+	Persistence PersistenceConfiguration `json:"persistence,omitempty"`
+
+	// Scheduling details
+	// +optional
+	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
 }
 
 type HazelcastClusterConfig struct {
@@ -80,14 +89,22 @@ const (
 )
 
 type PersistenceConfiguration struct {
+	// When true, MC will use a PersistentVolumeClaim to store data.
 	// +optional
 	// +kubebuilder:default:=true
 	Enabled bool `json:"enabled"`
 
+	// Name of the PersistentVolumeClaim MC will use for persistence. If not empty,
+	// MC will use the existing claim instead of creating a new one.
+	// +optional
+	ExistingVolumeClaimName string `json:"existingVolumeClaimName,omitempty"`
+
+	// StorageClass from which PersistentVolumeClaim will be created.
 	// +optional
 	// +nullable
 	StorageClass *string `json:"storageClass"`
 
+	// Size of the created PersistentVolumeClaim.
 	// +optional
 	// +kubebuilder:default:="10Gi"
 	Size resource.Quantity `json:"size"`
@@ -95,8 +112,9 @@ type PersistenceConfiguration struct {
 
 // ManagementCenterStatus defines the observed state of ManagementCenter.
 type ManagementCenterStatus struct {
-	Phase   Phase  `json:"phase"`
-	Message string `json:"message,omitempty"`
+	Phase             Phase  `json:"phase"`
+	Message           string `json:"message,omitempty"`
+	ExternalAddresses string `json:"externalAddresses,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -105,6 +123,7 @@ type ManagementCenterStatus struct {
 // ManagementCenter is the Schema for the managementcenters API
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Management Center deployment"
+//+kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Management Center deployment"
 type ManagementCenter struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -142,7 +161,17 @@ func (c *ExternalConnectivityConfiguration) ManagementCenterServiceType() corev1
 	}
 }
 
+// IsEnabled returns true if external connectivity is enabled.
+func (ec *ExternalConnectivityConfiguration) IsEnabled() bool {
+	return *ec != ExternalConnectivityConfiguration{}
+}
+
 // Returns true if persistence configuration is specified.
 func (c *PersistenceConfiguration) IsEnabled() bool {
 	return c.Enabled
+}
+
+func (mc *ManagementCenter) ExternalAddressEnabled() bool {
+	return mc.Spec.ExternalConnectivity.IsEnabled() &&
+		mc.Spec.ExternalConnectivity.Type == ExternalConnectivityTypeLoadBalancer
 }

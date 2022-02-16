@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
+	"regexp"
 	"strconv"
-	"strings"
+	"time"
+
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo"
@@ -15,8 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -57,6 +57,10 @@ var _ = Describe("Hazelcast", func() {
 
 	AfterEach(func() {
 		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
+		Expect(k8sClient.DeleteAllOf(
+			context.Background(), &hazelcastcomv1alpha1.HotBackup{}, client.InNamespace(hzNamespace))).Should(Succeed())
+		Expect(k8sClient.DeleteAllOf(
+			context.Background(), &corev1.PersistentVolumeClaim{}, client.InNamespace(hzNamespace))).Should(Succeed())
 		assertDoesNotExist(lookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
@@ -125,6 +129,16 @@ var _ = Describe("Hazelcast", func() {
 			Expect(err).ToNot(HaveOccurred())
 		}
 
+		assertExternalAddressesNotEmpty := func() {
+			By("status external addresses should not be empty")
+			Eventually(func() string {
+				cr := hazelcastcomv1alpha1.Hazelcast{}
+				err := k8sClient.Get(context.Background(), lookupKey, &cr)
+				Expect(err).ToNot(HaveOccurred())
+				return cr.Status.ExternalAddresses
+			}, timeout, interval).Should(Not(BeEmpty()))
+		}
+
 		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
 			assertUseHazelcastUnisocket := func() {
 				assertUseHazelcast(true)
@@ -133,6 +147,7 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee)
 			create(hazelcast)
 			assertUseHazelcastUnisocket()
+			assertExternalAddressesNotEmpty()
 		})
 
 		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
@@ -143,6 +158,7 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee)
 			create(hazelcast)
 			assertUseHazelcastSmart()
+			assertExternalAddressesNotEmpty()
 		})
 
 		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", func() {
@@ -166,20 +182,11 @@ var _ = Describe("Hazelcast", func() {
 
 	Context("Hazelcast member status", func() {
 
-		evaluateReadyMembers := func(h *hazelcastcomv1alpha1.Hazelcast) {
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
-			Eventually(func() string {
-				err := k8sClient.Get(context.Background(), lookupKey, hz)
-				Expect(err).ToNot(HaveOccurred())
-				return hz.Status.Cluster.ReadyMembers
-			}, timeout, interval).Should(Equal("3/3"))
-		}
-
 		It("should update HZ ready members status", func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
-			evaluateReadyMembers(h)
+			evaluateReadyMembers(lookupKey)
 
 			assertMemberLogs(h, "Members {size:3, ver:3}")
 
@@ -190,7 +197,7 @@ var _ = Describe("Hazelcast", func() {
 					n.ApplicationManagedByLabel:    n.OperatorName,
 				})
 				Expect(err).ToNot(HaveOccurred())
-				evaluateReadyMembers(h)
+				evaluateReadyMembers(lookupKey)
 			})
 		})
 	})
@@ -211,6 +218,75 @@ var _ = Describe("Hazelcast", func() {
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
 	})
+
+	Describe("Hazelcast CR with Persistence feature enabled", func() {
+		It("should enable persistence for members successfully", func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
+			create(hazelcast)
+
+			assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
+			assertMemberLogs(hazelcast, "Hot Restart procedure completed")
+
+			pods := &corev1.PodList{}
+			podLabels := client.MatchingLabels{
+				n.ApplicationNameLabel:         n.Hazelcast,
+				n.ApplicationInstanceNameLabel: hazelcast.Name,
+				n.ApplicationManagedByLabel:    n.OperatorName,
+			}
+			if err := k8sClient.List(context.Background(), pods, client.InNamespace(hazelcast.Namespace), podLabels); err != nil {
+				Fail("Could not find Pods for Hazelcast " + hazelcast.Name)
+			}
+
+			for _, pod := range pods.Items {
+				Expect(pod.Spec.Volumes).Should(ContainElement(corev1.Volume{
+					Name: n.PersistencePvcName,
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: n.PersistencePvcName + "-" + pod.Name,
+						},
+					},
+				}))
+			}
+		})
+
+		It("should successfully trigger HotBackup", func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace)
+			create(hazelcast)
+
+			evaluateReadyMembers(lookupKey)
+
+			t := time.Now()
+			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
+			By("Creating HotBackup CR")
+			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+
+			By("Check the HotBackup creation sequence")
+			logs := test.GetPodLogs(context.Background(), types.NamespacedName{
+				Name:      hzName + "-0",
+				Namespace: hzNamespace,
+			}, &corev1.PodLogOptions{
+				Follow:    true,
+				SinceTime: &v1.Time{Time: t},
+			})
+			defer logs.Close()
+			scanner := bufio.NewScanner(logs)
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("Starting new hot backup with sequence"))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(MatchRegexp("Backup of hot restart store \\S+ finished"))
+			test.EventuallyInLogs(scanner, timeout, interval).
+				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
+			Expect(logs.Close()).Should(Succeed())
+		})
+	})
 })
 
 func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
@@ -226,43 +302,30 @@ func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
 	return hz.Status.Phase == "Running"
 }
 
-func getPodLogs(ctx context.Context, pod types.NamespacedName) io.ReadCloser {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
-	config, err := kubeConfig.ClientConfig()
-	if err != nil {
-		panic(err)
-	}
-	// creates the clientset
-	clientset := kubernetes.NewForConfigOrDie(config)
-	p, err := clientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, v1.GetOptions{})
-	if err != nil {
-		panic(err)
-	}
-	if p.Status.Phase != corev1.PodFailed && p.Status.Phase != corev1.PodRunning {
-		panic("Unable to get pod logs for the pod in Phase " + p.Status.Phase)
-	}
-	podLogOptions := corev1.PodLogOptions{}
-	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOptions)
-	podLogs, err := req.Stream(context.Background())
-	if err != nil {
-		panic(err)
-	}
-	return podLogs
-}
-
+// assertMemberLogs check that the given expected string can be found in the logs.
+// expected can be a regexp pattern.
 func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
-	logs := getPodLogs(context.Background(), types.NamespacedName{
+	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
 		Name:      h.Name + "-0",
 		Namespace: h.Namespace,
-	})
+	}, &corev1.PodLogOptions{})
 	defer logs.Close()
 	scanner := bufio.NewScanner(logs)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, expected) {
+		println(line)
+		if match, _ := regexp.MatchString(expected, line); match {
 			return
 		}
 	}
 	Fail(fmt.Sprintf("Failed to find \"%s\" in member logs", expected))
+}
+
+func evaluateReadyMembers(lookupKey types.NamespacedName) {
+	hz := &hazelcastcomv1alpha1.Hazelcast{}
+	Eventually(func() string {
+		err := k8sClient.Get(context.Background(), lookupKey, hz)
+		Expect(err).ToNot(HaveOccurred())
+		return hz.Status.Cluster.ReadyMembers
+	}, timeout, interval).Should(Equal("3/3"))
 }

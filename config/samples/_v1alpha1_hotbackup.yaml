@@ -1,0 +1,6 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: HotBackup
+metadata:
+  name: hot-backup
+spec:
+  hazelcastResourceName: hazelcast

@@ -127,10 +127,20 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "ManagementCenter")
 		os.Exit(1)
 	}
-	mgr.GetWebhookServer().Register(
+
+	if err = (&hazelcast.HotBackupReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("HotBackup"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HotBackup")
+		os.Exit(1)
+	}
+  
+  mgr.GetWebhookServer().Register(
 		"/inject-turbine",
 		&webhook.Admission{Handler: turbine.New(mgr.GetClient(), ctrl.Log.WithName("webhook").WithName("Turbine"), namespace)},
 	)
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
