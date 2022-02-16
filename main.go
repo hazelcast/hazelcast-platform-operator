@@ -135,8 +135,8 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "HotBackup")
 		os.Exit(1)
 	}
-  
-  mgr.GetWebhookServer().Register(
+
+	mgr.GetWebhookServer().Register(
 		"/inject-turbine",
 		&webhook.Admission{Handler: turbine.New(mgr.GetClient(), ctrl.Log.WithName("webhook").WithName("Turbine"), namespace)},
 	)
