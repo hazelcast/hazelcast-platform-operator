@@ -5,8 +5,8 @@ go 1.15
 require (
 	github.com/go-logr/logr v0.3.0
 	github.com/hazelcast/hazelcast-go-client v1.1.1
-	github.com/onsi/ginkgo v1.14.1
-	github.com/onsi/gomega v1.10.2
+	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/gomega v1.18.1
 	golang.org/x/tools v0.1.7 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.20.2
