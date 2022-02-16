@@ -21,6 +21,9 @@ const (
 	injectedLabelKey   = "turbine.hazelcast.com/injected"
 	injectedLabelValue = "true"
 
+	skippedLabelKey   = "turbine.hazelcast.com/skipped-by"
+	skippedLabelValue = "true"
+
 	turbineNameLabelKey = "turbine.hazelcast.com/name"
 
 	appPortAnnotationKey        = "turbine.hazelcast.com/app-port"
@@ -64,11 +67,7 @@ func (i *Injector) Handle(ctx context.Context, req admission.Request) admission.
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	pod, err = i.injectSidecar(ctx, pod, turbine)
-	if err != nil {
-		logger.Error(err, "failed to inject Turbine sidecar")
-		return admission.Errored(http.StatusBadRequest, err)
-	}
+	pod = i.injectSidecar(ctx, pod, turbine)
 
 	if result, err := json.Marshal(pod); err == nil {
 		logger.Info("pod is patched successfully")
@@ -79,7 +78,8 @@ func (i *Injector) Handle(ctx context.Context, req admission.Request) admission.
 	}
 }
 
-func (i *Injector) injectSidecar(ctx context.Context, pod *v1.Pod, turbine *hazelcastv1alpha1.Turbine) (*v1.Pod, error) {
+func (i *Injector) injectSidecar(ctx context.Context, pod *v1.Pod, turbine *hazelcastv1alpha1.Turbine) *v1.Pod {
+	p := pod.DeepCopy()
 	sidecar := v1.Container{
 		Name:  turbine.Spec.Sidecar.Name,
 		Image: turbine.Spec.Sidecar.Image,
@@ -94,25 +94,33 @@ func (i *Injector) injectSidecar(ctx context.Context, pod *v1.Pod, turbine *haze
 			},
 		},
 	}
-
-	if port := getAppPort(pod, turbine); port != "" {
+	missing := make([]string, 0)
+	if port := getAppPort(p, turbine); port != "" {
 		sidecar.Env = append(sidecar.Env, v1.EnvVar{
 			Name:  envAppHttpPort,
 			Value: port,
 		})
+	} else {
+		missing = append(missing, envAppHttpPort)
 	}
 
-	if addr := i.getClusterAddress(ctx, pod, turbine); addr != "" {
+	if addr := i.getClusterAddress(ctx, p, turbine); addr != "" {
 		sidecar.Env = append(sidecar.Env, v1.EnvVar{
 			Name:  envClusterAddress,
 			Value: addr,
 		})
+	} else {
+		missing = append(missing, envClusterAddress)
 	}
 
-	pod.Spec.Containers = append(pod.Spec.Containers, sidecar)
-	addInjectedLabel(pod)
-
-	return pod, nil
+	if len(missing) > 0 {
+		addSkippedLabel(pod)
+	} else {
+		pod.Spec.Containers = append(pod.Spec.Containers, sidecar)
+		addInjectedLabel(pod)
+		removeSkippedLabel(pod)
+	}
+	return pod
 }
 
 func (i *Injector) getTurbineConfig(ctx context.Context, p *v1.Pod) (*hazelcastv1alpha1.Turbine, error) {
@@ -146,6 +154,7 @@ func (i *Injector) getClusterAddressFromCR(ctx context.Context, name string, nam
 	svc := &v1.Service{}
 	err := i.client.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, svc)
 	if err != nil {
+		i.logger.Error(err, "failed to get Hazelcast service")
 		return ""
 	}
 	return fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, svc.Spec.Ports[0].Port)
@@ -177,6 +186,16 @@ func getAppPort(p *v1.Pod, turbine *hazelcastv1alpha1.Turbine) string {
 
 func addInjectedLabel(p *v1.Pod) *v1.Pod {
 	p.Labels[injectedLabelKey] = injectedLabelValue
+	return p
+}
+
+func addSkippedLabel(p *v1.Pod) *v1.Pod {
+	p.Labels[skippedLabelKey] = skippedLabelValue
+	return p
+}
+
+func removeSkippedLabel(p *v1.Pod) *v1.Pod {
+	delete(p.Labels, skippedLabelKey)
 	return p
 }
 

@@ -16,15 +16,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	turbineconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/turbine"
 )
 
 var _ = Describe("Turbine", func() {
 
+	var hazelcast = turbineconfig.ExposeExternallyUnisocket(hzNamespace, ee)
+
 	var hzLookupKey = types.NamespacedName{
-		Name:      hzName,
-		Namespace: hzNamespace,
+		Name:      hazelcast.Name,
+		Namespace: hazelcast.Namespace,
 	}
 
 	var controllerManagerName = types.NamespacedName{
@@ -53,26 +54,34 @@ var _ = Describe("Turbine", func() {
 
 	AfterEach(func() {
 		ctx := context.Background()
-		Expect(k8sClient.Delete(ctx, emptyHazelcast(), client.PropagationPolicy(metav1.DeletePropagationForeground))).Should(Succeed())
-		Expect(k8sClient.Delete(ctx, turbineconfig.PingPong(hzNamespace))).Should(Succeed())
-		Expect(k8sClient.DeleteAllOf(
-			ctx,
-			&v1.Service{},
-			client.MatchingLabels(testLabels),
-			client.PropagationPolicy(metav1.DeletePropagationForeground)),
-		).Should(Succeed())
-		Expect(k8sClient.DeleteAllOf(
-			ctx,
-			&appsv1.Deployment{},
-			client.MatchingLabels(testLabels),
-			client.PropagationPolicy(metav1.DeletePropagationForeground)),
-		).Should(Succeed())
+		By("Deleting Hazelcast", func() {
+			Expect(k8sClient.Delete(ctx, hazelcast, client.PropagationPolicy(metav1.DeletePropagationForeground))).Should(Succeed())
+		})
+
+		By("Deleting Turbine", func() {
+			Expect(k8sClient.Delete(ctx, turbineconfig.PingPong(hazelcast, ee), client.PropagationPolicy(metav1.DeletePropagationForeground))).Should(Succeed())
+		})
+
+		By("Deleting Ping Pong Deployments and Services", func() {
+			svcList := v1.ServiceList{}
+			Expect(k8sClient.List(ctx, &svcList, client.InNamespace(hzNamespace), client.MatchingLabels(testLabels))).Should(Succeed())
+			for _, svc := range svcList.Items {
+				Expect(k8sClient.Delete(ctx, &svc, client.PropagationPolicy(metav1.DeletePropagationForeground))).Should(Succeed())
+			}
+
+			deploymentList := appsv1.DeploymentList{}
+			Expect(k8sClient.List(ctx, &deploymentList, client.InNamespace(hzNamespace), client.MatchingLabels(testLabels))).Should(Succeed())
+			for _, d := range deploymentList.Items {
+				Expect(k8sClient.Delete(ctx, &d, client.PropagationPolicy(metav1.DeletePropagationForeground))).Should(Succeed())
+			}
+		})
+
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
-	createHz := func(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+	createHz := func(h *hazelcastcomv1alpha1.Hazelcast) {
 		By("Creating Hazelcast CR", func() {
-			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
+			Expect(k8sClient.Create(context.Background(), h)).Should(Succeed())
 		})
 
 		By("Checking Hazelcast CR running", func() {
@@ -94,7 +103,7 @@ var _ = Describe("Turbine", func() {
 		return nil, errors.New("could not find the sidecar")
 	}
 
-	checkSidecar := func(d *appsv1.Deployment, t *hazelcastcomv1alpha1.Turbine) {
+	checkSidecar := func(d *appsv1.Deployment, t *hazelcastcomv1alpha1.Turbine, svc *v1.Service) {
 		labels := d.Spec.Selector.MatchLabels
 		list := v1.PodList{}
 		Expect(k8sClient.List(context.Background(), &list, client.MatchingLabels(labels), client.InNamespace(d.Namespace))).Should(Succeed())
@@ -102,19 +111,26 @@ var _ = Describe("Turbine", func() {
 			Expect(p.Spec.Containers).Should(HaveLen(2))
 			s, err := getSidecar(p.Spec.Containers, t)
 			Expect(err).Should(Succeed())
-
-			Expect(s.Env).Should(Not(ContainElement(HaveField("Value", ""))))
+			Expect(s.Env).Should(Not(ContainElement(And(HaveField("Value", ""), HaveField("ValueFrom", nil)))))
 			Expect(s.Env).Should(ContainElement(HaveField("Name", "CLUSTER_ADDRESS")))
 			Expect(s.Env).Should(ContainElement(HaveField("Name", "APP_HTTP_PORT")))
 			Expect(s.Env).Should(ContainElement(HaveField("Name", "TURBINE_POD_IP")))
+
+			for _, env := range s.Env {
+				if env.Name == "CLUSTER_ADDRESS" {
+					clusterAddr := fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, svc.Spec.Ports[0].Port)
+					By("checking CLUSTER_ADDRESS is equal to " + clusterAddr)
+					Expect(env.Value).Should(Equal(clusterAddr))
+				}
+			}
 		}
 
 		Eventually(func() bool {
 			depl := appsv1.Deployment{}
-			key := types.NamespacedName{Name: depl.Name, Namespace: depl.Namespace}
+			key := types.NamespacedName{Name: d.Name, Namespace: d.Namespace}
 			Expect(k8sClient.Get(context.Background(), key, &depl)).Should(Succeed())
 			return depl.Status.ReadyReplicas == depl.Status.Replicas
-		}).Should(BeTrue())
+		}, timeout, interval).Should(BeTrue())
 	}
 
 	waitForExternalAddress := func(svc *v1.Service) string {
@@ -140,29 +156,48 @@ var _ = Describe("Turbine", func() {
 		return addr
 	}
 
+	getHazelcastService := func(hz *hazelcastcomv1alpha1.Hazelcast) *v1.Service {
+		By("getting Hazelcast service")
+		srv := v1.Service{}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, &srv)
+		}, timeout, interval).Should(Succeed())
+		Expect(srv.Spec.ClusterIP).Should(Not(BeEmpty()))
+		return &srv
+	}
+
 	Describe("Run Ping Pong", func() {
-		hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee)
-		createHz(hazelcast)
+		It("should return Pong result", func() {
+			createHz(hazelcast)
 
-		turbine := turbineconfig.PingPong(hzNamespace)
-		ping := turbineconfig.PingDeployment(hzNamespace)
-		pong := turbineconfig.PongDeployment(hzNamespace)
-		pingServ := turbineconfig.PingService(hzNamespace)
-		pongServ := turbineconfig.PongService(hzNamespace)
-		Expect(k8sClient.Create(context.Background(), turbine)).Should(Succeed())
-		Expect(k8sClient.Create(context.Background(), ping)).Should(Succeed())
-		Expect(k8sClient.Create(context.Background(), pingServ)).Should(Succeed())
-		Expect(k8sClient.Create(context.Background(), pong)).Should(Succeed())
-		Expect(k8sClient.Create(context.Background(), pongServ)).Should(Succeed())
+			turbine := turbineconfig.PingPong(hazelcast, ee)
+			ping := turbineconfig.PingDeployment(hzNamespace, ee)
+			pong := turbineconfig.PongDeployment(hzNamespace, ee)
+			pingServ := turbineconfig.PingService(hzNamespace)
+			pongServ := turbineconfig.PongService(hzNamespace)
+			Expect(k8sClient.Create(context.Background(), turbine)).Should(Succeed())
+			Expect(k8sClient.Create(context.Background(), ping)).Should(Succeed())
+			Expect(k8sClient.Create(context.Background(), pingServ)).Should(Succeed())
+			Expect(k8sClient.Create(context.Background(), pong)).Should(Succeed())
+			Expect(k8sClient.Create(context.Background(), pongServ)).Should(Succeed())
 
-		checkSidecar(ping, turbine)
-		checkSidecar(pong, turbine)
+			srv := getHazelcastService(hazelcast)
+			checkSidecar(ping, turbine, srv)
+			checkSidecar(pong, turbine, srv)
 
-		externalAddr := waitForExternalAddress(pingServ)
-		resp, err := http.Get(externalAddr + "/do-ping/pong")
-		Expect(err).Should(Succeed())
-
-		Expect(io.ReadAll(resp.Body)).Should(ContainSubstring("I sent ping and got back PONG!"))
-		Expect(resp.Body.Close()).Should(Succeed())
+			externalAddr := waitForExternalAddress(pingServ)
+			Eventually(func() string {
+				resp, err := http.Get("http://" + externalAddr + "/do-ping-pong")
+				if err != nil {
+					return ""
+				}
+				defer resp.Body.Close()
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					return ""
+				}
+				return string(body)
+			}, timeout, interval).Should(ContainSubstring("I sent ping and got back PONG!"))
+		})
 	})
 })
