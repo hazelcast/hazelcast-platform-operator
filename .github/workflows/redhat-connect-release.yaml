@@ -61,41 +61,6 @@ jobs:
 
           wait_for_container_scan "$PROJECT_ID" "$RELEASE_VERSION" "$RHEL_API_KEY" "$TIMEOUT_IN_MINS"
 
-      - name: Deploy Hazelcast-Platform-Operator to OCP
-        run: |
-          NAMESPACE=oc-e2e-test-${{ github.run_id}}
-          echo "NAMESPACE=${NAMESPACE}" >> $GITHUB_ENV
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
-          oc new-project $NAMESPACE
-
-          oc create secret docker-registry pull-secret \
-          --docker-server=$SCAN_REGISTRY \
-          --docker-username=unused \
-          --docker-password=$RHEL_REPO_PASSWORD \
-          --docker-email=unused
-
-          cat <<EOF | oc apply -f -
-          apiVersion: v1
-          kind: ServiceAccount
-          metadata:
-            name: hazelcast-platform-controller-manager
-            namespace: $NAMESPACE
-          EOF
-
-          oc secrets link hazelcast-platform-controller-manager pull-secret --for=pull
-          make deploy  IMG=$RHEL_IMAGE  NAMESPACE=$NAMESPACE PHONE_HOME_ENABLED=false
-          oc rollout status deployment hazelcast-platform-controller-manager
-
-      - name: Test the Operator
-        run: |
-          oc create secret generic hazelcast-license-key --from-literal=license-key=${HZ_LICENSE_KEY}
-          make test-e2e NAMESPACE=$NAMESPACE
-
-      - name: Clean up after Tests
-        if: always()
-        run: |
-          make clean-up-namespace KUBECTL=oc NAMESPACE=${NAMESPACE}
-
       - name: Publish the Hazelcast-Platform-Operator image
         run: |
           PROJECT_ID=$( echo ${RHEL_REPOSITORY} | grep -m 1 -Po "/\K.+(?=/)" )
@@ -111,35 +76,15 @@ jobs:
     needs: publish_image
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - repo-name: redhat-marketplace-operators
-            repo-owner: redhat-openshift-ecosystem
 
-          - repo-name: certified-operators
-            repo-owner: redhat-openshift-ecosystem
     env:
-      REPO_NAME: ${{ matrix.repo-name }}
-      REPO_OWNER: ${{ matrix.repo-owner }}
+      REPO_NAME: certified-operators
+      REPO_OWNER: redhat-openshift-ecosystem
       RELEASE_VERSION: ${{ needs.publish_image.outputs.RELEASE_VERSION }}
       DIGEST: ${{ needs.publish_image.outputs.DIGEST }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
-      - name: Add Annotation for redhat-marketplace-operators
-        if: env.REPO_NAME == 'redhat-marketplace-operators'
-        run: |
-          OPERATOR_NAME_RHPM=${OPERATOR_NAME}-rhmp
-          echo "OPERATOR_NAME_RHPM=${OPERATOR_NAME_RHPM}" >> $GITHUB_ENV
-
-          curl -sSLo ./bin/yq https://github.com/mikefarah/yq/releases/download/v4.18.1/yq_linux_amd64 --create-dirs
-          chmod +x ./bin/yq
-
-          ./bin/yq -i e ".metadata.annotations += \
-          {\"marketplace.openshift.io/remote-workflow\": \"https://marketplace.redhat.com/en-us/operators/${OPERATOR_NAME_RHPM}/pricing?utm_source=openshift_console\", \
-           \"marketplace.openshift.io/support-workflow\": \"https://marketplace.redhat.com/en-us/operators/${OPERATOR_NAME_RHPM}/support?utm_source=openshift_console\" }" \
-          config/manifests/bases/${OPERATOR_NAME}.clusterserviceversion.yaml
 
       - name: Build Bundle
         run: |
@@ -152,14 +97,6 @@ jobs:
             com.redhat.openshift.versions: "v4.6"
             operators.operatorframework.io.bundle.channel.default.v1: alpha
           EOF
-
-      - name: Change package name for redhat-marketplace-operators
-        if: env.REPO_NAME == 'redhat-marketplace-operators'
-        run: |
-          sed -i "s|operators.operatorframework.io.bundle.package.v1: ${OPERATOR_NAME}|operators.operatorframework.io.bundle.package.v1: ${OPERATOR_NAME_RHPM}|" bundle/metadata/annotations.yaml
-          mv bundle/manifests/${OPERATOR_NAME}.clusterserviceversion.yaml bundle/manifests/${OPERATOR_NAME_RHPM}.clusterserviceversion.yaml
-
-          echo "OPERATOR_NAME=${OPERATOR_NAME_RHPM}" >> $GITHUB_ENV
 
       - name: Validate Bundle for OCP
         run: |
