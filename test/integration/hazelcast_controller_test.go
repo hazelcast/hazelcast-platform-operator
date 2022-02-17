@@ -80,16 +80,52 @@ var _ = Describe("Hazelcast controller", func() {
 		return fetchedCR
 	}
 
-	type MutateFn func(*hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast
+	type UpdateFn func(*hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast
 
-	SetClusterSize := func(size int32) MutateFn {
+	SetClusterSize := func(size int32) UpdateFn {
 		return func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 			hz.Spec.ClusterSize = size
 			return hz
 		}
 	}
 
-	Update := func(hz *hazelcastv1alpha1.Hazelcast, fns ...MutateFn) {
+	EnableUnisocket := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+		hz.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
+		hz.Spec.ExposeExternally.MemberAccess = ""
+		return hz
+	}
+
+	DisableMemberAccess := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+		hz.Spec.ExposeExternally.MemberAccess = ""
+		return hz
+	}
+
+	EnableSmart := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+		hz.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeSmart
+		return hz
+	}
+
+	SetDiscoveryViaLoadBalancer := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+		hz.Spec.ExposeExternally.DiscoveryServiceType = corev1.ServiceTypeLoadBalancer
+		return hz
+	}
+
+	DisableExposeExternally := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+		hz.Spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{}
+		return hz
+	}
+
+	RemoveSpec := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+		hz.Spec = hazelcastv1alpha1.HazelcastSpec{}
+		return hz
+	}
+
+	SetLicenseKey := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+		hz.Spec.LicenseKeySecret = n.LicenseKeySecret
+		return hz
+	}
+
+	Update := func(hz *hazelcastv1alpha1.Hazelcast, fns ...UpdateFn) {
 		By("updating the CR with specs successfully")
 		if len(fns) == 0 {
 			Expect(k8sClient.Update(context.Background(), hz)).Should(Succeed())
@@ -334,9 +370,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			By("updating type to unisocket")
 			fetchedCR = EnsureStatus(fetchedCR)
-			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
-			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
-			Update(fetchedCR)
+			Update(fetchedCR, EnableUnisocket, DisableMemberAccess)
 
 			fetchedCR = Fetch(fetchedCR)
 			EnsureStatus(fetchedCR)
@@ -344,8 +378,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			By("updating discovery service to LoadBalancer")
 			fetchedCR = EnsureStatus(fetchedCR)
-			fetchedCR.Spec.ExposeExternally.DiscoveryServiceType = corev1.ServiceTypeLoadBalancer
-			Update(fetchedCR)
+			Update(fetchedCR, SetDiscoveryViaLoadBalancer)
 
 			fetchedCR = Fetch(fetchedCR)
 			EnsureStatus(fetchedCR)
@@ -357,16 +390,14 @@ var _ = Describe("Hazelcast controller", func() {
 
 			By("updating type to smart")
 			fetchedCR = EnsureStatus(fetchedCR)
-			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeSmart
-			Update(fetchedCR)
+			Update(fetchedCR, EnableSmart)
 
 			fetchedCR = Fetch(fetchedCR)
 			EnsureStatus(fetchedCR)
 			FetchServices(fetchedCR, 4)
 
 			By("deleting expose externally configuration")
-			fetchedCR.Spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{}
-			Update(fetchedCR)
+			Update(fetchedCR, DisableExposeExternally)
 			fetchedCR = Fetch(fetchedCR)
 			EnsureStatus(fetchedCR)
 			serviceList := FetchServices(fetchedCR, 1)
@@ -393,8 +424,7 @@ var _ = Describe("Hazelcast controller", func() {
 			Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set"))
 
 			By("fixing the incorrect configuration")
-			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
-			Update(fetchedCR)
+			Update(fetchedCR, DisableMemberAccess)
 			fetchedCR = EnsureStatus(fetchedCR)
 			Expect(fetchedCR.Status.Message).To(BeEmpty())
 
@@ -432,8 +462,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			Create(hz)
 			fetchedCR := EnsureStatus(hz)
-			fetchedCR.Spec = hazelcastv1alpha1.HazelcastSpec{}
-			Update(fetchedCR)
+			Update(fetchedCR, RemoveSpec)
 			fetchedCR = EnsureStatus(fetchedCR)
 			EnsureSpecEquals(fetchedCR, defaultHzSpecs)
 			Delete(hz)
@@ -458,8 +487,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when Hazelcast Enterprise is deployed, licenseKeySecret must be set"))
 
 				By("filling the licenseSecretKey should fix it")
-				fetchedCR.Spec.LicenseKeySecret = n.LicenseKeySecret
-				Update(fetchedCR)
+				Update(fetchedCR, SetLicenseKey)
 				fetchedCR = EnsureStatus(fetchedCR)
 				Expect(fetchedCR.Status.Message).To(BeEmpty())
 
