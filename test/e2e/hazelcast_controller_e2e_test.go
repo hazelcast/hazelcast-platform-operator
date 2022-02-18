@@ -329,15 +329,11 @@ var _ = Describe("Hazelcast", func() {
 			}
 			Expect(k8sClient.Delete(context.Background(), hazelcast, client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 
-			By("Waiting for Hazelcast Pods to be removed", func() {
-				Eventually(func() error {
-					p := &corev1.Pod{}
-					return k8sClient.Get(context.Background(), types.NamespacedName{
-						Name:      hzName + "-0",
-						Namespace: hzNamespace,
-					}, p)
-				}, timeout, interval).ShouldNot(Succeed())
-			})
+			assertDoesNotExist(types.NamespacedName{
+				Name:      hzName + "-0",
+				Namespace: hzNamespace,
+			}, &corev1.Pod{})
+
 			By("Waiting for Hazelcast CR to be removed", func() {
 				Eventually(func() error {
 					h := &hazelcastcomv1alpha1.Hazelcast{}
