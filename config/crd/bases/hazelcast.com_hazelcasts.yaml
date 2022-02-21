@@ -146,7 +146,6 @@ spec:
                         type: string
                     type: object
                 required:
-                - autoForceStart
                 - baseDir
                 - pvc
                 type: object

@@ -7,7 +7,7 @@ kind: Kustomization
 images:
 - name: controller
   newName: sbishyr/hz-operator-pvc
-  newTag: 2.2.1
+  newTag: 2.2.2
 patches:
 - path: disable_phone_home.yaml
   target:

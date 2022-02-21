@@ -1,6 +1,7 @@
 package hazelcast
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,7 +35,6 @@ const (
 type RestClient struct {
 	url         string
 	clusterName string
-	httpClient  *http.Client
 }
 
 type stateResponse struct {
@@ -45,19 +45,19 @@ func NewRestClient(h *v1alpha1.Hazelcast) *RestClient {
 	return &RestClient{
 		url:         fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort),
 		clusterName: h.Spec.ClusterName,
-		httpClient: &http.Client{
-			Timeout: time.Minute,
-		},
 	}
 }
 
-func (c *RestClient) ForceStart() error {
+func (c *RestClient) ForceStart(ctx context.Context) error {
 	d := fmt.Sprintf("%s&", c.clusterName)
-	req, err := postRequest(d, c.url, forceStart)
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := postRequest(ctxT, d, c.url, forceStart)
 	if err != nil {
 		return err
 	}
 	res, err := c.executeRequest(req)
+	defer res.Body.Close()
 	if err != nil {
 		return err
 	}
@@ -69,13 +69,16 @@ func (c *RestClient) ForceStart() error {
 	return nil
 }
 
-func (c *RestClient) GetState() (string, error) {
+func (c *RestClient) GetState(ctx context.Context) (string, error) {
 	d := fmt.Sprintf("%s&", c.clusterName)
-	req, err := postRequest(d, c.url, getState)
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := postRequest(ctxT, d, c.url, getState)
 	if err != nil {
 		return "", err
 	}
 	res, err := c.executeRequest(req)
+	defer res.Body.Close()
 	if err != nil {
 		return "", err
 	}
@@ -95,13 +98,16 @@ func (c *RestClient) GetState() (string, error) {
 	return s.State, nil
 }
 
-func (c *RestClient) ChangeState(state ClusterState) error {
+func (c *RestClient) ChangeState(ctx context.Context, state ClusterState) error {
 	d := fmt.Sprintf("%s&&%s", c.clusterName, state)
-	req, err := postRequest(d, c.url, changeState)
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := postRequest(ctxT, d, c.url, changeState)
 	if err != nil {
 		return err
 	}
 	res, err := c.executeRequest(req)
+	defer res.Body.Close()
 	if err != nil {
 		return err
 	}
@@ -116,18 +122,21 @@ func (c *RestClient) ChangeState(state ClusterState) error {
 	return nil
 }
 
-func (c *RestClient) HotBackup() error {
+func (c *RestClient) HotBackup(ctx context.Context) error {
 	d := fmt.Sprintf("%s&", c.clusterName)
-	req, err := postRequest(d, c.url, hotBackup)
+	ctxT, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	req, err := postRequest(ctxT, d, c.url, hotBackup)
 	if err != nil {
 		return err
 	}
-	_, err = c.executeRequest(req)
+	res, err := c.executeRequest(req)
+	defer res.Body.Close()
 	return err
 }
 
 func (c *RestClient) executeRequest(req *http.Request) (*http.Response, error) {
-	res, err := c.httpClient.Do(req)
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return res, err
 	}
@@ -139,8 +148,8 @@ func (c *RestClient) executeRequest(req *http.Request) (*http.Response, error) {
 	return res, nil
 }
 
-func postRequest(data string, url string, endpoint string) (*http.Request, error) {
-	req, err := http.NewRequest("POST", url+endpoint, strings.NewReader(data))
+func postRequest(ctx context.Context, data string, url string, endpoint string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", url+endpoint, strings.NewReader(data))
 	if err != nil {
 		return nil, err
 	}

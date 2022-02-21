@@ -100,7 +100,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	if hb.Spec.Schedule != "" {
 		entry, err := r.cron.AddFunc(hb.Spec.Schedule, func() {
 			logger.Info("Triggering scheduled HotBackup process.", "Schedule", hb.Spec.Schedule)
-			err := r.triggerHotBackup(rest, logger)
+			err := r.triggerHotBackup(ctx, rest, logger)
 			if err != nil {
 				logger.Error(err, "Hot Backups process failed")
 			}
@@ -116,7 +116,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 		r.cron.Start()
 	} else {
-		err = r.triggerHotBackup(rest, logger)
+		err = r.triggerHotBackup(ctx, rest, logger)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -180,19 +180,19 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 	return nil
 }
 
-func (r *HotBackupReconciler) triggerHotBackup(rest *RestClient, logger logr.Logger) error {
-	err := rest.ChangeState(Passive)
+func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, rest *RestClient, logger logr.Logger) error {
+	err := rest.ChangeState(ctx, Passive)
 	if err != nil {
 		logger.Error(err, "Error creating HotBackup. Could not change the cluster state to PASSIVE")
 		return err
 	}
 	defer func(rest *RestClient) {
-		e := rest.ChangeState(Active)
+		e := rest.ChangeState(ctx, Active)
 		if e != nil {
 			logger.Error(e, "Could not change the cluster state to ACTIVE")
 		}
 	}(rest)
-	err = rest.HotBackup()
+	err = rest.HotBackup(ctx)
 	if err != nil {
 		logger.Error(err, "Error creating HotBackup.")
 		return err

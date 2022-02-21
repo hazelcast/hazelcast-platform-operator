@@ -83,6 +83,7 @@ type HazelcastPersistenceConfiguration struct {
 
 	// AutoForceStart enables the detection of constantly failing cluster and trigger the Force Start action.
 	// +kubebuilder:default:=false
+	// +optional
 	AutoForceStart bool `json:"autoForceStart"`
 
 	// Configuration of PersistenceVolumeClaim.
