@@ -101,6 +101,7 @@ type PersistencePvcConfiguration struct {
 
 	// Name of StorageClass which this persistent volume belongs to.
 	// +optional
+	// +nullable
 	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 

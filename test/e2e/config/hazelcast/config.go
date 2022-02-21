@@ -135,9 +135,8 @@ var (
 					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
-						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						RequestStorage:   resource.MustParse("8Gi"),
-						StorageClassName: &[]string{"standard"}[0],
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: resource.MustParse("8Gi"),
 					},
 				},
 			},
