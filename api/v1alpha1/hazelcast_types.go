@@ -81,6 +81,10 @@ type HazelcastPersistenceConfiguration struct {
 	// +optional
 	ClusterDataRecoveryPolicy DataRecoveryPolicyType `json:"clusterDataRecoveryPolicy"`
 
+	// AutoForceStart enables the detection of constantly failing cluster and trigger the Force Start action.
+	// +kubebuilder:default:=false
+	AutoForceStart bool `json:"autoForceStart"`
+
 	// Configuration of PersistenceVolumeClaim.
 	Pvc PersistencePvcConfiguration `json:"pvc"`
 }
@@ -276,6 +280,9 @@ type HazelcastMemberStatus struct {
 	// Reason contains the optional reason of member crash or restart.
 	// +optional
 	Reason string `json:"reason,omitempty"`
+
+	// RestartCount is the number of times the member has been restarted.
+	RestartCount int32 `json:"restartCount"`
 }
 
 // HazelcastClusterStatus defines the status of the Hazelcast cluster

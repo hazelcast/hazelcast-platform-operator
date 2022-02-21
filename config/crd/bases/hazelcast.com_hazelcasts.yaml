@@ -111,6 +111,11 @@ spec:
               persistence:
                 description: Persistence configuration
                 properties:
+                  autoForceStart:
+                    default: false
+                    description: AutoForceStart enables the detection of constantly
+                      failing cluster and trigger the Force Start action.
+                    type: boolean
                   baseDir:
                     description: Persistence base directory.
                     type: string
@@ -141,6 +146,7 @@ spec:
                         type: string
                     type: object
                 required:
+                - autoForceStart
                 - baseDir
                 - pvc
                 type: object
@@ -861,6 +867,11 @@ spec:
                       description: Reason contains the optional reason of member crash
                         or restart.
                       type: string
+                    restartCount:
+                      description: RestartCount is the number of times the member
+                        has been restarted.
+                      format: int32
+                      type: integer
                     uid:
                       description: Uid is the unique member identifier within the
                         cluster.
@@ -871,6 +882,7 @@ spec:
                       type: string
                   required:
                   - connected
+                  - restartCount
                   type: object
                 type: array
               message:

@@ -104,13 +104,7 @@ func errorsFromPendingPod(pod *corev1.Pod) PodErrors {
 			switch status.State.Waiting.Reason {
 			case "ContainerCreating", "PodInitializing", "":
 			default:
-				podErrors = append(podErrors, &PodError{
-					Name:      pod.Name,
-					PodIp:     pod.Status.PodIP,
-					Namespace: pod.Namespace,
-					Message:   status.State.Waiting.Message,
-					Reason:    status.State.Waiting.Reason,
-				})
+				podErrors = append(podErrors, NewPodErrorWithContainerStatus(pod, status))
 			}
 		}
 	}

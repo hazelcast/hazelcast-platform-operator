@@ -575,6 +575,35 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	}
 }
 
+// checkHotRestart checks if the persistence feature and AutoForceStart is enabled, pods are failing,
+// and the cluster is in the PASSIVE mode and performs the Force Start action.
+func (r *HazelcastReconciler) checkHotRestart(h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !h.Spec.Persistence.IsEnabled() || !h.Spec.Persistence.AutoForceStart {
+		return nil
+	}
+	for _, member := range h.Status.Members {
+		if !member.Ready && member.Reason == "CrashLoopBackOff" {
+			logger.Info("Member is crashing with CrashLoopBackOff.",
+				"RestartCounts", member.RestartCount, "Message", member.Message)
+			rest := NewRestClient(h)
+			state, err := rest.GetState()
+			if err != nil {
+				return err
+			}
+			if state != "passive" {
+				logger.Info("Force Start can only be triggered on the cluster in PASSIVE state.",
+					"State", state)
+				return nil
+			}
+			err = rest.ForceStart()
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
 	return []v1.PersistentVolumeClaim{
 		{

@@ -7,11 +7,12 @@ import (
 )
 
 type PodError struct {
-	Name      string
-	Namespace string
-	Message   string
-	Reason    string
-	PodIp     string
+	Name         string
+	Namespace    string
+	Message      string
+	Reason       string
+	PodIp        string
+	RestartCount int32
 }
 
 func NewPodError(pod *corev1.Pod) *PodError {
@@ -22,6 +23,12 @@ func NewPodError(pod *corev1.Pod) *PodError {
 		Reason:    pod.Status.Reason,
 		PodIp:     pod.Status.PodIP,
 	}
+}
+
+func NewPodErrorWithContainerStatus(pod *corev1.Pod, status corev1.ContainerStatus) *PodError {
+	err := NewPodError(pod)
+	err.RestartCount = status.RestartCount
+	return err
 }
 
 func (e *PodError) Error() string {

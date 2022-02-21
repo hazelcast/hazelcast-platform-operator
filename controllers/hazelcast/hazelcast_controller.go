@@ -167,6 +167,12 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return update(ctx, r.Client, h, failedPhase(err))
 		}
 	}
+
+	if err = r.checkHotRestart(h, logger); err != nil {
+		logger.Error(err, "Cluster HotRestart did not finish successfully")
+		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+	}
+
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, h.Spec.ClusterSize); !ok {
 		if err == nil {
 			return update(ctx, r.Client, h, pendingPhase(retryAfter))
@@ -215,10 +221,6 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
 	p, ok := pod.(*corev1.Pod)
 	if !ok {
-		return []reconcile.Request{}
-	}
-
-	if p.Status.Phase == corev1.PodRunning {
 		return []reconcile.Request{}
 	}
 

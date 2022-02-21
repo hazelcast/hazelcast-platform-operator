@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -15,6 +16,8 @@ import (
 // Section contains the REST API endpoints.
 const (
 	changeState = "/hazelcast/rest/management/cluster/changeState"
+	getState    = "/hazelcast/rest/management/cluster/state"
+	forceStart  = "/hazelcast/rest/management/cluster/forceStart"
 	hotBackup   = "/hazelcast/rest/management/cluster/hotBackup"
 )
 
@@ -34,6 +37,10 @@ type RestClient struct {
 	httpClient  *http.Client
 }
 
+type stateResponse struct {
+	State string `json:"state"`
+}
+
 func NewRestClient(h *v1alpha1.Hazelcast) *RestClient {
 	return &RestClient{
 		url:         fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort),
@@ -42,6 +49,50 @@ func NewRestClient(h *v1alpha1.Hazelcast) *RestClient {
 			Timeout: time.Minute,
 		},
 	}
+}
+
+func (c *RestClient) ForceStart() error {
+	d := fmt.Sprintf("%s&", c.clusterName)
+	req, err := postRequest(d, c.url, forceStart)
+	if err != nil {
+		return err
+	}
+	res, err := c.executeRequest(req)
+	if err != nil {
+		return err
+	}
+	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusBadRequest {
+		buf := new(strings.Builder)
+		_, _ = io.Copy(buf, res.Body)
+		return fmt.Errorf("unexpected HTTP error: %s, %s", res.Status, buf.String())
+	}
+	return nil
+}
+
+func (c *RestClient) GetState() (string, error) {
+	d := fmt.Sprintf("%s&", c.clusterName)
+	req, err := postRequest(d, c.url, getState)
+	if err != nil {
+		return "", err
+	}
+	res, err := c.executeRequest(req)
+	if err != nil {
+		return "", err
+	}
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code when checking for Cluster state: %d, %s",
+			res.StatusCode, res.Status)
+	}
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	s := &stateResponse{}
+	err = json.Unmarshal(b, s)
+	if err != nil {
+		return "", err
+	}
+	return s.State, nil
 }
 
 func (c *RestClient) ChangeState(state ClusterState) error {
