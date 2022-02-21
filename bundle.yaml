@@ -120,6 +120,7 @@ spec:
                         x-kubernetes-int-or-string: true
                       storageClassName:
                         description: Name of StorageClass which this persistent volume belongs to.
+                        nullable: true
                         type: string
                     type: object
                 required:
