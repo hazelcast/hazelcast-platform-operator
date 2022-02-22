@@ -298,7 +298,7 @@ var _ = Describe("Hazelcast", func() {
 
 			By("Creating HotBackup CR")
 			t := time.Now()
-			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
+			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name+"-restart", hzNamespace)
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
 			By("Finding Backup sequence")
