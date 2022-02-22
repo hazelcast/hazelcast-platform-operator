@@ -121,14 +121,16 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			r.scheduled.Store(req.NamespacedName, entry)
 		}
 		r.cron.Start()
-	} else {
-		err = r.triggerHotBackup(rest, logger)
+	}
+	err = r.triggerHotBackup(rest, logger)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 	err = r.updateLastSuccessfulConfiguration(ctx, hb, logger)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
-	return ctrl.Result{}, err
+	return ctrl.Result{}, nil
 }
 
 func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
