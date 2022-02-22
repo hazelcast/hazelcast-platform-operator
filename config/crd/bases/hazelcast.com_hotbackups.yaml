@@ -41,6 +41,9 @@ spec:
           spec:
             description: HotBackupSpec defines the Spec of HotBackup
             properties:
+              bucket:
+                description: URL of the bucket to download HotBackup folders.
+                type: string
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource

@@ -567,6 +567,11 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		}
 	}
 
+	// TODO check persistence first
+	if h.Spec.Backup.IsEnabled() {
+		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
+	}
+
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on Statefulset")
@@ -590,6 +595,85 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	return v1.Container{
+		Name:  n.BackupAgent,
+		Image: h.AgentDockerImage(),
+		Ports: []v1.ContainerPort{{
+			ContainerPort: n.DefaultAgentPort,
+			Name:          n.BackupAgent,
+			Protocol:      v1.ProtocolTCP,
+		}},
+		LivenessProbe: &v1.Probe{
+			Handler: v1.Handler{
+				HTTPGet: &v1.HTTPGetAction{
+					Path:   "/health",
+					Port:   intstr.FromInt(8080),
+					Scheme: corev1.URISchemeHTTP,
+				},
+			},
+			InitialDelaySeconds: 10,
+			TimeoutSeconds:      10,
+			PeriodSeconds:       10,
+			SuccessThreshold:    1,
+			FailureThreshold:    10,
+		},
+		ReadinessProbe: &v1.Probe{
+			Handler: v1.Handler{
+				HTTPGet: &v1.HTTPGetAction{
+					Path:   "/health",
+					Port:   intstr.FromInt(8080),
+					Scheme: corev1.URISchemeHTTP,
+				},
+			},
+			InitialDelaySeconds: 10,
+			TimeoutSeconds:      10,
+			PeriodSeconds:       10,
+			SuccessThreshold:    1,
+			FailureThreshold:    10,
+		},
+		Env: []v1.EnvVar{
+			{
+				Name: "AWS_ACCESS_KEY_ID",
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: h.Spec.Backup.BucketSecret,
+						},
+						Key: n.BucketDataS3AccessKeyID,
+					},
+				},
+			},
+			{
+				Name: "AWS_SECRET_ACCESS_KEY",
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: h.Spec.Backup.BucketSecret,
+						},
+						Key: n.BucketDataS3SecretAccessKey,
+					},
+				},
+			},
+			{
+				Name: "AWS_REGION",
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: h.Spec.Backup.BucketSecret,
+						},
+						Key: n.BucketDataS3Region,
+					},
+				},
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		}},
+	}
 }
 
 func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
