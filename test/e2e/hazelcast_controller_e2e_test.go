@@ -230,7 +230,7 @@ var _ = Describe("Hazelcast", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart", false)
 			create(hazelcast)
 
 			assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
@@ -262,7 +262,7 @@ var _ = Describe("Hazelcast", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart", false)
 			create(hazelcast)
 
 			evaluateReadyMembers(lookupKey)
@@ -293,11 +293,17 @@ var _ = Describe("Hazelcast", func() {
 			Expect(logs.Close()).Should(Succeed())
 		})
 
-		It("should successfully restart from HotBackup data", func() {
+		DescribeTable("should successfully restart from HotBackup data", func(useHostPath bool) {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
+			var nodeName string
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart", useHostPath)
+			if useHostPath {
+				nodeName, err := getFirstNodeName()
+				Expect(err).To(BeNil())
+				addNodeSelectorForName(hazelcast, nodeName)
+			}
 			create(hazelcast)
 
 			evaluateReadyMembers(lookupKey)
@@ -352,7 +358,10 @@ var _ = Describe("Hazelcast", func() {
 
 			By("Creating new Hazelcast cluster from existing backup")
 			baseDir := "/data/hot-restart/hot-backup/backup-" + seq
-			hazelcast = hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir)
+			hazelcast = hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, useHostPath)
+			if useHostPath {
+				addNodeSelectorForName(hazelcast, nodeName)
+			}
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 			evaluateReadyMembers(lookupKey)
 
@@ -375,7 +384,10 @@ var _ = Describe("Hazelcast", func() {
 				Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 
 			Expect(logs.Close()).Should(Succeed())
-		})
+		},
+			Entry("with PVC configuration", false),
+			Entry("with HostPath configuration", true),
+		)
 	})
 })
 
@@ -418,4 +430,18 @@ func evaluateReadyMembers(lookupKey types.NamespacedName) {
 		Expect(err).ToNot(HaveOccurred())
 		return hz.Status.Cluster.ReadyMembers
 	}, timeout, interval).Should(Equal("3/3"))
+}
+
+func getFirstNodeName() (string, error) {
+	nodes := &corev1.NodeList{}
+	err := k8sClient.List(context.Background(), nodes, client.Limit(1))
+	if err != nil {
+		return "", err
+	}
+	return nodes.Items[0].ObjectMeta.Name, nil
+}
+
+func addNodeSelectorForName(hz *hazelcastcomv1alpha1.Hazelcast, n string) *hazelcastcomv1alpha1.Hazelcast {
+	hz.Spec.Scheduling.NodeSelector = map[string]string{"kubernetes.io/hostname": n}
+	return hz
 }

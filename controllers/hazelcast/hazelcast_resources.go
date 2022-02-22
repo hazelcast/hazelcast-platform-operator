@@ -468,10 +468,11 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					Labels: ls,
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName: h.Name,
-					Affinity:           &h.Spec.Scheduling.Affinity,
-					Tolerations:        h.Spec.Scheduling.Tolerations,
-					NodeSelector:       h.Spec.Scheduling.NodeSelector,
+					ServiceAccountName:        h.Name,
+					Affinity:                  &h.Spec.Scheduling.Affinity,
+					Tolerations:               h.Spec.Scheduling.Tolerations,
+					NodeSelector:              h.Spec.Scheduling.NodeSelector,
+					TopologySpreadConstraints: h.Spec.Scheduling.TopologySpreadConstraints,
 					SecurityContext: &v1.PodSecurityContext{
 						FSGroup:      &[]int64{65534}[0],
 						RunAsNonRoot: &[]bool{true}[0],
@@ -522,7 +523,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								Drop: []v1.Capability{"ALL"},
 							},
 						},
-						VolumeMounts: persistentVolumeMount(h),
+						VolumeMounts: volumeMount(h),
 					}},
 					TerminationGracePeriodSeconds: &[]int64{600}[0],
 					Volumes:                       volumes(h),
@@ -532,7 +533,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	if h.Spec.Persistence.IsEnabled() {
-		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+		if h.Spec.Persistence.UseHostPath() {
+			sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, hostPathVolume(h))
+			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot = &[]bool{false}[0]
+			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsUser = &[]int64{0}[0]
+		} else {
+			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+		}
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -575,6 +582,18 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	}
 }
 
+func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
+	return v1.Volume{
+		Name: n.PersistenceVolumeName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: h.Spec.Persistence.HostPath,
+				Type: &[]v1.HostPathType{v1.HostPathDirectoryOrCreate}[0],
+			},
+		},
+	}
+}
+
 func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
 	return []v1.PersistentVolumeClaim{
 		{
@@ -596,7 +615,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 	}
 }
 
-func persistentVolumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func volumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,

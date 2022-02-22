@@ -16,6 +16,10 @@ func ValidateSpec(h *hazelcastv1alpha1.Hazelcast) error {
 		return err
 	}
 
+	// if err := validatePersistence(h); err != nil {
+	// 	return err
+	// }
+
 	return nil
 }
 
@@ -35,3 +39,10 @@ func validateLicense(h *hazelcastv1alpha1.Hazelcast) error {
 	}
 	return nil
 }
+
+// func validatePersistence(h *hazelcastv1alpha1.Hazelcast) error {
+// 	if h.Spec.Persistence.HostPath != "" &&  {
+// 		return errors.New("when Hazelcast Enterprise is deployed, licenseKeySecret must be set")
+// 	}
+// 	return nil
+// }
