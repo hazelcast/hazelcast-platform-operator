@@ -3,5 +3,5 @@ kind: HotBackup
 metadata:
   name: hot-backup
 spec:
-  hazelcastName: hazelcast
+  hazelcastResourceName: hazelcast
   schedule: "* * * * *"

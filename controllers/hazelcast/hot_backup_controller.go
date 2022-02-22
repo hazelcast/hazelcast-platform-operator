@@ -95,7 +95,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			logger.Info("Triggering scheduled HotBackup process.", "Schedule", hb.Spec.Schedule)
 			err := r.triggerHotBackup(rest, logger)
 			if err != nil {
-				logger.Error(err, "Hob Backups process failed")
+				logger.Error(err, "Hot Backups process failed")
 			}
 		})
 		if err != nil {
