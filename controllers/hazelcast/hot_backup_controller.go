@@ -121,10 +121,11 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			r.scheduled.Store(req.NamespacedName, entry)
 		}
 		r.cron.Start()
-	}
-	err = r.triggerHotBackup(rest, logger)
-	if err != nil {
-		return ctrl.Result{}, err
+	} else {
+		err = r.triggerHotBackup(rest, logger)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 	err = r.updateLastSuccessfulConfiguration(ctx, hb, logger)
 	if err != nil {
