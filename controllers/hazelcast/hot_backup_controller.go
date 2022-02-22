@@ -2,7 +2,10 @@ package hazelcast
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -111,7 +114,31 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	} else {
 		err = r.triggerHotBackup(rest, logger)
 	}
+	err = r.updateLastSuccessfulConfiguration(ctx, hb, logger)
+	if err != nil {
+		logger.Info("Could not save the current successful spec as annotation to the custom resource")
+	}
 	return ctrl.Result{}, err
+}
+
+func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
+	hs, err := json.Marshal(hb.Spec)
+	if err != nil {
+		return err
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, hb, func() error {
+		if hb.ObjectMeta.Annotations == nil {
+			ans := map[string]string{}
+			hb.ObjectMeta.Annotations = ans
+		}
+		hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Hazelcast Annotation", hb.Name, "result", opResult)
+	}
+	return err
 }
 
 func (r *HotBackupReconciler) addFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
