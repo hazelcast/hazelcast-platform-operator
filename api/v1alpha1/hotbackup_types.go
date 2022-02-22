@@ -38,7 +38,11 @@ type HotBackupSpec struct {
 	//	@daily (or @midnight)  | Run once a day, midnight                   | 0 0 * * *
 	//	@hourly                | Run once an hour, beginning of hour        | 0 * * * *
 	// +optional
-	Schedule string `json:"schedule,omitempty"`
+	Schedule string `json:"schedule"`
+
+	// URL of the bucket to download HotBackup folders.
+	// +optional
+	BucketURL string `json:"bucket"`
 }
 
 //+kubebuilder:object:root=true
