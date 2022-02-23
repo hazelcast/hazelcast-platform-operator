@@ -189,7 +189,7 @@ var _ = Describe("Hazelcast controller", func() {
 	}
 
 	Context("Hazelcast CustomResource with default specs", func() {
-		It("should handle CR and sub resources correctly", func() {
+		It("should handle CR and sub resources correctly", Label("fast"), func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       test.HazelcastSpec(defaultSpecValues, ee),
@@ -254,7 +254,7 @@ var _ = Describe("Hazelcast controller", func() {
 			return serviceList
 		}
 
-		It("should create Hazelcast cluster exposed for unisocket client", func() {
+		It("should create Hazelcast cluster exposed for unisocket client", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
@@ -280,7 +280,7 @@ var _ = Describe("Hazelcast controller", func() {
 			Delete(hz)
 		})
 
-		It("should create Hazelcast cluster exposed for smart client", func() {
+		It("should create Hazelcast cluster exposed for smart client", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -314,7 +314,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			Delete(fetchedCR)
 		})
-		It("should scale Hazelcast cluster exposed for smart client", func() {
+		It("should scale Hazelcast cluster exposed for smart client", Label("fast"), func() {
 			By("creating the cluster of size 3")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = 3
@@ -350,7 +350,7 @@ var _ = Describe("Hazelcast controller", func() {
 			Delete(fetchedCR)
 		})
 
-		It("should allow updating expose externally configuration", func() {
+		It("should allow updating expose externally configuration", Label("fast"), func() {
 			By("creating the cluster with smart client")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = 3
@@ -405,7 +405,7 @@ var _ = Describe("Hazelcast controller", func() {
 			Delete(fetchedCR)
 		})
 
-		It("should return expected messages when exposeExternally is misconfigured", func() {
+		It("should return expected messages when exposeExternally is misconfigured", Label("fast"), func() {
 			By("creating the cluster with unisocket client with incorrect configuration")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = 3
@@ -439,7 +439,7 @@ var _ = Describe("Hazelcast controller", func() {
 			LicenseKey:      "",
 			ImagePullPolicy: n.HazelcastImagePullPolicy,
 		}
-		It("should create CR with default values when empty specs are applied", func() {
+		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 			}
@@ -448,7 +448,7 @@ var _ = Describe("Hazelcast controller", func() {
 			EnsureSpecEquals(fetchedCR, defaultHzSpecs)
 			Delete(hz)
 		})
-		It("should update the CR with the default values when updating the empty specs are applied", func() {
+		It("should update the CR with the default values when updating the empty specs are applied", Label("fast"), func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec: hazelcastv1alpha1.HazelcastSpec{
@@ -471,7 +471,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hazelcast license validation", func() {
 		When("EE repository is used", func() {
-			It("should raise error if no license key secret is provided", func() {
+			It("should raise error if no license key secret is provided", Label("fast"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -498,7 +498,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Pod scheduling parameters", func() {
 		When("NodeSelector is used", func() {
-			It("should pass the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
@@ -521,7 +521,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		When("Affinity is used", func() {
-			It("should pass the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: corev1.Affinity{
@@ -574,7 +574,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		When("Toleration is used", func() {
-			It("should pass the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
@@ -601,7 +601,7 @@ var _ = Describe("Hazelcast controller", func() {
 	})
 	Context("Hazelcast Image configuration", func() {
 		When("ImagePullSecrets are defined", func() {
-			It("should pass the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				pullSecrets := []corev1.LocalObjectReference{
 					{Name: "secret1"},
 					{Name: "secret2"},
@@ -624,7 +624,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hot Restart Persistence configuration", func() {
 		When("Persistence is configured", func() {
-			It("should create volumeClaimTemplates", func() {
+			It("should create volumeClaimTemplates", Label("fast"), func() {
 				s := test.HazelcastSpec(defaultSpecValues, ee)
 				s.Persistence = hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
