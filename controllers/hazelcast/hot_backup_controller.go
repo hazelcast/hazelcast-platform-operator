@@ -63,16 +63,6 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return ctrl.Result{}, err
 	}
 
-	hs, err := json.Marshal(hb.Spec)
-	if err != nil {
-		logger.Error(err, "Error marshaling Hot Backup as JSON")
-		return reconcile.Result{}, err
-	}
-	if s, ok := hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok && s == string(hs) {
-		logger.Info("HotBackup was already applied.", "name", hb.Name, "namespace", hb.Namespace)
-		return reconcile.Result{}, nil
-	}
-
 	err = r.addFinalizer(ctx, hb, logger)
 	if err != nil {
 		logger.Error(err, "Failed to add finalizer into custom resource")
@@ -88,6 +78,16 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
+	}
+
+	hs, err := json.Marshal(hb.Spec)
+	if err != nil {
+		logger.Error(err, "Error marshaling Hot Backup as JSON")
+		return reconcile.Result{}, err
+	}
+	if s, ok := hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok && s == string(hs) {
+		logger.Info("HotBackup was already applied.", "name", hb.Name, "namespace", hb.Namespace)
+		return reconcile.Result{}, nil
 	}
 
 	h := &hazelcastv1alpha1.Hazelcast{}

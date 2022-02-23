@@ -252,7 +252,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 		})
 
-		It("should successfully trigger HotBackup", func() {
+		FIt("should successfully trigger HotBackup", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -287,7 +287,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(logs.Close()).Should(Succeed())
 		})
 
-		It("should successfully restart from HotBackup data", func() {
+		FIt("should successfully restart from HotBackup data", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -298,7 +298,7 @@ var _ = Describe("Hazelcast", func() {
 
 			By("Creating HotBackup CR")
 			t := time.Now()
-			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name+"-restart", hzNamespace)
+			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
 			By("Finding Backup sequence")
