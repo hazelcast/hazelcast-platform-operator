@@ -252,7 +252,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 		})
 
-		FIt("should successfully trigger HotBackup", func() {
+		It("should successfully trigger HotBackup", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -287,7 +287,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(logs.Close()).Should(Succeed())
 		})
 
-		FIt("should successfully restart from HotBackup data", func() {
+		It("should successfully restart from HotBackup data", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
