@@ -5,24 +5,18 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
-
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	"github.com/robfig/cron/v3"
-
-	"k8s.io/apimachinery/pkg/types"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/go-logr/logr"
+	"github.com/robfig/cron/v3"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 )
 
 type HotBackupReconciler struct {
