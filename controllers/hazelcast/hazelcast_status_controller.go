@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
@@ -35,7 +34,13 @@ func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan even
 }
 
 func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
-	config.Cluster.ConnectionStrategy.Timeout = hztypes.Duration(10 * time.Second)
+	config.Cluster.ConnectionStrategy.Timeout = hztypes.Duration(0)
+	config.Cluster.ConnectionStrategy.ReconnectMode = cluster.ReconnectModeOn
+	config.Cluster.ConnectionStrategy.Retry = cluster.ConnectionRetryConfig{
+		InitialBackoff: 1,
+		MaxBackoff:     10,
+		Jitter:         0.25,
+	}
 	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
 	if err != nil {
 		// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
