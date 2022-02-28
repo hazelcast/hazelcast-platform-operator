@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
@@ -18,7 +17,8 @@ import (
 
 type HazelcastClient struct {
 	sync.Mutex
-	Client               atomic.Value
+	client               *hazelcast.Client
+	cancel               context.CancelFunc
 	NamespacedName       types.NamespacedName
 	Log                  logr.Logger
 	MemberMap            map[string]bool
@@ -43,29 +43,52 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 		Jitter:         0.25,
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	c.Lock()
+	c.cancel = cancel
+	c.Unlock()
+
 	go func(ctx context.Context) {
 		hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
 		if err != nil {
 			// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
 			c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
 		} else {
-			c.Client.Store(hzClient)
+			c.Lock()
+			c.client = hzClient
+			c.Unlock()
 		}
 	}(ctx)
 }
 
-func getStatusUpdateListener(hzClient *HazelcastClient) func(cluster.MembershipStateChanged) {
+func (c *HazelcastClient) shutdown(ctx context.Context) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.cancel != nil {
+		c.cancel()
+	}
+
+	if c.client == nil {
+		return
+	}
+	if err := c.client.Shutdown(ctx); err != nil {
+		c.Log.Error(err, "Problem occurred while shutting down the client connection")
+	}
+}
+
+func getStatusUpdateListener(c *HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
-			hzClient.Lock()
-			hzClient.MemberMap[changed.Member.String()] = true
-			hzClient.Unlock()
+			c.Lock()
+			c.MemberMap[changed.Member.String()] = true
+			c.Unlock()
 		} else if changed.State == cluster.MembershipStateRemoved {
-			hzClient.Lock()
-			delete(hzClient.MemberMap, changed.Member.String())
-			hzClient.Unlock()
+			c.Lock()
+			delete(c.MemberMap, changed.Member.String())
+			c.Unlock()
 		}
-		hzClient.triggerReconcile()
+		c.triggerReconcile()
 	}
 }
 
