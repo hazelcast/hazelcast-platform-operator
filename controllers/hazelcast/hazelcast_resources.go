@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
+	"github.com/hazelcast/hazelcast-go-client"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -67,9 +68,9 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	if c, ok := r.hzClients.Load(key); ok {
 		r.hzClients.Delete(key)
-		if cl := c.(*HazelcastClient).Client; cl != nil {
+		if cl := c.(*HazelcastClient).Client; cl.Load() != nil {
 			// shutdown error is ignored and does not need to be handled
-			_ = cl.Shutdown(ctx)
+			_ = cl.Load().(*hazelcast.Client).Shutdown(ctx)
 		}
 	}
 	return nil

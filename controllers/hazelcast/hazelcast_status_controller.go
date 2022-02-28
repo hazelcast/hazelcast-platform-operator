@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
@@ -17,7 +18,7 @@ import (
 
 type HazelcastClient struct {
 	sync.Mutex
-	Client               *hazelcast.Client
+	Client               atomic.Value
 	NamespacedName       types.NamespacedName
 	Log                  logr.Logger
 	MemberMap            map[string]bool
@@ -41,12 +42,16 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 		MaxBackoff:     10,
 		Jitter:         0.25,
 	}
-	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
-	if err != nil {
-		// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
-		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
-	}
-	c.Client = hzClient
+
+	go func(ctx context.Context) {
+		hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
+		if err != nil {
+			// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
+			c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
+		} else {
+			c.Client.Store(hzClient)
+		}
+	}(ctx)
 }
 
 func getStatusUpdateListener(hzClient *HazelcastClient) func(cluster.MembershipStateChanged) {
