@@ -195,7 +195,7 @@ var _ = Describe("Hazelcast", func() {
 					n.ApplicationNameLabel:         n.Hazelcast,
 					n.ApplicationInstanceNameLabel: h.Name,
 					n.ApplicationManagedByLabel:    n.OperatorName,
-				})
+				}, client.PropagationPolicy(v1.DeletePropagationForeground))
 				Expect(err).ToNot(HaveOccurred())
 				evaluateReadyMembers(lookupKey)
 			})
