@@ -92,10 +92,10 @@ func getStatusUpdateListener(c *HazelcastClient) func(cluster.MembershipStateCha
 	}
 }
 
-func (hzClient *HazelcastClient) triggerReconcile() {
-	hzClient.triggerReconcileChan <- event.GenericEvent{
+func (c *HazelcastClient) triggerReconcile() {
+	c.triggerReconcileChan <- event.GenericEvent{
 		Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
-			Namespace: hzClient.NamespacedName.Namespace,
-			Name:      hzClient.NamespacedName.Name,
+			Namespace: c.NamespacedName.Namespace,
+			Name:      c.NamespacedName.Name,
 		}}}
 }
