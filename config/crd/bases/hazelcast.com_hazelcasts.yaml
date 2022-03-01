@@ -837,6 +837,42 @@ spec:
                 required:
                 - readyMembers
                 type: object
+              members:
+                items:
+                  description: HazelcastMemberStatus defines the observed state of
+                    the individual Hazelcast member.
+                  properties:
+                    connected:
+                      description: Ready is the flag that is set to true when the
+                        member is successfully started, connected to cluster and ready
+                        to accept connections.
+                      type: boolean
+                    ip:
+                      description: Ip is the IP address of the member within the cluster.
+                      type: string
+                    message:
+                      description: Message contains the optional message with the
+                        details of the cluster state.
+                      type: string
+                    podName:
+                      description: PodName is the name of the Hazelcast member pod.
+                      type: string
+                    reason:
+                      description: Reason contains the optional reason of member crash
+                        or restart.
+                      type: string
+                    uid:
+                      description: Uid is the unique member identifier within the
+                        cluster.
+                      type: string
+                    version:
+                      description: Version represents the Hazelcast version of the
+                        member.
+                      type: string
+                  required:
+                  - connected
+                  type: object
+                type: array
               message:
                 type: string
               phase:
@@ -844,6 +880,7 @@ spec:
                 type: string
             required:
             - hazelcastClusterStatus
+            - members
             - phase
             type: object
         type: object

@@ -11,6 +11,7 @@ type PodError struct {
 	Namespace string
 	Message   string
 	Reason    string
+	PodIp     string
 }
 
 func NewPodError(pod *corev1.Pod) *PodError {
@@ -19,6 +20,7 @@ func NewPodError(pod *corev1.Pod) *PodError {
 		Namespace: pod.Namespace,
 		Message:   pod.Status.Message,
 		Reason:    pod.Status.Reason,
+		PodIp:     pod.Status.PodIP,
 	}
 }
 
