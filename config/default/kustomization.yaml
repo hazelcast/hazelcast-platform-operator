@@ -1,11 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- ../rbac
-- ../manager
-- ../crd
-- ../certmanager
-- ../webhook
+  - ../rbac
+  - ../manager
+  - ../crd
 
 # Adds namespace to all resources.
 namespace: default
@@ -17,34 +15,3 @@ namespace: default
 # field above.
 namePrefix: hazelcast-platform-
 
-patchesStrategicMerge:
-  - manager_webhook_patch.yaml
-  - webhook_cainjection_patch.yaml
-
-vars:
-  - name: CERTIFICATE_NAMESPACE
-    fieldref:
-      fieldpath: metadata.namespace
-    objref:
-      group: cert-manager.io
-      kind: Certificate
-      name: serving-cert
-      version: v1
-  - name: CERTIFICATE_NAME
-    objref:
-      group: cert-manager.io
-      kind: Certificate
-      name: serving-cert
-      version: v1
-  - name: SERVICE_NAMESPACE
-    fieldref:
-      fieldpath: metadata.namespace
-    objref:
-      kind: Service
-      name: webhook-service
-      version: v1
-  - name: SERVICE_NAME
-    objref:
-      kind: Service
-      name: webhook-service
-      version: v1

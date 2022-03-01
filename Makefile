@@ -181,6 +181,12 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
 
+ENABLE_TURBINE ?= false
+ifneq (false,$(ENABLE_TURBINE))
+	OVERLAY=config/turbine
+else
+	OVERLAY=config/default
+endif
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 ifneq (,$(NAME_PREFIX))
 	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
@@ -195,15 +201,16 @@ ifeq (true,$(REMOVE_SECURITY_CONTEXT))
 endif
 	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
+	@cd config/turbine && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 ifneq (false,$(APPLY_MANIFESTS))
-	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	@$(KUSTOMIZE) build $(OVERLAY) | $(KUBECTL) apply -f -
 else
-	@$(KUSTOMIZE) build config/default
+	@$(KUSTOMIZE) build $(OVERLAY)
 endif
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f - --ignore-not-found
+	$(KUSTOMIZE) build $(OVERLAY) | $(KUBECTL) delete -f - --ignore-not-found
 
 undeploy-keep-crd:
 	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
