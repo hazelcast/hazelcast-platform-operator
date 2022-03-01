@@ -83,10 +83,12 @@ func getStatusUpdateListener(c *HazelcastClient) func(cluster.MembershipStateCha
 			c.Lock()
 			c.MemberMap[changed.Member.String()] = true
 			c.Unlock()
+			c.Log.Info("Member is added", "member", changed.Member.String())
 		} else if changed.State == cluster.MembershipStateRemoved {
 			c.Lock()
 			delete(c.MemberMap, changed.Member.String())
 			c.Unlock()
+			c.Log.Info("Member is deleted", "member", changed.Member.String())
 		}
 		c.triggerReconcile()
 	}
