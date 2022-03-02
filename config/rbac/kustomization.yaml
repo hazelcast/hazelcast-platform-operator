@@ -10,4 +10,5 @@ resources:
   - role.yaml
   - role_binding.yaml
   - turbine_viewer_role.yaml
+  - certificate_rbac.yaml
 
