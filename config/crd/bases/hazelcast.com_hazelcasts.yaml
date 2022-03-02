@@ -816,7 +816,7 @@ spec:
                     type: array
                 type: object
               version:
-                default: 5.0.2
+                default: "5.1"
                 description: Version of Hazelcast Platform.
                 type: string
             type: object

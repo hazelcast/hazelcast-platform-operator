@@ -35,7 +35,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.0.2"
+	// +kubebuilder:default:="5.1"
 	// +optional
 	Version string `json:"version"`
 
