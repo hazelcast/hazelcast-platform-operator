@@ -187,12 +187,13 @@ func (c *Reconciler) updateCertificateSecret(
 		return nil, fmt.Errorf("failed to create certificate bundle: %w", err)
 	}
 
+	certEnc := encodeCertificateFromBundle(bundle)
+	keyEnc := encodeKeyFromBundle(bundle)
 	s := secret.DeepCopy()
-	s.Type = corev1.SecretTypeTLS
 	s.Data = map[string][]byte{
-		"ca.crt":  encodeCertificateFromBundle(bundle),
-		"tls.crt": encodeCertificateFromBundle(bundle),
-		"tls.key": encodeKeyFromBundle(bundle),
+		"ca.crt":  certEnc,
+		"tls.crt": certEnc,
+		"tls.key": keyEnc,
 	}
 
 	if err := c.cli.Update(ctx, s); err != nil {
@@ -264,16 +265,16 @@ func (c *Reconciler) waitForLocalFiles(ctx context.Context) error {
 func (c *Reconciler) localFilesExist() bool {
 	files := []string{"ca.crt", "tls.crt", "tls.key"}
 	for _, file := range files {
-		if !c.fileExists(path.Join(certFilesPath, file)) {
+		if !c.fileExistsAndNotEmpty(path.Join(certFilesPath, file)) {
 			return false
 		}
 	}
 	return true
 }
 
-func (c *Reconciler) fileExists(path string) bool {
-	_, err := os.Stat(path)
-	if err == nil {
+func (c *Reconciler) fileExistsAndNotEmpty(path string) bool {
+	info, err := os.Stat(path)
+	if err == nil && info.Size() > 0 {
 		return true
 	}
 	if errors.Is(err, os.ErrNotExist) {
@@ -313,7 +314,12 @@ func defaultCertificateSecret(namespace string) *corev1.Secret {
 			Name:      certificateSecretName,
 			Namespace: namespace,
 		},
-		Data: map[string][]byte{},
+		Type: corev1.SecretTypeTLS,
+		Data: map[string][]byte{
+			"ca.crt":  {},
+			"tls.crt": {},
+			"tls.key": {},
+		},
 	}
 }
 
