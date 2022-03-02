@@ -11,11 +11,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -150,103 +146,6 @@ func (c *Reconciler) updateRequired(secret *corev1.Secret) (bool, error) {
 	}
 }
 
-func (c *Reconciler) getOrCreateCertificateSecret(ctx context.Context) (*corev1.Secret, error) {
-	secret, err := c.getCertificateSecret(ctx)
-	if err == nil {
-		return secret, nil
-	} else if kerrors.IsNotFound(err) {
-		return c.createCertificateSecret(ctx)
-	}
-	return nil, fmt.Errorf("failed to get-or-create certificate secret: %w", err)
-}
-
-func (c *Reconciler) getCertificateSecret(ctx context.Context) (*corev1.Secret, error) {
-	secret := corev1.Secret{}
-	err := c.reader.Get(ctx, client.ObjectKey{Name: certificateSecretName, Namespace: c.ns}, &secret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get certificate secret: %w", err)
-	}
-	return &secret, nil
-}
-
-func (c *Reconciler) createCertificateSecret(ctx context.Context) (*corev1.Secret, error) {
-	err := c.cli.Create(ctx, defaultCertificateSecret(c.ns))
-	if err != nil && !kerrors.IsAlreadyExists(err) {
-		return nil, fmt.Errorf("failed to create certificate secret: %w", err)
-	}
-	return c.getCertificateSecret(ctx)
-}
-
-func (c *Reconciler) updateCertificateSecret(
-	ctx context.Context,
-	secret *corev1.Secret,
-	service *corev1.Service,
-) (*Bundle, error) {
-	bundle, err := createSelfSigned(service)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create certificate bundle: %w", err)
-	}
-
-	certEnc := encodeCertificateFromBundle(bundle)
-	keyEnc := encodeKeyFromBundle(bundle)
-	s := secret.DeepCopy()
-	s.Data = map[string][]byte{
-		"ca.crt":  certEnc,
-		"tls.crt": certEnc,
-		"tls.key": keyEnc,
-	}
-
-	if err := c.cli.Update(ctx, s); err != nil {
-		return nil, fmt.Errorf("failed to update certificate secret: %w", err)
-	}
-	return bundle, nil
-}
-
-func (c *Reconciler) getOrCreateWebhookService(ctx context.Context) (*corev1.Service, error) {
-	svc, err := c.getWebhookService(ctx)
-	if err == nil {
-		return svc, nil
-	} else if kerrors.IsNotFound(err) {
-		return c.createWebhookService(ctx)
-	}
-	return nil, fmt.Errorf("failed to get-or-create webhook service: %w", err)
-}
-
-func (c *Reconciler) getWebhookService(ctx context.Context) (*corev1.Service, error) {
-	service := corev1.Service{}
-	if err := c.reader.Get(ctx, client.ObjectKey{Name: serviceName, Namespace: c.ns}, &service); err != nil {
-		return nil, fmt.Errorf("failed to get webhook service: %w", err)
-	}
-	return &service, nil
-}
-
-func (c *Reconciler) createWebhookService(ctx context.Context) (*corev1.Service, error) {
-	err := c.cli.Create(ctx, defaultWebhookService(c.ns))
-	if err != nil && !kerrors.IsAlreadyExists(err) {
-		return nil, fmt.Errorf("failed to create webhook service: %w", err)
-	}
-	return c.getWebhookService(ctx)
-}
-
-func (c *Reconciler) updateWebhook(ctx context.Context, bundle *Bundle) error {
-	webhook := v1.MutatingWebhookConfiguration{}
-	if err := c.reader.Get(ctx, client.ObjectKey{Name: webhookConfigurationName}, &webhook); err != nil {
-		return fmt.Errorf("failed to get webhook: %w", err)
-	}
-
-	for i, wh := range webhook.Webhooks {
-		if wh.Name == webhookName {
-			webhook.Webhooks[i].ClientConfig.CABundle = encodeCertificateFromBundle(bundle)
-		}
-	}
-
-	if err := c.cli.Update(ctx, &webhook); err != nil {
-		return fmt.Errorf("failed to update webhook: %w", err)
-	}
-
-	return nil
-}
-
 func (c *Reconciler) waitForLocalFiles(ctx context.Context) error {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -257,6 +156,8 @@ func (c *Reconciler) waitForLocalFiles(ctx context.Context) error {
 		case <-ticker.C:
 			if c.localFilesExist() {
 				return nil
+			} else {
+				c.log.Info("Waiting for certificate files")
 			}
 		}
 	}
@@ -306,40 +207,4 @@ func (c *Reconciler) triggerPeriodic(duration time.Duration) <-chan event.Generi
 		}
 	}()
 	return ch
-}
-
-func defaultCertificateSecret(namespace string) *corev1.Secret {
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      certificateSecretName,
-			Namespace: namespace,
-		},
-		Type: corev1.SecretTypeTLS,
-		Data: map[string][]byte{
-			"ca.crt":  {},
-			"tls.crt": {},
-			"tls.key": {},
-		},
-	}
-}
-
-func defaultWebhookService(namespace string) *corev1.Service {
-	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceName,
-			Namespace: namespace,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{
-				"control-plane": "controller-manager",
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Port:       443,
-					Protocol:   "TCP",
-					TargetPort: intstr.FromInt(9443),
-				},
-			},
-		},
-	}
 }
