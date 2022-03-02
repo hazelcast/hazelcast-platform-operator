@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"time"
@@ -18,6 +19,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/certificate"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
@@ -136,9 +138,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = certificate.NewReconciler(
+		mgr.GetClient(),
+		mgr.GetAPIReader(),
+		ctrl.Log.WithName("controllers").WithName("Certificate"),
+		namespace,
+	).SetupWithManager(context.Background(), mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Certificate")
+		os.Exit(1)
+	}
+
 	mgr.GetWebhookServer().Register(
 		"/inject-turbine",
-		&webhook.Admission{Handler: turbine.New(mgr.GetClient(), ctrl.Log.WithName("webhook").WithName("Turbine"), namespace)},
+		&webhook.Admission{
+			Handler: turbine.New(
+				mgr.GetClient(),
+				ctrl.Log.WithName("webhook").WithName("Turbine"),
+				namespace,
+			),
+		},
 	)
 
 	//+kubebuilder:scaffold:builder
