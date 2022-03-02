@@ -106,6 +106,7 @@ func errorsFromPendingPod(pod *corev1.Pod) PodErrors {
 			default:
 				podErrors = append(podErrors, &PodError{
 					Name:      pod.Name,
+					PodIp:     pod.Status.PodIP,
 					Namespace: pod.Namespace,
 					Message:   status.State.Waiting.Message,
 					Reason:    status.State.Waiting.Reason,

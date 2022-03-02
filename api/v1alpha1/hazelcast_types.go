@@ -251,7 +251,7 @@ type HazelcastMemberStatus struct {
 
 	// PodName is the name of the Hazelcast member pod.
 	// +optional
-	PodName string `json:"podName"`
+	PodName string `json:"podName,omitempty"`
 
 	// Uid is the unique member identifier within the cluster.
 	// +optional
