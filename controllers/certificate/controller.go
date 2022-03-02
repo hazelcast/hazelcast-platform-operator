@@ -13,6 +13,9 @@ import (
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -83,7 +86,7 @@ func (c *Reconciler) SetupWithManager(ctx context.Context, mgr controllerruntime
 }
 
 func (c *Reconciler) reconcile(ctx context.Context) error {
-	secret, err := c.getCertificateSecret(ctx)
+	secret, err := c.getOrCreateCertificateSecret(ctx)
 	if err != nil {
 		return err
 	}
@@ -97,7 +100,7 @@ func (c *Reconciler) reconcile(ctx context.Context) error {
 		return nil
 	}
 
-	svc, err := c.getWebhookService(ctx)
+	svc, err := c.getOrCreateWebhookService(ctx)
 	if err != nil {
 		return err
 	}
@@ -147,12 +150,31 @@ func (c *Reconciler) updateRequired(secret *corev1.Secret) (bool, error) {
 	}
 }
 
+func (c *Reconciler) getOrCreateCertificateSecret(ctx context.Context) (*corev1.Secret, error) {
+	secret, err := c.getCertificateSecret(ctx)
+	if err == nil {
+		return secret, nil
+	} else if kerrors.IsNotFound(err) {
+		return c.createCertificateSecret(ctx)
+	}
+	return nil, fmt.Errorf("failed to get-or-create certificate secret: %w", err)
+}
+
 func (c *Reconciler) getCertificateSecret(ctx context.Context) (*corev1.Secret, error) {
 	secret := corev1.Secret{}
-	if err := c.reader.Get(ctx, client.ObjectKey{Name: certificateSecretName, Namespace: c.ns}, &secret); err != nil {
+	err := c.reader.Get(ctx, client.ObjectKey{Name: certificateSecretName, Namespace: c.ns}, &secret)
+	if err != nil {
 		return nil, fmt.Errorf("failed to get certificate secret: %w", err)
 	}
 	return &secret, nil
+}
+
+func (c *Reconciler) createCertificateSecret(ctx context.Context) (*corev1.Secret, error) {
+	err := c.cli.Create(ctx, defaultCertificateSecret(c.ns))
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return nil, fmt.Errorf("failed to create certificate secret: %w", err)
+	}
+	return c.getCertificateSecret(ctx)
 }
 
 func (c *Reconciler) updateCertificateSecret(
@@ -179,12 +201,30 @@ func (c *Reconciler) updateCertificateSecret(
 	return bundle, nil
 }
 
+func (c *Reconciler) getOrCreateWebhookService(ctx context.Context) (*corev1.Service, error) {
+	svc, err := c.getWebhookService(ctx)
+	if err == nil {
+		return svc, nil
+	} else if kerrors.IsNotFound(err) {
+		return c.createWebhookService(ctx)
+	}
+	return nil, fmt.Errorf("failed to get-or-create webhook service: %w", err)
+}
+
 func (c *Reconciler) getWebhookService(ctx context.Context) (*corev1.Service, error) {
 	service := corev1.Service{}
 	if err := c.reader.Get(ctx, client.ObjectKey{Name: serviceName, Namespace: c.ns}, &service); err != nil {
 		return nil, fmt.Errorf("failed to get webhook service: %w", err)
 	}
 	return &service, nil
+}
+
+func (c *Reconciler) createWebhookService(ctx context.Context) (*corev1.Service, error) {
+	err := c.cli.Create(ctx, defaultWebhookService(c.ns))
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return nil, fmt.Errorf("failed to create webhook service: %w", err)
+	}
+	return c.getWebhookService(ctx)
 }
 
 func (c *Reconciler) updateWebhook(ctx context.Context, bundle *Bundle) error {
@@ -265,4 +305,35 @@ func (c *Reconciler) triggerPeriodic(duration time.Duration) <-chan event.Generi
 		}
 	}()
 	return ch
+}
+
+func defaultCertificateSecret(namespace string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      certificateSecretName,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{},
+	}
+}
+
+func defaultWebhookService(namespace string) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName,
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{
+				"control-plane": "controller-manager",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Port:       443,
+					Protocol:   "TCP",
+					TargetPort: intstr.FromInt(9443),
+				},
+			},
+		},
+	}
 }
