@@ -199,7 +199,7 @@ var _ = Describe("Hazelcast", func() {
 					n.ApplicationManagedByLabel:    n.OperatorName,
 				})
 				Expect(err).ToNot(HaveOccurred())
-				for i := pods.Size() - 1; i > 0; i-- {
+				for i := len(pods.Items) - 1; i > 0; i-- {
 					err := k8sClient.Delete(context.Background(), &pods.Items[i], client.PropagationPolicy(v1.DeletePropagationForeground))
 					Expect(err).ToNot(HaveOccurred())
 				}
