@@ -46,14 +46,16 @@ type Reconciler struct {
 	cli    client.Client
 	reader client.Reader
 	log    logr.Logger
+	done   <-chan struct{}
 	ns     string
 }
 
-func NewReconciler(client client.Client, reader client.Reader, logger logr.Logger, namespace string) *Reconciler {
+func NewReconciler(client client.Client, reader client.Reader, logger logr.Logger, done <-chan struct{}, namespace string) *Reconciler {
 	return &Reconciler{
 		cli:    client,
 		reader: reader,
 		log:    logger,
+		done:   done,
 		ns:     namespace,
 	}
 }
@@ -66,6 +68,8 @@ func (c *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 }
 
 func (c *Reconciler) SetupWithManager(ctx context.Context, mgr controllerruntime.Manager) error {
+	go c.cleanupWhenDone()
+
 	err := c.reconcile(ctx)
 	if err != nil {
 		return err
@@ -207,4 +211,22 @@ func (c *Reconciler) triggerPeriodic(duration time.Duration) <-chan event.Generi
 		}
 	}()
 	return ch
+}
+
+func (c *Reconciler) cleanupWhenDone() {
+	<-c.done
+	c.cleanup()
+}
+
+func (c *Reconciler) cleanup() {
+	ctx := context.Background()
+	if err := c.cli.Delete(ctx, defaultWebhookConfiguration(c.ns)); err != nil {
+		c.log.Error(err, "Cleanup failed for webhook configuration")
+	}
+	if err := c.cli.Delete(ctx, defaultWebhookService(c.ns)); err != nil {
+		c.log.Error(err, "Cleanup failed for webhook service")
+	}
+	if err := c.cli.Delete(ctx, defaultCertificateSecret(c.ns)); err != nil {
+		c.log.Error(err, "Cleanup failed for certificate secret")
+	}
 }

@@ -75,6 +75,8 @@ func main() {
 		setupLog.Info("Watching namespace: " + namespace)
 	}
 
+	signal := ctrl.SetupSignalHandler()
+
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
@@ -142,6 +144,7 @@ func main() {
 		mgr.GetClient(),
 		mgr.GetAPIReader(),
 		ctrl.Log.WithName("controllers").WithName("Certificate"),
+		signal.Done(),
 		namespace,
 	).SetupWithManager(context.Background(), mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Certificate")
@@ -175,7 +178,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(signal); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
