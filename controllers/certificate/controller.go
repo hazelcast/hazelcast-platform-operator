@@ -220,6 +220,7 @@ func (c *Reconciler) cleanupWhenDone() {
 
 func (c *Reconciler) cleanup() {
 	ctx := context.Background()
+	c.log.Info("Cleanup started")
 	if err := c.cli.Delete(ctx, defaultWebhookConfiguration(c.ns)); err != nil {
 		c.log.Error(err, "Cleanup failed for webhook configuration")
 	}
@@ -229,4 +230,5 @@ func (c *Reconciler) cleanup() {
 	if err := c.cli.Delete(ctx, defaultCertificateSecret(c.ns)); err != nil {
 		c.log.Error(err, "Cleanup failed for certificate secret")
 	}
+	c.log.Info("Cleanup finished")
 }

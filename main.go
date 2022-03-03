@@ -150,6 +150,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Certificate")
 		os.Exit(1)
 	}
+	setupLog.Info("certificate controller is ready")
 
 	mgr.GetWebhookServer().Register(
 		"/inject-turbine",
@@ -161,6 +162,7 @@ func main() {
 			),
 		},
 	)
+	setupLog.Info("turbine webhook handle is registered")
 
 	//+kubebuilder:scaffold:builder
 
