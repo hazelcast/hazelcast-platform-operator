@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/hazelcast/hazelcast-go-client/cluster"
 	"k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
-	"github.com/hazelcast/hazelcast-go-client/cluster"
 )
 
 type optionsBuilder struct {
