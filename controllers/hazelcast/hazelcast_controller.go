@@ -83,7 +83,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Add finalizer for Hazelcast CR to cleanup ClusterRole
 	err = r.addFinalizer(ctx, h, logger)
 	if err != nil {
-		logger.Error(err, "Failed to add finalizer into custom resource")
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
@@ -95,7 +94,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			logger.Error(err, "Finalizer execution failed")
 			return update(ctx, r.Client, h, failedPhase(err))
 		}
-		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
 	}
 

@@ -34,11 +34,10 @@ const (
 )
 
 func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
+	if !controllerutil.ContainsFinalizer(h, n.Finalizer) && h.GetDeletionTimestamp() == nil {
 		controllerutil.AddFinalizer(h, n.Finalizer)
 		err := r.Update(ctx, h)
 		if err != nil {
-			logger.Error(err, "Failed to add finalizer into custom resource")
 			return err
 		}
 		logger.V(1).Info("Finalizer added into custom resource successfully")
@@ -47,6 +46,10 @@ func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1al
 }
 
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
+		return nil
+	}
+
 	if err := r.removeClusterRole(ctx, h, logger); err != nil {
 		logger.Error(err, "ClusterRole could not be removed")
 		return err
