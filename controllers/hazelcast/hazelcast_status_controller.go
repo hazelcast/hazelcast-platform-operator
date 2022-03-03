@@ -21,7 +21,7 @@ type HazelcastClient struct {
 	cancel               context.CancelFunc
 	NamespacedName       types.NamespacedName
 	Log                  logr.Logger
-	MemberMap            map[string]bool
+	MemberMap            map[string]cluster.MemberInfo
 	triggerReconcileChan chan event.GenericEvent
 }
 
@@ -29,7 +29,7 @@ func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan even
 	return &HazelcastClient{
 		NamespacedName:       n,
 		Log:                  l,
-		MemberMap:            make(map[string]bool),
+		MemberMap:            make(map[string]cluster.MemberInfo),
 		triggerReconcileChan: channel,
 	}
 }
@@ -81,12 +81,12 @@ func getStatusUpdateListener(c *HazelcastClient) func(cluster.MembershipStateCha
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
 			c.Lock()
-			c.MemberMap[changed.Member.String()] = true
+			c.MemberMap[changed.Member.UUID.String()] = changed.Member
 			c.Unlock()
 			c.Log.Info("Member is added", "member", changed.Member.String())
 		} else if changed.State == cluster.MembershipStateRemoved {
 			c.Lock()
-			delete(c.MemberMap, changed.Member.String())
+			delete(c.MemberMap, changed.Member.UUID.String())
 			c.Unlock()
 			c.Log.Info("Member is deleted", "member", changed.Member.String())
 		}
