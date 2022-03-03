@@ -65,9 +65,7 @@ func (c *HazelcastClient) shutdown(ctx context.Context) {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.cancel != nil {
-		c.cancel()
-	}
+	c.cancel()
 
 	if c.client == nil {
 		return
