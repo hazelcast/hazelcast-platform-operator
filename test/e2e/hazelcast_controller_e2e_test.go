@@ -282,13 +282,13 @@ var _ = Describe("Hazelcast", func() {
 			})
 			defer logs.Close()
 			scanner := bufio.NewScanner(logs)
-			test.EventuallyInLogs(scanner, timeout, interval).
+			test.EventuallyInLogs(scanner, timeout, logInterval).
 				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
-			test.EventuallyInLogs(scanner, timeout, interval).
+			test.EventuallyInLogs(scanner, timeout, logInterval).
 				Should(ContainSubstring("Starting new hot backup with sequence"))
-			test.EventuallyInLogs(scanner, timeout, interval).
+			test.EventuallyInLogs(scanner, timeout, logInterval).
 				Should(MatchRegexp("Backup of hot restart store \\S+ finished"))
-			test.EventuallyInLogs(scanner, timeout, interval).
+			test.EventuallyInLogs(scanner, timeout, logInterval).
 				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
 			Expect(logs.Close()).Should(Succeed())
 		})
@@ -374,7 +374,7 @@ var _ = Describe("Hazelcast", func() {
 			defer logs.Close()
 
 			scanner = bufio.NewScanner(logs)
-			test.EventuallyInLogs(scanner, timeout, 50*time.Millisecond).
+			test.EventuallyInLogs(scanner, timeout, logInterval).
 				Should(ContainSubstring("Starting hot-restart service. Base directory: " + baseDir))
 			test.EventuallyInLogs(scanner, timeout, logInterval).
 				Should(ContainSubstring("Starting the Hot Restart procedure."))
