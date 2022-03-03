@@ -634,6 +634,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Name:  "HZ_PARDOT_ID",
 			Value: "operator",
 		},
+		{
+			Name:  "HZ_PHONE_HOME_ENABLED",
+			Value: strconv.FormatBool(util.IsPhoneHomeEnabled()),
+		},
 	}
 	if h.Spec.LicenseKeySecret != "" {
 		envs = append(envs,
