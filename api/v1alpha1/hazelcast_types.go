@@ -87,7 +87,7 @@ type HazelcastPersistenceConfiguration struct {
 
 	// Host Path directory.
 	// +optional
-	HostPath string `json:"hostPath"`
+	HostPath string `json:"hostPath,omitempty"`
 }
 
 type PersistencePvcConfiguration struct {
