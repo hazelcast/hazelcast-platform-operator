@@ -61,6 +61,7 @@ func NewReconciler(client client.Client, reader client.Reader, logger logr.Logge
 }
 
 func (c *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	c.log.Info("Certificate reconcile started")
 	if err := c.reconcile(ctx); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -151,7 +152,7 @@ func (c *Reconciler) updateRequired(secret *corev1.Secret) (bool, error) {
 }
 
 func (c *Reconciler) waitForLocalFiles(ctx context.Context) error {
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -179,10 +180,16 @@ func (c *Reconciler) localFilesExist() bool {
 
 func (c *Reconciler) fileExistsAndNotEmpty(path string) bool {
 	info, err := os.Stat(path)
-	if err == nil && info.Size() > 0 {
-		return true
+	if err == nil {
+		if info.Size() > 0 {
+			return true
+		} else {
+			c.log.Info("File is empty", "file", path)
+			return false
+		}
 	}
 	if errors.Is(err, os.ErrNotExist) {
+		c.log.Info("File does not exist", "file", path)
 		return false
 	}
 	// This part should point to unexpected condition
