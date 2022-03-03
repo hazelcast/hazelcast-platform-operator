@@ -47,15 +47,17 @@ type Reconciler struct {
 	reader client.Reader
 	log    logr.Logger
 	done   <-chan struct{}
+	name   string
 	ns     string
 }
 
-func NewReconciler(client client.Client, reader client.Reader, logger logr.Logger, done <-chan struct{}, namespace string) *Reconciler {
+func NewReconciler(client client.Client, reader client.Reader, logger logr.Logger, done <-chan struct{}, name, namespace string) *Reconciler {
 	return &Reconciler{
 		cli:    client,
 		reader: reader,
 		log:    logger,
 		done:   done,
+		name:   name,
 		ns:     namespace,
 	}
 }
@@ -87,6 +89,10 @@ func (c *Reconciler) SetupWithManager(ctx context.Context, mgr controllerruntime
 }
 
 func (c *Reconciler) reconcile(ctx context.Context) error {
+	defer func() {
+		go c.triggerPodUpdate()
+	}()
+
 	secret, err := c.getOrCreateCertificateSecret(ctx)
 	if err != nil {
 		return err
@@ -121,13 +127,13 @@ func (c *Reconciler) updateRequired(secret *corev1.Secret) (bool, error) {
 	if secret.Type != corev1.SecretTypeTLS {
 		return true, nil
 	}
-	if _, ok := secret.Data["ca.crt"]; !ok {
+	if val, ok := secret.Data["ca.crt"]; !ok || len(val) == 0 {
 		return true, nil
 	}
-	if _, ok := secret.Data["tls.crt"]; !ok {
+	if val, ok := secret.Data["tls.crt"]; !ok || len(val) == 0 {
 		return true, nil
 	}
-	if _, ok := secret.Data["tls.key"]; !ok {
+	if val, ok := secret.Data["tls.key"]; !ok || len(val) == 0 {
 		return true, nil
 	}
 

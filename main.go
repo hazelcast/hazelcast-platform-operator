@@ -22,6 +22,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/certificate"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/turbine"
@@ -74,6 +75,7 @@ func main() {
 	} else {
 		setupLog.Info("Watching namespace: " + namespace)
 	}
+	podName := os.Getenv(naming.PodNameEnv)
 
 	signal := ctrl.SetupSignalHandler()
 
@@ -145,6 +147,7 @@ func main() {
 		mgr.GetAPIReader(),
 		ctrl.Log.WithName("controllers").WithName("Certificate"),
 		signal.Done(),
+		podName,
 		namespace,
 	).SetupWithManager(context.Background(), mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Certificate")

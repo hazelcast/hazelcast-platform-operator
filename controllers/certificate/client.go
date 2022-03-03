@@ -132,3 +132,29 @@ func (c *Reconciler) createWebhookConfiguration(ctx context.Context) (*admv1.Mut
 	}
 	return c.getWebhookConfiguration(ctx)
 }
+
+func (c *Reconciler) triggerPodUpdate() {
+	c.log.Info("Triggering update with annotation")
+	pod := corev1.Pod{}
+	if err := c.reader.Get(context.Background(), client.ObjectKey{Name: c.name, Namespace: c.ns}, &pod); err != nil {
+		c.log.Error(err, "Failed to get controller pod")
+		return
+	}
+	if len(pod.Annotations) == 0 {
+		pod.Annotations = make(map[string]string)
+	}
+	pod.Annotations["trigger"] = "true"
+	if err := c.cli.Update(context.Background(), &pod); err != nil {
+		c.log.Error(err, "Failed to add annotation for pod")
+		return
+	}
+	if err := c.reader.Get(context.Background(), client.ObjectKey{Name: c.name, Namespace: c.ns}, &pod); err != nil {
+		c.log.Error(err, "Failed to get controller pod")
+		return
+	}
+	delete(pod.Annotations, "trigger")
+	if err := c.cli.Update(context.Background(), &pod); err != nil {
+		c.log.Error(err, "Failed to delete annotation for pod")
+	}
+	return
+}
