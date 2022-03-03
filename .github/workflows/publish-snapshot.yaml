@@ -46,3 +46,28 @@ jobs:
           curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
                -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-latest-snapshot.yaml" \
                -T bundle.yaml
+
+      - name: Generate API Reference Docs
+        run: |
+          make api-ref-doc > api-ref.adoc
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          repository: 'hazelcast/hazelcast-platform-operator-docs'
+          ref: main
+          token: secrets.DEVOPS_GITHUB_TOKEN
+          path: docs-repo
+
+      - name: Push API Reference to Docs repo
+        working-directory: docs-repo
+        run: |
+          if cmp -s ../api-ref.adoc modules/ROOT/pages/api-ref.adoc; then
+              echo "No need to update API Reference doc"
+              exit 0
+          fi
+          mv ../api-ref.adoc modules/ROOT/pages/api-ref.adoc
+          git add modules/ROOT/pages/api-ref.adoc
+          git commit -m "Update API reference doc" && git push origin main
+          
+

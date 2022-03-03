@@ -44,6 +44,11 @@ jobs:
           ref: ${{ steps.set-version.outputs.OPERATOR_DOCS_BRANCH }}
           token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
 
+      - name: Checkout to operator repo
+        uses: actions/checkout@v2
+        with:
+          path: operator-repo
+
       - name: Update versions
         run: |
           sed -i "0,/version: 'latest-snapshot'/s//version: '${MAJOR_MINOR_VERSION}'/" docs/antora.yml
@@ -52,6 +57,14 @@ jobs:
           sed -i '/prerelease/d' docs/antora.yml
           sed -i "s/page-latest-supported-hazelcast:.*/page-latest-supported-hazelcast: '${{ github.event.inputs.LATEST_SUPPORTED_HAZELCAST }}'/" docs/antora.yml
           sed -i "s/page-latest-supported-mc:.*/page-latest-supported-mc: '${{ github.event.inputs.LATEST_SUPPORTED_MC }}'/" docs/antora.yml
+
+      - name: Move API reference to docs repo
+        run: |
+          if cmp -s operator-repo/api-ref.adoc modules/ROOT/pages/api-ref.adoc; then
+              echo "No need to update API Reference doc"
+              exit 0
+          fi
+          mv operator-repo/api-ref.adoc modules/ROOT/pages/api-ref.adoc
 
       - name: Commit and push changes
         run: |
@@ -63,7 +76,7 @@ jobs:
           fi
 
           # Commit and push changes
-          git add docs/antora.yml
+          git add docs/antora.yml modules/ROOT/pages/api-ref.adoc
           git commit --signoff -m "Update docs to ${RELEASE_VERSION}"
           git push -u origin $BRANCH_NAME
 
