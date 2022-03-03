@@ -144,10 +144,10 @@ test-it: manifests generate fmt vet ## Run tests.
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -v ./test/e2e -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -v -coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -eventually-timeout 8m -test.timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
 	
 test-ph: generate fmt vet ginkgo ## Run phone-home tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -v ./test/ph -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -v -coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m -test.timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
 
 ##@ Build
 
