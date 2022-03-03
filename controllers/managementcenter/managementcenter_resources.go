@@ -393,23 +393,3 @@ func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
 	}
 	return strings.Join(strs, " && ")
 }
-
-func (r *ManagementCenterReconciler) applyDefaultMCSpecs(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter) error {
-	changed := false
-	if mc.Spec.Repository == "" {
-		mc.Spec.Repository = n.MCRepo
-		changed = true
-	}
-	if mc.Spec.Version == "" {
-		mc.Spec.Version = n.MCVersion
-		changed = true
-	}
-	if mc.Spec.ImagePullPolicy == "" {
-		mc.Spec.ImagePullPolicy = n.MCImagePullPolicy
-		changed = true
-	}
-	if !changed {
-		return nil
-	}
-	return r.Update(ctx, mc)
-}

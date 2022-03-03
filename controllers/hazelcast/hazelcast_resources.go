@@ -740,30 +740,3 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	}
 	return err
 }
-
-func (r *HazelcastReconciler) applyDefaultHazelcastSpecs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
-	changed := false
-	if h.Spec.Repository == "" {
-		h.Spec.Repository = n.HazelcastRepo
-		changed = true
-	}
-	if h.Spec.Version == "" {
-		h.Spec.Version = n.HazelcastVersion
-		changed = true
-	}
-	if h.Spec.ImagePullPolicy == "" {
-		h.Spec.ImagePullPolicy = n.HazelcastImagePullPolicy
-		changed = true
-	}
-	if h.Spec.ClusterSize == 0 {
-		h.Spec.ClusterSize = n.DefaultClusterSize
-		changed = true
-	}
-	if h.Spec.ClusterName == "" {
-		h.Spec.ClusterName = n.DefaultClusterName
-	}
-	if !changed {
-		return nil
-	}
-	return r.Update(ctx, h)
-}

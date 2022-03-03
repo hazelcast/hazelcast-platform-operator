@@ -98,12 +98,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	err = r.applyDefaultHazelcastSpecs(ctx, h)
-	if err != nil {
-		logger.Error(err, "Failed to apply default specs")
-		return update(ctx, r.Client, h, failedPhase(err))
-	}
-
 	if util.IsPhoneHomeEnabled() {
 		if _, ok := r.metrics.HazelcastMetrics[h.UID]; !ok {
 			r.metrics.HazelcastMetrics[h.UID] = &phonehome.HazelcastMetrics{}
