@@ -111,7 +111,7 @@ var _ = Describe("Hazelcast controller", func() {
 	}
 
 	DisableExposeExternally := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
-		hz.Spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{}
+		hz.Spec.ExposeExternally = nil
 		return hz
 	}
 
@@ -256,7 +256,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 		It("should create Hazelcast cluster exposed for unisocket client", func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
 			}
@@ -282,7 +282,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 		It("should create Hazelcast cluster exposed for smart client", func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
 				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
@@ -318,7 +318,7 @@ var _ = Describe("Hazelcast controller", func() {
 			By("creating the cluster of size 3")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = 3
-			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
 				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
@@ -354,7 +354,7 @@ var _ = Describe("Hazelcast controller", func() {
 			By("creating the cluster with smart client")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = 3
-			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
 				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
@@ -409,7 +409,7 @@ var _ = Describe("Hazelcast controller", func() {
 			By("creating the cluster with unisocket client with incorrect configuration")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = 3
-			spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
 				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
@@ -500,7 +500,7 @@ var _ = Describe("Hazelcast controller", func() {
 		When("NodeSelector is used", func() {
 			It("should pass the values to StatefulSet spec", func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
 						"node.selector": "1",
 					},
@@ -523,8 +523,8 @@ var _ = Describe("Hazelcast controller", func() {
 		When("Affinity is used", func() {
 			It("should pass the values to StatefulSet spec", func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
-					Affinity: corev1.Affinity{
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{
@@ -567,7 +567,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Eventually(func() *corev1.Affinity {
 					ss := getStatefulSet(hz)
 					return ss.Spec.Template.Spec.Affinity
-				}, timeout, interval).Should(Equal(&spec.Scheduling.Affinity))
+				}, timeout, interval).Should(Equal(spec.Scheduling.Affinity))
 
 				Delete(hz)
 			})
@@ -576,7 +576,7 @@ var _ = Describe("Hazelcast controller", func() {
 		When("Toleration is used", func() {
 			It("should pass the values to StatefulSet spec", func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      "node.zone",
@@ -626,12 +626,12 @@ var _ = Describe("Hazelcast controller", func() {
 		When("Persistence is configured", func() {
 			It("should create volumeClaimTemplates", func() {
 				s := test.HazelcastSpec(defaultSpecValues, ee)
-				s.Persistence = hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						RequestStorage:   resource.MustParse("8Gi"),
+						RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 						StorageClassName: &[]string{"standard"}[0],
 					},
 				}
@@ -649,7 +649,7 @@ var _ = Describe("Hazelcast controller", func() {
 					Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
 						Should(Equal(hazelcastv1alpha1.FullRecovery))
 					Expect(fetchedCR.Spec.Persistence.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
-					Expect(fetchedCR.Spec.Persistence.Pvc.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
+					Expect(*fetchedCR.Spec.Persistence.Pvc.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
 					Expect(*fetchedCR.Spec.Persistence.Pvc.StorageClassName).Should(Equal("standard"))
 				})
 
@@ -664,7 +664,7 @@ var _ = Describe("Hazelcast controller", func() {
 							AccessModes: fetchedCR.Spec.Persistence.Pvc.AccessModes,
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									corev1.ResourceStorage: fetchedCR.Spec.Persistence.Pvc.RequestStorage,
+									corev1.ResourceStorage: *fetchedCR.Spec.Persistence.Pvc.RequestStorage,
 								},
 							},
 							StorageClassName: fetchedCR.Spec.Persistence.Pvc.StorageClassName,

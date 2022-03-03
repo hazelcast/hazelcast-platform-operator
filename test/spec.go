@@ -50,13 +50,6 @@ func ManagementCenterSpec(values *MCSpecValues, ee bool) hazelcastv1alpha1.Manag
 		Repository:      values.Repository,
 		Version:         values.Version,
 		ImagePullPolicy: values.ImagePullPolicy,
-		ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
-			Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
-		},
-		HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
-		Persistence: hazelcastv1alpha1.PersistenceConfiguration{
-			StorageClass: nil,
-		},
 	}
 	if ee {
 		spec.LicenseKeySecret = values.LicenseKey

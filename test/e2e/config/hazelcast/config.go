@@ -52,7 +52,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 					MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
@@ -72,7 +72,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 					MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
@@ -92,7 +92,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeNodePort,
 					MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortNodeName,
@@ -112,7 +112,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 				},
@@ -131,12 +131,12 @@ var (
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
-				Persistence: hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   baseDir,
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						RequestStorage: resource.MustParse("8Gi"),
+						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					},
 				},
 			},
