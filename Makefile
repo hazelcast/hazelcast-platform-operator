@@ -143,10 +143,10 @@ test-it: manifests generate fmt vet ## Run tests.
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
-test-e2e: generate fmt vet ## Run end-to-end tests
+test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -v ./test/e2e -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
 	
-test-ph: generate fmt vet ## Run phone-home tests
+test-ph: generate fmt vet ginkgo ## Run phone-home tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -v ./test/ph -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
 
 ##@ Build
