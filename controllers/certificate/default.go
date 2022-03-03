@@ -74,6 +74,19 @@ func defaultWebhookConfiguration(namespace string) *admv1.MutatingWebhookConfigu
 						},
 					},
 				},
+				ObjectSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "turbine.hazelcast.com/name",
+							Operator: metav1.LabelSelectorOpExists,
+						},
+						{
+							Key:      "turbine.hazelcast.com/injected",
+							Operator: metav1.LabelSelectorOpNotIn,
+							Values:   []string{"true"},
+						},
+					},
+				},
 			},
 		},
 	}
