@@ -3,9 +3,6 @@ package managementcenter
 import (
 	"testing"
 
-	v1 "k8s.io/api/rbac/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
@@ -65,19 +62,4 @@ func Test_clusterAddCommand(t *testing.T) {
 		})
 	}
 
-}
-
-func reconcilerWithCR(mc *hazelcastv1alpha1.ManagementCenter) ManagementCenterReconciler {
-	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
-		Register(&hazelcastv1alpha1.ManagementCenter{}, &hazelcastv1alpha1.ManagementCenterList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{}).
-		Build()
-	return ManagementCenterReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(mc).Build(),
-	}
-}
-
-func assertMCSpecEquals(t *testing.T, actual hazelcastv1alpha1.ManagementCenterSpec, expected hazelcastv1alpha1.ManagementCenterSpec) {
-	if actual.Repository != expected.Repository || actual.Version != expected.Version {
-		t.Errorf("ManagementCenterSpec = %v, want %v", actual, expected)
-	}
 }
