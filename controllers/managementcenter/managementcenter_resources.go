@@ -223,9 +223,6 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 					Labels: ls,
 				},
 				Spec: v1.PodSpec{
-					Affinity:     &mc.Spec.Scheduling.Affinity,
-					Tolerations:  mc.Spec.Scheduling.Tolerations,
-					NodeSelector: mc.Spec.Scheduling.NodeSelector,
 					Containers: []v1.Container{{
 						Name: n.ManagementCenter,
 						Ports: []v1.ContainerPort{{
@@ -279,6 +276,12 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		},
 	}
 
+	if mc.Spec.Scheduling != nil {
+		sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
+		sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
+		sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
+	}
+
 	if platform.GetType() == platform.OpenShift {
 		sts.Spec.Template.Spec.ServiceAccountName = mc.Name
 	}
@@ -330,7 +333,7 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 			StorageClassName: mc.Spec.Persistence.StorageClass,
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: mc.Spec.Persistence.Size,
+					corev1.ResourceStorage: *mc.Spec.Persistence.Size,
 				},
 			},
 		},

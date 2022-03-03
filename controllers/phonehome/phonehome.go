@@ -49,7 +49,7 @@ type ExposeExternally struct {
 	MemberLoadBalancer       int `json:"mlb"`
 }
 
-func (xe *ExposeExternally) addUsageMetrics(e hazelcastv1alpha1.ExposeExternallyConfiguration) {
+func (xe *ExposeExternally) addUsageMetrics(e *hazelcastv1alpha1.ExposeExternallyConfiguration) {
 	if !e.IsEnabled() {
 		return
 	}

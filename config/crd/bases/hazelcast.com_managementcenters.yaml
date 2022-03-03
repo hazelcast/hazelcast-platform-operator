@@ -43,15 +43,19 @@ spec:
           metadata:
             type: object
           spec:
+            default:
+              repository: docker.io/hazelcast/management-center
             description: ManagementCenterSpec defines the desired state of ManagementCenter.
             properties:
               externalConnectivity:
+                default:
+                  type: LoadBalancer
                 description: Configuration to expose Management Center to outside.
                 properties:
                   type:
                     default: LoadBalancer
                     description: 'How Management Center is exposed. Valid values are:
-                      - "ClusterIP" - "NodePort" - "Loadbalancer" (default)'
+                      - "ClusterIP" - "NodePort" - "LoadBalancer" (default)'
                     enum:
                     - ClusterIP
                     - NodePort
@@ -124,7 +128,6 @@ spec:
                   storageClass:
                     description: StorageClass from which PersistentVolumeClaim will
                       be created.
-                    nullable: true
                     type: string
                 type: object
               repository:
@@ -910,14 +913,18 @@ spec:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
             properties:
               externalAddresses:
+                description: External addresses of the Management Center instance
                 type: string
               message:
+                description: Message about the Management Center state
                 type: string
               phase:
-                description: Phase represents the current state of the cluster
+                description: Phase of the Management Center
+                enum:
+                - Running
+                - Failed
+                - Pending
                 type: string
-            required:
-            - phase
             type: object
         type: object
     served: true

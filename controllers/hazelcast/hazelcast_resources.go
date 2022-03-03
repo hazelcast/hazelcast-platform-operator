@@ -471,11 +471,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					Labels: ls,
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName:        h.Name,
-					Affinity:                  &h.Spec.Scheduling.Affinity,
-					Tolerations:               h.Spec.Scheduling.Tolerations,
-					NodeSelector:              h.Spec.Scheduling.NodeSelector,
-					TopologySpreadConstraints: h.Spec.Scheduling.TopologySpreadConstraints,
+					ServiceAccountName: h.Name,
 					SecurityContext: &v1.PodSecurityContext{
 						FSGroup:      &[]int64{65534}[0],
 						RunAsNonRoot: &[]bool{true}[0],
@@ -533,6 +529,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 				},
 			},
 		},
+	}
+
+	if h.Spec.Scheduling != nil {
+		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
+		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
+		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
+		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
 	}
 
 	if h.Spec.Persistence.IsEnabled() {
@@ -609,7 +612,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
 				Resources: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
-						corev1.ResourceStorage: h.Spec.Persistence.Pvc.RequestStorage,
+						corev1.ResourceStorage: *h.Spec.Persistence.Pvc.RequestStorage,
 					},
 				},
 				StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,

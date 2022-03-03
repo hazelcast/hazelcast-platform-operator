@@ -10,6 +10,7 @@ import (
 )
 
 // Phase represents the current state of the cluster
+// +kubebuilder:validation:Enum=Running;Failed;Pending
 type Phase string
 
 const (
@@ -24,25 +25,26 @@ const (
 // HazelcastSpec defines the desired state of Hazelcast
 type HazelcastSpec struct {
 	// Number of Hazelcast members in the cluster.
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:default:=3
 	// +optional
-	ClusterSize int32 `json:"clusterSize"`
+	// TODO should we let minimum to be 0?
+	ClusterSize int32 `json:"clusterSize,omitempty"`
 
 	// Repository to pull the Hazelcast Platform image from.
 	// +kubebuilder:default:="docker.io/hazelcast/hazelcast"
 	// +optional
-	Repository string `json:"repository"`
+	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
 	// +kubebuilder:default:="5.1"
 	// +optional
-	Version string `json:"version"`
+	Version string `json:"version,omitempty"`
 
 	// Pull policy for the Hazelcast Platform image
 	// +kubebuilder:default:="IfNotPresent"
 	// +optional
-	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
 	// Image pull secrets for the Hazelcast Platform image
 	// +optional
@@ -50,24 +52,27 @@ type HazelcastSpec struct {
 
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
-	LicenseKeySecret string `json:"licenseKeySecret"`
+	LicenseKeySecret string `json:"licenseKeySecret,omitempty"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
 	// +optional
-	ExposeExternally ExposeExternallyConfiguration `json:"exposeExternally"`
+	// +kubebuilder:default:={}
+	ExposeExternally *ExposeExternallyConfiguration `json:"exposeExternally,omitempty"`
 
 	// Name of the Hazelcast cluster.
 	// +kubebuilder:default:="dev"
 	// +optional
-	ClusterName string `json:"clusterName"`
+	ClusterName string `json:"clusterName,omitempty"`
 
 	// Scheduling details
 	// +optional
-	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
+	// +kubebuilder:default:={}
+	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
 
 	// Persistence configuration
-	// +optional
-	Persistence HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
+	//+optional
+	//+kubebuilder:default:={}
+	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 }
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
@@ -77,9 +82,9 @@ type HazelcastPersistenceConfiguration struct {
 	BaseDir string `json:"baseDir"`
 
 	// Configuration of the cluster recovery strategy.
-	// +kubebuilder:default:="FullRecovery"
+	// +kubebuilder:default:="FullRecoveryOnly"
 	// +optional
-	ClusterDataRecoveryPolicy DataRecoveryPolicyType `json:"clusterDataRecoveryPolicy"`
+	ClusterDataRecoveryPolicy DataRecoveryPolicyType `json:"clusterDataRecoveryPolicy,omitempty"`
 
 	// Configuration of PersistenceVolumeClaim.
 	// +optional
@@ -98,28 +103,28 @@ type PersistencePvcConfiguration struct {
 
 	// A description of the PVC request capacity.
 	// +optional
-	RequestStorage resource.Quantity `json:"requestStorage,omitempty"`
+	RequestStorage *resource.Quantity `json:"requestStorage,omitempty"`
 
 	// Name of StorageClass which this persistent volume belongs to.
 	// +optional
-	// +nullable
 	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
 // DataRecoveryPolicyType represents the options for data recovery policy when the whole cluster restarts.
+// +kubebuilder:validation:Enum=FullRecoveryOnly;PartialRecoveryMostRecent;PartialRecoveryMostComplete;PartialRecoveryForceStart
 type DataRecoveryPolicyType string
 
 const (
 	// FullRecovery does not allow partial start of the cluster
-	// and corresponds to cluster-data-recovery-policy.FULL_RECOVERY_ONLY configuration option.
+	// and corresponds to "cluster-data-recovery-policy.FULL_RECOVERY_ONLY" configuration option.
 	FullRecovery DataRecoveryPolicyType = "FullRecoveryOnly"
 
 	// MostRecent allow partial start with the members that have most up-to-date partition table
-	// and corresponds to cluster-data-recovery-policy.PARTIAL_RECOVERY_MOST_RECENT configuration option.
+	// and corresponds to "cluster-data-recovery-policy.PARTIAL_RECOVERY_MOST_RECENT" configuration option.
 	MostRecent DataRecoveryPolicyType = "PartialRecoveryMostRecent"
 
 	// MostComplete allow partial start with the members that have most complete partition table
-	// and corresponds to cluster-data-recovery-policy.PARTIAL_RECOVERY_MOST_COMPLETE configuration option.
+	// and corresponds to "cluster-data-recovery-policy.PARTIAL_RECOVERY_MOST_COMPLETE" configuration option.
 	MostComplete DataRecoveryPolicyType = "PartialRecoveryMostComplete"
 
 	// ForceStart deletes all data in your cluster members' persistence stores when the cluster recovery fails.
@@ -130,7 +135,7 @@ const (
 type SchedulingConfiguration struct {
 	// Affinity
 	// +optional
-	Affinity corev1.Affinity `json:"affinity,omitempty"`
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
 	// Tolerations
 	// +optional
@@ -152,14 +157,16 @@ type ExposeExternallyConfiguration struct {
 	// - "Smart" (default): each member pod is exposed with a separate external address
 	// - "Unisocket": all member pods are exposed with one external address
 	// +optional
+	// +kubebuilder:default:="Smart"
 	Type ExposeExternallyType `json:"type,omitempty"`
 
 	// Type of the service used to discover Hazelcast cluster.
 	// +optional
+	// +kubebuilder:default:="LoadBalancer"
 	DiscoveryServiceType corev1.ServiceType `json:"discoveryServiceType,omitempty"`
 
 	// How each member is accessed from the external client.
-	// Valid values are:
+	// Only available for "Smart" client and valid values are:
 	// - "NodePortExternalIP" (default): each member is accessed by the NodePort service and the node external IP/hostname
 	// - "NodePortNodeName": each member is accessed by the NodePort service and the node name
 	// - "LoadBalancer": each member is accessed by the LoadBalancer service external address
@@ -200,21 +207,25 @@ func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 
 // Returns true if exposeExternally configuration is specified.
 func (c *ExposeExternallyConfiguration) IsEnabled() bool {
-	return !(*c == (ExposeExternallyConfiguration{}))
+	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
 }
 
 // Returns true if Smart configuration is specified and therefore each Hazelcast member needs to be exposed with a separate address.
 func (c *ExposeExternallyConfiguration) IsSmart() bool {
-	return c.Type == ExposeExternallyTypeSmart
+	return c != nil && c.Type == ExposeExternallyTypeSmart
 }
 
 // Returns true if Hazelcast client wants to use Node Name instead of External IP.
 func (c *ExposeExternallyConfiguration) UsesNodeName() bool {
-	return c.MemberAccess == MemberAccessNodePortNodeName
+	return c != nil && c.MemberAccess == MemberAccessNodePortNodeName
 }
 
 // Returns service type that is used for the cluster discovery (LoadBalancer by default).
 func (c *ExposeExternallyConfiguration) DiscoveryK8ServiceType() corev1.ServiceType {
+	if c == nil {
+		return corev1.ServiceTypeLoadBalancer
+	}
+
 	switch c.DiscoveryServiceType {
 	case corev1.ServiceTypeNodePort:
 		return corev1.ServiceTypeNodePort
@@ -225,6 +236,10 @@ func (c *ExposeExternallyConfiguration) DiscoveryK8ServiceType() corev1.ServiceT
 
 // Returns the member access type that is used for the communication with each member (NodePortExternalIP by default).
 func (c *ExposeExternallyConfiguration) MemberAccessType() MemberAccess {
+	if c == nil {
+		return MemberAccessNodePortExternalIP
+	}
+
 	if c.MemberAccess != "" {
 		return c.MemberAccess
 	}
@@ -233,6 +248,10 @@ func (c *ExposeExternallyConfiguration) MemberAccessType() MemberAccess {
 
 // Returns service type that is used for the communication with each member (NodePort by default).
 func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.ServiceType {
+	if c == nil {
+		return corev1.ServiceTypeNodePort
+	}
+
 	switch c.MemberAccess {
 	case MemberAccessLoadBalancer:
 		return corev1.ServiceTypeLoadBalancer
@@ -243,7 +262,7 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 
 // Returns true if Persistence configuration is specified.
 func (c *HazelcastPersistenceConfiguration) IsEnabled() bool {
-	return c.BaseDir != ""
+	return c != nil && c.BaseDir != ""
 }
 
 // Returns true if hostPath is enabled.
@@ -253,11 +272,25 @@ func (c *HazelcastPersistenceConfiguration) UseHostPath() bool {
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
-	Phase             Phase                   `json:"phase"`
-	Cluster           HazelcastClusterStatus  `json:"hazelcastClusterStatus"`
-	Message           string                  `json:"message,omitempty"`
-	ExternalAddresses string                  `json:"externalAddresses,omitempty"`
-	Members           []HazelcastMemberStatus `json:"members"`
+	// Phase of the Hazelcast cluster
+	// +optional
+	Phase Phase `json:"phase"`
+
+	// Status of the Hazelcast cluster
+	// +optional
+	Cluster HazelcastClusterStatus `json:"hazelcastClusterStatus,omitempty"`
+
+	// Message about the Hazelcast cluster state
+	// +optional
+	Message string `json:"message,omitempty"`
+
+	// External addresses of the Hazelcast cluster members
+	// +optional
+	ExternalAddresses string `json:"externalAddresses,omitempty"`
+
+	// Status of Hazelcast members
+	// + optional
+	Members []HazelcastMemberStatus `json:"members,omitempty"`
 }
 
 // HazelcastMemberStatus defines the observed state of the individual Hazelcast member.
@@ -311,7 +344,10 @@ type Hazelcast struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   HazelcastSpec   `json:"spec,omitempty"`
+	// +optional
+	// +kubebuilder:default:={"repository" : "docker.io/hazelcast/hazelcast"}
+	Spec HazelcastSpec `json:"spec,omitempty"`
+	// +optional
 	Status HazelcastStatus `json:"status,omitempty"`
 }
 
