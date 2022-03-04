@@ -30,7 +30,7 @@ const (
 )
 
 func (r *ManagementCenterReconciler) addFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
+	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) && mc.GetDeletionTimestamp() == nil {
 		controllerutil.AddFinalizer(mc, n.Finalizer)
 		err := r.Update(ctx, mc)
 		if err != nil {
@@ -43,6 +43,10 @@ func (r *ManagementCenterReconciler) addFinalizer(ctx context.Context, mc *hazel
 }
 
 func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
+		return nil
+	}
+
 	controllerutil.RemoveFinalizer(mc, n.Finalizer)
 	err := r.Update(ctx, mc)
 	if err != nil {

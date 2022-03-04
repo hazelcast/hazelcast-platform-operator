@@ -64,7 +64,6 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	err = r.addFinalizer(ctx, mc, logger)
 	if err != nil {
-		logger.Error(err, "Failed to add finalizer into custom resource")
 		return update(ctx, r.Client, mc, failedPhase(err))
 	}
 
@@ -76,7 +75,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			logger.Error(err, "Finalizer execution failed")
 			return update(ctx, r.Client, mc, failedPhase(err))
 		}
-		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
 	}
 
