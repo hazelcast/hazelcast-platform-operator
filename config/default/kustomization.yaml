@@ -4,6 +4,7 @@ resources:
   - ../rbac
   - ../manager
   - ../crd
+  - ../webhook
 
 # Adds namespace to all resources.
 namespace: default
@@ -14,4 +15,3 @@ namespace: default
 # Note that it should also match with the prefix (text before '-') of the namespace
 # field above.
 namePrefix: hazelcast-platform-
-

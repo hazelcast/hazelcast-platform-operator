@@ -146,7 +146,6 @@ func main() {
 		mgr.GetClient(),
 		mgr.GetAPIReader(),
 		ctrl.Log.WithName("controllers").WithName("Certificate"),
-		signal.Done(),
 		podName,
 		namespace,
 	).SetupWithManager(context.Background(), mgr); err != nil {

@@ -195,7 +195,7 @@ ifeq (true,$(REMOVE_SECURITY_CONTEXT))
 endif
 	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	@cd config/turbine && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
+	@cd config/webhook && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 ifneq (false,$(APPLY_MANIFESTS))
 	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -

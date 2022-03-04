@@ -1213,6 +1213,25 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  name: hazelcast-platform-certificate-manager-role
+  namespace: default
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+  - watch
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
   creationTimestamp: null
   name: hazelcast-platform-manager-role
   namespace: default
@@ -1361,6 +1380,24 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  name: hazelcast-platform-certificate-manager-cluster-role
+  namespace: system
+rules:
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+  - watch
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
   creationTimestamp: null
   name: hazelcast-platform-manager-role
 rules:
@@ -1411,12 +1448,39 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  name: hazelcast-platform-certificate-manager-rolebinding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hazelcast-platform-certificate-manager-role
+subjects:
+- kind: ServiceAccount
+  name: hazelcast-platform-controller-manager
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
   name: hazelcast-platform-manager-rolebinding
   namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: hazelcast-platform-manager-role
+subjects:
+- kind: ServiceAccount
+  name: hazelcast-platform-controller-manager
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hazelcast-platform-certificate-manager-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hazelcast-platform-certificate-manager-cluster-role
 subjects:
 - kind: ServiceAccount
   name: hazelcast-platform-controller-manager
@@ -1447,19 +1511,6 @@ subjects:
 - kind: ServiceAccount
   name: hazelcast-platform-controller-manager
   namespace: default
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: hazelcast-platform-webhook-service
-  namespace: default
-spec:
-  ports:
-  - port: 443
-    protocol: TCP
-    targetPort: 9443
-  selector:
-    control-plane: controller-manager
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -1536,62 +1587,5 @@ spec:
       - name: cert
         secret:
           defaultMode: 420
+          optional: true
           secretName: webhook-server-cert
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: hazelcast-platform-serving-cert
-  namespace: default
-spec:
-  dnsNames:
-  - hazelcast-platform-webhook-service.default.svc
-  - hazelcast-platform-webhook-service.default.svc.cluster.local
-  issuerRef:
-    kind: Issuer
-    name: hazelcast-platform-selfsigned-issuer
-  secretName: webhook-server-cert
----
-apiVersion: cert-manager.io/v1
-kind: Issuer
-metadata:
-  name: hazelcast-platform-selfsigned-issuer
-  namespace: default
-spec:
-  selfSigned: {}
----
-apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
-metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: default/hazelcast-platform-serving-cert
-  name: hazelcast-platform-mutating-webhook-configuration
-webhooks:
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /inject-turbine
-  failurePolicy: Fail
-  name: inject-turbine.hazelcast.com
-  objectSelector:
-    matchExpressions:
-    - key: turbine.hazelcast.com/name
-      operator: Exists
-    - key: turbine.hazelcast.com/injected
-      operator: NotIn
-      values:
-      - "true"
-  rules:
-  - apiGroups:
-    - ""
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - pods
-  sideEffects: None

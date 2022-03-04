@@ -63,15 +63,6 @@ spec:
             - name: webhook-server
               containerPort: 9443
               protocol: TCP
-          volumeMounts:
-            - mountPath: /tmp/k8s-webhook-server/serving-certs
-              name: cert
-              readOnly: true
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
-      volumes:
-        - name: cert
-          secret:
-            defaultMode: 420
-            secretName: webhook-server-cert
-            optional: true
+

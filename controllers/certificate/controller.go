@@ -1,6 +1,7 @@
 package certificate
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/pem"
@@ -8,9 +9,11 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
+	admv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -22,18 +25,6 @@ import (
 )
 
 const (
-	// certificateSecretName is the name of the secret which contains
-	// the key and certificate. It will be mounted to the controller.
-	// Make sure it is sync with the name in the configuration YAMLs.
-	certificateSecretName = "webhook-server-cert"
-
-	// serviceName is the name of the service which points to the controller's
-	// webhook handler.
-	serviceName = "webhook-service"
-
-	// webhookConfigurationName is the name of the webhook configuration.
-	webhookConfigurationName = "mutating-webhook-configuration"
-
 	// webhookName is the name of the webhook which injects the turbine
 	// sidecar to the pods.
 	webhookName = "inject-turbine.hazelcast.com"
@@ -43,22 +34,26 @@ const (
 )
 
 type Reconciler struct {
-	cli    client.Client
-	reader client.Reader
-	log    logr.Logger
-	done   <-chan struct{}
-	name   string
-	ns     string
+	cli        client.Client
+	reader     client.Reader
+	log        logr.Logger
+	name       string
+	ns         string
+	namePrefix string
 }
 
-func NewReconciler(client client.Client, reader client.Reader, logger logr.Logger, done <-chan struct{}, name, namespace string) *Reconciler {
+func NewReconciler(client client.Client, reader client.Reader, logger logr.Logger, name, namespace string) *Reconciler {
+	prefix, err := inferNamePrefix(name)
+	if err != nil {
+		panic(err)
+	}
 	return &Reconciler{
-		cli:    client,
-		reader: reader,
-		log:    logger,
-		done:   done,
-		name:   name,
-		ns:     namespace,
+		cli:        client,
+		reader:     reader,
+		log:        logger,
+		name:       name,
+		ns:         namespace,
+		namePrefix: prefix,
 	}
 }
 
@@ -71,8 +66,6 @@ func (c *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 }
 
 func (c *Reconciler) SetupWithManager(ctx context.Context, mgr controllerruntime.Manager) error {
-	go c.cleanupWhenDone()
-
 	err := c.reconcile(ctx)
 	if err != nil {
 		return err
@@ -83,7 +76,7 @@ func (c *Reconciler) SetupWithManager(ctx context.Context, mgr controllerruntime
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
-		For(&corev1.Secret{}, builder.WithPredicates(NewNamespacedNameFilter(certificateSecretName, c.ns))).
+		For(&corev1.Secret{}, builder.WithPredicates(NewNamespacedNameFilter(certificateSecretName(c.namePrefix), c.ns))).
 		Watches(&source.Channel{Source: c.triggerPeriodic(time.Minute)}, &handler.EnqueueRequestForObject{}).
 		Complete(c)
 }
@@ -93,12 +86,17 @@ func (c *Reconciler) reconcile(ctx context.Context) error {
 		go c.triggerPodUpdate()
 	}()
 
-	secret, err := c.getOrCreateCertificateSecret(ctx)
+	secret, err := c.getCertificateSecret(ctx)
 	if err != nil {
 		return err
 	}
 
-	update, err := c.updateRequired(secret)
+	webhook, err := c.getWebhookConfiguration(ctx)
+	if err != nil {
+		return err
+	}
+
+	update, err := c.updateRequired(secret, webhook)
 	if err != nil {
 		// Do not return, this is a soft error.
 		c.log.Error(err, "Failed to check whether an update is required")
@@ -107,7 +105,7 @@ func (c *Reconciler) reconcile(ctx context.Context) error {
 		return nil
 	}
 
-	svc, err := c.getOrCreateWebhookService(ctx)
+	svc, err := c.getWebhookService(ctx)
 	if err != nil {
 		return err
 	}
@@ -123,7 +121,7 @@ func (c *Reconciler) reconcile(ctx context.Context) error {
 	return nil
 }
 
-func (c *Reconciler) updateRequired(secret *corev1.Secret) (bool, error) {
+func (c *Reconciler) updateRequired(secret *corev1.Secret, webhook *admv1.MutatingWebhookConfiguration) (bool, error) {
 	if secret.Type != corev1.SecretTypeTLS {
 		return true, nil
 	}
@@ -137,7 +135,14 @@ func (c *Reconciler) updateRequired(secret *corev1.Secret) (bool, error) {
 		return true, nil
 	}
 
+	// Check equality between secret data and webhook data
 	certData := secret.Data["tls.crt"]
+	caBundle := getCABundle(webhook)
+	if bytes.Compare(certData, caBundle) != 0 {
+		return true, nil
+	}
+
+	// Checking for certificate validity, if it is not valid then update.
 	b, _ := pem.Decode(certData)
 	if b == nil {
 		return true, fmt.Errorf("invalid encoding for PEM")
@@ -213,7 +218,7 @@ func (c *Reconciler) triggerPeriodic(duration time.Duration) <-chan event.Generi
 				secret := corev1.Secret{}
 				if err := c.reader.Get(
 					context.Background(),
-					client.ObjectKey{Name: certificateSecretName, Namespace: c.ns},
+					client.ObjectKey{Name: certificateSecretName(c.namePrefix), Namespace: c.ns},
 					&secret,
 				); err != nil {
 					c.log.Error(err, "periodic secret fetch failed")
@@ -226,22 +231,19 @@ func (c *Reconciler) triggerPeriodic(duration time.Duration) <-chan event.Generi
 	return ch
 }
 
-func (c *Reconciler) cleanupWhenDone() {
-	<-c.done
-	c.cleanup()
+func inferNamePrefix(podName string) (string, error) {
+	i := strings.Index(podName, "controller-manager")
+	if i == -1 {
+		return "", fmt.Errorf("cannot infer name prefix: unexpected name for controller pod")
+	}
+	return podName[:i], nil
 }
 
-func (c *Reconciler) cleanup() {
-	ctx := context.Background()
-	c.log.Info("Cleanup started")
-	if err := c.cli.Delete(ctx, defaultWebhookConfiguration(c.ns)); err != nil {
-		c.log.Error(err, "Cleanup failed for webhook configuration")
+func getCABundle(webhook *admv1.MutatingWebhookConfiguration) []byte {
+	for _, wh := range webhook.Webhooks {
+		if wh.Name == webhookName {
+			return wh.ClientConfig.CABundle
+		}
 	}
-	if err := c.cli.Delete(ctx, defaultWebhookService(c.ns)); err != nil {
-		c.log.Error(err, "Cleanup failed for webhook service")
-	}
-	if err := c.cli.Delete(ctx, defaultCertificateSecret(c.ns)); err != nil {
-		c.log.Error(err, "Cleanup failed for certificate secret")
-	}
-	c.log.Info("Cleanup finished")
+	return []byte{}
 }
