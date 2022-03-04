@@ -98,7 +98,7 @@ type PersistenceConfiguration struct {
 	// Name of the PersistentVolumeClaim MC will use for persistence. If not empty,
 	// MC will use the existing claim instead of creating a new one.
 	// +optional
-	ExistingVolumeClaimName string `json:"existingVolumeClaimName"`
+	ExistingVolumeClaimName string `json:"existingVolumeClaimName,omitempty"`
 
 	// StorageClass from which PersistentVolumeClaim will be created.
 	// +optional
