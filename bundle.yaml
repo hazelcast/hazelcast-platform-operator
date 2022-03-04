@@ -1512,6 +1512,29 @@ subjects:
   name: hazelcast-platform-controller-manager
   namespace: default
 ---
+apiVersion: v1
+data:
+  tls.crt: ""
+  tls.key: ""
+kind: Secret
+metadata:
+  name: hazelcast-platform-webhook-server-cert
+  namespace: default
+type: kubernetes.io/tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hazelcast-platform-webhook-service
+  namespace: default
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    control-plane: controller-manager
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1588,4 +1611,38 @@ spec:
         secret:
           defaultMode: 420
           optional: true
-          secretName: webhook-server-cert
+          secretName: hazelcast-platform-webhook-server-cert
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: hazelcast-platform-mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /inject-turbine
+  failurePolicy: Fail
+  name: inject-turbine.hazelcast.com
+  objectSelector:
+    matchExpressions:
+    - key: turbine.hazelcast.com/name
+      operator: Exists
+    - key: turbine.hazelcast.com/injected
+      operator: NotIn
+      values:
+      - "true"
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - pods
+  sideEffects: None
