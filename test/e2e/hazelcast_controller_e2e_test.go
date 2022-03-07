@@ -364,8 +364,7 @@ var _ = Describe("Hazelcast", func() {
 				addNodeSelectorForName(hazelcast, nodeName)
 			}
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
-			// TODO: Client sometimes cannot connect to servers, when its fixed we can use evaluateReadyMembers
-			assertRunning(lookupKey)
+			evaluateReadyMembers(lookupKey)
 
 			logs = test.GetPodLogs(context.Background(), types.NamespacedName{
 				Name:      hzName + "-0",
@@ -432,15 +431,6 @@ func evaluateReadyMembers(lookupKey types.NamespacedName) {
 		Expect(err).ToNot(HaveOccurred())
 		return hz.Status.Cluster.ReadyMembers
 	}, timeout, interval).Should(Equal("3/3"))
-}
-
-func assertRunning(lookupKey types.NamespacedName) {
-	hz := &hazelcastcomv1alpha1.Hazelcast{}
-	Eventually(func() hazelcastcomv1alpha1.Phase {
-		err := k8sClient.Get(context.Background(), lookupKey, hz)
-		Expect(err).ToNot(HaveOccurred())
-		return hz.Status.Phase
-	}, timeout, interval).Should(Equal(hazelcastcomv1alpha1.Running))
 }
 
 func getFirstNodeName() (string, error) {
