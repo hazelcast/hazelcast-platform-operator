@@ -293,7 +293,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(logs.Close()).Should(Succeed())
 		})
 
-		DescribeTable("should successfully restart from HotBackup data",Label("slow"), func(useHostPath bool) {
+		DescribeTable("should successfully restart from HotBackup data", func(useHostPath bool) {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -386,8 +386,8 @@ var _ = Describe("Hazelcast", func() {
 
 			Expect(logs.Close()).Should(Succeed())
 		},
-			Entry("with PVC configuration", false),
-			Entry("with HostPath configuration", true),
+			Entry("with PVC configuration", Label("slow"), false),
+			Entry("with HostPath configuration", Label("slow"), true),
 		)
 	})
 })
