@@ -20,6 +20,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
 
       - name: Convert latest-snapshot to release version
         run: |

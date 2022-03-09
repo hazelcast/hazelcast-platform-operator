@@ -44,8 +44,8 @@ const (
 	// MancenterStorageName storage name for MC
 	MancenterStorageName = Mancenter + "-storage"
 
-	// PersistencePvcName is the name the Persistence Volume Claim used in Persistence configuration.
-	PersistencePvcName = "hot-restart-persistence"
+	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
+	PersistenceVolumeName = "hot-restart-persistence"
 )
 
 // Hazelcast default configurations
@@ -61,7 +61,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.0.2"
+	HazelcastVersion = "5.1"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
@@ -71,7 +71,7 @@ const (
 	// MCRepo image repository for Management Center
 	MCRepo = "hazelcast/management-center"
 	// MCVersion version of Management Center image
-	MCVersion = "5.0.4"
+	MCVersion = "5.1.1"
 	// MCImagePullPolicy pull policy for Management Center image
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )

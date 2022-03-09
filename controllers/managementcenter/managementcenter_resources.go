@@ -246,10 +246,8 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 						},
 						ReadinessProbe: &v1.Probe{
 							Handler: v1.Handler{
-								HTTPGet: &v1.HTTPGetAction{
-									Path:   "/health",
-									Port:   intstr.FromInt(8081),
-									Scheme: corev1.URISchemeHTTP,
+								TCPSocket: &v1.TCPSocketAction{
+									Port: intstr.FromInt(8080),
 								},
 							},
 							InitialDelaySeconds: 10,
@@ -363,15 +361,17 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 				},
 			},
 			v1.EnvVar{
-				Name:  javaOpts,
-				Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false",
+				Name: javaOpts,
+				Value: fmt.Sprintf("-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true"+
+					" -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
 			},
 		)
 	} else {
 		envs = append(envs,
 			v1.EnvVar{
-				Name:  javaOpts,
-				Value: "-Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false",
+				Name: javaOpts,
+				Value: fmt.Sprintf("-Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"+
+					" -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
 			},
 		)
 	}

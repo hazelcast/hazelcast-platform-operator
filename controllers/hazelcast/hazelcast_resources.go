@@ -67,10 +67,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	if c, ok := r.hzClients.Load(key); ok {
 		r.hzClients.Delete(key)
-		if cl := c.(*HazelcastClient).Client; cl != nil {
-			// shutdown error is ignored and does not need to be handled
-			_ = cl.Shutdown(ctx)
-		}
+		c.(*HazelcastClient).shutdown(ctx)
 	}
 	return nil
 }
@@ -451,7 +448,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			ValidationTimeoutSec:      120,
 			DataLoadTimeoutSec:        900,
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
-			AutoRemoveStaleData:       &[]bool{true}[0],
+			AutoRemoveStaleData:       &[]bool{h.Spec.Persistence.AutoRemoveStaleData()}[0],
 		}
 	}
 	return cfg
@@ -471,10 +468,11 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					Labels: ls,
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName: h.Name,
-					Affinity:           &h.Spec.Scheduling.Affinity,
-					Tolerations:        h.Spec.Scheduling.Tolerations,
-					NodeSelector:       h.Spec.Scheduling.NodeSelector,
+					ServiceAccountName:        h.Name,
+					Affinity:                  &h.Spec.Scheduling.Affinity,
+					Tolerations:               h.Spec.Scheduling.Tolerations,
+					NodeSelector:              h.Spec.Scheduling.NodeSelector,
+					TopologySpreadConstraints: h.Spec.Scheduling.TopologySpreadConstraints,
 					SecurityContext: &v1.PodSecurityContext{
 						FSGroup:      &[]int64{65534}[0],
 						RunAsNonRoot: &[]bool{true}[0],
@@ -525,28 +523,23 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								Drop: []v1.Capability{"ALL"},
 							},
 						},
-						VolumeMounts: persistentVolumeMount(h),
+						VolumeMounts: volumeMount(h),
 					}},
 					TerminationGracePeriodSeconds: &[]int64{600}[0],
-					Volumes: []v1.Volume{
-						{
-							Name: n.HazelcastStorageName,
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
-										Name: h.Name,
-									},
-								},
-							},
-						},
-					},
+					Volumes:                       volumes(h),
 				},
 			},
 		},
 	}
 
 	if h.Spec.Persistence.IsEnabled() {
-		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+		if h.Spec.Persistence.UseHostPath() {
+			sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, hostPathVolume(h))
+			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot = &[]bool{false}[0]
+			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsUser = &[]int64{0}[0]
+		} else {
+			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+		}
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -574,11 +567,38 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
+func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
+	return []v1.Volume{
+		{
+			Name: n.HazelcastStorageName,
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: h.Name,
+					},
+				},
+			},
+		},
+	}
+}
+
+func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
+	return v1.Volume{
+		Name: n.PersistenceVolumeName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: h.Spec.Persistence.HostPath,
+				Type: &[]v1.HostPathType{v1.HostPathDirectoryOrCreate}[0],
+			},
+		},
+	}
+}
+
 func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
 	return []v1.PersistentVolumeClaim{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      n.PersistencePvcName,
+				Name:      n.PersistenceVolumeName,
 				Namespace: h.Namespace,
 				Labels:    labels(h),
 			},
@@ -595,7 +615,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 	}
 }
 
-func persistentVolumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func volumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,
@@ -604,8 +624,8 @@ func persistentVolumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount 
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
-			Name:      n.PersistencePvcName,
-			MountPath: "/data/hot-restart",
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
 		})
 	}
 	return mounts
@@ -620,7 +640,7 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 	case hazelcastv1alpha1.MostComplete:
 		return "PARTIAL_RECOVERY_MOST_COMPLETE"
 	}
-	return ""
+	return "FULL_RECOVERY_ONLY"
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
@@ -632,6 +652,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		{
 			Name:  "HZ_PARDOT_ID",
 			Value: "operator",
+		},
+		{
+			Name:  "HZ_PHONE_HOME_ENABLED",
+			Value: strconv.FormatBool(util.IsPhoneHomeEnabled()),
 		},
 	}
 	if h.Spec.LicenseKeySecret != "" {

@@ -64,7 +64,7 @@ func checkPodsForFailure(ctx context.Context, cl client.Client, sts *appsv1.Stat
 		phase := pod.Status.Phase
 		if phase == corev1.PodFailed || phase == corev1.PodUnknown {
 			errs = append(errs, NewPodError(&pod))
-		} else if hasPodFailedWhilePending(&pod) {
+		} else if hasPodFailedWhileWaiting(&pod) {
 			errs = append(errs, errorsFromPendingPod(&pod)...)
 		}
 	}
@@ -74,10 +74,17 @@ func checkPodsForFailure(ctx context.Context, cl client.Client, sts *appsv1.Stat
 	return errs
 }
 
-func hasPodFailedWhilePending(pod *corev1.Pod) bool {
-	if pod.Status.Phase != corev1.PodPending {
-		return false
+// AsPodErrors tries to transform err to PodErrors and return it with true.
+// If it is not possible nil and false is returned.
+func AsPodErrors(err error) (PodErrors, bool) {
+	t := new(PodErrors)
+	if errors.As(err, t) {
+		return *t, true
 	}
+	return nil, false
+}
+
+func hasPodFailedWhileWaiting(pod *corev1.Pod) bool {
 	for _, status := range pod.Status.ContainerStatuses {
 		if status.State.Waiting != nil {
 			switch status.State.Waiting.Reason {
@@ -99,6 +106,7 @@ func errorsFromPendingPod(pod *corev1.Pod) PodErrors {
 			default:
 				podErrors = append(podErrors, &PodError{
 					Name:      pod.Name,
+					PodIp:     pod.Status.PodIP,
 					Namespace: pod.Namespace,
 					Message:   status.State.Waiting.Message,
 					Reason:    status.State.Waiting.Reason,

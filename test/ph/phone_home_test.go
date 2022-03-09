@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -76,16 +75,17 @@ var _ = Describe("Hazelcast", func() {
 		}, timeout, interval).Should(Equal("3/3"))
 	}
 
-	assertAnnotationExists := func() {
-		hz := &hazelcastcomv1alpha1.Hazelcast{}
+	assertAnnotationExists := func(obj client.Object) {
+		cpy, ok := obj.DeepCopyObject().(client.Object)
+		if !ok {
+			Fail("Failed copying client.Object.")
+		}
 		Eventually(func() bool {
-			err := k8sClient.Get(context.Background(), lookupKeyHz, hz)
+			err := k8sClient.Get(context.Background(), types.NamespacedName{Name: cpy.GetName(), Namespace: cpy.GetNamespace()}, cpy)
 			if err != nil {
 				return false
 			}
-			test := hz.ObjectMeta.Annotations
-			fmt.Println(test)
-			_, ok := hz.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+			_, ok := cpy.GetAnnotations()[n.LastSuccessfulSpecAnnotation]
 			return ok
 		}, timeout, interval).Should(BeTrue())
 	}
@@ -125,7 +125,7 @@ var _ = Describe("Hazelcast", func() {
 				createHz(h)
 				hzCreationTime := time.Now().UTC().Truncate(time.Hour)
 				evaluateReadyMembers()
-				assertAnnotationExists()
+				assertAnnotationExists(h)
 
 				bigQueryTable := getBigQueryTable()
 				Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
@@ -171,6 +171,7 @@ var _ = Describe("Hazelcast", func() {
 			mc := mcconfig.Default(hzNamespace, ee)
 			createMc(mc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
+			assertAnnotationExists(mc)
 			bigQueryTable := getBigQueryTable()
 			Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
 			Expect(bigQueryTable.PingTime.Truncate(time.Hour)).Should(BeTemporally("~", mcCreationTime), "Ping time should be near to current date")

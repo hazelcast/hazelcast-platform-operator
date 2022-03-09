@@ -120,8 +120,8 @@ var (
 		}
 	}
 
-	PersistenceEnabled = func(ns string) *hazelcastv1alpha1.Hazelcast {
-		return &hazelcastv1alpha1.Hazelcast{
+	PersistenceEnabled = func(ns string, baseDir string, useHostPath bool) *hazelcastv1alpha1.Hazelcast {
+		hz := &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "hazelcast",
 				Namespace: ns,
@@ -132,16 +132,21 @@ var (
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
 				Persistence: hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart",
+					BaseDir:                   baseDir,
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
-						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						RequestStorage:   resource.MustParse("8Gi"),
-						StorageClassName: &[]string{"standard"}[0],
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: resource.MustParse("8Gi"),
 					},
 				},
 			},
 		}
+
+		if useHostPath {
+			hz.Spec.Persistence.HostPath = "/tmp/hazelcast"
+		}
+
+		return hz
 	}
 
 	HotBackup = func(hzName, ns string) *hazelcastv1alpha1.HotBackup {

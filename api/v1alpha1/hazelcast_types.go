@@ -35,7 +35,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.0.2"
+	// +kubebuilder:default:="5.1"
 	// +optional
 	Version string `json:"version"`
 
@@ -82,14 +82,15 @@ type HazelcastPersistenceConfiguration struct {
 	ClusterDataRecoveryPolicy DataRecoveryPolicyType `json:"clusterDataRecoveryPolicy"`
 
 	// Configuration of PersistenceVolumeClaim.
+	// +optional
 	Pvc PersistencePvcConfiguration `json:"pvc"`
+
+	// Host Path directory.
+	// +optional
+	HostPath string `json:"hostPath,omitempty"`
 }
 
 type PersistencePvcConfiguration struct {
-	// Name of the existing PVC.
-	// +optional
-	Name string `json:"name,omitempty"`
-
 	// AccessModes contains the actual access modes of the volume backing the PVC has.
 	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
 	// +optional
@@ -101,6 +102,7 @@ type PersistencePvcConfiguration struct {
 
 	// Name of StorageClass which this persistent volume belongs to.
 	// +optional
+	// +nullable
 	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
@@ -121,7 +123,7 @@ const (
 	MostComplete DataRecoveryPolicyType = "PartialRecoveryMostComplete"
 
 	// ForceStart deletes all data in your cluster members' persistence stores when the cluster recovery fails.
-	ForceStart DataRecoveryPolicyType = "PartialRecoveryForceStart"
+	ForceStart DataRecoveryPolicyType = "ForceStart"
 )
 
 // SchedulingConfiguration defines the pods scheduling details
@@ -137,6 +139,10 @@ type SchedulingConfiguration struct {
 	// NodeSelector
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// TopologySpreadConstraints
+	// +optional
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // ExposeExternallyConfiguration defines how to expose Hazelcast cluster to external clients
@@ -188,6 +194,10 @@ const (
 	MemberAccessLoadBalancer MemberAccess = "LoadBalancer"
 )
 
+func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
+	return p.ClusterDataRecoveryPolicy != FullRecovery
+}
+
 // Returns true if exposeExternally configuration is specified.
 func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return !(*c == (ExposeExternallyConfiguration{}))
@@ -231,17 +241,55 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 	}
 }
 
-// Returns true if exposeExternally configuration is specified.
+// Returns true if Persistence configuration is specified.
 func (c *HazelcastPersistenceConfiguration) IsEnabled() bool {
 	return c.BaseDir != ""
 }
 
+// Returns true if hostPath is enabled.
+func (c *HazelcastPersistenceConfiguration) UseHostPath() bool {
+	return c.HostPath != ""
+}
+
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
-	Phase             Phase                  `json:"phase"`
-	Cluster           HazelcastClusterStatus `json:"hazelcastClusterStatus"`
-	Message           string                 `json:"message,omitempty"`
-	ExternalAddresses string                 `json:"externalAddresses,omitempty"`
+	Phase             Phase                   `json:"phase"`
+	Cluster           HazelcastClusterStatus  `json:"hazelcastClusterStatus"`
+	Message           string                  `json:"message,omitempty"`
+	ExternalAddresses string                  `json:"externalAddresses,omitempty"`
+	Members           []HazelcastMemberStatus `json:"members"`
+}
+
+// HazelcastMemberStatus defines the observed state of the individual Hazelcast member.
+type HazelcastMemberStatus struct {
+
+	// PodName is the name of the Hazelcast member pod.
+	// +optional
+	PodName string `json:"podName,omitempty"`
+
+	// Uid is the unique member identifier within the cluster.
+	// +optional
+	Uid string `json:"uid,omitempty"`
+
+	// Ip is the IP address of the member within the cluster.
+	// +optional
+	Ip string `json:"ip,omitempty"`
+
+	// Version represents the Hazelcast version of the member.
+	// +optional
+	Version string `json:"version,omitempty"`
+
+	// Ready is the flag that is set to true when the member is successfully started,
+	// connected to cluster and ready to accept connections.
+	Ready bool `json:"connected"`
+
+	// Message contains the optional message with the details of the cluster state.
+	// +optional
+	Message string `json:"message,omitempty"`
+
+	// Reason contains the optional reason of member crash or restart.
+	// +optional
+	Reason string `json:"reason,omitempty"`
 }
 
 // HazelcastClusterStatus defines the status of the Hazelcast cluster

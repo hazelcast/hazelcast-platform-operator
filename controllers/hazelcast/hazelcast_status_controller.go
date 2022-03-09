@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
@@ -18,10 +17,11 @@ import (
 
 type HazelcastClient struct {
 	sync.Mutex
-	Client               *hazelcast.Client
+	client               *hazelcast.Client
+	cancel               context.CancelFunc
 	NamespacedName       types.NamespacedName
 	Log                  logr.Logger
-	MemberMap            map[string]bool
+	MemberMap            map[string]cluster.MemberInfo
 	triggerReconcileChan chan event.GenericEvent
 }
 
@@ -29,40 +29,75 @@ func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan even
 	return &HazelcastClient{
 		NamespacedName:       n,
 		Log:                  l,
-		MemberMap:            make(map[string]bool),
+		MemberMap:            make(map[string]cluster.MemberInfo),
 		triggerReconcileChan: channel,
 	}
 }
 
 func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
-	config.Cluster.ConnectionStrategy.Timeout = hztypes.Duration(10 * time.Second)
-	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
-	if err != nil {
-		// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
-		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
+	config.Cluster.ConnectionStrategy.Timeout = hztypes.Duration(0)
+	config.Cluster.ConnectionStrategy.ReconnectMode = cluster.ReconnectModeOn
+	config.Cluster.ConnectionStrategy.Retry = cluster.ConnectionRetryConfig{
+		InitialBackoff: 1,
+		MaxBackoff:     10,
+		Jitter:         0.25,
 	}
-	c.Client = hzClient
+
+	ctx, cancel := context.WithCancel(ctx)
+	c.Lock()
+	c.cancel = cancel
+	c.Unlock()
+
+	go func(ctx context.Context) {
+		hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
+		if err != nil {
+			// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
+			c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
+		} else {
+			c.Lock()
+			c.client = hzClient
+			c.Unlock()
+		}
+	}(ctx)
 }
 
-func getStatusUpdateListener(hzClient *HazelcastClient) func(cluster.MembershipStateChanged) {
+func (c *HazelcastClient) shutdown(ctx context.Context) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.cancel != nil {
+		c.cancel()
+	}
+
+	if c.client == nil {
+		return
+	}
+	if err := c.client.Shutdown(ctx); err != nil {
+		c.Log.Error(err, "Problem occurred while shutting down the client connection")
+	}
+}
+
+func getStatusUpdateListener(c *HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
-			hzClient.Lock()
-			hzClient.MemberMap[changed.Member.String()] = true
-			hzClient.Unlock()
+			c.Lock()
+			c.MemberMap[changed.Member.UUID.String()] = changed.Member
+			c.Unlock()
+			c.Log.Info("Member is added", "member", changed.Member.String())
 		} else if changed.State == cluster.MembershipStateRemoved {
-			hzClient.Lock()
-			delete(hzClient.MemberMap, changed.Member.String())
-			hzClient.Unlock()
+			c.Lock()
+			delete(c.MemberMap, changed.Member.UUID.String())
+			c.Unlock()
+			c.Log.Info("Member is deleted", "member", changed.Member.String())
 		}
-		hzClient.triggerReconcile()
+		c.triggerReconcile()
 	}
 }
 
-func (hzClient *HazelcastClient) triggerReconcile() {
-	hzClient.triggerReconcileChan <- event.GenericEvent{
+func (c *HazelcastClient) triggerReconcile() {
+	c.triggerReconcileChan <- event.GenericEvent{
 		Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
-			Namespace: hzClient.NamespacedName.Namespace,
-			Name:      hzClient.NamespacedName.Name,
+			Namespace: c.NamespacedName.Namespace,
+			Name:      c.NamespacedName.Name,
 		}}}
 }
