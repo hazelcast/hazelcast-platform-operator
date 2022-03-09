@@ -82,7 +82,12 @@ type HazelcastPersistenceConfiguration struct {
 	ClusterDataRecoveryPolicy DataRecoveryPolicyType `json:"clusterDataRecoveryPolicy"`
 
 	// Configuration of PersistenceVolumeClaim.
+	// +optional
 	Pvc PersistencePvcConfiguration `json:"pvc"`
+
+	// Host Path directory.
+	// +optional
+	HostPath string `json:"hostPath,omitempty"`
 }
 
 type PersistencePvcConfiguration struct {
@@ -134,6 +139,10 @@ type SchedulingConfiguration struct {
 	// NodeSelector
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// TopologySpreadConstraints
+	// +optional
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // ExposeExternallyConfiguration defines how to expose Hazelcast cluster to external clients
@@ -232,9 +241,14 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 	}
 }
 
-// Returns true if exposeExternally configuration is specified.
+// Returns true if Persistence configuration is specified.
 func (c *HazelcastPersistenceConfiguration) IsEnabled() bool {
 	return c.BaseDir != ""
+}
+
+// Returns true if hostPath is enabled.
+func (c *HazelcastPersistenceConfiguration) UseHostPath() bool {
+	return c.HostPath != ""
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

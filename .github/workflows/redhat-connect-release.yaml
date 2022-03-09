@@ -74,9 +74,6 @@ jobs:
     name: Create a PR in
     runs-on: ubuntu-latest
     needs: publish_image
-    strategy:
-      fail-fast: false
-
     env:
       REPO_NAME: certified-operators
       REPO_OWNER: redhat-openshift-ecosystem
@@ -150,10 +147,9 @@ jobs:
     name: Slack Notify
     needs: [ 'publish_image', 'redhat_bundle_release' ]
     runs-on: ubuntu-latest
-    if: always()
+    if: always() && ( needs.publish_image.result != 'success' || needs.redhat_bundle_release.result != 'success' )
     steps:
       - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
-        if: needs.publish_image.result != 'success' || needs.redhat_bundle_release.result != 'success'
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: ${{ needs.redhat_bundle_release.result }}
