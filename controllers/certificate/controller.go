@@ -18,10 +18,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -58,7 +55,7 @@ func NewReconciler(client client.Client, reader client.Reader, logger logr.Logge
 }
 
 func (c *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	c.log.Info("Certificate reconcile started")
+	c.log.Info("Certificate reconcile started", "Request", request.String())
 	if err := c.reconcile(ctx); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -77,14 +74,11 @@ func (c *Reconciler) SetupWithManager(ctx context.Context, mgr controllerruntime
 
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&corev1.Secret{}, builder.WithPredicates(NewNamespacedNameFilter(certificateSecretName(c.namePrefix), c.ns))).
-		Watches(&source.Channel{Source: c.triggerPeriodic(time.Minute)}, &handler.EnqueueRequestForObject{}).
 		Complete(c)
 }
 
 func (c *Reconciler) reconcile(ctx context.Context) error {
-	defer func() {
-		go c.triggerPodUpdate()
-	}()
+	c.log.Info("Reconciling certificate")
 
 	secret, err := c.getCertificateSecret(ctx)
 	if err != nil {
@@ -104,6 +98,9 @@ func (c *Reconciler) reconcile(ctx context.Context) error {
 	if !update {
 		return nil
 	}
+	defer func() {
+		go c.triggerPodUpdate()
+	}()
 
 	svc, err := c.getWebhookService(ctx)
 	if err != nil {
@@ -121,6 +118,9 @@ func (c *Reconciler) reconcile(ctx context.Context) error {
 	return nil
 }
 
+// updateRequired checks whether the certificate renewal is required.
+// It checks wheter the certificate is valid for the current period, and
+// it is consistent with the client configuration in the webhook configuration
 func (c *Reconciler) updateRequired(secret *corev1.Secret, webhook *admv1.MutatingWebhookConfiguration) (bool, error) {
 	if secret.Type != corev1.SecretTypeTLS {
 		return true, nil
@@ -138,7 +138,7 @@ func (c *Reconciler) updateRequired(secret *corev1.Secret, webhook *admv1.Mutati
 	// Check equality between secret data and webhook data
 	certData := secret.Data["tls.crt"]
 	caBundle := getCABundle(webhook)
-	if bytes.Compare(certData, caBundle) != 0 {
+	if !bytes.Equal(certData, caBundle) {
 		return true, nil
 	}
 
@@ -162,6 +162,8 @@ func (c *Reconciler) updateRequired(secret *corev1.Secret, webhook *admv1.Mutati
 	}
 }
 
+// waitForLocalFiles blocks until the new file contents are mounted to the controller
+// pod after the data in the secret is updated.
 func (c *Reconciler) waitForLocalFiles(ctx context.Context) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -206,29 +208,6 @@ func (c *Reconciler) fileExistsAndNotEmpty(path string) bool {
 	// This part should point to unexpected condition
 	c.log.Info("Unexpected error", "file", path)
 	return false
-}
-
-func (c *Reconciler) triggerPeriodic(duration time.Duration) <-chan event.GenericEvent {
-	ch := make(chan event.GenericEvent)
-	go func() {
-		ticker := time.NewTicker(duration)
-		for {
-			select {
-			case <-ticker.C:
-				secret := corev1.Secret{}
-				if err := c.reader.Get(
-					context.Background(),
-					client.ObjectKey{Name: certificateSecretName(c.namePrefix), Namespace: c.ns},
-					&secret,
-				); err != nil {
-					c.log.Error(err, "periodic secret fetch failed")
-					break
-				}
-				ch <- event.GenericEvent{Object: &secret}
-			}
-		}
-	}()
-	return ch
 }
 
 func inferNamePrefix(podName string) (string, error) {

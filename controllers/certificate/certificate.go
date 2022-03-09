@@ -23,6 +23,7 @@ type Bundle struct {
 	Certificate *x509.Certificate
 }
 
+// createSelfSigned generates new CA bundle.
 func createSelfSigned(service *corev1.Service) (*Bundle, error) {
 	serial, err := rand.Int(rand.Reader, (&big.Int{}).Lsh(big.NewInt(1), uint(127)))
 	if err != nil {
@@ -51,7 +52,7 @@ func createSelfSigned(service *corev1.Service) (*Bundle, error) {
 			x509.ExtKeyUsageServerAuth,
 			x509.ExtKeyUsageClientAuth,
 		},
-		DNSNames: dnsName(service),
+		DNSNames: dnsNames(service),
 	}
 
 	certDer, err := x509.CreateCertificate(rand.Reader, template, template, key.Public(), key)
@@ -70,7 +71,8 @@ func createSelfSigned(service *corev1.Service) (*Bundle, error) {
 	}, nil
 }
 
-func dnsName(service *corev1.Service) []string {
+// dnsNames returns the required names in the certificate for the webhook service
+func dnsNames(service *corev1.Service) []string {
 	name := service.Name
 	ns := service.Namespace
 	return []string{
