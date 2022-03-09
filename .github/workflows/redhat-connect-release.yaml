@@ -143,8 +143,8 @@ jobs:
         working-directory: ${{ env.REPO_NAME }}
         run: |
           echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          gh pr create --title "operator ${OPERATOR_NAME} \
-            (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+          gh pr create --title \
+          "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
 
   slack_notify:
     name: Slack Notify

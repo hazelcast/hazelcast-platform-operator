@@ -196,7 +196,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsBuilder {
 	if v, ok := r.hzClients.Load(req.NamespacedName); ok {
 		hzClient := v.(*HazelcastClient)
-		return runningPhase().withReadyMembers(len(hzClient.MemberMap))
+		return runningPhase().withReadyMembers(hzClient.MemberMap)
 	}
 	return runningPhase()
 }
@@ -212,7 +212,7 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 	r.hzClients.Store(req.NamespacedName, c)
 }
 
-func (r *HazelcastReconciler) podFailedUpdates(pod client.Object) []reconcile.Request {
+func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
 	p, ok := pod.(*corev1.Pod)
 	if !ok {
 		return []reconcile.Request{}
@@ -254,6 +254,6 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
-		Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(r.podFailedUpdates)).
+		Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).
 		Complete(r)
 }

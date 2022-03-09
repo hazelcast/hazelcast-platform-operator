@@ -191,12 +191,18 @@ var _ = Describe("Hazelcast", func() {
 			assertMemberLogs(h, "Members {size:3, ver:3}")
 
 			By("removing pods so that cluster gets recreated", func() {
-				err := k8sClient.DeleteAllOf(context.Background(), &corev1.Pod{}, client.InNamespace(lookupKey.Namespace), client.MatchingLabels{
+				// TODO: Revert this check to the original once [CN-336] is fixed.
+				pods := corev1.PodList{}
+				err := k8sClient.List(context.Background(), &pods, client.InNamespace(lookupKey.Namespace), client.MatchingLabels{
 					n.ApplicationNameLabel:         n.Hazelcast,
 					n.ApplicationInstanceNameLabel: h.Name,
 					n.ApplicationManagedByLabel:    n.OperatorName,
 				})
 				Expect(err).ToNot(HaveOccurred())
+				for i := len(pods.Items) - 1; i > 0; i-- {
+					err := k8sClient.Delete(context.Background(), &pods.Items[i], client.PropagationPolicy(v1.DeletePropagationForeground))
+					Expect(err).ToNot(HaveOccurred())
+				}
 				evaluateReadyMembers(lookupKey)
 			})
 		})

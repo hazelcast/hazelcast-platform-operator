@@ -67,10 +67,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	if c, ok := r.hzClients.Load(key); ok {
 		r.hzClients.Delete(key)
-		if cl := c.(*HazelcastClient).Client; cl != nil {
-			// shutdown error is ignored and does not need to be handled
-			_ = cl.Shutdown(ctx)
-		}
+		c.(*HazelcastClient).shutdown(ctx)
 	}
 	return nil
 }
@@ -451,7 +448,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			ValidationTimeoutSec:      120,
 			DataLoadTimeoutSec:        900,
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
-			AutoRemoveStaleData:       &[]bool{true}[0],
+			AutoRemoveStaleData:       &[]bool{h.Spec.Persistence.AutoRemoveStaleData()}[0],
 		}
 	}
 	return cfg
@@ -624,7 +621,7 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 	case hazelcastv1alpha1.MostComplete:
 		return "PARTIAL_RECOVERY_MOST_COMPLETE"
 	}
-	return ""
+	return "FULL_RECOVERY_ONLY"
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {

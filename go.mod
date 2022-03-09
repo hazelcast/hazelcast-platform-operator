@@ -8,6 +8,7 @@ require (
 	github.com/hazelcast/hazelcast-go-client v1.1.1
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
+	github.com/robfig/cron/v3 v3.0.0
 	golang.org/x/tools v0.1.7 // indirect
 	google.golang.org/api v0.20.0
 	gopkg.in/yaml.v2 v2.4.0

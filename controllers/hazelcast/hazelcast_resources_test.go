@@ -5,12 +5,10 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
@@ -121,10 +119,7 @@ func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
 }
 
 func reconcilerWithCR(h *hazelcastv1alpha1.Hazelcast) HazelcastReconciler {
-	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
-		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{}).
-		Build()
 	return HazelcastReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(h).Build(),
+		Client: fakeClient(h),
 	}
 }
