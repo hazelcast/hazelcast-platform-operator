@@ -266,7 +266,16 @@ func escapeTypeName(typeName string) string {
 }
 
 // fieldRequired returns whether a field is a required field.
+// If omitempty json tag or +optional kubebuilder tags is there, the field is optional. Otherwise, required.
 func fieldRequired(field *ast.Field) bool {
+	jsonTag := ""
+	if field.Tag != nil {
+		jsonTag = reflect.StructTag(field.Tag.Value[1 : len(field.Tag.Value)-1]).Get("json") // Delete first and last quotation
+		if strings.Contains(jsonTag, "omitempty") {
+			return false
+		}
+	}
+
 	doc := field.Doc.Text()
 	for _, line := range strings.Split(doc, "\n") {
 		line = strings.Trim(line, " ")
