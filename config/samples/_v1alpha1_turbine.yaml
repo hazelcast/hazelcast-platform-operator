@@ -5,7 +5,8 @@ metadata:
 spec:
   sidecar:
     name: turbine
-    image: hazelcast/turbine-sidecar
+    repository: hazelcast/turbine-sidecar
+    version: latest
   hazelcast:
     cluster:
       name: hazelcast
