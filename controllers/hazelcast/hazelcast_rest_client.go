@@ -57,10 +57,10 @@ func (c *RestClient) ForceStart(ctx context.Context) error {
 		return err
 	}
 	res, err := c.executeRequest(req)
-	defer res.Body.Close()
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusBadRequest {
 		buf := new(strings.Builder)
 		_, _ = io.Copy(buf, res.Body)
@@ -78,10 +78,10 @@ func (c *RestClient) GetState(ctx context.Context) (string, error) {
 		return "", err
 	}
 	res, err := c.executeRequest(req)
-	defer res.Body.Close()
 	if err != nil {
 		return "", err
 	}
+	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("unexpected status code when checking for Cluster state: %d, %s",
 			res.StatusCode, res.Status)
@@ -107,10 +107,10 @@ func (c *RestClient) ChangeState(ctx context.Context, state ClusterState) error 
 		return err
 	}
 	res, err := c.executeRequest(req)
-	defer res.Body.Close()
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	var rBody map[string]string
 	err = json.NewDecoder(res.Body).Decode(&rBody)
 	if err != nil {
@@ -131,8 +131,11 @@ func (c *RestClient) HotBackup(ctx context.Context) error {
 		return err
 	}
 	res, err := c.executeRequest(req)
+	if err != nil {
+		return err
+	}
 	defer res.Body.Close()
-	return err
+	return nil
 }
 
 func (c *RestClient) executeRequest(req *http.Request) (*http.Response, error) {
