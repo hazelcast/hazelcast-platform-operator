@@ -23,7 +23,7 @@ import (
 type HotBackupReconciler struct {
 	client.Client
 	Log       logr.Logger
-	Scheme *runtime.Scheme
+	Scheme    *runtime.Scheme
 	scheduled sync.Map
 	cron      *cron.Cron
 }

@@ -103,7 +103,8 @@ func fail(t *testing.T) func(message string, callerSkip ...int) {
 
 func hotBackupReconcilerWithCRs(h *hazelcastv1alpha1.Hazelcast, hb *hazelcastv1alpha1.HotBackup) HotBackupReconciler {
 	return HotBackupReconciler{
-		Client: fakeClient(h,hb),
-		Log: ctrl.Log.WithName("test").WithName("Hazelcast"),
+		Client: fakeClient(h, hb),
+		Log:    ctrl.Log.WithName("test").WithName("Hazelcast"),
+		cron:   cron.New(),
 	}
 }
