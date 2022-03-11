@@ -30,6 +30,8 @@ type SidecarConfiguration struct {
 	Version string `json:"version,omitempty"`
 }
 
+// +kubebuilder:validation:MinProperties=1
+// +kubebuilder:validation:MaxProperties=1
 type HazelcastReference struct {
 	// Address of the Hazelcast cluster
 	ClusterAddress *string `json:"clusterAddress,omitempty"`

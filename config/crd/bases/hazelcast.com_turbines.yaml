@@ -38,6 +38,8 @@ spec:
             properties:
               hazelcast:
                 description: Hazelcast cluster to connect
+                maxProperties: 1
+                minProperties: 1
                 properties:
                   cluster:
                     description: Reference to Hazelcast CR
