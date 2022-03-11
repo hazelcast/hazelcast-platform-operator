@@ -7,7 +7,7 @@ import (
 // TurbineSpec defines the desired state of Turbine
 type TurbineSpec struct {
 	// Sidecar configuration
-	// +kubebuilder:default:={Name: "turbine-sidecar"}
+	// +kubebuilder:default:={"name" : "turbine-sidecar"}
 	Sidecar *SidecarConfiguration `json:"sidecar,omitempty"`
 
 	// Hazelcast cluster to connect

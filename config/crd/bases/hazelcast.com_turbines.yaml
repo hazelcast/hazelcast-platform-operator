@@ -68,7 +68,7 @@ spec:
                 type: object
               sidecar:
                 default:
-                  Name: turbine-sidecar
+                  name: turbine-sidecar
                 description: Sidecar configuration
                 properties:
                   name:
