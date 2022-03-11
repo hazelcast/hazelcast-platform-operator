@@ -4,12 +4,11 @@ kind: Kustomization
 namespace: default
 
 resources:
-  - manifests.yaml
-  - service.yaml
+- manifests.yaml
+- service.yaml
 
 configurations:
-  - kustomizeconfig.yaml
+- kustomizeconfig.yaml
 
 patchesStrategicMerge:
-  - webhook_objectselector_patch.yaml
-
+- webhook_objectselector_patch.yaml
