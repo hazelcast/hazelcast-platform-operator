@@ -7,7 +7,7 @@ import (
 // TurbineSpec defines the desired state of Turbine
 type TurbineSpec struct {
 	// Sidecar configuration
-	Sidecar SidecarConfiguration `json:"sidecar"`
+	Sidecar *SidecarConfiguration `json:"sidecar,omitempty"`
 
 	// Hazelcast cluster to connect
 	Hazelcast *HazelcastReference `json:"hazelcast,omitempty"`
@@ -19,11 +19,15 @@ type TurbineSpec struct {
 type SidecarConfiguration struct {
 	// Name of the Turbine sidecar container
 	// +kubebuilder:default:="turbine-sidecar"
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 
-	// Image used for Turbine sidecar container
+	// Repository of the image used for Turbine sidecar container
 	// +kubebuilder:default:="hazelcast/turbine-sidecar"
-	Image string `json:"image"`
+	Repository string `json:"repository,omitempty"`
+
+	// Version of the image used for Turbine sidecar container
+	// +kubebuilder:default:="latest"
+	Version string `json:"version,omitempty"`
 }
 
 type HazelcastReference struct {
@@ -40,7 +44,7 @@ type HazelcastRef struct {
 
 	// Namespace of Hazelcast CR
 	// +kubebuilder:default:="default"
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
 type PodConfiguration struct {

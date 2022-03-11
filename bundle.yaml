@@ -1298,7 +1298,6 @@ spec:
                         type: string
                     required:
                     - name
-                    - namespace
                     type: object
                   clusterAddress:
                     description: Address of the Hazelcast cluster
@@ -1314,20 +1313,19 @@ spec:
               sidecar:
                 description: Sidecar configuration
                 properties:
-                  image:
-                    default: hazelcast/turbine-sidecar
-                    description: Image used for Turbine sidecar container
-                    type: string
                   name:
                     default: turbine-sidecar
                     description: Name of the Turbine sidecar container
                     type: string
-                required:
-                - image
-                - name
+                  repository:
+                    default: hazelcast/turbine-sidecar
+                    description: Repository of the image used for Turbine sidecar container
+                    type: string
+                  version:
+                    default: latest
+                    description: Version of the image used for Turbine sidecar container
+                    type: string
                 type: object
-            required:
-            - sidecar
             type: object
         type: object
     served: true
