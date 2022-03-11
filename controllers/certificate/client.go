@@ -79,7 +79,7 @@ func (c *Reconciler) getWebhookConfiguration(ctx context.Context) (*admv1.Mutati
 }
 
 // triggerPodUpdate adds a temporary annotation to the controller pod and reverts it.
-// The reason that this function is called is to trigger a pod update with a temporary
+// The reason that this function is called is to trigger a pod update - without restarting the pod - with a temporary
 // annotation such that the new files from the secret mount will be reflected to the
 // local files quickly. It will reduce the time between the secret update and local files
 // update.
