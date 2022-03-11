@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -96,7 +97,7 @@ var _ = Describe("Turbine", func() {
 
 	getSidecar := func(containers []v1.Container, t *hazelcastcomv1alpha1.Turbine) (*v1.Container, error) {
 		for i, c := range containers {
-			if t.Spec.Sidecar.Name == c.Name && t.Spec.Sidecar.Image == c.Image {
+			if t.Spec.Sidecar.Name == c.Name && strings.Contains(c.Image, t.Spec.Sidecar.Repository) {
 				return &containers[i], nil
 			}
 		}

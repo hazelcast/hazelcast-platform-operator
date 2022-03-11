@@ -17,9 +17,10 @@ var (
 				Name: turbineName(ee),
 			},
 			Spec: hazelcastv1alpha1.TurbineSpec{
-				Sidecar: hazelcastv1alpha1.SidecarConfiguration{
-					Name:  "turbine-sidecar",
-					Image: "hazelcast/turbine-sidecar",
+				Sidecar: &hazelcastv1alpha1.SidecarConfiguration{
+					Name:       "turbine-sidecar",
+					Repository: "hazelcast/turbine-sidecar",
+					Version:    "latest",
 				},
 				Hazelcast: &hazelcastv1alpha1.HazelcastReference{
 					Cluster: &hazelcastv1alpha1.HazelcastRef{

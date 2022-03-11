@@ -82,7 +82,7 @@ func (i *Injector) injectSidecar(ctx context.Context, pod *v1.Pod, turbine *haze
 	p := pod.DeepCopy()
 	sidecar := v1.Container{
 		Name:  turbine.Spec.Sidecar.Name,
-		Image: turbine.Spec.Sidecar.Image,
+		Image: fmt.Sprintf("%s:%s", turbine.Spec.Sidecar.Repository, turbine.Spec.Sidecar.Version),
 		Env: []v1.EnvVar{
 			{
 				Name: envPodIp,
