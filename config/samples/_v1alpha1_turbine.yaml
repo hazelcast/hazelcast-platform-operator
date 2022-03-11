@@ -9,7 +9,7 @@ spec:
   hazelcast:
     cluster:
       name: hazelcast
-      namespace: hazelcast
+      namespace: default
   pods:
     portName: app-http
 
