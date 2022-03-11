@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,14 +23,16 @@ import (
 type HotBackupReconciler struct {
 	client.Client
 	Log       logr.Logger
+	Scheme *runtime.Scheme
 	scheduled sync.Map
 	cron      *cron.Cron
 }
 
-func NewHotBackupReconciler(c client.Client, log logr.Logger) *HotBackupReconciler {
+func NewHotBackupReconciler(c client.Client, log logr.Logger, s *runtime.Scheme) *HotBackupReconciler {
 	return &HotBackupReconciler{
 		Client: c,
 		Log:    log,
+		Scheme: s,
 		cron:   cron.New(),
 	}
 }

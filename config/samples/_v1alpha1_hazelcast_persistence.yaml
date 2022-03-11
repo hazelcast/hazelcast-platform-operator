@@ -3,13 +3,12 @@ kind: Hazelcast
 metadata:
   name: hazelcast
 spec:
-  clusterSize: 1
+  clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
   version: '5.1'
   licenseKeySecret: hazelcast-license-key
   persistence:
-    baseDir: "/data/hot-restart/hot-backup/backup-1645439736653/"
-    autoForceStart: true
+    baseDir: "/data/hot-restart/"
     clusterDataRecoveryPolicy: "FullRecoveryOnly"
     pvc:
       accessModes: ["ReadWriteOnce"]

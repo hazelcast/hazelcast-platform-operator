@@ -129,6 +129,7 @@ func main() {
 	if err = hazelcast.NewHotBackupReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("HotBackup"),
+		mgr.GetScheme(),
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HotBackup")
 		os.Exit(1)
