@@ -543,6 +543,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, hostPathVolume(h))
 			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot = &[]bool{false}[0]
 			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsUser = &[]int64{0}[0]
+			if platform.GetType() == platform.OpenShift {
+				sts.Spec.Template.Spec.Containers[0].SecurityContext.Privileged = &[]bool{true}[0]
+				sts.Spec.Template.Spec.Containers[0].SecurityContext.AllowPrivilegeEscalation = &[]bool{true}[0]
+			}
 		} else {
 			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 		}
