@@ -52,7 +52,8 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 
 	if ee && platform.GetType() == platform.OpenShift {
-		platform.FindAndSetPlatform(cfg)
+		err = platform.FindAndSetPlatform(cfg)
+		Expect(err).NotTo(HaveOccurred())
 		cleanUpHostPath("default", "/tmp", "hazelcast")
 
 	}
