@@ -51,11 +51,12 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	if ee && platform.GetType() == platform.OpenShift {
+	if ee {
 		err = platform.FindAndSetPlatform(cfg)
 		Expect(err).NotTo(HaveOccurred())
-		cleanUpHostPath("default", "/tmp", "hazelcast")
-
+		if platform.GetType() == platform.OpenShift {
+			cleanUpHostPath("default", "/tmp", "hazelcast")
+		}
 	}
 })
 
