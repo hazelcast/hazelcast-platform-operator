@@ -145,6 +145,7 @@ test-it: manifests generate fmt vet ## Run tests.
 
 test-e2e: generate fmt vet ## Run end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -ginkgo.label-filter="slow || fast" -ginkgo.v -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 10m -timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
+
 test-ph: generate fmt vet ## Run phone-home tests
     USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/ph -v -ginkgo.label-filter="slow || fast" -ginkgo.v -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 10m -timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
 ##@ Build
@@ -193,6 +194,7 @@ ifeq (true,$(REMOVE_SECURITY_CONTEXT))
 endif
 	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
+	@cd config/webhook && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 ifneq (false,$(APPLY_MANIFESTS))
 	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -

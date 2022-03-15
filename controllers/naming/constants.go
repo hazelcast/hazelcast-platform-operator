@@ -84,3 +84,18 @@ const (
 	NamespaceEnv        = "NAMESPACE"
 	PodNameEnv          = "POD_NAME"
 )
+
+// Certificate and webhook related constants
+const (
+	// CertificateSecret is the name of the secret which contains
+	// the key and certificate. It will be mounted to the controller.
+	// Make sure it is sync with the name in the configuration YAMLs.
+	CertificateSecret = "webhook-server-cert"
+
+	// WebhookService is the name of the service which points to the controller's
+	// webhook handler.
+	WebhookService = "webhook-service"
+
+	// WebhookConfigurationName is the name of the webhook configuration.
+	WebhookConfiguration = "mutating-webhook-configuration"
+)

@@ -1,0 +1,14 @@
+# permissions for end users to view turbines.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: turbine-viewer-role
+rules:
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - turbines
+    verbs:
+      - get
+      - list
+      - watch
