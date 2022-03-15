@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -50,6 +51,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
+	if ee && platform.GetType() == platform.OpenShift {
+		platform.FindAndSetPlatform(cfg)
+		cleanUpHostPath("default", "/tmp", "hazelcast")
+
+	}
 })
 
 var _ = AfterSuite(func() {

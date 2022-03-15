@@ -19,6 +19,7 @@ import (
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -230,7 +231,7 @@ var _ = Describe("Hazelcast", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart", false)
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
 			create(hazelcast)
 
 			assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
@@ -262,7 +263,7 @@ var _ = Describe("Hazelcast", func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart", false)
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
 			create(hazelcast)
 
 			evaluateReadyMembers(lookupKey)
@@ -293,18 +294,12 @@ var _ = Describe("Hazelcast", func() {
 			Expect(logs.Close()).Should(Succeed())
 		})
 
-		DescribeTable("should successfully restart from HotBackup data", func(useHostPath bool) {
+		DescribeTable("should successfully restart from HotBackup data", func(params ...interface{}) {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			var nodeName string
-			var err error
-			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart", useHostPath)
-			if useHostPath {
-				nodeName, err = getFirstNodeName()
-				Expect(err).To(BeNil())
-				addNodeSelectorForName(hazelcast, nodeName)
-			}
+			baseDir := "/data/hot-restart"
+			hazelcast := addNodeSelectorForName(hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, params...), getFirstWorkerNodeName())
 			create(hazelcast)
 
 			evaluateReadyMembers(lookupKey)
@@ -358,11 +353,9 @@ var _ = Describe("Hazelcast", func() {
 			})
 
 			By("Creating new Hazelcast cluster from existing backup")
-			baseDir := "/data/hot-restart/hot-backup/backup-" + seq
-			hazelcast = hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, useHostPath)
-			if useHostPath {
-				addNodeSelectorForName(hazelcast, nodeName)
-			}
+			baseDir += "/hot-backup/backup-" + seq
+			hazelcast = addNodeSelectorForName(hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, params...), getFirstWorkerNodeName())
+
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 			evaluateReadyMembers(lookupKey)
 
@@ -386,8 +379,9 @@ var _ = Describe("Hazelcast", func() {
 
 			Expect(logs.Close()).Should(Succeed())
 		},
-			Entry("with PVC configuration", false),
-			Entry("with HostPath configuration", true),
+			Entry("with PVC configuration"),
+			Entry("with HostPath configuration single node", "/tmp/hazelcast/singleNode", "dummyNodeName"),
+			Entry("with HostPath configuration multiple nodes", "/tmp/hazelcast/multiNode"),
 		)
 	})
 })
@@ -433,16 +427,21 @@ func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	}, timeout, interval).Should(Equal("3/3"))
 }
 
-func getFirstNodeName() (string, error) {
-	nodes := &corev1.NodeList{}
-	err := k8sClient.List(context.Background(), nodes, client.Limit(1))
-	if err != nil {
-		return "", err
+func getFirstWorkerNodeName() string {
+	labelMatcher := client.MatchingLabels{}
+	if platform.GetPlatform().Type == platform.OpenShift {
+		labelMatcher = client.MatchingLabels{
+			"node-role.kubernetes.io/worker": "",
+		}
 	}
-	return nodes.Items[0].ObjectMeta.Name, nil
+	nodes := &corev1.NodeList{}
+	Expect(k8sClient.List(context.Background(), nodes, client.Limit(1), labelMatcher)).Should(Succeed())
+	return nodes.Items[0].ObjectMeta.Name
 }
 
 func addNodeSelectorForName(hz *hazelcastcomv1alpha1.Hazelcast, n string) *hazelcastcomv1alpha1.Hazelcast {
-	hz.Spec.Scheduling.NodeSelector = map[string]string{"kubernetes.io/hostname": n}
+	if hz.Spec.Scheduling.NodeSelector != nil {
+		hz.Spec.Scheduling.NodeSelector = map[string]string{"kubernetes.io/hostname": n}
+	}
 	return hz
 }
