@@ -102,7 +102,7 @@ func cleanUpHostPath(namespace, hostPath, hzDir string) {
 						Name:    "cleanup",
 						Image:   "ubuntu",
 						Command: []string{"sh"},
-						Args:    []string{"-c", fmt.Sprintf("set -x; touch /host/%s ; sleep 5; rm -rf /host/%s2 || echo 'Could not delete'; echo 'done'; sleep 120", hzDir, hzDir)},
+						Args:    []string{"-c", fmt.Sprintf("rm -rf /host/%s || echo 'Could not delete'; echo 'done'; sleep 120", hzDir)},
 						SecurityContext: &v1.SecurityContext{
 							RunAsNonRoot:             &[]bool{false}[0],
 							RunAsUser:                &[]int64{0}[0],
