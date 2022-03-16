@@ -1,4 +1,6 @@
 /*
+ * Code taken and changed from https://github.com/oracle/coherence-operator/blob/v3.2.5/docgen/main.go
+ *
  * Copyright (c) 2020 Oracle and/or its affiliates.
  * Licensed under the Universal Permissive License v 1.0 as shown at
  * http://oss.oracle.com/licenses/upl.
