@@ -218,7 +218,7 @@ jobs:
             --zone ${{ env.GKE_ZONE }} \
             --project ${{ env.GCP_PROJECT_ID }}
 
-      - name: Build Operator Image and Push to GCR
+      - name: Build Operator Image and Push to Ephemeral Registry(ttl.sh)
         run: |
           IMAGE=ttl.sh/$(uuidgen):1h
           echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
