@@ -106,9 +106,9 @@ func cleanUpHostPath(namespace, hostPath, hzDir string) {
 						SecurityContext: &v1.SecurityContext{
 							RunAsNonRoot:             &[]bool{false}[0],
 							RunAsUser:                &[]int64{0}[0],
-							Privileged:               &[]bool{false}[0],
+							Privileged:               &[]bool{true}[0],
 							ReadOnlyRootFilesystem:   &[]bool{false}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
+							AllowPrivilegeEscalation: &[]bool{true}[0],
 							Capabilities: &v1.Capabilities{
 								Drop: []v1.Capability{"ALL"},
 							},
