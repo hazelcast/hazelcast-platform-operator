@@ -120,8 +120,8 @@ var (
 		}
 	}
 
-	PersistenceEnabled = func(ns string, baseDir string) *hazelcastv1alpha1.Hazelcast {
-		return &hazelcastv1alpha1.Hazelcast{
+	PersistenceEnabled = func(ns string, baseDir string, useHostPath bool) *hazelcastv1alpha1.Hazelcast {
+		hz := &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "hazelcast",
 				Namespace: ns,
@@ -141,6 +141,12 @@ var (
 				},
 			},
 		}
+
+		if useHostPath {
+			hz.Spec.Persistence.HostPath = "/tmp/hazelcast"
+		}
+
+		return hz
 	}
 
 	HotBackup = func(hzName, ns string) *hazelcastv1alpha1.HotBackup {

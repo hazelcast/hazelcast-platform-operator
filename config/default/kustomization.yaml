@@ -4,6 +4,7 @@ resources:
 - ../rbac
 - ../manager
 - ../crd
+- ../webhook
 
 # Adds namespace to all resources.
 namespace: default

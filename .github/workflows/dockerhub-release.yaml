@@ -138,30 +138,16 @@ jobs:
           gh pr create --title "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" \
             --body "" --repo ${REPO_OWNER}/${REPO_NAME}
 
-  after_release:
-    name: Update repository after release
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'publish_image', 'operatorhub_release' ]
+    if: always() && ( needs.publish_image.result != 'success' || needs.redhat_bundle_release.result != 'success' )
     runs-on: ubuntu-latest
-    needs: publish_image
-    env:
-      RELEASE_VERSION: ${{ needs.publish_image.outputs.RELEASE_VERSION }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
         with:
-          ref: 'main'
-
-      - name: Convert changes to latest-snapshot
-        run: |
-          sed -i  "s|ARG version=\"${RELEASE_VERSION}\"|ARG version=\"latest-snapshot\"|" Dockerfile
-          sed -i  "s|VERSION ?= ${RELEASE_VERSION}|VERSION ?= latest-snapshot|" Makefile
-
-          make generate-bundle-yaml
-
-      - name: Commit and push changes to bundle
-        run: |
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
-
-          git add Makefile Dockerfile bundle.yaml config/
-          git commit --signoff -m "${RELEASE_VERSION} to latest-snapshot"
-          git push origin main
+          fields: repo,commit,author,action,eventName,workflow
+          status: ${{ needs.operatorhub_release.result }}
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
