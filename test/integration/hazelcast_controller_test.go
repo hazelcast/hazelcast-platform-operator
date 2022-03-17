@@ -84,7 +84,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	SetClusterSize := func(size int32) UpdateFn {
 		return func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
-			hz.Spec.ClusterSize = size
+			hz.Spec.ClusterSize = &size
 			return hz
 		}
 	}
@@ -317,7 +317,7 @@ var _ = Describe("Hazelcast controller", func() {
 		It("should scale Hazelcast cluster exposed for smart client", func() {
 			By("creating the cluster of size 3")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.ClusterSize = 3
+			spec.ClusterSize = &[]int32{3}[0]
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
@@ -353,7 +353,7 @@ var _ = Describe("Hazelcast controller", func() {
 		It("should allow updating expose externally configuration", func() {
 			By("creating the cluster with smart client")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.ClusterSize = 3
+			spec.ClusterSize = &[]int32{3}[0]
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
@@ -408,7 +408,7 @@ var _ = Describe("Hazelcast controller", func() {
 		It("should return expected messages when exposeExternally is misconfigured", func() {
 			By("creating the cluster with unisocket client with incorrect configuration")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.ClusterSize = 3
+			spec.ClusterSize = &[]int32{3}[0]
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
@@ -452,7 +452,7 @@ var _ = Describe("Hazelcast controller", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      5,
+					ClusterSize:      &[]int32{5}[0],
 					Repository:       "myorg/hazelcast",
 					Version:          "1.0",
 					LicenseKeySecret: "licenseKeySecret",

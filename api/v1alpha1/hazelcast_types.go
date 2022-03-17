@@ -25,11 +25,10 @@ const (
 // HazelcastSpec defines the desired state of Hazelcast
 type HazelcastSpec struct {
 	// Number of Hazelcast members in the cluster.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default:=3
 	// +optional
-	// TODO should we let minimum to be 0?
-	ClusterSize int32 `json:"clusterSize,omitempty"`
+	ClusterSize *int32 `json:"clusterSize,omitempty"`
 
 	// Repository to pull the Hazelcast Platform image from.
 	// +kubebuilder:default:="docker.io/hazelcast/hazelcast"

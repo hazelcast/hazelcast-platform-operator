@@ -17,7 +17,7 @@ type HazelcastSpecValues struct {
 
 func HazelcastSpec(values *HazelcastSpecValues, ee bool) hazelcastv1alpha1.HazelcastSpec {
 	spec := hazelcastv1alpha1.HazelcastSpec{
-		ClusterSize:     values.ClusterSize,
+		ClusterSize:     &values.ClusterSize,
 		Repository:      values.Repository,
 		Version:         values.Version,
 		ImagePullPolicy: values.ImagePullPolicy,

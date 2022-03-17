@@ -17,7 +17,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				ClusterName:      "development",
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
@@ -33,7 +33,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
@@ -48,7 +48,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
@@ -68,7 +68,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
@@ -88,7 +88,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
@@ -108,7 +108,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
@@ -127,7 +127,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
@@ -168,7 +168,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          "not-exists",
 				LicenseKeySecret: licenseKey(ee),

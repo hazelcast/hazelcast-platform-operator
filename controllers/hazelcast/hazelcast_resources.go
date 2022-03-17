@@ -237,7 +237,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		return nil
 	}
 
-	for i := 0; i < int(h.Spec.ClusterSize); i++ {
+	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      servicePerPodName(i, h),
@@ -275,7 +275,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
 	var s int
 	if h.Spec.ExposeExternally.IsSmart() {
-		s = int(h.Spec.ClusterSize)
+		s = int(*h.Spec.ClusterSize)
 	}
 
 	// Delete unused services (when the cluster was scaled down)
@@ -352,7 +352,7 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	}
 
 	// Check if each service per pod is ready
-	for i := 0; i < int(h.Spec.ClusterSize); i++ {
+	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
 		s := &v1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
@@ -555,7 +555,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
-		sts.Spec.Replicas = &h.Spec.ClusterSize
+		sts.Spec.Replicas = h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
 		sts.Spec.Template.Annotations, err = podAnnotations(h)
 		if err != nil {
@@ -693,7 +693,7 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
-		ans[n.ServicePerPodCountAnnotation] = strconv.Itoa(int(h.Spec.ClusterSize))
+		ans[n.ServicePerPodCountAnnotation] = strconv.Itoa(int(*h.Spec.ClusterSize))
 	}
 	return ans
 }
