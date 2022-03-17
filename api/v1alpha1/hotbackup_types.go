@@ -13,6 +13,7 @@ type HotBackupSpec struct {
 
 	// Schedule contains a crontab-like expression that defines the schedule in which HotBackup will be started.
 	// If the Schedule is empty the HotBackup will start only once when applied.
+	// ---
 	// Several pre-defined schedules in place of a cron expression can be used.
 	//	Entry                  | Description                                | Equivalent To
 	//	-----                  | -----------                                | -------------
