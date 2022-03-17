@@ -30,7 +30,7 @@ func (matcher HazelcastSpecEqual) Match(actual interface{}) (success bool, err e
 	}
 	if *spec.ClusterSize != matcher.Expected.ClusterSize {
 		return false, fmt.Errorf(
-			"expected ClusterSize is %d but actual is %d", matcher.Expected.ClusterSize, spec.ClusterSize)
+			"expected ClusterSize is %d but actual is %d", matcher.Expected.ClusterSize, *spec.ClusterSize)
 	}
 	if spec.Repository != matcher.Expected.Repository {
 		return false, fmt.Errorf(

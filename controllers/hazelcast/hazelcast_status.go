@@ -95,7 +95,7 @@ func updateFailedMember(h *hazelcastv1alpha1.Hazelcast, err *util.PodError) {
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
 func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status.Phase = options.phase
-	h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), h.Spec.ClusterSize)
+	h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
 	h.Status.Message = options.message
 	h.Status.ExternalAddresses = options.externalAddresses
 	h.Status.Members = statusMembers(options.readyMembers)
