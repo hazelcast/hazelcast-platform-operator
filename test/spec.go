@@ -29,7 +29,7 @@ func HazelcastSpec(values *HazelcastSpecValues, ee bool) hazelcastv1alpha1.Hazel
 }
 
 func CheckHazelcastCR(h *hazelcastv1alpha1.Hazelcast, expected *HazelcastSpecValues, ee bool) {
-	Expect(h.Spec.ClusterSize).Should(Equal(expected.ClusterSize))
+	Expect(*h.Spec.ClusterSize).Should(Equal(expected.ClusterSize))
 	Expect(h.Spec.Repository).Should(Equal(expected.Repository))
 	Expect(h.Spec.Version).Should(Equal(expected.Version))
 	Expect(h.Spec.ImagePullPolicy).Should(Equal(expected.ImagePullPolicy))
