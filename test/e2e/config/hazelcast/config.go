@@ -139,7 +139,6 @@ var (
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
-				Scheduling:       &hazelcastv1alpha1.SchedulingConfiguration{},
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   baseDir,
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
@@ -153,7 +152,7 @@ var (
 
 		if hok {
 			hz.Spec.Persistence.HostPath = hostPath
-			hz.Spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 					{
 						MaxSkew:           int32(1),
@@ -172,7 +171,7 @@ var (
 		}
 
 		if nok {
-			hz.Spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 				NodeSelector: map[string]string{
 					"kubernetes.io/hostname": nodeName,
 				},
