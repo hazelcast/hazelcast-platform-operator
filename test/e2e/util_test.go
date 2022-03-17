@@ -155,7 +155,7 @@ func cleanUpHostPath(namespace, hostPath, hzDir string) {
 			Should(ContainSubstring("done"))
 
 	}
-	//Expect(k8sClient.Delete(context.Background(), ds)).Should(Succeed())
+	Expect(k8sClient.Delete(context.Background(), ds)).Should(Succeed())
 }
 
 func waitForDSPods(ds *appsv1.DaemonSet, lb client.MatchingLabels) *corev1.PodList {
