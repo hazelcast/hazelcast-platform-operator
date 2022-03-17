@@ -435,11 +435,26 @@ func getFirstWorkerNodeName() string {
 		}
 	}
 	nodes := &corev1.NodeList{}
-	Expect(k8sClient.List(context.Background(), nodes, client.Limit(1), labelMatcher)).Should(Succeed())
-	return nodes.Items[0].ObjectMeta.Name
+	Expect(k8sClient.List(context.Background(), nodes, labelMatcher)).Should(Succeed())
+loop1:
+	for _, node := range nodes.Items {
+		for _, taint := range node.Spec.Taints {
+			if taint.Key == "node.kubernetes.io/unreachable" {
+				continue loop1
+			}
+		}
+		return node.ObjectMeta.Name
+	}
+	Fail("Could not find a reachable working node.")
+	return ""
 }
 
 func addNodeSelectorForName(hz *hazelcastcomv1alpha1.Hazelcast, n string) *hazelcastcomv1alpha1.Hazelcast {
+	// If hostPath is not enabled, do nothing
+	if hz.Spec.Scheduling == nil {
+		return hz
+	}
+	// If NodeSelector is set with dummy name, put the real node name
 	if hz.Spec.Scheduling.NodeSelector != nil {
 		hz.Spec.Scheduling.NodeSelector = map[string]string{"kubernetes.io/hostname": n}
 	}
