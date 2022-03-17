@@ -178,11 +178,11 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      pointer.Int32Ptr(3),
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 					DiscoveryServiceType: v1.ServiceTypeLoadBalancer,
 				},
