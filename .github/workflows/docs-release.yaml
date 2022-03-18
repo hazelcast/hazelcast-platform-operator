@@ -58,6 +58,11 @@ jobs:
           sed -i "s/page-latest-supported-hazelcast:.*/page-latest-supported-hazelcast: '${{ github.event.inputs.LATEST_SUPPORTED_HAZELCAST }}'/" docs/antora.yml
           sed -i "s/page-latest-supported-mc:.*/page-latest-supported-mc: '${{ github.event.inputs.LATEST_SUPPORTED_MC }}'/" docs/antora.yml
 
+      - name: Generate API Reference Docs
+        working-directory: operator-repo
+        run: |
+          make api-ref-doc > api-ref.adoc
+
       - name: Move API reference to docs repo
         run: |
           if cmp -s operator-repo/api-ref.adoc docs/modules/ROOT/pages/api-ref.adoc; then
