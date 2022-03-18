@@ -37,7 +37,8 @@ spec:
             description: TurbineSpec defines the desired state of Turbine
             properties:
               hazelcast:
-                description: Hazelcast cluster to connect
+                description: Hazelcast cluster to connect. If present, only one of
+                  "clusterAddress" or "cluster" must be defined.
                 maxProperties: 1
                 minProperties: 1
                 properties:

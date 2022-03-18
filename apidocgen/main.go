@@ -335,7 +335,7 @@ func printStructs(structTypes []StructType) {
 		if len(t.Fields) > 0 {
 			fmt.Printf("\n=== %s\n\n%s\n\n", t.Name, t.Doc)
 
-			fmt.Println("[cols=\"4,10,4,2,2\"options=\"header\"]")
+			fmt.Println("[cols=\"4,8,4,2,4\"options=\"header\"]")
 			fmt.Println("|===")
 			fmt.Println("| Field | Description | Type | Required | Default")
 			for _, f := range t.Fields {
