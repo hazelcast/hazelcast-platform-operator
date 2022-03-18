@@ -32,6 +32,7 @@ Hazelcast Platform Operator supports the features below:
 * Scale up and down Hazelcast clusters
 * Expose Hazelcast cluster to external
   clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/latest/clients/java#java-client-operation-modes))
+* Automatic [Turbine sidecar injection](https://docs.hazelcast.com/turbine/0.1/tutorials/operator) for pods
 
 For Hazelcast Platform Enterprise, you can request a trial license key from [here](https://trialrequest.hazelcast.com).
 
