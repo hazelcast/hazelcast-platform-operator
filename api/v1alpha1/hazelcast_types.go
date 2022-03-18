@@ -207,7 +207,7 @@ const (
 	MemberAccessLoadBalancer MemberAccess = "LoadBalancer"
 )
 
-// Returns true if ClusterDataRecoveryPolicy is FullRecoveryOnly
+// Returns true if ClusterDataRecoveryPolicy is not FullRecoveryOnly
 func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 	return p.ClusterDataRecoveryPolicy != FullRecovery
 }
