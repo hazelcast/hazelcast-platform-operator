@@ -37,7 +37,9 @@ jobs:
 
           git add Makefile Dockerfile bundle.yaml config/
           git commit --signoff -m "${RELEASE_VERSION}"
-          git push origin main
+          
+          BRANCH=$( echo ${{ github.ref }} | cut -d'/' -f3 )
+          git push origin $BRANCH
 
       - name: Create a new tag
         run: |
