@@ -120,7 +120,15 @@ var (
 		}
 	}
 
-	PersistenceEnabled = func(ns string, baseDir string, useHostPath bool) *hazelcastv1alpha1.Hazelcast {
+	PersistenceEnabled = func(ns, baseDir string, params ...interface{}) *hazelcastv1alpha1.Hazelcast {
+		var hostPath, nodeName string
+		var hok, nok bool
+		if len(params) > 0 {
+			hostPath, hok = params[0].(string)
+		}
+		if len(params) > 1 {
+			nodeName, nok = params[1].(string)
+		}
 		hz := &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "hazelcast",
@@ -131,7 +139,6 @@ var (
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
-				Scheduling:       &hazelcastv1alpha1.SchedulingConfiguration{},
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   baseDir,
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
@@ -143,10 +150,33 @@ var (
 			},
 		}
 
-		if useHostPath {
-			hz.Spec.Persistence.HostPath = "/tmp/hazelcast"
+		if hok {
+			hz.Spec.Persistence.HostPath = hostPath
+			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+					{
+						MaxSkew:           int32(1),
+						TopologyKey:       "kubernetes.io/hostname",
+						WhenUnsatisfiable: corev1.DoNotSchedule,
+						LabelSelector: &v1.LabelSelector{
+							MatchLabels: map[string]string{
+								naming.ApplicationNameLabel:         naming.Hazelcast,
+								naming.ApplicationInstanceNameLabel: "hazelcast",
+								naming.ApplicationManagedByLabel:    naming.OperatorName,
+							},
+						},
+					},
+				},
+			}
 		}
 
+		if nok {
+			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				NodeSelector: map[string]string{
+					"kubernetes.io/hostname": nodeName,
+				},
+			}
+		}
 		return hz
 	}
 
