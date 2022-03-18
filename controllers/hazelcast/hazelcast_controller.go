@@ -166,7 +166,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
 
-	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, h.Spec.ClusterSize); !ok {
+	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, *h.Spec.ClusterSize); !ok {
 		if err == nil {
 			return update(ctx, r.Client, h, pendingPhase(retryAfter))
 		} else {
