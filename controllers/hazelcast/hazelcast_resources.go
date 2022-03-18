@@ -34,11 +34,10 @@ const (
 )
 
 func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
+	if !controllerutil.ContainsFinalizer(h, n.Finalizer) && h.GetDeletionTimestamp() == nil {
 		controllerutil.AddFinalizer(h, n.Finalizer)
 		err := r.Update(ctx, h)
 		if err != nil {
-			logger.Error(err, "Failed to add finalizer into custom resource")
 			return err
 		}
 		logger.V(1).Info("Finalizer added into custom resource successfully")
@@ -47,6 +46,10 @@ func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1al
 }
 
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
+		return nil
+	}
+
 	if err := r.removeClusterRole(ctx, h, logger); err != nil {
 		logger.Error(err, "ClusterRole could not be removed")
 		return err
@@ -234,7 +237,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		return nil
 	}
 
-	for i := 0; i < int(h.Spec.ClusterSize); i++ {
+	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      servicePerPodName(i, h),
@@ -272,7 +275,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
 	var s int
 	if h.Spec.ExposeExternally.IsSmart() {
-		s = int(h.Spec.ClusterSize)
+		s = int(*h.Spec.ClusterSize)
 	}
 
 	// Delete unused services (when the cluster was scaled down)
@@ -349,7 +352,7 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	}
 
 	// Check if each service per pod is ready
-	for i := 0; i < int(h.Spec.ClusterSize); i++ {
+	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
 		s := &v1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
@@ -472,11 +475,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					Labels: ls,
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName:        h.Name,
-					Affinity:                  &h.Spec.Scheduling.Affinity,
-					Tolerations:               h.Spec.Scheduling.Tolerations,
-					NodeSelector:              h.Spec.Scheduling.NodeSelector,
-					TopologySpreadConstraints: h.Spec.Scheduling.TopologySpreadConstraints,
+					ServiceAccountName: h.Name,
 					SecurityContext: &v1.PodSecurityContext{
 						FSGroup:      &[]int64{65534}[0],
 						RunAsNonRoot: &[]bool{true}[0],
@@ -536,6 +535,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
+	if h.Spec.Scheduling != nil {
+		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
+		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
+		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
+		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
+	}
+
 	if h.Spec.Persistence.IsEnabled() {
 		if h.Spec.Persistence.UseHostPath() {
 			sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, hostPathVolume(h))
@@ -553,7 +559,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
-		sts.Spec.Replicas = &h.Spec.ClusterSize
+		sts.Spec.Replicas = h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
 		sts.Spec.Template.Annotations, err = podAnnotations(h)
 		if err != nil {
@@ -610,7 +616,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
 				Resources: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
-						corev1.ResourceStorage: h.Spec.Persistence.Pvc.RequestStorage,
+						corev1.ResourceStorage: *h.Spec.Persistence.Pvc.RequestStorage,
 					},
 				},
 				StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,
@@ -721,7 +727,7 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
-		ans[n.ServicePerPodCountAnnotation] = strconv.Itoa(int(h.Spec.ClusterSize))
+		ans[n.ServicePerPodCountAnnotation] = strconv.Itoa(int(*h.Spec.ClusterSize))
 	}
 	return ans
 }
@@ -767,31 +773,4 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 		logger.Info("Operation result", "Hazelcast Annotation", h.Name, "result", opResult)
 	}
 	return err
-}
-
-func (r *HazelcastReconciler) applyDefaultHazelcastSpecs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
-	changed := false
-	if h.Spec.Repository == "" {
-		h.Spec.Repository = n.HazelcastRepo
-		changed = true
-	}
-	if h.Spec.Version == "" {
-		h.Spec.Version = n.HazelcastVersion
-		changed = true
-	}
-	if h.Spec.ImagePullPolicy == "" {
-		h.Spec.ImagePullPolicy = n.HazelcastImagePullPolicy
-		changed = true
-	}
-	if h.Spec.ClusterSize == 0 {
-		h.Spec.ClusterSize = n.DefaultClusterSize
-		changed = true
-	}
-	if h.Spec.ClusterName == "" {
-		h.Spec.ClusterName = n.DefaultClusterName
-	}
-	if !changed {
-		return nil
-	}
-	return r.Update(ctx, h)
 }

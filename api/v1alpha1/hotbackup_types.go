@@ -9,11 +9,11 @@ type HotBackupStatus struct {
 // HotBackupSpec defines the Spec of HotBackup
 type HotBackupSpec struct {
 	// HazelcastResourceName defines the name of the Hazelcast resource
-	// +kubebuilder:validation:Required
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 
 	// Schedule contains a crontab-like expression that defines the schedule in which HotBackup will be started.
 	// If the Schedule is empty the HotBackup will start only once when applied.
+	// ---
 	// Several pre-defined schedules in place of a cron expression can be used.
 	//	Entry                  | Description                                | Equivalent To
 	//	-----                  | -----------                                | -------------
@@ -23,7 +23,7 @@ type HotBackupSpec struct {
 	//	@daily (or @midnight)  | Run once a day, midnight                   | 0 0 * * *
 	//	@hourly                | Run once an hour, beginning of hour        | 0 * * * *
 	// +optional
-	Schedule string `json:"schedule"`
+	Schedule string `json:"schedule,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -34,6 +34,7 @@ type HotBackup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +optional
 	Status HotBackupStatus `json:"status,omitempty"`
 	Spec   HotBackupSpec   `json:"spec"`
 }

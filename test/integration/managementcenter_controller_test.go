@@ -92,15 +92,14 @@ var _ = Describe("ManagementCenter controller", func() {
 
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(BeNil())
 
-			expectedExternalConnectivity := hazelcastv1alpha1.ExternalConnectivityConfiguration{
+			expectedExternalConnectivity := &hazelcastv1alpha1.ExternalConnectivityConfiguration{
 				Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 			}
 			Expect(fetchedCR.Spec.ExternalConnectivity).Should(Equal(expectedExternalConnectivity))
 
-			expectedPersistence := hazelcastv1alpha1.PersistenceConfiguration{
-				Enabled:      false,
-				StorageClass: nil,
-				Size:         resource.MustParse("0"),
+			expectedPersistence := &hazelcastv1alpha1.PersistenceConfiguration{
+				Enabled: true,
+				Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 			}
 			Expect(fetchedCR.Spec.Persistence).Should(Equal(expectedPersistence))
 
@@ -124,8 +123,17 @@ var _ = Describe("ManagementCenter controller", func() {
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(*fetchedSts.Spec.Replicas).Should(Equal(int32(1)))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
-			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(BeNil())
-			Expect(fetchedSts.Spec.Template.Spec.Volumes).Should(BeNil())
+			expectedPVCSpec := corev1.PersistentVolumeClaimSpec{
+				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				StorageClassName: nil,
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("10Gi"),
+					},
+				},
+			}
+			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.AccessModes).To(Equal(expectedPVCSpec.AccessModes))
+			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.Resources).To(Equal(expectedPVCSpec.Resources))
 
 			Delete(mc)
 
@@ -158,7 +166,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
-						Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+						Persistence: &hazelcastv1alpha1.PersistenceConfiguration{
 							Enabled:                 true,
 							ExistingVolumeClaimName: "ClaimName",
 						},
@@ -214,7 +222,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		When("NodeSelector is used", func() {
 			It("should pass the values to StatefulSet spec", func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
 						"node.selector": "1",
 					},
@@ -237,8 +245,8 @@ var _ = Describe("ManagementCenter controller", func() {
 		When("Affinity is used", func() {
 			It("should pass the values to StatefulSet spec", func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
-					Affinity: corev1.Affinity{
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{
@@ -281,7 +289,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				Eventually(func() *corev1.Affinity {
 					ss := getStatefulSet(mc)
 					return ss.Spec.Template.Spec.Affinity
-				}, timeout, interval).Should(Equal(&spec.Scheduling.Affinity))
+				}, timeout, interval).Should(Equal(spec.Scheduling.Affinity))
 
 				Delete(mc)
 			})
@@ -290,7 +298,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		When("Toleration is used", func() {
 			It("should pass the values to StatefulSet spec", func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      "node.zone",

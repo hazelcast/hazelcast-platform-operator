@@ -17,7 +17,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				ClusterName:      "development",
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
@@ -33,7 +33,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
@@ -48,11 +48,11 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 					MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
@@ -68,11 +68,11 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 					MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
@@ -88,11 +88,11 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeNodePort,
 					MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortNodeName,
@@ -108,11 +108,11 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 				},
@@ -127,16 +127,17 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
-				Persistence: hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				Scheduling:       &hazelcastv1alpha1.SchedulingConfiguration{},
+				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   baseDir,
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						RequestStorage: resource.MustParse("8Gi"),
+						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					},
 				},
 			},
@@ -168,7 +169,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          "not-exists",
 				LicenseKeySecret: licenseKey(ee),

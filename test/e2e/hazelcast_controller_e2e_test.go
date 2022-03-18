@@ -353,7 +353,7 @@ var _ = Describe("Hazelcast", func() {
 			By("Creating new Hazelcast cluster from existing backup with 2 members")
 			baseDir := "/data/hot-restart/hot-backup/backup-" + seq
 			hazelcast = hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, false)
-			hazelcast.Spec.ClusterSize = 2
+			hazelcast.Spec.ClusterSize = &[]int32{2}[0]
 			hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
 			hazelcast.Spec.Persistence.AutoForceStart = true
 			create(hazelcast)

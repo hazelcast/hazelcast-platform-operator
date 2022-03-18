@@ -41,6 +41,8 @@ spec:
           metadata:
             type: object
           spec:
+            default:
+              repository: docker.io/hazelcast/hazelcast
             description: HazelcastSpec defines the desired state of Hazelcast
             properties:
               clusterName:
@@ -57,16 +59,18 @@ spec:
                 description: Configuration to expose Hazelcast cluster to external clients.
                 properties:
                   discoveryServiceType:
+                    default: LoadBalancer
                     description: Type of the service used to discover Hazelcast cluster.
                     type: string
                   memberAccess:
-                    description: 'How each member is accessed from the external client. Valid values are: - "NodePortExternalIP" (default): each member is accessed by the NodePort service and the node external IP/hostname - "NodePortNodeName": each member is accessed by the NodePort service and the node name - "LoadBalancer": each member is accessed by the LoadBalancer service external address'
+                    description: 'How each member is accessed from the external client. Only available for "Smart" client and valid values are: - "NodePortExternalIP" (default): each member is accessed by the NodePort service and the node external IP/hostname - "NodePortNodeName": each member is accessed by the NodePort service and the node name - "LoadBalancer": each member is accessed by the LoadBalancer service external address'
                     enum:
                     - NodePortExternalIP
                     - NodePortNodeName
                     - LoadBalancer
                     type: string
                   type:
+                    default: Smart
                     description: 'Specifies how members are exposed. Valid values are: - "Smart" (default): each member pod is exposed with a separate external address - "Unisocket": all member pods are exposed with one external address'
                     enum:
                     - Smart
@@ -101,8 +105,13 @@ spec:
                     description: Persistence base directory.
                     type: string
                   clusterDataRecoveryPolicy:
-                    default: FullRecovery
+                    default: FullRecoveryOnly
                     description: Configuration of the cluster recovery strategy.
+                    enum:
+                    - FullRecoveryOnly
+                    - PartialRecoveryMostRecent
+                    - PartialRecoveryMostComplete
+                    - PartialRecoveryForceStart
                     type: string
                   dataRecoveryTimeout:
                     description: 'DataRecoveryTimeout is timeout for each step of data recovery in seconds. Maximum timeout is equal to DataRecoveryTimeout*2 (for each step: validation and data-load).'
@@ -128,7 +137,6 @@ spec:
                         x-kubernetes-int-or-string: true
                       storageClassName:
                         description: Name of StorageClass which this persistent volume belongs to.
-                        nullable: true
                         type: string
                     type: object
                 required:
@@ -571,9 +579,10 @@ spec:
             description: HazelcastStatus defines the observed state of Hazelcast
             properties:
               externalAddresses:
+                description: External addresses of the Hazelcast cluster members
                 type: string
               hazelcastClusterStatus:
-                description: HazelcastClusterStatus defines the status of the Hazelcast cluster
+                description: Status of the Hazelcast cluster
                 properties:
                   readyMembers:
                     description: ReadyMembers represents the number of members that are connected to cluster from the desired number of members in the format <ready>/<desired>
@@ -582,6 +591,7 @@ spec:
                 - readyMembers
                 type: object
               members:
+                description: Status of Hazelcast members
                 items:
                   description: HazelcastMemberStatus defines the observed state of the individual Hazelcast member.
                   properties:
@@ -616,14 +626,15 @@ spec:
                   type: object
                 type: array
               message:
+                description: Message about the Hazelcast cluster state
                 type: string
               phase:
-                description: Phase represents the current state of the cluster
+                description: Phase of the Hazelcast cluster
+                enum:
+                - Running
+                - Failed
+                - Pending
                 type: string
-            required:
-            - hazelcastClusterStatus
-            - members
-            - phase
             type: object
         type: object
     served: true
@@ -673,7 +684,7 @@ spec:
                 description: HazelcastResourceName defines the name of the Hazelcast resource
                 type: string
               schedule:
-                description: "Schedule contains a crontab-like expression that defines the schedule in which HotBackup will be started. If the Schedule is empty the HotBackup will start only once when applied. Several pre-defined schedules in place of a cron expression can be used. \tEntry                  | Description                                | Equivalent To \t-----                  | -----------                                | ------------- \t@yearly (or @annually) | Run once a year, midnight, Jan. 1st        | 0 0 1 1 * \t@monthly               | Run once a month, midnight, first of month | 0 0 1 * * \t@weekly                | Run once a week, midnight between Sat/Sun  | 0 0 * * 0 \t@daily (or @midnight)  | Run once a day, midnight                   | 0 0 * * * \t@hourly                | Run once an hour, beginning of hour        | 0 * * * *"
+                description: "Schedule contains a crontab-like expression that defines the schedule in which HotBackup will be started. If the Schedule is empty the HotBackup will start only once when applied. --- Several pre-defined schedules in place of a cron expression can be used. \tEntry                  | Description                                | Equivalent To \t-----                  | -----------                                | ------------- \t@yearly (or @annually) | Run once a year, midnight, Jan. 1st        | 0 0 1 1 * \t@monthly               | Run once a month, midnight, first of month | 0 0 1 * * \t@weekly                | Run once a week, midnight between Sat/Sun  | 0 0 * * 0 \t@daily (or @midnight)  | Run once a day, midnight                   | 0 0 * * * \t@hourly                | Run once an hour, beginning of hour        | 0 * * * *"
                 type: string
             required:
             - hazelcastResourceName
@@ -734,14 +745,18 @@ spec:
           metadata:
             type: object
           spec:
+            default:
+              repository: docker.io/hazelcast/management-center
             description: ManagementCenterSpec defines the desired state of ManagementCenter.
             properties:
               externalConnectivity:
+                default:
+                  type: LoadBalancer
                 description: Configuration to expose Management Center to outside.
                 properties:
                   type:
                     default: LoadBalancer
-                    description: 'How Management Center is exposed. Valid values are: - "ClusterIP" - "NodePort" - "Loadbalancer" (default)'
+                    description: 'How Management Center is exposed. Valid values are: - "ClusterIP" - "NodePort" - "LoadBalancer" (default)'
                     enum:
                     - ClusterIP
                     - NodePort
@@ -803,7 +818,6 @@ spec:
                     x-kubernetes-int-or-string: true
                   storageClass:
                     description: StorageClass from which PersistentVolumeClaim will be created.
-                    nullable: true
                     type: string
                 type: object
               repository:
@@ -1243,14 +1257,18 @@ spec:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
             properties:
               externalAddresses:
+                description: External addresses of the Management Center instance
                 type: string
               message:
+                description: Message about the Management Center state
                 type: string
               phase:
-                description: Phase represents the current state of the cluster
+                description: Phase of the Management Center
+                enum:
+                - Running
+                - Failed
+                - Pending
                 type: string
-            required:
-            - phase
             type: object
         type: object
     served: true
@@ -1264,11 +1282,120 @@ status:
   conditions: []
   storedVersions: []
 ---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: turbines.hazelcast.com
+spec:
+  group: hazelcast.com
+  names:
+    kind: Turbine
+    listKind: TurbineList
+    plural: turbines
+    singular: turbine
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Turbine is the Schema for the turbines API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: TurbineSpec defines the desired state of Turbine
+            properties:
+              hazelcast:
+                description: Hazelcast cluster to connect
+                maxProperties: 1
+                minProperties: 1
+                properties:
+                  cluster:
+                    description: Reference to Hazelcast CR
+                    properties:
+                      name:
+                        description: Name of Hazelcast CR
+                        type: string
+                      namespace:
+                        default: default
+                        description: Namespace of Hazelcast CR
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  clusterAddress:
+                    description: Address of the Hazelcast cluster
+                    type: string
+                type: object
+              pods:
+                description: Pod configuration
+                properties:
+                  portName:
+                    description: The name of the container port that Turbine will register
+                    type: string
+                type: object
+              sidecar:
+                default:
+                  name: turbine-sidecar
+                description: Sidecar configuration
+                properties:
+                  name:
+                    default: turbine-sidecar
+                    description: Name of the Turbine sidecar container
+                    type: string
+                  repository:
+                    default: hazelcast/turbine-sidecar
+                    description: Repository of the image used for Turbine sidecar container
+                    type: string
+                  version:
+                    default: latest
+                    description: Version of the image used for Turbine sidecar container
+                    type: string
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: hazelcast-platform-controller-manager
   namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hazelcast-platform-certificate-manager-role
+  namespace: default
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+  - watch
+  - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -1421,6 +1548,24 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  name: hazelcast-platform-certificate-manager-cluster-role
+  namespace: system
+rules:
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+  - watch
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
   creationTimestamp: null
   name: hazelcast-platform-manager-role
 rules:
@@ -1455,6 +1600,34 @@ rules:
   - use
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hazelcast-platform-turbine-viewer-role
+rules:
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - turbines
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hazelcast-platform-certificate-manager-rolebinding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hazelcast-platform-certificate-manager-role
+subjects:
+- kind: ServiceAccount
+  name: hazelcast-platform-controller-manager
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: hazelcast-platform-manager-rolebinding
@@ -1463,6 +1636,19 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: hazelcast-platform-manager-role
+subjects:
+- kind: ServiceAccount
+  name: hazelcast-platform-controller-manager
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hazelcast-platform-certificate-manager-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hazelcast-platform-certificate-manager-cluster-role
 subjects:
 - kind: ServiceAccount
   name: hazelcast-platform-controller-manager
@@ -1480,6 +1666,42 @@ subjects:
 - kind: ServiceAccount
   name: hazelcast-platform-controller-manager
   namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hazelcast-platform-manager-turbine-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hazelcast-platform-turbine-viewer-role
+subjects:
+- kind: ServiceAccount
+  name: hazelcast-platform-controller-manager
+  namespace: default
+---
+apiVersion: v1
+data:
+  tls.crt: ""
+  tls.key: ""
+kind: Secret
+metadata:
+  name: hazelcast-platform-webhook-server-cert
+  namespace: default
+type: kubernetes.io/tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hazelcast-platform-webhook-service
+  namespace: default
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    control-plane: controller-manager
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -1525,6 +1747,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz
@@ -1540,7 +1766,51 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
       securityContext:
         runAsNonRoot: true
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          optional: true
+          secretName: hazelcast-platform-webhook-server-cert
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: hazelcast-platform-mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /inject-turbine
+  failurePolicy: Fail
+  name: inject-turbine.hazelcast.com
+  objectSelector:
+    matchExpressions:
+    - key: turbine.hazelcast.com/name
+      operator: Exists
+    - key: turbine.hazelcast.com/injected
+      operator: NotIn
+      values:
+      - "true"
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - pods
+  sideEffects: None

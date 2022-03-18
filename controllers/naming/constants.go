@@ -57,9 +57,9 @@ const (
 	// DefaultClusterName default name of Hazelcast cluster
 	DefaultClusterName = "dev"
 	// HazelcastRepo image repository for Hazelcast
-	HazelcastRepo = "hazelcast/hazelcast"
+	HazelcastRepo = "docker.io/hazelcast/hazelcast"
 	// HazelcastEERepo image repository for Hazelcast EE
-	HazelcastEERepo = "hazelcast/hazelcast-enterprise"
+	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
 	HazelcastVersion = "5.1"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
@@ -69,7 +69,7 @@ const (
 // Management Center default configurations
 const (
 	// MCRepo image repository for Management Center
-	MCRepo = "hazelcast/management-center"
+	MCRepo = "docker.io/hazelcast/management-center"
 	// MCVersion version of Management Center image
 	MCVersion = "5.1.1"
 	// MCImagePullPolicy pull policy for Management Center image
@@ -83,4 +83,19 @@ const (
 	OperatorVersionEnv  = "OPERATOR_VERSION"
 	NamespaceEnv        = "NAMESPACE"
 	PodNameEnv          = "POD_NAME"
+)
+
+// Certificate and webhook related constants
+const (
+	// CertificateSecret is the name of the secret which contains
+	// the key and certificate. It will be mounted to the controller.
+	// Make sure it is sync with the name in the configuration YAMLs.
+	CertificateSecret = "webhook-server-cert"
+
+	// WebhookService is the name of the service which points to the controller's
+	// webhook handler.
+	WebhookService = "webhook-service"
+
+	// WebhookConfigurationName is the name of the webhook configuration.
+	WebhookConfiguration = "mutating-webhook-configuration"
 )

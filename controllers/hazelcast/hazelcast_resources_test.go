@@ -4,103 +4,12 @@ import (
 	"context"
 	"testing"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
-
-func Test_mergeHazelcastSpecs(t *testing.T) {
-	tests := []struct {
-		name   string
-		target hazelcastv1alpha1.HazelcastSpec
-		want   hazelcastv1alpha1.HazelcastSpec
-	}{
-		{
-			name:   "Empty hazelcast repository",
-			target: hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, ClusterSize: n.DefaultClusterSize, Version: n.HazelcastVersion, LicenseKeySecret: n.LicenseKeySecret, ImagePullPolicy: n.HazelcastImagePullPolicy},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion, LicenseKeySecret: n.LicenseKeySecret, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Empty hazelcast version",
-			target: hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, LicenseKeySecret: n.LicenseKeySecret, ImagePullPolicy: n.HazelcastImagePullPolicy},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, LicenseKeySecret: n.LicenseKeySecret, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Empty license key secret",
-			target: hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Empty cluster size",
-			target: hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, LicenseKeySecret: n.LicenseKeySecret, Repository: n.HazelcastRepo, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, LicenseKeySecret: n.LicenseKeySecret, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Empty image pull policy",
-			target: hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, LicenseKeySecret: n.LicenseKeySecret, Repository: n.HazelcastRepo, Version: n.HazelcastVersion},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, LicenseKeySecret: n.LicenseKeySecret, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Empty Cluster name",
-			target: hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: n.LicenseKeySecret, Repository: n.HazelcastRepo, Version: n.HazelcastVersion},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, LicenseKeySecret: n.LicenseKeySecret, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Non empty hazelcast repository",
-			target: hazelcastv1alpha1.HazelcastSpec{Repository: "myorg/hazelcast"},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, Repository: "myorg/hazelcast", ClusterSize: n.DefaultClusterSize, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Non empty hazelcast version",
-			target: hazelcastv1alpha1.HazelcastSpec{Version: "4.2"},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, Version: "4.2", ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Non empty license key secret",
-			target: hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: "license-key-secret"},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, LicenseKeySecret: "license-key-secret", ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Non empty cluster size",
-			target: hazelcastv1alpha1.HazelcastSpec{ClusterSize: 5},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, ClusterSize: 5, Repository: n.HazelcastRepo, Version: n.HazelcastVersion, ImagePullPolicy: n.HazelcastImagePullPolicy},
-		},
-		{
-			name:   "Non empty Image Pull Policy",
-			target: hazelcastv1alpha1.HazelcastSpec{ImagePullPolicy: corev1.PullAlways},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: n.DefaultClusterName, ImagePullPolicy: corev1.PullAlways, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion},
-		},
-		{
-			name:   "Non empty Cluster name",
-			target: hazelcastv1alpha1.HazelcastSpec{ClusterName: "MyCluster"},
-			want:   hazelcastv1alpha1.HazelcastSpec{ClusterName: "MyCluster", ImagePullPolicy: n.HazelcastImagePullPolicy, ClusterSize: n.DefaultClusterSize, Repository: n.HazelcastRepo, Version: n.HazelcastVersion},
-		},
-	}
-	h := &hazelcastv1alpha1.Hazelcast{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "hazelcast",
-			Namespace: "default",
-		},
-	}
-	r := reconcilerWithCR(h)
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h.Spec = tt.target
-			err := r.applyDefaultHazelcastSpecs(context.Background(), h)
-			if err != nil {
-				t.Errorf("Unexpected error have occured: %v", err)
-			}
-			if !equality.Semantic.DeepEqual(h.Spec, tt.want) {
-				t.Errorf("HazelcastSpec = %v, want %v", tt.target, tt.want)
-			}
-		})
-	}
-}
 
 func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
 	h := &hazelcastv1alpha1.Hazelcast{
