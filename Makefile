@@ -364,4 +364,5 @@ api-ref-doc:
 	@go build -o bin/docgen  ./apidocgen/main.go 
 	@./bin/docgen ./api/v1alpha1/hazelcast_types.go \
 				  ./api/v1alpha1/managementcenter_types.go \
-				  ./api/v1alpha1/hotbackup_types.go
+				  ./api/v1alpha1/hotbackup_types.go \
+				  ./api/v1alpha1/turbine_types.go
