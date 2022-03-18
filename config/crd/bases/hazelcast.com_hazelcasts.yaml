@@ -123,6 +123,12 @@ spec:
                     default: FullRecovery
                     description: Configuration of the cluster recovery strategy.
                     type: string
+                  dataRecoveryTimeout:
+                    description: 'DataRecoveryTimeout is timeout for each step of
+                      data recovery in seconds. Maximum timeout is equal to DataRecoveryTimeout*2
+                      (for each step: validation and data-load).'
+                    format: int32
+                    type: integer
                   hostPath:
                     description: Host Path directory.
                     type: string

@@ -11,11 +11,17 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
+const localUrl = "127.0.0.1:8000"
+
 func buildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	config := hazelcast.Config{}
 	cc := &config.Cluster
 	cc.Name = h.Spec.ClusterName
-	cc.Network.SetAddresses("127.0.0.1:8000")
+	cc.Network.SetAddresses(localUrl)
 	cc.Unisocket = true
 	return config
+}
+
+func restUrl(_ *hazelcastv1alpha1.Hazelcast) string {
+	return localUrl
 }

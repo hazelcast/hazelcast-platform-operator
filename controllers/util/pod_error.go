@@ -20,7 +20,6 @@ func NewPodError(pod *corev1.Pod) *PodError {
 		Name:      pod.Name,
 		Namespace: pod.Namespace,
 		Message:   pod.Status.Message,
-		Reason:    pod.Status.Reason,
 		PodIp:     pod.Status.PodIP,
 	}
 }
@@ -28,6 +27,7 @@ func NewPodError(pod *corev1.Pod) *PodError {
 func NewPodErrorWithContainerStatus(pod *corev1.Pod, status corev1.ContainerStatus) *PodError {
 	err := NewPodError(pod)
 	err.RestartCount = status.RestartCount
+	err.Reason = status.State.Waiting.Reason
 	return err
 }
 

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
 // Section contains the REST API endpoints.
@@ -43,7 +42,7 @@ type stateResponse struct {
 
 func NewRestClient(h *v1alpha1.Hazelcast) *RestClient {
 	return &RestClient{
-		url:         fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort),
+		url:         restUrl(h),
 		clusterName: h.Spec.ClusterName,
 	}
 }
