@@ -49,6 +49,19 @@ jobs:
         with:
           path: operator-repo
 
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
       - name: Update versions
         run: |
           sed -i "0,/version: 'latest-snapshot'/s//version: '${MAJOR_MINOR_VERSION}'/" docs/antora.yml
