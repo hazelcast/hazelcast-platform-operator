@@ -41,18 +41,18 @@ jobs:
           echo "::set-output name=RELEASE_VERSION::${RELEASE_VERSION}"
 
       - name: Generate Operator and Operator Image
-        id: set-digest
         run: |
           echo "Building the operator image"
           make docker-build IMG=${RHEL_IMAGE} VERSION="${RELEASE_VERSION}" PARDOT_ID="redhat"
 
-          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $RHEL_IMAGE | cut -d'@' -f2)
-          echo "::set-output name=DIGEST::${DIGEST}"
-
       - name: Push Hazelcast-Platform-Operator image to RHEL scan registry
+        id: set-digest
         run: |
           docker login ${SCAN_REGISTRY} -u unused -p ${RHEL_REPO_PASSWORD}
           make docker-push IMG=${RHEL_IMAGE}
+
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $RHEL_IMAGE | cut -d'@' -f2)
+          echo "::set-output name=DIGEST::${DIGEST}"
 
       - name: Wait for Scan to Complete
         run: |
