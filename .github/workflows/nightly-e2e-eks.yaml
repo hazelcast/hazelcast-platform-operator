@@ -130,7 +130,6 @@ jobs:
   clean-up:
     name: Delete EKS cluster
     runs-on: ubuntu-20.04
-    if: ${{ always() }}
     needs: [ "prepare-env", "eks-e2e-tests" ]
     steps:
       - name: Configure AWS Credentials

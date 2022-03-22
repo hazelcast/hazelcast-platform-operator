@@ -136,7 +136,6 @@ jobs:
   delete-cluster:
     name: Run E2E tests
     runs-on: ubuntu-20.04
-    if: always()
     needs: [ create-gke-cluster, gke-e2e-tests ]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}

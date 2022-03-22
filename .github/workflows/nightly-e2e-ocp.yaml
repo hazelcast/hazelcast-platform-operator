@@ -73,6 +73,5 @@ jobs:
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
-        if: always()
         run: |
           make clean-up-namespace KUBECTL=oc NAMESPACE=${NAMESPACE}
