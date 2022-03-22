@@ -19,3 +19,7 @@ func buildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	cc.Network.SetAddresses(fmt.Sprintf("%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort))
 	return config
 }
+
+func restUrl(h *hazelcastv1alpha1.Hazelcast) string {
+	return fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort)
+}

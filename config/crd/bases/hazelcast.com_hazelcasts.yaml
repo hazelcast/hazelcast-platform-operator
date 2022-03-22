@@ -47,6 +47,8 @@ spec:
           metadata:
             type: object
           spec:
+            default:
+              repository: docker.io/hazelcast/hazelcast
             description: HazelcastSpec defines the desired state of Hazelcast
             properties:
               clusterName:
@@ -64,21 +66,24 @@ spec:
                   clients.
                 properties:
                   discoveryServiceType:
+                    default: LoadBalancer
                     description: Type of the service used to discover Hazelcast cluster.
                     type: string
                   memberAccess:
                     description: 'How each member is accessed from the external client.
-                      Valid values are: - "NodePortExternalIP" (default): each member
-                      is accessed by the NodePort service and the node external IP/hostname
-                      - "NodePortNodeName": each member is accessed by the NodePort
-                      service and the node name - "LoadBalancer": each member is accessed
-                      by the LoadBalancer service external address'
+                      Only available for "Smart" client and valid values are: - "NodePortExternalIP"
+                      (default): each member is accessed by the NodePort service and
+                      the node external IP/hostname - "NodePortNodeName": each member
+                      is accessed by the NodePort service and the node name - "LoadBalancer":
+                      each member is accessed by the LoadBalancer service external
+                      address'
                     enum:
                     - NodePortExternalIP
                     - NodePortNodeName
                     - LoadBalancer
                     type: string
                   type:
+                    default: Smart
                     description: 'Specifies how members are exposed. Valid values
                       are: - "Smart" (default): each member pod is exposed with a
                       separate external address - "Unisocket": all member pods are
@@ -111,13 +116,29 @@ spec:
               persistence:
                 description: Persistence configuration
                 properties:
+                  autoForceStart:
+                    default: false
+                    description: AutoForceStart enables the detection of constantly
+                      failing cluster and trigger the Force Start action.
+                    type: boolean
                   baseDir:
                     description: Persistence base directory.
                     type: string
                   clusterDataRecoveryPolicy:
-                    default: FullRecovery
+                    default: FullRecoveryOnly
                     description: Configuration of the cluster recovery strategy.
+                    enum:
+                    - FullRecoveryOnly
+                    - PartialRecoveryMostRecent
+                    - PartialRecoveryMostComplete
+                    - PartialRecoveryForceStart
                     type: string
+                  dataRecoveryTimeout:
+                    description: 'DataRecoveryTimeout is timeout for each step of
+                      data recovery in seconds. Maximum timeout is equal to DataRecoveryTimeout*2
+                      (for each step: validation and data-load).'
+                    format: int32
+                    type: integer
                   hostPath:
                     description: Host Path directory.
                     type: string
@@ -140,7 +161,6 @@ spec:
                       storageClassName:
                         description: Name of StorageClass which this persistent volume
                           belongs to.
-                        nullable: true
                         type: string
                     type: object
                 required:
@@ -929,10 +949,10 @@ spec:
             description: HazelcastStatus defines the observed state of Hazelcast
             properties:
               externalAddresses:
+                description: External addresses of the Hazelcast cluster members
                 type: string
               hazelcastClusterStatus:
-                description: HazelcastClusterStatus defines the status of the Hazelcast
-                  cluster
+                description: Status of the Hazelcast cluster
                 properties:
                   readyMembers:
                     description: ReadyMembers represents the number of members that
@@ -943,6 +963,7 @@ spec:
                 - readyMembers
                 type: object
               members:
+                description: Status of Hazelcast members
                 items:
                   description: HazelcastMemberStatus defines the observed state of
                     the individual Hazelcast member.
@@ -966,6 +987,11 @@ spec:
                       description: Reason contains the optional reason of member crash
                         or restart.
                       type: string
+                    restartCount:
+                      description: RestartCount is the number of times the member
+                        has been restarted.
+                      format: int32
+                      type: integer
                     uid:
                       description: Uid is the unique member identifier within the
                         cluster.
@@ -976,17 +1002,19 @@ spec:
                       type: string
                   required:
                   - connected
+                  - restartCount
                   type: object
                 type: array
               message:
+                description: Message about the Hazelcast cluster state
                 type: string
               phase:
-                description: Phase represents the current state of the cluster
+                description: Phase of the Hazelcast cluster
+                enum:
+                - Running
+                - Failed
+                - Pending
                 type: string
-            required:
-            - hazelcastClusterStatus
-            - members
-            - phase
             type: object
         type: object
     served: true

@@ -6,10 +6,9 @@ import (
 	"time"
 
 	"github.com/robfig/cron/v3"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	. "github.com/onsi/gomega"
-
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -102,6 +101,10 @@ func fail(t *testing.T) func(message string, callerSkip ...int) {
 	}
 }
 
-func hotBackupReconcilerWithCRs(h *hazelcastv1alpha1.Hazelcast, hb *hazelcastv1alpha1.HotBackup) *HotBackupReconciler {
-	return NewHotBackupReconciler(fakeClient(h, hb), ctrl.Log.WithName("test").WithName("Hazelcast"))
+func hotBackupReconcilerWithCRs(h *hazelcastv1alpha1.Hazelcast, hb *hazelcastv1alpha1.HotBackup) HotBackupReconciler {
+	return HotBackupReconciler{
+		Client: fakeClient(h, hb),
+		Log:    ctrl.Log.WithName("test").WithName("Hazelcast"),
+		cron:   cron.New(),
+	}
 }

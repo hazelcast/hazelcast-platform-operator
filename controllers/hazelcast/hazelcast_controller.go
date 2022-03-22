@@ -83,7 +83,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Add finalizer for Hazelcast CR to cleanup ClusterRole
 	err = r.addFinalizer(ctx, h, logger)
 	if err != nil {
-		logger.Error(err, "Failed to add finalizer into custom resource")
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
@@ -95,14 +94,8 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			logger.Error(err, "Finalizer execution failed")
 			return update(ctx, r.Client, h, failedPhase(err))
 		}
-		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
-	}
-
-	err = r.applyDefaultHazelcastSpecs(ctx, h)
-	if err != nil {
-		logger.Error(err, "Failed to apply default specs")
-		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
 	if util.IsPhoneHomeEnabled() {
@@ -167,7 +160,13 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return update(ctx, r.Client, h, failedPhase(err))
 		}
 	}
-	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, h.Spec.ClusterSize); !ok {
+
+	if err = r.checkHotRestart(ctx, h, logger); err != nil {
+		logger.Error(err, "Cluster HotRestart did not finish successfully")
+		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+	}
+
+	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, *h.Spec.ClusterSize); !ok {
 		if err == nil {
 			return update(ctx, r.Client, h, pendingPhase(retryAfter))
 		} else {
@@ -215,10 +214,6 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
 	p, ok := pod.(*corev1.Pod)
 	if !ok {
-		return []reconcile.Request{}
-	}
-
-	if p.Status.Phase == corev1.PodRunning {
 		return []reconcile.Request{}
 	}
 

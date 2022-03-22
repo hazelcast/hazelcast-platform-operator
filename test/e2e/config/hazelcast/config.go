@@ -17,7 +17,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				ClusterName:      "development",
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
@@ -33,7 +33,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
@@ -48,11 +48,11 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 					MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
@@ -68,11 +68,11 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 					MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
@@ -88,11 +88,11 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeNodePort,
 					MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortNodeName,
@@ -108,11 +108,11 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 				},
@@ -120,32 +120,63 @@ var (
 		}
 	}
 
-	PersistenceEnabled = func(ns string, baseDir string, useHostPath bool) *hazelcastv1alpha1.Hazelcast {
+	PersistenceEnabled = func(ns, baseDir string, params ...interface{}) *hazelcastv1alpha1.Hazelcast {
+		var hostPath, nodeName string
+		var hok, nok bool
+		if len(params) > 0 {
+			hostPath, hok = params[0].(string)
+		}
+		if len(params) > 1 {
+			nodeName, nok = params[1].(string)
+		}
 		hz := &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "hazelcast",
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
-				Persistence: hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   baseDir,
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						RequestStorage: resource.MustParse("8Gi"),
+						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					},
 				},
 			},
 		}
 
-		if useHostPath {
-			hz.Spec.Persistence.HostPath = "/tmp/hazelcast"
+		if hok {
+			hz.Spec.Persistence.HostPath = hostPath
+			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+					{
+						MaxSkew:           int32(1),
+						TopologyKey:       "kubernetes.io/hostname",
+						WhenUnsatisfiable: corev1.DoNotSchedule,
+						LabelSelector: &v1.LabelSelector{
+							MatchLabels: map[string]string{
+								naming.ApplicationNameLabel:         naming.Hazelcast,
+								naming.ApplicationInstanceNameLabel: "hazelcast",
+								naming.ApplicationManagedByLabel:    naming.OperatorName,
+							},
+						},
+					},
+				},
+			}
 		}
 
+		if nok {
+			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				NodeSelector: map[string]string{
+					"kubernetes.io/hostname": nodeName,
+				},
+			}
+		}
 		return hz
 	}
 
@@ -168,7 +199,7 @@ var (
 				Namespace: ns,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      3,
+				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          "not-exists",
 				LicenseKeySecret: licenseKey(ee),

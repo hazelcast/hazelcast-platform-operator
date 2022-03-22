@@ -59,18 +59,37 @@ func (o optionsBuilder) withExternalAddresses(addrs string) optionsBuilder {
 	return o
 }
 
-func statusMembers(m map[string]cluster.MemberInfo) []hazelcastv1alpha1.HazelcastMemberStatus {
+func statusMembers(
+	m map[string]cluster.MemberInfo) []hazelcastv1alpha1.HazelcastMemberStatus {
 	members := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(m))
 	for uid, member := range m {
 		a := member.Address.String()
+		ip := a[:strings.IndexByte(a, ':')]
 		members = append(members, hazelcastv1alpha1.HazelcastMemberStatus{
 			Uid:     uid,
-			Ip:      a[:strings.IndexByte(a, ':')],
+			Ip:      ip,
 			Version: fmt.Sprintf("%d.%d.%d", member.Version.Major, member.Version.Minor, member.Version.Patch),
 			Ready:   true,
 		})
 	}
 	return members
+}
+
+func addExistingMembers(statusMembers, existingMembers []hazelcastv1alpha1.HazelcastMemberStatus) []hazelcastv1alpha1.HazelcastMemberStatus {
+	res := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(statusMembers))
+	copy(res, statusMembers)
+	for _, em := range existingMembers {
+		exist := false
+		for _, sm := range statusMembers {
+			if em.Ip == sm.Ip {
+				exist = true
+			}
+		}
+		if !exist {
+			res = append(res, em)
+		}
+	}
+	return res
 }
 
 func updateFailedMember(h *hazelcastv1alpha1.Hazelcast, err *util.PodError) {
@@ -80,25 +99,27 @@ func updateFailedMember(h *hazelcastv1alpha1.Hazelcast, err *util.PodError) {
 			m.Ready = false
 			m.Message = err.Message
 			m.Reason = err.Reason
+			m.RestartCount = err.RestartCount
 			return
 		}
 	}
 	h.Status.Members = append(h.Status.Members, hazelcastv1alpha1.HazelcastMemberStatus{
-		PodName: err.Name,
-		Ip:      err.PodIp,
-		Ready:   false,
-		Message: err.Message,
-		Reason:  err.Reason,
+		PodName:      err.Name,
+		Ip:           err.PodIp,
+		Ready:        false,
+		Message:      err.Message,
+		Reason:       err.Reason,
+		RestartCount: err.RestartCount,
 	})
 }
 
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
 func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status.Phase = options.phase
-	h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), h.Spec.ClusterSize)
+	h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
 	h.Status.Message = options.message
 	h.Status.ExternalAddresses = options.externalAddresses
-	h.Status.Members = statusMembers(options.readyMembers)
+	h.Status.Members = addExistingMembers(statusMembers(options.readyMembers), h.Status.Members)
 	if options.err != nil {
 		if pErr, isPodErr := util.AsPodErrors(options.err); isPodErr {
 			for _, podError := range pErr {

@@ -10,7 +10,7 @@ type TurbineSpec struct {
 	// +kubebuilder:default:={"name" : "turbine-sidecar"}
 	Sidecar *SidecarConfiguration `json:"sidecar,omitempty"`
 
-	// Hazelcast cluster to connect
+	// Hazelcast cluster to connect. If present, only one of "clusterAddress" or "cluster" must be defined.
 	Hazelcast *HazelcastReference `json:"hazelcast,omitempty"`
 
 	// Pod configuration

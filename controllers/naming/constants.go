@@ -57,9 +57,9 @@ const (
 	// DefaultClusterName default name of Hazelcast cluster
 	DefaultClusterName = "dev"
 	// HazelcastRepo image repository for Hazelcast
-	HazelcastRepo = "hazelcast/hazelcast"
+	HazelcastRepo = "docker.io/hazelcast/hazelcast"
 	// HazelcastEERepo image repository for Hazelcast EE
-	HazelcastEERepo = "hazelcast/hazelcast-enterprise"
+	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
 	HazelcastVersion = "5.1"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
@@ -69,7 +69,7 @@ const (
 // Management Center default configurations
 const (
 	// MCRepo image repository for Management Center
-	MCRepo = "hazelcast/management-center"
+	MCRepo = "docker.io/hazelcast/management-center"
 	// MCVersion version of Management Center image
 	MCVersion = "5.1.1"
 	// MCImagePullPolicy pull policy for Management Center image

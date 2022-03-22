@@ -40,6 +40,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Build Image
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          IMG=ttl.sh/$(uuidgen):1h
+          echo "IMG=${IMG}" >> $GITHUB_ENV
+
+          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+          make docker-push IMG=$IMG
+
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify

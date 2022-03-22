@@ -30,7 +30,7 @@ const (
 )
 
 func (r *ManagementCenterReconciler) addFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
+	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) && mc.GetDeletionTimestamp() == nil {
 		controllerutil.AddFinalizer(mc, n.Finalizer)
 		err := r.Update(ctx, mc)
 		if err != nil {
@@ -43,6 +43,10 @@ func (r *ManagementCenterReconciler) addFinalizer(ctx context.Context, mc *hazel
 }
 
 func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
+		return nil
+	}
+
 	controllerutil.RemoveFinalizer(mc, n.Finalizer)
 	err := r.Update(ctx, mc)
 	if err != nil {
@@ -219,9 +223,6 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 					Labels: ls,
 				},
 				Spec: v1.PodSpec{
-					Affinity:     &mc.Spec.Scheduling.Affinity,
-					Tolerations:  mc.Spec.Scheduling.Tolerations,
-					NodeSelector: mc.Spec.Scheduling.NodeSelector,
 					Containers: []v1.Container{{
 						Name: n.ManagementCenter,
 						Ports: []v1.ContainerPort{{
@@ -275,6 +276,12 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		},
 	}
 
+	if mc.Spec.Scheduling != nil {
+		sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
+		sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
+		sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
+	}
+
 	if platform.GetType() == platform.OpenShift {
 		sts.Spec.Template.Spec.ServiceAccountName = mc.Name
 	}
@@ -326,7 +333,7 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 			StorageClassName: mc.Spec.Persistence.StorageClass,
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: mc.Spec.Persistence.Size,
+					corev1.ResourceStorage: *mc.Spec.Persistence.Size,
 				},
 			},
 		},
@@ -385,24 +392,4 @@ func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
 		strs[i] = fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data -cn %s -ma %s", cluster.Name, cluster.Address)
 	}
 	return strings.Join(strs, " && ")
-}
-
-func (r *ManagementCenterReconciler) applyDefaultMCSpecs(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter) error {
-	changed := false
-	if mc.Spec.Repository == "" {
-		mc.Spec.Repository = n.MCRepo
-		changed = true
-	}
-	if mc.Spec.Version == "" {
-		mc.Spec.Version = n.MCVersion
-		changed = true
-	}
-	if mc.Spec.ImagePullPolicy == "" {
-		mc.Spec.ImagePullPolicy = n.MCImagePullPolicy
-		changed = true
-	}
-	if !changed {
-		return nil
-	}
-	return r.Update(ctx, mc)
 }

@@ -13,17 +13,17 @@ type ManagementCenterSpec struct {
 	// Repository to pull the Management Center image from.
 	// +kubebuilder:default:="docker.io/hazelcast/management-center"
 	// +optional
-	Repository string `json:"repository"`
+	Repository string `json:"repository,omitempty"`
 
 	// Version of Management Center.
 	// +kubebuilder:default:="5.1.1"
 	// +optional
-	Version string `json:"version"`
+	Version string `json:"version,omitempty"`
 
 	// Pull policy for the Management Center image
 	// +kubebuilder:default:="IfNotPresent"
 	// +optional
-	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
 	// Image pull secrets for the Management Center image
 	// +optional
@@ -31,7 +31,7 @@ type ManagementCenterSpec struct {
 
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
-	LicenseKeySecret string `json:"licenseKeySecret"`
+	LicenseKeySecret string `json:"licenseKeySecret,omitempty"`
 
 	// Connection configuration for the Hazelcast clusters that Management Center will monitor.
 	// +optional
@@ -39,23 +39,24 @@ type ManagementCenterSpec struct {
 
 	// Configuration to expose Management Center to outside.
 	// +optional
-	ExternalConnectivity ExternalConnectivityConfiguration `json:"externalConnectivity"`
+	// +kubebuilder:default:={type: "LoadBalancer"}
+	ExternalConnectivity *ExternalConnectivityConfiguration `json:"externalConnectivity,omitempty"`
 
 	// Configuration for Management Center persistence.
 	// +optional
 	// +kubebuilder:default:={enabled: true, size: "10Gi"}
-	Persistence PersistenceConfiguration `json:"persistence,omitempty"`
+	Persistence *PersistenceConfiguration `json:"persistence,omitempty"`
 
 	// Scheduling details
 	// +optional
-	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
+	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
 }
 
 type HazelcastClusterConfig struct {
 	// Name of the Hazelcast cluster that Management Center will connect to, default is dev.
 	// +optional
 	// +kubebuilder:default:="dev"
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// IP address or DNS name of the Hazelcast cluster.
 	// If the cluster is exposed with a service name in a different namespace, use the following syntax "<service-name>.<service-namespace>".
 	Address string `json:"address"`
@@ -67,7 +68,7 @@ type ExternalConnectivityConfiguration struct {
 	// Valid values are:
 	// - "ClusterIP"
 	// - "NodePort"
-	// - "Loadbalancer" (default)
+	// - "LoadBalancer" (default)
 	// +optional
 	// +kubebuilder:default:="LoadBalancer"
 	Type ExternalConnectivityType `json:"type,omitempty"`
@@ -101,19 +102,26 @@ type PersistenceConfiguration struct {
 
 	// StorageClass from which PersistentVolumeClaim will be created.
 	// +optional
-	// +nullable
-	StorageClass *string `json:"storageClass"`
+	StorageClass *string `json:"storageClass,omitempty"`
 
 	// Size of the created PersistentVolumeClaim.
 	// +optional
 	// +kubebuilder:default:="10Gi"
-	Size resource.Quantity `json:"size"`
+	Size *resource.Quantity `json:"size,omitempty"`
 }
 
 // ManagementCenterStatus defines the observed state of ManagementCenter.
 type ManagementCenterStatus struct {
-	Phase             Phase  `json:"phase"`
-	Message           string `json:"message,omitempty"`
+	// Phase of the Management Center
+	// +optional
+	Phase Phase `json:"phase,omitempty"`
+
+	// Message about the Management Center state
+	// +optional
+	Message string `json:"message,omitempty"`
+
+	// External addresses of the Management Center instance
+	// +optional
 	ExternalAddresses string `json:"externalAddresses,omitempty"`
 }
 
@@ -128,7 +136,10 @@ type ManagementCenter struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ManagementCenterSpec   `json:"spec,omitempty"`
+	// +optional
+	// +kubebuilder:default:={"repository" : "docker.io/hazelcast/management-center"}
+	Spec ManagementCenterSpec `json:"spec,omitempty"`
+	// +optional
 	Status ManagementCenterStatus `json:"status,omitempty"`
 }
 
@@ -150,8 +161,12 @@ func init() {
 }
 
 // Returns service type that is used by Management Center (LoadBalancer by default).
-func (c *ExternalConnectivityConfiguration) ManagementCenterServiceType() corev1.ServiceType {
-	switch c.Type {
+func (ec *ExternalConnectivityConfiguration) ManagementCenterServiceType() corev1.ServiceType {
+	if ec == nil {
+		return corev1.ServiceTypeClusterIP
+	}
+
+	switch ec.Type {
 	case ExternalConnectivityTypeClusterIP:
 		return corev1.ServiceTypeClusterIP
 	case ExternalConnectivityTypeNodePort:
@@ -163,12 +178,12 @@ func (c *ExternalConnectivityConfiguration) ManagementCenterServiceType() corev1
 
 // IsEnabled returns true if external connectivity is enabled.
 func (ec *ExternalConnectivityConfiguration) IsEnabled() bool {
-	return *ec != ExternalConnectivityConfiguration{}
+	return ec != nil && *ec != ExternalConnectivityConfiguration{}
 }
 
 // Returns true if persistence configuration is specified.
-func (c *PersistenceConfiguration) IsEnabled() bool {
-	return c.Enabled
+func (pc *PersistenceConfiguration) IsEnabled() bool {
+	return pc != nil && pc.Enabled
 }
 
 func (mc *ManagementCenter) ExternalAddressEnabled() bool {

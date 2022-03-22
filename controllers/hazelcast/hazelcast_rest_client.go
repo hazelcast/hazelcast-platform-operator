@@ -1,20 +1,23 @@
 package hazelcast
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
 // Section contains the REST API endpoints.
 const (
 	changeState = "/hazelcast/rest/management/cluster/changeState"
+	getState    = "/hazelcast/rest/management/cluster/state"
+	forceStart  = "/hazelcast/rest/management/cluster/forceStart"
 	hotBackup   = "/hazelcast/rest/management/cluster/hotBackup"
 )
 
@@ -31,22 +34,24 @@ const (
 type RestClient struct {
 	url         string
 	clusterName string
-	httpClient  *http.Client
+}
+
+type stateResponse struct {
+	State string `json:"state"`
 }
 
 func NewRestClient(h *v1alpha1.Hazelcast) *RestClient {
 	return &RestClient{
-		url:         fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort),
+		url:         restUrl(h),
 		clusterName: h.Spec.ClusterName,
-		httpClient: &http.Client{
-			Timeout: time.Minute,
-		},
 	}
 }
 
-func (c *RestClient) ChangeState(state ClusterState) error {
-	d := fmt.Sprintf("%s&&%s", c.clusterName, state)
-	req, err := postRequest(d, c.url, changeState)
+func (c *RestClient) ForceStart(ctx context.Context) error {
+	d := fmt.Sprintf("%s&", c.clusterName)
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := postRequest(ctxT, d, c.url, forceStart)
 	if err != nil {
 		return err
 	}
@@ -54,6 +59,57 @@ func (c *RestClient) ChangeState(state ClusterState) error {
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
+	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusBadRequest {
+		buf := new(strings.Builder)
+		_, _ = io.Copy(buf, res.Body)
+		return fmt.Errorf("unexpected HTTP error: %s, %s", res.Status, buf.String())
+	}
+	return nil
+}
+
+func (c *RestClient) GetState(ctx context.Context) (string, error) {
+	d := fmt.Sprintf("%s&", c.clusterName)
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := postRequest(ctxT, d, c.url, getState)
+	if err != nil {
+		return "", err
+	}
+	res, err := c.executeRequest(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code when checking for Cluster state: %d, %s",
+			res.StatusCode, res.Status)
+	}
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	s := &stateResponse{}
+	err = json.Unmarshal(b, s)
+	if err != nil {
+		return "", err
+	}
+	return s.State, nil
+}
+
+func (c *RestClient) ChangeState(ctx context.Context, state ClusterState) error {
+	d := fmt.Sprintf("%s&&%s", c.clusterName, state)
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := postRequest(ctxT, d, c.url, changeState)
+	if err != nil {
+		return err
+	}
+	res, err := c.executeRequest(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
 	var rBody map[string]string
 	err = json.NewDecoder(res.Body).Decode(&rBody)
 	if err != nil {
@@ -65,18 +121,24 @@ func (c *RestClient) ChangeState(state ClusterState) error {
 	return nil
 }
 
-func (c *RestClient) HotBackup() error {
+func (c *RestClient) HotBackup(ctx context.Context) error {
 	d := fmt.Sprintf("%s&", c.clusterName)
-	req, err := postRequest(d, c.url, hotBackup)
+	ctxT, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	req, err := postRequest(ctxT, d, c.url, hotBackup)
 	if err != nil {
 		return err
 	}
-	_, err = c.executeRequest(req)
-	return err
+	res, err := c.executeRequest(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	return nil
 }
 
 func (c *RestClient) executeRequest(req *http.Request) (*http.Response, error) {
-	res, err := c.httpClient.Do(req)
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return res, err
 	}
@@ -88,8 +150,8 @@ func (c *RestClient) executeRequest(req *http.Request) (*http.Response, error) {
 	return res, nil
 }
 
-func postRequest(data string, url string, endpoint string) (*http.Request, error) {
-	req, err := http.NewRequest("POST", url+endpoint, strings.NewReader(data))
+func postRequest(ctx context.Context, data string, url string, endpoint string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", url+endpoint, strings.NewReader(data))
 	if err != nil {
 		return nil, err
 	}

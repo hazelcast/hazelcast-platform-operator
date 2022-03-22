@@ -21,6 +21,9 @@ func ValidateSpec(h *hazelcastv1alpha1.Hazelcast) error {
 
 func validateExposeExternally(h *hazelcastv1alpha1.Hazelcast) error {
 	ee := h.Spec.ExposeExternally
+	if ee == nil {
+		return nil
+	}
 
 	if ee.Type == hazelcastv1alpha1.ExposeExternallyTypeUnisocket && ee.MemberAccess != "" {
 		return errors.New("when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set")

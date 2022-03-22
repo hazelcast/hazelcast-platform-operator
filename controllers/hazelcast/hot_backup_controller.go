@@ -59,7 +59,6 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 
 	err = r.addFinalizer(ctx, hb, logger)
 	if err != nil {
-		logger.Error(err, "Failed to add finalizer into custom resource")
 		return reconcile.Result{}, err
 	}
 
@@ -70,7 +69,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			logger.Error(err, "Finalizer execution failed")
 			return ctrl.Result{}, err
 		}
-		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
 	}
 
@@ -100,7 +99,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	if hb.Spec.Schedule != "" {
 		entry, err := r.cron.AddFunc(hb.Spec.Schedule, func() {
 			logger.Info("Triggering scheduled HotBackup process.", "Schedule", hb.Spec.Schedule)
-			err := r.triggerHotBackup(rest, logger)
+			err := r.triggerHotBackup(ctx, rest, logger)
 			if err != nil {
 				logger.Error(err, "Hot Backups process failed")
 			}
@@ -116,7 +115,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 		r.cron.Start()
 	} else {
-		err = r.triggerHotBackup(rest, logger)
+		err = r.triggerHotBackup(ctx, rest, logger)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -149,7 +148,7 @@ func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 }
 
 func (r *HotBackupReconciler) addFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(hb, n.Finalizer) {
+	if !controllerutil.ContainsFinalizer(hb, n.Finalizer) && hb.GetDeletionTimestamp() == nil {
 		controllerutil.AddFinalizer(hb, n.Finalizer)
 		err := r.Update(ctx, hb)
 		if err != nil {
@@ -161,6 +160,10 @@ func (r *HotBackupReconciler) addFinalizer(ctx context.Context, hb *hazelcastv1a
 }
 
 func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(hb, n.Finalizer) {
+		return nil
+	}
+
 	key := types.NamespacedName{
 		Name:      hb.Name,
 		Namespace: hb.Namespace,
@@ -180,19 +183,19 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 	return nil
 }
 
-func (r *HotBackupReconciler) triggerHotBackup(rest *RestClient, logger logr.Logger) error {
-	err := rest.ChangeState(Passive)
+func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, rest *RestClient, logger logr.Logger) error {
+	err := rest.ChangeState(ctx, Passive)
 	if err != nil {
 		logger.Error(err, "Error creating HotBackup. Could not change the cluster state to PASSIVE")
 		return err
 	}
 	defer func(rest *RestClient) {
-		e := rest.ChangeState(Active)
+		e := rest.ChangeState(ctx, Active)
 		if e != nil {
 			logger.Error(e, "Could not change the cluster state to ACTIVE")
 		}
 	}(rest)
-	err = rest.HotBackup()
+	err = rest.HotBackup(ctx)
 	if err != nil {
 		logger.Error(err, "Error creating HotBackup.")
 		return err

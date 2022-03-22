@@ -17,7 +17,7 @@ type HazelcastSpecValues struct {
 
 func HazelcastSpec(values *HazelcastSpecValues, ee bool) hazelcastv1alpha1.HazelcastSpec {
 	spec := hazelcastv1alpha1.HazelcastSpec{
-		ClusterSize:     values.ClusterSize,
+		ClusterSize:     &values.ClusterSize,
 		Repository:      values.Repository,
 		Version:         values.Version,
 		ImagePullPolicy: values.ImagePullPolicy,
@@ -29,7 +29,7 @@ func HazelcastSpec(values *HazelcastSpecValues, ee bool) hazelcastv1alpha1.Hazel
 }
 
 func CheckHazelcastCR(h *hazelcastv1alpha1.Hazelcast, expected *HazelcastSpecValues, ee bool) {
-	Expect(h.Spec.ClusterSize).Should(Equal(expected.ClusterSize))
+	Expect(*h.Spec.ClusterSize).Should(Equal(expected.ClusterSize))
 	Expect(h.Spec.Repository).Should(Equal(expected.Repository))
 	Expect(h.Spec.Version).Should(Equal(expected.Version))
 	Expect(h.Spec.ImagePullPolicy).Should(Equal(expected.ImagePullPolicy))
@@ -50,13 +50,6 @@ func ManagementCenterSpec(values *MCSpecValues, ee bool) hazelcastv1alpha1.Manag
 		Repository:      values.Repository,
 		Version:         values.Version,
 		ImagePullPolicy: values.ImagePullPolicy,
-		ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
-			Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
-		},
-		HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
-		Persistence: hazelcastv1alpha1.PersistenceConfiguration{
-			StorageClass: nil,
-		},
 	}
 	if ee {
 		spec.LicenseKeySecret = values.LicenseKey

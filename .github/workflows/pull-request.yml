@@ -16,7 +16,6 @@ on:
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
-  IMAGE: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${{github.sha}}
 
 jobs:
   linter:
@@ -141,14 +140,6 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Login to GCR
-        run: gcloud auth configure-docker -q
-
-      - name: Build Operator Image and Push to GCR
-        run: |
-          make docker-build-ci IMG=${{ env.IMAGE }} VERSION=${{github.sha}}
-          make docker-push IMG=${{ env.IMAGE }}
-
       - name: Create GKE cluster
         id: set-cluster-name
         run: |-
@@ -227,6 +218,14 @@ jobs:
             --zone ${{ env.GKE_ZONE }} \
             --project ${{ env.GCP_PROJECT_ID }}
 
+      - name: Build Operator Image and Push to Ephemeral Registry(ttl.sh)
+        run: |
+          IMAGE=ttl.sh/$(uuidgen):1h
+          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
+
+          make docker-build-ci IMG=$IMAGE VERSION=${{github.sha}}
+          make docker-push IMG=$IMAGE
+          
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}

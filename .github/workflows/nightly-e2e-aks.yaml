@@ -75,6 +75,15 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
 
+      - name: Build Image
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          IMG=ttl.sh/$(uuidgen):1h
+          echo "IMG=${IMG}" >> $GITHUB_ENV
+
+          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+          make docker-push IMG=$IMG
+
       - name: Deploy Operator to EKS
         run: |
           kubectl create namespace ${NAMESPACE}

@@ -143,11 +143,11 @@ test-it: manifests generate fmt vet ## Run tests.
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
-test-e2e: generate fmt vet ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 10m -timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
-
-test-ph: generate fmt vet ## Run phone-home tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/ph -coverprofile cover.out -namespace "$(NAMESPACE)" -eventually-timeout 8m -timeout 40m -delete-timeout 8m $(GO_TEST_FLAGS)
+test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --vv --progress --timeout 40m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
+	
+test-ph: generate fmt vet ginkgo ## Run phone-home tests
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 ##@ Build
 
@@ -235,6 +235,12 @@ controller-gen: ## Download controller-gen locally if necessary.
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+
+GINKGO = $(GOBIN)/ginkgo
+$(GINKGO):
+	go install github.com/onsi/ginkgo/v2/ginkgo
+
+ginkgo: $(GINKGO)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -353,3 +359,10 @@ $(OCP_OLM_CATALOG_VALIDATOR):
 
 bundle-ocp-validate: ocp-olm-catalog-validator
 	 $(OCP_OLM_CATALOG_VALIDATOR) ./bundle  --optional-values="file=./bundle/metadata/annotations.yaml"
+
+api-ref-doc: 
+	@go build -o bin/docgen  ./apidocgen/main.go 
+	@./bin/docgen ./api/v1alpha1/hazelcast_types.go \
+				  ./api/v1alpha1/managementcenter_types.go \
+				  ./api/v1alpha1/hotbackup_types.go \
+				  ./api/v1alpha1/turbine_types.go

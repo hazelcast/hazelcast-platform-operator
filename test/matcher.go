@@ -28,9 +28,9 @@ func (matcher HazelcastSpecEqual) Match(actual interface{}) (success bool, err e
 	if !ok {
 		return false, fmt.Errorf("type of %v should be &hazelcastv1alpha1.HazelcastSpec", actual)
 	}
-	if spec.ClusterSize != matcher.Expected.ClusterSize {
+	if *spec.ClusterSize != matcher.Expected.ClusterSize {
 		return false, fmt.Errorf(
-			"expected ClusterSize is %d but actual is %d", matcher.Expected.ClusterSize, spec.ClusterSize)
+			"expected ClusterSize is %d but actual is %d", matcher.Expected.ClusterSize, *spec.ClusterSize)
 	}
 	if spec.Repository != matcher.Expected.Repository {
 		return false, fmt.Errorf(

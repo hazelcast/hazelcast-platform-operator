@@ -92,6 +92,15 @@ jobs:
           gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
             --zone ${{ env.GKE_ZONE }} --project ${{ env.GCP_PROJECT_ID }}
 
+      - name: Build Image
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          IMG=ttl.sh/$(uuidgen):1h
+          echo "IMG=${IMG}" >> $GITHUB_ENV
+
+          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+          make docker-push IMG=$IMG
+
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}

@@ -15,7 +15,7 @@ type HazelcastMetrics struct {
 	SuccessfullyDeployedAt time.Time
 	MemberCount            int32
 	LastUpdateTimestamp    time.Time
-	ExposeExternally       hazelcastv1alpha1.ExposeExternallyConfiguration
+	ExposeExternally       *hazelcastv1alpha1.ExposeExternallyConfiguration
 }
 
 func (hm *HazelcastMetrics) creationLatency() time.Duration {
@@ -33,7 +33,7 @@ func (hm *HazelcastMetrics) FillInitial(h *hazelcastv1alpha1.Hazelcast) {
 
 	hm.Enterprise = util.IsEnterprise(h.Spec.Repository)
 	hm.ExposeExternally = h.Spec.ExposeExternally
-	hm.MemberCount = h.Spec.ClusterSize
+	hm.MemberCount = *h.Spec.ClusterSize
 }
 
 func (hm *HazelcastMetrics) FillAfterDeployment(h *hazelcastv1alpha1.Hazelcast) bool {
