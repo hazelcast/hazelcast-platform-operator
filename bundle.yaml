@@ -1282,120 +1282,11 @@ status:
   conditions: []
   storedVersions: []
 ---
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
-  creationTimestamp: null
-  name: turbines.hazelcast.com
-spec:
-  group: hazelcast.com
-  names:
-    kind: Turbine
-    listKind: TurbineList
-    plural: turbines
-    singular: turbine
-  scope: Cluster
-  versions:
-  - name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: Turbine is the Schema for the turbines API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: TurbineSpec defines the desired state of Turbine
-            properties:
-              hazelcast:
-                description: Hazelcast cluster to connect. If present, only one of "clusterAddress" or "cluster" must be defined.
-                maxProperties: 1
-                minProperties: 1
-                properties:
-                  cluster:
-                    description: Reference to Hazelcast CR
-                    properties:
-                      name:
-                        description: Name of Hazelcast CR
-                        type: string
-                      namespace:
-                        default: default
-                        description: Namespace of Hazelcast CR
-                        type: string
-                    required:
-                    - name
-                    type: object
-                  clusterAddress:
-                    description: Address of the Hazelcast cluster
-                    type: string
-                type: object
-              pods:
-                description: Pod configuration
-                properties:
-                  portName:
-                    description: The name of the container port that Turbine will register
-                    type: string
-                type: object
-              sidecar:
-                default:
-                  name: turbine-sidecar
-                description: Sidecar configuration
-                properties:
-                  name:
-                    default: turbine-sidecar
-                    description: Name of the Turbine sidecar container
-                    type: string
-                  repository:
-                    default: hazelcast/turbine-sidecar
-                    description: Repository of the image used for Turbine sidecar container
-                    type: string
-                  version:
-                    default: latest
-                    description: Version of the image used for Turbine sidecar container
-                    type: string
-                type: object
-            type: object
-        type: object
-    served: true
-    storage: true
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: hazelcast-platform-controller-manager
   namespace: default
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: hazelcast-platform-certificate-manager-role
-  namespace: default
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - update
-  - watch
-  - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -1548,24 +1439,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: hazelcast-platform-certificate-manager-cluster-role
-  namespace: system
-rules:
-- apiGroups:
-  - admissionregistration.k8s.io
-  resources:
-  - mutatingwebhookconfigurations
-  verbs:
-  - create
-  - delete
-  - get
-  - update
-  - watch
-  - list
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
   creationTimestamp: null
   name: hazelcast-platform-manager-role
 rules:
@@ -1600,34 +1473,6 @@ rules:
   - use
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: hazelcast-platform-turbine-viewer-role
-rules:
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - turbines
-  verbs:
-  - get
-  - list
-  - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: hazelcast-platform-certificate-manager-rolebinding
-  namespace: default
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: hazelcast-platform-certificate-manager-role
-subjects:
-- kind: ServiceAccount
-  name: hazelcast-platform-controller-manager
-  namespace: default
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: hazelcast-platform-manager-rolebinding
@@ -1636,19 +1481,6 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: hazelcast-platform-manager-role
-subjects:
-- kind: ServiceAccount
-  name: hazelcast-platform-controller-manager
-  namespace: default
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: hazelcast-platform-certificate-manager-clusterrolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: hazelcast-platform-certificate-manager-cluster-role
 subjects:
 - kind: ServiceAccount
   name: hazelcast-platform-controller-manager
@@ -1666,42 +1498,6 @@ subjects:
 - kind: ServiceAccount
   name: hazelcast-platform-controller-manager
   namespace: default
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: hazelcast-platform-manager-turbine-clusterrolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: hazelcast-platform-turbine-viewer-role
-subjects:
-- kind: ServiceAccount
-  name: hazelcast-platform-controller-manager
-  namespace: default
----
-apiVersion: v1
-data:
-  tls.crt: ""
-  tls.key: ""
-kind: Secret
-metadata:
-  name: hazelcast-platform-webhook-server-cert
-  namespace: default
-type: kubernetes.io/tls
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: hazelcast-platform-webhook-service
-  namespace: default
-spec:
-  ports:
-  - port: 443
-    protocol: TCP
-    targetPort: 9443
-  selector:
-    control-plane: controller-manager
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -1747,10 +1543,6 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
-        ports:
-        - containerPort: 9443
-          name: webhook-server
-          protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz
@@ -1766,51 +1558,7 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
-        volumeMounts:
-        - mountPath: /tmp/k8s-webhook-server/serving-certs
-          name: cert
-          readOnly: true
       securityContext:
         runAsNonRoot: true
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10
-      volumes:
-      - name: cert
-        secret:
-          defaultMode: 420
-          optional: true
-          secretName: hazelcast-platform-webhook-server-cert
----
-apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
-metadata:
-  name: hazelcast-platform-mutating-webhook-configuration
-webhooks:
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /inject-turbine
-  failurePolicy: Fail
-  name: inject-turbine.hazelcast.com
-  objectSelector:
-    matchExpressions:
-    - key: turbine.hazelcast.com/name
-      operator: Exists
-    - key: turbine.hazelcast.com/injected
-      operator: NotIn
-      values:
-      - "true"
-  rules:
-  - apiGroups:
-    - ""
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - pods
-  sideEffects: None

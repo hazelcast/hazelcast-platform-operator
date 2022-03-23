@@ -1,32 +1,29 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"os"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/certificate"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/turbine"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
@@ -75,9 +72,6 @@ func main() {
 	} else {
 		setupLog.Info("Watching namespace: " + namespace)
 	}
-	podName := os.Getenv(naming.PodNameEnv)
-
-	signal := ctrl.SetupSignalHandler()
 
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -138,31 +132,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "HotBackup")
 		os.Exit(1)
 	}
-
-	if err = certificate.NewReconciler(
-		mgr.GetClient(),
-		mgr.GetAPIReader(),
-		ctrl.Log.WithName("controllers").WithName("Certificate"),
-		podName,
-		namespace,
-	).SetupWithManager(context.Background(), mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Certificate")
-		os.Exit(1)
-	}
-	setupLog.Info("certificate controller is ready")
-
-	mgr.GetWebhookServer().Register(
-		"/inject-turbine",
-		&webhook.Admission{
-			Handler: turbine.New(
-				mgr.GetClient(),
-				ctrl.Log.WithName("webhook").WithName("Turbine"),
-				namespace,
-			),
-		},
-	)
-	setupLog.Info("turbine webhook handle is registered")
-
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -179,7 +148,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(signal); err != nil {
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
