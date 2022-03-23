@@ -36,7 +36,6 @@ jobs:
         if: always()
         with:
           args: --timeout 2m
-          skip-go-installation: true
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
@@ -225,7 +224,7 @@ jobs:
 
           make docker-build-ci IMG=$IMAGE VERSION=${{github.sha}}
           make docker-push IMG=$IMAGE
-          
+
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
