@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Golang
         uses: actions/setup-go@v2
@@ -52,7 +52,7 @@ jobs:
           make api-ref-doc > api-ref.adoc
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hazelcast/hazelcast-platform-operator-docs
           ref: main

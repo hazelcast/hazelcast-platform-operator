@@ -53,7 +53,7 @@ jobs:
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Golang
         uses: actions/setup-go@v2

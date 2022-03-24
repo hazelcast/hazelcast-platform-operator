@@ -15,7 +15,7 @@ jobs:
       RELEASE_VERSION: ${{ steps.set-outputs.outputs.RELEASE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set Release Version
         id: set-outputs
@@ -82,7 +82,7 @@ jobs:
       RELEASE_VERSION: ${{ needs.publish_image.outputs.RELEASE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Golang
         uses: actions/setup-go@v2
@@ -108,7 +108,7 @@ jobs:
           EOF
 
       - name: Checkout to devOpsHelm/${{ env.REPO_NAME }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: devopsHelm/${{ env.REPO_NAME }}
           path: ${{ env.REPO_NAME }}

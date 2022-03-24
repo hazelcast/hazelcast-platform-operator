@@ -31,7 +31,7 @@ jobs:
         run: echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV
 
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Golang
         uses: actions/setup-go@v2
@@ -94,7 +94,7 @@ jobs:
       DIGEST: ${{ needs.publish_image.outputs.DIGEST }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Golang
         uses: actions/setup-go@v2
@@ -126,7 +126,7 @@ jobs:
           make bundle-ocp-validate
 
       - name: Checkout to devOpsHelm/${{ env.REPO_NAME }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: devOpsHelm/${{ env.REPO_NAME }}
           path: ${{ env.REPO_NAME }}
