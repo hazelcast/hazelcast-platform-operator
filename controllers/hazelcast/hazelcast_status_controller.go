@@ -2,7 +2,11 @@ package hazelcast
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/codec"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
@@ -23,6 +27,17 @@ type HazelcastClient struct {
 	Log                  logr.Logger
 	MemberMap            map[string]cluster.MemberInfo
 	triggerReconcileChan chan event.GenericEvent
+	statusTicker         *StatusTicker
+}
+
+type StatusTicker struct {
+	ticker *time.Ticker
+	done   chan bool
+}
+
+func (s *StatusTicker) stop() {
+	s.done <- true
+	s.ticker.Stop()
 }
 
 func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *HazelcastClient {
@@ -59,6 +74,21 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 			c.Unlock()
 		}
 	}(ctx)
+	c.statusTicker = &StatusTicker{
+		ticker: time.NewTicker(time.Minute),
+		done:   make(chan bool),
+	}
+
+	go func(ctx context.Context, s *StatusTicker) {
+		for {
+			select {
+			case <-s.done:
+				return
+			case t := <-s.ticker.C:
+				c.updateMemberStates(ctx, t)
+			}
+		}
+	}(ctx, c.statusTicker)
 }
 
 func (c *HazelcastClient) shutdown(ctx context.Context) {
@@ -74,6 +104,9 @@ func (c *HazelcastClient) shutdown(ctx context.Context) {
 	}
 	if err := c.client.Shutdown(ctx); err != nil {
 		c.Log.Error(err, "Problem occurred while shutting down the client connection")
+	}
+	if c.statusTicker != nil {
+		c.statusTicker.stop()
 	}
 }
 
@@ -100,4 +133,27 @@ func (c *HazelcastClient) triggerReconcile() {
 			Namespace: c.NamespacedName.Namespace,
 			Name:      c.NamespacedName.Name,
 		}}}
+}
+
+func (c *HazelcastClient) updateMemberStates(ctx context.Context, t time.Time) {
+	if c.client == nil {
+		return
+	}
+	c.Log.Info("Updating Hazelcast status", "CR", c.NamespacedName, "at", t)
+	state, err := fetchTimedMemberState(ctx, c.client)
+	if err != nil {
+		println(err)
+	}
+	println("~~~~~~~~~~~~~~~~~")
+	println(state)
+}
+
+func fetchTimedMemberState(ctx context.Context, client *hazelcast.Client) (string, error) {
+	ci := hazelcast.NewClientInternal(client)
+	req := codec.EncodeMCGetTimedMemberStateRequest()
+	resp, err := ci.InvokeOnRandomTarget(ctx, req, nil)
+	if err != nil {
+		return "", fmt.Errorf("invoking: %w", err)
+	}
+	return codec.DecodeMCGetTimedMemberStateResponse(resp), nil
 }
