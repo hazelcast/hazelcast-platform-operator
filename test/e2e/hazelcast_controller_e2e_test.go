@@ -140,6 +140,24 @@ var _ = Describe("Hazelcast", func() {
 			}, timeout, interval).Should(Not(BeEmpty()))
 		}
 
+		assertNoPodRestarts := func(h *hazelcastcomv1alpha1.Hazelcast) {
+			By("pod containers should not be crashing")
+			pods := &corev1.PodList{}
+			podLabels := client.MatchingLabels{
+				n.ApplicationNameLabel:         n.Hazelcast,
+				n.ApplicationInstanceNameLabel: h.Name,
+				n.ApplicationManagedByLabel:    n.OperatorName,
+			}
+			if err := k8sClient.List(context.Background(), pods, client.InNamespace(h.Namespace), podLabels); err != nil {
+				Fail("Could not find Pods for Hazelcast " + h.Name)
+			}
+			for _, pod := range pods.Items {
+				for i := len(pod.Status.ContainerStatuses) - 1; i >= 0; i-- {
+					Expect(pod.Status.ContainerStatuses[i].RestartCount).Should(BeZero())
+				}
+			}
+		}
+
 		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
 			assertUseHazelcastUnisocket := func() {
 				assertUseHazelcast(true)
@@ -169,6 +187,7 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee)
 			create(hazelcast)
 			assertUseHazelcastSmart()
+			assertNoPodRestarts(hazelcast)
 		})
 	})
 
