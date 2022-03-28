@@ -151,6 +151,9 @@ func GetHzClient(ctx context.Context, unisocket bool) (*hzClient.Client, error) 
 func GetClientSet() *kubernetes.Clientset {
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
 	restConfig, err := kubeConfig.ClientConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 	clientSet, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -207,8 +210,8 @@ func getHzClusterState() string {
 
 func FillTheMapData(ctx context.Context, unisocket bool, mapName string, mapSize int) {
 	var m *hzClient.Map
-
 	clientHz, err := GetHzClient(ctx, unisocket)
+	Expect(err).ToNot(HaveOccurred())
 	By("using Hazelcast client")
 	m, err = clientHz.GetMap(ctx, mapName)
 	Expect(err).ToNot(HaveOccurred())
