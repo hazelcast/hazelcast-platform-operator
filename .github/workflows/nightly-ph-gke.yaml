@@ -145,3 +145,17 @@ jobs:
         if: always()
         run: |-
           gcloud container clusters delete ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --quiet
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'delete-cluster' ]
+    if: always() &&  needs.delete-cluster.result != 'success' 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

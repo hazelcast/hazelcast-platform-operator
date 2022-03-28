@@ -73,4 +73,17 @@ jobs:
           git add docs/modules/ROOT/pages/api-ref.adoc
           git commit -m "Update API reference doc" && git push origin main
           
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'publish-snapshot-image' ]
+    if: always() &&  needs.publish-snapshot-image.result != 'success' 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 

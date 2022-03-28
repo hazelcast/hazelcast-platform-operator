@@ -59,3 +59,17 @@ jobs:
           TAG_VERSION=v${RELEASE_VERSION}
           git tag ${TAG_VERSION}
           git push origin ${TAG_VERSION}
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'create_release' ]
+    runs-on: ubuntu-latest
+    if: always() && needs.create_release.result != 'success' 
+    steps:
+      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

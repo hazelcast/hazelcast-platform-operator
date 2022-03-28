@@ -153,14 +153,14 @@ jobs:
 
   slack_notify:
     name: Slack Notify
-    needs: [ 'publish_image', 'operatorhub_release' ]
-    if: always() && ( needs.publish_image.result != 'success' || needs.redhat_bundle_release.result != 'success' )
+    needs: ['operatorhub_release' ]
+    if: always() && needs.operatorhub_release.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
         with:
           fields: repo,commit,author,action,eventName,workflow
-          status: ${{ needs.operatorhub_release.result }}
+          status: failure
           channel: "#github-actions-log"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

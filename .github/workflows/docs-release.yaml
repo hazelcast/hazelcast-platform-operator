@@ -146,3 +146,17 @@ jobs:
         run: |
           echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title "Platform operator for Kubernetes (${MAJOR_MINOR_VERSION})" --body "" --base ${{ matrix.edition }}
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'publish_hz_docs' ]
+    if: always() &&  needs.publish_hz_docs.result != 'success' 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
