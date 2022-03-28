@@ -19,7 +19,7 @@ jobs:
       GCP_NETWORK: operator-test-network
     steps:
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.3.0
+        uses: google-github-actions/setup-gcloud@v0.6.0
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GKE_SA_KEY }}
@@ -81,7 +81,7 @@ jobs:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.3.0
+        uses: google-github-actions/setup-gcloud@v0.6.0
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
@@ -135,7 +135,7 @@ jobs:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.3.0
+        uses: google-github-actions/setup-gcloud@v0.6.0
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GKE_SA_KEY }}
