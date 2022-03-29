@@ -101,7 +101,7 @@ fmt: ## Run go fmt against code.
 	go fmt ./...
 
 vet: ## Run go vet against code.
-	go vet ./...
+	go vet -tags $(GO_BUILD_TAGS) ./...
 
 test-all: test test-e2e
 
@@ -151,7 +151,7 @@ test-ph: generate fmt vet ginkgo ## Run phone-home tests
 
 ##@ Build
 
-GO_BUILD_TAGS ?= "localrun"
+GO_BUILD_TAGS ?= "hazelcastinternal localrun"
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager -tags $(GO_BUILD_TAGS) main.go
 

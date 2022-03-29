@@ -20,4 +20,4 @@ require (
 	sigs.k8s.io/controller-runtime v0.8.3
 )
 
-replace github.com/hazelcast/hazelcast-go-client v1.3.0 => github.com/yuce/hazelcast-go-client v1.3.0-extensibility.5
+replace github.com/hazelcast/hazelcast-go-client v1.3.0 => github.com/yuce/hazelcast-go-client v1.3.0-preext3.0.20220324011025-02c0712e56c7

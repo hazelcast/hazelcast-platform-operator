@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -25,7 +26,7 @@ type HazelcastClient struct {
 	cancel               context.CancelFunc
 	NamespacedName       types.NamespacedName
 	Log                  logr.Logger
-	MemberMap            map[string]cluster.MemberInfo
+	MemberMap            map[hztypes.UUID]*MemberData
 	triggerReconcileChan chan event.GenericEvent
 	statusTicker         *StatusTicker
 }
@@ -35,16 +36,43 @@ type StatusTicker struct {
 	done   chan bool
 }
 
+type MemberData struct {
+	Address     string
+	UUID        string
+	Version     string
+	LiteMember  bool
+	MemberState string
+	Master      bool
+	Partitions  []int32
+	Name        string
+}
+
+func newMemberData(m cluster.MemberInfo) *MemberData {
+	return &MemberData{
+		Address:    m.Address.String(),
+		UUID:       m.UUID.String(),
+		Version:    fmt.Sprintf("%d.%d.%d", m.Version.Major, m.Version.Minor, m.Version.Patch),
+		LiteMember: m.LiteMember,
+	}
+}
+
+func (m *MemberData) enrichMemberData(s TimedMemberState) {
+	m.Master = s.Master
+	m.MemberState = s.MemberState.NodeState.State
+	m.Partitions = s.MemberPartitionState.Partitions
+	m.Name = s.MemberState.Name
+}
+
 func (s *StatusTicker) stop() {
-	s.done <- true
 	s.ticker.Stop()
+	s.done <- true
 }
 
 func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *HazelcastClient {
 	return &HazelcastClient{
 		NamespacedName:       n,
 		Log:                  l,
-		MemberMap:            make(map[string]cluster.MemberInfo),
+		MemberMap:            make(map[hztypes.UUID]*MemberData),
 		triggerReconcileChan: channel,
 	}
 }
@@ -84,8 +112,8 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 			select {
 			case <-s.done:
 				return
-			case t := <-s.ticker.C:
-				c.updateMemberStates(ctx, t)
+			case <-s.ticker.C:
+				c.updateMemberStates(ctx)
 			}
 		}
 	}(ctx, c.statusTicker)
@@ -94,11 +122,9 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 func (c *HazelcastClient) shutdown(ctx context.Context) {
 	c.Lock()
 	defer c.Unlock()
-
 	if c.cancel != nil {
 		c.cancel()
 	}
-
 	if c.client == nil {
 		return
 	}
@@ -114,12 +140,12 @@ func getStatusUpdateListener(c *HazelcastClient) func(cluster.MembershipStateCha
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
 			c.Lock()
-			c.MemberMap[changed.Member.UUID.String()] = changed.Member
+			c.MemberMap[changed.Member.UUID] = newMemberData(changed.Member)
 			c.Unlock()
 			c.Log.Info("Member is added", "member", changed.Member.String())
 		} else if changed.State == cluster.MembershipStateRemoved {
 			c.Lock()
-			delete(c.MemberMap, changed.Member.UUID.String())
+			delete(c.MemberMap, changed.Member.UUID)
 			c.Unlock()
 			c.Log.Info("Member is deleted", "member", changed.Member.String())
 		}
@@ -135,25 +161,59 @@ func (c *HazelcastClient) triggerReconcile() {
 		}}}
 }
 
-func (c *HazelcastClient) updateMemberStates(ctx context.Context, t time.Time) {
+func (c *HazelcastClient) updateMemberStates(ctx context.Context) {
 	if c.client == nil {
 		return
 	}
-	c.Log.Info("Updating Hazelcast status", "CR", c.NamespacedName, "at", t)
-	state, err := fetchTimedMemberState(ctx, c.client)
-	if err != nil {
-		println(err)
+	c.Log.Info("Updating Hazelcast status", "CR", c.NamespacedName)
+	for uuid, m := range c.MemberMap {
+		jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
+		if err != nil {
+			c.Log.Error(err, "Fetching TimedMemberState failed.", "CR", c.NamespacedName)
+		}
+		state := &TimedMemberStateWrapper{}
+		err = json.Unmarshal([]byte(jsonState), state)
+		if err != nil {
+			c.Log.Error(err, "TimedMemberState json parsing failed.", "CR", c.NamespacedName, "JSON", jsonState)
+			continue
+		}
+		m.enrichMemberData(state.TimedMemberState)
 	}
-	println("~~~~~~~~~~~~~~~~~")
-	println(state)
+	c.triggerReconcile()
 }
 
-func fetchTimedMemberState(ctx context.Context, client *hazelcast.Client) (string, error) {
+func fetchTimedMemberState(ctx context.Context, client *hazelcast.Client, uuid hztypes.UUID) (string, error) {
 	ci := hazelcast.NewClientInternal(client)
 	req := codec.EncodeMCGetTimedMemberStateRequest()
-	resp, err := ci.InvokeOnRandomTarget(ctx, req, nil)
+	resp, err := ci.InvokeOnMember(ctx, req, uuid, nil)
 	if err != nil {
 		return "", fmt.Errorf("invoking: %w", err)
 	}
 	return codec.DecodeMCGetTimedMemberStateResponse(resp), nil
+}
+
+type TimedMemberStateWrapper struct {
+	TimedMemberState TimedMemberState `json:"timedMemberState"`
+}
+
+type TimedMemberState struct {
+	MemberState          MemberState          `json:"memberState"`
+	MemberPartitionState MemberPartitionState `json:"memberPartitionState"`
+	Master               bool                 `json:"master"`
+}
+
+type MemberState struct {
+	Address   string    `json:"address"`
+	Uuid      string    `json:"uuid"`
+	Name      string    `json:"name"`
+	NodeState NodeState `json:"nodeState"`
+}
+
+type NodeState struct {
+	State         string `json:"nodeState"`
+	MemberVersion string `json:"memberVersion"`
+}
+
+type MemberPartitionState struct {
+	Partitions []int32 `json:"partitions"`
 }

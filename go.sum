@@ -401,8 +401,8 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
-github.com/yuce/hazelcast-go-client v1.3.0-extensibility.5 h1:0kMlT+13BdXJN7+LKsHfZQdsfW2bYVeRUCSYWo7agio=
-github.com/yuce/hazelcast-go-client v1.3.0-extensibility.5/go.mod h1:fxnzya2+IbQ5Y3CjpIe8RLqoDpzMcBwdKEkUXClqTFs=
+github.com/yuce/hazelcast-go-client v1.3.0-preext3.0.20220324011025-02c0712e56c7 h1:YB4SxsIFp9fvPoQaE/nR+gEZ/9Dwn+91/gLRSZNxV3E=
+github.com/yuce/hazelcast-go-client v1.3.0-preext3.0.20220324011025-02c0712e56c7/go.mod h1:fxnzya2+IbQ5Y3CjpIe8RLqoDpzMcBwdKEkUXClqTFs=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.4.0/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
