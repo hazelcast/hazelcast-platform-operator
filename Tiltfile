@@ -57,7 +57,7 @@ cmd_button('Undeploy operator',
 )
 
 cmd_button('Delete CRs and PVCs',
-            argv=['sh', '-c', '(kubectl delete $(kubectl get hazelcast,managementcenter,hotbackup,turbine -o name) 2> /dev/null || echo "No CRs" ) && kubectl delete pvc -l "app.kubernetes.io/managed-by=hazelcast-platform-operator"'],
+            argv=['sh', '-c', '(kubectl delete $(kubectl get hazelcast,managementcenter,hotbackup -o name) 2> /dev/null || echo "No CRs" ) && kubectl delete pvc -l "app.kubernetes.io/managed-by=hazelcast-platform-operator"'],
             resource='hazelcast-platform-controller-manager',
             location=location.RESOURCE,
             icon_name='delete',

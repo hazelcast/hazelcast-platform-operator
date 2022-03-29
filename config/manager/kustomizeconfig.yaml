@@ -1,7 +1,0 @@
-nameReference:
-  - kind: Secret
-    version: v1
-    fieldSpecs:
-      - kind: Deployment
-        group: apps/v1
-        path: spec/template/spec/volumes/secret/secretName

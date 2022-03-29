@@ -23,11 +23,4 @@ resources:
   kind: ManagementCenter
   path: github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1
   version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: false
-  domain: hazelcast.com
-  kind: Turbine
-  path: github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1
-  version: v1alpha1
 version: "3"

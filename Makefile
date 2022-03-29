@@ -195,7 +195,6 @@ ifeq (true,$(REMOVE_SECURITY_CONTEXT))
 endif
 	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	@cd config/webhook && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 ifneq (false,$(APPLY_MANIFESTS))
 	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
@@ -364,5 +363,4 @@ api-ref-doc:
 	@go build -o bin/docgen  ./apidocgen/main.go 
 	@./bin/docgen ./api/v1alpha1/hazelcast_types.go \
 				  ./api/v1alpha1/managementcenter_types.go \
-				  ./api/v1alpha1/hotbackup_types.go \
-				  ./api/v1alpha1/turbine_types.go
+				  ./api/v1alpha1/hotbackup_types.go
