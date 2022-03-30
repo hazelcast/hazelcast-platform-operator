@@ -226,6 +226,29 @@ var _ = Describe("Hazelcast", func() {
 				evaluateReadyMembers(lookupKey, 3)
 			})
 		})
+
+		FIt("should update HZ detailed member status", func() {
+			h := hazelcastconfig.Default(hzNamespace, ee)
+			create(h)
+
+			evaluateReadyMembers(lookupKey, 3)
+
+			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			memberStateT := func(status hazelcastcomv1alpha1.HazelcastMemberStatus) string {
+				return status.State
+			}
+			masterT := func(status hazelcastcomv1alpha1.HazelcastMemberStatus) bool {
+				return status.Master
+			}
+			Eventually(func() []hazelcastcomv1alpha1.HazelcastMemberStatus {
+				err := k8sClient.Get(context.Background(), lookupKey, hz)
+				Expect(err).ToNot(HaveOccurred())
+				return hz.Status.Members
+			}, timeout, interval).Should(And(HaveLen(3),
+				ContainElement(WithTransform(memberStateT, Equal("ACTIVE"))),
+				ContainElement(WithTransform(masterT, Equal(true))),
+			))
+		})
 	})
 
 	Describe("External API errors", func() {

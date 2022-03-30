@@ -82,7 +82,7 @@ func statusMembers(
 
 func addExistingMembers(statusMembers, existingMembers []hazelcastv1alpha1.HazelcastMemberStatus) []hazelcastv1alpha1.HazelcastMemberStatus {
 	res := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(statusMembers))
-	copy(res, statusMembers)
+	res = append(res, statusMembers...)
 	for _, em := range existingMembers {
 		exist := false
 		for _, sm := range statusMembers {
