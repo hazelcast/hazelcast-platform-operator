@@ -36,7 +36,6 @@ jobs:
         if: always()
         with:
           args: --timeout 2m --build-tags hazelcastinternal
-          skip-go-installation: true
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
@@ -131,7 +130,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.4.3'
+        uses: 'google-github-actions/auth@v0.6.0'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -203,7 +202,7 @@ jobs:
             -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.4.3'
+        uses: 'google-github-actions/auth@v0.6.0'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -225,7 +224,7 @@ jobs:
 
           make docker-build-ci IMG=$IMAGE VERSION=${{github.sha}}
           make docker-push IMG=$IMAGE
-          
+
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
@@ -269,7 +268,7 @@ jobs:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.4.3'
+        uses: 'google-github-actions/auth@v0.6.0'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
