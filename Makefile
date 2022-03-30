@@ -237,7 +237,7 @@ kustomize: ## Download kustomize locally if necessary.
 
 GINKGO = $(GOBIN)/ginkgo
 $(GINKGO):
-	go install github.com/onsi/ginkgo/v2/ginkgo
+	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
 
 ginkgo: $(GINKGO)
 
