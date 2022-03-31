@@ -43,7 +43,7 @@ type MemberData struct {
 	LiteMember  bool
 	MemberState string
 	Master      bool
-	Partitions  []int32
+	Partitions  int32
 	Name        string
 }
 
@@ -59,7 +59,7 @@ func newMemberData(m cluster.MemberInfo) *MemberData {
 func (m *MemberData) enrichMemberData(s TimedMemberState) {
 	m.Master = s.Master
 	m.MemberState = s.MemberState.NodeState.State
-	m.Partitions = s.MemberPartitionState.Partitions
+	m.Partitions = int32(len(s.MemberPartitionState.Partitions))
 	m.Name = s.MemberState.Name
 }
 

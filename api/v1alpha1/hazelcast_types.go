@@ -333,7 +333,7 @@ type HazelcastMemberStatus struct {
 
 	// OwnedPartitions represents the partitions count on the member.
 	// +optional
-	OwnedPartitions []int32 `json:"ownedPartitions,omitempty"`
+	OwnedPartitions int32 `json:"ownedPartitions,omitempty"`
 
 	// Ready is the flag that is set to true when the member is successfully started,
 	// connected to cluster and ready to accept connections.
