@@ -612,10 +612,8 @@ spec:
                       type: string
                     ownedPartitions:
                       description: OwnedPartitions represents the partitions count on the member.
-                      items:
-                        format: int32
-                        type: integer
-                      type: array
+                      format: int32
+                      type: integer
                     podName:
                       description: PodName is the name of the Hazelcast member pod.
                       type: string
