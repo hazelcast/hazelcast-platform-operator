@@ -3,6 +3,8 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
+	corev1 "k8s.io/api/core/v1"
+	"strconv"
 	"sync"
 	"time"
 
@@ -97,6 +99,8 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return ctrl.Result{}, err
 	}
 	rest := NewRestClient(h)
+	agentAddresses, err := r.getAgentAddresses(ctx, hb)
+	agentRest := NewAgentRestClient(h, hb, agentAddresses)
 
 	if hb.Spec.Schedule != "" {
 		entry, err := r.cron.AddFunc(hb.Spec.Schedule, func() {
@@ -106,6 +110,13 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 				logger.Error(err, "Hot Backups process failed")
 			}
 			r.reconcileHotBackupStatus(ctx, hb)
+
+			if hb.Spec.BucketURL != "" {
+				err = r.triggerUploadBackup(ctx, agentRest, logger)
+				if err != nil {
+					logger.Error(err, "Backup upload process failed")
+				}
+			}
 		})
 		if err != nil {
 			logger.Error(err, "Error creating new Schedule Hot Restart.")
@@ -124,7 +135,15 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			_ = r.Status().Update(ctx, hb)
 			return ctrl.Result{}, err
 		}
+
 		r.reconcileHotBackupStatus(ctx, hb)
+
+		if hb.Spec.BucketURL != "" {
+			err = r.triggerUploadBackup(ctx, agentRest, logger)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 	}
 	err = r.updateLastSuccessfulConfiguration(ctx, hb, logger)
 	if err != nil {
@@ -268,6 +287,34 @@ func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, rest *RestCl
 		return err
 	}
 	return nil
+}
+
+func (r *HotBackupReconciler) triggerUploadBackup(ctx context.Context, agentRest *AgentRestClient, logger logr.Logger) error {
+	// TODO proper hotbackup status check
+	logger.Info("Sleeping for 5 sec before uploading backup...")
+	time.Sleep(5 * time.Second)
+	err := agentRest.UploadBackup(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *HotBackupReconciler) getAgentAddresses(ctx context.Context, hb *hazelcastv1alpha1.HotBackup) ([]string, error) {
+	var containerAddresses []string
+	pods := &corev1.PodList{}
+	podLabels := client.MatchingLabels{
+		n.ApplicationNameLabel:         n.Hazelcast,
+		n.ApplicationInstanceNameLabel: hb.Spec.HazelcastResourceName,
+		n.ApplicationManagedByLabel:    n.OperatorName,
+	}
+	if err := r.Client.List(ctx, pods, podLabels); err != nil {
+		return containerAddresses, err
+	}
+	for _, pod := range pods.Items {
+		containerAddresses = append(containerAddresses, pod.Status.PodIP+":"+strconv.Itoa(n.DefaultAgentPort))
+	}
+	return containerAddresses, nil
 }
 
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {

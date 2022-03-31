@@ -48,6 +48,7 @@ const (
 	PersistenceVolumeName = "hot-restart-persistence"
 
 	BackupAgent                 = "backup-agent"
+	BackupAgentPortName         = "backup-agent-port"
 	BucketSecret                = "br-secret"
 	BucketDataS3AccessKeyID     = "access-key-id"
 	BucketDataS3SecretAccessKey = "secret-access-key"
