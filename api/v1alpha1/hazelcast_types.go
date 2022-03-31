@@ -75,6 +75,7 @@ type HazelcastSpec struct {
 
 	// Backup Agent configuration
 	// +optional
+	//+kubebuilder:default:={}
 	Backup BackupAgentConfiguration `json:"backup,omitempty"`
 }
 
@@ -92,7 +93,7 @@ type BackupAgentConfiguration struct {
 
 	// Name of the secret with credentials for cloud providers.
 	// +optional
-	BucketSecret string `json:"bucketSecret"`
+	BucketSecret string `json:"bucketSecret,omitempty"`
 }
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.

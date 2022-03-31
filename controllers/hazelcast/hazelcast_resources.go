@@ -192,12 +192,23 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 }
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	service := &corev1.Service{
-		ObjectMeta: metadata(h),
-		Spec: corev1.ServiceSpec{
-			Selector: labels(h),
-			Ports:    ports(),
-		},
+	var service *corev1.Service
+	if h.Spec.Backup.IsEnabled() {
+		service = &corev1.Service{
+			ObjectMeta: metadata(h),
+			Spec: corev1.ServiceSpec{
+				Selector: labels(h),
+				Ports:    hazelcastAndAgentPort(),
+			},
+		}
+	} else {
+		service = &corev1.Service{
+			ObjectMeta: metadata(h),
+			Spec: corev1.ServiceSpec{
+				Selector: labels(h),
+				Ports:    hazelcastPort(),
+			},
+		}
 	}
 
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
@@ -243,7 +254,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			},
 			Spec: corev1.ServiceSpec{
 				Selector:                 servicePerPodSelector(i, h),
-				Ports:                    ports(),
+				Ports:                    hazelcastPort(),
 				PublishNotReadyAddresses: true,
 			},
 		}
@@ -331,13 +342,30 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return ls
 }
 
-func ports() []v1.ServicePort {
+func hazelcastPort() []v1.ServicePort {
 	return []corev1.ServicePort{
 		{
 			Name:       n.HazelcastPortName,
 			Protocol:   corev1.ProtocolTCP,
 			Port:       n.DefaultHzPort,
 			TargetPort: intstr.FromString(n.Hazelcast),
+		},
+	}
+}
+
+func hazelcastAndAgentPort() []v1.ServicePort {
+	return []corev1.ServicePort{
+		{
+			Name:       n.HazelcastPortName,
+			Protocol:   corev1.ProtocolTCP,
+			Port:       n.DefaultHzPort,
+			TargetPort: intstr.FromString(n.Hazelcast),
+		},
+		{
+			Name:       n.BackupAgentPortName,
+			Protocol:   corev1.ProtocolTCP,
+			Port:       n.DefaultAgentPort,
+			TargetPort: intstr.FromString(n.BackupAgent),
 		},
 	}
 }
@@ -429,6 +457,9 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 						Enabled: &[]bool{true}[0],
 					},
 					Persistence: config.EndpointGroup{
+						Enabled: &[]bool{true}[0],
+					},
+					Data: config.EndpointGroup{
 						Enabled: &[]bool{true}[0],
 					},
 				},
@@ -563,8 +594,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		}
 	}
 
-	// TODO check persistence first
-	if h.Spec.Backup.IsEnabled() {
+	if h.Spec.Persistence.IsEnabled() && h.Spec.Backup.IsEnabled() {
 		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 	}
 
