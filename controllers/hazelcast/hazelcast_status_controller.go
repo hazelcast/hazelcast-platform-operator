@@ -165,7 +165,7 @@ func (c *HazelcastClient) updateMemberStates(ctx context.Context) {
 	if c.client == nil {
 		return
 	}
-	c.Log.Info("Updating Hazelcast status", "CR", c.NamespacedName)
+	c.Log.V(2).Info("Updating Hazelcast status", "CR", c.NamespacedName)
 	for uuid, m := range c.MemberMap {
 		jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
 		if err != nil {
