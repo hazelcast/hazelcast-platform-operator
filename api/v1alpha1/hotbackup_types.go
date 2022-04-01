@@ -2,8 +2,18 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+type HotBackupState string
+
+const (
+	NotStarted HotBackupState = "NOT_STARTED"
+	InProgress HotBackupState = "IN_PROGRESS"
+	Failure    HotBackupState = "FAILURE"
+	Success    HotBackupState = "SUCCESS"
+)
+
 // HotBackupStatus defines the observed state of HotBackup
 type HotBackupStatus struct {
+	State HotBackupState `json:"state"`
 }
 
 // HotBackupSpec defines the Spec of HotBackup
