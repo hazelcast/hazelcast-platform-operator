@@ -1,6 +1,7 @@
 package hazelcast
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -40,7 +41,7 @@ var _ = Describe("Hazelcast status", func() {
 				},
 				State: cluster.MembershipStateAdded,
 			}
-			go getStatusUpdateListener(hzClient)(stateChanged)
+			go getStatusUpdateListener(context.TODO(), hzClient)(stateChanged)
 
 			Eventually(func() bool {
 				_, ok := hzClient.MemberMap[stateChanged.Member.UUID]
@@ -78,7 +79,7 @@ var _ = Describe("Hazelcast status", func() {
 				Member: existingMember,
 				State:  cluster.MembershipStateRemoved,
 			}
-			go getStatusUpdateListener(hzClient)(stateChanged)
+			go getStatusUpdateListener(context.TODO(), hzClient)(stateChanged)
 
 			Eventually(func() bool {
 				_, ok := hzClient.MemberMap[stateChanged.Member.UUID]

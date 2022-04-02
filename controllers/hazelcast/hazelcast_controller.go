@@ -206,7 +206,7 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 	}
 	config := buildConfig(h)
 	c := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
-	config.AddMembershipListener(getStatusUpdateListener(c))
+	config.AddMembershipListener(getStatusUpdateListener(ctx, c))
 	c.start(ctx, config)
 	r.hzClients.Store(req.NamespacedName, c)
 }

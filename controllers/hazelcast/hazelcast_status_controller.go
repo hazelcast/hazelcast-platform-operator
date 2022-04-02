@@ -92,15 +92,7 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	c.Unlock()
 
 	go func(ctx context.Context) {
-		hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
-		if err != nil {
-			// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
-			c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
-		} else {
-			c.Lock()
-			c.client = hzClient
-			c.Unlock()
-		}
+		c.initHzClient(ctx, config)
 	}(ctx)
 	c.statusTicker = &StatusTicker{
 		ticker: time.NewTicker(time.Minute),
@@ -117,6 +109,18 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 			}
 		}
 	}(ctx, c.statusTicker)
+}
+
+func (c *HazelcastClient) initHzClient(ctx context.Context, config hazelcast.Config) {
+	c.Lock()
+	defer c.Unlock()
+	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
+	if err != nil {
+		// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
+		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
+	} else {
+		c.client = hzClient
+	}
 }
 
 func (c *HazelcastClient) shutdown(ctx context.Context) {
@@ -136,11 +140,13 @@ func (c *HazelcastClient) shutdown(ctx context.Context) {
 	}
 }
 
-func getStatusUpdateListener(c *HazelcastClient) func(cluster.MembershipStateChanged) {
+func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
 			c.Lock()
-			c.MemberMap[changed.Member.UUID] = newMemberData(changed.Member)
+			m := newMemberData(changed.Member)
+			c.enrichMemberByUuid(ctx, changed.Member.UUID, m)
+			c.MemberMap[changed.Member.UUID] = m
 			c.Unlock()
 			c.Log.Info("Member is added", "member", changed.Member.String())
 		} else if changed.State == cluster.MembershipStateRemoved {
@@ -167,19 +173,23 @@ func (c *HazelcastClient) updateMemberStates(ctx context.Context) {
 	}
 	c.Log.V(2).Info("Updating Hazelcast status", "CR", c.NamespacedName)
 	for uuid, m := range c.MemberMap {
-		jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
-		if err != nil {
-			c.Log.Error(err, "Fetching TimedMemberState failed.", "CR", c.NamespacedName)
-		}
-		state := &TimedMemberStateWrapper{}
-		err = json.Unmarshal([]byte(jsonState), state)
-		if err != nil {
-			c.Log.Error(err, "TimedMemberState json parsing failed.", "CR", c.NamespacedName, "JSON", jsonState)
-			continue
-		}
-		m.enrichMemberData(state.TimedMemberState)
+		c.enrichMemberByUuid(ctx, uuid, m)
 	}
 	c.triggerReconcile()
+}
+
+func (c *HazelcastClient) enrichMemberByUuid(ctx context.Context, uuid hztypes.UUID, m *MemberData) {
+	jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
+	if err != nil {
+		c.Log.Error(err, "Fetching TimedMemberState failed.", "CR", c.NamespacedName)
+	}
+	state := &TimedMemberStateWrapper{}
+	err = json.Unmarshal([]byte(jsonState), state)
+	if err != nil {
+		c.Log.Error(err, "TimedMemberState json parsing failed.", "CR", c.NamespacedName, "JSON", jsonState)
+		return
+	}
+	m.enrichMemberData(state.TimedMemberState)
 }
 
 func fetchTimedMemberState(ctx context.Context, client *hazelcast.Client, uuid hztypes.UUID) (string, error) {
