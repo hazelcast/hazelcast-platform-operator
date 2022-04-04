@@ -17,8 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
+
+var clients sync.Map
 
 type HazelcastClient struct {
 	sync.Mutex
@@ -46,6 +48,24 @@ type MemberData struct {
 	Partitions  int32
 	Name        string
 }
+
+func getClient(n types.NamespacedName) (client *HazelcastClient, ok bool) {
+	if v, ok := clients.Load(n); ok {
+		return v.(*HazelcastClient), true
+	}
+	return nil, false
+}
+
+//func createClient(ctx context.Context, req ctrl.Request, h *hazelcastv1alpha1.Hazelcast) {
+//	if _, ok := clients.Load(req.NamespacedName); ok {
+//		return
+//	}
+//	config := buildConfig(h)
+//	c := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
+//	config.AddMembershipListener(getStatusUpdateListener(c))
+//	c.start(ctx, config)
+//	clients.Store(req.NamespacedName, c)
+//}
 
 func newMemberData(m cluster.MemberInfo) *MemberData {
 	return &MemberData{
@@ -161,7 +181,7 @@ func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(clust
 
 func (c *HazelcastClient) triggerReconcile() {
 	c.triggerReconcileChan <- event.GenericEvent{
-		Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
+		Object: &hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
 			Namespace: c.NamespacedName.Namespace,
 			Name:      c.NamespacedName.Name,
 		}}}
