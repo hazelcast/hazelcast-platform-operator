@@ -81,8 +81,8 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	config.Cluster.ConnectionStrategy.Timeout = hztypes.Duration(0)
 	config.Cluster.ConnectionStrategy.ReconnectMode = cluster.ReconnectModeOn
 	config.Cluster.ConnectionStrategy.Retry = cluster.ConnectionRetryConfig{
-		InitialBackoff: 1,
-		MaxBackoff:     10,
+		InitialBackoff: hztypes.Duration(1 * time.Second),
+		MaxBackoff:     hztypes.Duration(10 * time.Second),
 		Jitter:         0.25,
 	}
 
