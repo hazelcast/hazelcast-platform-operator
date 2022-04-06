@@ -4,6 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"time"
+
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
@@ -21,16 +27,19 @@ import (
 
 type HotBackupReconciler struct {
 	client.Client
-	Log       logr.Logger
-	scheduled sync.Map
-	cron      *cron.Cron
+	Log                  logr.Logger
+	scheduled            sync.Map
+	cron                 *cron.Cron
+	triggerReconcileChan chan event.GenericEvent
+	statuses             sync.Map
 }
 
 func NewHotBackupReconciler(c client.Client, log logr.Logger) *HotBackupReconciler {
 	return &HotBackupReconciler{
-		Client: c,
-		Log:    log,
-		cron:   cron.New(),
+		Client:               c,
+		Log:                  log,
+		cron:                 cron.New(),
+		triggerReconcileChan: make(chan event.GenericEvent),
 	}
 }
 
@@ -124,7 +133,31 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
+
+	r.reconcileHotBackupStatus(ctx, hb)
 	return ctrl.Result{}, nil
+}
+
+func (r *HotBackupReconciler) reconcileHotBackupStatus(ctx context.Context, hb *hazelcastv1alpha1.HotBackup) {
+	if hzClient, ok := GetClient(types.NamespacedName{Name: hb.Spec.HazelcastResourceName, Namespace: hb.Namespace}); ok {
+		r.statuses.Store(types.NamespacedName{Namespace: hb.Namespace, Name: hb.Name}, StatusTicker{
+			ticker: time.NewTicker(2 * time.Second),
+			done:   make(chan bool),
+		})
+		currentState := hazelcastv1alpha1.HotBackupUnknown
+		for uuid, _ := range hzClient.MemberMap {
+			state := hzClient.getTimedMemberState(ctx, uuid)
+			if state == nil {
+				continue
+			}
+			currentState = hotBackupState(state.TimedMemberState.MemberState.HotRestartState, currentState)
+		}
+		hb.Status.State = currentState
+		err := r.Status().Update(ctx, hb)
+		if err != nil {
+			r.Log.Error(err, "Could not update HotBackup status")
+		}
+	}
 }
 
 func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
@@ -206,5 +239,6 @@ func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, rest *RestCl
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.HotBackup{}).
+		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }

@@ -5,10 +5,11 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 type HotBackupState string
 
 const (
-	NotStarted HotBackupState = "NOT_STARTED"
-	InProgress HotBackupState = "IN_PROGRESS"
-	Failure    HotBackupState = "FAILURE"
-	Success    HotBackupState = "SUCCESS"
+	HotBackupUnknown    HotBackupState = "Unknown"
+	HotBackupNotStarted HotBackupState = "NotStarted"
+	HotBackupInProgress HotBackupState = "InProgress"
+	HotBackupFailure    HotBackupState = "Failure"
+	HotBackupSuccess    HotBackupState = "Success"
 )
 
 // HotBackupStatus defines the observed state of HotBackup
@@ -40,6 +41,7 @@ type HotBackupSpec struct {
 //+kubebuilder:subresource:status
 
 // HotBackup is the Schema for the hot backup API
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the HotBackup process"
 type HotBackup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -20,8 +20,6 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
-var clients sync.Map
-
 type HazelcastClient struct {
 	sync.Mutex
 	client               *hazelcast.Client
@@ -49,23 +47,33 @@ type MemberData struct {
 	Name        string
 }
 
-func getClient(n types.NamespacedName) (client *HazelcastClient, ok bool) {
-	if v, ok := clients.Load(n); ok {
+var clients sync.Map
+
+func GetClient(ns types.NamespacedName) (client *HazelcastClient, ok bool) {
+	if v, ok := clients.Load(ns); ok {
 		return v.(*HazelcastClient), true
 	}
 	return nil, false
 }
 
-//func createClient(ctx context.Context, req ctrl.Request, h *hazelcastv1alpha1.Hazelcast) {
-//	if _, ok := clients.Load(req.NamespacedName); ok {
-//		return
-//	}
-//	config := buildConfig(h)
-//	c := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
-//	config.AddMembershipListener(getStatusUpdateListener(c))
-//	c.start(ctx, config)
-//	clients.Store(req.NamespacedName, c)
-//}
+func CreateClient(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, channel chan event.GenericEvent, l logr.Logger) {
+	ns := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
+	if _, ok := clients.Load(ns); ok {
+		return
+	}
+	config := buildConfig(h)
+	c := newHazelcastClient(l, ns, channel)
+	config.AddMembershipListener(getStatusUpdateListener(ctx, c))
+	c.start(ctx, config)
+	clients.Store(ns, c)
+}
+
+func ShootDownClient(ctx context.Context, ns types.NamespacedName) {
+	if c, ok := clients.Load(ns); ok {
+		clients.Delete(ns)
+		c.(*HazelcastClient).shutdown(ctx)
+	}
+}
 
 func newMemberData(m cluster.MemberInfo) *MemberData {
 	return &MemberData{
@@ -88,7 +96,7 @@ func (s *StatusTicker) stop() {
 	s.done <- true
 }
 
-func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *HazelcastClient {
+func newHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *HazelcastClient {
 	return &HazelcastClient{
 		NamespacedName:       n,
 		Log:                  l,
@@ -165,7 +173,10 @@ func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(clust
 		if changed.State == cluster.MembershipStateAdded {
 			c.Lock()
 			m := newMemberData(changed.Member)
-			c.enrichMemberByUuid(ctx, changed.Member.UUID, m)
+			state := c.getTimedMemberState(ctx, changed.Member.UUID)
+			if state != nil {
+				m.enrichMemberData(state.TimedMemberState)
+			}
 			c.MemberMap[changed.Member.UUID] = m
 			c.Unlock()
 			c.Log.Info("Member is added", "member", changed.Member.String())
@@ -193,12 +204,15 @@ func (c *HazelcastClient) updateMemberStates(ctx context.Context) {
 	}
 	c.Log.V(2).Info("Updating Hazelcast status", "CR", c.NamespacedName)
 	for uuid, m := range c.MemberMap {
-		c.enrichMemberByUuid(ctx, uuid, m)
+		state := c.getTimedMemberState(ctx, uuid)
+		if state != nil {
+			m.enrichMemberData(state.TimedMemberState)
+		}
 	}
 	c.triggerReconcile()
 }
 
-func (c *HazelcastClient) enrichMemberByUuid(ctx context.Context, uuid hztypes.UUID, m *MemberData) {
+func (c *HazelcastClient) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *TimedMemberStateWrapper {
 	jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
 	if err != nil {
 		c.Log.Error(err, "Fetching TimedMemberState failed.", "CR", c.NamespacedName)
@@ -207,9 +221,9 @@ func (c *HazelcastClient) enrichMemberByUuid(ctx context.Context, uuid hztypes.U
 	err = json.Unmarshal([]byte(jsonState), state)
 	if err != nil {
 		c.Log.Error(err, "TimedMemberState json parsing failed.", "CR", c.NamespacedName, "JSON", jsonState)
-		return
+		return nil
 	}
-	m.enrichMemberData(state.TimedMemberState)
+	return state
 }
 
 func fetchTimedMemberState(ctx context.Context, client *hazelcast.Client, uuid hztypes.UUID) (string, error) {
@@ -233,10 +247,11 @@ type TimedMemberState struct {
 }
 
 type MemberState struct {
-	Address   string    `json:"address"`
-	Uuid      string    `json:"uuid"`
-	Name      string    `json:"name"`
-	NodeState NodeState `json:"nodeState"`
+	Address         string          `json:"address"`
+	Uuid            string          `json:"uuid"`
+	Name            string          `json:"name"`
+	NodeState       NodeState       `json:"nodeState"`
+	HotRestartState HotRestartState `json:"hotRestartState"`
 }
 
 type NodeState struct {
@@ -246,4 +261,12 @@ type NodeState struct {
 
 type MemberPartitionState struct {
 	Partitions []int32 `json:"partitions"`
+}
+
+type HotRestartState struct {
+	BackupTaskState     string `json:"backupTaskState"`
+	BackupTaskCompleted int32  `json:"backupTaskCompleted"`
+	BackupTaskTotal     int32  `json:"backupTaskTotal"`
+	IsHotBackupEnabled  bool   `json:"isHotBackupEnabled"`
+	BackupDirectory     string `json:"backupDirectory"`
 }
