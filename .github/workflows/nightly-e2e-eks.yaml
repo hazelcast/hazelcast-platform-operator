@@ -53,7 +53,7 @@ jobs:
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Golang
         uses: actions/setup-go@v2
@@ -123,7 +123,6 @@ jobs:
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX}
 
       - name: Clean up after Tests
-        if: ${{ always() }}
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
@@ -151,3 +150,17 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           eksctl delete nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1
           eksctl delete cluster "${CLUSTER_NAME}" --wait
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'clean-up' ]
+    if: always() &&  needs.clean-up.result != 'success' 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

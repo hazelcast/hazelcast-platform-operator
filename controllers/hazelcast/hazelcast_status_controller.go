@@ -47,6 +47,27 @@ type MemberData struct {
 	Name        string
 }
 
+func newMemberData(m cluster.MemberInfo) *MemberData {
+	return &MemberData{
+		Address:    m.Address.String(),
+		UUID:       m.UUID.String(),
+		Version:    fmt.Sprintf("%d.%d.%d", m.Version.Major, m.Version.Minor, m.Version.Patch),
+		LiteMember: m.LiteMember,
+	}
+}
+
+func (m *MemberData) enrichMemberData(s TimedMemberState) {
+	m.Master = s.Master
+	m.MemberState = s.MemberState.NodeState.State
+	m.Partitions = int32(len(s.MemberPartitionState.Partitions))
+	m.Name = s.MemberState.Name
+}
+
+func (s *StatusTicker) stop() {
+	s.ticker.Stop()
+	s.done <- true
+}
+
 var clients sync.Map
 
 func GetClient(ns types.NamespacedName) (client *HazelcastClient, ok bool) {
@@ -75,27 +96,6 @@ func ShootDownClient(ctx context.Context, ns types.NamespacedName) {
 	}
 }
 
-func newMemberData(m cluster.MemberInfo) *MemberData {
-	return &MemberData{
-		Address:    m.Address.String(),
-		UUID:       m.UUID.String(),
-		Version:    fmt.Sprintf("%d.%d.%d", m.Version.Major, m.Version.Minor, m.Version.Patch),
-		LiteMember: m.LiteMember,
-	}
-}
-
-func (m *MemberData) enrichMemberData(s TimedMemberState) {
-	m.Master = s.Master
-	m.MemberState = s.MemberState.NodeState.State
-	m.Partitions = int32(len(s.MemberPartitionState.Partitions))
-	m.Name = s.MemberState.Name
-}
-
-func (s *StatusTicker) stop() {
-	s.ticker.Stop()
-	s.done <- true
-}
-
 func newHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *HazelcastClient {
 	return &HazelcastClient{
 		NamespacedName:       n,
@@ -109,8 +109,8 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	config.Cluster.ConnectionStrategy.Timeout = hztypes.Duration(0)
 	config.Cluster.ConnectionStrategy.ReconnectMode = cluster.ReconnectModeOn
 	config.Cluster.ConnectionStrategy.Retry = cluster.ConnectionRetryConfig{
-		InitialBackoff: 1,
-		MaxBackoff:     10,
+		InitialBackoff: hztypes.Duration(1 * time.Second),
+		MaxBackoff:     hztypes.Duration(10 * time.Second),
 		Jitter:         0.25,
 	}
 
