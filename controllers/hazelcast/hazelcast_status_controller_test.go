@@ -1,6 +1,8 @@
 package hazelcast
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/hazelcast/hazelcast-go-client/cluster"
@@ -22,7 +24,7 @@ var _ = Describe("Hazelcast status", func() {
 	)
 
 	var hzClient = &HazelcastClient{
-		MemberMap:            make(map[string]cluster.MemberInfo),
+		MemberMap:            make(map[hzTypes.UUID]*MemberData),
 		triggerReconcileChan: make(chan event.GenericEvent),
 		NamespacedName: types.NamespacedName{
 			Namespace: "default",
@@ -39,10 +41,10 @@ var _ = Describe("Hazelcast status", func() {
 				},
 				State: cluster.MembershipStateAdded,
 			}
-			go getStatusUpdateListener(hzClient)(stateChanged)
+			go getStatusUpdateListener(context.TODO(), hzClient)(stateChanged)
 
 			Eventually(func() bool {
-				_, ok := hzClient.MemberMap[stateChanged.Member.UUID.String()]
+				_, ok := hzClient.MemberMap[stateChanged.Member.UUID]
 				return ok
 			}, timeout, interval).Should(BeTrue())
 
@@ -66,20 +68,21 @@ var _ = Describe("Hazelcast status", func() {
 				UUID:    hzTypes.NewUUID(),
 				Version: cluster.MemberVersion{Major: 5, Minor: 0, Patch: 1},
 			}
-			hzClient.MemberMap[existingMember.UUID.String()] = cluster.MemberInfo{
-				Address: existingMember.Address,
-				UUID:    existingMember.UUID,
-				Version: existingMember.Version,
+			hzClient.MemberMap[existingMember.UUID] = &MemberData{
+				Address: existingMember.Address.String(),
+				UUID:    existingMember.UUID.String(),
+				Version: fmt.Sprintf(
+					"%d.%d.%d", existingMember.Version.Major, existingMember.Version.Minor, existingMember.Version.Patch),
 			}
 
 			stateChanged := cluster.MembershipStateChanged{
 				Member: existingMember,
 				State:  cluster.MembershipStateRemoved,
 			}
-			go getStatusUpdateListener(hzClient)(stateChanged)
+			go getStatusUpdateListener(context.TODO(), hzClient)(stateChanged)
 
 			Eventually(func() bool {
-				_, ok := hzClient.MemberMap[stateChanged.Member.UUID.String()]
+				_, ok := hzClient.MemberMap[stateChanged.Member.UUID]
 				return ok
 			}, timeout, interval).Should(BeFalse())
 

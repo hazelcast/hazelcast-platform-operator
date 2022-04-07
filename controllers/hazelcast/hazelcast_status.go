@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hazelcast/hazelcast-go-client/cluster"
+	hztypes "github.com/hazelcast/hazelcast-go-client/types"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,7 +20,7 @@ type optionsBuilder struct {
 	phase             hazelcastv1alpha1.Phase
 	retryAfter        time.Duration
 	err               error
-	readyMembers      map[string]cluster.MemberInfo
+	readyMembers      map[hztypes.UUID]*MemberData
 	message           string
 	externalAddresses string
 }
@@ -44,7 +45,7 @@ func runningPhase() optionsBuilder {
 	}
 }
 
-func (o optionsBuilder) withReadyMembers(m map[string]cluster.MemberInfo) optionsBuilder {
+func (o optionsBuilder) withReadyMembers(m map[hztypes.UUID]*MemberData) optionsBuilder {
 	o.readyMembers = m
 	return o
 }
@@ -60,16 +61,20 @@ func (o optionsBuilder) withExternalAddresses(addrs string) optionsBuilder {
 }
 
 func statusMembers(
-	m map[string]cluster.MemberInfo) []hazelcastv1alpha1.HazelcastMemberStatus {
+	m map[hztypes.UUID]*MemberData) []hazelcastv1alpha1.HazelcastMemberStatus {
 	members := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(m))
 	for uid, member := range m {
-		a := member.Address.String()
+		a := member.Address
 		ip := a[:strings.IndexByte(a, ':')]
 		members = append(members, hazelcastv1alpha1.HazelcastMemberStatus{
-			Uid:     uid,
-			Ip:      ip,
-			Version: fmt.Sprintf("%d.%d.%d", member.Version.Major, member.Version.Minor, member.Version.Patch),
-			Ready:   true,
+			Uid:             uid.String(),
+			Ip:              ip,
+			Version:         member.Version,
+			Ready:           true,
+			Master:          member.Master,
+			Lite:            member.LiteMember,
+			OwnedPartitions: member.Partitions,
+			State:           member.MemberState,
 		})
 	}
 	return members
@@ -77,7 +82,7 @@ func statusMembers(
 
 func addExistingMembers(statusMembers, existingMembers []hazelcastv1alpha1.HazelcastMemberStatus) []hazelcastv1alpha1.HazelcastMemberStatus {
 	res := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(statusMembers))
-	copy(res, statusMembers)
+	res = append(res, statusMembers...)
 	for _, em := range existingMembers {
 		exist := false
 		for _, sm := range statusMembers {

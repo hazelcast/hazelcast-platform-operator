@@ -101,22 +101,22 @@ fmt: ## Run go fmt against code.
 	go fmt ./...
 
 vet: ## Run go vet against code.
-	go vet ./...
+	go vet -tags "$(GO_BUILD_TAGS)" ./...
 
 test-all: test test-e2e
 
 test: test-unit test-it
 
 test-unit: manifests generate fmt vet
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -v ./controllers/... -coverprofile cover.out
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -v ./api/... -coverprofile cover.out
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/... -coverprofile cover.out
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./api/... -coverprofile cover.out
 
 lint: lint-go lint-yaml
 
 LINTER_SETUP_DIR=$(shell pwd)/lintbin
 LINTER_PATH="${LINTER_SETUP_DIR}/bin:${PATH}"
 lint-go: setup-linters
-	PATH=${LINTER_PATH} golangci-lint run
+	PATH=${LINTER_PATH} golangci-lint run --build-tags $(GO_BUILD_TAGS)
 
 lint-yaml: setup-linters
 	PATH=${LINTER_PATH} yamllint -c ./hack/yamllint.yaml .
@@ -141,7 +141,7 @@ GO_TEST_FLAGS ?= "-ee=true"
 test-it: manifests generate fmt vet ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
+	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --vv --progress --timeout 40m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
@@ -150,16 +150,16 @@ test-ph: generate fmt vet ginkgo ## Run phone-home tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 ##@ Build
-
-GO_BUILD_TAGS ?= "localrun"
+GO_BUILD_TAGS = hazelcastinternal
+CUSTOM_GO_BUILD_TAGS ?= localrun
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager -tags $(GO_BUILD_TAGS) main.go
+	go build -o bin/manager -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" main.go
 
 build-tilt: generate fmt vet
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/tilt/manager main.go  
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go run -tags $(GO_BUILD_TAGS) ./main.go
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go run -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" ./main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
@@ -237,7 +237,7 @@ kustomize: ## Download kustomize locally if necessary.
 
 GINKGO = $(GOBIN)/ginkgo
 $(GINKGO):
-	go install github.com/onsi/ginkgo/v2/ginkgo
+	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
 
 ginkgo: $(GINKGO)
 
