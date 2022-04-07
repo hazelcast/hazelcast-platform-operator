@@ -25,7 +25,7 @@ jobs:
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
     steps:
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Golang
         uses: actions/setup-go@v2
@@ -33,7 +33,7 @@ jobs:
           go-version: '1.16'
 
       - name: Cache Golang dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -73,6 +73,19 @@ jobs:
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
-        if: always()
         run: |
           make clean-up-namespace KUBECTL=oc NAMESPACE=${NAMESPACE}
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'ocp-e2e-tests' ]
+    if: always() &&  needs.ocp-e2e-tests.result != 'success' 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

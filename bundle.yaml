@@ -601,9 +601,19 @@ spec:
                     ip:
                       description: Ip is the IP address of the member within the cluster.
                       type: string
+                    lite:
+                      description: Lite is the flag that is true when the member is lite-member.
+                      type: boolean
+                    master:
+                      description: Master flag is set to true if the member is master.
+                      type: boolean
                     message:
                       description: Message contains the optional message with the details of the cluster state.
                       type: string
+                    ownedPartitions:
+                      description: OwnedPartitions represents the partitions count on the member.
+                      format: int32
+                      type: integer
                     podName:
                       description: PodName is the name of the Hazelcast member pod.
                       type: string
@@ -614,6 +624,9 @@ spec:
                       description: RestartCount is the number of times the member has been restarted.
                       format: int32
                       type: integer
+                    state:
+                      description: State represents the observed state of the member.
+                      type: string
                     uid:
                       description: Uid is the unique member identifier within the cluster.
                       type: string

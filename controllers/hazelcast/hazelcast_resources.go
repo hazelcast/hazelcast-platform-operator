@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
+	"net"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -363,6 +364,16 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 			if len(s.Status.LoadBalancer.Ingress) == 0 {
 				// LoadBalancer service waiting for External IP to get assigned
 				return false
+			}
+			for _, ingress := range s.Status.LoadBalancer.Ingress {
+				// Hostname is set for load-balancer ingress points that are DNS based
+				// (typically AWS load-balancers)
+				if ingress.Hostname != "" {
+					if _, err := net.DefaultResolver.LookupHost(ctx, ingress.Hostname); err != nil {
+						// Hostname does not resolve yet
+						return false
+					}
+				}
 			}
 		}
 	}

@@ -319,6 +319,22 @@ type HazelcastMemberStatus struct {
 	// +optional
 	Version string `json:"version,omitempty"`
 
+	// State represents the observed state of the member.
+	// +optional
+	State string `json:"state,omitempty"`
+
+	// Master flag is set to true if the member is master.
+	// +optional
+	Master bool `json:"master,omitempty"`
+
+	// Lite is the flag that is true when the member is lite-member.
+	// +optional
+	Lite bool `json:"lite,omitempty"`
+
+	// OwnedPartitions represents the partitions count on the member.
+	// +optional
+	OwnedPartitions int32 `json:"ownedPartitions,omitempty"`
+
 	// Ready is the flag that is set to true when the member is successfully started,
 	// connected to cluster and ready to accept connections.
 	Ready bool `json:"connected"`
