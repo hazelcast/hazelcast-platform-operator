@@ -150,8 +150,7 @@ var _ = Describe("Hazelcast", func() {
 
 		It("should update HZ detailed member status", func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
-			create(h)
-
+			CreateHazelcastCR(h, lookupKey)
 			evaluateReadyMembers(lookupKey, 3)
 
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
