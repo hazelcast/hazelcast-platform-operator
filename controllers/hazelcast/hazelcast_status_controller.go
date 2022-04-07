@@ -115,9 +115,7 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	c.Lock()
 	c.cancel = cancel
-	c.Unlock()
 
 	go func(ctx context.Context) {
 		c.initHzClient(ctx, config)
@@ -152,11 +150,13 @@ func (c *HazelcastClient) initHzClient(ctx context.Context, config hazelcast.Con
 }
 
 func (c *HazelcastClient) shutdown(ctx context.Context) {
-	c.Lock()
-	defer c.Unlock()
 	if c.cancel != nil {
 		c.cancel()
 	}
+
+	c.Lock()
+	defer c.Unlock()
+
 	if c.client == nil {
 		return
 	}
