@@ -132,6 +132,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "HotBackup")
 		os.Exit(1)
 	}
+	if err = (&hazelcast.MapReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Map"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Map")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

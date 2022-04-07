@@ -25,6 +25,11 @@ spec:
       kind: ManagementCenter
       name: managementcenters.hazelcast.com
       version: v1alpha1
+    - description: Map is the Schema for the maps API
+      displayName: Map
+      kind: Map
+      name: maps.hazelcast.com
+      version: v1alpha1
   description: |
     # Hazelcast Platform Operator #
 

@@ -2,4 +2,5 @@
 resources:
 - _v1alpha1_hazelcast.yaml
 - _v1alpha1_managementcenter.yaml
+- _v1alpha1_map.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
