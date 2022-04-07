@@ -61,15 +61,21 @@ func SpecLabelsChecker() {
 			log.Fatal(err)
 		}
 		scanner := bufio.NewScanner(file)
-		sl, slErr := regexp.Compile("(It|Entry)\\((?:[^L]+|L(?:$|[^a]|a(?:$|[^b]|b(?:$|[^e]|e(?:$|[^l]|l(?:$|[^(]|\\((?:$|[^\"]|\"(?:$|[^s]|s(?:$|[^l]|l(?:$|[^o]|o(?:$|[^w]|w(?:$|[^\"]))))))))))))*$")
-		fs, fsErr := regexp.Compile("(It|Entry)\\((?:[^L]+|L(?:$|[^a]|a(?:$|[^b]|b(?:$|[^e]|e(?:$|[^l]|l(?:$|[^(]|\\((?:$|[^\"]|\"(?:$|[^f]|f(?:$|[^a]|a(?:$|[^s]|s(?:$|[^t]|t(?:$|[^\"]))))))))))))*$")
-		if slErr != nil || fsErr != nil {
+		buf := make([]byte, 0, 2097152)
+		scanner.Buffer(buf, 5242880)
+
+		lbl, lblErr := regexp.Compile("(^(.*?)It|^(.*?)Entry)(.*?)Label\\((.*?)$")
+		if lblErr != nil {
 			log.Fatal(err)
 		}
 		for scanner.Scan() {
-			if sl.MatchString(scanner.Text()) && fs.MatchString(scanner.Text()) {
-				testList = append(testList, strings.Join(strings.Fields(strings.TrimSpace(scanner.Text())), " "))
-				labelCounter++
+			if lbl.MatchString(scanner.Text()) {
+				slowLabels, _ := regexp.MatchString("\\bslow\\b", scanner.Text())
+				fastLabels, _ := regexp.MatchString("\\bfast\\b", scanner.Text())
+				if !(slowLabels || fastLabels) {
+					testList = append(testList, strings.Join(strings.Fields(strings.TrimSpace(scanner.Text())), " "))
+					labelCounter++
+				}
 			}
 		}
 		if err := scanner.Err(); err != nil {
