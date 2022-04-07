@@ -1,8 +1,14 @@
 package test
 
 import (
+	"bufio"
 	"context"
 	"io"
+	"log"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,4 +39,46 @@ func GetPodLogs(ctx context.Context, pod types.NamespacedName, podLogOptions *co
 		panic(err)
 	}
 	return podLogs
+}
+
+func SpecLabelsChecker() {
+	labelCounter := 0
+	var testList []string
+	var testSuites []string
+	err := filepath.Walk("../../test", func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			testSuites = append(testSuites, path)
+			return nil
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, testSuite := range testSuites {
+		file, err := os.Open(testSuite)
+		if err != nil {
+			log.Fatal(err)
+		}
+		scanner := bufio.NewScanner(file)
+		sl, slErr := regexp.Compile("(It|Entry)\\((?:[^L]+|L(?:$|[^a]|a(?:$|[^b]|b(?:$|[^e]|e(?:$|[^l]|l(?:$|[^(]|\\((?:$|[^\"]|\"(?:$|[^s]|s(?:$|[^l]|l(?:$|[^o]|o(?:$|[^w]|w(?:$|[^\"]))))))))))))*$")
+		fs, fsErr := regexp.Compile("(It|Entry)\\((?:[^L]+|L(?:$|[^a]|a(?:$|[^b]|b(?:$|[^e]|e(?:$|[^l]|l(?:$|[^(]|\\((?:$|[^\"]|\"(?:$|[^f]|f(?:$|[^a]|a(?:$|[^s]|s(?:$|[^t]|t(?:$|[^\"]))))))))))))*$")
+		if slErr != nil || fsErr != nil {
+			log.Fatal(err)
+		}
+		for scanner.Scan() {
+			if sl.MatchString(scanner.Text()) && fs.MatchString(scanner.Text()) {
+				testList = append(testList, strings.Join(strings.Fields(strings.TrimSpace(scanner.Text())), " "))
+				labelCounter++
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			log.Fatal(err)
+		}
+		file.Close()
+	}
+	if labelCounter > 0 {
+		log.Fatalf("There are %d tests doesn't have Labels or has incorrect one. Possible lables are 'slow' and 'fast'. Add label to test using 'Label(\"slow\")' or 'Label(\"fast\"). "+
+			"\nExample: it('should create Hazelcast cluster\", Label(\"slow\"), func()':\n \n * %s ", labelCounter, strings.Join(testList[:], "\n * "))
+	}
 }

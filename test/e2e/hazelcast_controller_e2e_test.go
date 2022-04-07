@@ -87,7 +87,7 @@ var _ = Describe("Hazelcast", func() {
 	}
 
 	Describe("Default Hazelcast CR", func() {
-		It("should create Hazelcast cluster", func() {
+		It("should create Hazelcast cluster", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 		})
@@ -140,7 +140,7 @@ var _ = Describe("Hazelcast", func() {
 			}, timeout, interval).Should(Not(BeEmpty()))
 		}
 
-		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
+		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", Label("slow"), func() {
 			assertUseHazelcastUnisocket := func() {
 				assertUseHazelcast(true)
 			}
@@ -151,7 +151,7 @@ var _ = Describe("Hazelcast", func() {
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
+		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("slow"), func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
 			}
@@ -162,7 +162,7 @@ var _ = Describe("Hazelcast", func() {
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", func() {
+		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("slow"), func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
 			}
@@ -173,7 +173,7 @@ var _ = Describe("Hazelcast", func() {
 	})
 
 	Describe("Hazelcast cluster name", func() {
-		It("should create a Hazelcust cluster with Cluster name: development", func() {
+		It("should create a Hazelcust cluster with Cluster name: development", Label("fast"), func() {
 			hazelcast := hazelcastconfig.ClusterName(hzNamespace, ee)
 			create(hazelcast)
 
@@ -183,7 +183,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Context("Hazelcast member status", func() {
 
-		It("should update HZ ready members status", func() {
+		It("should update HZ ready members status", Label("fast"), func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
@@ -208,7 +208,7 @@ var _ = Describe("Hazelcast", func() {
 			})
 		})
 
-		It("should update HZ detailed member status", func() {
+		It("should update HZ detailed member status", Label("fast"), func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
@@ -243,14 +243,14 @@ var _ = Describe("Hazelcast", func() {
 			Expect(hz.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should be reflected to Hazelcast CR status", func() {
+		It("should be reflected to Hazelcast CR status", Label("fast"), func() {
 			createWithoutCheck(hazelcastconfig.Faulty(hzNamespace, ee))
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
 	})
 
 	Describe("Hazelcast CR with Persistence feature enabled", func() {
-		It("should enable persistence for members successfully", func() {
+		It("should enable persistence for members successfully", Label("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -282,7 +282,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 		})
 
-		It("should successfully trigger HotBackup", func() {
+		It("should successfully trigger HotBackup", Label("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -317,7 +317,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(logs.Close()).Should(Succeed())
 		})
 
-		It("should trigger ForceStart when restart from HotBackup failed", func() {
+		It("should trigger ForceStart when restart from HotBackup failed", Label("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -470,9 +470,9 @@ var _ = Describe("Hazelcast", func() {
 
 			Expect(logs.Close()).Should(Succeed())
 		},
-			Entry("with PVC configuration"),
-			Entry("with HostPath configuration single node", "/tmp/hazelcast/singleNode", "dummyNodeName"),
-			Entry("with HostPath configuration multiple nodes", "/tmp/hazelcast/multiNode"),
+			Entry("with PVC configuration", Label("slow")),
+			Entry("with HostPath configuration single node", Label("slow"), "/tmp/hazelcast/singleNode", "dummyNodeName"),
+			Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
 		)
 	})
 })

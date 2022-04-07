@@ -70,7 +70,7 @@ var _ = Describe("ManagementCenter controller", func() {
 	}
 
 	Context("ManagementCenter CustomResource with default specs", func() {
-		It("should create CR with default values when empty specs are applied", func() {
+		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: GetRandomObjectMeta(),
 			}
@@ -80,7 +80,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			Delete(mc)
 		})
 
-		It("Should handle CR and sub resources correctly", func() {
+		It("Should handle CR and sub resources correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
@@ -138,7 +138,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			Delete(mc)
 
 		})
-		It("should create CR with default values when empty specs are applied", func() {
+		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec: hazelcastv1alpha1.ManagementCenterSpec{
@@ -162,7 +162,7 @@ var _ = Describe("ManagementCenter controller", func() {
 	})
 	Context("ManagementCenter CustomResource with Persistence", func() {
 		When("persistence is enabled with existing Volume Claim", func() {
-			It("should add existing Volume Claim to statefulset", func() {
+			It("should add existing Volume Claim to statefulset", Label("fast"), func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
@@ -197,7 +197,7 @@ var _ = Describe("ManagementCenter controller", func() {
 	})
 	Context("ManagementCenter Image configuration", func() {
 		When("ImagePullSecrets are defined", func() {
-			It("should pass the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				pullSecrets := []corev1.LocalObjectReference{
 					{Name: "mc-secret1"},
 					{Name: "mc-secret2"},
@@ -220,7 +220,7 @@ var _ = Describe("ManagementCenter controller", func() {
 
 	Context("Pod scheduling parameters", func() {
 		When("NodeSelector is used", func() {
-			It("should pass the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
@@ -243,7 +243,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		})
 
 		When("Affinity is used", func() {
-			It("should pass the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
@@ -296,7 +296,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		})
 
 		When("Toleration is used", func() {
-			It("should pass the values to StatefulSet spec", func() {
+			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
