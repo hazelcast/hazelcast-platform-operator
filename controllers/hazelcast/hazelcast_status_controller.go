@@ -111,6 +111,7 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 			case <-s.ticker.C:
 				c.updateMemberList()
 				c.updateMemberStates(ctx)
+				c.triggerReconcile()
 			}
 		}
 	}(ctx, c.statusTicker)
@@ -180,7 +181,6 @@ func (c *HazelcastClient) updateMemberStates(ctx context.Context) {
 	for uuid, m := range c.MemberMap {
 		c.enrichMemberByUuid(ctx, uuid, m)
 	}
-	c.triggerReconcile()
 }
 
 func (c *HazelcastClient) enrichMemberByUuid(ctx context.Context, uuid hztypes.UUID, m *MemberData) {
@@ -224,7 +224,6 @@ func (c *HazelcastClient) updateMemberList() {
 		}
 	}
 	c.Unlock()
-	c.triggerReconcile()
 }
 
 func fetchTimedMemberState(ctx context.Context, client *hazelcast.Client, uuid hztypes.UUID) (string, error) {
