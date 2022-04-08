@@ -315,6 +315,13 @@ var _ = Describe("Hazelcast", func() {
 			test.EventuallyInLogs(scanner, timeout, logInterval).
 				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
 			Expect(logs.Close()).Should(Succeed())
+
+			hb := &hazelcastcomv1alpha1.HotBackup{}
+			Eventually(func() hazelcastcomv1alpha1.HotBackupState {
+				err := k8sClient.Get(context.Background(), lookupKey, hb)
+				Expect(err).ToNot(HaveOccurred())
+				return hb.Status.State
+			}, timeout, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
 		})
 
 		It("should trigger ForceStart when restart from HotBackup failed", func() {
