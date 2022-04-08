@@ -232,11 +232,12 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 		Name:      hb.Name,
 		Namespace: hb.Namespace,
 	}
-	jobId, ok := r.scheduled.Load(key)
-	if ok {
+	if jobId, ok := r.scheduled.LoadAndDelete(key); ok {
 		logger.V(1).Info("Removing cron Job.", "EntryId", jobId)
 		r.cron.Remove(jobId.(cron.EntryID))
-		r.scheduled.Delete(key)
+	}
+	if s, ok := r.statuses.LoadAndDelete(key); ok {
+		s.(*StatusTicker).stop()
 	}
 	controllerutil.RemoveFinalizer(hb, n.Finalizer)
 	err := r.Update(ctx, hb)
