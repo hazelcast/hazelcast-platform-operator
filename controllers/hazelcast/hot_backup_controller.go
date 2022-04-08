@@ -237,6 +237,7 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 		r.cron.Remove(jobId.(cron.EntryID))
 	}
 	if s, ok := r.statuses.LoadAndDelete(key); ok {
+		logger.V(1).Info("Stopping status ticker for HotBackup.", "CR", key)
 		s.(*StatusTicker).stop()
 	}
 	controllerutil.RemoveFinalizer(hb, n.Finalizer)
