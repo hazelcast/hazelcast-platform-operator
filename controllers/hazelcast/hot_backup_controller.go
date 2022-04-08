@@ -6,11 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"sigs.k8s.io/controller-runtime/pkg/event"
-
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,19 +22,17 @@ import (
 
 type HotBackupReconciler struct {
 	client.Client
-	Log                  logr.Logger
-	scheduled            sync.Map
-	cron                 *cron.Cron
-	triggerReconcileChan chan event.GenericEvent
-	statuses             sync.Map
+	Log       logr.Logger
+	scheduled sync.Map
+	cron      *cron.Cron
+	statuses  sync.Map
 }
 
 func NewHotBackupReconciler(c client.Client, log logr.Logger) *HotBackupReconciler {
 	return &HotBackupReconciler{
-		Client:               c,
-		Log:                  log,
-		cron:                 cron.New(),
-		triggerReconcileChan: make(chan event.GenericEvent),
+		Client: c,
+		Log:    log,
+		cron:   cron.New(),
 	}
 }
 
@@ -139,23 +132,52 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 }
 
 func (r *HotBackupReconciler) reconcileHotBackupStatus(ctx context.Context, hb *hazelcastv1alpha1.HotBackup) {
-	if hzClient, ok := GetClient(types.NamespacedName{Name: hb.Spec.HazelcastResourceName, Namespace: hb.Namespace}); ok {
-		r.statuses.Store(types.NamespacedName{Namespace: hb.Namespace, Name: hb.Name}, StatusTicker{
-			ticker: time.NewTicker(2 * time.Second),
-			done:   make(chan bool),
-		})
-		currentState := hazelcastv1alpha1.HotBackupUnknown
-		for uuid, _ := range hzClient.MemberMap {
-			state := hzClient.getTimedMemberState(ctx, uuid)
-			if state == nil {
-				continue
+	hzClient, ok := GetClient(types.NamespacedName{Name: hb.Spec.HazelcastResourceName, Namespace: hb.Namespace})
+	if !ok {
+		return
+	}
+	t := &StatusTicker{
+		ticker: time.NewTicker(2 * time.Second),
+		done:   make(chan bool),
+	}
+	r.statuses.Store(types.NamespacedName{Namespace: hb.Namespace, Name: hb.Name}, t)
+	go func(ctx context.Context, s *StatusTicker) {
+		for {
+			select {
+			case <-s.done:
+				return
+			case <-s.ticker.C:
+				r.updateHotBackupStatus(hzClient, ctx, hb)
 			}
-			currentState = hotBackupState(state.TimedMemberState.MemberState.HotRestartState, currentState)
 		}
-		hb.Status.State = currentState
-		err := r.Status().Update(ctx, hb)
-		if err != nil {
-			r.Log.Error(err, "Could not update HotBackup status")
+	}(ctx, t)
+}
+
+func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *HazelcastClient, ctx context.Context, h *hazelcastv1alpha1.HotBackup) {
+	hb := &hazelcastv1alpha1.HotBackup{}
+	namespacedName := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
+	err := r.Client.Get(ctx, namespacedName, hb)
+	currentState := hazelcastv1alpha1.HotBackupUnknown
+	for uuid := range hzClient.MemberMap {
+		state := hzClient.getTimedMemberState(ctx, uuid)
+		if state == nil {
+			continue
+		}
+		r.Log.Info("Received HotBackup state for member.", "HotRestartState", state)
+		//r.Log.V(2).Info("Received HotBackup state for member.", "HotRestartState", state)
+		currentState = hotBackupState(state.TimedMemberState.MemberState.HotRestartState, currentState)
+	}
+	hb.Status.State = currentState
+	r.Log.Info("Updating the HotBackup status", "state", currentState)
+	//r.Log.V(2).Info("Updating the HotBackup status", "state", currentState)
+	err = r.Status().Update(ctx, hb)
+	if err != nil {
+		r.Log.Error(err, "Could not update HotBackup status")
+	}
+	if currentState.IsFinished() {
+		r.Log.Info("HotBackup task finished.", "state", currentState)
+		if s, ok := r.statuses.LoadAndDelete(namespacedName); ok {
+			s.(*StatusTicker).stop()
 		}
 	}
 }
@@ -239,6 +261,5 @@ func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, rest *RestCl
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.HotBackup{}).
-		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }

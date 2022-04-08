@@ -12,6 +12,10 @@ const (
 	HotBackupSuccess    HotBackupState = "Success"
 )
 
+func (s HotBackupState) IsFinished() bool {
+	return s == HotBackupFailure || s == HotBackupSuccess
+}
+
 // HotBackupStatus defines the observed state of HotBackup
 type HotBackupStatus struct {
 	State HotBackupState `json:"state"`
