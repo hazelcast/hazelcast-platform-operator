@@ -89,7 +89,7 @@ func CreateClient(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, channel c
 	clients.Store(ns, c)
 }
 
-func ShootDownClient(ctx context.Context, ns types.NamespacedName) {
+func ShutDownClient(ctx context.Context, ns types.NamespacedName) {
 	if c, ok := clients.Load(ns); ok {
 		clients.Delete(ns)
 		c.(*HazelcastClient).shutdown(ctx)
