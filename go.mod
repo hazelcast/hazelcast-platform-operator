@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	cloud.google.com/go/bigquery v1.4.0
-	github.com/go-cmd/cmd v1.4.1
+	github.com/go-cmd/cmd v1.4.0
 	github.com/go-logr/logr v0.3.0
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/hazelcast/hazelcast-go-client v1.3.0
