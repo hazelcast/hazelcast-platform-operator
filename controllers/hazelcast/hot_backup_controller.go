@@ -157,6 +157,15 @@ func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *HazelcastClient, c
 	hb := &hazelcastv1alpha1.HotBackup{}
 	namespacedName := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	err := r.Client.Get(ctx, namespacedName, hb)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			r.Log.Info("HotBackup resource not found. Ignoring since object must be deleted")
+			return
+		}
+		r.Log.Error(err, "Failed to get HotBackup")
+		return
+
+	}
 	currentState := hazelcastv1alpha1.HotBackupUnknown
 	for uuid := range hzClient.MemberMap {
 		state := hzClient.getTimedMemberState(ctx, uuid)
