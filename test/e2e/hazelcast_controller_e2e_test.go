@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	hzClient "github.com/hazelcast/hazelcast-go-client"
 	"regexp"
 	"strconv"
 	"time"
 
+	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
