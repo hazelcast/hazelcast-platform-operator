@@ -109,6 +109,7 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 			case <-s.done:
 				return
 			case <-s.ticker.C:
+				c.updateMemberList()
 				c.updateMemberStates(ctx)
 			}
 		}
@@ -147,7 +148,6 @@ func (c *HazelcastClient) shutdown(ctx context.Context) {
 func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
-			c.updateMemberList()
 			c.Lock()
 			m := newMemberData(changed.Member)
 			c.enrichMemberByUuid(ctx, changed.Member.UUID, m)
@@ -205,13 +205,13 @@ func (c *HazelcastClient) updateMemberList() {
 
 	memberList := hzInternalClient.OrderedMembers()
 
-	activeMembers := make(map[hztypes.UUID]int8, len(c.MemberMap))
+	activeMembers := make(map[hztypes.UUID]struct{}, len(c.MemberMap))
 
 	for _, memberInfo := range memberList {
 		_, ok := c.MemberMap[memberInfo.UUID]
 		if ok {
 			if hzInternalClient.ConnectedToMember(memberInfo.UUID) {
-				activeMembers[memberInfo.UUID] = 1
+				activeMembers[memberInfo.UUID] = struct{}{}
 			}
 		}
 	}
