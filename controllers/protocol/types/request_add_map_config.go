@@ -56,23 +56,28 @@ type AddMapConfigInput struct {
 // even though most are the same with default values in Go.
 func DefaultAddMapConfigInput() AddMapConfigInput {
 	return AddMapConfigInput{
-		BackupCount:             n.MapBackupCount,
-		AsyncBackupCount:        n.MapAsyncBackupCount,
-		TimeToLiveSeconds:       n.MapTimeToLiveSeconds,
-		MaxIdleSeconds:          n.MapMaxIdleSeconds,
+		BackupCount:       n.MapBackupCount,
+		AsyncBackupCount:  n.MapAsyncBackupCount,
+		TimeToLiveSeconds: n.MapTimeToLiveSeconds,
+		MaxIdleSeconds:    n.MapMaxIdleSeconds,
+		// workaround for protocol definition and implementation discrepancy in core side
+		EvictionConfig:          EvictionConfigHolder{EvictionPolicy: EvictionPolicyNone, MaxSizePolicy: MaxSizePolicyPerNode, Size: 0},
 		ReadBackupData:          n.MapReadBackupData,
 		CacheDeserializedValues: CacheDeserializedValuesIndexOnly,
 		MergePolicy:             "com.hazelcast.spi.merge.PutIfAbsentMergePolicy",
 		MergeBatchSize:          int32(100),
 		InMemoryFormat:          InMemoryFormatBinary,
 		StatisticsEnabled:       true,
+		// workaround for protocol definition and implementation discrepancy in core side
 		HotRestartConfig: HotRestartConfig{
 			IsDefined: true,
 			Enabled:   n.MapPersistenceEnabled,
 			Fsync:     false,
 		},
-		EventJournalConfig:   EventJournalConfig{IsDefined: true},
-		MerkleTreeConfig:     MerkleTreeConfig{IsDefined: true},
+		// workaround for protocol definition and implementation discrepancy in core side
+		EventJournalConfig: EventJournalConfig{IsDefined: true, Enabled: false, Capacity: 1000},
+		// workaround for protocol definition and implementation discrepancy in core side
+		MerkleTreeConfig:     MerkleTreeConfig{IsDefined: true, Depth: 2},
 		MetadataPolicy:       MetadataPolicyCreateOnUpdate,
 		PerEntryStatsEnabled: false,
 	}
