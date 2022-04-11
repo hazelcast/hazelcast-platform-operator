@@ -7,7 +7,6 @@ on:
         required: true
   schedule:
     - cron: "0 9 * * *"
-  push:
 
 env:
   HZ_OPERATOR_NAME: "hazelcast-platform-operator"
