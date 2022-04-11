@@ -16,5 +16,5 @@ spec:
       storageClassName: "standard"
   backup:
     agentRepository: hasancelik/platform-operator-agent
-    agentVersion: 0.1.5
+    agentVersion: 0.1.7
     bucketSecret: br-secret

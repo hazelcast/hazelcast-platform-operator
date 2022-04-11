@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	corev1 "k8s.io/api/core/v1"
 	"strconv"
 	"sync"
@@ -10,7 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,7 +54,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := r.Client.Get(ctx, req.NamespacedName, hb)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apiErrors.IsNotFound(err) {
 			logger.Info("HotBackup resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
@@ -94,7 +95,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return ctrl.Result{}, err
 	}
 	if h.Status.Phase != hazelcastv1alpha1.Running {
-		err = errors.NewServiceUnavailable("Hazelcast CR is not ready")
+		err = apiErrors.NewServiceUnavailable("Hazelcast CR is not ready")
 		logger.Error(err, "Hazelcast CR is not in Running state")
 		return ctrl.Result{}, err
 	}
@@ -112,7 +113,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			r.reconcileHotBackupStatus(ctx, hb)
 
 			if hb.Spec.BucketURL != "" {
-				err = r.triggerUploadBackup(ctx, agentRest, logger)
+				err = r.triggerUploadBackup(ctx, hb, agentRest, logger)
 				if err != nil {
 					logger.Error(err, "Backup upload process failed")
 				}
@@ -137,12 +138,13 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		r.reconcileHotBackupStatus(ctx, hb)
 
 		if hb.Spec.BucketURL != "" {
-			err = r.triggerUploadBackup(ctx, agentRest, logger)
+			err = r.triggerUploadBackup(ctx, hb, agentRest, logger)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
 		}
 	}
+
 	err = r.updateLastSuccessfulConfiguration(ctx, hb, logger)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
@@ -178,7 +180,7 @@ func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *HazelcastClient, c
 	namespacedName := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	err := r.Client.Get(ctx, namespacedName, hb)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apiErrors.IsNotFound(err) {
 			r.Log.Info("HotBackup resource not found. Ignoring since object must be deleted")
 			return
 		}
@@ -287,15 +289,35 @@ func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, rest *RestCl
 	return nil
 }
 
-func (r *HotBackupReconciler) triggerUploadBackup(ctx context.Context, agentRest *AgentRestClient, logger logr.Logger) error {
-	// TODO proper hotbackup status check
-	logger.Info("Sleeping for 5 sec before uploading backup...")
-	time.Sleep(5 * time.Second)
-	err := agentRest.UploadBackup(ctx)
-	if err != nil {
-		return err
+func (r *HotBackupReconciler) triggerUploadBackup(ctx context.Context, h *hazelcastv1alpha1.HotBackup, agentRest *AgentRestClient, logger logr.Logger) error {
+	for {
+		hb := &hazelcastv1alpha1.HotBackup{}
+		namespacedName := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
+		err := r.Client.Get(ctx, namespacedName, hb)
+		if err != nil {
+			if apiErrors.IsNotFound(err) {
+				logger.Info("HotBackup resource not found. Ignoring since object must be deleted")
+				return err
+			}
+			logger.Error(err, "Failed to get HotBackup")
+			return err
+		}
+		if hb.Status.State.IsFinished() {
+			if hb.Status.State == hazelcastv1alpha1.HotBackupSuccess {
+				err := agentRest.UploadBackup(ctx)
+				if err != nil {
+					logger.Error(err, "Failed to upload backup folders to external storage.")
+					return err
+				}
+				return nil
+			} else if hb.Status.State == hazelcastv1alpha1.HotBackupFailure {
+				return errors.New("HotBackup task failed")
+			}
+		} else {
+			logger.Info("HotBackup task is not finished yet. Waiting...")
+			time.Sleep(1 * time.Second)
+		}
 	}
-	return nil
 }
 
 func (r *HotBackupReconciler) getAgentAddresses(ctx context.Context, hb *hazelcastv1alpha1.HotBackup) ([]string, error) {
