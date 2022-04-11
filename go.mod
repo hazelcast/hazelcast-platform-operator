@@ -22,5 +22,5 @@ require (
 replace (
 	// to fix vulnerability: CVE-2021-3121 in github.com/gogo/protobuf < v1.3.2
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
-	github.com/hazelcast/hazelcast-go-client v1.3.0 => github.com/yuce/hazelcast-go-client v1.3.0-preext3.0.20220324011025-02c0712e56c7
+	replace github.com/hazelcast/hazelcast-go-client v1.3.0 => github.com/hazelcast/hazelcast-go-client v1.1.2-0.20220407121529-67a54909b377
 )

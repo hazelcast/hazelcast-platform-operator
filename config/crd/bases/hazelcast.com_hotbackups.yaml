@@ -16,7 +16,12 @@ spec:
     singular: hotbackup
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the HotBackup process
+      jsonPath: .status.state
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: HotBackup is the Schema for the hot backup API
@@ -60,6 +65,11 @@ spec:
             type: object
           status:
             description: HotBackupStatus defines the observed state of HotBackup
+            properties:
+              state:
+                type: string
+            required:
+            - state
             type: object
         required:
         - spec
