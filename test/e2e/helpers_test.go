@@ -67,14 +67,13 @@ func ReadLogs(scanner *bufio.Scanner, matcher types2.GomegaMatcher) {
 	test.EventuallyInLogs(scanner, timeout, logInterval).Should(matcher)
 }
 
-func InitLogs() io.ReadCloser {
-	sinceSecond := int64(360)
+func InitLogs(t time.Time) io.ReadCloser {
 	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
 		Name:      hzName + "-0",
 		Namespace: hzNamespace,
 	}, &corev1.PodLogOptions{
-		Follow:       true,
-		SinceSeconds: &sinceSecond,
+		Follow:    true,
+		SinceTime: &metav1.Time{Time: t},
 	})
 	return logs
 }

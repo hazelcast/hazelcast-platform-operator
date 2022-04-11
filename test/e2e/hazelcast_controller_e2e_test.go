@@ -209,11 +209,12 @@ var _ = Describe("Hazelcast", func() {
 			evaluateReadyMembers(lookupKey, 3)
 
 			By("Creating HotBackup CR")
+			t := time.Now()
 			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
 			By("Check the HotBackup creation sequence")
-			logs := InitLogs()
+			logs := InitLogs(t)
 			defer logs.Close()
 			scanner := bufio.NewScanner(logs)
 			ReadLogs(scanner, ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
@@ -266,6 +267,7 @@ var _ = Describe("Hazelcast", func() {
 			evaluateReadyMembers(lookupKey, 3)
 
 			By("Creating HotBackup CR")
+			t := time.Now()
 			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
@@ -278,7 +280,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 			evaluateReadyMembers(lookupKey, 3)
 
-			logs := InitLogs()
+			logs := InitLogs(t)
 			defer logs.Close()
 			scanner := bufio.NewScanner(logs)
 			ReadLogs(scanner, ContainSubstring("Starting hot-restart service. Base directory: "+baseDir))
