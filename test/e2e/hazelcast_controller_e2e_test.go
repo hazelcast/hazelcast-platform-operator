@@ -318,7 +318,8 @@ var _ = Describe("Hazelcast", func() {
 
 			hb := &hazelcastcomv1alpha1.HotBackup{}
 			Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-				err := k8sClient.Get(context.Background(), lookupKey, hb)
+				err := k8sClient.Get(
+					context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
 				Expect(err).ToNot(HaveOccurred())
 				return hb.Status.State
 			}, timeout, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))

@@ -105,6 +105,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			if err != nil {
 				logger.Error(err, "Hot Backups process failed")
 			}
+			r.reconcileHotBackupStatus(ctx, hb)
 		})
 		if err != nil {
 			logger.Error(err, "Error creating new Schedule Hot Restart.")
@@ -121,13 +122,13 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		r.reconcileHotBackupStatus(ctx, hb)
 	}
 	err = r.updateLastSuccessfulConfiguration(ctx, hb, logger)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
 
-	r.reconcileHotBackupStatus(ctx, hb)
 	return ctrl.Result{}, nil
 }
 
@@ -172,13 +173,11 @@ func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *HazelcastClient, c
 		if state == nil {
 			continue
 		}
-		r.Log.Info("Received HotBackup state for member.", "HotRestartState", state)
-		//r.Log.V(2).Info("Received HotBackup state for member.", "HotRestartState", state)
+		r.Log.V(2).Info("Received HotBackup state for member.", "HotRestartState", state)
 		currentState = hotBackupState(state.TimedMemberState.MemberState.HotRestartState, currentState)
 	}
 	hb.Status.State = currentState
-	r.Log.Info("Updating the HotBackup status", "state", currentState)
-	//r.Log.V(2).Info("Updating the HotBackup status", "state", currentState)
+	r.Log.V(2).Info("Updating the HotBackup status", "state", currentState)
 	err = r.Status().Update(ctx, hb)
 	if err != nil {
 		r.Log.Error(err, "Could not update HotBackup status")
