@@ -2,7 +2,7 @@ name: Red Hat Operator Tests
 on:
   workflow_dispatch:
     inputs:
-      BUNDLE_VERSION:
+      RELEASE_VERSION:
         description: "Version in the form of X.Y[.Z]"
         required: true
   schedule:
@@ -10,7 +10,7 @@ on:
 
 env:
   HZ_OPERATOR_NAME: "hazelcast-platform-operator"
-  BUNDLE_VERSION: ${{ github.event.inputs.BUNDLE_VERSION }}
+  RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VERSION }}
   PARDOT_ID: redhat
 
 jobs:
@@ -28,17 +28,17 @@ jobs:
 
       - name: Set a Fake Release Version (for schedule event)
         if: ${{ github.event_name == 'schedule' }}
-        run: echo "BUNDLE_VERSION=7.8.9" >> $GITHUB_ENV
+        run: echo "RELEASE_VERSION=7.8" >> $GITHUB_ENV
 
       - name: Validate Release Version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${BUNDLE_VERSION}| egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+          echo ${RELEASE_VERSION}| egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
 
       - name: Set Environment Variables And Job Outputs
         id: set-outputs
         run: |
-          BUNDLE_VERSION=$( make print-bundle-version VERSION=${BUNDLE_VERSION} )
+          BUNDLE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
           echo "::set-output name=BUNDLE_VERSION::${BUNDLE_VERSION}"
 
       - name: Build Operator Image and Push to Ephemeral Registry(ttl.sh)
@@ -47,12 +47,12 @@ jobs:
           IMAGE=ttl.sh/$(uuidgen):1h
           echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
 
-          make docker-build-ci IMG=$IMAGE VERSION=${BUNDLE_VERSION} PARDOT_ID=${PARDOT_ID}
+          make docker-build-ci IMG=$IMAGE VERSION=${RELEASE_VERSION} PARDOT_ID=${PARDOT_ID}
           make docker-push IMG=$IMAGE
 
       - name: Build Bundle
         run: |
-          make bundle IMG=${IMAGE} VERSION=${BUNDLE_VERSION}
+          make bundle IMG=${IMAGE} VERSION=${RELEASE_VERSION}
           cat >> ./bundle/metadata/annotations.yaml <<EOF
             # OpenShift annotations.
             com.redhat.openshift.versions: "v4.6"
