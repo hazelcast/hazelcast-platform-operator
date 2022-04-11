@@ -37,45 +37,95 @@ spec:
             description: MapSpec defines the desired state of Map
             properties:
               asyncBackupCount:
+                default: 0
+                description: Number of asynchronous backups. Unlike the synchronous
+                  backup process, asynchronous backup process does not block the map
+                  operations.
+                format: int32
                 type: integer
               backupCount:
+                default: 1
+                description: Count of synchronous backups.
+                format: int32
                 type: integer
               eviction:
+                description: Configuration for removing data from the map when it
+                  reaches its max size.
                 properties:
                   maxSize:
-                    type: string
+                    default: 0
+                    format: int32
+                    type: integer
                   maxSizePolicy:
+                    default: PER_NODE
                     type: string
                   persistenceEnabled:
+                    default: NONE
                     type: string
                 type: object
               indexes:
+                description: Indexes to be created for the map data. You can learn
+                  more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps
                 items:
                   properties:
                     attributes:
-                      type: string
+                      items:
+                        type: string
+                      type: array
                     bitMapIndexOptions:
                       properties:
                         uniqueKey:
                           type: string
                         uniqueKeyTransition:
+                          enum:
+                          - OBJECT
+                          - LONG
+                          - RAW
                           type: string
+                      required:
+                      - uniqueKey
+                      - uniqueKeyTransition
                       type: object
                     name:
+                      description: Name of the index config, optional.
                       type: string
                     type:
+                      enum:
+                      - SORTED
+                      - HASH
+                      - BITMAP
                       type: string
+                  required:
+                  - attributes
+                  - type
                   type: object
                 type: array
               maxIdleSeconds:
+                default: 0
+                description: Maximum time in seconds for each entry to stay idle in
+                  the map. Entries that are idle for more than this time are evicted
+                  automatically.
+                format: int32
                 type: integer
               name:
+                description: Name of the map config to be created. If empty, CR name
+                  will be used.
                 type: string
               persistenceEnabled:
-                type: string
+                default: false
+                description: When enabled, map data will be persisted
+                type: boolean
               readBackupData:
-                type: string
+                default: false
+                description: Used to enable reading from local backup map entries.
+                  It can be used if there is at least 1 sync or async backup.
+                type: boolean
               timeToLiveSeconds:
+                default: 0
+                description: Maximum time in seconds for each entry to stay in the
+                  map. If it is not 0, entries that are older than this time and not
+                  updated for this time are evicted automatically
+                format: int32
                 type: integer
             type: object
           status:
