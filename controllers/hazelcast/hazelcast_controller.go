@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -35,7 +34,6 @@ type HazelcastReconciler struct {
 	client.Client
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
-	hzClients            sync.Map
 	triggerReconcileChan chan event.GenericEvent
 	metrics              *phonehome.Metrics
 }
@@ -174,7 +172,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	r.createHazelcastClient(ctx, req, h)
+	CreateClient(ctx, h, r.triggerReconcileChan, r.Log)
 
 	if util.IsPhoneHomeEnabled() {
 		firstDeployment := r.metrics.HazelcastMetrics[h.UID].FillAfterDeployment(h)
@@ -193,22 +191,10 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsBuilder {
-	if v, ok := r.hzClients.Load(req.NamespacedName); ok {
-		hzClient := v.(*HazelcastClient)
+	if hzClient, ok := GetClient(req.NamespacedName); ok {
 		return runningPhase().withReadyMembers(hzClient.MemberMap)
 	}
 	return runningPhase()
-}
-
-func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctrl.Request, h *hazelcastv1alpha1.Hazelcast) {
-	if _, ok := r.hzClients.Load(req.NamespacedName); ok {
-		return
-	}
-	config := buildConfig(h)
-	c := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
-	config.AddMembershipListener(getStatusUpdateListener(ctx, c))
-	c.start(ctx, config)
-	r.hzClients.Store(req.NamespacedName, c)
 }
 
 func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
