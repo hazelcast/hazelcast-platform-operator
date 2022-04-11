@@ -68,11 +68,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if util.IsPhoneHomeEnabled() {
 		delete(r.metrics.HazelcastMetrics, h.UID)
 	}
-	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
-	if c, ok := r.hzClients.Load(key); ok {
-		r.hzClients.Delete(key)
-		c.(*HazelcastClient).shutdown(ctx)
-	}
+	ShutDownClient(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 	return nil
 }
 
