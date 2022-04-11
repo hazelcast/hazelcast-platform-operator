@@ -109,7 +109,7 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 			case <-s.done:
 				return
 			case <-s.ticker.C:
-				c.updateMemberList()
+				c.updateMemberList(ctx)
 				c.updateMemberStates(ctx)
 				c.triggerReconcile()
 			}
@@ -149,17 +149,23 @@ func (c *HazelcastClient) shutdown(ctx context.Context) {
 func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
-			c.Lock()
-			m := newMemberData(changed.Member)
-			c.enrichMemberByUuid(ctx, changed.Member.UUID, m)
-			c.MemberMap[changed.Member.UUID] = m
-			c.Unlock()
-			c.Log.Info("Member is added", "member", changed.Member.String())
+			_, ok := c.MemberMap[changed.Member.UUID]
+			if !ok {
+				c.Lock()
+				m := newMemberData(changed.Member)
+				c.enrichMemberByUuid(ctx, changed.Member.UUID, m)
+				c.MemberMap[changed.Member.UUID] = m
+				c.Unlock()
+				c.Log.Info("Member is added", "member", changed.Member.String())
+			}
 		} else if changed.State == cluster.MembershipStateRemoved {
-			c.Lock()
-			delete(c.MemberMap, changed.Member.UUID)
-			c.Unlock()
-			c.Log.Info("Member is deleted", "member", changed.Member.String())
+			_, ok := c.MemberMap[changed.Member.UUID]
+			if !ok {
+				c.Lock()
+				delete(c.MemberMap, changed.Member.UUID)
+				c.Unlock()
+				c.Log.Info("Member is deleted", "member", changed.Member.String())
+			}
 		}
 		c.triggerReconcile()
 	}
@@ -197,7 +203,7 @@ func (c *HazelcastClient) enrichMemberByUuid(ctx context.Context, uuid hztypes.U
 	m.enrichMemberData(state.TimedMemberState)
 }
 
-func (c *HazelcastClient) updateMemberList() {
+func (c *HazelcastClient) updateMemberList(ctx context.Context) {
 	if c.client == nil {
 		return
 	}
@@ -208,10 +214,16 @@ func (c *HazelcastClient) updateMemberList() {
 	activeMembers := make(map[hztypes.UUID]struct{}, len(c.MemberMap))
 
 	for _, memberInfo := range memberList {
-		_, ok := c.MemberMap[memberInfo.UUID]
-		if ok {
-			if hzInternalClient.ConnectedToMember(memberInfo.UUID) {
-				activeMembers[memberInfo.UUID] = struct{}{}
+		if hzInternalClient.ConnectedToMember(memberInfo.UUID) {
+			_, ok := c.MemberMap[memberInfo.UUID]
+			activeMembers[memberInfo.UUID] = struct{}{}
+			if !ok {
+				c.Lock()
+				m := newMemberData(memberInfo)
+				c.enrichMemberByUuid(ctx, memberInfo.UUID, m)
+				c.MemberMap[memberInfo.UUID] = m
+				c.Unlock()
+				c.Log.Info("Member is added", "member", m.String())
 			}
 		}
 	}
