@@ -17,7 +17,6 @@
 package codec
 
 import (
-	iserialization "github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
 
 	types "github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
@@ -43,71 +42,43 @@ const (
 // If a map configuration with the given {@code name} already exists, then
 // the new configuration is ignored and the existing one is preserved.
 
-func EncodeDynamicConfigAddMapConfigRequest(
-	name string,
-	backupCount int32,
-	asyncBackupCount int32,
-	timeToLiveSeconds int32,
-	maxIdleSeconds int32,
-	evictionConfig types.EvictionConfigHolder,
-	readBackupData bool,
-	cacheDeserializedValues string,
-	mergePolicy string,
-	mergeBatchSize int32,
-	inMemoryFormat string,
-	listenerConfigs []types.ListenerConfigHolder,
-	partitionLostListenerConfigs []types.ListenerConfigHolder,
-	statisticsEnabled bool,
-	splitBrainProtectionName string,
-	mapStoreConfig types.MapStoreConfigHolder,
-	nearCacheConfig types.NearCacheConfigHolder,
-	wanReplicationRef types.WanReplicationRef,
-	indexConfigs []types.IndexConfig,
-	attributeConfigs []types.AttributeConfig,
-	queryCacheConfigs []types.QueryCacheConfigHolder,
-	partitioningStrategyClassName string,
-	partitioningStrategyImplementation iserialization.Data,
-	hotRestartConfig types.HotRestartConfig,
-	eventJournalConfig types.EventJournalConfig,
-	merkleTreeConfig types.MerkleTreeConfig,
-	metadataPolicy int32,
-	perEntryStatsEnabled bool) *proto.ClientMessage {
+func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.ClientMessage {
 	clientMessage := proto.NewClientMessageForEncode()
 	clientMessage.SetRetryable(false)
 
 	initialFrame := proto.NewFrameWith(make([]byte, DynamicConfigAddMapConfigCodecRequestInitialFrameSize), proto.UnfragmentedMessage)
-	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestBackupCountOffset, backupCount)
-	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestAsyncBackupCountOffset, asyncBackupCount)
-	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestTimeToLiveSecondsOffset, timeToLiveSeconds)
-	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestMaxIdleSecondsOffset, maxIdleSeconds)
-	EncodeBoolean(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestReadBackupDataOffset, readBackupData)
-	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestMergeBatchSizeOffset, mergeBatchSize)
-	EncodeBoolean(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestStatisticsEnabledOffset, statisticsEnabled)
-	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestMetadataPolicyOffset, metadataPolicy)
-	EncodeBoolean(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestPerEntryStatsEnabledOffset, perEntryStatsEnabled)
+	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestBackupCountOffset, c.BackupCount)
+	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestAsyncBackupCountOffset, c.AsyncBackupCount)
+	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestTimeToLiveSecondsOffset, c.TimeToLiveSeconds)
+	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestMaxIdleSecondsOffset, c.MaxIdleSeconds)
+	EncodeBoolean(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestReadBackupDataOffset, c.ReadBackupData)
+	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestMergeBatchSizeOffset, c.MergeBatchSize)
+	EncodeBoolean(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestStatisticsEnabledOffset, c.StatisticsEnabled)
+	EncodeInt(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestMetadataPolicyOffset, int32(c.MetadataPolicy))
+	EncodeBoolean(initialFrame.Content, DynamicConfigAddMapConfigCodecRequestPerEntryStatsEnabledOffset, c.PerEntryStatsEnabled)
 	clientMessage.AddFrame(initialFrame)
 	clientMessage.SetMessageType(DynamicConfigAddMapConfigCodecRequestMessageType)
 	clientMessage.SetPartitionId(-1)
 
-	EncodeString(clientMessage, name)
-	EncodeNullableForEvictionConfigHolder(clientMessage, evictionConfig) //changed function signature
-	EncodeString(clientMessage, cacheDeserializedValues)
-	EncodeString(clientMessage, mergePolicy)
-	EncodeString(clientMessage, inMemoryFormat)
-	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, listenerConfigs)
-	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, partitionLostListenerConfigs)
-	EncodeNullableForString(clientMessage, splitBrainProtectionName)
-	EncodeNullableForMapStoreConfigHolder(clientMessage, mapStoreConfig)   //changed function signature
-	EncodeNullableForNearCacheConfigHolder(clientMessage, nearCacheConfig) //changed function signature
-	EncodeNullableForWanReplicationRef(clientMessage, wanReplicationRef)   //changed function signature
-	EncodeNullableListMultiFrameForIndexConfig(clientMessage, indexConfigs)
-	EncodeNullableListMultiFrameForAttributeConfig(clientMessage, attributeConfigs)
-	EncodeNullableListMultiFrameForQueryCacheConfigHolder(clientMessage, queryCacheConfigs)
-	EncodeNullableForString(clientMessage, partitioningStrategyClassName)
-	EncodeNullable(clientMessage, partitioningStrategyImplementation, EncodeData)
-	EncodeNullableForHotRestartConfig(clientMessage, hotRestartConfig)     //changed function signature
-	EncodeNullableForEventJournalConfig(clientMessage, eventJournalConfig) //changed function signature
-	EncodeNullableForMerkleTreeConfig(clientMessage, merkleTreeConfig)     //changed function signature
+	EncodeString(clientMessage, c.Name)
+	EncodeNullableForEvictionConfigHolder(clientMessage, c.EvictionConfig) //changed function signature
+	EncodeString(clientMessage, c.CacheDeserializedValues)
+	EncodeString(clientMessage, c.MergePolicy)
+	EncodeString(clientMessage, c.InMemoryFormat)
+	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.ListenerConfigs)
+	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.PartitionLostListenerConfigs)
+	EncodeNullableForString(clientMessage, c.SplitBrainProtectionName)
+	EncodeNullableForMapStoreConfigHolder(clientMessage, c.MapStoreConfig)   //changed function signature
+	EncodeNullableForNearCacheConfigHolder(clientMessage, c.NearCacheConfig) //changed function signature
+	EncodeNullableForWanReplicationRef(clientMessage, c.WanReplicationRef)   //changed function signature
+	EncodeNullableListMultiFrameForIndexConfig(clientMessage, c.IndexConfigs)
+	EncodeNullableListMultiFrameForAttributeConfig(clientMessage, c.AttributeConfigs)
+	EncodeNullableListMultiFrameForQueryCacheConfigHolder(clientMessage, c.QueryCacheConfigs)
+	EncodeNullableForString(clientMessage, c.PartitioningStrategyClassName)
+	EncodeNullable(clientMessage, c.PartitioningStrategyImplementation, EncodeData)
+	EncodeNullableForHotRestartConfig(clientMessage, c.HotRestartConfig)     //changed function signature
+	EncodeNullableForEventJournalConfig(clientMessage, c.EventJournalConfig) //changed function signature
+	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)     //changed function signature
 
 	return clientMessage
 }

@@ -75,3 +75,26 @@ const (
 	// Randomly selected entries will be removed.
 	EvictionPolicyRANDOM MaxSizePolicyType = "RANDOM"
 )
+
+type InMemoryFormat string
+
+const (
+	InMemoryFormatBinary InMemoryFormat = "BINARY"
+	InMemoryFormatObject InMemoryFormat = "OBJECT"
+	InMemoryFormatNative InMemoryFormat = "NATIVE"
+)
+
+type MetadataPolicy int32
+
+const (
+	MetadataPolicyCreateOnUpdate MetadataPolicy = 0
+	MetadataPolicyOff            MetadataPolicy = 1
+)
+
+type CacheDeserializedValues string
+
+const (
+	CacheDeserializedValuesNever     CacheDeserializedValues = "NEVER"
+	CacheDeserializedValuesIndexOnly CacheDeserializedValues = "INDEX-ONLY"
+	CacheDeserializedValuesAlways    CacheDeserializedValues = "ALWAYS"
+)

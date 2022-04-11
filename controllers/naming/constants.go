@@ -76,6 +76,16 @@ const (
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )
 
+// Map CR default values
+const (
+	MapBackupCount        = int32(1)
+	MapAsyncBackupCount   = int32(0)
+	MapTimeToLiveSeconds  = int32(0)
+	MapMaxIdleSeconds     = int32(0)
+	MapReadBackupData     = false
+	MapPersistenceEnabled = false
+)
+
 // Operator Values
 const (
 	PhoneHomeEnabledEnv = "PHONE_HOME_ENABLED"
