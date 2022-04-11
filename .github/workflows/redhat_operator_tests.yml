@@ -5,7 +5,6 @@ on:
       RELEASE_VERSION:
         description: "Version in the form of X.Y[.Z]"
         required: true
-        default: 7.8.9
   schedule:
     - cron: "0 9 * * *"
 
@@ -20,12 +19,23 @@ jobs:
     defaults:
       run:
         shell: bash
+    outputs:
+      RELEASE_VERSION: ${{ steps.set-outputs.outputs.RELEASE_VERSION }}
     runs-on: ubuntu-latest
     steps:
-      - name: Validate version
+      - name: Set a Fake Release Version (for schedule event)
+        if: ${{ github.event_name == 'schedule' }}
+        run: echo "RELEASE_VERSION=7.8.9" >> $GITHUB_ENV
+
+      - name: Set Environment Variables And Job Outputs
+        id: set-outputs
+        run: |
+          echo "::set-output name=RELEASE_VERSION::${RELEASE_VERSION}"
+
+      - name: Validate Release Version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+          echo ${RELEASE_VERSION}| egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
 
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v2
@@ -47,7 +57,7 @@ jobs:
             com.redhat.openshift.versions: "v4.6"
           EOF
 
-      - name: Upload bundle artifacts
+      - name: Upload Bundle Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: bundle-artifacts
@@ -61,6 +71,7 @@ jobs:
       SCRIPT_URL: https://raw.githubusercontent.com/redhat-openshift-ecosystem/community-operators-pipeline/ci/latest/ci/scripts/opp.sh
       OPP_DEBUG: 1
       OPP_PRODUCTION_TYPE: k8s
+      RELEASE_VERSION: ${{ needs.publish_image.outputs.RELEASE_VERSION }}
     strategy:
       matrix:
         testType: [ kiwi, lemon, orange ]
@@ -72,13 +83,13 @@ jobs:
           repository: k8s-operatorhub/community-operators
           path: community-operators
 
-      - name: Create release directory
+      - name: Create Release Directory
         working-directory: community-operators
         run: |
           echo "Creating operator release folder"
-          mkdir -p operators/$HZ_OPERATOR_NAME/$RELEASE_VERSION
+          mkdir -p operators/$HZ_OPERATOR_NAME/${RELEASE_VERSION}
 
-      - name: Download bundle artifacts
+      - name: Download Bundle Artifacts
         uses: actions/download-artifact@v3
         with:
           name: bundle-artifacts
@@ -93,7 +104,7 @@ jobs:
     if: always()
     needs: [publish_image, community-operators-test-suite]
     runs-on: ubuntu-latest
-    name: Clean the bundle artifact
+    name: Clean The Bundle Artifact
     steps:
       - uses: geekyeggo/delete-artifact@v1
         with:
