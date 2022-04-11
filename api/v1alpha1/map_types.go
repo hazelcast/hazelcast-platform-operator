@@ -2,6 +2,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
 )
 
 // MapSpec defines the desired state of Map
@@ -57,7 +59,7 @@ type MapSpec struct {
 type EvictionConfig struct {
 	// +kubebuilder:default:="NONE"
 	// +optional
-	EvictionPolicy string `json:"persistenceEnabled,omitempty"`
+	EvictionPolicy types.EvictionPolicyType `json:"persistenceEnabled,omitempty"`
 
 	// +kubebuilder:default:=0
 	// +optional
@@ -65,7 +67,7 @@ type EvictionConfig struct {
 
 	// +kubebuilder:default:="PER_NODE"
 	// +optional
-	MaxSizePolicy string `json:"maxSizePolicy,omitempty"`
+	MaxSizePolicy types.MaxSizePolicyType `json:"maxSizePolicy,omitempty"`
 }
 
 type IndexConfig struct {
