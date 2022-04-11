@@ -58,9 +58,25 @@ spec:
                     type: integer
                   maxSizePolicy:
                     default: PER_NODE
+                    enum:
+                    - PER_NODE
+                    - PER_PARTITION
+                    - USED_HEAP_SIZE
+                    - USED_HEAP_PERCENTAGE
+                    - FREE_HEAP_SIZE
+                    - FREE_HEAP_PERCENTAGE
+                    - USED_NATIVE_MEMORY_SIZE
+                    - USED_NATIVE_MEMORY_PERCENTAGE
+                    - FREE_NATIVE_MEMORY_SIZE
+                    - FREE_NATIVE_MEMORY_PERCENTAGE
                     type: string
                   persistenceEnabled:
                     default: NONE
+                    enum:
+                    - NONE
+                    - LRU
+                    - LFU
+                    - RANDOM
                     type: string
                 type: object
               indexes:
