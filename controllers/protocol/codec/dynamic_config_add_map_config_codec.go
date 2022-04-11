@@ -62,9 +62,9 @@ func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.C
 
 	EncodeString(clientMessage, c.Name)
 	EncodeNullableForEvictionConfigHolder(clientMessage, c.EvictionConfig) //changed function signature
-	EncodeString(clientMessage, c.CacheDeserializedValues)
+	EncodeString(clientMessage, string(c.CacheDeserializedValues))
 	EncodeString(clientMessage, c.MergePolicy)
-	EncodeString(clientMessage, c.InMemoryFormat)
+	EncodeString(clientMessage, string(c.InMemoryFormat))
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.ListenerConfigs)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.PartitionLostListenerConfigs)
 	EncodeNullableForString(clientMessage, c.SplitBrainProtectionName)

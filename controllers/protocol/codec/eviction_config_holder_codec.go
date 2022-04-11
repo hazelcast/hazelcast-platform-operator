@@ -35,8 +35,8 @@ func EncodeEvictionConfigHolder(clientMessage *proto.ClientMessage, evictionConf
 	EncodeInt(initialFrame.Content, EvictionConfigHolderCodecSizeFieldOffset, int32(evictionConfigHolder.Size))
 	clientMessage.AddFrame(initialFrame)
 
-	EncodeString(clientMessage, evictionConfigHolder.MaxSizePolicy)
-	EncodeString(clientMessage, evictionConfigHolder.EvictionPolicy)
+	EncodeString(clientMessage, string(evictionConfigHolder.MaxSizePolicy))
+	EncodeString(clientMessage, string(evictionConfigHolder.EvictionPolicy))
 	EncodeNullableForString(clientMessage, evictionConfigHolder.ComparatorClassName)
 	EncodeNullableForData(clientMessage, evictionConfigHolder.Comparator)
 
