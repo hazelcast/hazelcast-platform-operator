@@ -74,7 +74,6 @@ jobs:
       SCRIPT_URL: https://raw.githubusercontent.com/redhat-openshift-ecosystem/community-operators-pipeline/ci/latest/ci/scripts/opp.sh
       OPP_DEBUG: 1
       OPP_PRODUCTION_TYPE: k8s
-      RELEASE_VERSION: ${{ needs.publish_image.outputs.RELEASE_VERSION }}
       BUNDLE_VERSION: ${{ needs.publish_image.outputs.BUNDLE_RELEASE_VERSION }}
     strategy:
       matrix:
