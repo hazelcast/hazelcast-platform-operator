@@ -9,7 +9,6 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
 	github.com/robfig/cron/v3 v3.0.0
-	github.com/stretchr/testify v1.6.1
 	golang.org/x/tools v0.1.7 // indirect
 	google.golang.org/api v0.20.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -20,4 +19,4 @@ require (
 	sigs.k8s.io/controller-runtime v0.8.3
 )
 
-replace github.com/hazelcast/hazelcast-go-client v1.3.0 => github.com/yuce/hazelcast-go-client v1.3.0-preext3.0.20220324011025-02c0712e56c7
+replace github.com/hazelcast/hazelcast-go-client v1.3.0 => github.com/hazelcast/hazelcast-go-client v1.1.2-0.20220407121529-67a54909b377
