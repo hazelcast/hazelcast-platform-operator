@@ -64,16 +64,16 @@ type EvictionPolicyType string
 
 const (
 	// No eviction.
-	EvictionPolicyNONE MaxSizePolicyType = "NONE"
+	EvictionPolicyNone EvictionPolicyType = "NONE"
 
 	// Least recently used entries will be removed.
-	EvictionPolicyLRU MaxSizePolicyType = "LRU"
+	EvictionPolicyLRU EvictionPolicyType = "LRU"
 
 	// Least frequently used entries will be removed.
-	EvictionPolicyLFU MaxSizePolicyType = "LFU"
+	EvictionPolicyLFU EvictionPolicyType = "LFU"
 
 	// Randomly selected entries will be removed.
-	EvictionPolicyRANDOM MaxSizePolicyType = "RANDOM"
+	EvictionPolicyRandom EvictionPolicyType = "RANDOM"
 )
 
 type InMemoryFormat string
@@ -95,6 +95,6 @@ type CacheDeserializedValues string
 
 const (
 	CacheDeserializedValuesNever     CacheDeserializedValues = "NEVER"
-	CacheDeserializedValuesIndexOnly CacheDeserializedValues = "INDEX-ONLY"
+	CacheDeserializedValuesIndexOnly CacheDeserializedValues = "INDEX_ONLY"
 	CacheDeserializedValuesAlways    CacheDeserializedValues = "ALWAYS"
 )
