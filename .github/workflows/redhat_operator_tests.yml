@@ -2,7 +2,7 @@ name: Red Hat Operator Tests
 on:
   workflow_dispatch:
     inputs:
-      RELEASE_VERSION:
+      BUNDLE_VERSION:
         description: "Version in the form of X.Y[.Z]"
         required: true
   schedule:
@@ -10,7 +10,7 @@ on:
 
 env:
   HZ_OPERATOR_NAME: "hazelcast-platform-operator"
-  RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VERSION }}
+  BUNDLE_VERSION: ${{ github.event.inputs.BUNDLE_VERSION }}
   PARDOT_ID: redhat
 
 jobs:
@@ -20,8 +20,7 @@ jobs:
       run:
         shell: bash
     outputs:
-      RELEASE_VERSION: ${{ steps.set-outputs.outputs.RELEASE_VERSION }}
-      BUNDLE_RELEASE_VERSION: ${{ steps.set-outputs.outputs.BUNDLE_RELEASE_VERSION }}
+      BUNDLE_VERSION: ${{ steps.set-outputs.outputs.BUNDLE_VERSION }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout to hazelcast-operator
@@ -29,19 +28,18 @@ jobs:
 
       - name: Set a Fake Release Version (for schedule event)
         if: ${{ github.event_name == 'schedule' }}
-        run: echo "RELEASE_VERSION=7.8.9" >> $GITHUB_ENV
+        run: echo "BUNDLE_VERSION=7.8.9" >> $GITHUB_ENV
 
       - name: Validate Release Version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${RELEASE_VERSION}| egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+          echo ${BUNDLE_VERSION}| egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
 
       - name: Set Environment Variables And Job Outputs
         id: set-outputs
         run: |
-          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
-          echo "::set-output name=RELEASE_VERSION::${RELEASE_VERSION}"
-          echo "::set-output name=BUNDLE_RELEASE_VERSION::${BUNDLE_RELEASE_VERSION}"
+          BUNDLE_VERSION=$( make print-bundle-version VERSION=${BUNDLE_VERSION} )
+          echo "::set-output name=BUNDLE_VERSION::${BUNDLE_VERSION}"
 
       - name: Build Operator Image and Push to Ephemeral Registry(ttl.sh)
         run: |
@@ -49,12 +47,12 @@ jobs:
           IMAGE=ttl.sh/$(uuidgen):1h
           echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
 
-          make docker-build-ci IMG=$IMAGE VERSION=${RELEASE_VERSION} PARDOT_ID=${PARDOT_ID}
+          make docker-build-ci IMG=$IMAGE VERSION=${BUNDLE_VERSION} PARDOT_ID=${PARDOT_ID}
           make docker-push IMG=$IMAGE
 
       - name: Build Bundle
         run: |
-          make bundle IMG=${IMAGE} VERSION=${RELEASE_VERSION}
+          make bundle IMG=${IMAGE} VERSION=${BUNDLE_VERSION}
           cat >> ./bundle/metadata/annotations.yaml <<EOF
             # OpenShift annotations.
             com.redhat.openshift.versions: "v4.6"
@@ -74,7 +72,7 @@ jobs:
       SCRIPT_URL: https://raw.githubusercontent.com/redhat-openshift-ecosystem/community-operators-pipeline/ci/latest/ci/scripts/opp.sh
       OPP_DEBUG: 1
       OPP_PRODUCTION_TYPE: k8s
-      BUNDLE_VERSION: ${{ needs.publish_image.outputs.BUNDLE_RELEASE_VERSION }}
+      BUNDLE_VERSION: ${{ needs.publish_image.outputs.BUNDLE_VERSION }}
     strategy:
       matrix:
         testType: [ kiwi, lemon, orange ]
