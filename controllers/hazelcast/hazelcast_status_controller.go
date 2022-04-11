@@ -181,7 +181,10 @@ func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(clust
 			if !ok {
 				c.Lock()
 				m := newMemberData(changed.Member)
-				c.enrichMemberByUuid(ctx, changed.Member.UUID, m)
+				state := c.getTimedMemberState(ctx, changed.Member.UUID)
+				if state != nil {
+					m.enrichMemberData(state.TimedMemberState)
+				}
 				c.MemberMap[changed.Member.UUID] = m
 				c.Unlock()
 				c.Log.Info("Member is added", "member", changed.Member.String())
@@ -251,7 +254,10 @@ func (c *HazelcastClient) updateMemberList(ctx context.Context) {
 			if !ok {
 				c.Lock()
 				m := newMemberData(memberInfo)
-				c.enrichMemberByUuid(ctx, memberInfo.UUID, m)
+				state := c.getTimedMemberState(ctx, memberInfo.UUID)
+				if state != nil {
+					m.enrichMemberData(state.TimedMemberState)
+				}
 				c.MemberMap[memberInfo.UUID] = m
 				c.Unlock()
 				c.Log.Info("Member is added", "member", m.String())
