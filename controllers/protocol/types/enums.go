@@ -27,20 +27,20 @@ const (
 	// Maximum number of map entries within each partition.
 	MaxSizePolicyPerPartition MaxSizePolicyType = "PER_PARTITION"
 
-	// Maximum used heap size in megabytes per map for each Hazelcast instance. It does not work when "in-memory-format" is set to OBJECT.
-	MaxSizePolicyUsedHeapSize MaxSizePolicyType = "USED_HEAP_SIZE"
-
 	// Maximum used heap size percentage per map for each Hazelcast instance.
 	// If, for example, JVM is configured to have 1000 MB and this value is 10, then the map entries will be evicted when used heap size
 	// exceeds 100 MB. It does not work when "in-memory-format" is set to OBJECT.
 	MaxSizePolicyUsedHeapPercentage MaxSizePolicyType = "USED_HEAP_PERCENTAGE"
 
-	// Minimum free heap size in megabytes for each Hazelcast instance.
-	MaxSizePolicyFreeHeapSize MaxSizePolicyType = "FREE_HEAP_SIZE"
+	// Maximum used heap size in megabytes per map for each Hazelcast instance. It does not work when "in-memory-format" is set to OBJECT.
+	MaxSizePolicyUsedHeapSize MaxSizePolicyType = "USED_HEAP_SIZE"
 
 	// Minimum free heap size percentage for each Hazelcast instance. If, for example, JVM is configured to
 	// have 1000 MB and this value is 10, then the map entries will be evicted when free heap size is below 100 MB.
 	MaxSizePolicyFreeHeapPercentage MaxSizePolicyType = "FREE_HEAP_PERCENTAGE"
+
+	// Minimum free heap size in megabytes for each Hazelcast instance.
+	MaxSizePolicyFreeHeapSize MaxSizePolicyType = "FREE_HEAP_SIZE"
 
 	// Maximum used native memory size in megabytes per map for each Hazelcast instance. It is available only in
 	// Hazelcast Enterprise HD.
@@ -63,14 +63,14 @@ const (
 type EvictionPolicyType string
 
 const (
-	// No eviction.
-	EvictionPolicyNone EvictionPolicyType = "NONE"
-
 	// Least recently used entries will be removed.
 	EvictionPolicyLRU EvictionPolicyType = "LRU"
 
 	// Least frequently used entries will be removed.
 	EvictionPolicyLFU EvictionPolicyType = "LFU"
+
+	// No eviction.
+	EvictionPolicyNone EvictionPolicyType = "NONE"
 
 	// Randomly selected entries will be removed.
 	EvictionPolicyRandom EvictionPolicyType = "RANDOM"
