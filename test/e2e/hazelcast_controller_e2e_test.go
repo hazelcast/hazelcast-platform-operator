@@ -503,7 +503,6 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	scanner := bufio.NewScanner(logs)
 	for scanner.Scan() {
 		line := scanner.Text()
-		println(line)
 		if match, _ := regexp.MatchString(expected, line); match {
 			return
 		}
