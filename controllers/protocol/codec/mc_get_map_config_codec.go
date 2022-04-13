@@ -18,6 +18,8 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
 )
 
 const (
@@ -53,10 +55,11 @@ func EncodeMCGetMapConfigRequest(mapName string) *proto.ClientMessage {
 	return clientMessage
 }
 
-func DecodeMCGetMapConfigResponse(clientMessage *proto.ClientMessage) MapConfig {
+func DecodeMCGetMapConfigResponse(clientMessage *proto.ClientMessage) types.MapConfig {
 	frameIterator := clientMessage.FrameIterator()
 	initialFrame := frameIterator.Next()
-	return MapConfig{
+
+	mc := types.MapConfig{
 		InMemoryFormat:    DecodeInt(initialFrame.Content, MCGetMapConfigResponseInMemoryFormatOffset),
 		BackupCount:       DecodeInt(initialFrame.Content, MCGetMapConfigResponseBackupCountOffset),
 		AsyncBackupCount:  DecodeInt(initialFrame.Content, MCGetMapConfigResponseAsyncBackupCountOffset),
@@ -67,19 +70,22 @@ func DecodeMCGetMapConfigResponse(clientMessage *proto.ClientMessage) MapConfig 
 		ReadBackupData:    DecodeBoolean(initialFrame.Content, MCGetMapConfigResponseReadBackupDataOffset),
 		EvictionPolicy:    DecodeInt(initialFrame.Content, MCGetMapConfigResponseEvictionPolicyOffset),
 		MergePolicy:       DecodeString(frameIterator),
+		//Indexes:           DecodeNullableListMultiFrameForIndexConfig(frameIterator),
 	}
 
+	if frameIterator.HasNext() {
+		mc.Indexes = DecodeListMultiFrameForIndexConfig(frameIterator)
+	}
+
+	return mc
 }
 
-type MapConfig struct {
-	InMemoryFormat    int32
-	BackupCount       int32
-	AsyncBackupCount  int32
-	TimeToLiveSeconds int32
-	MaxIdleSeconds    int32
-	MaxSize           int32
-	MaxSizePolicy     int32
-	ReadBackupData    bool
-	EvictionPolicy    int32
-	MergePolicy       string
+func DecodeListMultiFrameForIndexConfig(frameIterator *proto.ForwardFrameIterator) []types.IndexConfig {
+	result := make([]types.IndexConfig, 0)
+	frameIterator.Next()
+	for NextFrameIsDataStructureEndFrame(frameIterator) {
+		result = append(result, DecodeIndexConfig(frameIterator))
+	}
+	frameIterator.Next()
+	return result
 }
