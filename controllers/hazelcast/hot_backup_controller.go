@@ -168,7 +168,7 @@ func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *HazelcastClient, c
 
 	}
 	currentState := hazelcastv1alpha1.HotBackupUnknown
-	for uuid := range hzClient.MemberMap {
+	for uuid := range hzClient.Status.MemberMap {
 		state := hzClient.getTimedMemberState(ctx, uuid)
 		if state == nil {
 			continue

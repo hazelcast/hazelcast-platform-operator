@@ -120,7 +120,7 @@ type PersistencePvcConfiguration struct {
 }
 
 // DataRecoveryPolicyType represents the options for data recovery policy when the whole cluster restarts.
-// +kubebuilder:validation:Enum=FullRecoveryOnly;PartialRecoveryMostRecent;PartialRecoveryMostComplete;PartialRecoveryForceStart
+// +kubebuilder:validation:Enum=FullRecoveryOnly;PartialRecoveryMostRecent;PartialRecoveryMostComplete
 type DataRecoveryPolicyType string
 
 const (
@@ -298,6 +298,31 @@ type HazelcastStatus struct {
 	// Status of Hazelcast members
 	// + optional
 	Members []HazelcastMemberStatus `json:"members,omitempty"`
+
+	// Status of restore process of the Hazelcast cluster
+	// +optional
+	// +kubebuilder:default:={}
+	Restore *RestoreStatus `json:"restore,omitempty"`
+}
+
+type RestoreState string
+
+const (
+	RestoreUnknown    RestoreState = "Unknown"
+	RestoreFailed     RestoreState = "Failed"
+	RestoreInProgress RestoreState = "InProgress"
+	RestoreSucceeded  RestoreState = "Succeeded"
+)
+
+type RestoreStatus struct {
+	// State shows the current phase of the restore process of the cluster.
+	State RestoreState `json:"state"`
+
+	// RemainingValidationTime show the time in seconds remained for the restore validation step.
+	RemainingValidationTime int64 `json:"remainingValidationTime"`
+
+	// RemainingDataLoadTime show the time in seconds remained for the restore data load step.
+	RemainingDataLoadTime int64 `json:"remainingDataLoadTime"`
 }
 
 // HazelcastMemberStatus defines the observed state of the individual Hazelcast member.

@@ -477,6 +477,20 @@ var _ = Describe("Hazelcast", func() {
 				Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 
 			Expect(logs.Close()).Should(Succeed())
+
+			Eventually(func() *hazelcastcomv1alpha1.RestoreStatus {
+				h := &hazelcastcomv1alpha1.Hazelcast{}
+				_ = k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      hzName,
+					Namespace: hzNamespace,
+				}, h)
+				return h.Status.Restore
+			}, timeout, interval).Should(And(
+				Not(BeNil()),
+				WithTransform(func(h *hazelcastcomv1alpha1.RestoreStatus) hazelcastcomv1alpha1.RestoreState {
+					return h.State
+				}, Equal(hazelcastcomv1alpha1.RestoreSucceeded)),
+			))
 		},
 			Entry("with PVC configuration"),
 			Entry("with HostPath configuration single node", "/tmp/hazelcast/singleNode", "dummyNodeName"),
