@@ -231,7 +231,7 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 func clientConnectionMessage(req ctrl.Request) string {
 	c, ok := GetClient(req.NamespacedName)
 	if !ok {
-		return "Operator failed to create connection to cluster . Some features might be unavailable."
+		return "Operator failed to create connection to cluster, some features might be unavailable."
 	}
 
 	if c.Error != nil {
