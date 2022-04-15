@@ -117,7 +117,8 @@ jobs:
   clean-up:
     name: Delete AKS cluster
     runs-on: ubuntu-20.04
-    needs: [ "prepare-env", "aks-e2e-tests" ]
+    if: ${{ always() }}
+    needs: ["prepare-env", "aks-e2e-tests"]
     steps:
       - name: Azure login
         uses: azure/login@v1
