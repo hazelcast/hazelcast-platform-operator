@@ -490,7 +490,7 @@ var _ = Describe("Hazelcast", func() {
 			Entry("with HostPath configuration multiple nodes", "/tmp/hazelcast/multiNode"),
 		)
 	})
-	FDescribe("Hazelcast Map Config", func() {
+	Describe("Hazelcast Map Config", func() {
 		It("should create Map Config", func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
@@ -508,7 +508,8 @@ var _ = Describe("Hazelcast", func() {
 			By("port-forwarding to Hazelcast master pod")
 			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 			defer closeChannel(stopChan)
-			waitForReadyChannel(readyChan, 5*time.Second)
+			err := waitForReadyChannel(readyChan, 5*time.Second)
+			Expect(err).To(BeNil())
 
 			By("creating the map config successfully")
 			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-123", hzNamespace)
@@ -529,7 +530,10 @@ var _ = Describe("Hazelcast", func() {
 
 			By("checking if the map config is updated correctly")
 			cl := createHazelcastClient(context.Background(), hazelcast, localPort)
-			defer cl.Shutdown(context.Background())
+			defer func() {
+				err := cl.Shutdown(context.Background())
+				Expect(err).To(BeNil())
+			}()
 			mapConfig := getMapConfig(context.Background(), cl, m.MapName())
 			Expect(mapConfig.TimeToLiveSeconds).Should(Equal(*m.Spec.TimeToLiveSeconds))
 			Expect(mapConfig.MaxIdleSeconds).Should(Equal(*m.Spec.MaxIdleSeconds))
@@ -567,7 +571,8 @@ var _ = Describe("Hazelcast", func() {
 
 			By("port-forwarding to Hazelcast master pod")
 			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-			waitForReadyChannel(readyChan, 5*time.Second)
+			err := waitForReadyChannel(readyChan, 5*time.Second)
+			Expect(err).To(BeNil())
 
 			By("creating the map config successfully")
 			m := hazelcastconfig.DefaultMap(hazelcast.Name, mapName, hzNamespace)
@@ -585,7 +590,8 @@ var _ = Describe("Hazelcast", func() {
 			for i := 0; i < entryCount; i++ {
 				entries[i] = hzTypes.NewEntry(i, "val")
 			}
-			mp.PutAll(context.Background(), entries...)
+			err = mp.PutAll(context.Background(), entries...)
+			Expect(err).To(BeNil())
 			Expect(mp.Size(context.Background())).Should(Equal(entryCount))
 
 			By("Shutting down the connection to cluster")
@@ -671,13 +677,18 @@ var _ = Describe("Hazelcast", func() {
 			By("port-forwarding to restarted Hazelcast master pod")
 			stopChan, readyChan = portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 			defer closeChannel(stopChan)
-			waitForReadyChannel(readyChan, 5*time.Second)
+			err = waitForReadyChannel(readyChan, 5*time.Second)
+			Expect(err).To(BeNil())
 
 			By("Checking the map entries")
 			cl = createHazelcastClient(context.Background(), hazelcast, localPort)
-			defer cl.Shutdown(context.Background())
-			mp2, err := cl.GetMap(context.Background(), mapName)
-			Expect(mp2.Size(context.Background())).Should(Equal(entryCount))
+			defer func() {
+				err := cl.Shutdown(context.Background())
+				Expect(err).To(BeNil())
+			}()
+			mp, err = cl.GetMap(context.Background(), mapName)
+			Expect(err).To((BeNil()))
+			Expect(mp.Size(context.Background())).Should(Equal(entryCount))
 		})
 	})
 })
@@ -787,7 +798,7 @@ func portForwardPod(sName, sNamespace, port string) (chan struct{}, chan struct{
 	Expect(err).To(BeNil())
 
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", sNamespace, sName)
-	hostIP := strings.TrimLeft(config.Host, "https:/")
+	hostIP := strings.TrimPrefix(config.Host, "https:/")
 	serverURL := url.URL{Scheme: "https", Path: path, Host: hostIP}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: roundTripper}, http.MethodPost, &serverURL)
 
