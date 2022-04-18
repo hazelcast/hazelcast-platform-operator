@@ -33,15 +33,14 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
-func GetBackupSequence() string {
+func GetBackupSequence(t time.Time) string {
 	By("Finding Backup sequence")
-	sinceSecond := int64(360)
 	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
 		Name:      hzName + "-0",
 		Namespace: hzNamespace,
 	}, &corev1.PodLogOptions{
-		Follow:       true,
-		SinceSeconds: &sinceSecond,
+		Follow:    true,
+		SinceTime: &metav1.Time{Time: t},
 	})
 	defer logs.Close()
 	scanner := bufio.NewScanner(logs)
