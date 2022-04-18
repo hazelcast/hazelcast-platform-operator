@@ -25,6 +25,7 @@ type HazelcastClient struct {
 	client               *hazelcast.Client
 	cancel               context.CancelFunc
 	NamespacedName       types.NamespacedName
+	Error                error
 	Log                  logr.Logger
 	MemberMap            map[hztypes.UUID]*MemberData
 	triggerReconcileChan chan event.GenericEvent
@@ -45,6 +46,10 @@ type MemberData struct {
 	Master      bool
 	Partitions  int32
 	Name        string
+}
+
+func (m MemberData) String() string {
+	return fmt.Sprintf("%s:%s", m.Address, m.UUID)
 }
 
 func newMemberData(m cluster.MemberInfo) *MemberData {
@@ -115,9 +120,7 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	c.Lock()
 	c.cancel = cancel
-	c.Unlock()
 
 	go func(ctx context.Context) {
 		c.initHzClient(ctx, config)
@@ -133,7 +136,9 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 			case <-s.done:
 				return
 			case <-s.ticker.C:
+				c.updateMemberList(ctx)
 				c.updateMemberStates(ctx)
+				c.triggerReconcile()
 			}
 		}
 	}(ctx, c.statusTicker)
@@ -146,17 +151,20 @@ func (c *HazelcastClient) initHzClient(ctx context.Context, config hazelcast.Con
 	if err != nil {
 		// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
 		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
+		c.Error = err
 	} else {
 		c.client = hzClient
 	}
 }
 
 func (c *HazelcastClient) shutdown(ctx context.Context) {
-	c.Lock()
-	defer c.Unlock()
 	if c.cancel != nil {
 		c.cancel()
 	}
+
+	c.Lock()
+	defer c.Unlock()
+
 	if c.client == nil {
 		return
 	}
@@ -171,20 +179,26 @@ func (c *HazelcastClient) shutdown(ctx context.Context) {
 func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
-			c.Lock()
-			m := newMemberData(changed.Member)
-			state := c.getTimedMemberState(ctx, changed.Member.UUID)
-			if state != nil {
-				m.enrichMemberData(state.TimedMemberState)
+			_, ok := c.MemberMap[changed.Member.UUID]
+			if !ok {
+				c.Lock()
+				m := newMemberData(changed.Member)
+				state := c.getTimedMemberState(ctx, changed.Member.UUID)
+				if state != nil {
+					m.enrichMemberData(state.TimedMemberState)
+				}
+				c.MemberMap[changed.Member.UUID] = m
+				c.Unlock()
+				c.Log.Info("Member is added", "member", changed.Member.String())
 			}
-			c.MemberMap[changed.Member.UUID] = m
-			c.Unlock()
-			c.Log.Info("Member is added", "member", changed.Member.String())
 		} else if changed.State == cluster.MembershipStateRemoved {
-			c.Lock()
-			delete(c.MemberMap, changed.Member.UUID)
-			c.Unlock()
-			c.Log.Info("Member is deleted", "member", changed.Member.String())
+			_, ok := c.MemberMap[changed.Member.UUID]
+			if !ok {
+				c.Lock()
+				delete(c.MemberMap, changed.Member.UUID)
+				c.Unlock()
+				c.Log.Info("Member is deleted", "member", changed.Member.String())
+			}
 		}
 		c.triggerReconcile()
 	}
@@ -209,7 +223,6 @@ func (c *HazelcastClient) updateMemberStates(ctx context.Context) {
 			m.enrichMemberData(state.TimedMemberState)
 		}
 	}
-	c.triggerReconcile()
 }
 
 func (c *HazelcastClient) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *TimedMemberStateWrapper {
@@ -224,6 +237,44 @@ func (c *HazelcastClient) getTimedMemberState(ctx context.Context, uuid hztypes.
 		return nil
 	}
 	return state
+}
+
+func (c *HazelcastClient) updateMemberList(ctx context.Context) {
+	if c.client == nil {
+		return
+	}
+	hzInternalClient := hazelcast.NewClientInternal(c.client)
+
+	memberList := hzInternalClient.OrderedMembers()
+
+	activeMembers := make(map[hztypes.UUID]struct{}, len(c.MemberMap))
+
+	for _, memberInfo := range memberList {
+		if hzInternalClient.ConnectedToMember(memberInfo.UUID) {
+			_, ok := c.MemberMap[memberInfo.UUID]
+			activeMembers[memberInfo.UUID] = struct{}{}
+			if !ok {
+				c.Lock()
+				m := newMemberData(memberInfo)
+				state := c.getTimedMemberState(ctx, memberInfo.UUID)
+				if state != nil {
+					m.enrichMemberData(state.TimedMemberState)
+				}
+				c.MemberMap[memberInfo.UUID] = m
+				c.Unlock()
+				c.Log.Info("Member is added", "member", m.String())
+			}
+		}
+	}
+	c.Lock()
+	for uuid, m := range c.MemberMap {
+		_, ok := activeMembers[uuid]
+		if !ok {
+			delete(c.MemberMap, uuid)
+			c.Log.Info("Member is deleted", "member", m.String())
+		}
+	}
+	c.Unlock()
 }
 
 func fetchTimedMemberState(ctx context.Context, client *hazelcast.Client, uuid hztypes.UUID) (string, error) {
