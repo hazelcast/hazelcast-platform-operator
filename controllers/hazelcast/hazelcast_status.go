@@ -9,6 +9,7 @@ import (
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -121,7 +122,14 @@ func updateFailedMember(h *hazelcastv1alpha1.Hazelcast, err *util.PodError) {
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
 func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status.Phase = options.phase
-	h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
+	h.Status.Cluster.ReadyMembers = "N/A"
+
+	cl, ok := GetClient(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+
+	if ok && cl.client != nil && cl.client.Running() {
+		h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
+	}
+
 	h.Status.Message = options.message
 	h.Status.ExternalAddresses = options.externalAddresses
 	h.Status.Members = addExistingMembers(statusMembers(options.readyMembers), h.Status.Members)

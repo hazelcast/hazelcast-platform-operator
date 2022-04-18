@@ -187,7 +187,9 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	externalAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
-	return update(ctx, r.Client, h, r.runningPhaseWithMembers(req).withExternalAddresses(externalAddrs))
+	return update(ctx, r.Client, h, r.runningPhaseWithMembers(req).
+		withExternalAddresses(externalAddrs).
+		withMessage(clientConnectionMessage(req)))
 }
 
 func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsBuilder {
@@ -224,6 +226,24 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 	} else {
 		return "", false
 	}
+}
+
+func clientConnectionMessage(req ctrl.Request) string {
+	c, ok := GetClient(req.NamespacedName)
+	if !ok {
+		return "Operator failed to create connection to cluster, some features might be unavailable."
+	}
+
+	if c.Error != nil {
+		// TODO: retry mechanism
+		return fmt.Sprintf("Operator failed to connect to the cluster. Some features might be unavailable. %s", c.Error.Error())
+	}
+
+	if c.client != nil && c.client.Running() {
+		return ""
+	}
+
+	return "Operator is in progress of connecting to the cluster. Some features might be unavailable."
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
