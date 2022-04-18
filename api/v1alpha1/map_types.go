@@ -9,63 +9,63 @@ import (
 // MapSpec defines the desired state of Hazelcast Map Config
 type MapSpec struct {
 	// Name of the map config to be created. If empty, CR name will be used.
-	// Cannot be updated after map config is created successfully.
+	// It cannot be updated after map config is created successfully.
 	// +optional
 	Name string `json:"name,omitempty"`
 
 	// Count of synchronous backups.
-	// Cannot be updated after map config is created successfully.
+	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:default:=1
 	// +optional
 	BackupCount *int32 `json:"backupCount,omitempty"`
 
 	// Number of asynchronous backups. Unlike the synchronous backup process,
 	// asynchronous backup process does not block the map operations.
-	// Cannot be updated after map config is created successfully.
+	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:default:=0
 	// +optional
 	AsyncBackupCount *int32 `json:"asyncBackupCount,omitempty"`
 
 	// Maximum time in seconds for each entry to stay in the map.
-	// If it is not 0, entries that are older than this time and not updated for this time are evicted automatically
-	// Can be updated
+	// If it is not 0, entries that are older than this time and not updated for this time are evicted automatically.
+	// It can be updated.
 	// +kubebuilder:default:=0
 	// +optional
 	TimeToLiveSeconds *int32 `json:"timeToLiveSeconds,omitempty"`
 
 	// Maximum time in seconds for each entry to stay idle in the map.
 	// Entries that are idle for more than this time are evicted automatically.
-	// Can be updated
+	// It can be updated.
 	// +kubebuilder:default:=0
 	// +optional
 	MaxIdleSeconds *int32 `json:"maxIdleSeconds,omitempty"`
 
 	// Configuration for removing data from the map when it reaches its max size.
-	// Can be updated
+	// It can be updated.
 	// +optional
 	Eviction *EvictionConfig `json:"eviction,omitempty"`
 
 	// Used to enable reading from local backup map entries.
 	// It can be used if there is at least 1 sync or async backup.
-	// Can be updated
+	// It can be updated.
 	// +kubebuilder:default:=false
 	// +optional
 	ReadBackupData bool `json:"readBackupData,omitempty"`
 
 	// Indexes to be created for the map data.
-	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps
-	// Cannot be updated after map config is created successfully.
+	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.
+	// It cannot be updated after map config is created successfully.
 	// +optional
 	Indexes []IndexConfig `json:"indexes,omitempty"`
 
-	// When enabled, map data will be persisted
-	// Cannot be updated after map config is created successfully.
+	// When enabled, map data will be persisted.
+	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:default:=false
 	// +optional
 	PersistenceEnabled bool `json:"persistenceEnabled,omitempty"`
 
-	// HazelcastResourceName defines the name of the Hazelcast resource
-	// Cannot be updated after map config is created successfully.
+	// HazelcastResourceName defines the name of the Hazelcast resource.
+	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:validation:MinLength:=1
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 }
@@ -76,7 +76,7 @@ type EvictionConfig struct {
 	// +optional
 	EvictionPolicy types.EvictionPolicyType `json:"persistenceEnabled,omitempty"`
 
-	// Max size of the map
+	// Max size of the map.
 	// +kubebuilder:default:=0
 	// +optional
 	MaxSize *int32 `json:"maxSize,omitempty"`

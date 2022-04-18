@@ -45,22 +45,22 @@ spec:
                 default: 0
                 description: Number of asynchronous backups. Unlike the synchronous
                   backup process, asynchronous backup process does not block the map
-                  operations. Cannot be updated after map config is created successfully.
+                  operations. It cannot be updated after map config is created successfully.
                 format: int32
                 type: integer
               backupCount:
                 default: 1
-                description: Count of synchronous backups. Cannot be updated after
+                description: Count of synchronous backups. It cannot be updated after
                   map config is created successfully.
                 format: int32
                 type: integer
               eviction:
                 description: Configuration for removing data from the map when it
-                  reaches its max size. Can be updated
+                  reaches its max size. It can be updated.
                 properties:
                   maxSize:
                     default: 0
-                    description: Max size of the map
+                    description: Max size of the map.
                     format: int32
                     type: integer
                   maxSizePolicy:
@@ -91,13 +91,13 @@ spec:
                 type: object
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
-                  resource Cannot be updated after map config is created successfully.
+                  resource. It cannot be updated after map config is created successfully.
                 minLength: 1
                 type: string
               indexes:
                 description: Indexes to be created for the map data. You can learn
-                  more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps
-                  Cannot be updated after map config is created successfully.
+                  more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.
+                  It cannot be updated after map config is created successfully.
                 items:
                   properties:
                     attributes:
@@ -139,29 +139,29 @@ spec:
                 default: 0
                 description: Maximum time in seconds for each entry to stay idle in
                   the map. Entries that are idle for more than this time are evicted
-                  automatically. Can be updated
+                  automatically. It can be updated.
                 format: int32
                 type: integer
               name:
                 description: Name of the map config to be created. If empty, CR name
-                  will be used. Cannot be updated after map config is created successfully.
+                  will be used. It cannot be updated after map config is created successfully.
                 type: string
               persistenceEnabled:
                 default: false
-                description: When enabled, map data will be persisted Cannot be updated
-                  after map config is created successfully.
+                description: When enabled, map data will be persisted. It cannot be
+                  updated after map config is created successfully.
                 type: boolean
               readBackupData:
                 default: false
                 description: Used to enable reading from local backup map entries.
-                  It can be used if there is at least 1 sync or async backup. Can
-                  be updated
+                  It can be used if there is at least 1 sync or async backup. It can
+                  be updated.
                 type: boolean
               timeToLiveSeconds:
                 default: 0
                 description: Maximum time in seconds for each entry to stay in the
                   map. If it is not 0, entries that are older than this time and not
-                  updated for this time are evicted automatically Can be updated
+                  updated for this time are evicted automatically. It can be updated.
                 format: int32
                 type: integer
             required:
