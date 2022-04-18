@@ -16,7 +16,12 @@ spec:
     singular: map
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the Map Config
+      jsonPath: .status.state
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Map is the Schema for the maps API
@@ -34,30 +39,33 @@ spec:
           metadata:
             type: object
           spec:
-            description: MapSpec defines the desired state of Map
+            description: MapSpec defines the desired state of Hazelcast Map Config
             properties:
               asyncBackupCount:
                 default: 0
                 description: Number of asynchronous backups. Unlike the synchronous
                   backup process, asynchronous backup process does not block the map
-                  operations.
+                  operations. Cannot be updated after map config is created successfully.
                 format: int32
                 type: integer
               backupCount:
                 default: 1
-                description: Count of synchronous backups.
+                description: Count of synchronous backups. Cannot be updated after
+                  map config is created successfully.
                 format: int32
                 type: integer
               eviction:
                 description: Configuration for removing data from the map when it
-                  reaches its max size.
+                  reaches its max size. Can be updated
                 properties:
                   maxSize:
                     default: 0
+                    description: Max size of the map
                     format: int32
                     type: integer
                   maxSizePolicy:
                     default: PER_NODE
+                    description: Policy for deciding if the maxSize is reached.
                     enum:
                     - PER_NODE
                     - PER_PARTITION
@@ -72,6 +80,8 @@ spec:
                     type: string
                   persistenceEnabled:
                     default: NONE
+                    description: Eviction policy to be applied when map reaches its
+                      max size according to the max size policy.
                     enum:
                     - NONE
                     - LRU
@@ -79,16 +89,24 @@ spec:
                     - RANDOM
                     type: string
                 type: object
+              hazelcastResourceName:
+                description: HazelcastResourceName defines the name of the Hazelcast
+                  resource Cannot be updated after map config is created successfully.
+                minLength: 1
+                type: string
               indexes:
                 description: Indexes to be created for the map data. You can learn
                   more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps
+                  Cannot be updated after map config is created successfully.
                 items:
                   properties:
                     attributes:
+                      description: Attributes of the index.
                       items:
                         type: string
                       type: array
                     bitMapIndexOptions:
+                      description: Options for "BITMAP" index type.
                       properties:
                         uniqueKey:
                           type: string
@@ -103,9 +121,10 @@ spec:
                       - uniqueKeyTransition
                       type: object
                     name:
-                      description: Name of the index config, optional.
+                      description: Name of the index config.
                       type: string
                     type:
+                      description: Type of the index.
                       enum:
                       - SORTED
                       - HASH
@@ -120,36 +139,48 @@ spec:
                 default: 0
                 description: Maximum time in seconds for each entry to stay idle in
                   the map. Entries that are idle for more than this time are evicted
-                  automatically.
+                  automatically. Can be updated
                 format: int32
                 type: integer
               name:
                 description: Name of the map config to be created. If empty, CR name
-                  will be used.
+                  will be used. Cannot be updated after map config is created successfully.
                 type: string
               persistenceEnabled:
                 default: false
-                description: When enabled, map data will be persisted
+                description: When enabled, map data will be persisted Cannot be updated
+                  after map config is created successfully.
                 type: boolean
               readBackupData:
                 default: false
                 description: Used to enable reading from local backup map entries.
-                  It can be used if there is at least 1 sync or async backup.
+                  It can be used if there is at least 1 sync or async backup. Can
+                  be updated
                 type: boolean
               timeToLiveSeconds:
                 default: 0
                 description: Maximum time in seconds for each entry to stay in the
                   map. If it is not 0, entries that are older than this time and not
-                  updated for this time are evicted automatically
+                  updated for this time are evicted automatically Can be updated
                 format: int32
                 type: integer
+            required:
+            - hazelcastResourceName
             type: object
           status:
             description: MapStatus defines the observed state of Map
             properties:
+              memberStatuses:
+                additionalProperties:
+                  type: string
+                type: object
+              message:
+                type: string
               state:
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
