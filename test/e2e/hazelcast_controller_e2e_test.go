@@ -787,6 +787,7 @@ func getMapConfig(ctx context.Context, client *hzClient.Client, mapName string) 
 }
 
 func portForwardPod(sName, sNamespace, port string) (chan struct{}, chan struct{}) {
+	defer GinkgoRecover()
 	stopChan, readyChan := make(chan struct{}, 1), make(chan struct{}, 1)
 
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
@@ -798,7 +799,7 @@ func portForwardPod(sName, sNamespace, port string) (chan struct{}, chan struct{
 	Expect(err).To(BeNil())
 
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", sNamespace, sName)
-	hostIP := strings.TrimPrefix(config.Host, "https:/")
+	hostIP := strings.TrimPrefix(config.Host, "https://")
 	serverURL := url.URL{Scheme: "https", Path: path, Host: hostIP}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: roundTripper}, http.MethodPost, &serverURL)
 
@@ -808,7 +809,8 @@ func portForwardPod(sName, sNamespace, port string) (chan struct{}, chan struct{
 	Expect(err).To(BeNil())
 
 	go func() {
-		if err = forwarder.ForwardPorts(); err != nil { // Locks until stopChan is closed.
+		if err := forwarder.ForwardPorts(); err != nil { // Locks until stopChan is closed.
+			GinkgoWriter.Println(err.Error())
 			Expect(err).To(BeNil())
 		}
 	}()
