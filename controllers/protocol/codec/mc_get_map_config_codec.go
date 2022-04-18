@@ -70,13 +70,7 @@ func DecodeMCGetMapConfigResponse(clientMessage *proto.ClientMessage) types.MapC
 		ReadBackupData:    DecodeBoolean(initialFrame.Content, MCGetMapConfigResponseReadBackupDataOffset),
 		EvictionPolicy:    DecodeInt(initialFrame.Content, MCGetMapConfigResponseEvictionPolicyOffset),
 		MergePolicy:       DecodeString(frameIterator),
-		//Indexes:           DecodeNullableListMultiFrameForIndexConfig(frameIterator),
 	}
-
-	if frameIterator.HasNext() {
-		mc.Indexes = DecodeListMultiFrameForIndexConfig(frameIterator)
-	}
-
 	return mc
 }
 
