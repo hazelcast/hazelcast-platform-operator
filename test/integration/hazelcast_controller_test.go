@@ -676,4 +676,42 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
+
+	Context("Map CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create Map CR")
+				Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+
+			})
+		})
+		When("Using default configuration", func() {
+			It("should create Map CR with default configurations", func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.MapSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+				}
+				By("creating Map CR successfully")
+				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+				ms := m.Spec
+
+				By("checking the CR values with default ones")
+				Expect(ms.Name).To(Equal(""))
+				Expect(*ms.BackupCount).To(Equal(n.MapBackupCount))
+				Expect(*ms.AsyncBackupCount).To(Equal(n.MapAsyncBackupCount))
+				Expect(*ms.TimeToLiveSeconds).To(Equal(n.MapTimeToLiveSeconds))
+				Expect(*ms.MaxIdleSeconds).To(Equal(n.MapMaxIdleSeconds))
+				Expect(ms.Eviction).To(BeNil())
+				Expect(ms.ReadBackupData).To(Equal(n.MapReadBackupData))
+				Expect(ms.Indexes).To(BeNil())
+				Expect(ms.PersistenceEnabled).To(Equal(n.MapPersistenceEnabled))
+				Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
+			})
+		})
+	})
 })
