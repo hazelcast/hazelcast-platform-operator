@@ -53,9 +53,9 @@ type AddMapConfigInput struct {
 }
 
 // Default values are explicitly written for all fields that are not nullable
-// even though most are the same with default values in Go.
-func DefaultAddMapConfigInput() AddMapConfigInput {
-	return AddMapConfigInput{
+// even though most are the same with the default values in Go.
+func DefaultAddMapConfigInput() *AddMapConfigInput {
+	return &AddMapConfigInput{
 		BackupCount:       n.MapBackupCount,
 		AsyncBackupCount:  n.MapAsyncBackupCount,
 		TimeToLiveSeconds: n.MapTimeToLiveSeconds,
@@ -77,7 +77,7 @@ func DefaultAddMapConfigInput() AddMapConfigInput {
 		// workaround for protocol definition and implementation discrepancy in core side
 		EventJournalConfig: EventJournalConfig{IsDefined: true, Enabled: false, Capacity: 1000},
 		// workaround for protocol definition and implementation discrepancy in core side
-		MerkleTreeConfig:     MerkleTreeConfig{IsDefined: true, Depth: 2},
+		MerkleTreeConfig:     MerkleTreeConfig{IsDefined: true, Enabled: false, Depth: 2},
 		MetadataPolicy:       MetadataPolicyCreateOnUpdate,
 		PerEntryStatsEnabled: false,
 	}
