@@ -185,6 +185,21 @@ spec:
                 default: docker.io/hazelcast/hazelcast
                 description: Repository to pull the Hazelcast Platform image from.
                 type: string
+              restore:
+                description: Restore Agent configuration
+                properties:
+                  agentRepository:
+                    default: docker.io/hazelcast/platform-operator-agent
+                    description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
+                    type: string
+                  agentVersion:
+                    default: 1.0.0
+                    description: Version of Hazelcast Platform Operator Agent.
+                    type: string
+                  bucketSecret:
+                    description: Name of the secret with credentials for cloud providers.
+                    type: string
+                type: object
               scheduling:
                 description: Scheduling details
                 properties:

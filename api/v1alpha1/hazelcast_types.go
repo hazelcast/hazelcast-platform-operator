@@ -77,10 +77,32 @@ type HazelcastSpec struct {
 	// +optional
 	//+kubebuilder:default:={}
 	Backup BackupAgentConfiguration `json:"backup,omitempty"`
+
+	// Restore Agent configuration
+	// +optional
+	//+kubebuilder:default:={}
+	Restore RestoreAgentConfiguration `json:"restore,omitempty"`
 }
 
 type BackupAgentConfiguration struct {
 
+	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
+	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
+	// +optional
+	AgentRepository string `json:"agentRepository,omitempty"`
+
+	// Version of Hazelcast Platform Operator Agent.
+	// +kubebuilder:default:="1.0.0"
+	// +optional
+	AgentVersion string `json:"agentVersion,omitempty"`
+
+	// Name of the secret with credentials for cloud providers.
+	// +optional
+	BucketSecret string `json:"bucketSecret,omitempty"`
+}
+
+// RestoreAgentConfiguration contains the configuration for Restore Agent
+type RestoreAgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
 	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
 	// +optional
@@ -302,6 +324,11 @@ func (c *HazelcastPersistenceConfiguration) UseHostPath() bool {
 // Returns true if Backup Agent configuration is specified.
 func (c *BackupAgentConfiguration) IsEnabled() bool {
 	return !(*c == (BackupAgentConfiguration{}))
+}
+
+// IsEnabled returns true if Restore Agent configuration is specified
+func (r *RestoreAgentConfiguration) IsEnabled() bool {
+	return !(*r == (RestoreAgentConfiguration{}))
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
