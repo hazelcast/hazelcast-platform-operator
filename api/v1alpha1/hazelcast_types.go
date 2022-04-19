@@ -80,8 +80,8 @@ type HazelcastSpec struct {
 
 	// Backup Agent configuration
 	// +optional
-	//+kubebuilder:default:={}
-	Backup BackupAgentConfiguration `json:"backup,omitempty"`
+	// +kubebuilder:default:={}
+	Backup *BackupAgentConfiguration `json:"backup,omitempty"`
 }
 
 type BackupAgentConfiguration struct {
@@ -306,7 +306,7 @@ func (c *HazelcastPersistenceConfiguration) UseHostPath() bool {
 
 // Returns true if Backup Agent configuration is specified.
 func (c *BackupAgentConfiguration) IsEnabled() bool {
-	return !(*c == (BackupAgentConfiguration{}))
+	return c != nil && !(*c == (BackupAgentConfiguration{}))
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

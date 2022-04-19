@@ -49,6 +49,21 @@ spec:
               repository: docker.io/hazelcast/hazelcast
             description: HazelcastSpec defines the desired state of Hazelcast
             properties:
+              backup:
+                description: Backup Agent configuration
+                properties:
+                  agentRepository:
+                    default: docker.io/hazelcast/platform-operator-agent
+                    description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
+                    type: string
+                  agentVersion:
+                    default: 1.0.0
+                    description: Version of Hazelcast Platform Operator Agent.
+                    type: string
+                  bucketSecret:
+                    description: Name of the secret with credentials for cloud providers.
+                    type: string
+                type: object
               clusterName:
                 default: dev
                 description: Name of the Hazelcast cluster.
@@ -1129,6 +1144,9 @@ spec:
           spec:
             description: HotBackupSpec defines the Spec of HotBackup
             properties:
+              bucket:
+                description: URL of the bucket to download HotBackup folders.
+                type: string
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource
@@ -2626,7 +2644,5 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
-      securityContext:
-        runAsNonRoot: true
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10
