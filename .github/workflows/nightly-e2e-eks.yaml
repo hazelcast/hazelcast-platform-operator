@@ -123,12 +123,14 @@ jobs:
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX}
 
       - name: Clean up after Tests
+        if: ${{ always() }}
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
   clean-up:
     name: Delete EKS cluster
     runs-on: ubuntu-20.04
+    if: ${{ always() }}
     needs: [ "prepare-env", "eks-e2e-tests" ]
     steps:
       - name: Configure AWS Credentials
