@@ -598,6 +598,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 	}
 
+	if h.Spec.Persistence.IsEnabled() && h.Spec.Restore.IsEnabled() {
+		sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, restoreAgentContainer(h))
+	}
+
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on Statefulset")
@@ -632,6 +636,7 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			Name:          n.BackupAgent,
 			Protocol:      v1.ProtocolTCP,
 		}},
+		Command: []string{"backup"},
 		LivenessProbe: &v1.Probe{
 			Handler: v1.Handler{
 				HTTPGet: &v1.HTTPGetAction{
@@ -689,6 +694,53 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 					SecretKeyRef: &v1.SecretKeySelector{
 						LocalObjectReference: v1.LocalObjectReference{
 							Name: h.Spec.Backup.BucketSecret,
+						},
+						Key: n.BucketDataS3Region,
+					},
+				},
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		}},
+	}
+}
+
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	return v1.Container{
+		Name:    n.RestoreAgent,
+		Image:   h.AgentDockerImage(),
+		Command: []string{"restore"},
+		Env: []v1.EnvVar{
+			{
+				Name: "AWS_ACCESS_KEY_ID",
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: h.Spec.Restore.BucketSecret,
+						},
+						Key: n.BucketDataS3AccessKeyID,
+					},
+				},
+			},
+			{
+				Name: "AWS_SECRET_ACCESS_KEY",
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: h.Spec.Restore.BucketSecret,
+						},
+						Key: n.BucketDataS3SecretAccessKey,
+					},
+				},
+			},
+			{
+				Name: "AWS_REGION",
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: h.Spec.Restore.BucketSecret,
 						},
 						Key: n.BucketDataS3Region,
 					},

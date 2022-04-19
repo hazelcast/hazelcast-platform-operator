@@ -49,6 +49,7 @@ const (
 
 	BackupAgent                 = "backup-agent"
 	BackupAgentPortName         = "backup-agent-port"
+	RestoreAgent                = "restore-agent"
 	BucketSecret                = "br-secret"
 	BucketDataS3AccessKeyID     = "access-key-id"
 	BucketDataS3SecretAccessKey = "secret-access-key"
