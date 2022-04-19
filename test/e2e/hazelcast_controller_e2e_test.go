@@ -214,7 +214,7 @@ var _ = Describe("Hazelcast", func() {
 			scanner := bufio.NewScanner(logs)
 			ReadLogs(scanner, ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
 			ReadLogs(scanner, ContainSubstring("Starting new hot backup with sequence"))
-			ReadLogs(scanner, ContainSubstring("Backup of hot restart store \\S+ finished"))
+			ReadLogs(scanner, MatchRegexp("Backup of hot restart store \\S+ finished"))
 			ReadLogs(scanner, ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
 			Expect(logs.Close()).Should(Succeed())
 
