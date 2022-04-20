@@ -175,40 +175,42 @@ func init() {
 	SchemeBuilder.Register(&Map{}, &MapList{})
 }
 
-var EncodeInMemoryFormat map[types.InMemoryFormat]int32 = map[types.InMemoryFormat]int32{
-	types.InMemoryFormatBinary: 0,
-	types.InMemoryFormatObject: 1,
-	types.InMemoryFormatNative: 2,
-}
+var (
+	EncodeInMemoryFormat = map[types.InMemoryFormat]int32{
+		types.InMemoryFormatBinary: 0,
+		types.InMemoryFormatObject: 1,
+		types.InMemoryFormatNative: 2,
+	}
 
-var EncodeMaxSizePolicy map[types.MaxSizePolicyType]int32 = map[types.MaxSizePolicyType]int32{
-	types.MaxSizePolicyPerNode:                    0,
-	types.MaxSizePolicyPerPartition:               1,
-	types.MaxSizePolicyUsedHeapPercentage:         2,
-	types.MaxSizePolicyUsedHeapSize:               3,
-	types.MaxSizePolicyFreeHeapPercentage:         4,
-	types.MaxSizePolicyFreeHeapSize:               5,
-	types.MaxSizePolicyUsedNativeMemorySize:       6,
-	types.MaxSizePolicyUsedNativeMemoryPercentage: 7,
-	types.MaxSizePolicyFreeNativeMemorySize:       8,
-	types.MaxSizePolicyFreeNativeMemoryPercentage: 9,
-}
+	EncodeMaxSizePolicy = map[types.MaxSizePolicyType]int32{
+		types.MaxSizePolicyPerNode:                    0,
+		types.MaxSizePolicyPerPartition:               1,
+		types.MaxSizePolicyUsedHeapPercentage:         2,
+		types.MaxSizePolicyUsedHeapSize:               3,
+		types.MaxSizePolicyFreeHeapPercentage:         4,
+		types.MaxSizePolicyFreeHeapSize:               5,
+		types.MaxSizePolicyUsedNativeMemorySize:       6,
+		types.MaxSizePolicyUsedNativeMemoryPercentage: 7,
+		types.MaxSizePolicyFreeNativeMemorySize:       8,
+		types.MaxSizePolicyFreeNativeMemoryPercentage: 9,
+	}
 
-var EncodeEvictionPolicyType map[types.EvictionPolicyType]int32 = map[types.EvictionPolicyType]int32{
-	types.EvictionPolicyLRU:    0,
-	types.EvictionPolicyLFU:    1,
-	types.EvictionPolicyNone:   2,
-	types.EvictionPolicyRandom: 3,
-}
+	EncodeEvictionPolicyType = map[types.EvictionPolicyType]int32{
+		types.EvictionPolicyLRU:    0,
+		types.EvictionPolicyLFU:    1,
+		types.EvictionPolicyNone:   2,
+		types.EvictionPolicyRandom: 3,
+	}
 
-var EncodeIndexType map[IndexType]types.IndexType = map[IndexType]types.IndexType{
-	IndexTypeSorted: types.IndexTypeSorted,
-	IndexTypeHash:   types.IndexTypeHash,
-	IndexTypeBitmap: types.IndexTypeBitmap,
-}
+	EncodeIndexType = map[IndexType]types.IndexType{
+		IndexTypeSorted: types.IndexTypeSorted,
+		IndexTypeHash:   types.IndexTypeHash,
+		IndexTypeBitmap: types.IndexTypeBitmap,
+	}
 
-var EncodeUniqueKeyTransition map[UniqueKeyTransition]types.UniqueKeyTransformation = map[UniqueKeyTransition]types.UniqueKeyTransformation{
-	UniqueKeyTransitionObject: types.UniqueKeyTransformationObject,
-	UniqueKeyTransitionLong:   types.UniqueKeyTransformationLong,
-	UniqueKeyTransitionRAW:    types.UniqueKeyTransformationRaw,
-}
+	EncodeUniqueKeyTransition = map[UniqueKeyTransition]types.UniqueKeyTransformation{
+		UniqueKeyTransitionObject: types.UniqueKeyTransformationObject,
+		UniqueKeyTransitionLong:   types.UniqueKeyTransformationLong,
+		UniqueKeyTransitionRAW:    types.UniqueKeyTransformationRaw,
+	}
+)
