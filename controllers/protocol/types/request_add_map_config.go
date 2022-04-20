@@ -56,13 +56,13 @@ type AddMapConfigInput struct {
 // even though most are the same with the default values in Go.
 func DefaultAddMapConfigInput() *AddMapConfigInput {
 	return &AddMapConfigInput{
-		BackupCount:       n.MapBackupCount,
-		AsyncBackupCount:  n.MapAsyncBackupCount,
-		TimeToLiveSeconds: n.MapTimeToLiveSeconds,
-		MaxIdleSeconds:    n.MapMaxIdleSeconds,
+		BackupCount:       n.DefaultMapBackupCount,
+		AsyncBackupCount:  n.DefaultMapAsyncBackupCount,
+		TimeToLiveSeconds: n.DefaultMapTimeToLiveSeconds,
+		MaxIdleSeconds:    n.DefaultMapMaxIdleSeconds,
 		// workaround for protocol definition and implementation discrepancy in core side
 		EvictionConfig:          EvictionConfigHolder{EvictionPolicy: EvictionPolicyNone, MaxSizePolicy: MaxSizePolicyPerNode, Size: 0},
-		ReadBackupData:          n.MapReadBackupData,
+		ReadBackupData:          n.DefaultMapReadBackupData,
 		CacheDeserializedValues: CacheDeserializedValuesIndexOnly,
 		MergePolicy:             "com.hazelcast.spi.merge.PutIfAbsentMergePolicy",
 		MergeBatchSize:          int32(100),
@@ -71,7 +71,7 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 		// workaround for protocol definition and implementation discrepancy in core side
 		HotRestartConfig: HotRestartConfig{
 			IsDefined: true,
-			Enabled:   n.MapPersistenceEnabled,
+			Enabled:   n.DefaultMapPersistenceEnabled,
 			Fsync:     false,
 		},
 		// workaround for protocol definition and implementation discrepancy in core side

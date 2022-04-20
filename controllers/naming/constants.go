@@ -78,12 +78,12 @@ const (
 
 // Map CR default values
 const (
-	MapBackupCount        = int32(1)
-	MapAsyncBackupCount   = int32(0)
-	MapTimeToLiveSeconds  = int32(0)
-	MapMaxIdleSeconds     = int32(0)
-	MapReadBackupData     = false
-	MapPersistenceEnabled = false
+	DefaultMapBackupCount        = int32(1)
+	DefaultMapAsyncBackupCount   = int32(0)
+	DefaultMapTimeToLiveSeconds  = int32(0)
+	DefaultMapMaxIdleSeconds     = int32(0)
+	DefaultMapReadBackupData     = false
+	DefaultMapPersistenceEnabled = false
 )
 
 // Operator Values
