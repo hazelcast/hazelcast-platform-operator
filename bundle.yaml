@@ -2091,10 +2091,14 @@ spec:
         description: Map is the Schema for the maps API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -2103,16 +2107,20 @@ spec:
             properties:
               asyncBackupCount:
                 default: 0
-                description: Number of asynchronous backups. Unlike the synchronous backup process, asynchronous backup process does not block the map operations. It cannot be updated after map config is created successfully.
+                description: Number of asynchronous backups. Unlike the synchronous
+                  backup process, asynchronous backup process does not block the map
+                  operations. It cannot be updated after map config is created successfully.
                 format: int32
                 type: integer
               backupCount:
                 default: 1
-                description: Count of synchronous backups. It cannot be updated after map config is created successfully.
+                description: Count of synchronous backups. It cannot be updated after
+                  map config is created successfully.
                 format: int32
                 type: integer
               eviction:
-                description: Configuration for removing data from the map when it reaches its max size. It can be updated.
+                description: Configuration for removing data from the map when it
+                  reaches its max size. It can be updated.
                 properties:
                   maxSize:
                     default: 0
@@ -2136,7 +2144,8 @@ spec:
                     type: string
                   persistenceEnabled:
                     default: NONE
-                    description: Eviction policy to be applied when map reaches its max size according to the max size policy.
+                    description: Eviction policy to be applied when map reaches its
+                      max size according to the max size policy.
                     enum:
                     - NONE
                     - LRU
@@ -2145,11 +2154,14 @@ spec:
                     type: string
                 type: object
               hazelcastResourceName:
-                description: HazelcastResourceName defines the name of the Hazelcast resource. It cannot be updated after map config is created successfully.
+                description: HazelcastResourceName defines the name of the Hazelcast
+                  resource. It cannot be updated after map config is created successfully.
                 minLength: 1
                 type: string
               indexes:
-                description: Indexes to be created for the map data. You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps. It cannot be updated after map config is created successfully.
+                description: Indexes to be created for the map data. You can learn
+                  more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.
+                  It cannot be updated after map config is created successfully.
                 items:
                   properties:
                     attributes:
@@ -2189,23 +2201,31 @@ spec:
                 type: array
               maxIdleSeconds:
                 default: 0
-                description: Maximum time in seconds for each entry to stay idle in the map. Entries that are idle for more than this time are evicted automatically. It can be updated.
+                description: Maximum time in seconds for each entry to stay idle in
+                  the map. Entries that are idle for more than this time are evicted
+                  automatically. It can be updated.
                 format: int32
                 type: integer
               name:
-                description: Name of the map config to be created. If empty, CR name will be used. It cannot be updated after map config is created successfully.
+                description: Name of the map config to be created. If empty, CR name
+                  will be used. It cannot be updated after map config is created successfully.
                 type: string
               persistenceEnabled:
                 default: false
-                description: When enabled, map data will be persisted. It cannot be updated after map config is created successfully.
+                description: When enabled, map data will be persisted. It cannot be
+                  updated after map config is created successfully.
                 type: boolean
               readBackupData:
                 default: false
-                description: Used to enable reading from local backup map entries. It can be used if there is at least 1 sync or async backup. It can be updated.
+                description: Used to enable reading from local backup map entries.
+                  It can be used if there is at least 1 sync or async backup. It can
+                  be updated.
                 type: boolean
               timeToLiveSeconds:
                 default: 0
-                description: Maximum time in seconds for each entry to stay in the map. If it is not 0, entries that are older than this time and not updated for this time are evicted automatically. It can be updated.
+                description: Maximum time in seconds for each entry to stay in the
+                  map. If it is not 0, entries that are older than this time and not
+                  updated for this time are evicted automatically. It can be updated.
                 format: int32
                 type: integer
             required:
