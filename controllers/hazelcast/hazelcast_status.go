@@ -22,6 +22,7 @@ type optionsBuilder struct {
 	retryAfter        time.Duration
 	err               error
 	readyMembers      map[hztypes.UUID]*MemberData
+	restoreState      ClusterHotRestartStatus
 	message           string
 	externalAddresses string
 }
@@ -46,8 +47,9 @@ func runningPhase() optionsBuilder {
 	}
 }
 
-func (o optionsBuilder) withReadyMembers(m map[hztypes.UUID]*MemberData) optionsBuilder {
-	o.readyMembers = m
+func (o optionsBuilder) withStatus(s *Status) optionsBuilder {
+	o.readyMembers = s.MemberMap
+	o.restoreState = s.ClusterHotRestartStatus
 	return o
 }
 
@@ -61,8 +63,7 @@ func (o optionsBuilder) withExternalAddresses(addrs string) optionsBuilder {
 	return o
 }
 
-func statusMembers(
-	m map[hztypes.UUID]*MemberData) []hazelcastv1alpha1.HazelcastMemberStatus {
+func statusMembers(m map[hztypes.UUID]*MemberData) []hazelcastv1alpha1.HazelcastMemberStatus {
 	members := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(m))
 	for uid, member := range m {
 		a := member.Address
@@ -138,6 +139,13 @@ func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast
 			for _, podError := range pErr {
 				updateFailedMember(h, podError)
 			}
+		}
+	}
+	if rs := options.restoreState.restoreState(); h.Spec.Persistence.IsEnabled() && rs != hazelcastv1alpha1.RestoreUnknown {
+		h.Status.Restore = &hazelcastv1alpha1.RestoreStatus{
+			State:                   options.restoreState.restoreState(),
+			RemainingDataLoadTime:   options.restoreState.remainingDataLoadTimeSec(),
+			RemainingValidationTime: options.restoreState.remainingValidationTimeSec(),
 		}
 	}
 	if err := c.Status().Update(ctx, h); err != nil {

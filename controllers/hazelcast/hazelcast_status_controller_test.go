@@ -24,7 +24,7 @@ var _ = Describe("Hazelcast status", func() {
 	)
 
 	var hzClient = &HazelcastClient{
-		MemberMap:            make(map[hzTypes.UUID]*MemberData),
+		Status:               &Status{MemberMap: make(map[hzTypes.UUID]*MemberData)},
 		triggerReconcileChan: make(chan event.GenericEvent),
 		NamespacedName: types.NamespacedName{
 			Namespace: "default",
@@ -44,7 +44,7 @@ var _ = Describe("Hazelcast status", func() {
 			go getStatusUpdateListener(context.TODO(), hzClient)(stateChanged)
 
 			Eventually(func() bool {
-				_, ok := hzClient.MemberMap[stateChanged.Member.UUID]
+				_, ok := hzClient.Status.MemberMap[stateChanged.Member.UUID]
 				return ok
 			}, timeout, interval).Should(BeTrue())
 
@@ -68,7 +68,7 @@ var _ = Describe("Hazelcast status", func() {
 				UUID:    hzTypes.NewUUID(),
 				Version: cluster.MemberVersion{Major: 5, Minor: 0, Patch: 1},
 			}
-			hzClient.MemberMap[existingMember.UUID] = &MemberData{
+			hzClient.Status.MemberMap[existingMember.UUID] = &MemberData{
 				Address: existingMember.Address.String(),
 				UUID:    existingMember.UUID.String(),
 				Version: fmt.Sprintf(
@@ -82,7 +82,7 @@ var _ = Describe("Hazelcast status", func() {
 			go getStatusUpdateListener(context.TODO(), hzClient)(stateChanged)
 
 			Eventually(func() bool {
-				_, ok := hzClient.MemberMap[stateChanged.Member.UUID]
+				_, ok := hzClient.Status.MemberMap[stateChanged.Member.UUID]
 				return ok
 			}, timeout, interval).Should(BeFalse())
 

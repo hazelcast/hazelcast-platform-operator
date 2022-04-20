@@ -131,7 +131,6 @@ spec:
                     - FullRecoveryOnly
                     - PartialRecoveryMostRecent
                     - PartialRecoveryMostComplete
-                    - PartialRecoveryForceStart
                     type: string
                   dataRecoveryTimeout:
                     description: 'DataRecoveryTimeout is timeout for each step of
@@ -1030,6 +1029,28 @@ spec:
                 - Failed
                 - Pending
                 type: string
+              restore:
+                description: Status of restore process of the Hazelcast cluster
+                properties:
+                  remainingDataLoadTime:
+                    description: RemainingDataLoadTime show the time in seconds remained
+                      for the restore data load step.
+                    format: int64
+                    type: integer
+                  remainingValidationTime:
+                    description: RemainingValidationTime show the time in seconds
+                      remained for the restore validation step.
+                    format: int64
+                    type: integer
+                  state:
+                    description: State shows the current phase of the restore process
+                      of the cluster.
+                    type: string
+                required:
+                - remainingDataLoadTime
+                - remainingValidationTime
+                - state
+                type: object
             type: object
         type: object
     served: true

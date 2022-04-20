@@ -27,9 +27,14 @@ type HazelcastClient struct {
 	NamespacedName       types.NamespacedName
 	Error                error
 	Log                  logr.Logger
-	MemberMap            map[hztypes.UUID]*MemberData
+	Status               *Status
 	triggerReconcileChan chan event.GenericEvent
 	statusTicker         *StatusTicker
+}
+
+type Status struct {
+	MemberMap               map[hztypes.UUID]*MemberData
+	ClusterHotRestartStatus ClusterHotRestartStatus
 }
 
 type StatusTicker struct {
@@ -105,7 +110,7 @@ func newHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan even
 	return &HazelcastClient{
 		NamespacedName:       n,
 		Log:                  l,
-		MemberMap:            make(map[hztypes.UUID]*MemberData),
+		Status:               &Status{MemberMap: make(map[hztypes.UUID]*MemberData)},
 		triggerReconcileChan: channel,
 	}
 }
@@ -179,23 +184,24 @@ func (c *HazelcastClient) shutdown(ctx context.Context) {
 func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
-			_, ok := c.MemberMap[changed.Member.UUID]
+			_, ok := c.Status.MemberMap[changed.Member.UUID]
 			if !ok {
 				c.Lock()
 				m := newMemberData(changed.Member)
 				state := c.getTimedMemberState(ctx, changed.Member.UUID)
 				if state != nil {
 					m.enrichMemberData(state.TimedMemberState)
+					c.Status.ClusterHotRestartStatus = state.TimedMemberState.MemberState.ClusterHotRestartStatus
 				}
-				c.MemberMap[changed.Member.UUID] = m
+				c.Status.MemberMap[changed.Member.UUID] = m
 				c.Unlock()
 				c.Log.Info("Member is added", "member", changed.Member.String())
 			}
 		} else if changed.State == cluster.MembershipStateRemoved {
-			_, ok := c.MemberMap[changed.Member.UUID]
+			_, ok := c.Status.MemberMap[changed.Member.UUID]
 			if !ok {
 				c.Lock()
-				delete(c.MemberMap, changed.Member.UUID)
+				delete(c.Status.MemberMap, changed.Member.UUID)
 				c.Unlock()
 				c.Log.Info("Member is deleted", "member", changed.Member.String())
 			}
@@ -217,10 +223,11 @@ func (c *HazelcastClient) updateMemberStates(ctx context.Context) {
 		return
 	}
 	c.Log.V(2).Info("Updating Hazelcast status", "CR", c.NamespacedName)
-	for uuid, m := range c.MemberMap {
+	for uuid, m := range c.Status.MemberMap {
 		state := c.getTimedMemberState(ctx, uuid)
 		if state != nil {
 			m.enrichMemberData(state.TimedMemberState)
+			c.Status.ClusterHotRestartStatus = state.TimedMemberState.MemberState.ClusterHotRestartStatus
 		}
 	}
 }
@@ -247,11 +254,11 @@ func (c *HazelcastClient) updateMemberList(ctx context.Context) {
 
 	memberList := hzInternalClient.OrderedMembers()
 
-	activeMembers := make(map[hztypes.UUID]struct{}, len(c.MemberMap))
+	activeMembers := make(map[hztypes.UUID]struct{}, len(c.Status.MemberMap))
 
 	for _, memberInfo := range memberList {
 		if hzInternalClient.ConnectedToMember(memberInfo.UUID) {
-			_, ok := c.MemberMap[memberInfo.UUID]
+			_, ok := c.Status.MemberMap[memberInfo.UUID]
 			activeMembers[memberInfo.UUID] = struct{}{}
 			if !ok {
 				c.Lock()
@@ -260,17 +267,17 @@ func (c *HazelcastClient) updateMemberList(ctx context.Context) {
 				if state != nil {
 					m.enrichMemberData(state.TimedMemberState)
 				}
-				c.MemberMap[memberInfo.UUID] = m
+				c.Status.MemberMap[memberInfo.UUID] = m
 				c.Unlock()
 				c.Log.Info("Member is added", "member", m.String())
 			}
 		}
 	}
 	c.Lock()
-	for uuid, m := range c.MemberMap {
+	for uuid, m := range c.Status.MemberMap {
 		_, ok := activeMembers[uuid]
 		if !ok {
-			delete(c.MemberMap, uuid)
+			delete(c.Status.MemberMap, uuid)
 			c.Log.Info("Member is deleted", "member", m.String())
 		}
 	}
@@ -298,11 +305,12 @@ type TimedMemberState struct {
 }
 
 type MemberState struct {
-	Address         string          `json:"address"`
-	Uuid            string          `json:"uuid"`
-	Name            string          `json:"name"`
-	NodeState       NodeState       `json:"nodeState"`
-	HotRestartState HotRestartState `json:"hotRestartState"`
+	Address                 string                  `json:"address"`
+	Uuid                    string                  `json:"uuid"`
+	Name                    string                  `json:"name"`
+	NodeState               NodeState               `json:"nodeState"`
+	HotRestartState         HotRestartState         `json:"hotRestartState"`
+	ClusterHotRestartStatus ClusterHotRestartStatus `json:"clusterHotRestartStatus"`
 }
 
 type NodeState struct {
@@ -320,4 +328,31 @@ type HotRestartState struct {
 	BackupTaskTotal     int32  `json:"backupTaskTotal"`
 	IsHotBackupEnabled  bool   `json:"isHotBackupEnabled"`
 	BackupDirectory     string `json:"backupDirectory"`
+}
+
+type ClusterHotRestartStatus struct {
+	HotRestartStatus              string `json:"hotRestartStatus"`
+	RemainingValidationTimeMillis int64  `json:"remainingValidationTimeMillis"`
+	RemainingDataLoadTimeMillis   int64  `json:"remainingDataLoadTimeMillis"`
+}
+
+func (c ClusterHotRestartStatus) remainingValidationTimeSec() int64 {
+	return int64((time.Duration(c.RemainingValidationTimeMillis) * time.Millisecond).Seconds())
+}
+
+func (c ClusterHotRestartStatus) remainingDataLoadTimeSec() int64 {
+	return int64((time.Duration(c.RemainingDataLoadTimeMillis) * time.Millisecond).Seconds())
+}
+
+func (c ClusterHotRestartStatus) restoreState() hazelcastv1alpha1.RestoreState {
+	switch c.HotRestartStatus {
+	case "SUCCEEDED":
+		return hazelcastv1alpha1.RestoreSucceeded
+	case "IN_PROGRESS":
+		return hazelcastv1alpha1.RestoreInProgress
+	case "FAILED":
+		return hazelcastv1alpha1.RestoreFailed
+	default:
+		return hazelcastv1alpha1.RestoreUnknown
+	}
 }

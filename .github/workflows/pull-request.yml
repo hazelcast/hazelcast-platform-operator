@@ -43,6 +43,16 @@ jobs:
         with:
           config_file: hack/yamllint.yaml
 
+      - name: Check if bundle.yaml is updated
+        run: |
+          mv bundle.yaml bundle.yaml.old
+          make generate-bundle-yaml
+
+          if ! cmp -s bundle.yaml bundle.yaml.old; then
+              echo "Please make sure your branch is up to date with main and run make generate-bundle-yaml"
+              exit 1
+          fi
+
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-20.04
@@ -72,16 +82,6 @@ jobs:
 
       - name: Run integration tests (EE)
         run: make GO_TEST_FLAGS="-ee=true" test-it
-
-      - name: Check if bundle.yaml is updated
-        run: |
-          mv bundle.yaml bundle.yaml.old
-          make generate-bundle-yaml
-
-          if ! cmp -s bundle.yaml bundle.yaml.old; then
-              echo "Please run generate-bundle.yaml"
-              exit 1
-          fi
 
   create-gke-cluster:
     name: Create GKE cluster and push image

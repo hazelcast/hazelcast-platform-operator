@@ -187,14 +187,14 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	externalAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
-	return update(ctx, r.Client, h, r.runningPhaseWithMembers(req).
+	return update(ctx, r.Client, h, r.runningPhaseWithStatus(req).
 		withExternalAddresses(externalAddrs).
 		withMessage(clientConnectionMessage(req)))
 }
 
-func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsBuilder {
+func (r *HazelcastReconciler) runningPhaseWithStatus(req ctrl.Request) optionsBuilder {
 	if hzClient, ok := GetClient(req.NamespacedName); ok {
-		return runningPhase().withReadyMembers(hzClient.MemberMap)
+		return runningPhase().withStatus(hzClient.Status)
 	}
 	return runningPhase()
 }

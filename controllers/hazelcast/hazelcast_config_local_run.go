@@ -6,6 +6,8 @@
 package hazelcast
 
 import (
+	"fmt"
+
 	"github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/logger"
 
@@ -28,5 +30,5 @@ func buildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 }
 
 func restUrl(_ *hazelcastv1alpha1.Hazelcast) string {
-	return localUrl
+	return fmt.Sprintf("http://%s", localUrl)
 }
