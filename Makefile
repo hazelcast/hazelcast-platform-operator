@@ -364,5 +364,5 @@ api-ref-doc:
 	@./bin/docgen ./api/v1alpha1/hazelcast_types.go \
 				  ./api/v1alpha1/managementcenter_types.go \
 				  ./api/v1alpha1/hotbackup_types.go \
-				./api/v1alpha1/map_types.go
+				  ./api/v1alpha1/map_types.go
 
