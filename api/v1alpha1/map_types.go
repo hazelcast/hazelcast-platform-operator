@@ -51,7 +51,7 @@ type MapSpec struct {
 	// It can be updated.
 	// +kubebuilder:default:=false
 	// +optional
-	ReadBackupData bool `json:"readBackupData,omitempty"`
+	ReadBackupData bool `json:"readBackupData"`
 
 	// Data type that will be used for storing the map data.
 	// +kubebuilder:default:=BINARY
@@ -68,7 +68,7 @@ type MapSpec struct {
 	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:default:=false
 	// +optional
-	PersistenceEnabled bool `json:"persistenceEnabled,omitempty"`
+	PersistenceEnabled bool `json:"persistenceEnabled"`
 
 	// HazelcastResourceName defines the name of the Hazelcast resource.
 	// It cannot be updated after map config is created successfully.
