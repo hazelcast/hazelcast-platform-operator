@@ -101,6 +101,8 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			withMessage(err.Error()))
 	}
 
+	updateMapStatus(ctx, r.Client, m, pendingStatus(0).withMessage("Applying new map configuration."))
+
 	ms, err := r.ReconcileMapConfig(ctx, m, cl, createdBefore)
 	if err != nil {
 		r.Log.Error(err, "Error reconciling the object")
