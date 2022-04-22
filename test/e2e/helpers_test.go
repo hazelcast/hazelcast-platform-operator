@@ -16,7 +16,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	types2 "github.com/onsi/gomega/types"
 	"github.com/tidwall/gjson"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,19 +32,20 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
+type ClusterState string
+
+const (
+	PASSIVE ClusterState = "PASSIVE"
+	ACTIVE  ClusterState = "ACTIVE"
+)
+
 func GetBackupSequence(t time.Time) string {
 	By("Finding Backup sequence")
-	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
-		Name:      hzName + "-0",
-		Namespace: hzNamespace,
-	}, &corev1.PodLogOptions{
-		Follow:    true,
-		SinceTime: &metav1.Time{Time: t},
-	})
-	defer logs.Close()
+	logs := InitLogs(t)
 	scanner := bufio.NewScanner(logs)
 	test.EventuallyInLogs(scanner, timeout, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
 	line := scanner.Text()
+	defer logs.Close()
 	Expect(logs.Close()).Should(Succeed())
 
 	compRegEx := regexp.MustCompile(`Starting new hot backup with sequence (?P<seq>\d+)`)
@@ -60,10 +60,6 @@ func GetBackupSequence(t time.Time) string {
 		Fail("Backup sequence not found")
 	}
 	return seq
-}
-
-func ReadLogs(scanner *bufio.Scanner, matcher types2.GomegaMatcher) {
-	test.EventuallyInLogs(scanner, timeout, logInterval).Should(matcher)
 }
 
 func InitLogs(t time.Time) io.ReadCloser {
@@ -159,10 +155,9 @@ func GetClientSet() *kubernetes.Clientset {
 	return clientSet
 }
 
-func ChangeHzClusterState(clusterState string, interval, timeout time.Duration) string {
-	log.Printf("Changing the cluster state to '%s'", clusterState)
+func ChangeHzClusterState(s ClusterState, interval, timeout time.Duration) string {
+	log.Printf("Changing the cluster state to '%s'", s)
 	clientSet := GetClientSet()
-	clusterState = strings.ToUpper(clusterState)
 	service, err := clientSet.CoreV1().Services(hzNamespace).Get(context.Background(), GetServiceName(), metav1.GetOptions{})
 	if err != nil {
 		log.Fatal(err)
@@ -172,15 +167,15 @@ func ChangeHzClusterState(clusterState string, interval, timeout time.Duration) 
 		log.Fatalf("Cluster is running without next param: 'service.type=LoadBalancer' ")
 	}
 	response, err := RestClient().
-		SetBody("dev&&" + clusterState).
+		SetBody("dev&&" + s).
 		Post("http://" + loadBalancerStatus[0].IP + ":5701/hazelcast/rest/management/cluster/changeState")
 	if err != nil {
 		log.Fatal(err)
 	}
 	if err := wait.Poll(interval, timeout, func() (bool, error) {
-		return getHzClusterState() == clusterState, nil
+		return getHzClusterState() == string(s), nil
 	}); err != nil {
-		log.Panicf("Error waiting for cluster state to reach expected state: %v. Expected %v, had %v", err, clusterState, getHzClusterState())
+		log.Panicf("Error waiting for cluster state to reach expected state: %v. Expected %v, had %v", err, s, getHzClusterState())
 		Expect(err).ToNot(HaveOccurred())
 	}
 	return gjson.Parse(response.String()).Get("status").Raw
