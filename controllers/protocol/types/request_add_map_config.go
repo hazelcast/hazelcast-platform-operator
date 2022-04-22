@@ -66,7 +66,7 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 		CacheDeserializedValues: CacheDeserializedValuesIndexOnly,
 		MergePolicy:             "com.hazelcast.spi.merge.PutIfAbsentMergePolicy",
 		MergeBatchSize:          int32(100),
-		InMemoryFormat:          InMemoryFormatBinary,
+		InMemoryFormat:          n.DefaultInMemoryFormat,
 		StatisticsEnabled:       true,
 		// workaround for protocol definition and implementation discrepancy in core side
 		HotRestartConfig: HotRestartConfig{

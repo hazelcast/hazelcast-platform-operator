@@ -19,6 +19,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
@@ -706,6 +707,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(*ms.AsyncBackupCount).To(Equal(n.DefaultMapAsyncBackupCount))
 				Expect(*ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
 				Expect(*ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
+				Expect(ms.InMemoryFormat).To(Equal(codecTypes.InMemoryFormat(n.DefaultInMemoryFormat)))
 				Expect(ms.Eviction).To(BeNil())
 				Expect(ms.ReadBackupData).To(Equal(n.DefaultMapReadBackupData))
 				Expect(ms.Indexes).To(BeNil())

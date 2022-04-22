@@ -83,6 +83,7 @@ const (
 	DefaultMapTimeToLiveSeconds  = int32(0)
 	DefaultMapMaxIdleSeconds     = int32(0)
 	DefaultMapReadBackupData     = false
+	DefaultInMemoryFormat        = "BINARY"
 	DefaultMapPersistenceEnabled = false
 )
 

@@ -135,6 +135,9 @@ func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelc
 	if current.PersistenceEnabled != last.PersistenceEnabled {
 		return fmt.Errorf("persistenceEnabled cannot be updated.")
 	}
+	if current.InMemoryFormat != last.InMemoryFormat {
+		return fmt.Errorf("inMemoryFormat cannot be updated.")
+	}
 	if current.HazelcastResourceName != last.HazelcastResourceName {
 		return fmt.Errorf("hazelcastResourceName cannot be updated.")
 	}
@@ -209,9 +212,9 @@ func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, m *hazelcastv
 		mapInput.EvictionConfig.MaxSizePolicy = ms.Eviction.MaxSizePolicy
 	}
 	mapInput.ReadBackupData = ms.ReadBackupData
+	mapInput.InMemoryFormat = ms.InMemoryFormat
 	mapInput.IndexConfigs = copyIndexes(ms.Indexes)
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
-
 }
 
 func copyIndexes(idx []hazelcastv1alpha1.IndexConfig) []codecTypes.IndexConfig {
