@@ -42,6 +42,7 @@ type MapSpec struct {
 
 	// Configuration for removing data from the map when it reaches its max size.
 	// It can be updated.
+	// +kubebuilder:default:={maxSize: 0}
 	// +optional
 	Eviction *EvictionConfig `json:"eviction,omitempty"`
 

@@ -2119,6 +2119,8 @@ spec:
                 format: int32
                 type: integer
               eviction:
+                default:
+                  maxSize: 0
                 description: Configuration for removing data from the map when it
                   reaches its max size. It can be updated.
                 properties:
