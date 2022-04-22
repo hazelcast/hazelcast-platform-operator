@@ -188,11 +188,11 @@ func (r *MapReconciler) ReconcileMapConfig(ctx context.Context, m *hazelcastv1al
 		memberStatuses[member.UUID.String()] = hazelcastv1alpha1.MapSuccess
 	}
 	errString := failedMembers.String()
-	if errString == "" {
-		return memberStatuses, nil
+	if errString != "" {
+		return memberStatuses, fmt.Errorf("Error creating/updating the Map config %s for members %s.", m.MapName(), errString[:len(errString)-2])
 	}
 
-	return memberStatuses, fmt.Errorf("Error creating/updating the Map config %s for members %s.", m.MapName(), errString[:len(errString)-2])
+	return memberStatuses, nil
 }
 
 func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, m *hazelcastv1alpha1.Map) {
