@@ -101,13 +101,6 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	}
 	rest := NewRestClient(h)
 
-	agentAddresses, err := r.getAgentAddresses(ctx, hb)
-	if err != nil {
-		logger.Error(err, "Could not fetch Backup agent addresses properly")
-		return ctrl.Result{}, err
-	}
-	agentRest := NewAgentRestClient(h, hb, agentAddresses)
-
 	if hb.Spec.Schedule != "" {
 		entry, err := r.cron.AddFunc(hb.Spec.Schedule, func() {
 			logger.Info("Triggering scheduled HotBackup process.", "Schedule", hb.Spec.Schedule)
@@ -116,13 +109,6 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 				logger.Error(err, "Hot Backups process failed")
 			}
 			r.reconcileHotBackupStatus(ctx, hb)
-
-			if hb.Spec.BucketURL != "" {
-				err = r.triggerUploadBackup(ctx, hb, agentRest, logger)
-				if err != nil {
-					logger.Error(err, "Backup upload process failed")
-				}
-			}
 		})
 		if err != nil {
 			logger.Error(err, "Error creating new Schedule Hot Restart.")
@@ -143,12 +129,18 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 
 		r.reconcileHotBackupStatus(ctx, hb)
+	}
 
-		if hb.Spec.BucketURL != "" {
-			err = r.triggerUploadBackup(ctx, hb, agentRest, logger)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
+	if hb.Spec.BucketURL != "" {
+		agentAddresses, err := r.getAgentAddresses(ctx, hb)
+		if err != nil {
+			logger.Error(err, "Could not fetch Backup agent addresses properly")
+			return ctrl.Result{}, err
+		}
+		agentRest := NewAgentRestClient(h, hb, agentAddresses)
+		err = r.triggerUploadBackup(ctx, hb, agentRest, logger)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 
