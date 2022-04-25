@@ -61,12 +61,16 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 		TimeToLiveSeconds: n.DefaultMapTimeToLiveSeconds,
 		MaxIdleSeconds:    n.DefaultMapMaxIdleSeconds,
 		// workaround for protocol definition and implementation discrepancy in core side
-		EvictionConfig:          EvictionConfigHolder{EvictionPolicy: EvictionPolicyNone, MaxSizePolicy: MaxSizePolicyPerNode, Size: 0},
+		EvictionConfig: EvictionConfigHolder{
+			EvictionPolicy: n.DefaultMapEvictionPolicy,
+			MaxSizePolicy:  n.DefaultMapMaxSizePolicy,
+			Size:           n.DefaultMapMaxSize,
+		},
 		ReadBackupData:          n.DefaultMapReadBackupData,
 		CacheDeserializedValues: CacheDeserializedValuesIndexOnly,
 		MergePolicy:             "com.hazelcast.spi.merge.PutIfAbsentMergePolicy",
 		MergeBatchSize:          int32(100),
-		InMemoryFormat:          n.DefaultInMemoryFormat,
+		InMemoryFormat:          n.DefaultMapInMemoryFormat,
 		StatisticsEnabled:       true,
 		// workaround for protocol definition and implementation discrepancy in core side
 		HotRestartConfig: HotRestartConfig{

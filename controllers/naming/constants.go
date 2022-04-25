@@ -83,8 +83,11 @@ const (
 	DefaultMapTimeToLiveSeconds  = int32(0)
 	DefaultMapMaxIdleSeconds     = int32(0)
 	DefaultMapReadBackupData     = false
-	DefaultInMemoryFormat        = "BINARY"
+	DefaultMapInMemoryFormat     = "BINARY"
 	DefaultMapPersistenceEnabled = false
+	DefaultMapEvictionPolicy     = "NONE"
+	DefaultMapMaxSizePolicy      = "PER_NODE"
+	DefaultMapMaxSize            = int32(0)
 )
 
 // Operator Values
