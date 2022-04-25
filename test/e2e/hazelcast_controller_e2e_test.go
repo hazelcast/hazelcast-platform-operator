@@ -500,6 +500,41 @@ var _ = Describe("Hazelcast", func() {
 
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 		})
+		It("should create Map Config with correct default values", func() {
+			localPort := "8000"
+			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
+			create(hazelcast)
+
+			By("port-forwarding to Hazelcast master pod")
+			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+			defer closeChannel(stopChan)
+			err := waitForReadyChannel(readyChan, 5*time.Second)
+			Expect(err).To(BeNil())
+
+			By("creating the map config successfully")
+			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-123", hzNamespace)
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+			By("checking if the map config is created correctly")
+			cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+			defer func() {
+				err := cl.Shutdown(context.Background())
+				Expect(err).To(BeNil())
+			}()
+			mapConfig := getMapConfig(context.Background(), cl, m.MapName())
+			Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastcomv1alpha1.EncodeInMemoryFormat[codecTypes.InMemoryFormatBinary]))
+			Expect(mapConfig.BackupCount).Should(Equal(n.DefaultMapBackupCount))
+			Expect(mapConfig.AsyncBackupCount).Should(Equal(int32(0)))
+			Expect(mapConfig.TimeToLiveSeconds).Should(Equal(*m.Spec.TimeToLiveSeconds))
+			Expect(mapConfig.MaxIdleSeconds).Should(Equal(*m.Spec.MaxIdleSeconds))
+			Expect(mapConfig.MaxSize).Should(Equal(*m.Spec.Eviction.MaxSize))
+			Expect(mapConfig.MaxSizePolicy).Should(Equal(hazelcastcomv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy]))
+			Expect(mapConfig.ReadBackupData).Should(Equal(false))
+			Expect(mapConfig.EvictionPolicy).Should(Equal(hazelcastcomv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy]))
+			Expect(mapConfig.MergePolicy).Should(Equal("com.hazelcast.spi.merge.PutIfAbsentMergePolicy"))
+
+		})
 		It("should create Map Config with Indexes", func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
@@ -525,6 +560,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
+			// TODO: When Indexes can be decoded in the getMapConfig method, we can check if indexes are created correctly.
 		})
 		It("should update the map correctly", func() {
 			localPort := "8000"
