@@ -500,6 +500,32 @@ var _ = Describe("Hazelcast", func() {
 
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 		})
+		It("should create Map Config with Indexes", func() {
+			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
+			create(hazelcast)
+
+			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-2", hzNamespace)
+			m.Spec.Indexes = []hazelcastcomv1alpha1.IndexConfig{
+				{
+					Name:               "index-1",
+					Type:               hazelcastcomv1alpha1.IndexTypeHash,
+					Attributes:         []string{"attribute1", "attribute2"},
+					BitmapIndexOptions: nil,
+				},
+				{
+					Name:       "index-2",
+					Type:       hazelcastcomv1alpha1.IndexTypeBitmap,
+					Attributes: []string{"attribute1", "attribute2"},
+					BitmapIndexOptions: &hazelcastcomv1alpha1.BitmapIndexOptionsConfig{
+						UniqueKey:           "key",
+						UniqueKeyTransition: hazelcastcomv1alpha1.UniqueKeyTransitionRAW,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+		})
 		It("should update the map correctly", func() {
 			localPort := "8000"
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)

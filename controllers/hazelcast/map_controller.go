@@ -231,9 +231,11 @@ func copyIndexes(idx []hazelcastv1alpha1.IndexConfig) []codecTypes.IndexConfig {
 		}
 		ics[i].Attributes = index.Attributes
 		ics[i].Name = index.Name
-		ics[i].BitmapIndexOptions.UniqueKey = index.BitmapIndexOptions.UniqueKey
-		if index.BitmapIndexOptions.UniqueKeyTransition != "" {
-			ics[i].BitmapIndexOptions.UniqueKeyTransformation = hazelcastv1alpha1.EncodeUniqueKeyTransition[index.BitmapIndexOptions.UniqueKeyTransition]
+		if index.BitmapIndexOptions != nil {
+			ics[i].BitmapIndexOptions.UniqueKey = index.BitmapIndexOptions.UniqueKey
+			if index.BitmapIndexOptions.UniqueKeyTransition != "" {
+				ics[i].BitmapIndexOptions.UniqueKeyTransformation = hazelcastv1alpha1.EncodeUniqueKeyTransition[index.BitmapIndexOptions.UniqueKeyTransition]
+			}
 		}
 	}
 
