@@ -100,7 +100,12 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return ctrl.Result{}, err
 	}
 	rest := NewRestClient(h)
+
 	agentAddresses, err := r.getAgentAddresses(ctx, hb)
+	if err != nil {
+		logger.Error(err, "Could not fetch Backup agent addresses properly")
+		return ctrl.Result{}, err
+	}
 	agentRest := NewAgentRestClient(h, hb, agentAddresses)
 
 	if hb.Spec.Schedule != "" {

@@ -57,10 +57,10 @@ func (ac *AgentRestClient) UploadBackup(ctx context.Context) error {
 			return fmt.Errorf("request creation failed: %s, address --> %q , URL --> %q ", err, address, address+uploadBackup)
 		}
 		res, err := ac.executeRequest(req)
-		defer res.Body.Close()
 		if err != nil {
 			return err
 		}
+		defer res.Body.Close()
 	}
 	return nil
 }
