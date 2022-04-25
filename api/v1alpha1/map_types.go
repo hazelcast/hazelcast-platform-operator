@@ -134,6 +134,7 @@ const (
 
 // Map is the Schema for the maps API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the Map Config"
+// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.message",description="Message for the current Map Config"
 type Map struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
