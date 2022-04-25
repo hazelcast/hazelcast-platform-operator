@@ -76,18 +76,11 @@ const (
 	EvictionPolicyRandom EvictionPolicyType = "RANDOM"
 )
 
-// +kubebuilder:validation:Enum=BINARY;OBJECT;NATIVE
 type InMemoryFormat string
 
 const (
-	// Keys and values will be stored as binary data.
 	InMemoryFormatBinary InMemoryFormat = "BINARY"
-
-	// Values will be stored in their object forms.
 	InMemoryFormatObject InMemoryFormat = "OBJECT"
-
-	// Values will be stored in non-heap region of JVM.
-	// Hazelcast Enterprise HD.
 	InMemoryFormatNative InMemoryFormat = "NATIVE"
 )
 

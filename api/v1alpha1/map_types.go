@@ -53,11 +53,6 @@ type MapSpec struct {
 	// +optional
 	ReadBackupData bool `json:"readBackupData"`
 
-	// Data type that will be used for storing the map data.
-	// +kubebuilder:default:=BINARY
-	// +optional
-	InMemoryFormat types.InMemoryFormat `json:"inMemoryFormat,omitempty"`
-
 	// Indexes to be created for the map data.
 	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.
 	// It cannot be updated after map config is created successfully.
