@@ -114,10 +114,10 @@ jobs:
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
-  clean-up:
+  delete-cluster:
     name: Delete AKS cluster
     runs-on: ubuntu-20.04
-    if: ${{ always() }}
+    if: always()
     needs: ["prepare-env", "aks-e2e-tests"]
     steps:
       - name: Azure login
@@ -135,8 +135,8 @@ jobs:
 
   slack_notify:
     name: Slack Notify
-    needs: [ 'clean-up' ]
-    if: always() &&  needs.clean-up.result != 'success' 
+    needs: [ 'aks-e2e-tests', 'delete-cluster' ]
+    if: always() && ( needs.aks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success') 
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04

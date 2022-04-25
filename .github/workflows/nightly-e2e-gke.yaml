@@ -155,8 +155,8 @@ jobs:
 
   slack_notify:
     name: Slack Notify
-    needs: [ 'delete-cluster' ]
-    if: always() &&  needs.delete-cluster.result != 'success' 
+    needs: [ 'gke-e2e-tests', 'delete-cluster' ]
+    if: always() && ( needs.gke-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success') 
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
