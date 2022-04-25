@@ -53,7 +53,6 @@ type EndpointGroups struct {
 	HealthCheck  EndpointGroup `yaml:"HEALTH_CHECK,omitempty"`
 	ClusterWrite EndpointGroup `yaml:"CLUSTER_WRITE,omitempty"`
 	Persistence  EndpointGroup `yaml:"PERSISTENCE,omitempty"`
-	Data         EndpointGroup `yaml:"DATA,omitempty"`
 }
 
 type EndpointGroup struct {
