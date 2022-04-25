@@ -15,6 +15,6 @@ spec:
       requestStorage: 8Gi
       storageClassName: "standard"
   backup:
-    agentRepository: hasancelik/platform-operator-agent
-    agentVersion: 0.1.7
+    agentRepository: hazelcast/platform-operator-agent
+    agentVersion: 0.1.0
     bucketSecret: br-secret
