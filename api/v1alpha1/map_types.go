@@ -19,13 +19,6 @@ type MapSpec struct {
 	// +optional
 	BackupCount *int32 `json:"backupCount,omitempty"`
 
-	// Number of asynchronous backups. Unlike the synchronous backup process,
-	// asynchronous backup process does not block the map operations.
-	// It cannot be updated after map config is created successfully.
-	// +kubebuilder:default:=0
-	// +optional
-	AsyncBackupCount *int32 `json:"asyncBackupCount,omitempty"`
-
 	// Maximum time in seconds for each entry to stay in the map.
 	// If it is not 0, entries that are older than this time and not updated for this time are evicted automatically.
 	// It can be updated.
@@ -45,13 +38,6 @@ type MapSpec struct {
 	// +kubebuilder:default:={maxSize: 0}
 	// +optional
 	Eviction *EvictionConfig `json:"eviction,omitempty"`
-
-	// Used to enable reading from local backup map entries.
-	// It can be used if there is at least 1 sync or async backup.
-	// It can be updated.
-	// +kubebuilder:default:=false
-	// +optional
-	ReadBackupData bool `json:"readBackupData"`
 
 	// Indexes to be created for the map data.
 	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.

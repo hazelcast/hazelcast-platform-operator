@@ -57,7 +57,7 @@ type AddMapConfigInput struct {
 func DefaultAddMapConfigInput() *AddMapConfigInput {
 	return &AddMapConfigInput{
 		BackupCount:       n.DefaultMapBackupCount,
-		AsyncBackupCount:  n.DefaultMapAsyncBackupCount,
+		AsyncBackupCount:  int32(0),
 		TimeToLiveSeconds: n.DefaultMapTimeToLiveSeconds,
 		MaxIdleSeconds:    n.DefaultMapMaxIdleSeconds,
 		// workaround for protocol definition and implementation discrepancy in core side
@@ -66,7 +66,7 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 			MaxSizePolicy:  n.DefaultMapMaxSizePolicy,
 			Size:           n.DefaultMapMaxSize,
 		},
-		ReadBackupData:          n.DefaultMapReadBackupData,
+		ReadBackupData:          false,
 		CacheDeserializedValues: CacheDeserializedValuesIndexOnly,
 		MergePolicy:             "com.hazelcast.spi.merge.PutIfAbsentMergePolicy",
 		MergeBatchSize:          int32(100),

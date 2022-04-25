@@ -131,9 +131,6 @@ func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelc
 	if *current.BackupCount != *last.BackupCount {
 		return fmt.Errorf("backupCount cannot be updated.")
 	}
-	if *current.AsyncBackupCount != *last.AsyncBackupCount {
-		return fmt.Errorf("asyncBackupCount cannot be updated.")
-	}
 	if !util.IndexConfigSliceEquals(current.Indexes, last.Indexes) {
 		return fmt.Errorf("indexes cannot be updated.")
 	}
@@ -167,7 +164,7 @@ func (r *MapReconciler) ReconcileMapConfig(ctx context.Context, m *hazelcastv1al
 			*m.Spec.TimeToLiveSeconds,
 			*m.Spec.MaxIdleSeconds,
 			hazelcastv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy],
-			m.Spec.ReadBackupData,
+			false,
 			*m.Spec.Eviction.MaxSize,
 			hazelcastv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy],
 		)
@@ -205,7 +202,6 @@ func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, m *hazelcastv
 
 	ms := m.Spec
 	mapInput.BackupCount = *ms.BackupCount
-	mapInput.AsyncBackupCount = *ms.AsyncBackupCount
 	mapInput.TimeToLiveSeconds = *ms.TimeToLiveSeconds
 	mapInput.MaxIdleSeconds = *ms.MaxIdleSeconds
 	if ms.Eviction != nil {
@@ -213,7 +209,6 @@ func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, m *hazelcastv
 		mapInput.EvictionConfig.Size = *ms.Eviction.MaxSize
 		mapInput.EvictionConfig.MaxSizePolicy = ms.Eviction.MaxSizePolicy
 	}
-	mapInput.ReadBackupData = ms.ReadBackupData
 	mapInput.IndexConfigs = copyIndexes(ms.Indexes)
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
 

@@ -41,13 +41,6 @@ spec:
           spec:
             description: MapSpec defines the desired state of Hazelcast Map Config
             properties:
-              asyncBackupCount:
-                default: 0
-                description: Number of asynchronous backups. Unlike the synchronous
-                  backup process, asynchronous backup process does not block the map
-                  operations. It cannot be updated after map config is created successfully.
-                format: int32
-                type: integer
               backupCount:
                 default: 1
                 description: Count of synchronous backups. It cannot be updated after
@@ -152,12 +145,6 @@ spec:
                 default: false
                 description: When enabled, map data will be persisted. It cannot be
                   updated after map config is created successfully.
-                type: boolean
-              readBackupData:
-                default: false
-                description: Used to enable reading from local backup map entries.
-                  It can be used if there is at least 1 sync or async backup. It can
-                  be updated.
                 type: boolean
               timeToLiveSeconds:
                 default: 0

@@ -550,7 +550,6 @@ var _ = Describe("Hazelcast", func() {
 				MaxSize:        pointer.Int32Ptr(500),
 				MaxSizePolicy:  codecTypes.MaxSizePolicyFreeHeapSize,
 			}
-			m.Spec.ReadBackupData = true
 			Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
@@ -563,7 +562,7 @@ var _ = Describe("Hazelcast", func() {
 			mapConfig := getMapConfig(context.Background(), cl, m.MapName())
 			Expect(mapConfig.TimeToLiveSeconds).Should(Equal(*m.Spec.TimeToLiveSeconds))
 			Expect(mapConfig.MaxIdleSeconds).Should(Equal(*m.Spec.MaxIdleSeconds))
-			Expect(mapConfig.ReadBackupData).Should(Equal(m.Spec.ReadBackupData))
+			Expect(mapConfig.ReadBackupData).Should(Equal(false))
 			Expect(mapConfig.MaxSize).Should(Equal(*m.Spec.Eviction.MaxSize))
 			Expect(mapConfig.MaxSizePolicy).Should(Equal(hazelcastcomv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy]))
 			Expect(mapConfig.EvictionPolicy).Should(Equal(hazelcastcomv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy]))

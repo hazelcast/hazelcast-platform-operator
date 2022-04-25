@@ -550,11 +550,6 @@ func (in *MapSpec) DeepCopyInto(out *MapSpec) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.AsyncBackupCount != nil {
-		in, out := &in.AsyncBackupCount, &out.AsyncBackupCount
-		*out = new(int32)
-		**out = **in
-	}
 	if in.TimeToLiveSeconds != nil {
 		in, out := &in.TimeToLiveSeconds, &out.TimeToLiveSeconds
 		*out = new(int32)

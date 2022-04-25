@@ -76,13 +76,11 @@ const (
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )
 
-// Map CR default values
+// Map Config default values
 const (
 	DefaultMapBackupCount        = int32(1)
-	DefaultMapAsyncBackupCount   = int32(0)
 	DefaultMapTimeToLiveSeconds  = int32(0)
 	DefaultMapMaxIdleSeconds     = int32(0)
-	DefaultMapReadBackupData     = false
 	DefaultMapPersistenceEnabled = false
 	DefaultMapEvictionPolicy     = "NONE"
 	DefaultMapMaxSizePolicy      = "PER_NODE"
