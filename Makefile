@@ -107,6 +107,7 @@ test-all: test test-e2e
 
 test: test-unit test-it
 
+test-unit: GO_BUILD_TAGS = "hazelcastinternal,unittest"
 test-unit: manifests generate fmt vet
 	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/... -coverprofile cover.out
 	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./api/... -coverprofile cover.out

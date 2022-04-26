@@ -1,5 +1,5 @@
-//go:build !localrun
-// +build !localrun
+//go:build !localrun && !unittest
+// +build !localrun,!unittest
 
 package hazelcast
 
@@ -21,10 +21,14 @@ func buildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	}
 	cc := &config.Cluster
 	cc.Name = h.Spec.ClusterName
-	cc.Network.SetAddresses(fmt.Sprintf("%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort))
+	cc.Network.SetAddresses(hazelcastUrl(h))
 	return config
 }
 
 func restUrl(h *hazelcastv1alpha1.Hazelcast) string {
-	return fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort)
+	return fmt.Sprintf("http://%s", hazelcastUrl(h))
+}
+
+func hazelcastUrl(h *hazelcastv1alpha1.Hazelcast) string {
+	return fmt.Sprintf("%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort)
 }
