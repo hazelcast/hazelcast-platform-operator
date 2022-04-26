@@ -206,6 +206,29 @@ var (
 			},
 		}
 	}
+
+	DefaultMap = func(hzName, mapName, ns string) *hazelcastv1alpha1.Map {
+		return &hazelcastv1alpha1.Map{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      mapName,
+				Namespace: ns,
+			},
+			Spec: hazelcastv1alpha1.MapSpec{
+				HazelcastResourceName: hzName,
+			},
+		}
+	}
+
+	Map = func(ms hazelcastv1alpha1.MapSpec, mapName, ns string) *hazelcastv1alpha1.Map {
+		return &hazelcastv1alpha1.Map{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      mapName,
+				Namespace: ns,
+			},
+			Spec: ms,
+		}
+
+	}
 )
 
 func repo(ee bool) string {

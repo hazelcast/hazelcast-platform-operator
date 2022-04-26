@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
@@ -236,4 +237,47 @@ func getLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
 		return lb.Hostname
 	}
 	return ""
+}
+
+func IndexConfigSliceEquals(a, b []hazelcastv1alpha1.IndexConfig) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if !indexConfigEquals(v, b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func indexConfigEquals(a, b hazelcastv1alpha1.IndexConfig) bool {
+	if a.Name != b.Name {
+		return false
+	}
+
+	if a.Type != b.Type {
+		return false
+	}
+
+	if !stringSliceEquals(a.Attributes, b.Attributes) {
+		return false
+	}
+
+	if a.BitmapIndexOptions != b.BitmapIndexOptions {
+		return false
+	}
+	return true
+}
+
+func stringSliceEquals(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }

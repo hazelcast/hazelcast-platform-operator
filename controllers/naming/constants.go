@@ -76,6 +76,17 @@ const (
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )
 
+// Map Config default values
+const (
+	DefaultMapBackupCount        = int32(1)
+	DefaultMapTimeToLiveSeconds  = int32(0)
+	DefaultMapMaxIdleSeconds     = int32(0)
+	DefaultMapPersistenceEnabled = false
+	DefaultMapEvictionPolicy     = "NONE"
+	DefaultMapMaxSizePolicy      = "PER_NODE"
+	DefaultMapMaxSize            = int32(0)
+)
+
 // Operator Values
 const (
 	PhoneHomeEnabledEnv = "PHONE_HOME_ENABLED"
