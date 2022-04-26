@@ -562,6 +562,17 @@ var _ = Describe("Hazelcast", func() {
 
 			// TODO: When Indexes can be decoded in the getMapConfig method, we can check if indexes are created correctly.
 		})
+		It("should fail when persistence of Map CR and Hazelcast CR do not match", func() {
+			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
+			create(hazelcast)
+
+			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-3", hzNamespace)
+			m.Spec.PersistenceEnabled = true
+
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			m = assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
+			Expect(m.Status.Message).To(Equal(fmt.Sprintf("Persistence is not enabled for the Hazelcast resource %s.", hazelcast.Name)))
+		})
 		It("should update the map correctly", func() {
 			localPort := "8000"
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
@@ -587,7 +598,7 @@ var _ = Describe("Hazelcast", func() {
 				MaxSizePolicy:  codecTypes.MaxSizePolicyFreeHeapSize,
 			}
 			Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
-			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 			By("checking if the map config is updated correctly")
 			cl := createHazelcastClient(context.Background(), hazelcast, localPort)

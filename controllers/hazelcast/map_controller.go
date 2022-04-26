@@ -64,6 +64,11 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 
+	err = ValidatePersistence(m.Spec.PersistenceEnabled, h)
+	if err != nil {
+		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+	}
+
 	s, createdBefore := m.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 
 	if createdBefore {
@@ -124,6 +129,28 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		withMemberStatuses(nil))
 }
 
+func ValidatePersistence(pe bool, h *hazelcastv1alpha1.Hazelcast) error {
+	if !pe {
+		return nil
+	}
+	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+
+	if !ok {
+		return fmt.Errorf("Hazelcast resource %s is not successfully started yet!", h.Name)
+	}
+
+	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
+	err := json.Unmarshal([]byte(s), lastSpec)
+	if err != nil {
+		return fmt.Errorf("Last successful spec for Hazelcast resource %s is not formatted correctly.", h.Name)
+	}
+
+	if !lastSpec.Persistence.IsEnabled() {
+		return fmt.Errorf("Persistence is not enabled for the Hazelcast resource %s.", h.Name)
+	}
+
+	return nil
+}
 func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelcastv1alpha1.MapSpec) error {
 	if current.Name != last.Name {
 		return fmt.Errorf("name cannot be updated.")
