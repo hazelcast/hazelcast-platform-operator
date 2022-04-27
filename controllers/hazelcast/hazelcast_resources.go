@@ -633,6 +633,7 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			Name:          n.BackupAgent,
 			Protocol:      v1.ProtocolTCP,
 		}},
+		Args: []string{"backup"},
 		LivenessProbe: &v1.Probe{
 			Handler: v1.Handler{
 				HTTPGet: &v1.HTTPGetAction{

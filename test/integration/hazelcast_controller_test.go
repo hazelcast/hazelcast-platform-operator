@@ -678,7 +678,6 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-<<<<<<< HEAD
 	Context("Map CR configuration", func() {
 		When("Using empty configuration", func() {
 			It("should fail to create", func() {
