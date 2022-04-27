@@ -20,7 +20,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
-type HazelcastClient struct {
+type Client struct {
 	sync.Mutex
 	client               *hazelcast.Client
 	cancel               context.CancelFunc
@@ -80,9 +80,9 @@ func (s *StatusTicker) stop() {
 
 var clients sync.Map
 
-func GetClient(ns types.NamespacedName) (client *HazelcastClient, ok bool) {
+func GetClient(ns types.NamespacedName) (client *Client, ok bool) {
 	if v, ok := clients.Load(ns); ok {
-		return v.(*HazelcastClient), true
+		return v.(*Client), true
 	}
 	return nil, false
 }
@@ -100,14 +100,13 @@ func CreateClient(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, channel c
 }
 
 func ShutDownClient(ctx context.Context, ns types.NamespacedName) {
-	if c, ok := clients.Load(ns); ok {
-		clients.Delete(ns)
-		c.(*HazelcastClient).shutdown(ctx)
+	if c, ok := clients.LoadAndDelete(ns); ok {
+		c.(*Client).shutdown(ctx)
 	}
 }
 
-func newHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *HazelcastClient {
-	return &HazelcastClient{
+func newHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *Client {
+	return &Client{
 		NamespacedName:       n,
 		Log:                  l,
 		Status:               &Status{MemberMap: make(map[hztypes.UUID]*MemberData)},
@@ -115,7 +114,7 @@ func newHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan even
 	}
 }
 
-func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
+func (c *Client) start(ctx context.Context, config hazelcast.Config) {
 	config.Cluster.ConnectionStrategy.Timeout = hztypes.Duration(0)
 	config.Cluster.ConnectionStrategy.ReconnectMode = cluster.ReconnectModeOn
 	config.Cluster.ConnectionStrategy.Retry = cluster.ConnectionRetryConfig{
@@ -149,10 +148,10 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	}(ctx, c.statusTicker)
 }
 
-func (c *HazelcastClient) initHzClient(ctx context.Context, config hazelcast.Config) {
+func (c *Client) initHzClient(ctx context.Context, config hazelcast.Config) {
+	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
 	c.Lock()
 	defer c.Unlock()
-	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
 	if err != nil {
 		// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
 		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
@@ -162,7 +161,7 @@ func (c *HazelcastClient) initHzClient(ctx context.Context, config hazelcast.Con
 	}
 }
 
-func (c *HazelcastClient) shutdown(ctx context.Context) {
+func (c *Client) shutdown(ctx context.Context) {
 	if c.cancel != nil {
 		c.cancel()
 	}
@@ -181,7 +180,7 @@ func (c *HazelcastClient) shutdown(ctx context.Context) {
 	}
 }
 
-func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(cluster.MembershipStateChanged) {
+func getStatusUpdateListener(ctx context.Context, c *Client) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
 		if changed.State == cluster.MembershipStateAdded {
 			_, ok := c.Status.MemberMap[changed.Member.UUID]
@@ -210,7 +209,7 @@ func getStatusUpdateListener(ctx context.Context, c *HazelcastClient) func(clust
 	}
 }
 
-func (c *HazelcastClient) triggerReconcile() {
+func (c *Client) triggerReconcile() {
 	c.triggerReconcileChan <- event.GenericEvent{
 		Object: &hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
 			Namespace: c.NamespacedName.Namespace,
@@ -218,7 +217,7 @@ func (c *HazelcastClient) triggerReconcile() {
 		}}}
 }
 
-func (c *HazelcastClient) updateMemberStates(ctx context.Context) {
+func (c *Client) updateMemberStates(ctx context.Context) {
 	if c.client == nil {
 		return
 	}
@@ -232,7 +231,7 @@ func (c *HazelcastClient) updateMemberStates(ctx context.Context) {
 	}
 }
 
-func (c *HazelcastClient) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *TimedMemberStateWrapper {
+func (c *Client) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *TimedMemberStateWrapper {
 	jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
 	if err != nil {
 		c.Log.Error(err, "Fetching TimedMemberState failed.", "CR", c.NamespacedName)
@@ -246,7 +245,7 @@ func (c *HazelcastClient) getTimedMemberState(ctx context.Context, uuid hztypes.
 	return state
 }
 
-func (c *HazelcastClient) updateMemberList(ctx context.Context) {
+func (c *Client) updateMemberList(ctx context.Context) {
 	if c.client == nil {
 		return
 	}
