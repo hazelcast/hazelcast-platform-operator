@@ -2,8 +2,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
 )
 
 // MapSpec defines the desired state of Hazelcast Map Config
@@ -250,15 +248,15 @@ var (
 		EvictionPolicyRandom: 3,
 	}
 
-	EncodeIndexType = map[IndexType]types.IndexType{
-		IndexTypeSorted: types.IndexTypeSorted,
-		IndexTypeHash:   types.IndexTypeHash,
-		IndexTypeBitmap: types.IndexTypeBitmap,
+	EncodeIndexType = map[IndexType]int32{
+		IndexTypeSorted: 0,
+		IndexTypeHash:   1,
+		IndexTypeBitmap: 2,
 	}
 
-	EncodeUniqueKeyTransition = map[UniqueKeyTransition]types.UniqueKeyTransformation{
-		UniqueKeyTransitionObject: types.UniqueKeyTransformationObject,
-		UniqueKeyTransitionLong:   types.UniqueKeyTransformationLong,
-		UniqueKeyTransitionRAW:    types.UniqueKeyTransformationRaw,
+	EncodeUniqueKeyTransition = map[UniqueKeyTransition]int32{
+		UniqueKeyTransitionObject: 0,
+		UniqueKeyTransitionLong:   1,
+		UniqueKeyTransitionRAW:    2,
 	}
 )

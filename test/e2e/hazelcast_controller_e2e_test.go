@@ -537,7 +537,7 @@ var _ = Describe("Hazelcast", func() {
 				Expect(err).To(BeNil())
 			}()
 			mapConfig := getMapConfig(context.Background(), cl, m.MapName())
-			Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastcomv1alpha1.EncodeInMemoryFormat[codecTypes.InMemoryFormatBinary]))
+			Expect(mapConfig.InMemoryFormat).Should(Equal("BINARY"))
 			Expect(mapConfig.BackupCount).Should(Equal(n.DefaultMapBackupCount))
 			Expect(mapConfig.AsyncBackupCount).Should(Equal(int32(0)))
 			Expect(mapConfig.TimeToLiveSeconds).Should(Equal(*m.Spec.TimeToLiveSeconds))
@@ -607,9 +607,9 @@ var _ = Describe("Hazelcast", func() {
 			m.Spec.TimeToLiveSeconds = pointer.Int32Ptr(150)
 			m.Spec.MaxIdleSeconds = pointer.Int32Ptr(100)
 			m.Spec.Eviction = &hazelcastcomv1alpha1.EvictionConfig{
-				EvictionPolicy: codecTypes.EvictionPolicyLFU,
+				EvictionPolicy: hazelcastcomv1alpha1.EvictionPolicyLFU,
 				MaxSize:        pointer.Int32Ptr(500),
-				MaxSizePolicy:  codecTypes.MaxSizePolicyFreeHeapSize,
+				MaxSizePolicy:  hazelcastcomv1alpha1.MaxSizePolicyFreeHeapSize,
 			}
 			Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
 			m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)

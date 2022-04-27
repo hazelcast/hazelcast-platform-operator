@@ -71,7 +71,7 @@ func DecodeIndexConfig(frameIterator *proto.ForwardFrameIterator) types.IndexCon
 
 	return types.IndexConfig{
 		Name:               name,
-		Type:               types.IndexType(_type),
+		Type:               _type,
 		Attributes:         attributes,
 		BitmapIndexOptions: bitmapIndexOptions,
 	}

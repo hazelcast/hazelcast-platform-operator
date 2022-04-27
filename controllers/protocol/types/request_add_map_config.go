@@ -15,10 +15,10 @@ type AddMapConfigInput struct {
 	// nullable
 	EvictionConfig          EvictionConfigHolder
 	ReadBackupData          bool
-	CacheDeserializedValues CacheDeserializedValues
+	CacheDeserializedValues string
 	MergePolicy             string
 	MergeBatchSize          int32
-	InMemoryFormat          InMemoryFormat
+	InMemoryFormat          string
 	// nullable
 	ListenerConfigs []ListenerConfigHolder
 	// nullable
@@ -48,7 +48,7 @@ type AddMapConfigInput struct {
 	EventJournalConfig EventJournalConfig
 	// nullable
 	MerkleTreeConfig     MerkleTreeConfig
-	MetadataPolicy       MetadataPolicy
+	MetadataPolicy       int32
 	PerEntryStatsEnabled bool
 }
 
@@ -67,10 +67,10 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 			Size:           n.DefaultMapMaxSize,
 		},
 		ReadBackupData:          false,
-		CacheDeserializedValues: CacheDeserializedValuesIndexOnly,
+		CacheDeserializedValues: "INDEX_ONLY",
 		MergePolicy:             "com.hazelcast.spi.merge.PutIfAbsentMergePolicy",
 		MergeBatchSize:          int32(100),
-		InMemoryFormat:          InMemoryFormatBinary,
+		InMemoryFormat:          "BINARY",
 		StatisticsEnabled:       true,
 		// workaround for protocol definition and implementation discrepancy in core side
 		HotRestartConfig: HotRestartConfig{
@@ -82,7 +82,7 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 		EventJournalConfig: EventJournalConfig{IsDefined: true, Enabled: false, Capacity: 1000},
 		// workaround for protocol definition and implementation discrepancy in core side
 		MerkleTreeConfig:     MerkleTreeConfig{IsDefined: true, Enabled: false, Depth: 2},
-		MetadataPolicy:       MetadataPolicyCreateOnUpdate,
+		MetadataPolicy:       0,
 		PerEntryStatsEnabled: false,
 	}
 }

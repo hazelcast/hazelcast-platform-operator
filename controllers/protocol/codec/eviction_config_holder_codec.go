@@ -67,8 +67,8 @@ func DecodeEvictionConfigHolder(frameIterator *proto.ForwardFrameIterator) types
 
 	return types.EvictionConfigHolder{
 		Size:                size,
-		MaxSizePolicy:       types.MaxSizePolicyType(maxSizePolicy),
-		EvictionPolicy:      types.EvictionPolicyType(evictionPolicy),
+		MaxSizePolicy:       maxSizePolicy,
+		EvictionPolicy:      evictionPolicy,
 		ComparatorClassName: comparatorClassName,
 		Comparator:          comparator,
 	}

@@ -19,7 +19,6 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	codecTypes "github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
@@ -706,9 +705,9 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(*ms.BackupCount).To(Equal(n.DefaultMapBackupCount))
 				Expect(*ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
 				Expect(*ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
-				Expect(ms.Eviction.EvictionPolicy).To(Equal(codecTypes.EvictionPolicyType(n.DefaultMapEvictionPolicy)))
+				Expect(ms.Eviction.EvictionPolicy).To(Equal(hazelcastv1alpha1.EvictionPolicyType(n.DefaultMapEvictionPolicy)))
 				Expect(*ms.Eviction.MaxSize).To(Equal(n.DefaultMapMaxSize))
-				Expect(ms.Eviction.MaxSizePolicy).To(Equal(codecTypes.MaxSizePolicyType(n.DefaultMapMaxSizePolicy)))
+				Expect(ms.Eviction.MaxSizePolicy).To(Equal(hazelcastv1alpha1.MaxSizePolicyType(n.DefaultMapMaxSizePolicy)))
 				Expect(ms.Indexes).To(BeNil())
 				Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
 				Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
