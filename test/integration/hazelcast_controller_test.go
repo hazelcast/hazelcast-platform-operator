@@ -718,7 +718,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Resources context", func() {
 		When("Resources are used", func() {
-			FIt("should be set to Container spec", func() {
+			It("should be set to Container spec", func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Resources = &corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
