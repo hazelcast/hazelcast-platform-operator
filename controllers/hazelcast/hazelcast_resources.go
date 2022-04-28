@@ -389,7 +389,7 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
-		cm.Data, err = hazelcastConfigMapData(h)
+		cm.Data, err = hazelcastConfigMapData(r.Client, ctx, h)
 		return err
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -398,13 +398,45 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 	return err
 }
 
-func hazelcastConfigMapData(h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
+func hazelcastConfigMapData(c client.Client, ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
+	mapList := &hazelcastv1alpha1.MapList{}
+	err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": h.Name})
+	if err != nil {
+		return nil, err
+	}
+	ml := filterPersistedMaps(mapList.Items)
+
 	cfg := hazelcastConfigMapStruct(h)
+	fillHazelcastConfigWithMaps(&cfg, ml)
+
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 	if err != nil {
 		return nil, err
 	}
 	return map[string]string{"hazelcast.yaml": string(yml)}, nil
+}
+
+func filterPersistedMaps(ml []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
+	l := make([]hazelcastv1alpha1.Map, 0)
+
+	for _, mp := range ml {
+		switch mp.Status.State {
+		case hazelcastv1alpha1.MapPersisting, hazelcastv1alpha1.MapSuccess:
+			l = append(l, mp)
+		case hazelcastv1alpha1.MapFailed, hazelcastv1alpha1.MapPending:
+			if spec, ok := mp.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
+				ms := &hazelcastv1alpha1.MapSpec{}
+				err := json.Unmarshal([]byte(spec), ms)
+				if err != nil {
+					continue
+				}
+				mp.Spec = *ms
+				l = append(l, mp)
+			}
+		default:
+		}
+	}
+	return l
 }
 
 func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
@@ -466,6 +498,64 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 	return cfg
+}
+
+func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {
+	switch policyType {
+	case hazelcastv1alpha1.FullRecovery:
+		return "FULL_RECOVERY_ONLY"
+	case hazelcastv1alpha1.MostRecent:
+		return "PARTIAL_RECOVERY_MOST_RECENT"
+	case hazelcastv1alpha1.MostComplete:
+		return "PARTIAL_RECOVERY_MOST_COMPLETE"
+	}
+	return "FULL_RECOVERY_ONLY"
+}
+
+func fillHazelcastConfigWithMaps(cfg *config.Hazelcast, ml []hazelcastv1alpha1.Map) {
+	if len(ml) != 0 {
+		cfg.Map = map[string]config.Map{}
+		for _, mcfg := range ml {
+			cfg.Map[mcfg.MapName()] = createMapConfig(&mcfg.Spec)
+		}
+	}
+}
+
+func createMapConfig(ms *hazelcastv1alpha1.MapSpec) config.Map {
+	m := config.Map{
+		BackupCount:       *ms.BackupCount,
+		AsyncBackupCount:  int32(0),
+		TimeToLiveSeconds: *ms.TimeToLiveSeconds,
+		ReadBackupData:    false,
+		Eviction: config.MapEviction{
+			Size:           *ms.Eviction.MaxSize,
+			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
+			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
+		},
+		InMemoryFormat:    "BINARY",
+		Indexes:           copyMapIndexes(ms.Indexes),
+		StatisticsEnabled: true,
+		HotRestart: config.MapHotRestart{
+			Enabled: ms.PersistenceEnabled,
+			Fsync:   false,
+		},
+	}
+	return m
+}
+
+func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
+	ics := make([]config.MapIndex, len(idx))
+	for i, index := range idx {
+		ics[i].Type = string(index.Type)
+		ics[i].Attributes = index.Attributes
+		ics[i].Name = index.Name
+		if index.BitmapIndexOptions != nil {
+			ics[i].BitmapIndexOptions.UniqueKey = index.BitmapIndexOptions.UniqueKey
+			ics[i].BitmapIndexOptions.UniqueKeyTransformation = string(index.BitmapIndexOptions.UniqueKeyTransition)
+		}
+	}
+
+	return ics
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -684,18 +774,6 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 		}
 	}
 	return nil
-}
-
-func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {
-	switch policyType {
-	case hazelcastv1alpha1.FullRecovery:
-		return "FULL_RECOVERY_ONLY"
-	case hazelcastv1alpha1.MostRecent:
-		return "PARTIAL_RECOVERY_MOST_RECENT"
-	case hazelcastv1alpha1.MostComplete:
-		return "PARTIAL_RECOVERY_MOST_COMPLETE"
-	}
-	return "FULL_RECOVERY_ONLY"
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {

@@ -185,6 +185,8 @@ const (
 	MapFailed  MapConfigState = "Failed"
 	MapSuccess MapConfigState = "Success"
 	MapPending MapConfigState = "Pending"
+	// Map config is added into all members but waiting for map to be persisten into ConfigMap
+	MapPersisting MapConfigState = "Persisting"
 )
 
 //+kubebuilder:object:root=true
@@ -222,12 +224,6 @@ func init() {
 }
 
 var (
-	EncodeInMemoryFormat = map[types.InMemoryFormat]int32{
-		types.InMemoryFormatBinary: 0,
-		types.InMemoryFormatObject: 1,
-		types.InMemoryFormatNative: 2,
-	}
-
 	EncodeMaxSizePolicy = map[MaxSizePolicyType]int32{
 		MaxSizePolicyPerNode:                    0,
 		MaxSizePolicyPerPartition:               1,

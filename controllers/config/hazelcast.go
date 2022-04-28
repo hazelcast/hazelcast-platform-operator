@@ -5,10 +5,11 @@ type HazelcastWrapper struct {
 }
 
 type Hazelcast struct {
-	Jet         Jet         `yaml:"jet,omitempty"`
-	Network     Network     `yaml:"network,omitempty"`
-	ClusterName string      `yaml:"cluster-name,omitempty"`
-	Persistence Persistence `yaml:"persistence,omitempty"`
+	Jet         Jet            `yaml:"jet,omitempty"`
+	Network     Network        `yaml:"network,omitempty"`
+	ClusterName string         `yaml:"cluster-name,omitempty"`
+	Persistence Persistence    `yaml:"persistence,omitempty"`
+	Map         map[string]Map `yaml:"map,omitempty"`
 }
 
 type Jet struct {
@@ -57,6 +58,42 @@ type EndpointGroups struct {
 
 type EndpointGroup struct {
 	Enabled *bool `yaml:"enabled,omitempty"`
+}
+
+type Map struct {
+	BackupCount       int32         `yaml:"backup-count"`
+	AsyncBackupCount  int32         `yaml:"async-backup-count"`
+	TimeToLiveSeconds int32         `yaml:"time-to-live-seconds"`
+	MaxIdleSeconds    int32         `yaml:"max-idle-seconds"`
+	Eviction          MapEviction   `yaml:"eviction,omitempty"`
+	ReadBackupData    bool          `yaml:"read-backup-data"`
+	InMemoryFormat    string        `yaml:"in-memory-format"`
+	StatisticsEnabled bool          `yaml:"statistics-enabled"`
+	Indexes           []MapIndex    `yaml:"indexes,omitempty"`
+	HotRestart        MapHotRestart `yaml:"hot-restart,omitempty"`
+}
+
+type MapEviction struct {
+	Size           int32  `yaml:"size"`
+	MaxSizePolicy  string `yaml:"max-size-policy,omitempty"`
+	EvictionPolicy string `yaml:"eviction-policy,omitempty"`
+}
+
+type MapIndex struct {
+	Name               string             `yaml:"name,omitempty"`
+	Type               string             `yaml:"type"`
+	Attributes         []string           `yaml:"attributes"`
+	BitmapIndexOptions BitmapIndexOptions `yaml:"bitmap-index-options,omitempty"`
+}
+
+type BitmapIndexOptions struct {
+	UniqueKey               string `yaml:"unique-key"`
+	UniqueKeyTransformation string `yaml:"unique-key-transformation"`
+}
+
+type MapHotRestart struct {
+	Enabled bool `yaml:"enabled"`
+	Fsync   bool `yaml:"fsync"`
 }
 
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {

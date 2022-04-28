@@ -220,6 +220,27 @@ func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request 
 	}
 }
 
+func (r *HazelcastReconciler) mapUpdates(m client.Object) []reconcile.Request {
+	mp, ok := m.(*hazelcastv1alpha1.Map)
+	if !ok {
+		return []reconcile.Request{}
+	}
+
+	if mp.Status.State == hazelcastv1alpha1.MapPending {
+		return []reconcile.Request{}
+	}
+	name := mp.Spec.HazelcastResourceName
+
+	return []reconcile.Request{
+		{
+			NamespacedName: types.NamespacedName{
+				Name:      name,
+				Namespace: mp.GetNamespace(),
+			},
+		},
+	}
+}
+
 func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 	if pod.Labels[n.ApplicationManagedByLabel] == n.OperatorName && pod.Labels[n.ApplicationNameLabel] == n.Hazelcast {
 		return pod.Labels[n.ApplicationInstanceNameLabel], true
@@ -247,6 +268,12 @@ func clientConnectionMessage(req ctrl.Request) string {
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.Map{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.Map)
+		return []string{m.Spec.HazelcastResourceName}
+	}); err != nil {
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Hazelcast{}).
 		Owns(&appsv1.StatefulSet{}).
@@ -256,5 +283,6 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).
+		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates)).
 		Complete(r)
 }

@@ -38,6 +38,14 @@ func pendingStatus(retryAfter time.Duration) mapOptionsBuilder {
 		retryAfter: retryAfter,
 	}
 }
+
+func persistingStatus(retryAfter time.Duration) mapOptionsBuilder {
+	return mapOptionsBuilder{
+		status:     hazelcastv1alpha1.MapPersisting,
+		retryAfter: retryAfter,
+	}
+}
+
 func (o mapOptionsBuilder) withMessage(m string) mapOptionsBuilder {
 	o.message = m
 	return o
