@@ -68,6 +68,11 @@ type HazelcastSpec struct {
 	// +kubebuilder:default:={}
 	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
 
+	// Compute Resources required by the Hazelcast container.
+	// +optional
+	// +kubebuilder:default:={}
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
 	// Persistence configuration
 	//+optional
 	//+kubebuilder:default:={}

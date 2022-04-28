@@ -715,4 +715,45 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
+
+	Context("Resources context", func() {
+		When("Resources are used", func() {
+			It("should be set to Container spec", func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Resources = &corev1.ResourceRequirements{
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("10Gi"),
+					},
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("250m"),
+						corev1.ResourceMemory: resource.MustParse("5Gi"),
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+				Create(hz)
+
+				Eventually(func() map[corev1.ResourceName]resource.Quantity {
+					ss := getStatefulSet(hz)
+					return ss.Spec.Template.Spec.Containers[0].Resources.Limits
+				}, timeout, interval).Should(And(
+					HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("500m")),
+					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("10Gi"))),
+				)
+
+				Eventually(func() map[corev1.ResourceName]resource.Quantity {
+					ss := getStatefulSet(hz)
+					return ss.Spec.Template.Spec.Containers[0].Resources.Requests
+				}, timeout, interval).Should(And(
+					HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("250m")),
+					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("5Gi"))),
+				)
+
+				Delete(hz)
+			})
+		})
+	})
 })

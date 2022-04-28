@@ -549,6 +549,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
 	}
 
+	if h.Spec.Resources != nil {
+		sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
+	}
+
 	if h.Spec.Persistence.IsEnabled() {
 		if h.Spec.Persistence.UseHostPath() {
 			sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, hostPathVolume(h))
