@@ -139,8 +139,7 @@ func (c *Client) start(ctx context.Context, config hazelcast.Config) {
 			case <-s.done:
 				return
 			case <-s.ticker.C:
-				c.updateMemberList()
-				c.updateMemberStates(ctx)
+				c.updateMembers(ctx)
 				c.triggerReconcile()
 			}
 		}
@@ -187,20 +186,6 @@ func (c *Client) triggerReconcile() {
 		}}}
 }
 
-func (c *Client) updateMemberStates(ctx context.Context) {
-	if c.client == nil {
-		return
-	}
-	c.Log.V(2).Info("Updating Hazelcast status", "CR", c.NamespacedName)
-	for uuid, m := range c.Status.MemberMap {
-		state := c.getTimedMemberState(ctx, uuid)
-		if state != nil {
-			m.enrichMemberData(state.TimedMemberState)
-			c.Status.ClusterHotRestartStatus = state.TimedMemberState.MemberState.ClusterHotRestartStatus
-		}
-	}
-}
-
 func (c *Client) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *TimedMemberStateWrapper {
 	jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
 	if err != nil {
@@ -215,39 +200,29 @@ func (c *Client) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *Ti
 	return state
 }
 
-func (c *Client) updateMemberList() {
+func (c *Client) updateMembers(ctx context.Context) {
 	if c.client == nil {
 		return
 	}
+	c.Log.V(2).Info("Updating Hazelcast status", "CR", c.NamespacedName)
 	hzInternalClient := hazelcast.NewClientInternal(c.client)
 
-	memberList := hzInternalClient.OrderedMembers()
+	activeMemberList := hzInternalClient.OrderedMembers()
+	activeMembers := make(map[hztypes.UUID]*MemberData, len(activeMemberList))
+	newClusterHotRestartStatus := &ClusterHotRestartStatus{}
 
-	activeMembers := make(map[hztypes.UUID]struct{}, len(c.Status.MemberMap))
-	for _, memberInfo := range memberList {
-		if hzInternalClient.ConnectedToMember(memberInfo.UUID) {
-			_, ok := c.Status.MemberMap[memberInfo.UUID]
-			activeMembers[memberInfo.UUID] = struct{}{}
-			if !ok {
-				m := newMemberData(memberInfo)
-				c.Lock()
-				c.Status.MemberMap[memberInfo.UUID] = m
-				c.Unlock()
-				c.Log.Info("Member is added", "member", m.String())
-			}
-		} else {
-			m := newMemberData(memberInfo)
-			c.Log.Info("Client is not connected to member", "member", m.String())
+	for _, memberInfo := range activeMemberList {
+		activeMembers[memberInfo.UUID] = newMemberData(memberInfo)
+		state := c.getTimedMemberState(ctx, memberInfo.UUID)
+		if state != nil {
+			activeMembers[memberInfo.UUID].enrichMemberData(state.TimedMemberState)
+			newClusterHotRestartStatus = &state.TimedMemberState.MemberState.ClusterHotRestartStatus
 		}
 	}
+
 	c.Lock()
-	for uuid, m := range c.Status.MemberMap {
-		_, ok := activeMembers[uuid]
-		if !ok {
-			delete(c.Status.MemberMap, uuid)
-			c.Log.Info("Member is deleted", "member", m.String())
-		}
-	}
+	c.Status.MemberMap = activeMembers
+	c.Status.ClusterHotRestartStatus = *newClusterHotRestartStatus
 	c.Unlock()
 }
 
