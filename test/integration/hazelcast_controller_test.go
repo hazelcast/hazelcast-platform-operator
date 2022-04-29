@@ -756,4 +756,68 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
+
+	Context("Backup Agent configuration", func() {
+		When("Backup Agent is configured", func() {
+			It("Persistence Configuration must be enabled", func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Backup = &hazelcastv1alpha1.BackupAgentConfiguration{
+					AgentRepository: "hazelcast/platform-operator-agent",
+					AgentVersion:    "0.1.0",
+					BucketSecret:    "br-secret",
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
+
+				Eventually(func() int {
+					ss := getStatefulSet(hz)
+					return len(ss.Spec.Template.Spec.Containers)
+				}, timeout, interval).Should(Equal(1))
+
+				Delete(hz)
+			})
+		})
+		When("Backup Agent is configured with Persistence", func() {
+			It("should be deployed as a sidecar container", func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+						StorageClassName: &[]string{"standard"}[0],
+					},
+				}
+				spec.Backup = &hazelcastv1alpha1.BackupAgentConfiguration{
+					AgentRepository: "hazelcast/platform-operator-agent",
+					AgentVersion:    "0.1.0",
+					BucketSecret:    "br-secret",
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
+
+				Eventually(func() int {
+					ss := getStatefulSet(hz)
+					return len(ss.Spec.Template.Spec.Containers)
+				}, timeout, interval).Should(Equal(2))
+
+				Delete(hz)
+			})
+		})
+	})
 })

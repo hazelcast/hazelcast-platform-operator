@@ -46,6 +46,13 @@ const (
 
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
 	PersistenceVolumeName = "hot-restart-persistence"
+
+	BackupAgent                 = "backup-agent"
+	BackupAgentPortName         = "backup-agent-port"
+	BucketSecret                = "br-secret"
+	BucketDataS3AccessKeyID     = "access-key-id"
+	BucketDataS3SecretAccessKey = "secret-access-key"
+	BucketDataS3Region          = "region"
 )
 
 // Hazelcast default configurations
@@ -94,4 +101,10 @@ const (
 	OperatorVersionEnv  = "OPERATOR_VERSION"
 	NamespaceEnv        = "NAMESPACE"
 	PodNameEnv          = "POD_NAME"
+)
+
+// Backup&Restore agent default configurations
+const (
+	// DefaultAgentPort Backup&Restore agent default port
+	DefaultAgentPort = 8080
 )

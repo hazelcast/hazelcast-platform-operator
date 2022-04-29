@@ -77,6 +77,28 @@ type HazelcastSpec struct {
 	//+optional
 	//+kubebuilder:default:={}
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
+
+	// Backup Agent configuration
+	// +optional
+	// +kubebuilder:default:={}
+	Backup *BackupAgentConfiguration `json:"backup,omitempty"`
+}
+
+type BackupAgentConfiguration struct {
+
+	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
+	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
+	// +optional
+	AgentRepository string `json:"agentRepository,omitempty"`
+
+	// Version of Hazelcast Platform Operator Agent.
+	// +kubebuilder:default:="1.0.0"
+	// +optional
+	AgentVersion string `json:"agentVersion,omitempty"`
+
+	// Name of the secret with credentials for cloud providers.
+	// +optional
+	BucketSecret string `json:"bucketSecret,omitempty"`
 }
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
@@ -282,6 +304,11 @@ func (c *HazelcastPersistenceConfiguration) UseHostPath() bool {
 	return c.HostPath != ""
 }
 
+// Returns true if Backup Agent configuration is specified.
+func (c *BackupAgentConfiguration) IsEnabled() bool {
+	return c != nil && !(*c == (BackupAgentConfiguration{}))
+}
+
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
 	// Phase of the Hazelcast cluster
@@ -437,4 +464,8 @@ func (h *Hazelcast) ClusterScopedName() string {
 func (h *Hazelcast) ExternalAddressEnabled() bool {
 	return h.Spec.ExposeExternally.IsEnabled() &&
 		h.Spec.ExposeExternally.DiscoveryServiceType == corev1.ServiceTypeLoadBalancer
+}
+
+func (h *Hazelcast) AgentDockerImage() string {
+	return fmt.Sprintf("%s:%s", h.Spec.Backup.AgentRepository, h.Spec.Backup.AgentVersion)
 }
