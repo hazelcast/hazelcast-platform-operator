@@ -82,7 +82,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	if hb.Status.State.IsScheduled() {
 		logger.Info("HotBackup is already running.",
 			"name", hb.Name, "namespace", hb.Namespace, "state", hb.Status.State)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	hs, err := json.Marshal(hb.Spec)
