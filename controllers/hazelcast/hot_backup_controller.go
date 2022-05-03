@@ -130,6 +130,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	} else {
 		err = r.triggerHotBackup(ctx, req, rest, logger)
 		if err != nil {
+			_ = r.Client.Get(ctx, req.NamespacedName, hb)
 			hb.Status.State = hazelcastv1alpha1.HotBackupFailure
 			_ = r.Status().Update(ctx, hb)
 			return ctrl.Result{}, err
