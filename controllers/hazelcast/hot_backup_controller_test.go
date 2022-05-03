@@ -189,8 +189,8 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 	r := hotBackupReconcilerWithCRs(h, hb)
 
 	var reconcileWg sync.WaitGroup
+	reconcileWg.Add(1)
 	go func() {
-		reconcileWg.Add(1)
 		defer reconcileWg.Done()
 		_, _ = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
 	}()
@@ -200,8 +200,8 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 		return hb.Status.State
 	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupPending))
 
+	reconcileWg.Add(1)
 	go func() {
-		reconcileWg.Add(1)
 		defer reconcileWg.Done()
 		_, _ = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
 	}()
