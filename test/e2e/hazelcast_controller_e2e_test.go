@@ -148,7 +148,7 @@ var _ = Describe("Hazelcast", func() {
 			})
 		})
 
-		FIt("should update HZ detailed member status", func() {
+		It("should update HZ detailed member status", func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			CreateHazelcastCR(hazelcast, lookupKey)
 
