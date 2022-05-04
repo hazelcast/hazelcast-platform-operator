@@ -2,41 +2,36 @@ package e2e
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
-	"github.com/go-cmd/cmd"
 	"io"
+	"k8s.io/client-go/tools/portforward"
+	"k8s.io/client-go/transport/spdy"
 	"log"
+	"net/http"
+	"net/url"
 	"regexp"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-resty/resty/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/tidwall/gjson"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/codec"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
-)
-
-type ClusterState string
-
-const (
-	PASSIVE ClusterState = "PASSIVE"
-	ACTIVE  ClusterState = "ACTIVE"
 )
 
 func GetBackupSequence(t time.Time) string {
@@ -155,52 +150,6 @@ func GetClientSet() *kubernetes.Clientset {
 	return clientSet
 }
 
-func ChangeHzClusterState(s ClusterState, interval, timeout time.Duration) string {
-	log.Printf("Changing the cluster state to '%s'", s)
-	clientSet := GetClientSet()
-	service, err := clientSet.CoreV1().Services(hzNamespace).Get(context.Background(), GetServiceName(), metav1.GetOptions{})
-	if err != nil {
-		log.Fatal(err)
-	}
-	loadBalancerStatus := service.Status.LoadBalancer.Ingress
-	if len(loadBalancerStatus) == 0 {
-		log.Fatalf("Cluster is running without next param: 'service.type=LoadBalancer' ")
-	}
-	response, err := RestClient().
-		SetBody("dev&&" + s).
-		Post("http://" + loadBalancerStatus[0].IP + ":5701/hazelcast/rest/management/cluster/changeState")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := wait.Poll(interval, timeout, func() (bool, error) {
-		return getHzClusterState() == string(s), nil
-	}); err != nil {
-		log.Panicf("Error waiting for cluster state to reach expected state: %v. Expected %v, had %v", err, s, getHzClusterState())
-		Expect(err).ToNot(HaveOccurred())
-	}
-	return gjson.Parse(response.String()).Get("status").Raw
-}
-
-func getHzClusterState() string {
-	log.Print("Getting the cluster state")
-	clientSet := GetClientSet()
-	service, err := clientSet.CoreV1().Services(hzNamespace).Get(context.Background(), GetServiceName(), metav1.GetOptions{})
-	if err != nil {
-		log.Panic(err)
-	}
-	loadBalancerStatus := service.Status.LoadBalancer.Ingress
-	if len(loadBalancerStatus) == 0 {
-		log.Fatal("Cluster is running without next param: 'service.type=LoadBalancer' ")
-	}
-	response, err := RestClient().
-		Get("http://" + loadBalancerStatus[0].IP + ":5701/hazelcast/health/cluster-state")
-	if err != nil {
-		log.Panic(err)
-	}
-	log.Printf("Cluster state is '%s'", strings.ReplaceAll(response.String(), "\"", ""))
-	return strings.ReplaceAll(response.String(), "\"", "")
-}
-
 func FillTheMapData(ctx context.Context, unisocket bool, mapName string, mapSize int) {
 	var m *hzClient.Map
 	clientHz, err := GetHzClient(ctx, unisocket)
@@ -215,33 +164,6 @@ func FillTheMapData(ctx context.Context, unisocket bool, mapName string, mapSize
 	err = clientHz.Shutdown(ctx)
 	Expect(err).ToNot(HaveOccurred())
 
-}
-
-func RestClient() *resty.Request {
-	client := resty.New()
-	request := client.R().EnableTrace()
-	return request
-}
-
-func GetServiceName() string {
-	serviceName, _ := ExecuteBashCommand("kubectl get service --field-selector=metadata.name!=kubernetes --no-headers=true  |  awk {'print $1'}")
-	return serviceName[0]
-}
-func ExecuteBashCommand(commandToExecute string) (stdout, stderr []string) {
-	command := cmd.NewCmd("bash", "-c", commandToExecute)
-	log.Printf("Executing bash command '%s'", commandToExecute)
-	s := <-command.Start()
-	stdout = s.Stdout
-	stderr = s.Stderr
-	for _, out := range stdout {
-		fmt.Println(out)
-	}
-	for _, err := range stderr {
-		if err != "" {
-			log.Panic(err)
-		}
-	}
-	return stdout, stderr
 }
 
 func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
@@ -268,7 +190,6 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	scanner := bufio.NewScanner(logs)
 	for scanner.Scan() {
 		line := scanner.Text()
-		println(line)
 		if match, _ := regexp.MatchString(expected, line); match {
 			return
 		}
@@ -319,25 +240,86 @@ func addNodeSelectorForName(hz *hazelcastcomv1alpha1.Hazelcast, n string) *hazel
 	return hz
 }
 
-func assertPersistenceVolumeExist(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
-	pods := &corev1.PodList{}
-	podLabels := client.MatchingLabels{
-		n.ApplicationNameLabel:         n.Hazelcast,
-		n.ApplicationInstanceNameLabel: hazelcast.Name,
-		n.ApplicationManagedByLabel:    n.OperatorName,
+func waitForReadyChannel(readyChan chan struct{}, dur time.Duration) error {
+	timer := time.NewTimer(dur)
+	for {
+		select {
+		case <-readyChan:
+			return nil
+		case <-timer.C:
+			return fmt.Errorf("Timeout waiting for readyChannel")
+		}
 	}
-	if err := k8sClient.List(context.Background(), pods, client.InNamespace(hazelcast.Namespace), podLabels); err != nil {
-		Fail("Could not find Pods for Hazelcast " + hazelcast.Name)
-	}
+}
+func closeChannel(closeChan chan struct{}) {
+	closeChan <- struct{}{}
+}
 
-	for _, pod := range pods.Items {
-		Expect(pod.Spec.Volumes).Should(ContainElement(corev1.Volume{
-			Name: n.PersistenceVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: n.PersistenceVolumeName + "-" + pod.Name,
-				},
-			},
-		}))
-	}
+func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapConfigState) *hazelcastcomv1alpha1.Map {
+	checkMap := &hazelcastcomv1alpha1.Map{}
+	By("Waiting for Map CR status", func() {
+		Eventually(func() hazelcastcomv1alpha1.MapConfigState {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      m.Name,
+				Namespace: m.Namespace,
+			}, checkMap)
+			if err != nil {
+				return ""
+			}
+			return checkMap.Status.State
+		}, timeout, interval).Should(Equal(st))
+	})
+	return checkMap
+}
+
+func getMapConfig(ctx context.Context, client *hzClient.Client, mapName string) codecTypes.MapConfig {
+	ci := hzClient.NewClientInternal(client)
+	req := codec.EncodeMCGetMapConfigRequest(mapName)
+	resp, err := ci.InvokeOnRandomTarget(ctx, req, nil)
+	Expect(err).To(BeNil())
+	return codec.DecodeMCGetMapConfigResponse(resp)
+}
+
+func portForwardPod(sName, sNamespace, port string) (chan struct{}, chan struct{}) {
+	defer GinkgoRecover()
+	stopChan, readyChan := make(chan struct{}, 1), make(chan struct{}, 1)
+
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
+	config, err := kubeConfig.ClientConfig()
+	Expect(err).To(BeNil())
+
+	roundTripper, upgrader, err := spdy.RoundTripperFor(config)
+	Expect(err).To(BeNil())
+
+	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", sNamespace, sName)
+	hostIP := strings.TrimPrefix(config.Host, "https://")
+	serverURL := url.URL{Scheme: "https", Path: path, Host: hostIP}
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: roundTripper}, http.MethodPost, &serverURL)
+
+	out, errOut := new(bytes.Buffer), new(bytes.Buffer)
+
+	forwarder, err := portforward.New(dialer, []string{port}, stopChan, readyChan, out, errOut)
+	Expect(err).To(BeNil())
+
+	go func() {
+		if err := forwarder.ForwardPorts(); err != nil { // Locks until stopChan is closed.
+			GinkgoWriter.Println(err.Error())
+			Expect(err).To(BeNil())
+		}
+	}()
+
+	return stopChan, readyChan
+
+}
+
+func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
+	config := hzClient.Config{}
+	cc := &config.Cluster
+	cc.Name = h.Spec.ClusterName
+	cc.Network.SetAddresses("localhost:" + localPort)
+	client, err := hzClient.StartNewClientWithConfig(ctx, config)
+	Expect(err).To(BeNil())
+	return client
+
 }
