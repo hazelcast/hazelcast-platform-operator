@@ -79,7 +79,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return ctrl.Result{}, nil
 	}
 
-	if hb.Status.State.IsScheduled() {
+	if hb.Status.State.IsRunning() {
 		logger.Info("HotBackup is already running.",
 			"name", hb.Name, "namespace", hb.Namespace, "state", hb.Status.State)
 		return ctrl.Result{}, nil
@@ -282,7 +282,7 @@ func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, req reconcil
 	if err != nil {
 		return err
 	}
-	if !hb.Status.State.IsScheduled() {
+	if !hb.Status.State.IsRunning() {
 		hb.Status.State = hazelcastv1alpha1.HotBackupPending
 		_ = r.Status().Update(ctx, hb)
 	}
