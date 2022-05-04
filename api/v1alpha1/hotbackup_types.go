@@ -2,8 +2,23 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+type HotBackupState string
+
+const (
+	HotBackupUnknown    HotBackupState = "Unknown"
+	HotBackupNotStarted HotBackupState = "NotStarted"
+	HotBackupInProgress HotBackupState = "InProgress"
+	HotBackupFailure    HotBackupState = "Failure"
+	HotBackupSuccess    HotBackupState = "Success"
+)
+
+func (s HotBackupState) IsFinished() bool {
+	return s == HotBackupFailure || s == HotBackupSuccess
+}
+
 // HotBackupStatus defines the observed state of HotBackup
 type HotBackupStatus struct {
+	State HotBackupState `json:"state"`
 }
 
 // HotBackupSpec defines the Spec of HotBackup
@@ -23,13 +38,18 @@ type HotBackupSpec struct {
 	//	@daily (or @midnight)  | Run once a day, midnight                   | 0 0 * * *
 	//	@hourly                | Run once an hour, beginning of hour        | 0 * * * *
 	// +optional
-	Schedule string `json:"schedule,omitempty"`
+	Schedule string `json:"schedule"`
+
+	// URL of the bucket to download HotBackup folders.
+	// +optional
+	BucketURL string `json:"bucket"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
 // HotBackup is the Schema for the hot backup API
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the HotBackup process"
 type HotBackup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

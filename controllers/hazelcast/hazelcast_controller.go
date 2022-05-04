@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -35,7 +34,6 @@ type HazelcastReconciler struct {
 	client.Client
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
-	hzClients            sync.Map
 	triggerReconcileChan chan event.GenericEvent
 	metrics              *phonehome.Metrics
 }
@@ -174,7 +172,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	r.createHazelcastClient(ctx, req, h)
+	CreateClient(ctx, h, r.triggerReconcileChan, r.Log)
 
 	if util.IsPhoneHomeEnabled() {
 		firstDeployment := r.metrics.HazelcastMetrics[h.UID].FillAfterDeployment(h)
@@ -189,26 +187,16 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	externalAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
-	return update(ctx, r.Client, h, r.runningPhaseWithMembers(req).withExternalAddresses(externalAddrs))
+	return update(ctx, r.Client, h, r.runningPhaseWithStatus(req).
+		withExternalAddresses(externalAddrs).
+		withMessage(clientConnectionMessage(req)))
 }
 
-func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsBuilder {
-	if v, ok := r.hzClients.Load(req.NamespacedName); ok {
-		hzClient := v.(*HazelcastClient)
-		return runningPhase().withReadyMembers(hzClient.MemberMap)
+func (r *HazelcastReconciler) runningPhaseWithStatus(req ctrl.Request) optionsBuilder {
+	if hzClient, ok := GetClient(req.NamespacedName); ok {
+		return runningPhase().withStatus(hzClient.Status)
 	}
 	return runningPhase()
-}
-
-func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctrl.Request, h *hazelcastv1alpha1.Hazelcast) {
-	if _, ok := r.hzClients.Load(req.NamespacedName); ok {
-		return
-	}
-	config := buildConfig(h)
-	c := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
-	config.AddMembershipListener(getStatusUpdateListener(ctx, c))
-	c.start(ctx, config)
-	r.hzClients.Store(req.NamespacedName, c)
 }
 
 func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
@@ -238,6 +226,24 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 	} else {
 		return "", false
 	}
+}
+
+func clientConnectionMessage(req ctrl.Request) string {
+	c, ok := GetClient(req.NamespacedName)
+	if !ok {
+		return "Operator failed to create connection to cluster, some features might be unavailable."
+	}
+
+	if c.Error != nil {
+		// TODO: retry mechanism
+		return fmt.Sprintf("Operator failed to connect to the cluster. Some features might be unavailable. %s", c.Error.Error())
+	}
+
+	if c.client != nil && c.client.Running() {
+		return ""
+	}
+
+	return "Operator is in progress of connecting to the cluster. Some features might be unavailable."
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {

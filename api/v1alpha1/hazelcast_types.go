@@ -68,10 +68,37 @@ type HazelcastSpec struct {
 	// +kubebuilder:default:={}
 	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
 
+	// Compute Resources required by the Hazelcast container.
+	// +optional
+	// +kubebuilder:default:={}
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
 	// Persistence configuration
 	//+optional
 	//+kubebuilder:default:={}
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
+
+	// Backup Agent configuration
+	// +optional
+	// +kubebuilder:default:={}
+	Backup *BackupAgentConfiguration `json:"backup,omitempty"`
+}
+
+type BackupAgentConfiguration struct {
+
+	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
+	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
+	// +optional
+	AgentRepository string `json:"agentRepository,omitempty"`
+
+	// Version of Hazelcast Platform Operator Agent.
+	// +kubebuilder:default:="1.0.0"
+	// +optional
+	AgentVersion string `json:"agentVersion,omitempty"`
+
+	// Name of the secret with credentials for cloud providers.
+	// +optional
+	BucketSecret string `json:"bucketSecret,omitempty"`
 }
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
@@ -120,7 +147,7 @@ type PersistencePvcConfiguration struct {
 }
 
 // DataRecoveryPolicyType represents the options for data recovery policy when the whole cluster restarts.
-// +kubebuilder:validation:Enum=FullRecoveryOnly;PartialRecoveryMostRecent;PartialRecoveryMostComplete;PartialRecoveryForceStart
+// +kubebuilder:validation:Enum=FullRecoveryOnly;PartialRecoveryMostRecent;PartialRecoveryMostComplete
 type DataRecoveryPolicyType string
 
 const (
@@ -277,6 +304,11 @@ func (c *HazelcastPersistenceConfiguration) UseHostPath() bool {
 	return c.HostPath != ""
 }
 
+// Returns true if Backup Agent configuration is specified.
+func (c *BackupAgentConfiguration) IsEnabled() bool {
+	return c != nil && !(*c == (BackupAgentConfiguration{}))
+}
+
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
 	// Phase of the Hazelcast cluster
@@ -298,6 +330,31 @@ type HazelcastStatus struct {
 	// Status of Hazelcast members
 	// + optional
 	Members []HazelcastMemberStatus `json:"members,omitempty"`
+
+	// Status of restore process of the Hazelcast cluster
+	// +optional
+	// +kubebuilder:default:={}
+	Restore *RestoreStatus `json:"restore,omitempty"`
+}
+
+type RestoreState string
+
+const (
+	RestoreUnknown    RestoreState = "Unknown"
+	RestoreFailed     RestoreState = "Failed"
+	RestoreInProgress RestoreState = "InProgress"
+	RestoreSucceeded  RestoreState = "Succeeded"
+)
+
+type RestoreStatus struct {
+	// State shows the current phase of the restore process of the cluster.
+	State RestoreState `json:"state"`
+
+	// RemainingValidationTime show the time in seconds remained for the restore validation step.
+	RemainingValidationTime int64 `json:"remainingValidationTime"`
+
+	// RemainingDataLoadTime show the time in seconds remained for the restore data load step.
+	RemainingDataLoadTime int64 `json:"remainingDataLoadTime"`
 }
 
 // HazelcastMemberStatus defines the observed state of the individual Hazelcast member.
@@ -407,4 +464,8 @@ func (h *Hazelcast) ClusterScopedName() string {
 func (h *Hazelcast) ExternalAddressEnabled() bool {
 	return h.Spec.ExposeExternally.IsEnabled() &&
 		h.Spec.ExposeExternally.DiscoveryServiceType == corev1.ServiceTypeLoadBalancer
+}
+
+func (h *Hazelcast) AgentDockerImage() string {
+	return fmt.Sprintf("%s:%s", h.Spec.Backup.AgentRepository, h.Spec.Backup.AgentVersion)
 }

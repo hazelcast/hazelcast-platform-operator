@@ -282,6 +282,10 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
 	}
 
+	if mc.Spec.Resources != nil {
+		sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
+	}
+
 	if platform.GetType() == platform.OpenShift {
 		sts.Spec.Template.Spec.ServiceAccountName = mc.Name
 	}

@@ -19,7 +19,7 @@ func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
 		},
 	}
 	r := reconcilerWithCR(h)
-	r.hzClients.Store(types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &HazelcastClient{})
+	clients.Store(types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &HazelcastClient{})
 
 	err := r.executeFinalizer(context.Background(), h, ctrl.Log)
 	if err != nil {

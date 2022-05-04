@@ -50,6 +50,11 @@ type ManagementCenterSpec struct {
 	// Scheduling details
 	// +optional
 	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
+
+	// Compute Resources required by the MC container.
+	// +optional
+	// +kubebuilder:default:={}
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 type HazelcastClusterConfig struct {

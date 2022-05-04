@@ -19,6 +19,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
@@ -672,6 +673,149 @@ var _ = Describe("Hazelcast controller", func() {
 						},
 					))),
 				)
+				Delete(hz)
+			})
+		})
+	})
+
+	Context("Map CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create Map CR")
+				Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+
+			})
+		})
+		When("Using default configuration", func() {
+			It("should create Map CR with default configurations", func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.MapSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+				}
+				By("creating Map CR successfully")
+				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+				ms := m.Spec
+
+				By("checking the CR values with default ones")
+				Expect(ms.Name).To(Equal(""))
+				Expect(*ms.BackupCount).To(Equal(n.DefaultMapBackupCount))
+				Expect(*ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
+				Expect(*ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
+				Expect(ms.Eviction.EvictionPolicy).To(Equal(codecTypes.EvictionPolicyType(n.DefaultMapEvictionPolicy)))
+				Expect(*ms.Eviction.MaxSize).To(Equal(n.DefaultMapMaxSize))
+				Expect(ms.Eviction.MaxSizePolicy).To(Equal(codecTypes.MaxSizePolicyType(n.DefaultMapMaxSizePolicy)))
+				Expect(ms.Indexes).To(BeNil())
+				Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
+				Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
+			})
+		})
+	})
+
+	Context("Resources context", func() {
+		When("Resources are used", func() {
+			It("should be set to Container spec", func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Resources = &corev1.ResourceRequirements{
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("10Gi"),
+					},
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("250m"),
+						corev1.ResourceMemory: resource.MustParse("5Gi"),
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+				Create(hz)
+
+				Eventually(func() map[corev1.ResourceName]resource.Quantity {
+					ss := getStatefulSet(hz)
+					return ss.Spec.Template.Spec.Containers[0].Resources.Limits
+				}, timeout, interval).Should(And(
+					HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("500m")),
+					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("10Gi"))),
+				)
+
+				Eventually(func() map[corev1.ResourceName]resource.Quantity {
+					ss := getStatefulSet(hz)
+					return ss.Spec.Template.Spec.Containers[0].Resources.Requests
+				}, timeout, interval).Should(And(
+					HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("250m")),
+					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("5Gi"))),
+				)
+
+				Delete(hz)
+			})
+		})
+	})
+
+	Context("Backup Agent configuration", func() {
+		When("Backup Agent is configured", func() {
+			It("Persistence Configuration must be enabled", func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Backup = &hazelcastv1alpha1.BackupAgentConfiguration{
+					AgentRepository: "hazelcast/platform-operator-agent",
+					AgentVersion:    "0.1.0",
+					BucketSecret:    "br-secret",
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
+
+				Eventually(func() int {
+					ss := getStatefulSet(hz)
+					return len(ss.Spec.Template.Spec.Containers)
+				}, timeout, interval).Should(Equal(1))
+
+				Delete(hz)
+			})
+		})
+		When("Backup Agent is configured with Persistence", func() {
+			It("should be deployed as a sidecar container", func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+						StorageClassName: &[]string{"standard"}[0],
+					},
+				}
+				spec.Backup = &hazelcastv1alpha1.BackupAgentConfiguration{
+					AgentRepository: "hazelcast/platform-operator-agent",
+					AgentVersion:    "0.1.0",
+					BucketSecret:    "br-secret",
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
+
+				Eventually(func() int {
+					ss := getStatefulSet(hz)
+					return len(ss.Spec.Template.Spec.Containers)
+				}, timeout, interval).Should(Equal(2))
+
 				Delete(hz)
 			})
 		})

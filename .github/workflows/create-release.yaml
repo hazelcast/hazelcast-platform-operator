@@ -24,7 +24,7 @@ jobs:
           token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
 
       - name: Set up Golang
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: '1.16'
 

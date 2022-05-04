@@ -9,6 +9,7 @@ import (
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -21,6 +22,7 @@ type optionsBuilder struct {
 	retryAfter        time.Duration
 	err               error
 	readyMembers      map[hztypes.UUID]*MemberData
+	restoreState      ClusterHotRestartStatus
 	message           string
 	externalAddresses string
 }
@@ -45,8 +47,9 @@ func runningPhase() optionsBuilder {
 	}
 }
 
-func (o optionsBuilder) withReadyMembers(m map[hztypes.UUID]*MemberData) optionsBuilder {
-	o.readyMembers = m
+func (o optionsBuilder) withStatus(s *Status) optionsBuilder {
+	o.readyMembers = s.MemberMap
+	o.restoreState = s.ClusterHotRestartStatus
 	return o
 }
 
@@ -60,8 +63,7 @@ func (o optionsBuilder) withExternalAddresses(addrs string) optionsBuilder {
 	return o
 }
 
-func statusMembers(
-	m map[hztypes.UUID]*MemberData) []hazelcastv1alpha1.HazelcastMemberStatus {
+func statusMembers(m map[hztypes.UUID]*MemberData) []hazelcastv1alpha1.HazelcastMemberStatus {
 	members := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(m))
 	for uid, member := range m {
 		a := member.Address
@@ -121,7 +123,14 @@ func updateFailedMember(h *hazelcastv1alpha1.Hazelcast, err *util.PodError) {
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
 func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status.Phase = options.phase
-	h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
+	h.Status.Cluster.ReadyMembers = "N/A"
+
+	cl, ok := GetClient(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+
+	if ok && cl.client != nil && cl.client.Running() {
+		h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
+	}
+
 	h.Status.Message = options.message
 	h.Status.ExternalAddresses = options.externalAddresses
 	h.Status.Members = addExistingMembers(statusMembers(options.readyMembers), h.Status.Members)
@@ -130,6 +139,13 @@ func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast
 			for _, podError := range pErr {
 				updateFailedMember(h, podError)
 			}
+		}
+	}
+	if rs := options.restoreState.restoreState(); h.Spec.Persistence.IsEnabled() && rs != hazelcastv1alpha1.RestoreUnknown {
+		h.Status.Restore = &hazelcastv1alpha1.RestoreStatus{
+			State:                   options.restoreState.restoreState(),
+			RemainingDataLoadTime:   options.restoreState.remainingDataLoadTimeSec(),
+			RemainingValidationTime: options.restoreState.remainingValidationTimeSec(),
 		}
 	}
 	if err := c.Status().Update(ctx, h); err != nil {

@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set up Golang
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: '1.16'
 
@@ -73,6 +73,7 @@ jobs:
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
+        if: always()
         run: |
           make clean-up-namespace KUBECTL=oc NAMESPACE=${NAMESPACE}
 
