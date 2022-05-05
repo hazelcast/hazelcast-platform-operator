@@ -156,6 +156,7 @@ func NextFrameIsNullFrame(frameIterator *proto.ForwardFrameIterator) bool {
 	}
 	return isNullFrame
 }
+
 func DecodeNullableForString(frameIterator *proto.ForwardFrameIterator) string {
 	if NextFrameIsNullFrame(frameIterator) {
 		return ""
@@ -217,7 +218,7 @@ func EncodeNullableListMultiFrameForString(message *proto.ClientMessage, values 
 func DecodeListMultiFrameForString(frameIterator *proto.ForwardFrameIterator) []string {
 	result := make([]string, 0)
 	frameIterator.Next()
-	for NextFrameIsDataStructureEndFrame(frameIterator) {
+	for !NextFrameIsDataStructureEndFrame(frameIterator) {
 		result = append(result, DecodeString(frameIterator))
 	}
 	frameIterator.Next()
