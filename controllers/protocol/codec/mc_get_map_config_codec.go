@@ -70,16 +70,20 @@ func DecodeMCGetMapConfigResponse(clientMessage *proto.ClientMessage) types.MapC
 		ReadBackupData:    DecodeBoolean(initialFrame.Content, MCGetMapConfigResponseReadBackupDataOffset),
 		EvictionPolicy:    DecodeInt(initialFrame.Content, MCGetMapConfigResponseEvictionPolicyOffset),
 		MergePolicy:       DecodeString(frameIterator),
+		Indexes:           DecodeListMultiFrameForIndexConfig(frameIterator),
 	}
 	return mc
 }
 
 func DecodeListMultiFrameForIndexConfig(frameIterator *proto.ForwardFrameIterator) []types.IndexConfig {
 	result := make([]types.IndexConfig, 0)
-	frameIterator.Next()
-	for NextFrameIsDataStructureEndFrame(frameIterator) {
-		result = append(result, DecodeIndexConfig(frameIterator))
+	if frameIterator.HasNext() {
+		frameIterator.Next()
+
+		for !NextFrameIsDataStructureEndFrame(frameIterator) {
+			result = append(result, DecodeIndexConfig(frameIterator))
+		}
+		frameIterator.Next()
 	}
-	frameIterator.Next()
 	return result
 }
