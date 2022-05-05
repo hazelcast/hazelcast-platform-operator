@@ -555,7 +555,8 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
-			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-2", hzNamespace)
+			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map", hzNamespace)
+			m.Spec.BackupCount = pointer.Int32Ptr(3)
 			m.Spec.Indexes = []hazelcastcomv1alpha1.IndexConfig{
 				{
 					Name:               "index-1",
@@ -566,7 +567,7 @@ var _ = Describe("Hazelcast", func() {
 				{
 					Name:       "index-2",
 					Type:       hazelcastcomv1alpha1.IndexTypeBitmap,
-					Attributes: []string{"attribute1", "attribute2"},
+					Attributes: []string{"attribute3", "attribute4"},
 					BitmapIndexOptions: &hazelcastcomv1alpha1.BitmapIndexOptionsConfig{
 						UniqueKey:           "key",
 						UniqueKeyTransition: hazelcastcomv1alpha1.UniqueKeyTransitionRAW,
@@ -576,7 +577,34 @@ var _ = Describe("Hazelcast", func() {
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-			// TODO: When Indexes can be decoded in the getMapConfig method, we can check if indexes are created correctly.
+			localPort := "8000"
+			By("port-forwarding to Hazelcast master pod")
+			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+			defer closeChannel(stopChan)
+			err := waitForReadyChannel(readyChan, 5*time.Second)
+			Expect(err).To(BeNil())
+
+			cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+			defer func() {
+				err := cl.Shutdown(context.Background())
+				Expect(err).To(BeNil())
+			}()
+
+			By("checking if the map config is created correctly")
+			mapConfig := getMapConfig(context.Background(), cl, m.MapName())
+			Expect(mapConfig.Indexes[0].Name).Should(Equal("index-1"))
+			Expect(mapConfig.Indexes[0].Type).Should(Equal(hazelcastcomv1alpha1.EncodeIndexType[hazelcastcomv1alpha1.IndexTypeHash]))
+			Expect(mapConfig.Indexes[0].Attributes).Should(Equal([]string{"attribute1", "attribute2"}))
+			// TODO: Hazelcast side returns these bitmapIndexOptions even though we give them empty.
+			Expect(mapConfig.Indexes[0].BitmapIndexOptions.UniqueKey).Should(Equal("__key"))
+			Expect(mapConfig.Indexes[0].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(int32(0)))
+
+			Expect(mapConfig.Indexes[1].Name).Should(Equal("index-2"))
+			Expect(mapConfig.Indexes[1].Type).Should(Equal(hazelcastcomv1alpha1.EncodeIndexType[hazelcastcomv1alpha1.IndexTypeBitmap]))
+			Expect(mapConfig.Indexes[1].Attributes).Should(Equal([]string{"attribute3", "attribute4"}))
+			Expect(mapConfig.Indexes[1].BitmapIndexOptions.UniqueKey).Should(Equal("key"))
+			Expect(mapConfig.Indexes[1].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(hazelcastcomv1alpha1.EncodeUniqueKeyTransition[hazelcastcomv1alpha1.UniqueKeyTransitionRAW]))
+
 		})
 		It("should fail when persistence of Map CR and Hazelcast CR do not match", func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
