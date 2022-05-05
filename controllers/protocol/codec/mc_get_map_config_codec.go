@@ -59,7 +59,7 @@ func DecodeMCGetMapConfigResponse(clientMessage *proto.ClientMessage) types.MapC
 	frameIterator := clientMessage.FrameIterator()
 	initialFrame := frameIterator.Next()
 
-	mc := types.MapConfig{
+	return types.MapConfig{
 		InMemoryFormat:    DecodeInt(initialFrame.Content, MCGetMapConfigResponseInMemoryFormatOffset),
 		BackupCount:       DecodeInt(initialFrame.Content, MCGetMapConfigResponseBackupCountOffset),
 		AsyncBackupCount:  DecodeInt(initialFrame.Content, MCGetMapConfigResponseAsyncBackupCountOffset),
@@ -72,7 +72,6 @@ func DecodeMCGetMapConfigResponse(clientMessage *proto.ClientMessage) types.MapC
 		MergePolicy:       DecodeString(frameIterator),
 		Indexes:           DecodeListMultiFrameForIndexConfig(frameIterator),
 	}
-	return mc
 }
 
 func DecodeListMultiFrameForIndexConfig(frameIterator *proto.ForwardFrameIterator) []types.IndexConfig {
