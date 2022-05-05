@@ -11,8 +11,8 @@ inputs:
   PREFLIGHT_VERSION:
     description: "Preflight tool version"
     required: false
-  OPERATOR_SDK_VERSION:
-    description: "Operator SDK version"
+  OPERATOR_SDK_INSTALL:
+    description: "Install Operator SDK or not. Non empty values are consider as 'true'."
     required: false
   OPM_INSTALL:
     description: "Install opm tool or not. Non empty values are consider as 'true'."
@@ -82,10 +82,9 @@ runs:
     - name: Install operator SDK
       shell: bash
       run: |
-        if [[ ! -z "${{ inputs.OPERATOR_SDK_VERSION }}" ]]; then
+        if [[ ! -z "${{ inputs.OPERATOR_SDK_INSTALL }}" ]]; then
           echo "✅ Installing OPERATOR_SDK"
-          OPERATOR_SDK=${GITHUB_WORKSPACE}/bin/operator-sdk
-          curl -sSL https://github.com/operator-framework/operator-sdk/releases/download/${{ inputs.OPERATOR_SDK_VERSION }}/operator-sdk_linux_amd64 -o $OPERATOR_SDK --create-dirs && chmod +x $OPERATOR_SDK
+          make operator-sdk
         else
            echo "⏭ Skipping OPERATOR_SDK installation"
         fi

@@ -3,13 +3,19 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      RELEASE_VERSION:
+        description: "Version in the form of X.Y[.Z]"
+        required: true
+  schedule:
+    - cron: "0 9 * * *"
 
 env:
   PROJECT_ID: ${{ secrets.PROJECT_ID }}
   PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
   PFLT_DOCKERCONFIG: /home/runner/.docker/config.json
   PREFLIGHT_VERSION: 1.1.0
-  OPERATOR_SDK_VERSION: v1.19.1
   NAMESPACE: oc-test-operator-${{ github.run_id }}
   PARDOT_ID: redhat
 
@@ -22,7 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       RELEASE_VERSION: ${{ steps.setup-envs.outputs.RELEASE_VERSION }}
-      CONTAINER_REPOSITORY: ${{ steps.setup-envs.outputs.CONTAINER_REPOSITORY }}
       CONTAINER_IMAGE: ${{ steps.setup-envs.outputs.CONTAINER_IMAGE }}
       PROJECT_ID: ${{ steps.setup-envs.outputs.PROJECT_ID }}
       PREFLIGHT_VERSION: ${{ steps.setup-envs.outputs.PREFLIGHT_VERSION }}
@@ -40,16 +45,27 @@ jobs:
       - name: Set Environment Variables And Job Outputs
         id: setup-envs
         run: |
-          RELEASE_VERSION=${GITHUB_REF:11}
-          CONTAINER_REPOSITORY=$(uuidgen)
-          CONTAINER_IMAGE=ttl.sh/$CONTAINER_REPOSITORY:1h
-          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
-          echo "CONTAINER_REPOSITORY=${CONTAINER_REPOSITORY}" >> $GITHUB_ENV
-          echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}" >> $GITHUB_ENV
-          echo "::set-output name=RELEASE_VERSION::${RELEASE_VERSION}"
-          echo "::set-output name=CONTAINER_IMAGE::${CONTAINER_IMAGE}"
-          echo "::set-output name=PROJECT_ID::${PROJECT_ID}"
-          echo "::set-output name=PREFLIGHT_VERSION::${PREFLIGHT_VERSION}"
+          if [[ ${{ github.event_name == 'schedule' }} == true ]]; then
+              echo "RELEASE_VERSION=7.8.0" >> $GITHUB_ENV
+              echo "::set-output name=RELEASE_VERSION::7.8.0"
+          elif [[ ${{ github.event_name == 'workflow_dispatch' }} == true ]]; then
+              echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_ENV
+              echo "::set-output name=RELEASE_VERSION::${{ github.event.inputs.RELEASE_VERSION }}"
+          elif [[ ${{ github.event_name == 'push' }} == true ]]; then
+              echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV
+              echo "::set-output name=RELEASE_VERSION::${GITHUB_REF:11}"
+          fi
+              CONTAINER_REPOSITORY=$(uuidgen)
+              CONTAINER_IMAGE=ttl.sh/$CONTAINER_REPOSITORY:1h
+              echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}" >> $GITHUB_ENV
+              echo "::set-output name=CONTAINER_IMAGE::${CONTAINER_IMAGE}"
+              echo "::set-output name=PROJECT_ID::${PROJECT_ID}"
+              echo "::set-output name=PREFLIGHT_VERSION::${PREFLIGHT_VERSION}"
+
+      - name: Validate version
+        run: |
+          NUMBER='(0|[1-9][0-9]*)'
+          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
 
       - name: Build Operator Image
         run: |
@@ -150,7 +166,7 @@ jobs:
         uses: ./.github/actions/operator-tests
         with:
           PREFLIGHT_VERSION: $PREFLIGHT_VERSION
-          OPERATOR_SDK_VERSION: $OPERATOR_SDK_VERSION
+          OPERATOR_SDK_INSTALL: true
 
       - name: Login to Docker Hub Registry
         run: |
@@ -178,6 +194,7 @@ jobs:
       BUNDLE_VERSION: ${{ needs.build_bundle.outputs.BUNDLE_VERSION }}
 
   release_operator:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [test_container, test_operator, community_operators_test_suite]
     uses: ./.github/workflows/publish-release.yaml
     with:

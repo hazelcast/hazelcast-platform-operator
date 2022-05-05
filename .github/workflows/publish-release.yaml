@@ -270,7 +270,7 @@ jobs:
   slack_notify:
     name: Slack Notify
     needs: ['publish_docker_image', 'publish_redhat_image', 'operatorhub_release', 'redhat_bundle_release' ]
-    if: always() && needs.operatorhub_release.result != 'success' && needs.redhat_bundle_release.result != 'success'
+    if: needs.operatorhub_release.result != 'success' && needs.redhat_bundle_release.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
