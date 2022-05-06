@@ -164,6 +164,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
 
+	if err = r.ensureClusterActive(ctx, h, logger); err != nil {
+		logger.Error(err, "Cluster activation attempt after hot restore failed")
+		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+	}
+
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, *h.Spec.ClusterSize); !ok {
 		if err == nil {
 			return update(ctx, r.Client, h, pendingPhase(retryAfter))

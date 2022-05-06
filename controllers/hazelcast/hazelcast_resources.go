@@ -685,8 +685,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		}
 	}
 
-	if h.Spec.Persistence.IsEnabled() && h.Spec.Backup.IsEnabled() {
-		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
+	if h.Spec.Persistence.IsEnabled() {
+		if h.Spec.Backup.IsEnabled() {
+			sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
+		}
+		if h.Spec.Restore.IsEnabled() {
+			sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, restoreAgentContainer(h))
+		}
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -714,10 +719,48 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
+func agentCredentials(h *hazelcastv1alpha1.Hazelcast, secret string) []v1.EnvVar {
+	return []v1.EnvVar{
+		{
+			Name: "AWS_ACCESS_KEY_ID",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: secret,
+					},
+					Key: n.BucketDataS3AccessKeyID,
+				},
+			},
+		},
+		{
+			Name: "AWS_SECRET_ACCESS_KEY",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: secret,
+					},
+					Key: n.BucketDataS3SecretAccessKey,
+				},
+			},
+		},
+		{
+			Name: "AWS_REGION",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: secret,
+					},
+					Key: n.BucketDataS3Region,
+				},
+			},
+		},
+	}
+}
+
 func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
 		Name:  n.BackupAgent,
-		Image: h.AgentDockerImage(),
+		Image: h.BackupAgentDockerImage(),
 		Ports: []v1.ContainerPort{{
 			ContainerPort: n.DefaultAgentPort,
 			Name:          n.BackupAgent,
@@ -752,41 +795,37 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			SuccessThreshold:    1,
 			FailureThreshold:    10,
 		},
-		Env: []v1.EnvVar{
-			{
-				Name: "AWS_ACCESS_KEY_ID",
+		Env: agentCredentials(h, h.Spec.Backup.BucketSecret),
+		VolumeMounts: []v1.VolumeMount{{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		}},
+	}
+}
+
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	return v1.Container{
+		Name:  n.RestoreAgent,
+		Image: h.RestoreAgentDockerImage(),
+		Args:  []string{"restore"},
+		Env: append(agentCredentials(h, h.Spec.Restore.BucketSecret),
+			v1.EnvVar{
+				Name:  "RESTORE_BUCKET",
+				Value: h.Spec.Restore.BucketPath,
+			},
+			v1.EnvVar{
+				Name:  "RESTORE_DESTINATION",
+				Value: h.Spec.Persistence.BaseDir,
+			},
+			v1.EnvVar{
+				Name: "RESTORE_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.Backup.BucketSecret,
-						},
-						Key: n.BucketDataS3AccessKeyID,
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.name",
 					},
 				},
 			},
-			{
-				Name: "AWS_SECRET_ACCESS_KEY",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.Backup.BucketSecret,
-						},
-						Key: n.BucketDataS3SecretAccessKey,
-					},
-				},
-			},
-			{
-				Name: "AWS_REGION",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.Backup.BucketSecret,
-						},
-						Key: n.BucketDataS3Region,
-					},
-				},
-			},
-		},
+		),
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
@@ -886,6 +925,43 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 		}
 	}
 	return nil
+}
+
+func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	// make sure restore is active
+	if !h.Spec.Restore.IsEnabled() {
+		return nil
+	}
+
+	// make sure restore was successfull
+	if h.Status.Restore == nil {
+		return nil
+	}
+
+	if h.Status.Restore.State != hazelcastv1alpha1.RestoreSucceeded {
+		return nil
+	}
+
+	if h.Status.Phase == hazelcastv1alpha1.Pending {
+		return nil
+	}
+
+	// check if all cluster members are in passive state
+	for _, member := range h.Status.Members {
+		if ClusterState(member.State) != Passive {
+			return nil
+		}
+	}
+
+	rest := NewRestClient(h)
+	state, err := rest.GetState(ctx)
+	if err != nil {
+		return err
+	}
+	if state != "passive" {
+		return nil
+	}
+	return rest.ChangeState(ctx, Active)
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
