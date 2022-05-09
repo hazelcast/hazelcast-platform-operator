@@ -174,7 +174,7 @@ func (r *HotBackupReconciler) reconcileHotBackupStatus(ctx context.Context, hb *
 	}(ctx, t)
 }
 
-func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *HazelcastClient, ctx context.Context, h *hazelcastv1alpha1.HotBackup) {
+func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *Client, ctx context.Context, h *hazelcastv1alpha1.HotBackup) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	namespacedName := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	err := r.Client.Get(ctx, namespacedName, hb)
