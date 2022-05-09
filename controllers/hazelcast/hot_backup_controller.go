@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	corev1 "k8s.io/api/core/v1"
 	"strconv"
 	"sync"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
@@ -78,6 +79,12 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return ctrl.Result{}, nil
 	}
 
+	if hb.Status.State.IsRunning() {
+		logger.Info("HotBackup is already running.",
+			"name", hb.Name, "namespace", hb.Namespace, "state", hb.Status.State)
+		return ctrl.Result{}, nil
+	}
+
 	hs, err := json.Marshal(hb.Spec)
 	if err != nil {
 		logger.Error(err, "Error marshaling Hot Backup as JSON")
@@ -104,7 +111,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	if hb.Spec.Schedule != "" {
 		entry, err := r.cron.AddFunc(hb.Spec.Schedule, func() {
 			logger.Info("Triggering scheduled HotBackup process.", "Schedule", hb.Spec.Schedule)
-			err := r.triggerHotBackup(ctx, rest, logger)
+			err := r.triggerHotBackup(ctx, req, rest, logger)
 			if err != nil {
 				logger.Error(err, "Hot Backups process failed")
 			}
@@ -121,8 +128,9 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 		r.cron.Start()
 	} else {
-		err = r.triggerHotBackup(ctx, rest, logger)
+		err = r.triggerHotBackup(ctx, req, rest, logger)
 		if err != nil {
+			_ = r.Client.Get(ctx, req.NamespacedName, hb)
 			hb.Status.State = hazelcastv1alpha1.HotBackupFailure
 			_ = r.Status().Update(ctx, hb)
 			return ctrl.Result{}, err
@@ -268,8 +276,18 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 	return nil
 }
 
-func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, rest *RestClient, logger logr.Logger) error {
-	err := rest.ChangeState(ctx, Passive)
+func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, req reconcile.Request, rest *RestClient, logger logr.Logger) error {
+	hb := &hazelcastv1alpha1.HotBackup{}
+	err := r.Get(ctx, req.NamespacedName, hb)
+	if err != nil {
+		return err
+	}
+	if !hb.Status.State.IsRunning() {
+		hb.Status.State = hazelcastv1alpha1.HotBackupPending
+		_ = r.Status().Update(ctx, hb)
+	}
+
+	err = rest.ChangeState(ctx, Passive)
 	if err != nil {
 		logger.Error(err, "Error creating HotBackup. Could not change the cluster state to PASSIVE")
 		return err
