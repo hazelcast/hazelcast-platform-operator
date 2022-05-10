@@ -505,7 +505,7 @@ var _ = Describe("Hazelcast", func() {
 		)
 	})
 	Describe("Hazelcast Map Config", func() {
-		It("should create Map Config", func() {
+		It("should create Map Config", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
@@ -514,7 +514,7 @@ var _ = Describe("Hazelcast", func() {
 
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 		})
-		It("should create Map Config with correct default values", func() {
+		It("should create Map Config with correct default values", Label("fast"), func() {
 			localPort := "8000"
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
@@ -549,7 +549,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(mapConfig.MergePolicy).Should(Equal("com.hazelcast.spi.merge.PutIfAbsentMergePolicy"))
 
 		})
-		It("should create Map Config with Indexes", func() {
+		It("should create Map Config with Indexes", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
@@ -576,7 +576,7 @@ var _ = Describe("Hazelcast", func() {
 
 			// TODO: When Indexes can be decoded in the getMapConfig method, we can check if indexes are created correctly.
 		})
-		It("should fail when persistence of Map CR and Hazelcast CR do not match", func() {
+		It("should fail when persistence of Map CR and Hazelcast CR do not match", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
@@ -587,7 +587,7 @@ var _ = Describe("Hazelcast", func() {
 			m = assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
 			Expect(m.Status.Message).To(Equal(fmt.Sprintf("Persistence is not enabled for the Hazelcast resource %s.", hazelcast.Name)))
 		})
-		It("should update the map correctly", func() {
+		It("should update the map correctly", Label("fast"), func() {
 			localPort := "8000"
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
@@ -628,7 +628,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(mapConfig.MaxSizePolicy).Should(Equal(hazelcastcomv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy]))
 			Expect(mapConfig.EvictionPolicy).Should(Equal(hazelcastcomv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy]))
 		})
-		It("should fail to update", func() {
+		It("should fail to update", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
@@ -643,7 +643,7 @@ var _ = Describe("Hazelcast", func() {
 			assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
 		})
 
-		It("should keep the entries after a Hot Backup", func() {
+		It("should keep the entries after a Hot Backup", Label("slow"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
