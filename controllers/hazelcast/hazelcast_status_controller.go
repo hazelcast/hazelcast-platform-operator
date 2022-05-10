@@ -32,6 +32,34 @@ type Client struct {
 	statusTicker         *StatusTicker
 }
 
+func (cl *Client) IsClientConnected() bool {
+	if cl.client == nil {
+		return false
+	}
+
+	icl := hazelcast.NewClientInternal(cl.client)
+	for _, mem := range icl.OrderedMembers() {
+		if icl.ConnectedToMember(mem.UUID) {
+			return true
+		}
+	}
+	return false
+}
+
+func (cl *Client) AreAllMembersAccessible() bool {
+	if cl.client == nil {
+		return false
+	}
+
+	icl := hazelcast.NewClientInternal(cl.client)
+	for _, mem := range icl.OrderedMembers() {
+		if !icl.ConnectedToMember(mem.UUID) {
+			return false
+		}
+	}
+	return true
+}
+
 type Status struct {
 	MemberMap               map[hztypes.UUID]*MemberData
 	ClusterHotRestartStatus ClusterHotRestartStatus

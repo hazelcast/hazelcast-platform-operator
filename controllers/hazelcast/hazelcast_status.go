@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hazelcast/hazelcast-go-client"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -127,7 +126,7 @@ func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast
 
 	cl, ok := GetClient(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 
-	if ok && cl.client != nil && util.IsClientConnected(hazelcast.NewClientInternal(cl.client)) {
+	if ok && cl.IsClientConnected() {
 		h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
 	}
 

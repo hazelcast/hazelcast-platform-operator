@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-go-client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -240,16 +239,11 @@ func clientConnectionMessage(req ctrl.Request) string {
 		return fmt.Sprintf("Operator failed to connect to the cluster. Some features might be unavailable. %s", c.Error.Error())
 	}
 
-	if c.client == nil {
-		return "Operator failed to connect to the cluster. Some features might be unavailable."
-	}
-
-	ci := hazelcast.NewClientInternal(c.client)
-	if !util.IsClientConnected(ci) {
+	if !c.IsClientConnected() {
 		return "Operator could not connect to the cluster. Some features might be unavailable."
 	}
 
-	if !util.AreAllMembersAccessible(ci) {
+	if !c.AreAllMembersAccessible() {
 		return "Operator could not connect to all cluster members. Some features might be unavailable."
 	}
 

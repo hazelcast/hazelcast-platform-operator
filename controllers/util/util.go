@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-go-client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -277,24 +276,6 @@ func stringSliceEquals(a, b []string) bool {
 	}
 	for i, v := range a {
 		if v != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func IsClientConnected(cl *hazelcast.ClientInternal) bool {
-	for _, mem := range cl.OrderedMembers() {
-		if cl.ConnectedToMember(mem.UUID) {
-			return true
-		}
-	}
-	return false
-}
-
-func AreAllMembersAccessible(cl *hazelcast.ClientInternal) bool {
-	for _, mem := range cl.OrderedMembers() {
-		if !cl.ConnectedToMember(mem.UUID) {
 			return false
 		}
 	}
