@@ -65,8 +65,8 @@ func SpecLabelsChecker() {
 		scanner.Buffer(buf, 5242880)
 
 		lbl, lblErr := regexp.Compile(`(^(.*?)It|^(.*?)Entry)(.*?)Label\((.*?)$`)
-		noLbl, lblErr := regexp.Compile(`((^(.*?)It)(.*?)func(.*?){$)|((^(.*?)Entry)(.*?),$)`)
-		if lblErr != nil {
+		noLbl, noLblErr := regexp.Compile(`((^(.*?)It)(.*?)func(.*?){$)|((^(.*?)Entry)(.*?),$)`)
+		if lblErr != nil || noLblErr != nil {
 			log.Fatal(err)
 		}
 		slowRegexp := regexp.MustCompile(`\bslow\b`)
