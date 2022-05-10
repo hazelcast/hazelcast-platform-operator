@@ -65,14 +65,16 @@ func SpecLabelsChecker() {
 		scanner.Buffer(buf, 5242880)
 
 		lbl, lblErr := regexp.Compile(`(^(.*?)It|^(.*?)Entry)(.*?)Label\((.*?)$`)
+		noLbl, lblErr := regexp.Compile(`((^(.*?)It)(.*?)func(.*?){$)|((^(.*?)Entry)(.*?),$)`)
 		if lblErr != nil {
 			log.Fatal(err)
 		}
 		slowRegexp := regexp.MustCompile(`\bslow\b`)
 		fastRegexp := regexp.MustCompile(`\bfast\b`)
+		labelRegexp := regexp.MustCompile(`\bLabel\b`)
 		for scanner.Scan() {
-			if lbl.MatchString(scanner.Text()) {
-				if !(slowRegexp.MatchString(scanner.Text()) || fastRegexp.MatchString(scanner.Text())) {
+			if lbl.MatchString(scanner.Text()) || noLbl.MatchString(scanner.Text()) {
+				if !(slowRegexp.MatchString(scanner.Text()) || fastRegexp.MatchString(scanner.Text())) || !labelRegexp.MatchString(scanner.Text()) {
 					testList = append(testList, strings.Join(strings.Fields(strings.TrimSpace(scanner.Text())), " "))
 					labelCounter++
 				}

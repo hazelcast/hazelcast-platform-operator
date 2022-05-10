@@ -324,7 +324,7 @@ var _ = Describe("ManagementCenter controller", func() {
 
 	Context("Resources context", func() {
 		When("Resources are used", func() {
-			It("should be set to Container spec", func() {
+			It("should be set to Container spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
 				spec.Resources = &corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{

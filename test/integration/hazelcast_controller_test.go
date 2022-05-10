@@ -680,7 +680,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Map CR configuration", func() {
 		When("Using empty configuration", func() {
-			It("should fail to create", func() {
+			It("should fail to create", Label("fast"), func() {
 				m := &hazelcastv1alpha1.Map{
 					ObjectMeta: GetRandomObjectMeta(),
 				}
@@ -690,7 +690,7 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 		When("Using default configuration", func() {
-			It("should create Map CR with default configurations", func() {
+			It("should create Map CR with default configurations", Label("fast"), func() {
 				m := &hazelcastv1alpha1.Map{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.MapSpec{
@@ -718,7 +718,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Resources context", func() {
 		When("Resources are used", func() {
-			It("should be set to Container spec", func() {
+			It("should be set to Container spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Resources = &corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
@@ -759,7 +759,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Backup Agent configuration", func() {
 		When("Backup Agent is configured", func() {
-			It("Persistence Configuration must be enabled", func() {
+			It("Persistence Configuration must be enabled", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Backup = &hazelcastv1alpha1.BackupAgentConfiguration{
 					AgentRepository: "hazelcast/platform-operator-agent",
@@ -785,7 +785,7 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 		When("Backup Agent is configured with Persistence", func() {
-			It("should be deployed as a sidecar container", func() {
+			It("should be deployed as a sidecar container", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
