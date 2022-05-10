@@ -75,7 +75,7 @@ func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1alpha1.
 	if options.status == hazelcastv1alpha1.MapFailed {
 		return ctrl.Result{}, options.err
 	}
-	if options.status == hazelcastv1alpha1.MapPending {
+	if options.status == hazelcastv1alpha1.MapPending || options.status == hazelcastv1alpha1.MapPersisting {
 		return ctrl.Result{Requeue: true, RequeueAfter: options.retryAfter}, nil
 	}
 	return ctrl.Result{}, nil
