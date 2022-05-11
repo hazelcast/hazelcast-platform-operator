@@ -22,10 +22,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/config"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"github.com/hazelcast/hazelcast-platform-operator/pkg/config"
+	n "github.com/hazelcast/hazelcast-platform-operator/pkg/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/pkg/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/pkg/util"
 )
 
 // Environment variables used for Hazelcast cluster configuration

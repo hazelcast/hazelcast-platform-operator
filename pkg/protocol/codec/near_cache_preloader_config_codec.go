@@ -19,7 +19,7 @@ package codec
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
+	"github.com/hazelcast/hazelcast-platform-operator/pkg/protocol/types"
 )
 
 const (

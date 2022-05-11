@@ -4,7 +4,7 @@ import (
 	"time"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-platform-operator/pkg/naming"
 )
 
 type MCMetrics struct {
