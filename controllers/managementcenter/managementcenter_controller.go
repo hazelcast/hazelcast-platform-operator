@@ -70,7 +70,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	//Check if the ManagementCenter CR is marked to be deleted
 	if mc.GetDeletionTimestamp() != nil {
 		// Execute finalizer's pre-delete function to delete MC metric
-		err = r.executeFinalizer(ctx, mc, logger)
+		err = r.executeFinalizer(ctx, mc)
 		if err != nil {
 			logger.Error(err, "Finalizer execution failed")
 			return update(ctx, r.Client, mc, failedPhase(err))

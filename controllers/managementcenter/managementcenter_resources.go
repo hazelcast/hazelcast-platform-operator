@@ -34,15 +34,14 @@ func (r *ManagementCenterReconciler) addFinalizer(ctx context.Context, mc *hazel
 		controllerutil.AddFinalizer(mc, n.Finalizer)
 		err := r.Update(ctx, mc)
 		if err != nil {
-			logger.Error(err, "Failed to add finalizer into custom resource")
-			return err
+			return fmt.Errorf("failed to add finalizer into custom resource: %w", err)
 		}
-		logger.V(1).Info("Finalizer added into custom resource successfully")
+		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
 	}
 	return nil
 }
 
-func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter) error {
 	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
 		return nil
 	}
@@ -50,8 +49,7 @@ func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *h
 	controllerutil.RemoveFinalizer(mc, n.Finalizer)
 	err := r.Update(ctx, mc)
 	if err != nil {
-		logger.Error(err, "Failed to remove finalizer from custom resource")
-		return err
+		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
 	if util.IsPhoneHomeEnabled() {
 		delete(r.metrics.MCMetrics, mc.UID)
@@ -77,8 +75,7 @@ func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *haze
 
 	err := controllerutil.SetControllerReference(mc, role, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Role")
-		return err
+		return fmt.Errorf("failed to set owner reference on Role: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
@@ -103,8 +100,7 @@ func (r *ManagementCenterReconciler) reconcileServiceAccount(ctx context.Context
 
 	err := controllerutil.SetControllerReference(mc, serviceAccount, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on ServiceAccount")
-		return err
+		return fmt.Errorf("failed to set owner reference on ServiceAccount: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
@@ -138,8 +134,7 @@ func (r *ManagementCenterReconciler) reconcileRoleBinding(ctx context.Context, m
 	}
 	err := controllerutil.SetControllerReference(mc, rb, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on RoleBinding")
-		return err
+		return fmt.Errorf("failed to set owner reference on RoleBinding: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, rb, func() error {
@@ -162,8 +157,7 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 
 	err := controllerutil.SetControllerReference(mc, service, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Service")
-		return err
+		return fmt.Errorf("failed to set owner reference on Service: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
@@ -292,8 +286,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 
 	err := controllerutil.SetControllerReference(mc, sts, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Statefulset")
-		return err
+		return fmt.Errorf("failed to set owner reference on StatefulSet: %w", err)
 	}
 
 	if mc.Spec.Persistence.IsEnabled() {

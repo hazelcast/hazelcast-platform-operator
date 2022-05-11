@@ -140,7 +140,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
-	if !r.isServicePerPodReady(ctx, h, logger) {
+	if !r.isServicePerPodReady(ctx, h) {
 		logger.Info("Service per pod is not ready, waiting.")
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
