@@ -30,7 +30,7 @@ var (
 )
 
 func TestAPIs(t *testing.T) {
-	RegisterFailHandler(Fail)
+	RegisterFailHandler(Fail)w
 	SpecLabelsChecker()
 	RunSpecs(t, "Controller Suite")
 }
