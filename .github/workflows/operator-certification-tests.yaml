@@ -83,9 +83,50 @@ jobs:
           preflight check container $CONTAINER_IMAGE
           grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
 
+  openscap_image_scan:
+    name: Run OpenSCAP Vulnerability Scan
+    needs: test_container
+    defaults:
+      run:
+        shell: bash
+    env:
+      CONTAINER_IMAGE: ${{ needs.test_container.outputs.CONTAINER_IMAGE }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run OpenSCAP Vulnerability Scan
+        id: vulnerabilityScan
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ec2-user
+          key: ${{ secrets.KEY }}
+          envs: CONTAINER_IMAGE
+          script: |
+            sudo podman pull $CONTAINER_IMAGE
+            sudo oscap-podman $CONTAINER_IMAGE oval eval --report vulnerability_report.html rhel-8.oval.xml | grep -E 'true' && exit 1 || echo "Vulnerabilty scan passed"
+
+      - name: Download Scan Report
+        if: failure() && steps.vulnerabilityScan.outcome == 'failure'
+        uses: nicklasfrahm/scp-action@main
+        with:
+          direction: download
+          host: ${{ secrets.HOST }}
+          username: ec2-user
+          fingerprint: ${{ secrets.FINGERPRINT }}
+          key: ${{ secrets.KEY }}
+          source: ~/vulnerability_report.html
+          target: vulnerability_report.html
+
+      - name: Save Scan Report As Artifact
+        uses: actions/upload-artifact@v3
+        if: failure() && steps.vulnerabilityScan.outcome == 'failure'
+        with:
+          name: vulnerability-report
+          path: vulnerability_report.html
+
   build_bundle:
     name: Build Bundle and Index Image
-    needs: test_container
+    needs: openscap_image_scan
     defaults:
       run:
         shell: bash
@@ -208,11 +249,21 @@ jobs:
 
   clean_up_artifacts:
     if: always()
-    needs: [ test_operator, community_operators_test_suite ]
+    needs: [ build_bundle, community_operators_test_suite ]
     runs-on: ubuntu-latest
-    name: Clean The Bundle Artifact
+    name: Clean The Bundle Artifact and Test Image
     steps:
-      - uses: geekyeggo/delete-artifact@v1
+      - name: Delete Bundle Artifact
+        uses: geekyeggo/delete-artifact@v1
         with:
           name: |
             bundle-artifacts
+
+      - name: Delete Test Image For Security Scan
+        if: always()
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ec2-user
+          key: ${{ secrets.KEY }}
+          script: sudo podman image prune -af
