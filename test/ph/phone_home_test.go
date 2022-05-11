@@ -51,30 +51,6 @@ var _ = Describe("Hazelcast", func() {
 		})
 	})
 
-	createHz := func(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
-		By("Creating Hazelcast", func() {
-			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
-		})
-
-		By("Checking Hazelcast is running", func() {
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKeyHz, hz)
-				Expect(err).ToNot(HaveOccurred())
-				return isHazelcastRunning(hz)
-			}, timeout, interval).Should(BeTrue())
-		})
-	}
-
-	evaluateReadyMembers := func() {
-		hz := &hazelcastcomv1alpha1.Hazelcast{}
-		Eventually(func() string {
-			err := k8sClient.Get(context.Background(), lookupKeyHz, hz)
-			Expect(err).ToNot(HaveOccurred())
-			return hz.Status.Cluster.ReadyMembers
-		}, timeout, interval).Should(Equal("3/3"))
-	}
-
 	assertAnnotationExists := func(obj client.Object) {
 		cpy, ok := obj.DeepCopyObject().(client.Object)
 		if !ok {
@@ -90,28 +66,12 @@ var _ = Describe("Hazelcast", func() {
 		}, timeout, interval).Should(BeTrue())
 	}
 
-	createMc := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
-		By("Creating ManagementCenter", func() {
-			Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
-		})
-
-		By("Checking ManagementCenter is running", func() {
-			mc := &hazelcastcomv1alpha1.ManagementCenter{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKeyMc, mc)
-				Expect(err).ToNot(HaveOccurred())
-				return isManagementCenterRunning(mc)
-			}, timeout, interval).Should(BeTrue())
-		})
-	}
-
 	Describe("Phone Home Table with installed Hazelcast", func() {
 		AfterEach(func() {
 			Expect(k8sClient.Delete(context.Background(), emptyHazelcast(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 			assertDoesNotExist(lookupKeyHz, &hazelcastcomv1alpha1.Hazelcast{})
 		})
 		DescribeTable("should have correct metrics",
-
 			func(h *hazelcastcomv1alpha1.Hazelcast,
 				createdEnterpriseClusterCount int,
 				unisocket int,
@@ -122,9 +82,9 @@ var _ = Describe("Hazelcast", func() {
 				memberNodePortNodeName int,
 				memberLoadBalancer int) {
 
-				createHz(h)
+				CreateHazelcastCR(h, lookupKeyHz)
 				hzCreationTime := time.Now().UTC().Truncate(time.Hour)
-				evaluateReadyMembers()
+				evaluateReadyMembers(lookupKeyHz, 3)
 				assertAnnotationExists(h)
 
 				bigQueryTable := getBigQueryTable()
@@ -150,10 +110,10 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName), "MemberNodePortNodeName metric")
 				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer), "MemberLoadBalancer metric")
 			},
-			Entry("with ExposeExternallyUnisocket configuration", hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
-			Entry("with ExposeExternallySmartNodePort configuration", hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
-			Entry("with ExposeExternallySmartLoadBalancer configuration", hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
-			Entry("with ExposeExternallySmartNodePortNodeName configuration", hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzNamespace, ee), 1, 0, 1, 0, 1, 0, 1, 0),
+			Entry("with ExposeExternallyUnisocket configuration", Label("slow"), hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
+			Entry("with ExposeExternallySmartNodePort configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
+			Entry("with ExposeExternallySmartLoadBalancer configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
+			Entry("with ExposeExternallySmartNodePortNodeName configuration", Label("fast"), hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzNamespace, ee), 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
 
@@ -167,9 +127,9 @@ var _ = Describe("Hazelcast", func() {
 			}
 			deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
 		})
-		It("should have correct metrics", func() {
+		It("should have correct metrics", Label("fast"), func() {
 			mc := mcconfig.Default(hzNamespace, ee)
-			createMc(mc)
+			CreateMC(mc, lookupKeyMc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
 			assertAnnotationExists(mc)
 			bigQueryTable := getBigQueryTable()

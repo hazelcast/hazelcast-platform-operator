@@ -308,9 +308,7 @@ func portForwardPod(sName, sNamespace, port string) (chan struct{}, chan struct{
 			Expect(err).To(BeNil())
 		}
 	}()
-
 	return stopChan, readyChan
-
 }
 
 func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {

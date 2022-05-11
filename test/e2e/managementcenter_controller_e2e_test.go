@@ -83,7 +83,7 @@ var _ = Describe("Management-Center", func() {
 	}
 
 	Describe("Default ManagementCenter CR", func() {
-		It("Should create ManagementCenter resources", func() {
+		It("Should create ManagementCenter resources", Label("fast"), func() {
 			mc := mcconfig.Default(hzNamespace, ee)
 			create(mc)
 
@@ -114,7 +114,7 @@ var _ = Describe("Management-Center", func() {
 	})
 
 	Describe("ManagementCenter CR without Persistence", func() {
-		It("Should create ManagementCenter resources and no PVC", func() {
+		It("Should create ManagementCenter resources and no PVC", Label("fast"), func() {
 			mc := mcconfig.PersistenceDisabled(hzNamespace, ee)
 			create(mc)
 
@@ -142,7 +142,7 @@ var _ = Describe("Management-Center", func() {
 			Expect(mc.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should be reflected to Management CR status", func() {
+		It("should be reflected to Management CR status", Label("fast"), func() {
 			createWithoutCheck(mcconfig.Faulty(hzNamespace, ee))
 			assertStatusEventually(hazelcastcomv1alpha1.Failed)
 

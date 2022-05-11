@@ -2,12 +2,14 @@ package ph
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"google.golang.org/api/iterator"
 	appsv1 "k8s.io/api/apps/v1"
@@ -195,4 +197,43 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 
 		return k8sClient.Delete(context.Background(), obj)
 	}, timeout, interval).Should(Succeed())
+}
+
+func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
+	hz := &hazelcastcomv1alpha1.Hazelcast{}
+	Eventually(func() string {
+		err := k8sClient.Get(context.Background(), lookupKey, hz)
+		Expect(err).ToNot(HaveOccurred())
+		return hz.Status.Cluster.ReadyMembers
+	}, timeout, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
+}
+
+func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast, lookupKey types.NamespacedName) {
+	By("Creating Hazelcast CR", func() {
+		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
+	})
+
+	By("Checking Hazelcast CR running", func() {
+		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		Eventually(func() bool {
+			err := k8sClient.Get(context.Background(), lookupKey, hz)
+			Expect(err).ToNot(HaveOccurred())
+			return isHazelcastRunning(hz)
+		}, timeout, interval).Should(BeTrue())
+	})
+}
+
+func CreateMC(mancenter *hazelcastcomv1alpha1.ManagementCenter, lookupKey types.NamespacedName) {
+	By("Creating ManagementCenter", func() {
+		Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
+	})
+
+	By("Checking ManagementCenter is running", func() {
+		mc := &hazelcastcomv1alpha1.ManagementCenter{}
+		Eventually(func() bool {
+			err := k8sClient.Get(context.Background(), lookupKey, mc)
+			Expect(err).ToNot(HaveOccurred())
+			return isManagementCenterRunning(mc)
+		}, timeout, interval).Should(BeTrue())
+	})
 }
