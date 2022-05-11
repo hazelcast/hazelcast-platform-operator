@@ -788,7 +788,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(mp.Size(context.Background())).Should(Equal(entryCount))
 		})
 
-		It("should persist the map successfully created configs into the configmap", func() {
+		It("should persist the map successfully created configs into the configmap", Label("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -830,7 +830,7 @@ var _ = Describe("Hazelcast", func() {
 			_ = assertMapConfigsPersisted(hazelcast, "map1", "map3")
 		})
 
-		It("should persist Map Config with Indexes", func() {
+		It("should persist Map Config with Indexes", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
@@ -860,7 +860,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(hzConfig.Hazelcast.Map["map-2"].Indexes[0].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(string(hazelcastcomv1alpha1.UniqueKeyTransitionRAW)))
 		})
 
-		It("should continue persisting last applied Map Config in case of failure", func() {
+		It("should continue persisting last applied Map Config in case of failure", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
