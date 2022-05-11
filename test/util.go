@@ -1,8 +1,14 @@
 package test
 
 import (
+	"bufio"
 	"context"
 	"io"
+	"log"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,4 +39,54 @@ func GetPodLogs(ctx context.Context, pod types.NamespacedName, podLogOptions *co
 		panic(err)
 	}
 	return podLogs
+}
+
+func SpecLabelsChecker() {
+	labelCounter := 0
+	var testList []string
+	var testSuites []string
+	err := filepath.Walk("../../test", func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			testSuites = append(testSuites, path)
+			return nil
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, testSuite := range testSuites {
+		file, err := os.Open(testSuite)
+		if err != nil {
+			log.Fatal(err)
+		}
+		scanner := bufio.NewScanner(file)
+		buf := make([]byte, 0, 2097152)
+		scanner.Buffer(buf, 5242880)
+
+		lbl, lblErr := regexp.Compile(`(^(.*?)It|^(.*?)Entry)(.*?)Label\((.*?)$`)
+		noLbl, noLblErr := regexp.Compile(`((^(.*?)It)(.*?)func(.*?){$)|((^(.*?)Entry)(.*?),$)`)
+		if lblErr != nil || noLblErr != nil {
+			log.Fatal(err)
+		}
+		slowRegexp := regexp.MustCompile(`\bslow\b`)
+		fastRegexp := regexp.MustCompile(`\bfast\b`)
+		labelRegexp := regexp.MustCompile(`\bLabel\b`)
+		for scanner.Scan() {
+			if lbl.MatchString(scanner.Text()) || noLbl.MatchString(scanner.Text()) {
+				if !(slowRegexp.MatchString(scanner.Text()) || fastRegexp.MatchString(scanner.Text())) || !labelRegexp.MatchString(scanner.Text()) {
+					testList = append(testList, strings.Join(strings.Fields(strings.TrimSpace(scanner.Text())), " "))
+					labelCounter++
+				}
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			log.Fatal(err)
+		}
+		file.Close()
+	}
+	if labelCounter > 0 {
+		log.Fatalf("There are %d tests doesn't have Labels or has incorrect one. Possible lables are 'slow' and 'fast'. Add label to test using 'Label(\"slow\")' or 'Label(\"fast\"). "+
+			"\nExample: it('should create Hazelcast cluster\", Label(\"slow\"), func()':\n \n * %s ", labelCounter, strings.Join(testList[:], "\n * "))
+	}
 }

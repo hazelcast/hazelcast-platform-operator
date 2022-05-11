@@ -14,6 +14,7 @@ import (
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
+	. "github.com/hazelcast/hazelcast-platform-operator/test"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -24,8 +25,8 @@ var (
 
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t,
-		"Controller Suite")
+	SpecLabelsChecker()
+	RunSpecs(t, "Controller Suite")
 }
 
 var _ = BeforeSuite(func() {

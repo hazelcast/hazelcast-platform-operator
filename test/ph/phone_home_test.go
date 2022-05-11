@@ -150,10 +150,10 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName), "MemberNodePortNodeName metric")
 				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer), "MemberLoadBalancer metric")
 			},
-			Entry("with ExposeExternallyUnisocket configuration", hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
-			Entry("with ExposeExternallySmartNodePort configuration", hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
-			Entry("with ExposeExternallySmartLoadBalancer configuration", hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
-			Entry("with ExposeExternallySmartNodePortNodeName configuration", hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzNamespace, ee), 1, 0, 1, 0, 1, 0, 1, 0),
+			Entry("with ExposeExternallyUnisocket configuration", Label("slow"), hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
+			Entry("with ExposeExternallySmartNodePort configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
+			Entry("with ExposeExternallySmartLoadBalancer configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
+			Entry("with ExposeExternallySmartNodePortNodeName configuration", Label("fast"), hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzNamespace, ee), 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
 
@@ -167,7 +167,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 			deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
 		})
-		It("should have correct metrics", func() {
+		It("should have correct metrics", Label("fast"), func() {
 			mc := mcconfig.Default(hzNamespace, ee)
 			createMc(mc)
 			mcCreationTime := time.Now().Truncate(time.Hour)

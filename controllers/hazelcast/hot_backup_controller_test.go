@@ -3,6 +3,8 @@ package hazelcast
 import (
 	"context"
 	"net/http"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -121,7 +123,6 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 		},
 	}
 
-	r := hotBackupReconcilerWithCRs(h, hb)
 	ts, err := fakeHttpServer(hazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
 		if request.RequestURI == hotBackup {
 			writer.WriteHeader(500)
@@ -136,11 +137,78 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 	}
 	defer ts.Close()
 
+	r := hotBackupReconcilerWithCRs(h, hb)
 	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
 	Expect(err).Should(Not(BeNil()))
 
 	_ = r.Client.Get(context.TODO(), n, hb)
 	Expect(hb.Status.State).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+}
+
+func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
+	RegisterFailHandler(fail(t))
+	n := types.NamespacedName{
+		Name:      "hazelcast",
+		Namespace: "default",
+	}
+	h := &hazelcastv1alpha1.Hazelcast{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+		},
+		Status: hazelcastv1alpha1.HazelcastStatus{
+			Phase: hazelcastv1alpha1.Running,
+		},
+	}
+	hb := &hazelcastv1alpha1.HotBackup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+		},
+		Spec: hazelcastv1alpha1.HotBackupSpec{
+			HazelcastResourceName: n.Name,
+		},
+	}
+
+	var restCallWg sync.WaitGroup
+	restCallWg.Add(1)
+	var hotBackupTriggers int32
+	ts, err := fakeHttpServer(hazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
+		if request.RequestURI == hotBackup {
+			atomic.AddInt32(&hotBackupTriggers, 1)
+			restCallWg.Wait()
+		}
+		writer.WriteHeader(200)
+		_, _ = writer.Write([]byte("{\"status\":\"success\"}"))
+	})
+	if err != nil {
+		t.Errorf("Failed to start fake HTTP server: %v", err)
+	}
+	defer ts.Close()
+
+	r := hotBackupReconcilerWithCRs(h, hb)
+
+	var reconcileWg sync.WaitGroup
+	reconcileWg.Add(1)
+	go func() {
+		defer reconcileWg.Done()
+		_, _ = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
+	}()
+
+	Eventually(func() hazelcastv1alpha1.HotBackupState {
+		_ = r.Client.Get(context.TODO(), n, hb)
+		return hb.Status.State
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupPending))
+
+	reconcileWg.Add(1)
+	go func() {
+		defer reconcileWg.Done()
+		_, _ = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
+	}()
+	restCallWg.Done()
+	reconcileWg.Wait()
+
+	Expect(hotBackupTriggers).Should(Equal(int32(1)))
 }
 
 func fail(t *testing.T) func(message string, callerSkip ...int) {

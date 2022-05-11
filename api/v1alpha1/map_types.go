@@ -59,7 +59,7 @@ type EvictionConfig struct {
 	// Eviction policy to be applied when map reaches its max size according to the max size policy.
 	// +kubebuilder:default:="NONE"
 	// +optional
-	EvictionPolicy EvictionPolicyType `json:"persistenceEnabled,omitempty"`
+	EvictionPolicy EvictionPolicyType `json:"evictionPolicy,omitempty"`
 
 	// Max size of the map.
 	// +kubebuilder:default:=0

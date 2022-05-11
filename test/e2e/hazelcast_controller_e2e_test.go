@@ -102,7 +102,7 @@ var _ = Describe("Hazelcast", func() {
 	}
 
 	Describe("Default Hazelcast CR", func() {
-		It("should create Hazelcast cluster", func() {
+		It("should create Hazelcast cluster", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 		})
@@ -155,7 +155,7 @@ var _ = Describe("Hazelcast", func() {
 			}, timeout, interval).Should(Not(BeEmpty()))
 		}
 
-		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
+		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", Label("slow"), func() {
 			assertUseHazelcastUnisocket := func() {
 				assertUseHazelcast(true)
 			}
@@ -166,7 +166,7 @@ var _ = Describe("Hazelcast", func() {
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
+		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("slow"), func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
 			}
@@ -177,7 +177,7 @@ var _ = Describe("Hazelcast", func() {
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", func() {
+		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("slow"), func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
 			}
@@ -188,7 +188,7 @@ var _ = Describe("Hazelcast", func() {
 	})
 
 	Describe("Hazelcast cluster name", func() {
-		It("should create a Hazelcust cluster with Cluster name: development", func() {
+		It("should create a Hazelcust cluster with Cluster name: development", Label("fast"), func() {
 			hazelcast := hazelcastconfig.ClusterName(hzNamespace, ee)
 			create(hazelcast)
 
@@ -198,7 +198,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Context("Hazelcast member status", func() {
 
-		It("should update HZ ready members status", func() {
+		It("should update HZ ready members status", Label("fast"), func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
@@ -217,7 +217,7 @@ var _ = Describe("Hazelcast", func() {
 			})
 		})
 
-		It("should update HZ detailed member status", func() {
+		It("should update HZ detailed member status", Label("fast"), func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
@@ -252,14 +252,14 @@ var _ = Describe("Hazelcast", func() {
 			Expect(hz.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should be reflected to Hazelcast CR status", func() {
+		It("should be reflected to Hazelcast CR status", Label("fast"), func() {
 			createWithoutCheck(hazelcastconfig.Faulty(hzNamespace, ee))
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
 	})
 
 	Describe("Hazelcast CR with Persistence feature enabled", func() {
-		It("should enable persistence for members successfully", func() {
+		It("should enable persistence for members successfully", Label("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -291,7 +291,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 		})
 
-		It("should successfully trigger HotBackup", func() {
+		It("should successfully trigger HotBackup", Label("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -334,7 +334,7 @@ var _ = Describe("Hazelcast", func() {
 			}, timeout, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
 		})
 
-		It("should trigger ForceStart when restart from HotBackup failed", func() {
+		It("should trigger ForceStart when restart from HotBackup failed", Label("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -501,13 +501,13 @@ var _ = Describe("Hazelcast", func() {
 				}, Equal(hazelcastcomv1alpha1.RestoreSucceeded)),
 			))
 		},
-			Entry("with PVC configuration"),
-			Entry("with HostPath configuration single node", "/tmp/hazelcast/singleNode", "dummyNodeName"),
-			Entry("with HostPath configuration multiple nodes", "/tmp/hazelcast/multiNode"),
+			Entry("with PVC configuration", Label("slow")),
+			Entry("with HostPath configuration single node", Label("slow"), "/tmp/hazelcast/singleNode", "dummyNodeName"),
+			Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
 		)
 	})
 	Describe("Hazelcast Map Config", func() {
-		It("should create Map Config", func() {
+		It("should create Map Config", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
@@ -516,7 +516,7 @@ var _ = Describe("Hazelcast", func() {
 
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 		})
-		It("should create Map Config with correct default values", func() {
+		It("should create Map Config with correct default values", Label("fast"), func() {
 			localPort := "8000"
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
@@ -551,7 +551,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(mapConfig.MergePolicy).Should(Equal("com.hazelcast.spi.merge.PutIfAbsentMergePolicy"))
 
 		})
-		It("should create Map Config with Indexes", func() {
+		It("should create Map Config with Indexes", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
@@ -606,7 +606,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(mapConfig.Indexes[1].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(hazelcastcomv1alpha1.EncodeUniqueKeyTransition[hazelcastcomv1alpha1.UniqueKeyTransitionRAW]))
 
 		})
-		It("should fail when persistence of Map CR and Hazelcast CR do not match", func() {
+		It("should fail when persistence of Map CR and Hazelcast CR do not match", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
@@ -617,7 +617,7 @@ var _ = Describe("Hazelcast", func() {
 			m = assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
 			Expect(m.Status.Message).To(Equal(fmt.Sprintf("Persistence is not enabled for the Hazelcast resource %s.", hazelcast.Name)))
 		})
-		It("should update the map correctly", func() {
+		It("should update the map correctly", Label("fast"), func() {
 			localPort := "8000"
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
@@ -658,7 +658,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(mapConfig.MaxSizePolicy).Should(Equal(hazelcastcomv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy]))
 			Expect(mapConfig.EvictionPolicy).Should(Equal(hazelcastcomv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy]))
 		})
-		It("should fail to update", func() {
+		It("should fail to update", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			create(hazelcast)
 
@@ -673,7 +673,7 @@ var _ = Describe("Hazelcast", func() {
 			assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
 		})
 
-		It("should keep the entries after a Hot Backup", func() {
+		It("should keep the entries after a Hot Backup", Label("slow"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
