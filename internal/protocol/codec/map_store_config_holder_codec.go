@@ -21,7 +21,7 @@ import (
 
 	proto "github.com/hazelcast/hazelcast-go-client"
 
-	types "github.com/hazelcast/hazelcast-platform-operator/pkg/protocol/types"
+	types "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 const (

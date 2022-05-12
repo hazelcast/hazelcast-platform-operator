@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/pkg/protocol/codec"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"

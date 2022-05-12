@@ -21,9 +21,9 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
-	n "github.com/hazelcast/hazelcast-platform-operator/pkg/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/pkg/phonehome"
-	"github.com/hazelcast/hazelcast-platform-operator/pkg/util"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // retryAfter is the time in seconds to requeue for the Pending phase

@@ -19,7 +19,7 @@ package codec
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
 
-	types "github.com/hazelcast/hazelcast-platform-operator/pkg/protocol/types"
+	types "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 func EncodeAttributeConfig(clientMessage *proto.ClientMessage, attributeConfig types.AttributeConfig) {

@@ -3,7 +3,7 @@ package types
 import (
 	iserialization "github.com/hazelcast/hazelcast-go-client"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/pkg/naming"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 type AddMapConfigInput struct {

@@ -21,11 +21,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/pkg/config"
-	n "github.com/hazelcast/hazelcast-platform-operator/pkg/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/pkg/protocol/codec"
-	codecTypes "github.com/hazelcast/hazelcast-platform-operator/pkg/protocol/types"
-	"github.com/hazelcast/hazelcast-platform-operator/pkg/util"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // MapReconciler reconciles a Map object

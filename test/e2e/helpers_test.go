@@ -28,10 +28,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/pkg/config"
-	"github.com/hazelcast/hazelcast-platform-operator/pkg/platform"
-	"github.com/hazelcast/hazelcast-platform-operator/pkg/protocol/codec"
-	codecTypes "github.com/hazelcast/hazelcast-platform-operator/pkg/protocol/types"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
