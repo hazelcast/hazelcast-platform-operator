@@ -40,9 +40,7 @@ func GetBackupSequence(t time.Time) string {
 	scanner := bufio.NewScanner(logs)
 	test.EventuallyInLogs(scanner, timeout, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
 	line := scanner.Text()
-	defer logs.Close()
 	Expect(logs.Close()).Should(Succeed())
-
 	compRegEx := regexp.MustCompile(`Starting new hot backup with sequence (?P<seq>\d+)`)
 	match := compRegEx.FindStringSubmatch(line)
 	var seq string
@@ -111,7 +109,7 @@ func DeletePod(podName string, gracePeriod int64) {
 	}
 }
 
-func GetHzClient(ctx context.Context, unisocket bool) (*hzClient.Client, error) {
+func GetHzClient(ctx context.Context, unisocket bool) *hzClient.Client {
 	var lookupKey = types.NamespacedName{
 		Name:      hzName,
 		Namespace: hzNamespace,
@@ -134,7 +132,7 @@ func GetHzClient(ctx context.Context, unisocket bool) (*hzClient.Client, error) 
 	config.Cluster.Discovery.UsePublicIP = true
 	client, err := hzClient.StartNewClientWithConfig(ctx, config)
 	Expect(err).ToNot(HaveOccurred())
-	return client, err
+	return client
 }
 
 func GetClientSet() *kubernetes.Clientset {
@@ -152,10 +150,9 @@ func GetClientSet() *kubernetes.Clientset {
 
 func FillTheMapData(ctx context.Context, unisocket bool, mapName string, mapSize int) {
 	var m *hzClient.Map
-	clientHz, err := GetHzClient(ctx, unisocket)
-	Expect(err).ToNot(HaveOccurred())
+	clientHz := GetHzClient(ctx, unisocket)
 	By("using Hazelcast client")
-	m, err = clientHz.GetMap(ctx, mapName)
+	m, err := clientHz.GetMap(ctx, mapName)
 	Expect(err).ToNot(HaveOccurred())
 	for i := 0; i < mapSize; i++ {
 		_, err = m.Put(ctx, strconv.Itoa(i), strconv.Itoa(i))
