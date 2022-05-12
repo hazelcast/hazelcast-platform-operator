@@ -175,7 +175,7 @@ func GetHazelcastClient(m *hazelcastv1alpha1.Map) (*hazelcast.Client, error) {
 	if !ok {
 		return nil, errors.NewInternalError(fmt.Errorf("Cannot connect to the cluster for %s", m.Spec.HazelcastResourceName))
 	}
-	if hzcl.client == nil || !hzcl.client.Running() {
+	if !hzcl.IsClientConnected() {
 		return nil, fmt.Errorf("Trying to connect to the cluster %s", m.Spec.HazelcastResourceName)
 	}
 
