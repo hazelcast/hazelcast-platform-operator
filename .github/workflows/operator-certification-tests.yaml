@@ -97,7 +97,7 @@ jobs:
         id: vulnerabilityScan
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.HOST }}
+          host: ${{ secrets.SCANHOST }}
           username: ec2-user
           key: ${{ secrets.KEY }}
           envs: CONTAINER_IMAGE
@@ -110,7 +110,7 @@ jobs:
         uses: nicklasfrahm/scp-action@main
         with:
           direction: download
-          host: ${{ secrets.HOST }}
+          host: ${{ secrets.SCANHOST }}
           username: ec2-user
           fingerprint: ${{ secrets.FINGERPRINT }}
           key: ${{ secrets.KEY }}
@@ -260,10 +260,9 @@ jobs:
             bundle-artifacts
 
       - name: Delete Test Image For Security Scan
-        if: always()
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.HOST }}
+          host: ${{ secrets.SCANHOST }}
           username: ec2-user
           key: ${{ secrets.KEY }}
           script: sudo podman image prune -af
