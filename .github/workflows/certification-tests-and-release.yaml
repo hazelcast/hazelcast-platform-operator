@@ -1,4 +1,4 @@
-name: (2) Operator Certification Tests
+name: (2) Operator Certification Tests And Releasing
 on:
   push:
     tags:
@@ -95,7 +95,7 @@ jobs:
     steps:
       - name: Run OpenSCAP Vulnerability Scan
         id: vulnerabilityScan
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v0.1.4
         with:
           host: ${{ secrets.SCANHOST }}
           username: ec2-user
@@ -107,7 +107,7 @@ jobs:
 
       - name: Download Scan Report
         if: failure() && steps.vulnerabilityScan.outcome == 'failure'
-        uses: nicklasfrahm/scp-action@main
+        uses: nicklasfrahm/scp-action@v1.0.1
         with:
           direction: download
           host: ${{ secrets.SCANHOST }}
