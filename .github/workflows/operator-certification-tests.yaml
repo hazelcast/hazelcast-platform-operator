@@ -126,7 +126,7 @@ jobs:
 
   build_bundle:
     name: Build Bundle and Index Image
-    needs: openscap_image_scan
+    needs: [test_container, openscap_image_scan]
     defaults:
       run:
         shell: bash
@@ -249,7 +249,7 @@ jobs:
 
   clean_up_artifacts:
     if: always()
-    needs: [ build_bundle, community_operators_test_suite ]
+    needs: [ build_bundle, openscap_image_scan, community_operators_test_suite ]
     runs-on: ubuntu-latest
     name: Clean The Bundle Artifact and Test Image
     steps:
