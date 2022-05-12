@@ -73,7 +73,6 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	if hb.GetDeletionTimestamp() != nil {
 		err = r.executeFinalizer(ctx, hb, logger)
 		if err != nil {
-			logger.Error(err, "Finalizer execution failed")
 			return ctrl.Result{}, err
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
@@ -88,8 +87,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 
 	hs, err := json.Marshal(hb.Spec)
 	if err != nil {
-		logger.Error(err, "Error marshaling Hot Backup as JSON")
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("error marshaling Hot Backup as JSON: %w", err)
 	}
 	if s, ok := hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok && s == string(hs) {
 		logger.Info("HotBackup was already applied.", "name", hb.Name, "namespace", hb.Namespace)
@@ -99,13 +97,10 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: hb.Spec.HazelcastResourceName}, h)
 	if err != nil {
-		logger.Error(err, "Could not trigger Hot Backup: Hazelcast resource not found")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("could not trigger Hot Backup: Hazelcast resource not found: %w", err)
 	}
 	if h.Status.Phase != hazelcastv1alpha1.Running {
-		err = apiErrors.NewServiceUnavailable("Hazelcast CR is not ready")
-		logger.Error(err, "Hazelcast CR is not in Running state")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, apiErrors.NewServiceUnavailable("Hazelcast CR is not ready")
 	}
 	rest := NewRestClient(h)
 
@@ -131,7 +126,6 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	} else {
 		err = r.triggerHotBackup(ctx, req, rest, logger)
 		if err != nil {
-			logger.Error(err, "Hot Backups process failed")
 			_ = r.Client.Get(ctx, req.NamespacedName, hb)
 			hb.Status.State = hazelcastv1alpha1.HotBackupFailure
 			_ = r.Status().Update(ctx, hb)
@@ -144,14 +138,12 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	if hb.Spec.BucketURL != "" {
 		agentAddresses, err := r.getAgentAddresses(ctx, hb)
 		if err != nil {
-			logger.Error(err, "Could not fetch Backup agent addresses properly")
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("could not fetch Backup agent addresses properly: %w", err)
 		}
 		agentRest := NewAgentRestClient(h, hb, agentAddresses)
 		err = r.triggerUploadBackup(ctx, hb, agentRest, logger)
 		if err != nil {
-			logger.Error(err, "error while uploading the backup")
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("error while uploading the backup: %w", err)
 		}
 	}
 
@@ -301,7 +293,7 @@ func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, req reconcil
 	}(rest)
 	err = rest.HotBackup(ctx)
 	if err != nil {
-		return fmt.Errorf("rrror creating HotBackup: %w", err)
+		return fmt.Errorf("error creating HotBackup: %w", err)
 	}
 	return nil
 }

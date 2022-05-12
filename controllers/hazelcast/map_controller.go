@@ -48,19 +48,17 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			logger.Info("Map resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "Failed to get Map")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get Map: %w", err)
 	}
 
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: m.Spec.HazelcastResourceName}, h)
 	if err != nil {
-		logger.Error(err, "Could not create/update Map config: Hazelcast resource not found")
+		err = fmt.Errorf("could not create/update Map config: Hazelcast resource not found: %w", err)
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 	if h.Status.Phase != hazelcastv1alpha1.Running {
 		err = errors.NewServiceUnavailable("Hazelcast CR is not ready")
-		logger.Error(err, "Hazelcast CR is not in Running state")
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 
@@ -75,7 +73,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		ms, err := json.Marshal(m.Spec)
 
 		if err != nil {
-			logger.Error(err, "Error marshaling Hot Backup as JSON")
+			err = fmt.Errorf("error marshaling Map as JSON: %w", err)
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
 		if s == string(ms) {
@@ -85,13 +83,12 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		lastSpec := &hazelcastv1alpha1.MapSpec{}
 		err = json.Unmarshal([]byte(s), lastSpec)
 		if err != nil {
-			r.Log.Error(err, "Error unmarshaling Last Map Spec")
+			err = fmt.Errorf("error unmarshaling Last Map Spec: %w", err)
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
 
 		err = ValidateNotUpdatableFields(&m.Spec, lastSpec)
 		if err != nil {
-			r.Log.Error(err, "Error validating the new spec")
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
 	}
@@ -113,7 +110,6 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	ms, err := r.ReconcileMapConfig(ctx, m, cl, createdBefore)
 	if err != nil {
-		r.Log.Error(err, "Error reconciling the object")
 		return updateMapStatus(ctx, r.Client, m, pendingStatus(retryAfterForMap).
 			withError(err).
 			withMessage(err.Error()).
