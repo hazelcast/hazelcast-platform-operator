@@ -128,6 +128,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 		r.cron.Start()
 	} else {
+		r.removeSchedule(req.NamespacedName, logger)
 		err = r.triggerHotBackup(ctx, req, rest, logger)
 		if err != nil {
 			_ = r.Client.Get(ctx, req.NamespacedName, hb)
@@ -259,10 +260,7 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 		Name:      hb.Name,
 		Namespace: hb.Namespace,
 	}
-	if jobId, ok := r.scheduled.LoadAndDelete(key); ok {
-		logger.V(1).Info("Removing cron Job.", "EntryId", jobId)
-		r.cron.Remove(jobId.(cron.EntryID))
-	}
+	r.removeSchedule(key, logger)
 	if s, ok := r.statuses.LoadAndDelete(key); ok {
 		logger.V(1).Info("Stopping status ticker for HotBackup.", "CR", key)
 		s.(*StatusTicker).stop()
@@ -274,6 +272,13 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 		return err
 	}
 	return nil
+}
+
+func (r *HotBackupReconciler) removeSchedule(key types.NamespacedName, logger logr.Logger) {
+	if jobId, ok := r.scheduled.LoadAndDelete(key); ok {
+		logger.V(1).Info("Removing cron Job.", "EntryId", jobId)
+		r.cron.Remove(jobId.(cron.EntryID))
+	}
 }
 
 func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, req reconcile.Request, rest *RestClient, logger logr.Logger) error {
