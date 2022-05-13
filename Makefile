@@ -146,7 +146,6 @@ test-it: manifests generate fmt vet ## Run tests.
 
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --tags $(GO_BUILD_TAGS) --vv --progress --timeout 60m --coverprofile cover.out ./test/e2e -- -ginkgo.label-filter="slow || fast" -namespace "$(NAMESPACE)" -eventually-timeout 15m  -delete-timeout 8m $(GO_TEST_FLAGS)
-	
 test-ph: generate fmt vet ginkgo ## Run phone-home tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -ginkgo.label-filter="slow || fast" -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
