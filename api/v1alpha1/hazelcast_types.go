@@ -102,7 +102,6 @@ type BackupAgentConfiguration struct {
 	AgentVersion string `json:"agentVersion,omitempty"`
 
 	// Name of the secret with credentials for cloud providers.
-	// +optional
 	BucketSecret string `json:"bucketSecret,omitempty"`
 }
 
@@ -119,11 +118,9 @@ type RestoreAgentConfiguration struct {
 	AgentVersion string `json:"agentVersion,omitempty"`
 
 	// Name of the secret with credentials for cloud providers.
-	// +optional
 	BucketSecret string `json:"bucketSecret,omitempty"`
 
 	// Full path to blob storage bucket.
-	// +optional
 	BucketPath string `json:"bucketPath,omitempty"`
 }
 
