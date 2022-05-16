@@ -154,7 +154,7 @@ jobs:
           sleep 30
 
   gke-e2e-test-operator-deployment:
-    name: Run E2E tests
+    name: Deploy Operators
     runs-on: ubuntu-20.04
     needs: create-gke-cluster
     if: always() && needs.create-gke-cluster.result == 'success'
@@ -243,21 +243,6 @@ jobs:
             --namespace ${{ env.NAMESPACE }} \
             --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
-      - name: Run Hazelcast E2E tests at GKE
-        id: e2e-test
-        run: |
-          case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
-
-      - name: Clean up after Tests
-        if: always()
-        run: |
-          make clean-up-namespace NAMESPACE=${NAMESPACE}
-
   gke-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-20.04
@@ -337,7 +322,7 @@ jobs:
                         E2E_TEST_SUITE=${{ matrix.suite }}
      
   clean-up:
-    name: Delete Cluster
+    name: Clean up and Delete Cluster
     runs-on: ubuntu-20.04
     if: always() && needs.create-gke-cluster.result != 'skipped'
     needs: [ create-gke-cluster, gke-e2e-tests ]
