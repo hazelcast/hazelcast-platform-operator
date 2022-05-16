@@ -66,19 +66,6 @@ func assertExists(name types.NamespacedName, obj client.Object) {
 	}, 20*Second, interval).Should(BeTrue())
 }
 
-func deleteIfExists(name types.NamespacedName, obj client.Object) {
-	Eventually(func() error {
-		err := k8sClient.Get(context.Background(), name, obj)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
-		return k8sClient.Delete(context.Background(), obj)
-	}, 5*Second, interval).Should(Succeed())
-}
-
 func cleanUpHostPath(namespace, hostPath, hzDir string) {
 	name := "cleanup-hostpath"
 	lb := map[string]string{
