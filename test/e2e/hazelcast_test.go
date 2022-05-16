@@ -29,7 +29,7 @@ var _ = FDescribe("Hazelcast", Label("hz"), func() {
 		Namespace: hzNamespace,
 	}
 	labels := map[string]string{
-		"test_suite": fmt.Sprintf("hazelcast_%d", GinkgoParallelProcess()),
+		"test_suite": fmt.Sprintf("hz-%d", GinkgoParallelProcess()),
 	}
 	BeforeEach(func() {
 		if !useExistingCluster() {

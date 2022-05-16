@@ -39,7 +39,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Namespace: hzNamespace,
 	}
 	labels := map[string]string{
-		"test_suite": fmt.Sprintf("hazelcast_persistence_%d", GinkgoParallelProcess()),
+		"test_suite": fmt.Sprintf("hz_persistence-%d", GinkgoParallelProcess()),
 	}
 	BeforeEach(func() {
 		if !useExistingCluster() {

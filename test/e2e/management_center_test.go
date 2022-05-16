@@ -26,7 +26,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		Namespace: hzNamespace,
 	}
 	labels := map[string]string{
-		"test_suite": fmt.Sprintf("map_persistence_%d", GinkgoParallelProcess()),
+		"test_suite": fmt.Sprintf("mc-%d", GinkgoParallelProcess()),
 	}
 	BeforeEach(func() {
 		if !useExistingCluster() {

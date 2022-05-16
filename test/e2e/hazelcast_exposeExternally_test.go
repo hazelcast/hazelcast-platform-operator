@@ -24,7 +24,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		Namespace: hzNamespace,
 	}
 	labels := map[string]string{
-		"test_suite": fmt.Sprintf("hazelcast_exposeExternally_%d", GinkgoParallelProcess()),
+		"test_suite": fmt.Sprintf("hz_exposeExternally_%d", GinkgoParallelProcess()),
 	}
 	BeforeEach(func() {
 		if !useExistingCluster() {
