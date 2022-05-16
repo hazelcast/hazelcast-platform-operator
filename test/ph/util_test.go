@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
+	. "time"
 
 	"cloud.google.com/go/bigquery"
 	. "github.com/onsi/ginkgo/v2"
@@ -31,7 +31,7 @@ const (
 
 type OperatorPhoneHome struct {
 	IP                            string             `bigquery:"ip"`
-	PingTime                      time.Time          `bigquery:"pingTime"`
+	PingTime                      Time               `bigquery:"pingTime"`
 	OperatorID                    string             `bigquery:"operatorID"`
 	PardotID                      string             `bigquery:"pardotID"`
 	Version                       string             `bigquery:"version"`
@@ -205,7 +205,7 @@ func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
 		err := k8sClient.Get(context.Background(), lookupKey, hz)
 		Expect(err).ToNot(HaveOccurred())
 		return hz.Status.Cluster.ReadyMembers
-	}, timeout, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
+	}, 3*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
 }
 
 func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast, lookupKey types.NamespacedName) {

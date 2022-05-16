@@ -30,7 +30,7 @@ func runningLocally() bool {
 	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
 }
 
-func controllerManagerName() string {
+func GetControllerManagerName() string {
 	np := os.Getenv("NAME_PREFIX")
 	if np == "" {
 		return "hazelcast-platform-controller-manager"
@@ -210,4 +210,24 @@ func assertRunningOrFailedMount(p v1.Pod, hostPath string) bool {
 		return false
 	}, 1*Minute, interval).Should(BeTrue())
 	return running
+}
+
+func deletePVCs(lk types.NamespacedName) {
+	pvcL := &corev1.PersistentVolumeClaimList{}
+	Eventually(func() bool {
+		err := k8sClient.List(context.Background(), pvcL, client.InNamespace(lk.Namespace))
+		if err != nil {
+			return false
+		}
+		for _, pvc := range pvcL.Items {
+			if strings.Contains(pvc.Name, lk.Name) {
+				err = k8sClient.Delete(context.Background(), &pvc)
+				if err != nil {
+					return false
+				}
+			}
+		}
+		return true
+	}, timeout, interval).Should(BeTrue())
+
 }

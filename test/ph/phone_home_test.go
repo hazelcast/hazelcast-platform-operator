@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	. "time"
 
 	"cloud.google.com/go/bigquery"
 	. "github.com/onsi/ginkgo/v2"
@@ -47,7 +48,7 @@ var _ = Describe("Hazelcast", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, timeout, interval).Should(Equal(int32(1)))
+			}, 90*Second, interval).Should(Equal(int32(1)))
 		})
 	})
 
@@ -110,10 +111,10 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName), "MemberNodePortNodeName metric")
 				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer), "MemberLoadBalancer metric")
 			},
-			Entry("with ExposeExternallyUnisocket configuration", Label("slow"), hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee), 1, 1, 0, 1, 0, 0, 0, 0),
-			Entry("with ExposeExternallySmartNodePort configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee), 1, 0, 1, 1, 0, 1, 0, 0),
-			Entry("with ExposeExternallySmartLoadBalancer configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee), 1, 0, 1, 1, 0, 0, 0, 1),
-			Entry("with ExposeExternallySmartNodePortNodeName configuration", Label("fast"), hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzNamespace, ee), 1, 0, 1, 0, 1, 0, 1, 0),
+			Entry("with ExposeExternallyUnisocket configuration", Label("slow"), hazelcastconfig.ExposeExternallyUnisocket(lookupKeyHz, ee, nil), 1, 1, 0, 1, 0, 0, 0, 0),
+			Entry("with ExposeExternallySmartNodePort configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartNodePort(lookupKeyHz, ee, nil), 1, 0, 1, 1, 0, 1, 0, 0),
+			Entry("with ExposeExternallySmartLoadBalancer configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartLoadBalancer(lookupKeyHz, ee, nil), 1, 0, 1, 1, 0, 0, 0, 1),
+			Entry("with ExposeExternallySmartNodePortNodeName configuration", Label("fast"), hazelcastconfig.ExposeExternallySmartNodePortNodeName(lookupKeyHz, ee, nil), 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
 
@@ -128,7 +129,7 @@ var _ = Describe("Hazelcast", func() {
 			deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
 		})
 		It("should have correct metrics", Label("fast"), func() {
-			mc := mcconfig.Default(hzNamespace, ee)
+			mc := mcconfig.Default(lookupKeyMc, ee, nil)
 			CreateMC(mc, lookupKeyMc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
 			assertAnnotationExists(mc)

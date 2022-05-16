@@ -3,17 +3,19 @@ package managementcenter
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 var (
-	Default = func(ns string, ee bool) *hazelcastv1alpha1.ManagementCenter {
+	Default = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.ManagementCenter {
 		return &hazelcastv1alpha1.ManagementCenter{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "managementcenter",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
 				Repository:       naming.MCRepo,
@@ -30,11 +32,12 @@ var (
 		}
 	}
 
-	PersistenceDisabled = func(ns string, ee bool) *hazelcastv1alpha1.ManagementCenter {
+	PersistenceDisabled = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.ManagementCenter {
 		return &hazelcastv1alpha1.ManagementCenter{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "managementcenter",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
 				Repository:       naming.MCRepo,
@@ -56,11 +59,12 @@ var (
 		}
 	}
 
-	Faulty = func(ns string, ee bool) *hazelcastv1alpha1.ManagementCenter {
+	Faulty = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.ManagementCenter {
 		return &hazelcastv1alpha1.ManagementCenter{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "managementcenter",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
 				Repository:       naming.MCRepo,

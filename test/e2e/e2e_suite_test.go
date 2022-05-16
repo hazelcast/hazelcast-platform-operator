@@ -5,6 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,6 +23,11 @@ var (
 	k8sClient client.Client
 	testEnv   *envtest.Environment
 )
+
+var controllerManagerName = types.NamespacedName{
+	Name: GetControllerManagerName(),
+	// Namespace is set in init() function
+}
 
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -55,6 +61,8 @@ var _ = BeforeSuite(func() {
 			cleanUpHostPath("default", "/tmp", "hazelcast")
 		}
 	}
+
+	controllerManagerName.Namespace = hzNamespace
 })
 
 var _ = AfterSuite(func() {

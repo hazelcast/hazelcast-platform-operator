@@ -18,22 +18,16 @@ import (
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
 
-const (
-	mcName = "managementcenter"
-)
+var _ = Describe("Management-Center", Label("mc"), func() {
+	mcName := fmt.Sprintf("managementcenter-%d", GinkgoParallelProcess())
 
-var _ = Describe("Management-Center", func() {
-
-	var lookupKey = types.NamespacedName{
+	var mcLookupKey = types.NamespacedName{
 		Name:      mcName,
 		Namespace: hzNamespace,
 	}
-
-	var controllerManagerName = types.NamespacedName{
-		Name:      controllerManagerName(),
-		Namespace: hzNamespace,
+	labels := map[string]string{
+		"test_suite": fmt.Sprintf("map_persistence_%d", GinkgoParallelProcess()),
 	}
-
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -51,14 +45,9 @@ var _ = Describe("Management-Center", func() {
 	})
 
 	AfterEach(func() {
-		Expect(k8sClient.Delete(context.Background(), emptyManagementCenter(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
-		assertDoesNotExist(lookupKey, &hazelcastcomv1alpha1.ManagementCenter{})
-
-		pvcLookupKey := types.NamespacedName{
-			Name:      fmt.Sprintf("mancenter-storage-%s-0", lookupKey.Name),
-			Namespace: lookupKey.Namespace,
-		}
-		deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
+		Expect(k8sClient.Delete(context.Background(), emptyManagementCenter(mcLookupKey), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
+		assertDoesNotExist(mcLookupKey, &hazelcastcomv1alpha1.ManagementCenter{})
+		deletePVCs(mcLookupKey)
 	})
 
 	create := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
@@ -69,7 +58,7 @@ var _ = Describe("Management-Center", func() {
 		By("Checking ManagementCenter CR running", func() {
 			mc := &hazelcastcomv1alpha1.ManagementCenter{}
 			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, mc)
+				err := k8sClient.Get(context.Background(), mcLookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
 				return isManagementCenterRunning(mc)
 			}, 2*Minute, interval).Should(BeTrue())
@@ -84,14 +73,14 @@ var _ = Describe("Management-Center", func() {
 
 	Describe("Default ManagementCenter CR", func() {
 		It("Should create ManagementCenter resources", Label("fast"), func() {
-			mc := mcconfig.Default(hzNamespace, ee)
+			mc := mcconfig.Default(mcLookupKey, ee, labels)
 			create(mc)
 
 			By("Checking if it created PVC with correct size", func() {
 				fetchedPVC := &corev1.PersistentVolumeClaim{}
 				pvcLookupKey := types.NamespacedName{
-					Name:      fmt.Sprintf("mancenter-storage-%s-0", lookupKey.Name),
-					Namespace: lookupKey.Namespace,
+					Name:      fmt.Sprintf("mancenter-storage-%s-0", mcLookupKey.Name),
+					Namespace: mcLookupKey.Namespace,
 				}
 				assertExists(pvcLookupKey, fetchedPVC)
 
@@ -104,7 +93,7 @@ var _ = Describe("Management-Center", func() {
 			By("Assert status external addresses not empty", func() {
 				Eventually(func() string {
 					cr := hazelcastcomv1alpha1.ManagementCenter{}
-					err := k8sClient.Get(context.Background(), lookupKey, &cr)
+					err := k8sClient.Get(context.Background(), mcLookupKey, &cr)
 					Expect(err).ToNot(HaveOccurred())
 					return cr.Status.ExternalAddresses
 				}, 1*Minute, interval).Should(Not(BeEmpty()))
@@ -114,14 +103,14 @@ var _ = Describe("Management-Center", func() {
 
 	Describe("ManagementCenter CR without Persistence", func() {
 		It("Should create ManagementCenter resources and no PVC", Label("fast"), func() {
-			mc := mcconfig.PersistenceDisabled(hzNamespace, ee)
+			mc := mcconfig.PersistenceDisabled(mcLookupKey, ee, labels)
 			create(mc)
 
 			By("Checking if PVC does not exist", func() {
 				fetchedPVC := &corev1.PersistentVolumeClaim{}
 				pvcLookupKey := types.NamespacedName{
-					Name:      fmt.Sprintf("mancenter-storage-%s-0", lookupKey.Name),
-					Namespace: lookupKey.Namespace,
+					Name:      fmt.Sprintf("mancenter-storage-%s-0", mcLookupKey.Name),
+					Namespace: mcLookupKey.Namespace,
 				}
 				assertDoesNotExist(pvcLookupKey, fetchedPVC)
 			})
@@ -132,7 +121,7 @@ var _ = Describe("Management-Center", func() {
 		assertStatusEventually := func(phase hazelcastcomv1alpha1.Phase) {
 			mc := &hazelcastcomv1alpha1.ManagementCenter{}
 			Eventually(func() hazelcastcomv1alpha1.Phase {
-				err := k8sClient.Get(context.Background(), lookupKey, mc)
+				err := k8sClient.Get(context.Background(), mcLookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
 				return mc.Status.Phase
 			}, 1*Minute, interval).Should(Equal(phase))
@@ -140,21 +129,8 @@ var _ = Describe("Management-Center", func() {
 		}
 
 		It("should be reflected to Management CR status", Label("fast"), func() {
-			createWithoutCheck(mcconfig.Faulty(hzNamespace, ee))
+			createWithoutCheck(mcconfig.Faulty(mcLookupKey, ee, labels))
 			assertStatusEventually(hazelcastcomv1alpha1.Failed)
 		})
 	})
 })
-
-func emptyManagementCenter() *hazelcastcomv1alpha1.ManagementCenter {
-	return &hazelcastcomv1alpha1.ManagementCenter{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      mcName,
-			Namespace: hzNamespace,
-		},
-	}
-}
-
-func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
-	return mc.Status.Phase == "Running"
-}
