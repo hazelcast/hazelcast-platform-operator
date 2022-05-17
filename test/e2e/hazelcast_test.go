@@ -8,13 +8,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
@@ -79,13 +77,7 @@ var _ = FDescribe("Hazelcast", Label("hz"), func() {
 			assertMemberLogs(hazelcast, "Members {size:3, ver:3}")
 
 			By("removing pods so that cluster gets recreated", func() {
-				// TODO This is problematic for parallel runs
-				err := k8sClient.DeleteAllOf(context.Background(), &corev1.Pod{}, client.InNamespace(hzLookupKey.Namespace), client.MatchingLabels{
-					n.ApplicationNameLabel:         n.Hazelcast,
-					n.ApplicationInstanceNameLabel: hazelcast.Name,
-					n.ApplicationManagedByLabel:    n.OperatorName,
-				})
-				Expect(err).ToNot(HaveOccurred())
+				deletePods(hzLookupKey)
 				evaluateReadyMembers(hzLookupKey, 3)
 			})
 		})

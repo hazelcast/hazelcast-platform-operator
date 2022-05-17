@@ -218,3 +218,16 @@ func deletePVCs(lk types.NamespacedName) {
 	}, timeout, interval).Should(BeTrue())
 
 }
+
+func deletePods(lk types.NamespacedName) {
+	// Because pods get recreated by the StatefulSet controller, we are not using the eventually block here
+	podL := &corev1.PodList{}
+	err := k8sClient.List(context.Background(), podL, client.InNamespace(lk.Namespace))
+	Expect(err).To(BeNil())
+	for _, pod := range podL.Items {
+		if strings.Contains(pod.Name, lk.Name) {
+			err = k8sClient.Delete(context.Background(), &pod)
+			Expect(err).To(BeNil())
+		}
+	}
+}
