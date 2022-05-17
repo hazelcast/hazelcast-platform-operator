@@ -159,7 +159,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
-	It("should trigger ForceStart when restart from HotBackup failed", Label("slow"), Label("map"), func() {
+	It("should trigger ForceStart when restart from HotBackup failed", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
