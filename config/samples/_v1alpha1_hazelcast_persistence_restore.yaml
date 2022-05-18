@@ -1,0 +1,21 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  clusterSize: 3
+  repository: "docker.io/hazelcast/hazelcast-enterprise"
+  version: "5.1"
+  licenseKeySecret: hazelcast-license-key
+  persistence:
+    baseDir: "/data/hot-restart/"
+    clusterDataRecoveryPolicy: "FullRecoveryOnly"
+    pvc:
+      accessModes: ["ReadWriteOnce"]
+      requestStorage: 8Gi
+      storageClassName: "standard"
+  restore:
+    agentRepository: hazelcast/platform-operator-agent
+    agentVersion: latest
+    bucketSecret: br-secret
+    bucketPath: "s3://restore-backup?prefix=hazelcast/2022-02-21-14-23-52/&region=us-east-1"

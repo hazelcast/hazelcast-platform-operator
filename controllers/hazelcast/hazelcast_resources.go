@@ -22,10 +22,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/config"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // Environment variables used for Hazelcast cluster configuration
@@ -409,7 +409,7 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
-		cm.Data, err = hazelcastConfigMapData(h)
+		cm.Data, err = hazelcastConfigMapData(r.Client, ctx, h)
 		return err
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -418,13 +418,45 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 	return err
 }
 
-func hazelcastConfigMapData(h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
+func hazelcastConfigMapData(c client.Client, ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
+	mapList := &hazelcastv1alpha1.MapList{}
+	err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": h.Name})
+	if err != nil {
+		return nil, err
+	}
+	ml := filterPersistedMaps(mapList.Items)
+
 	cfg := hazelcastConfigMapStruct(h)
+	fillHazelcastConfigWithMaps(&cfg, ml)
+
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 	if err != nil {
 		return nil, err
 	}
 	return map[string]string{"hazelcast.yaml": string(yml)}, nil
+}
+
+func filterPersistedMaps(ml []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
+	l := make([]hazelcastv1alpha1.Map, 0)
+
+	for _, mp := range ml {
+		switch mp.Status.State {
+		case hazelcastv1alpha1.MapPersisting, hazelcastv1alpha1.MapSuccess:
+			l = append(l, mp)
+		case hazelcastv1alpha1.MapFailed, hazelcastv1alpha1.MapPending:
+			if spec, ok := mp.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
+				ms := &hazelcastv1alpha1.MapSpec{}
+				err := json.Unmarshal([]byte(spec), ms)
+				if err != nil {
+					continue
+				}
+				mp.Spec = *ms
+				l = append(l, mp)
+			}
+		default:
+		}
+	}
+	return l
 }
 
 func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
@@ -486,6 +518,64 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 	return cfg
+}
+
+func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {
+	switch policyType {
+	case hazelcastv1alpha1.FullRecovery:
+		return "FULL_RECOVERY_ONLY"
+	case hazelcastv1alpha1.MostRecent:
+		return "PARTIAL_RECOVERY_MOST_RECENT"
+	case hazelcastv1alpha1.MostComplete:
+		return "PARTIAL_RECOVERY_MOST_COMPLETE"
+	}
+	return "FULL_RECOVERY_ONLY"
+}
+
+func fillHazelcastConfigWithMaps(cfg *config.Hazelcast, ml []hazelcastv1alpha1.Map) {
+	if len(ml) != 0 {
+		cfg.Map = map[string]config.Map{}
+		for _, mcfg := range ml {
+			cfg.Map[mcfg.MapName()] = createMapConfig(&mcfg.Spec)
+		}
+	}
+}
+
+func createMapConfig(ms *hazelcastv1alpha1.MapSpec) config.Map {
+	m := config.Map{
+		BackupCount:       *ms.BackupCount,
+		AsyncBackupCount:  int32(0),
+		TimeToLiveSeconds: *ms.TimeToLiveSeconds,
+		ReadBackupData:    false,
+		Eviction: config.MapEviction{
+			Size:           *ms.Eviction.MaxSize,
+			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
+			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
+		},
+		InMemoryFormat:    "BINARY",
+		Indexes:           copyMapIndexes(ms.Indexes),
+		StatisticsEnabled: true,
+		HotRestart: config.MapHotRestart{
+			Enabled: ms.PersistenceEnabled,
+			Fsync:   false,
+		},
+	}
+	return m
+}
+
+func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
+	ics := make([]config.MapIndex, len(idx))
+	for i, index := range idx {
+		ics[i].Type = string(index.Type)
+		ics[i].Attributes = index.Attributes
+		ics[i].Name = index.Name
+		if index.BitmapIndexOptions != nil {
+			ics[i].BitmapIndexOptions.UniqueKey = index.BitmapIndexOptions.UniqueKey
+			ics[i].BitmapIndexOptions.UniqueKeyTransformation = string(index.BitmapIndexOptions.UniqueKeyTransition)
+		}
+	}
+
+	return ics
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -587,8 +677,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		}
 	}
 
-	if h.Spec.Persistence.IsEnabled() && h.Spec.Backup.IsEnabled() {
-		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
+	if h.Spec.Persistence.IsEnabled() {
+		if h.Spec.Backup.IsEnabled() {
+			sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
+		}
+		if h.Spec.Restore.IsEnabled() {
+			sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, restoreAgentContainer(h))
+		}
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -615,10 +710,48 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
+func agentCredentials(h *hazelcastv1alpha1.Hazelcast, secret string) []v1.EnvVar {
+	return []v1.EnvVar{
+		{
+			Name: "AWS_ACCESS_KEY_ID",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: secret,
+					},
+					Key: n.BucketDataS3AccessKeyID,
+				},
+			},
+		},
+		{
+			Name: "AWS_SECRET_ACCESS_KEY",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: secret,
+					},
+					Key: n.BucketDataS3SecretAccessKey,
+				},
+			},
+		},
+		{
+			Name: "AWS_REGION",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: secret,
+					},
+					Key: n.BucketDataS3Region,
+				},
+			},
+		},
+	}
+}
+
 func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
 		Name:  n.BackupAgent,
-		Image: h.AgentDockerImage(),
+		Image: h.BackupAgentDockerImage(),
 		Ports: []v1.ContainerPort{{
 			ContainerPort: n.DefaultAgentPort,
 			Name:          n.BackupAgent,
@@ -653,41 +786,37 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			SuccessThreshold:    1,
 			FailureThreshold:    10,
 		},
-		Env: []v1.EnvVar{
-			{
-				Name: "AWS_ACCESS_KEY_ID",
+		Env: agentCredentials(h, h.Spec.Backup.BucketSecret),
+		VolumeMounts: []v1.VolumeMount{{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		}},
+	}
+}
+
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	return v1.Container{
+		Name:  n.RestoreAgent,
+		Image: h.RestoreAgentDockerImage(),
+		Args:  []string{"restore"},
+		Env: append(agentCredentials(h, h.Spec.Restore.BucketSecret),
+			v1.EnvVar{
+				Name:  "RESTORE_BUCKET",
+				Value: h.Spec.Restore.BucketPath,
+			},
+			v1.EnvVar{
+				Name:  "RESTORE_DESTINATION",
+				Value: h.Spec.Persistence.BaseDir,
+			},
+			v1.EnvVar{
+				Name: "RESTORE_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.Backup.BucketSecret,
-						},
-						Key: n.BucketDataS3AccessKeyID,
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.name",
 					},
 				},
 			},
-			{
-				Name: "AWS_SECRET_ACCESS_KEY",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.Backup.BucketSecret,
-						},
-						Key: n.BucketDataS3SecretAccessKey,
-					},
-				},
-			},
-			{
-				Name: "AWS_REGION",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.Backup.BucketSecret,
-						},
-						Key: n.BucketDataS3Region,
-					},
-				},
-			},
-		},
+		),
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
@@ -789,16 +918,41 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 	return nil
 }
 
-func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {
-	switch policyType {
-	case hazelcastv1alpha1.FullRecovery:
-		return "FULL_RECOVERY_ONLY"
-	case hazelcastv1alpha1.MostRecent:
-		return "PARTIAL_RECOVERY_MOST_RECENT"
-	case hazelcastv1alpha1.MostComplete:
-		return "PARTIAL_RECOVERY_MOST_COMPLETE"
+func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	// make sure restore is active
+	if !h.Spec.Restore.IsEnabled() {
+		return nil
 	}
-	return "FULL_RECOVERY_ONLY"
+
+	// make sure restore was successfull
+	if h.Status.Restore == nil {
+		return nil
+	}
+
+	if h.Status.Restore.State != hazelcastv1alpha1.RestoreSucceeded {
+		return nil
+	}
+
+	if h.Status.Phase == hazelcastv1alpha1.Pending {
+		return nil
+	}
+
+	// check if all cluster members are in passive state
+	for _, member := range h.Status.Members {
+		if ClusterState(member.State) != Passive {
+			return nil
+		}
+	}
+
+	rest := NewRestClient(h)
+	state, err := rest.GetState(ctx)
+	if err != nil {
+		return err
+	}
+	if state != "passive" {
+		return nil
+	}
+	return rest.ChangeState(ctx, Active)
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {

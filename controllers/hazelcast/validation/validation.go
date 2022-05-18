@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 func ValidateSpec(h *hazelcastv1alpha1.Hazelcast) error {

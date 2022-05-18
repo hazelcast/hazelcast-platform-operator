@@ -1,0 +1,7 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Map
+metadata:
+  name: map
+spec:
+  hazelcastResourceName: hazelcast
+  persistenceEnabled: true

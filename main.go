@@ -7,12 +7,12 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.

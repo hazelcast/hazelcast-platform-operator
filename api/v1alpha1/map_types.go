@@ -2,8 +2,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
 )
 
 // MapSpec defines the desired state of Hazelcast Map Config
@@ -61,7 +59,7 @@ type EvictionConfig struct {
 	// Eviction policy to be applied when map reaches its max size according to the max size policy.
 	// +kubebuilder:default:="NONE"
 	// +optional
-	EvictionPolicy types.EvictionPolicyType `json:"persistenceEnabled,omitempty"`
+	EvictionPolicy EvictionPolicyType `json:"evictionPolicy,omitempty"`
 
 	// Max size of the map.
 	// +kubebuilder:default:=0
@@ -71,8 +69,68 @@ type EvictionConfig struct {
 	// Policy for deciding if the maxSize is reached.
 	// +kubebuilder:default:="PER_NODE"
 	// +optional
-	MaxSizePolicy types.MaxSizePolicyType `json:"maxSizePolicy,omitempty"`
+	MaxSizePolicy MaxSizePolicyType `json:"maxSizePolicy,omitempty"`
 }
+
+// +kubebuilder:validation:Enum=PER_NODE;PER_PARTITION;USED_HEAP_SIZE;USED_HEAP_PERCENTAGE;FREE_HEAP_SIZE;FREE_HEAP_PERCENTAGE;USED_NATIVE_MEMORY_SIZE;USED_NATIVE_MEMORY_PERCENTAGE;FREE_NATIVE_MEMORY_SIZE;FREE_NATIVE_MEMORY_PERCENTAGE
+type MaxSizePolicyType string
+
+const (
+	// Maximum number of map entries in each cluster member.
+	// You cannot set the max-size to a value lower than the partition count (which is 271 by default).
+	MaxSizePolicyPerNode MaxSizePolicyType = "PER_NODE"
+
+	// Maximum number of map entries within each partition.
+	MaxSizePolicyPerPartition MaxSizePolicyType = "PER_PARTITION"
+
+	// Maximum used heap size percentage per map for each Hazelcast instance.
+	// If, for example, JVM is configured to have 1000 MB and this value is 10, then the map entries will be evicted when used heap size
+	// exceeds 100 MB. It does not work when "in-memory-format" is set to OBJECT.
+	MaxSizePolicyUsedHeapPercentage MaxSizePolicyType = "USED_HEAP_PERCENTAGE"
+
+	// Maximum used heap size in megabytes per map for each Hazelcast instance. It does not work when "in-memory-format" is set to OBJECT.
+	MaxSizePolicyUsedHeapSize MaxSizePolicyType = "USED_HEAP_SIZE"
+
+	// Minimum free heap size percentage for each Hazelcast instance. If, for example, JVM is configured to
+	// have 1000 MB and this value is 10, then the map entries will be evicted when free heap size is below 100 MB.
+	MaxSizePolicyFreeHeapPercentage MaxSizePolicyType = "FREE_HEAP_PERCENTAGE"
+
+	// Minimum free heap size in megabytes for each Hazelcast instance.
+	MaxSizePolicyFreeHeapSize MaxSizePolicyType = "FREE_HEAP_SIZE"
+
+	// Maximum used native memory size in megabytes per map for each Hazelcast instance. It is available only in
+	// Hazelcast Enterprise HD.
+	MaxSizePolicyUsedNativeMemorySize MaxSizePolicyType = "USED_NATIVE_MEMORY_SIZE"
+
+	// Maximum used native memory size percentage per map for each Hazelcast instance. It is available only in
+	// Hazelcast Enterprise HD.
+	MaxSizePolicyUsedNativeMemoryPercentage MaxSizePolicyType = "USED_NATIVE_MEMORY_PERCENTAGE"
+
+	// Minimum free native memory size in megabytes for each Hazelcast instance. It is available only in
+	// Hazelcast Enterprise HD.
+	MaxSizePolicyFreeNativeMemorySize MaxSizePolicyType = "FREE_NATIVE_MEMORY_SIZE"
+
+	// Minimum free native memory size percentage for each Hazelcast instance. It is available only in
+	// Hazelcast Enterprise HD.
+	MaxSizePolicyFreeNativeMemoryPercentage MaxSizePolicyType = "FREE_NATIVE_MEMORY_PERCENTAGE"
+)
+
+// +kubebuilder:validation:Enum=NONE;LRU;LFU;RANDOM
+type EvictionPolicyType string
+
+const (
+	// Least recently used entries will be removed.
+	EvictionPolicyLRU EvictionPolicyType = "LRU"
+
+	// Least frequently used entries will be removed.
+	EvictionPolicyLFU EvictionPolicyType = "LFU"
+
+	// No eviction.
+	EvictionPolicyNone EvictionPolicyType = "NONE"
+
+	// Randomly selected entries will be removed.
+	EvictionPolicyRandom EvictionPolicyType = "RANDOM"
+)
 
 type IndexConfig struct {
 	// Name of the index config.
@@ -127,6 +185,8 @@ const (
 	MapFailed  MapConfigState = "Failed"
 	MapSuccess MapConfigState = "Success"
 	MapPending MapConfigState = "Pending"
+	// Map config is added into all members but waiting for map to be persisten into ConfigMap
+	MapPersisting MapConfigState = "Persisting"
 )
 
 //+kubebuilder:object:root=true
@@ -164,41 +224,35 @@ func init() {
 }
 
 var (
-	EncodeInMemoryFormat = map[types.InMemoryFormat]int32{
-		types.InMemoryFormatBinary: 0,
-		types.InMemoryFormatObject: 1,
-		types.InMemoryFormatNative: 2,
+	EncodeMaxSizePolicy = map[MaxSizePolicyType]int32{
+		MaxSizePolicyPerNode:                    0,
+		MaxSizePolicyPerPartition:               1,
+		MaxSizePolicyUsedHeapPercentage:         2,
+		MaxSizePolicyUsedHeapSize:               3,
+		MaxSizePolicyFreeHeapPercentage:         4,
+		MaxSizePolicyFreeHeapSize:               5,
+		MaxSizePolicyUsedNativeMemorySize:       6,
+		MaxSizePolicyUsedNativeMemoryPercentage: 7,
+		MaxSizePolicyFreeNativeMemorySize:       8,
+		MaxSizePolicyFreeNativeMemoryPercentage: 9,
 	}
 
-	EncodeMaxSizePolicy = map[types.MaxSizePolicyType]int32{
-		types.MaxSizePolicyPerNode:                    0,
-		types.MaxSizePolicyPerPartition:               1,
-		types.MaxSizePolicyUsedHeapPercentage:         2,
-		types.MaxSizePolicyUsedHeapSize:               3,
-		types.MaxSizePolicyFreeHeapPercentage:         4,
-		types.MaxSizePolicyFreeHeapSize:               5,
-		types.MaxSizePolicyUsedNativeMemorySize:       6,
-		types.MaxSizePolicyUsedNativeMemoryPercentage: 7,
-		types.MaxSizePolicyFreeNativeMemorySize:       8,
-		types.MaxSizePolicyFreeNativeMemoryPercentage: 9,
+	EncodeEvictionPolicyType = map[EvictionPolicyType]int32{
+		EvictionPolicyLRU:    0,
+		EvictionPolicyLFU:    1,
+		EvictionPolicyNone:   2,
+		EvictionPolicyRandom: 3,
 	}
 
-	EncodeEvictionPolicyType = map[types.EvictionPolicyType]int32{
-		types.EvictionPolicyLRU:    0,
-		types.EvictionPolicyLFU:    1,
-		types.EvictionPolicyNone:   2,
-		types.EvictionPolicyRandom: 3,
+	EncodeIndexType = map[IndexType]int32{
+		IndexTypeSorted: 0,
+		IndexTypeHash:   1,
+		IndexTypeBitmap: 2,
 	}
 
-	EncodeIndexType = map[IndexType]types.IndexType{
-		IndexTypeSorted: types.IndexTypeSorted,
-		IndexTypeHash:   types.IndexTypeHash,
-		IndexTypeBitmap: types.IndexTypeBitmap,
-	}
-
-	EncodeUniqueKeyTransition = map[UniqueKeyTransition]types.UniqueKeyTransformation{
-		UniqueKeyTransitionObject: types.UniqueKeyTransformationObject,
-		UniqueKeyTransitionLong:   types.UniqueKeyTransformationLong,
-		UniqueKeyTransitionRAW:    types.UniqueKeyTransformationRaw,
+	EncodeUniqueKeyTransition = map[UniqueKeyTransition]int32{
+		UniqueKeyTransitionObject: 0,
+		UniqueKeyTransitionLong:   1,
+		UniqueKeyTransitionRAW:    2,
 	}
 )

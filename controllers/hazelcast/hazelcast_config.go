@@ -10,7 +10,7 @@ import (
 	"github.com/hazelcast/hazelcast-go-client/logger"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 func buildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {

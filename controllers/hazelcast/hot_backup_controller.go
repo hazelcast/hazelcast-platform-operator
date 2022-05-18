@@ -21,8 +21,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 type HotBackupReconciler struct {
@@ -124,6 +124,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 		r.cron.Start()
 	} else {
+		r.removeSchedule(req.NamespacedName, logger)
 		err = r.triggerHotBackup(ctx, req, rest, logger)
 		if err != nil {
 			_ = r.Client.Get(ctx, req.NamespacedName, hb)
@@ -254,10 +255,7 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 		Name:      hb.Name,
 		Namespace: hb.Namespace,
 	}
-	if jobId, ok := r.scheduled.LoadAndDelete(key); ok {
-		logger.V(util.DebugLevel).Info("Removing cron Job.", "EntryId", jobId)
-		r.cron.Remove(jobId.(cron.EntryID))
-	}
+	r.removeSchedule(key, logger)
 	if s, ok := r.statuses.LoadAndDelete(key); ok {
 		logger.V(util.DebugLevel).Info("Stopping status ticker for HotBackup.", "CR", key)
 		s.(*StatusTicker).stop()
@@ -268,6 +266,13 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
 	return nil
+}
+
+func (r *HotBackupReconciler) removeSchedule(key types.NamespacedName, logger logr.Logger) {
+	if jobId, ok := r.scheduled.LoadAndDelete(key); ok {
+		logger.V(util.DebugLevel).Info("Removing cron Job.", "EntryId", jobId)
+		r.cron.Remove(jobId.(cron.EntryID))
+	}
 }
 
 func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, req reconcile.Request, rest *RestClient, logger logr.Logger) error {

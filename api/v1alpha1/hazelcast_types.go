@@ -82,6 +82,11 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	Backup *BackupAgentConfiguration `json:"backup,omitempty"`
+
+	// Restore Agent configuration
+	// +optional
+	// +kubebuilder:default:={}
+	Restore *RestoreAgentConfiguration `json:"restore,omitempty"`
 }
 
 type BackupAgentConfiguration struct {
@@ -97,8 +102,26 @@ type BackupAgentConfiguration struct {
 	AgentVersion string `json:"agentVersion,omitempty"`
 
 	// Name of the secret with credentials for cloud providers.
-	// +optional
 	BucketSecret string `json:"bucketSecret,omitempty"`
+}
+
+// RestoreAgentConfiguration contains the configuration for Restore Agent
+type RestoreAgentConfiguration struct {
+	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
+	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
+	// +optional
+	AgentRepository string `json:"agentRepository,omitempty"`
+
+	// Version of Hazelcast Platform Operator Agent.
+	// +kubebuilder:default:="1.0.0"
+	// +optional
+	AgentVersion string `json:"agentVersion,omitempty"`
+
+	// Name of the secret with credentials for cloud providers.
+	BucketSecret string `json:"bucketSecret,omitempty"`
+
+	// Full path to blob storage bucket.
+	BucketPath string `json:"bucketPath,omitempty"`
 }
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
@@ -309,6 +332,11 @@ func (c *BackupAgentConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (BackupAgentConfiguration{}))
 }
 
+// IsEnabled returns true if Restore Agent configuration is specified
+func (r *RestoreAgentConfiguration) IsEnabled() bool {
+	return r != nil && !(*r == (RestoreAgentConfiguration{}))
+}
+
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
 	// Phase of the Hazelcast cluster
@@ -466,6 +494,10 @@ func (h *Hazelcast) ExternalAddressEnabled() bool {
 		h.Spec.ExposeExternally.DiscoveryServiceType == corev1.ServiceTypeLoadBalancer
 }
 
-func (h *Hazelcast) AgentDockerImage() string {
+func (h *Hazelcast) BackupAgentDockerImage() string {
 	return fmt.Sprintf("%s:%s", h.Spec.Backup.AgentRepository, h.Spec.Backup.AgentVersion)
+}
+
+func (h *Hazelcast) RestoreAgentDockerImage() string {
+	return fmt.Sprintf("%s:%s", h.Spec.Restore.AgentRepository, h.Spec.Restore.AgentVersion)
 }

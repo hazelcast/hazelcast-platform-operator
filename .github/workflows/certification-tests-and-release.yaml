@@ -1,0 +1,268 @@
+name: (2) Operator Certification Tests And Releasing
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      RELEASE_VERSION:
+        description: "Version in the form of X.Y[.Z]"
+        required: true
+  schedule:
+    - cron: "0 9 * * *"
+
+env:
+  PROJECT_ID: ${{ secrets.PROJECT_ID }}
+  PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
+  PFLT_DOCKERCONFIG: /home/runner/.docker/config.json
+  PREFLIGHT_VERSION: 1.1.0
+  NAMESPACE: oc-test-operator-${{ github.run_id }}
+  PARDOT_ID: redhat
+
+jobs:
+  test_container:
+    name: Build and Test Container
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-latest
+    outputs:
+      RELEASE_VERSION: ${{ steps.setup-envs.outputs.RELEASE_VERSION }}
+      CONTAINER_IMAGE: ${{ steps.setup-envs.outputs.CONTAINER_IMAGE }}
+      PROJECT_ID: ${{ steps.setup-envs.outputs.PROJECT_ID }}
+      PREFLIGHT_VERSION: ${{ steps.setup-envs.outputs.PREFLIGHT_VERSION }}
+    steps:
+      - name: Checkout to hazelcast-operator
+        uses: actions/checkout@v3
+
+      - name: Setup Preflight and Get Certification Project ID
+        uses: ./.github/actions/operator-tests
+        with:
+          PFLT_PYXIS_API_TOKEN: $PFLT_PYXIS_API_TOKEN
+          PROJECT_ID: $PROJECT_ID
+          PREFLIGHT_VERSION: $PREFLIGHT_VERSION
+
+      - name: Set Environment Variables And Job Outputs
+        id: setup-envs
+        run: |
+          if [[ ${{ github.event_name == 'schedule' }} == true ]]; then
+              echo "RELEASE_VERSION=7.8.0" >> $GITHUB_ENV
+              echo "::set-output name=RELEASE_VERSION::7.8.0"
+          elif [[ ${{ github.event_name == 'workflow_dispatch' }} == true ]]; then
+              echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_ENV
+              echo "::set-output name=RELEASE_VERSION::${{ github.event.inputs.RELEASE_VERSION }}"
+          elif [[ ${{ github.event_name == 'push' }} == true ]]; then
+              echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV
+              echo "::set-output name=RELEASE_VERSION::${GITHUB_REF:11}"
+          fi
+              CONTAINER_REPOSITORY=$(uuidgen)
+              CONTAINER_IMAGE=ttl.sh/$CONTAINER_REPOSITORY:1h
+              echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}" >> $GITHUB_ENV
+              echo "::set-output name=CONTAINER_IMAGE::${CONTAINER_IMAGE}"
+              echo "::set-output name=PROJECT_ID::${PROJECT_ID}"
+              echo "::set-output name=PREFLIGHT_VERSION::${PREFLIGHT_VERSION}"
+
+      - name: Validate version
+        run: |
+          NUMBER='(0|[1-9][0-9]*)'
+          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+
+      - name: Build Operator Image
+        run: |
+          echo "Building the operator image"
+          make docker-build-ci IMG=$CONTAINER_IMAGE VERSION=${RELEASE_VERSION} PARDOT_ID=${PARDOT_ID}
+
+      - name: Push Operator Image to ttl.sh
+        run: |
+          echo "Pushing the operator image to ttl.sh repository"
+          make docker-push IMG=$CONTAINER_IMAGE
+
+      - name: Initiating a Container Scan
+        run: |
+          echo "Running the container scan tests"
+          preflight check container $CONTAINER_IMAGE
+          grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
+
+  openscap_image_scan:
+    name: Run OpenSCAP Vulnerability Scan
+    needs: test_container
+    defaults:
+      run:
+        shell: bash
+    env:
+      CONTAINER_IMAGE: ${{ needs.test_container.outputs.CONTAINER_IMAGE }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run OpenSCAP Vulnerability Scan
+        id: vulnerabilityScan
+        uses: appleboy/ssh-action@v0.1.4
+        with:
+          host: ${{ secrets.SCANHOST }}
+          username: ec2-user
+          key: ${{ secrets.KEY }}
+          envs: CONTAINER_IMAGE
+          script: |
+            sudo podman pull $CONTAINER_IMAGE
+            sudo oscap-podman $CONTAINER_IMAGE oval eval --report vulnerability_report.html rhel-8.oval.xml | grep -E 'true' && exit 1 || echo "Vulnerabilty scan passed"
+
+      - name: Download Scan Report
+        if: failure() && steps.vulnerabilityScan.outcome == 'failure'
+        uses: nicklasfrahm/scp-action@v1.0.1
+        with:
+          direction: download
+          host: ${{ secrets.SCANHOST }}
+          username: ec2-user
+          fingerprint: ${{ secrets.FINGERPRINT }}
+          key: ${{ secrets.KEY }}
+          source: ~/vulnerability_report.html
+          target: vulnerability_report.html
+
+      - name: Save Scan Report As Artifact
+        uses: actions/upload-artifact@v3
+        if: failure() && steps.vulnerabilityScan.outcome == 'failure'
+        with:
+          name: vulnerability-report
+          path: vulnerability_report.html
+
+  build_bundle:
+    name: Build Bundle and Index Image
+    needs: [test_container, openscap_image_scan]
+    defaults:
+      run:
+        shell: bash
+    env:
+      CONTAINER_IMAGE: ${{ needs.test_container.outputs.CONTAINER_IMAGE }}
+      RELEASE_VERSION: ${{ needs.test_container.outputs.RELEASE_VERSION }}
+    outputs:
+      BUNDLE_VERSION: ${{ steps.build-bundle-outputs.outputs.BUNDLE_VERSION }}
+      BUNDLE_IMAGE: ${{ steps.build-bundle-outputs.outputs.BUNDLE_IMAGE }}
+      PFLT_INDEXIMAGE: ${{ steps.build-bundle-outputs.outputs.PFLT_INDEXIMAGE }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout to hazelcast-operator
+        uses: actions/checkout@v3
+
+      - name: Setup Preflight and OPM Tools
+        uses: ./.github/actions/operator-tests
+        with:
+          PREFLIGHT_VERSION: $PREFLIGHT_VERSION
+          OPM_INSTALL: true
+
+      - name: Set Environment Variables And Job Outputs
+        id: build-bundle-outputs
+        run: |
+          BUNDLE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
+          BUNDLE_REPOSITORY=$(uuidgen)
+          BUNDLE_IMAGE=ttl.sh/$BUNDLE_REPOSITORY:1h
+          PFLT_INDEXIMAGE=ttl.sh/$BUNDLE_REPOSITORY-index:1h
+          echo "BUNDLE_VERSION=${BUNDLE_VERSION}" >> $GITHUB_ENV
+          echo "BUNDLE_REPOSITORY=${BUNDLE_REPOSITORY}" >> $GITHUB_ENV
+          echo "BUNDLE_IMAGE=${BUNDLE_IMAGE}" >> $GITHUB_ENV
+          echo "PFLT_INDEXIMAGE=${PFLT_INDEXIMAGE}" >> $GITHUB_ENV
+          echo "::set-output name=BUNDLE_VERSION::${BUNDLE_VERSION}"
+          echo "::set-output name=BUNDLE_IMAGE::${BUNDLE_IMAGE}"
+          echo "::set-output name=PFLT_INDEXIMAGE::${PFLT_INDEXIMAGE}"
+
+      - name: Build Bundle
+        run: |
+          make bundle IMG=${CONTAINER_IMAGE} VERSION=${RELEASE_VERSION}
+          cat >> ./bundle/metadata/annotations.yaml <<EOF
+            # OpenShift annotations.
+            com.redhat.openshift.versions: "v4.6"
+            operators.operatorframework.io.bundle.channel.default.v1: alpha
+          EOF
+
+      - name: Upload Bundle Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: bundle-artifacts
+          path: ./bundle/
+
+      - name: Build and Push Bundle Image
+        run: |
+          docker build -f bundle.Dockerfile -t ${BUNDLE_IMAGE} .
+          docker push ${BUNDLE_IMAGE}
+
+      - name: Create Bundle Index
+        run: |
+          opm index add --bundles ${BUNDLE_IMAGE} --tag ${PFLT_INDEXIMAGE}
+          podman push ${PFLT_INDEXIMAGE}
+
+  test_operator:
+    name: Test Operator Bundle
+    needs: build_bundle
+    runs-on: ubuntu-latest
+    env:
+      PFLT_INDEXIMAGE: ${{ needs.build_bundle.outputs.PFLT_INDEXIMAGE }}
+      BUNDLE_IMAGE: ${{ needs.build_bundle.outputs.BUNDLE_IMAGE }}
+      OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
+      OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
+      OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
+      KUBECONFIG: ""
+    steps:
+      - name: Checkout to hazelcast-operator
+        uses: actions/checkout@v3
+
+      - name: Setup Preflight and Operator SDK
+        uses: ./.github/actions/operator-tests
+        with:
+          PREFLIGHT_VERSION: $PREFLIGHT_VERSION
+          OPERATOR_SDK_INSTALL: true
+
+      - name: Login to Docker Hub Registry
+        run: |
+          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | \
+            docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Login to OCP and Create New Project
+        run: |
+          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc new-project ${NAMESPACE}
+
+      - name: Initiating an Operator Bundle Scan
+        run: |
+          preflight check operator ${BUNDLE_IMAGE}
+          grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
+
+      - name: Clean Up Openshift Namespace
+        run: |
+          oc delete project ${NAMESPACE}
+
+  community_operators_test_suite:
+    needs: build_bundle
+    uses: ./.github/workflows/community-operator-tests.yaml
+    with:
+      BUNDLE_VERSION: ${{ needs.build_bundle.outputs.BUNDLE_VERSION }}
+
+  release_operator:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [test_container, test_operator, community_operators_test_suite]
+    uses: ./.github/workflows/publish-release.yaml
+    with:
+      RELEASE_VERSION: ${{ needs.test_container.outputs.RELEASE_VERSION }}
+      PROJECT_ID: ${{ needs.test_container.outputs.PROJECT_ID }}
+      PREFLIGHT_VERSION: ${{ needs.test_container.outputs.PREFLIGHT_VERSION }}
+    secrets:
+      PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+  clean_up_artifacts:
+    if: always()
+    needs: [ build_bundle, openscap_image_scan, community_operators_test_suite ]
+    runs-on: ubuntu-latest
+    name: Clean The Bundle Artifact and Test Image
+    steps:
+      - name: Delete Bundle Artifact
+        uses: geekyeggo/delete-artifact@v1
+        with:
+          name: |
+            bundle-artifacts
+
+      - name: Delete Test Image For Security Scan
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SCANHOST }}
+          username: ec2-user
+          key: ${{ secrets.KEY }}
+          script: sudo podman image prune -af

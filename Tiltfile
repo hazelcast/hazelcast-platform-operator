@@ -18,7 +18,7 @@ if os.getenv("USE_TTL_REG", default= "false").lower() == "true":
 local_resource(
   'go-compile',
   'make build-tilt',
-  deps=['./main.go','api/','controllers/',],
+  deps=['./main.go','api/','controllers/','internal/',],
   ignore=['api/v1alpha1/zz_generated.deepcopy.go*'],
 )
 

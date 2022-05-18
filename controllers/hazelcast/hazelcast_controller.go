@@ -21,9 +21,9 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // retryAfter is the time in seconds to requeue for the Pending phase
@@ -162,6 +162,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
 
+	if err = r.ensureClusterActive(ctx, h, logger); err != nil {
+		logger.Error(err, "Cluster activation attempt after hot restore failed")
+		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+	}
+
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, *h.Spec.ClusterSize); !ok {
 		if err == nil {
 			return update(ctx, r.Client, h, pendingPhase(retryAfter))
@@ -218,6 +223,27 @@ func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request 
 	}
 }
 
+func (r *HazelcastReconciler) mapUpdates(m client.Object) []reconcile.Request {
+	mp, ok := m.(*hazelcastv1alpha1.Map)
+	if !ok {
+		return []reconcile.Request{}
+	}
+
+	if mp.Status.State == hazelcastv1alpha1.MapPending {
+		return []reconcile.Request{}
+	}
+	name := mp.Spec.HazelcastResourceName
+
+	return []reconcile.Request{
+		{
+			NamespacedName: types.NamespacedName{
+				Name:      name,
+				Namespace: mp.GetNamespace(),
+			},
+		},
+	}
+}
+
 func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 	if pod.Labels[n.ApplicationManagedByLabel] == n.OperatorName && pod.Labels[n.ApplicationNameLabel] == n.Hazelcast {
 		return pod.Labels[n.ApplicationInstanceNameLabel], true
@@ -245,6 +271,12 @@ func clientConnectionMessage(req ctrl.Request) string {
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.Map{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.Map)
+		return []string{m.Spec.HazelcastResourceName}
+	}); err != nil {
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Hazelcast{}).
 		Owns(&appsv1.StatefulSet{}).
@@ -254,5 +286,6 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).
+		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates)).
 		Complete(r)
 }
