@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"net/http"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -266,15 +267,43 @@ func TestHotBackupReconciler_shouldUpdateWhenScheduledBackupChangedToInstantBack
 	})
 }
 
+func TestHotBackupReconciler_shouldSetStatusToFailedIfHazelcastCRNotFound(t *testing.T) {
+	RegisterFailHandler(fail(t))
+	n := types.NamespacedName{
+		Name:      "hazelcast",
+		Namespace: "default",
+	}
+	hb := &hazelcastv1alpha1.HotBackup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+		},
+		Spec: hazelcastv1alpha1.HotBackupSpec{
+			HazelcastResourceName: "hazelcast",
+			Schedule:              "0 23 31 2 *",
+		},
+	}
+
+	r := hotBackupReconcilerWithCRs(hb)
+	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
+	if err == nil {
+		t.Errorf("Error executing Reconcile to return error but returned nil")
+	}
+
+	_ = r.Client.Get(context.TODO(), n, hb)
+	Expect(hb.Status.State).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+	Expect(hb.Status.Message).Should(Not(BeEmpty()))
+}
+
 func fail(t *testing.T) func(message string, callerSkip ...int) {
 	return func(message string, callerSkip ...int) {
 		t.Errorf(message)
 	}
 }
 
-func hotBackupReconcilerWithCRs(h *hazelcastv1alpha1.Hazelcast, hb *hazelcastv1alpha1.HotBackup) HotBackupReconciler {
+func hotBackupReconcilerWithCRs(initObjs ...client.Object) HotBackupReconciler {
 	return HotBackupReconciler{
-		Client: fakeClient(h, hb),
+		Client: fakeClient(initObjs...),
 		Log:    ctrl.Log.WithName("test").WithName("Hazelcast"),
 		cron:   cron.New(),
 	}
