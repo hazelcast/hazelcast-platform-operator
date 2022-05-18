@@ -60,7 +60,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	controllerutil.RemoveFinalizer(h, n.Finalizer)
 	err := r.Update(ctx, h)
 	if err != nil {
-		return fmt.Errorf("Failed to remove finalizer from custom resource: %w", err)
+		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
 	if util.IsPhoneHomeEnabled() {
 		delete(r.metrics.HazelcastMetrics, h.UID)
