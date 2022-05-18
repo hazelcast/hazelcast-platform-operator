@@ -74,7 +74,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			logger.Info("Hazelcast resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "Failed to get Hazelcast")
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
@@ -89,7 +88,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// Execute finalizer's pre-delete function to cleanup ClusterRole
 		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
-			logger.Error(err, "Finalizer execution failed")
 			return update(ctx, r.Client, h, failedPhase(err))
 		}
 		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
@@ -140,7 +138,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
-	if !r.isServicePerPodReady(ctx, h, logger) {
+	if !r.isServicePerPodReady(ctx, h) {
 		logger.Info("Service per pod is not ready, waiting.")
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}

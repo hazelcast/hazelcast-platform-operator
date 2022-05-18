@@ -41,7 +41,7 @@ func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1al
 		if err != nil {
 			return err
 		}
-		logger.V(1).Info("Finalizer added into custom resource successfully")
+		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
 	}
 	return nil
 }
@@ -52,18 +52,15 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	}
 
 	if err := r.removeClusterRole(ctx, h, logger); err != nil {
-		logger.Error(err, "ClusterRole could not be removed")
-		return err
+		return fmt.Errorf("ClusterRole could not be removed: %w", err)
 	}
 	if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
-		logger.Error(err, "ClusterRoleBinding could not be removed")
-		return err
+		return fmt.Errorf("ClusterRoleBinding could not be removed: %w", err)
 	}
 	controllerutil.RemoveFinalizer(h, n.Finalizer)
 	err := r.Update(ctx, h)
 	if err != nil {
-		logger.Error(err, "Failed to remove finalizer from custom resource")
-		return err
+		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
 	if util.IsPhoneHomeEnabled() {
 		delete(r.metrics.HazelcastMetrics, h.UID)
@@ -76,16 +73,15 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 	clusterRole := &rbacv1.ClusterRole{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, clusterRole)
 	if err != nil && errors.IsNotFound(err) {
-		logger.V(1).Info("ClusterRole is not created yet. Or it is already removed.")
+		logger.V(util.DebugLevel).Info("ClusterRole is not created yet. Or it is already removed.")
 		return nil
 	}
 
 	err = r.Delete(ctx, clusterRole)
 	if err != nil {
-		logger.Error(err, "Failed to clean up ClusterRole")
-		return err
+		return fmt.Errorf("failed to clean up ClusterRole: %w", err)
 	}
-	logger.V(1).Info("ClusterRole removed successfully")
+	logger.V(util.DebugLevel).Info("ClusterRole removed successfully")
 	return nil
 }
 
@@ -93,16 +89,15 @@ func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *h
 	crb := &rbacv1.ClusterRoleBinding{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, crb)
 	if err != nil && errors.IsNotFound(err) {
-		logger.V(1).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
+		logger.V(util.DebugLevel).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
 		return nil
 	}
 
 	err = r.Delete(ctx, crb)
 	if err != nil {
-		logger.Error(err, "Failed to clean up ClusterRoleBinding")
-		return err
+		return fmt.Errorf("failed to clean up ClusterRoleBinding: %w", err)
 	}
-	logger.V(1).Info("ClusterRoleBinding removed successfully")
+	logger.V(util.DebugLevel).Info("ClusterRoleBinding removed successfully")
 	return nil
 }
 
@@ -147,8 +142,7 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 
 	err := controllerutil.SetControllerReference(h, serviceAccount, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on ServiceAccount")
-		return err
+		return fmt.Errorf("failed to set owner reference on ServiceAccount: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
@@ -213,8 +207,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Service")
-		return err
+		return fmt.Errorf("failed to set owner reference on Service: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
@@ -370,7 +363,7 @@ func hazelcastAndAgentPort() []v1.ServicePort {
 	}
 }
 
-func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, _ logr.Logger) bool {
+func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) bool {
 	if !h.Spec.ExposeExternally.IsSmart() {
 		// Service per pod applies only to Smart type
 		return true
@@ -412,8 +405,7 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on ConfigMap")
-		return err
+		return fmt.Errorf("failed to set owner reference on ConfigMap: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
@@ -696,8 +688,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Statefulset")
-		return err
+		return fmt.Errorf("failed to set owner reference on Statefulset: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {

@@ -51,19 +51,17 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			logger.Info("Map resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "Failed to get Map")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get Map: %w", err)
 	}
 
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: m.Spec.HazelcastResourceName}, h)
 	if err != nil {
-		logger.Error(err, "Could not create/update Map config: Hazelcast resource not found")
+		err = fmt.Errorf("could not create/update Map config: Hazelcast resource not found: %w", err)
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 	if h.Status.Phase != hazelcastv1alpha1.Running {
 		err = errors.NewServiceUnavailable("Hazelcast CR is not ready")
-		logger.Error(err, "Hazelcast CR is not in Running state")
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 
@@ -78,7 +76,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		ms, err := json.Marshal(m.Spec)
 
 		if err != nil {
-			logger.Error(err, "Error marshaling Hot Backup as JSON")
+			err = fmt.Errorf("error marshaling Map as JSON: %w", err)
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
 		if s == string(ms) {
@@ -88,13 +86,12 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		lastSpec := &hazelcastv1alpha1.MapSpec{}
 		err = json.Unmarshal([]byte(s), lastSpec)
 		if err != nil {
-			r.Log.Error(err, "Error unmarshaling Last Map Spec")
+			err = fmt.Errorf("error unmarshaling Last Map Spec: %w", err)
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
 
 		err = ValidateNotUpdatableFields(&m.Spec, lastSpec)
 		if err != nil {
-			r.Log.Error(err, "Error validating the new spec")
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
 	}
@@ -116,7 +113,6 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	ms, err := r.ReconcileMapConfig(ctx, m, cl, createdBefore)
 	if err != nil {
-		r.Log.Error(err, "Error reconciling the object")
 		return updateMapStatus(ctx, r.Client, m, pendingStatus(retryAfterForMap).
 			withError(err).
 			withMessage(err.Error()).
@@ -153,17 +149,17 @@ func ValidatePersistence(pe bool, h *hazelcastv1alpha1.Hazelcast) error {
 	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 
 	if !ok {
-		return fmt.Errorf("Hazelcast resource %s is not successfully started yet!", h.Name)
+		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
 	}
 
 	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
 	err := json.Unmarshal([]byte(s), lastSpec)
 	if err != nil {
-		return fmt.Errorf("Last successful spec for Hazelcast resource %s is not formatted correctly.", h.Name)
+		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
 	}
 
 	if !lastSpec.Persistence.IsEnabled() {
-		return fmt.Errorf("Persistence is not enabled for the Hazelcast resource %s.", h.Name)
+		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
 	}
 
 	return nil
@@ -183,7 +179,7 @@ func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelc
 		return fmt.Errorf("persistenceEnabled cannot be updated.")
 	}
 	if current.HazelcastResourceName != last.HazelcastResourceName {
-		return fmt.Errorf("hazelcastResourceName cannot be updated.")
+		return fmt.Errorf("hazelcastResourceName cannot be updated")
 	}
 	return nil
 }
@@ -191,10 +187,10 @@ func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelc
 func GetHazelcastClient(m *hazelcastv1alpha1.Map) (*hazelcast.Client, error) {
 	hzcl, ok := GetClient(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
 	if !ok {
-		return nil, errors.NewInternalError(fmt.Errorf("Cannot connect to the cluster for %s", m.Spec.HazelcastResourceName))
+		return nil, errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", m.Spec.HazelcastResourceName))
 	}
 	if hzcl.client == nil || !hzcl.client.Running() {
-		return nil, fmt.Errorf("Trying to connect to the cluster %s", m.Spec.HazelcastResourceName)
+		return nil, fmt.Errorf("trying to connect to the cluster %s", m.Spec.HazelcastResourceName)
 	}
 
 	return hzcl.client, nil
@@ -236,7 +232,7 @@ func (r *MapReconciler) ReconcileMapConfig(ctx context.Context, m *hazelcastv1al
 	}
 	errString := failedMembers.String()
 	if errString != "" {
-		return memberStatuses, fmt.Errorf("Error creating/updating the Map config %s for members %s.", m.MapName(), errString[:len(errString)-2])
+		return memberStatuses, fmt.Errorf("error creating/updating the Map config %s for members %s", m.MapName(), errString[:len(errString)-2])
 	}
 
 	return memberStatuses, nil
@@ -302,13 +298,13 @@ func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, m *haz
 	cm := &corev1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace}, cm)
 	if err != nil {
-		return false, fmt.Errorf("Could not find ConfigMap for map config persistence.")
+		return false, fmt.Errorf("could not find ConfigMap for map config persistence")
 	}
 
 	hzConfig := &config.HazelcastWrapper{}
 	err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
 	if err != nil {
-		return false, fmt.Errorf("Persisted ConfigMap is not formatted correctly.")
+		return false, fmt.Errorf("persisted ConfigMap is not formatted correctly")
 	}
 
 	if mcfg, ok := hzConfig.Hazelcast.Map[m.MapName()]; !ok {

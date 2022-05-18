@@ -190,6 +190,7 @@ func (c *Client) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *Ti
 	jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
 	if err != nil {
 		c.Log.Error(err, "Fetching TimedMemberState failed.", "CR", c.NamespacedName)
+		return nil
 	}
 	state := &TimedMemberStateWrapper{}
 	err = json.Unmarshal([]byte(jsonState), state)

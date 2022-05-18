@@ -246,7 +246,7 @@ func waitForReadyChannel(readyChan chan struct{}, dur time.Duration) error {
 		case <-readyChan:
 			return nil
 		case <-timer.C:
-			return fmt.Errorf("Timeout waiting for readyChannel")
+			return fmt.Errorf("timeout waiting for readyChannel")
 		}
 	}
 }
