@@ -73,7 +73,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if err != nil {
 			return update(ctx, r.Client, mc, failedPhase(err))
 		}
-		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
 	}
 
