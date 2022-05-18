@@ -25,7 +25,8 @@ func (s HotBackupState) IsRunning() bool {
 
 // HotBackupStatus defines the observed state of HotBackup
 type HotBackupStatus struct {
-	State HotBackupState `json:"state"`
+	State   HotBackupState `json:"state"`
+	Message string         `json:"message,omitempty"`
 }
 
 // HotBackupSpec defines the Spec of HotBackup

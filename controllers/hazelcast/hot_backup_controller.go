@@ -60,12 +60,12 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Failed to get HotBackup")
-		return ctrl.Result{}, err
+		return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 	}
 
 	err = r.addFinalizer(ctx, hb, logger)
 	if err != nil {
-		return reconcile.Result{}, err
+		return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 	}
 
 	//Check if the HotBackup CR is marked to be deleted
@@ -73,7 +73,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		err = r.executeFinalizer(ctx, hb, logger)
 		if err != nil {
 			logger.Error(err, "Finalizer execution failed")
-			return ctrl.Result{}, err
+			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 		}
 		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
@@ -88,7 +88,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	hs, err := json.Marshal(hb.Spec)
 	if err != nil {
 		logger.Error(err, "Error marshaling Hot Backup as JSON")
-		return reconcile.Result{}, err
+		return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 	}
 	if s, ok := hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok && s == string(hs) {
 		logger.Info("HotBackup was already applied.", "name", hb.Name, "namespace", hb.Namespace)
@@ -99,12 +99,12 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: hb.Spec.HazelcastResourceName}, h)
 	if err != nil {
 		logger.Error(err, "Could not trigger Hot Backup: Hazelcast resource not found")
-		return ctrl.Result{}, err
+		return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 	}
 	if h.Status.Phase != hazelcastv1alpha1.Running {
 		err = apiErrors.NewServiceUnavailable("Hazelcast CR is not ready")
 		logger.Error(err, "Hazelcast CR is not in Running state")
-		return ctrl.Result{}, err
+		return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 	}
 	rest := NewRestClient(h)
 
@@ -132,9 +132,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		err = r.triggerHotBackup(ctx, req, rest, logger)
 		if err != nil {
 			_ = r.Client.Get(ctx, req.NamespacedName, hb)
-			hb.Status.State = hazelcastv1alpha1.HotBackupFailure
-			_ = r.Status().Update(ctx, hb)
-			return ctrl.Result{}, err
+			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 		}
 
 		r.reconcileHotBackupStatus(ctx, hb)
@@ -144,12 +142,12 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		agentAddresses, err := r.getAgentAddresses(ctx, hb)
 		if err != nil {
 			logger.Error(err, "Could not fetch Backup agent addresses properly")
-			return ctrl.Result{}, err
+			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 		}
 		agentRest := NewAgentRestClient(h, hb, agentAddresses)
 		err = r.triggerUploadBackup(ctx, hb, agentRest, logger)
 		if err != nil {
-			return ctrl.Result{}, err
+			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 		}
 	}
 
@@ -205,9 +203,7 @@ func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *Client, ctx contex
 		r.Log.V(2).Info("Received HotBackup state for member.", "HotRestartState", state)
 		currentState = hotBackupState(state.TimedMemberState.MemberState.HotRestartState, currentState)
 	}
-	hb.Status.State = currentState
-	r.Log.V(2).Info("Updating the HotBackup status", "state", currentState)
-	err = r.Status().Update(ctx, hb)
+	_, err = updateHotBackupStatus(ctx, r.Client, hb, hbWithStatus(currentState))
 	if err != nil {
 		r.Log.Error(err, "Could not update HotBackup status")
 	}
@@ -288,8 +284,7 @@ func (r *HotBackupReconciler) triggerHotBackup(ctx context.Context, req reconcil
 		return err
 	}
 	if !hb.Status.State.IsRunning() {
-		hb.Status.State = hazelcastv1alpha1.HotBackupPending
-		_ = r.Status().Update(ctx, hb)
+		_, _ = updateHotBackupStatus(ctx, r.Client, hb, pendingHbStatus())
 	}
 
 	err = rest.ChangeState(ctx, Passive)
