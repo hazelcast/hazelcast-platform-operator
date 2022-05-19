@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -29,6 +30,7 @@ import (
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -162,7 +164,52 @@ func FillTheMapData(ctx context.Context, unisocket bool, mapName string, mapSize
 	}
 	err = clientHz.Shutdown(ctx)
 	Expect(err).ToNot(HaveOccurred())
+}
 
+func FillTheMapWithHugeData(ctx context.Context, mapName string, mapSizeInGb string, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
+	hzAddress := fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzConfig.Name, hzConfig.Namespace, n.DefaultHzPort)
+	var m *hzClient.Map
+	clientPod := CreateClientPod(hzAddress, mapSizeInGb, mapName)
+	mapSize, _ := strconv.ParseFloat(mapSizeInGb, 64)
+	client := GetHzClient(ctx, false)
+	m, _ = client.GetMap(ctx, mapName)
+	Eventually(func() (int, error) {
+		return m.Size(ctx)
+	}, 15*time.Minute, interval).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
+	// 1310.72 entries per one Go routine. Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
+	err := client.Shutdown(ctx)
+	Expect(err).ToNot(HaveOccurred())
+	DeletePod(clientPod.GetName(), 0)
+}
+
+func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *corev1.Pod {
+	clientPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"client": "true",
+			},
+			Name: "client-pod",
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "client-container",
+					Image: "cheels/docker-backup:latest",
+					Args:  []string{"/fill_map", "-address", hzAddress, "-size", mapSizeInGb, "-mapName", mapName},
+				},
+			},
+			RestartPolicy: corev1.RestartPolicyNever,
+		},
+	}
+	_, err := GetClientSet().CoreV1().Pods(hzNamespace).Create(context.Background(), clientPod, metav1.CreateOptions{})
+	Expect(err).ToNot(HaveOccurred())
+
+	Eventually(func() bool {
+		pods, err := GetClientSet().CoreV1().Pods(hzNamespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
+		Expect(err).ToNot(HaveOccurred())
+		return pods.Status.ContainerStatuses[0].Ready
+	}, timeout, interval).Should(Equal(true))
+	return clientPod
 }
 
 func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
@@ -246,7 +293,7 @@ func waitForReadyChannel(readyChan chan struct{}, dur time.Duration) error {
 		case <-readyChan:
 			return nil
 		case <-timer.C:
-			return fmt.Errorf("timeout waiting for readyChannel")
+			return fmt.Errorf("Timeout waiting for readyChannel")
 		}
 	}
 }

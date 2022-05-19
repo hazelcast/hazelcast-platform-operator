@@ -220,12 +220,29 @@ var _ = Describe("Hazelcast", func() {
 		})
 
 		It("should successfully trigger HotBackup", Label("fast"), func() {
+			mapName := "trigger-map"
+			ctx := context.Background()
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart", false)
+			hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+			}
+			hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(lookupKey, 3)
+
+			By("creating the map config successfully")
+			m := hazelcastconfig.DefaultMap(hazelcast.Name, mapName, hzNamespace)
+			m.Spec.PersistenceEnabled = true
+			Expect(k8sClient.Create(ctx, m)).Should(Succeed())
+			m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+			By("filling the Map")
+			FillTheMapData(context.Background(), true, mapName, 100)
 
 			By("Creating HotBackup CR")
 			t := time.Now()
@@ -253,6 +270,13 @@ var _ = Describe("Hazelcast", func() {
 				Expect(err).ToNot(HaveOccurred())
 				return hb.Status.State
 			}, timeout, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+
+			By("checking the Map size")
+			client := GetHzClient(ctx, true)
+			cl, err := client.GetMap(ctx, mapName)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
+			client.Shutdown(ctx)
 		})
 
 		It("should trigger ForceStart when restart from HotBackup failed", Label("fast"), func() {
@@ -301,7 +325,6 @@ var _ = Describe("Hazelcast", func() {
 			By("Creating new Hazelcast cluster from existing backup")
 			baseDir += "/hot-backup/backup-" + seq
 			hazelcast = addNodeSelectorForName(hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, params...), getFirstWorkerNodeName())
-
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 			evaluateReadyMembers(lookupKey, 3)
 
@@ -341,6 +364,7 @@ var _ = Describe("Hazelcast", func() {
 			Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
 		)
 	})
+
 	Describe("Hazelcast Map Config", func() {
 		It("should create Map Config", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
