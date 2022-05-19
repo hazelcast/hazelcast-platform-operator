@@ -60,7 +60,7 @@ var _ = Describe("Hazelcast", func() {
 		assertDoesNotExist(lookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
-	It("should restart successfully after shutting down Hazelcast", Label("slow"), func() {
+	FIt("should restart successfully after shutting down Hazelcast", Label("slow"), func() {
 		mapName := "backup-map-1"
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
@@ -75,7 +75,6 @@ var _ = Describe("Hazelcast", func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(lookupKey, 3)
 
@@ -83,7 +82,7 @@ var _ = Describe("Hazelcast", func() {
 		m := hazelcastconfig.DefaultMap(hazelcast.Name, mapName, hzNamespace)
 		m.Spec.PersistenceEnabled = true
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("filling the Map")
 		FillTheMapData(ctx, true, mapName, 100)
@@ -97,7 +96,6 @@ var _ = Describe("Hazelcast", func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(lookupKey, 3)
 
@@ -109,10 +107,13 @@ var _ = Describe("Hazelcast", func() {
 
 		By("checking the Map size")
 		client := GetHzClient(ctx, true)
+		defer func() {
+			err := client.Shutdown(ctx)
+			Expect(err).To(BeNil())
+		}()
 		cl, err := client.GetMap(ctx, mapName)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
-		client.Shutdown(ctx)
 	})
 
 	It("should successfully start after one member restart", Label("slow"), func() {
@@ -155,10 +156,13 @@ var _ = Describe("Hazelcast", func() {
 
 		By("checking the Map size")
 		client := GetHzClient(ctx, true)
+		defer func() {
+			err := client.Shutdown(ctx)
+			Expect(err).To(BeNil())
+		}()
 		cl, err := client.GetMap(ctx, mapName)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
-		client.Shutdown(ctx)
 	})
 
 	It("should restore 1 GB data after planned shutdown", Label("slow"), func() {
