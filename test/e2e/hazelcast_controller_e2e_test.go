@@ -239,7 +239,7 @@ var _ = Describe("Hazelcast", func() {
 			m := hazelcastconfig.DefaultMap(hazelcast.Name, mapName, hzNamespace)
 			m.Spec.PersistenceEnabled = true
 			Expect(k8sClient.Create(ctx, m)).Should(Succeed())
-			m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 			By("filling the Map")
 			FillTheMapData(context.Background(), true, mapName, 100)
@@ -273,10 +273,13 @@ var _ = Describe("Hazelcast", func() {
 
 			By("checking the Map size")
 			client := GetHzClient(ctx, true)
+			defer func() {
+				err := client.Shutdown(ctx)
+				Expect(err).To(BeNil())
+			}()
 			cl, err := client.GetMap(ctx, mapName)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
-			client.Shutdown(ctx)
 		})
 
 		It("should trigger ForceStart when restart from HotBackup failed", Label("fast"), func() {

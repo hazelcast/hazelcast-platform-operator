@@ -60,7 +60,7 @@ var _ = Describe("Hazelcast", func() {
 		assertDoesNotExist(lookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
-	FIt("should restart successfully after shutting down Hazelcast", Label("slow"), func() {
+	It("should restart successfully after shutting down Hazelcast", Label("slow"), func() {
 		mapName := "backup-map-1"
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
