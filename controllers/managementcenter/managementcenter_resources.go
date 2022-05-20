@@ -276,16 +276,6 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		},
 	}
 
-	if mc.Spec.Scheduling != nil {
-		sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
-		sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
-		sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
-	}
-
-	if mc.Spec.Resources != nil {
-		sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
-	}
-
 	if platform.GetType() == platform.OpenShift {
 		sts.Spec.Template.Spec.ServiceAccountName = mc.Name
 	}
@@ -310,6 +300,23 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
+		if mc.Spec.Scheduling != nil {
+			sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
+			sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
+			sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
+			sts.Spec.Template.Spec.TopologySpreadConstraints = mc.Spec.Scheduling.TopologySpreadConstraints
+		} else {
+			sts.Spec.Template.Spec.Affinity = nil
+			sts.Spec.Template.Spec.Tolerations = nil
+			sts.Spec.Template.Spec.NodeSelector = nil
+			sts.Spec.Template.Spec.TopologySpreadConstraints = nil
+		}
+
+		if mc.Spec.Resources != nil {
+			sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
+		} else {
+			sts.Spec.Template.Spec.Containers[0].Resources = v1.ResourceRequirements{}
+		}
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

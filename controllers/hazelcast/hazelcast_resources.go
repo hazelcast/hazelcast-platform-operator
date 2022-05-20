@@ -660,17 +660,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
-	if h.Spec.Scheduling != nil {
-		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
-		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
-		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
-		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
-	}
-
-	if h.Spec.Resources != nil {
-		sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
-	}
-
 	if h.Spec.Persistence.IsEnabled() {
 		if h.Spec.Persistence.UseHostPath() {
 			sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, hostPathVolume(h))
@@ -711,6 +700,24 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
+
+		if h.Spec.Scheduling != nil {
+			sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
+			sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
+			sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
+			sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
+		} else {
+			sts.Spec.Template.Spec.Affinity = nil
+			sts.Spec.Template.Spec.Tolerations = nil
+			sts.Spec.Template.Spec.NodeSelector = nil
+			sts.Spec.Template.Spec.TopologySpreadConstraints = nil
+		}
+
+		if h.Spec.Resources != nil {
+			sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
+		} else {
+			sts.Spec.Template.Spec.Containers[0].Resources = v1.ResourceRequirements{}
+		}
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
