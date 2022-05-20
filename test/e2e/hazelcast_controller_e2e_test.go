@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"time"
+	. "time"
 
 	hzTypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
@@ -24,7 +24,7 @@ import (
 
 const (
 	hzName      = "hazelcast"
-	logInterval = 10 * time.Millisecond
+	logInterval = 10 * Millisecond
 )
 
 var _ = Describe("Hazelcast", func() {
@@ -50,7 +50,7 @@ var _ = Describe("Hazelcast", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, timeout, interval).Should(Equal(int32(1)))
+			}, 90*Second, interval).Should(Equal(int32(1)))
 		})
 	})
 
@@ -87,10 +87,10 @@ var _ = Describe("Hazelcast", func() {
 				err := k8sClient.Get(context.Background(), lookupKey, hz)
 				Expect(err).ToNot(HaveOccurred())
 				return hz.Status.ExternalAddresses
-			}, timeout, interval).Should(Not(BeEmpty()))
+			}, 2*Minute, interval).Should(Not(BeEmpty()))
 		}
 
-		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", Label("slow"), func() {
+		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", Label("fast"), func() {
 			assertUseHazelcastUnisocket := func() {
 				FillTheMapData(ctx, false, "map", 100)
 			}
@@ -100,7 +100,7 @@ var _ = Describe("Hazelcast", func() {
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("slow"), func() {
+		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("fast"), func() {
 			assertUseHazelcastSmart := func() {
 				FillTheMapData(ctx, false, "map", 100)
 			}
@@ -110,7 +110,7 @@ var _ = Describe("Hazelcast", func() {
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("slow"), func() {
+		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("fast"), func() {
 			assertUseHazelcastSmart := func() {
 				FillTheMapData(ctx, false, "map", 100)
 			}
@@ -130,7 +130,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Context("Hazelcast member status", func() {
 
-		It("should update HZ ready members status", Label("fast"), func() {
+		It("should update HZ ready members status", Label("slow"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(lookupKey, 3)
@@ -163,7 +163,7 @@ var _ = Describe("Hazelcast", func() {
 				err := k8sClient.Get(context.Background(), lookupKey, hz)
 				Expect(err).ToNot(HaveOccurred())
 				return hz.Status.Members
-			}, timeout, interval).Should(And(HaveLen(3),
+			}, 30*Second, interval).Should(And(HaveLen(3),
 				ContainElement(WithTransform(memberStateT, Equal("ACTIVE"))),
 				ContainElement(WithTransform(masterT, Equal(true))),
 			))
@@ -177,7 +177,7 @@ var _ = Describe("Hazelcast", func() {
 				err := k8sClient.Get(context.Background(), lookupKey, hz)
 				Expect(err).ToNot(HaveOccurred())
 				return hz.Status.Phase
-			}, timeout, interval).Should(Equal(phase))
+			}, 10*Second, interval).Should(Equal(phase))
 			Expect(hz.Status.Message).Should(Not(BeEmpty()))
 		}
 
@@ -219,7 +219,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 		})
 
-		It("should successfully trigger HotBackup", Label("fast"), func() {
+		It("should successfully trigger HotBackup", Label("slow"), func() {
 			mapName := "trigger-map"
 			ctx := context.Background()
 			if !ee {
@@ -245,7 +245,7 @@ var _ = Describe("Hazelcast", func() {
 			FillTheMapData(context.Background(), true, mapName, 100)
 
 			By("Creating HotBackup CR")
-			t := time.Now()
+			t := Now()
 			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
@@ -269,7 +269,7 @@ var _ = Describe("Hazelcast", func() {
 					context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
 				Expect(err).ToNot(HaveOccurred())
 				return hb.Status.State
-			}, timeout, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+			}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
 
 			By("checking the Map size")
 			client := GetHzClient(ctx, true)
@@ -282,7 +282,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 		})
 
-		It("should trigger ForceStart when restart from HotBackup failed", Label("fast"), func() {
+		It("should trigger ForceStart when restart from HotBackup failed", Label("slow"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -291,7 +291,7 @@ var _ = Describe("Hazelcast", func() {
 			evaluateReadyMembers(lookupKey, 3)
 
 			By("Creating HotBackup CR")
-			t := time.Now()
+			t := Now()
 			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
@@ -318,7 +318,7 @@ var _ = Describe("Hazelcast", func() {
 			evaluateReadyMembers(lookupKey, 3)
 
 			By("Creating HotBackup CR")
-			t := time.Now()
+			t := Now()
 			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
@@ -347,7 +347,6 @@ var _ = Describe("Hazelcast", func() {
 				Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 
 			Expect(logs.Close()).Should(Succeed())
-
 			Eventually(func() *hazelcastcomv1alpha1.RestoreStatus {
 				hz := &hazelcastcomv1alpha1.Hazelcast{}
 				_ = k8sClient.Get(context.Background(), types.NamespacedName{
@@ -355,7 +354,7 @@ var _ = Describe("Hazelcast", func() {
 					Namespace: hzNamespace,
 				}, hz)
 				return hz.Status.Restore
-			}, timeout, interval).Should(And(
+			}, 5*Second, interval).Should(And(
 				Not(BeNil()),
 				WithTransform(func(h *hazelcastcomv1alpha1.RestoreStatus) hazelcastcomv1alpha1.RestoreState {
 					return h.State
@@ -386,7 +385,7 @@ var _ = Describe("Hazelcast", func() {
 			By("port-forwarding to Hazelcast master pod")
 			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 			defer closeChannel(stopChan)
-			err := waitForReadyChannel(readyChan, 5*time.Second)
+			err := waitForReadyChannel(readyChan, 5*Second)
 			Expect(err).To(BeNil())
 
 			By("creating the map config successfully")
@@ -443,7 +442,7 @@ var _ = Describe("Hazelcast", func() {
 			By("port-forwarding to Hazelcast master pod")
 			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 			defer closeChannel(stopChan)
-			err := waitForReadyChannel(readyChan, 5*time.Second)
+			err := waitForReadyChannel(readyChan, 5*Second)
 			Expect(err).To(BeNil())
 
 			cl := createHazelcastClient(context.Background(), hazelcast, localPort)
@@ -489,7 +488,7 @@ var _ = Describe("Hazelcast", func() {
 			By("port-forwarding to Hazelcast master pod")
 			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 			defer closeChannel(stopChan)
-			err := waitForReadyChannel(readyChan, 5*time.Second)
+			err := waitForReadyChannel(readyChan, 5*Second)
 			Expect(err).To(BeNil())
 
 			By("creating the map config successfully")
@@ -552,7 +551,7 @@ var _ = Describe("Hazelcast", func() {
 
 			By("port-forwarding to Hazelcast master pod")
 			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-			err := waitForReadyChannel(readyChan, 5*time.Second)
+			err := waitForReadyChannel(readyChan, 5*Second)
 			Expect(err).To(BeNil())
 
 			By("creating the map config successfully")
@@ -581,7 +580,7 @@ var _ = Describe("Hazelcast", func() {
 			closeChannel(stopChan)
 
 			By("Creating HotBackup CR")
-			t := time.Now()
+			t := Now()
 			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
@@ -599,7 +598,7 @@ var _ = Describe("Hazelcast", func() {
 			By("port-forwarding to restarted Hazelcast master pod")
 			stopChan, readyChan = portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 			defer closeChannel(stopChan)
-			err = waitForReadyChannel(readyChan, 5*time.Second)
+			err = waitForReadyChannel(readyChan, 5*Second)
 			Expect(err).To(BeNil())
 
 			By("Checking the map entries")
@@ -704,7 +703,7 @@ var _ = Describe("Hazelcast", func() {
 
 			By("checking if the same map config is still there")
 			// Should wait for Hazelcast reconciler to get triggered, we do not have a waiting mechanism for that.
-			time.Sleep(5 * time.Second)
+			Sleep(5 * Second)
 			hzConfig = assertMapConfigsPersisted(hazelcast, "map-2")
 			newMcfg := hzConfig.Hazelcast.Map["map-2"]
 			Expect(newMcfg).To(Equal(mcfg))

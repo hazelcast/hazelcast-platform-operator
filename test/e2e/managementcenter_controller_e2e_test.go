@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -45,9 +46,8 @@ var _ = Describe("Management-Center", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, timeout, interval).Should(Equal(int32(1)))
+			}, 10*Second, interval).Should(Equal(int32(1)))
 		})
-
 	})
 
 	AfterEach(func() {
@@ -72,7 +72,7 @@ var _ = Describe("Management-Center", func() {
 				err := k8sClient.Get(context.Background(), lookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
 				return isManagementCenterRunning(mc)
-			}, timeout, interval).Should(BeTrue())
+			}, 1*Minute, interval).Should(BeTrue())
 		})
 	}
 
@@ -107,10 +107,9 @@ var _ = Describe("Management-Center", func() {
 					err := k8sClient.Get(context.Background(), lookupKey, &cr)
 					Expect(err).ToNot(HaveOccurred())
 					return cr.Status.ExternalAddresses
-				}, timeout, interval).Should(Not(BeEmpty()))
+				}, 1*Minute, interval).Should(Not(BeEmpty()))
 			})
 		})
-
 	})
 
 	Describe("ManagementCenter CR without Persistence", func() {
@@ -126,9 +125,7 @@ var _ = Describe("Management-Center", func() {
 				}
 				assertDoesNotExist(pvcLookupKey, fetchedPVC)
 			})
-
 		})
-
 	})
 
 	Describe("External API errors", func() {
@@ -138,17 +135,15 @@ var _ = Describe("Management-Center", func() {
 				err := k8sClient.Get(context.Background(), lookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
 				return mc.Status.Phase
-			}, timeout, interval).Should(Equal(phase))
+			}, 1*Minute, interval).Should(Equal(phase))
 			Expect(mc.Status.Message).Should(Not(BeEmpty()))
 		}
 
 		It("should be reflected to Management CR status", Label("fast"), func() {
 			createWithoutCheck(mcconfig.Faulty(hzNamespace, ee))
 			assertStatusEventually(hazelcastcomv1alpha1.Failed)
-
 		})
 	})
-
 })
 
 func emptyManagementCenter() *hazelcastcomv1alpha1.ManagementCenter {

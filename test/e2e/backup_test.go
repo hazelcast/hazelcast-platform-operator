@@ -7,7 +7,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"math"
 	"strconv"
-	"time"
+	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -45,7 +45,7 @@ var _ = Describe("Hazelcast", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, timeout, interval).Should(Equal(int32(1)))
+			}, 10*Second, interval).Should(Equal(int32(1)))
 		})
 	})
 
@@ -89,7 +89,7 @@ var _ = Describe("Hazelcast", func() {
 
 		By("creating new Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
-		t := time.Now()
+		t := Now()
 		hazelcast = hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, false)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -102,7 +102,7 @@ var _ = Describe("Hazelcast", func() {
 		logs := InitLogs(t)
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, timeout, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 		Expect(logs.Close()).Should(Succeed())
 
 		By("checking the Map size")
@@ -123,7 +123,7 @@ var _ = Describe("Hazelcast", func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		t := time.Now()
+		t := Now()
 		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, false)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
@@ -151,7 +151,7 @@ var _ = Describe("Hazelcast", func() {
 		logs := InitLogs(t)
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, timeout, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 		Expect(logs.Close()).Should(Succeed())
 
 		By("checking the Map size")
@@ -193,7 +193,7 @@ var _ = Describe("Hazelcast", func() {
 		FillTheMapWithHugeData(ctx, mapName, mapSizeInGb, hazelcast)
 
 		By("creating HotBackup CR")
-		t := time.Now()
+		t := Now()
 		hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		seq := GetBackupSequence(t)
@@ -216,11 +216,11 @@ var _ = Describe("Hazelcast", func() {
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
 
-		test.EventuallyInLogs(scanner, timeout, logInterval).Should(ContainSubstring("Starting hot-restart service. Base directory: " + baseDir))
-		test.EventuallyInLogs(scanner, timeout, logInterval).Should(ContainSubstring("Starting the Hot Restart procedure."))
-		test.EventuallyInLogs(scanner, timeout, logInterval).Should(ContainSubstring("Local Hot Restart procedure completed with success."))
-		test.EventuallyInLogs(scanner, timeout, logInterval).Should(ContainSubstring("Completed hot restart with final cluster state: ACTIVE"))
-		test.EventuallyInLogs(scanner, timeout, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting hot-restart service. Base directory: " + baseDir))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting the Hot Restart procedure."))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Local Hot Restart procedure completed with success."))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Completed hot restart with final cluster state: ACTIVE"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 		Expect(logs.Close()).Should(Succeed())
 
 		By("checking the Map size")

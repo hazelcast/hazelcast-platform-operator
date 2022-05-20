@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	. "time"
 
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,9 +35,9 @@ func controllerManagerName() string {
 	if np == "" {
 		return "hazelcast-platform-controller-manager"
 	}
-
 	return np + "controller-manager"
 }
+
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
 	err := k8sClient.Get(ctx, name, deploy)
 	if err != nil {
@@ -45,9 +46,9 @@ func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, 
 		}
 		return 0, err
 	}
-
 	return deploy.Status.ReadyReplicas, nil
 }
+
 func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
 	Eventually(func() bool {
 		err := k8sClient.Get(context.Background(), name, obj)
@@ -55,14 +56,14 @@ func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
 			return false
 		}
 		return errors.IsNotFound(err)
-	}, deleteTimeout, interval).Should(BeTrue())
+	}, 2*Minute, interval).Should(BeTrue())
 }
 
 func assertExists(name types.NamespacedName, obj client.Object) {
 	Eventually(func() bool {
 		err := k8sClient.Get(context.Background(), name, obj)
 		return err == nil
-	}, timeout, interval).Should(BeTrue())
+	}, 20*Second, interval).Should(BeTrue())
 }
 
 func deleteIfExists(name types.NamespacedName, obj client.Object) {
@@ -74,9 +75,8 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 			}
 			return err
 		}
-
 		return k8sClient.Delete(context.Background(), obj)
-	}, timeout, interval).Should(Succeed())
+	}, 5*Second, interval).Should(Succeed())
 }
 
 func cleanUpHostPath(namespace, hostPath, hzDir string) {
@@ -151,9 +151,8 @@ func cleanUpHostPath(namespace, hostPath, hzDir string) {
 		})
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, timeout, logInterval).
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).
 			Should(ContainSubstring("done"))
-
 	}
 	Expect(k8sClient.Delete(context.Background(), ds)).Should(Succeed())
 }
@@ -167,15 +166,14 @@ func waitForDSPods(ds *appsv1.DaemonSet, lb client.MatchingLabels) *corev1.PodLi
 			return false
 		}
 		return ds.Status.DesiredNumberScheduled != 0
-	}, timeout, interval).Should(BeTrue())
-
+	}, 1*Minute, interval).Should(BeTrue())
 	Eventually(func() bool {
 		err := k8sClient.List(context.Background(), pods, client.InNamespace(ds.Namespace), podLabels)
 		if err != nil {
 			return false
 		}
 		return int(ds.Status.DesiredNumberScheduled) == len(pods.Items)
-	}, timeout, interval).Should(BeTrue())
+	}, 1*Minute, interval).Should(BeTrue())
 	return pods
 }
 
@@ -210,7 +208,6 @@ func assertRunningOrFailedMount(p v1.Pod, hostPath string) bool {
 			return true
 		}
 		return false
-	}, timeout, interval).Should(BeTrue())
-
+	}, 1*Minute, interval).Should(BeTrue())
 	return running
 }
