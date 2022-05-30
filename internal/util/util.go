@@ -134,6 +134,11 @@ func IsPhoneHomeEnabled() bool {
 	return !found || phEnabled == "true"
 }
 
+func IsDeveloperModeEnabled() bool {
+	value := os.Getenv(n.DeveloperModeEnabledEnv)
+	return strings.ToLower(value) == "true"
+}
+
 func GetOperatorVersion() string {
 	return os.Getenv(n.OperatorVersionEnv)
 }
