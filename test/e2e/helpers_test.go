@@ -207,10 +207,11 @@ func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *core
 	}
 	_, err := GetClientSet().CoreV1().Pods(hzNamespace).Create(context.Background(), clientPod, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
-	k8sClient.Get(context.Background(), types.NamespacedName{
+	err = k8sClient.Get(context.Background(), types.NamespacedName{
 		Name:      clientPod.Name,
 		Namespace: hzNamespace,
 	}, clientPod)
+	Expect(err).ToNot(HaveOccurred())
 	Eventually(func() bool {
 		pod, err := GetClientSet().CoreV1().Pods(hzNamespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
