@@ -57,6 +57,7 @@ endif
 KUBECTL ?= kubectl
 
 PHONE_HOME_ENABLED ?= false
+DEVELOPER_MODE_ENABLED ?= true
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -109,9 +110,9 @@ test: test-unit test-it
 
 test-unit: GO_BUILD_TAGS = "hazelcastinternal,unittest"
 test-unit: manifests generate fmt vet
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/... -coverprofile cover.out
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./internal/... -coverprofile cover.out
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./api/... -coverprofile cover.out
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/... -coverprofile cover.out
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./internal/... -coverprofile cover.out
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./api/... -coverprofile cover.out
 
 lint: lint-go lint-yaml
 
@@ -143,7 +144,7 @@ GO_TEST_FLAGS ?= "-ee=true"
 test-it: manifests generate fmt vet ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
+	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --tags $(GO_BUILD_TAGS) --vv --progress --timeout 60m --coverprofile cover.out ./test/e2e -- -ginkgo.label-filter="slow || fast" -namespace "$(NAMESPACE)" -eventually-timeout 15m  -delete-timeout 8m $(GO_TEST_FLAGS)
@@ -160,7 +161,7 @@ build-tilt: generate fmt vet
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go run -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" ./main.go
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" ./main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
@@ -189,6 +190,9 @@ endif
 	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml &> /dev/null
 ifeq (false,$(PHONE_HOME_ENABLED))
 	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path disable_phone_home.yaml
+endif
+ifeq (true,$(DEVELOPER_MODE_ENABLED))
+	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path enable_developer_mode.yaml
 endif
 	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path remove_security_context.yaml &> /dev/null
 ifeq (true,$(REMOVE_SECURITY_CONTEXT))

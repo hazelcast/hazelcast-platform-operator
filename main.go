@@ -55,7 +55,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	opts := zap.Options{
-		Development: true,
+		Development: util.IsDeveloperModeEnabled(),
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
