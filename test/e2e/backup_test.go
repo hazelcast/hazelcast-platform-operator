@@ -166,7 +166,7 @@ var _ = Describe("Hazelcast", func() {
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
-	FIt("should restore 2 GB data after planned shutdown", Label("slow"), func() {
+	It("should restore 2 GB data after planned shutdown", Label("slow"), func() {
 		var mapSizeInGb = "2"
 		var mapName = "backup-map-3"
 		ctx := context.Background()
