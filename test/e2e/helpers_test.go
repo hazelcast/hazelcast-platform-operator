@@ -112,6 +112,13 @@ func DeletePod(podName string, gracePeriod int64) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	Eventually(func() error {
+		pod := &corev1.Pod{}
+		return k8sClient.Get(context.Background(), types.NamespacedName{
+			Name:      podName,
+			Namespace: hzNamespace,
+		}, pod)
+	}, 1*Minute, interval).ShouldNot(Succeed())
 }
 
 func GetHzClient(ctx context.Context, unisocket bool) *hzClient.Client {
@@ -181,6 +188,7 @@ func FillTheMapWithHugeData(ctx context.Context, mapName string, mapSizeInGb str
 	err := client.Shutdown(ctx)
 	Expect(err).ToNot(HaveOccurred())
 	DeletePod(clientPod.Name, 0)
+
 }
 
 func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *corev1.Pod {

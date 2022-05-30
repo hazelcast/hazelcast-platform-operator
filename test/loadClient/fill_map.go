@@ -65,7 +65,10 @@ func main() {
 
 func mapInjector(ctx context.Context, m *hazelcast.Map, key string, longString string) {
 	fmt.Printf("Key: %s is putting into map.\n", key)
-	_, _ = m.Put(ctx, key, longString)
+	_, err := m.Put(ctx, key, longString)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func WaitForMapSize(ctx context.Context, m *hazelcast.Map, expectedSize int, interval time.Duration, timeout time.Duration) {

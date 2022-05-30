@@ -245,6 +245,6 @@ var _ = Describe("Hazelcast", func() {
 		// 1310.72 entries per one Go routine.  Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
 		Eventually(func() (int, error) {
 			return m.Size(ctx)
-		}, 10*Minute, interval).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
+		}, 5*Minute, interval).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
 	})
 })
