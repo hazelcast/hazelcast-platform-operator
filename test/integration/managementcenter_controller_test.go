@@ -362,4 +362,109 @@ var _ = Describe("ManagementCenter controller", func() {
 			})
 		})
 	})
+
+	Context("Statefulset Updates", func() {
+		firstSpec := hazelcastv1alpha1.ManagementCenterSpec{
+			Repository:        "hazelcast/management-center-1",
+			Version:           "5.2",
+			ImagePullPolicy:   corev1.PullAlways,
+			ImagePullSecrets:  nil,
+			LicenseKeySecret:  "key-secret",
+			HazelcastClusters: nil,
+			Scheduling:        nil,
+			Resources:         nil,
+		}
+		secondSpec := hazelcastv1alpha1.ManagementCenterSpec{
+			Repository:      "hazelcast/management-center",
+			Version:         "5.3",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			ImagePullSecrets: []corev1.LocalObjectReference{
+				{Name: "secret1"},
+				{Name: "secret2"},
+			},
+
+			LicenseKeySecret: "",
+			HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
+				{Name: "dev", Address: "cluster-address"},
+			},
+
+			Scheduling: &hazelcastv1alpha1.SchedulingConfiguration{
+				Affinity: &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{Key: "node.gpu", Operator: corev1.NodeSelectorOpExists},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Resources: &corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    resource.MustParse("250m"),
+					corev1.ResourceMemory: resource.MustParse("5Gi"),
+				},
+			},
+		}
+		When("Management Center Spec is updated", func() {
+			It("Should forward changes to StatefulSet", Label("fast"), func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       firstSpec,
+				}
+
+				Create(mc)
+				mc = EnsureStatus(mc)
+				mc.Spec = secondSpec
+
+				Expect(k8sClient.Update(context.Background(), mc)).Should(Succeed())
+				ss := getStatefulSet(mc)
+
+				By("Checking if StatefulSet Image is updated")
+				Eventually(func() string {
+					ss = getStatefulSet(mc)
+					return ss.Spec.Template.Spec.Containers[0].Image
+				}, timeout, interval).Should(Equal(fmt.Sprintf("%s:%s", secondSpec.Repository, secondSpec.Version)))
+
+				By("Checking if StatefulSet ImagePullPolicy is updated")
+				Expect(ss.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(secondSpec.ImagePullPolicy))
+
+				By("Checking if StatefulSet ImagePullSecrets is updated")
+				Expect(ss.Spec.Template.Spec.ImagePullSecrets).To(Equal(secondSpec.ImagePullSecrets))
+
+				By("Checking if StatefulSet HazelcastClusters is updated")
+				hzcl := mc.Spec.HazelcastClusters
+				el := ss.Spec.Template.Spec.Containers[0].Env
+				for _, env := range el {
+					if env.Name == "MC_INIT_CMD" {
+						for _, cl := range hzcl {
+							Expect(env.Value).To(ContainSubstring(fmt.Sprintf("-cn %s -ma %s", cl.Name, cl.Address)))
+
+						}
+					}
+				}
+				By("Checking if StatefulSet LicenseKeySecret is updated")
+				for _, env := range el {
+					if env.Name == "MC_LICENSEKEY" {
+						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.LicenseKeySecret))
+					}
+				}
+
+				By("Checking if StatefulSet Scheduling is updated")
+				Expect(*ss.Spec.Template.Spec.Affinity).To(Equal(*secondSpec.Scheduling.Affinity))
+				Expect(ss.Spec.Template.Spec.NodeSelector).To(Equal(secondSpec.Scheduling.NodeSelector))
+				Expect(ss.Spec.Template.Spec.Tolerations).To(Equal(secondSpec.Scheduling.Tolerations))
+				Expect(ss.Spec.Template.Spec.TopologySpreadConstraints).To(Equal(secondSpec.Scheduling.TopologySpreadConstraints))
+
+				By("Checking if StatefulSet Resources is updated")
+				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
+
+				Delete(mc)
+			})
+		})
+	})
 })
