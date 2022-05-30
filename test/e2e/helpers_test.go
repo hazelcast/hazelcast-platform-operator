@@ -71,12 +71,12 @@ func InitLogs(t Time) io.ReadCloser {
 }
 
 func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
-	By("Creating Hazelcast CR", func() {
+	By("creating Hazelcast CR", func() {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
 
 	lookupKey := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
-	By("Checking Hazelcast CR running", func() {
+	By("checking Hazelcast CR running", func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
 		Eventually(func() bool {
 			err := k8sClient.Get(context.Background(), lookupKey, hz)
@@ -93,7 +93,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 		Namespace: hzNamespace,
 	}, &corev1.Pod{})
 
-	By("Waiting for Hazelcast CR to be removed", func() {
+	By("waiting for Hazelcast CR to be removed", func() {
 		Eventually(func() error {
 			h := &hazelcastcomv1alpha1.Hazelcast{}
 			return k8sClient.Get(context.Background(), types.NamespacedName{
@@ -104,7 +104,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	})
 }
 func DeletePod(podName string, gracePeriod int64) {
-	log.Printf("Deleting POD with name '%s'", podName)
+	log.Printf("deleting POD with name '%s'", podName)
 	deleteOptions := metav1.DeleteOptions{
 		GracePeriodSeconds: &gracePeriod,
 	}
@@ -311,7 +311,7 @@ func closeChannel(closeChan chan struct{}) {
 
 func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapConfigState) *hazelcastcomv1alpha1.Map {
 	checkMap := &hazelcastcomv1alpha1.Map{}
-	By("Waiting for Map CR status", func() {
+	By("waiting for Map CR status", func() {
 		Eventually(func() hazelcastcomv1alpha1.MapConfigState {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      m.Name,
@@ -377,7 +377,7 @@ func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcas
 
 func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcastcomv1alpha1.RestoreState) *hazelcastcomv1alpha1.Hazelcast {
 	checkHz := &hazelcastcomv1alpha1.Hazelcast{}
-	By("Waiting for Map CR status", func() {
+	By("waiting for Map CR status", func() {
 		Eventually(func() hazelcastcomv1alpha1.RestoreState {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      h.Name,
@@ -412,7 +412,6 @@ func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps .
 		for k := range hzConfig.Hazelcast.Map {
 			keys = append(keys, k)
 		}
-
 		returnConfig = hzConfig
 		return keys
 	}, 20*Second, interval).Should(ConsistOf(maps))

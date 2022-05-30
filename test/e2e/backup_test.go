@@ -166,7 +166,7 @@ var _ = Describe("Hazelcast", func() {
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
-	It("should restore 2 GB data after planned shutdown", Label("slow"), func() {
+	FIt("should restore 2 GB data after planned shutdown", Label("slow"), func() {
 		var mapSizeInGb = "2"
 		var mapName = "backup-map-3"
 		ctx := context.Background()
@@ -184,7 +184,7 @@ var _ = Describe("Hazelcast", func() {
 		}
 		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse("2Gi")},
+				corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")},
 		}
 		CreateHazelcastCR(hazelcast)
 
@@ -216,7 +216,7 @@ var _ = Describe("Hazelcast", func() {
 		}
 		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse("2Gi")},
+				corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")},
 		}
 
 		CreateHazelcastCR(hazelcast)
@@ -243,6 +243,8 @@ var _ = Describe("Hazelcast", func() {
 		}()
 		m, _ = client.GetMap(ctx, mapName)
 		// 1310.72 entries per one Go routine.  Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
-		Expect(m.Size(ctx)).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
+		Eventually(func() (int, error) {
+			return m.Size(ctx)
+		}, 10*Minute, interval).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
 	})
 })

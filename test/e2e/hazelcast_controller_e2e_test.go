@@ -100,7 +100,7 @@ var _ = Describe("Hazelcast", func() {
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("fast"), func() {
+		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("slow"), func() {
 			assertUseHazelcastSmart := func() {
 				FillTheMapData(ctx, false, "map", 100)
 			}
@@ -110,7 +110,7 @@ var _ = Describe("Hazelcast", func() {
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("fast"), func() {
+		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("slow"), func() {
 			assertUseHazelcastSmart := func() {
 				FillTheMapData(ctx, false, "map", 100)
 			}
