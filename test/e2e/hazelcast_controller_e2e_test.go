@@ -703,7 +703,6 @@ var _ = Describe("Hazelcast", func() {
 
 			By("checking if the same map config is still there")
 			// Should wait for Hazelcast reconciler to get triggered, we do not have a waiting mechanism for that.
-			Sleep(5 * Second)
 			hzConfig = assertMapConfigsPersisted(hazelcast, "map-2")
 			newMcfg := hzConfig.Hazelcast.Map["map-2"]
 			Expect(newMcfg).To(Equal(mcfg))

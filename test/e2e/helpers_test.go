@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"log"
 	"math"
 	"net/http"
@@ -179,7 +180,7 @@ func FillTheMapWithHugeData(ctx context.Context, mapName string, mapSizeInGb str
 	// 1310.72 entries per one Go routine. Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
 	err := client.Shutdown(ctx)
 	Expect(err).ToNot(HaveOccurred())
-	DeletePod(clientPod.GetName(), 0)
+	DeletePod(clientPod.Name, 0)
 }
 
 func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *corev1.Pod {
@@ -196,6 +197,9 @@ func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *core
 					Name:  "client-container",
 					Image: "cheels/docker-backup:latest",
 					Args:  []string{"/fill_map", "-address", hzAddress, "-size", mapSizeInGb, "-mapName", mapName},
+					Resources: corev1.ResourceRequirements{
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")}},
 				},
 			},
 			RestartPolicy: corev1.RestartPolicyNever,
@@ -203,11 +207,14 @@ func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *core
 	}
 	_, err := GetClientSet().CoreV1().Pods(hzNamespace).Create(context.Background(), clientPod, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
-
+	k8sClient.Get(context.Background(), types.NamespacedName{
+		Name:      clientPod.Name,
+		Namespace: hzNamespace,
+	}, clientPod)
 	Eventually(func() bool {
-		pods, err := GetClientSet().CoreV1().Pods(hzNamespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
+		pod, err := GetClientSet().CoreV1().Pods(hzNamespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		return pods.Status.ContainerStatuses[0].Ready
+		return pod.Status.ContainerStatuses[0].Ready
 	}, 30*Second, interval).Should(Equal(true))
 	return clientPod
 }

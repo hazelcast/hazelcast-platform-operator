@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"math"
 	"strconv"
@@ -41,7 +42,7 @@ var _ = Describe("Hazelcast", func() {
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-platform-controller-manager running", func() {
+		By("checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
@@ -165,8 +166,8 @@ var _ = Describe("Hazelcast", func() {
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
-	It("should restore 1 GB data after planned shutdown", Label("slow"), func() {
-		var mapSizeInGb = "1"
+	FIt("should restore 2 GB data after planned shutdown", Label("slow"), func() {
+		var mapSizeInGb = "2"
 		var mapName = "backup-map-3"
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
@@ -180,6 +181,10 @@ var _ = Describe("Hazelcast", func() {
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse("2Gi")},
 		}
 		CreateHazelcastCR(hazelcast)
 
@@ -209,6 +214,11 @@ var _ = Describe("Hazelcast", func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse("2Gi")},
+		}
+
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(lookupKey, 3)
 
@@ -232,7 +242,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(err).To(BeNil())
 		}()
 		m, _ = client.GetMap(ctx, mapName)
-		Expect(m.Size(ctx)).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
 		// 1310.72 entries per one Go routine.  Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
+		Expect(m.Size(ctx)).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
 	})
 })
