@@ -253,13 +253,13 @@ var _ = Describe("Hazelcast", func() {
 			logs := InitLogs(t)
 			defer logs.Close()
 			scanner := bufio.NewScanner(logs)
-			test.EventuallyInLogs(scanner, timeout, logInterval).
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
 				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
 				Should(ContainSubstring("Starting new hot backup with sequence"))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
 				Should(MatchRegexp("Backup of hot restart store \\S+ finished"))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
 				Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
 			Expect(logs.Close()).Should(Succeed())
 
@@ -335,15 +335,15 @@ var _ = Describe("Hazelcast", func() {
 			defer logs.Close()
 
 			scanner := bufio.NewScanner(logs)
-			test.EventuallyInLogs(scanner, timeout, logInterval).
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
 				Should(ContainSubstring("Starting hot-restart service. Base directory: " + baseDir))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
 				Should(ContainSubstring("Starting the Hot Restart procedure."))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
 				Should(ContainSubstring("Local Hot Restart procedure completed with success."))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
 				Should(ContainSubstring("Completed hot restart with final cluster state: ACTIVE"))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
 				Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 
 			Expect(logs.Close()).Should(Succeed())

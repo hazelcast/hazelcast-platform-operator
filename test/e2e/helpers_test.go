@@ -216,7 +216,7 @@ func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *core
 		pod, err := GetClientSet().CoreV1().Pods(hzNamespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		return pod.Status.ContainerStatuses[0].Ready
-	}, 30*Second, interval).Should(Equal(true))
+	}, 5*Minute, interval).Should(Equal(true))
 	return clientPod
 }
 
