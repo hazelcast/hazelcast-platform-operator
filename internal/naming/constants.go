@@ -47,13 +47,33 @@ const (
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
 	PersistenceVolumeName = "hot-restart-persistence"
 
-	BackupAgent                 = "backup-agent"
-	BackupAgentPortName         = "backup-agent-port"
-	RestoreAgent                = "restore-agent"
-	BucketSecret                = "br-secret"
-	BucketDataS3AccessKeyID     = "access-key-id"
-	BucketDataS3SecretAccessKey = "secret-access-key"
-	BucketDataS3Region          = "region"
+	BackupAgent         = "backup-agent"
+	BackupAgentPortName = "backup-agent-port"
+	RestoreAgent        = "restore-agent"
+	BucketSecret        = "br-secret"
+
+	BucketDataS3AccessKeyID        = "access-key-id"
+	BucketDataS3SecretAccessKey    = "secret-access-key"
+	BucketDataS3Region             = "region"
+	BucketDataS3EnvAccessKeyID     = "AWS_ACCESS_KEY_ID"
+	BucketDataS3EnvSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
+	BucketDataS3EnvRegion          = "AWS_REGION"
+
+	BucketDataGCPCredentialFile    = "google-credentials-path"
+	BucketDataGCPEnvCredentialFile = "GOOGLE_APPLICATION_CREDENTIALS"
+	GCPCredentialVolumeName        = "service-account-restore"
+	GCPCredentialVolumePath        = "/gcp/service-accounts"
+
+	BucketDataAzureStorageAccount    = "storage-account"
+	BucketDataAzureStorageKey        = "storage-key"
+	BucketDataAzureSASToken          = "sas-token"
+	BucketDataAzureEnvStorageAccount = "AZURE_STORAGE_ACCOUNT"
+	BucketDataAzureEnvStorageKey     = "AZURE_STORAGE_KEY"
+	BucketDataAzureEnvSASToken       = "AZURE_STORAGE_SAS_TOKEN"
+
+	GCP   = "gs"
+	AWS   = "s3"
+	AZURE = "azblob"
 )
 
 // Hazelcast default configurations

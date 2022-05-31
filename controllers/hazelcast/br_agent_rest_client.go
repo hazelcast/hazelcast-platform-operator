@@ -21,6 +21,7 @@ type uploadRequest struct {
 	BucketURL        string `json:"bucket_url"`
 	BackupFolderPath string `json:"backup_folder_path"`
 	HazelcastCRName  string `json:"hz_cr_name"`
+	SecretName       string `json:"secret_name"`
 }
 
 type AgentRestClient struct {
@@ -28,6 +29,7 @@ type AgentRestClient struct {
 	bucketURL        string
 	backupFolderPath string
 	hazelcastCRName  string
+	secretName       string
 }
 
 func NewAgentRestClient(h *v1alpha1.Hazelcast, hb *v1alpha1.HotBackup, addresses []string) *AgentRestClient {
@@ -36,6 +38,7 @@ func NewAgentRestClient(h *v1alpha1.Hazelcast, hb *v1alpha1.HotBackup, addresses
 		bucketURL:        hb.Spec.BucketURL,
 		backupFolderPath: h.Spec.Persistence.BaseDir,
 		hazelcastCRName:  hb.Spec.HazelcastResourceName,
+		secretName:       hb.Spec.SecretName,
 	}
 }
 
@@ -44,6 +47,7 @@ func (ac *AgentRestClient) UploadBackup(ctx context.Context) error {
 		BucketURL:        ac.bucketURL,
 		BackupFolderPath: ac.backupFolderPath + "/hot-backup",
 		HazelcastCRName:  ac.hazelcastCRName,
+		SecretName:       ac.secretName,
 	}
 	reqBody, err := json.Marshal(req)
 	if err != nil {

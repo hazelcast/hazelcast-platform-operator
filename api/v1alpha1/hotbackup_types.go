@@ -51,6 +51,10 @@ type HotBackupSpec struct {
 	// URL of the bucket to download HotBackup folders.
 	// +optional
 	BucketURL string `json:"bucket"`
+
+	// Name of the secret with credentials for cloud providers.
+	// +optional
+	SecretName string `json:"secretName"`
 }
 
 //+kubebuilder:object:root=true

@@ -111,7 +111,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"endpoints", "pods", "nodes", "services"},
+				Resources: []string{"endpoints", "pods", "nodes", "services", "secrets"},
 				Verbs:     []string{"get", "list"},
 			},
 		},
@@ -671,7 +671,24 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 		}
 		if h.Spec.Restore.IsEnabled() {
-			sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, restoreAgentContainer(h))
+
+			provider, err := h.Spec.Restore.GetProvider()
+			if err != nil {
+				logger.Error(err, "Failed to create init container for restore operation")
+				return err
+			}
+			if provider == n.GCP {
+				sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, v1.Volume{
+					Name: n.GCPCredentialVolumeName,
+					VolumeSource: v1.VolumeSource{
+						Secret: &v1.SecretVolumeSource{
+							SecretName: h.Spec.Restore.BucketSecret,
+						},
+					},
+				})
+			}
+
+			sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, restoreAgentContainer(h, provider))
 		}
 	}
 
@@ -716,42 +733,104 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 	return err
 }
+func restoreAgentVolumeMounts(h *hazelcastv1alpha1.Hazelcast, provider string) []v1.VolumeMount {
+	volumeMounts := []v1.VolumeMount{{
+		Name:      n.PersistenceVolumeName,
+		MountPath: h.Spec.Persistence.BaseDir,
+	}}
+	if provider == n.GCP {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      n.GCPCredentialVolumeName,
+			MountPath: n.GCPCredentialVolumePath,
+		})
+	}
+	return volumeMounts
+}
 
-func agentCredentials(h *hazelcastv1alpha1.Hazelcast, secret string) []v1.EnvVar {
-	return []v1.EnvVar{
-		{
-			Name: "AWS_ACCESS_KEY_ID",
-			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: secret,
+func restoreAgentCredentials(secret string, provider string) []v1.EnvVar {
+	switch provider {
+	case n.AWS:
+		return []v1.EnvVar{
+			{
+				Name: n.BucketDataS3EnvAccessKeyID,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataS3AccessKeyID,
 					},
-					Key: n.BucketDataS3AccessKeyID,
 				},
 			},
-		},
-		{
-			Name: "AWS_SECRET_ACCESS_KEY",
-			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: secret,
+			{
+				Name: n.BucketDataS3EnvSecretAccessKey,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataS3SecretAccessKey,
 					},
-					Key: n.BucketDataS3SecretAccessKey,
 				},
 			},
-		},
-		{
-			Name: "AWS_REGION",
-			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: secret,
+			{
+				Name: n.BucketDataS3EnvRegion,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataS3Region,
 					},
-					Key: n.BucketDataS3Region,
 				},
 			},
-		},
+		}
+	case n.GCP:
+		return []v1.EnvVar{
+			{
+				Name:  n.BucketDataGCPEnvCredentialFile,
+				Value: n.GCPCredentialVolumePath + "/" + n.BucketDataGCPCredentialFile,
+			},
+		}
+	case n.AZURE:
+		return []v1.EnvVar{
+			{
+				Name: n.BucketDataAzureEnvStorageAccount,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataAzureStorageAccount,
+					},
+				},
+			},
+			{
+				Name: n.BucketDataAzureEnvStorageKey,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataAzureStorageKey,
+					},
+				},
+			},
+			// TODO
+			//{
+			//	Name: n.BucketDataAzureEnvSASToken,
+			//	ValueFrom: &v1.EnvVarSource{
+			//		SecretKeyRef: &v1.SecretKeySelector{
+			//			LocalObjectReference: v1.LocalObjectReference{
+			//				Name: secret,
+			//			},
+			//			Key: n.BucketDataAzureSASToken,
+			//		},
+			//	},
+			//},
+		}
+	default:
+		return nil
 	}
 }
 
@@ -793,7 +872,6 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			SuccessThreshold:    1,
 			FailureThreshold:    10,
 		},
-		Env: agentCredentials(h, h.Spec.Backup.BucketSecret),
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
@@ -801,12 +879,12 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
-func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.Container {
 	return v1.Container{
 		Name:  n.RestoreAgent,
 		Image: h.RestoreAgentDockerImage(),
 		Args:  []string{"restore"},
-		Env: append(agentCredentials(h, h.Spec.Restore.BucketSecret),
+		Env: append(restoreAgentCredentials(h.Spec.Restore.BucketSecret, provider),
 			v1.EnvVar{
 				Name:  "RESTORE_BUCKET",
 				Value: h.Spec.Restore.BucketPath,
@@ -824,10 +902,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				},
 			},
 		),
-		VolumeMounts: []v1.VolumeMount{{
-			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
-		}},
+		VolumeMounts: restoreAgentVolumeMounts(h, provider),
 	}
 }
 

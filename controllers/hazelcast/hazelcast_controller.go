@@ -57,7 +57,7 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=system
 // ClusterRole inherited from Hazelcast ClusterRole
-//+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
+//+kubebuilder:rbac:groups="",resources=endpoints;secrets;pods;nodes;services,verbs=get;list
 // Role related to Reconcile()
 //+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system

@@ -2,7 +2,9 @@ package v1alpha1
 
 import (
 	"fmt"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 	"hash/fnv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -355,7 +357,17 @@ func (c *BackupAgentConfiguration) IsEnabled() bool {
 
 // IsEnabled returns true if Restore Agent configuration is specified
 func (r *RestoreAgentConfiguration) IsEnabled() bool {
-	return r != nil && !(*r == (RestoreAgentConfiguration{}))
+	return r != nil && r.BucketSecret != "" && r.BucketPath != "" && !(*r == (RestoreAgentConfiguration{}))
+}
+
+// GetProvider returns the cloud provider for Restore operation according to the BucketPath
+func (r *RestoreAgentConfiguration) GetProvider() (string, error) {
+	provider := strings.Split(r.BucketPath, ":")[0]
+
+	if provider == n.AWS || provider == n.GCP || provider == n.AZURE {
+		return provider, nil
+	}
+	return "", fmt.Errorf("invalid bucket path")
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

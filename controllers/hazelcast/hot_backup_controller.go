@@ -135,6 +135,10 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	}
 
 	if hb.Spec.BucketURL != "" {
+		if hb.Spec.SecretName == "" {
+			logger.Error(err, "You need to specify secret name for triggering backup in the external storage.")
+			return ctrl.Result{}, err
+		}
 		agentAddresses, err := r.getAgentAddresses(ctx, hb)
 		if err != nil {
 			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(fmt.Errorf("could not fetch Backup agent addresses properly: %w", err)))

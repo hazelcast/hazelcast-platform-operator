@@ -63,6 +63,9 @@ spec:
                   0 * * * \t@hourly                | Run once an hour, beginning of
                   hour        | 0 * * * *"
                 type: string
+              secretName:
+                description: Name of the secret with credentials for cloud providers.
+                type: string
             required:
             - hazelcastResourceName
             type: object

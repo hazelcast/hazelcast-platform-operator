@@ -1,0 +1,15 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: HotBackup
+metadata:
+  name: hot-backup
+spec:
+  hazelcastResourceName: hazelcast
+  bucket: "s3://cagri-operator"
+  secretName: "br-secret-s3"
+
+#  bucket: "gs://operator-agent-backup"
+#  secretName: "br-secret-gcp"
+#
+#  bucket: "azblob://backup"
+#  secretName: "br-secret-az"
+
