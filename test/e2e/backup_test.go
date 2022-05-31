@@ -23,7 +23,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast", func() {
+var _ = Describe("Hazelcast Backup", func() {
 
 	var lookupKey = types.NamespacedName{
 		Name:      hzName,
