@@ -16,7 +16,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_exposeExternally"), func() {
+var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose_externally"), func() {
 	hzName := fmt.Sprintf("hz-ex-ex-%d", GinkgoParallelProcess())
 
 	var hzLookupKey = types.NamespacedName{
@@ -24,7 +24,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		Namespace: hzNamespace,
 	}
 	labels := map[string]string{
-		"test_suite": fmt.Sprintf("hz_exposeExternally_%d", GinkgoParallelProcess()),
+		"test_suite": fmt.Sprintf("hz_expose_externally_%d", GinkgoParallelProcess()),
 	}
 	BeforeEach(func() {
 		if !useExistingCluster() {
