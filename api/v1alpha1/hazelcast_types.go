@@ -2,7 +2,7 @@ package v1alpha1
 
 import (
 	"fmt"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"hash/fnv"
 	"strings"
 
@@ -123,27 +123,6 @@ type RestoreAgentConfiguration struct {
 	BucketSecret string `json:"bucketSecret,omitempty"`
 
 	// Full path to blob storage bucket.
-	BucketPath string `json:"bucketPath,omitempty"`
-}
-
-// RestoreAgentConfiguration contains the configuration for Restore Agent
-type RestoreAgentConfiguration struct {
-	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
-	// +optional
-	AgentRepository string `json:"agentRepository,omitempty"`
-
-	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="1.0.0"
-	// +optional
-	AgentVersion string `json:"agentVersion,omitempty"`
-
-	// Name of the secret with credentials for cloud providers.
-	// +optional
-	BucketSecret string `json:"bucketSecret,omitempty"`
-
-	// Full path to blob storage bucket.
-	// +optional
 	BucketPath string `json:"bucketPath,omitempty"`
 }
 
