@@ -124,7 +124,7 @@ func GetHzClient(ctx context.Context, unisocket bool) *hzClient.Client {
 		err := k8sClient.Get(context.Background(), lookupKey, s)
 		Expect(err).ToNot(HaveOccurred())
 		return len(s.Status.LoadBalancer.Ingress) > 0
-	}, 30*Second, interval).Should(BeTrue())
+	}, 1*Minute, interval).Should(BeTrue())
 	addr := s.Status.LoadBalancer.Ingress[0].IP
 	if addr == "" {
 		addr = s.Status.LoadBalancer.Ingress[0].Hostname
