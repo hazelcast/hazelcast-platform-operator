@@ -20,7 +20,7 @@ const (
 	logInterval = 10 * Millisecond
 )
 
-var _ = FDescribe("Hazelcast", Label("hz"), func() {
+var _ = Describe("Hazelcast", Label("hz"), func() {
 	hzName := fmt.Sprintf("hz-%d", GinkgoParallelProcess())
 	var hzLookupKey = types.NamespacedName{
 		Name:      hzName,
@@ -54,7 +54,7 @@ var _ = FDescribe("Hazelcast", Label("hz"), func() {
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
-	FDescribe("Default Hazelcast CR", func() {
+	Describe("Default Hazelcast CR", func() {
 		It("should create Hazelcast cluster", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

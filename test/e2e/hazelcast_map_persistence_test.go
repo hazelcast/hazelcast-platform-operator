@@ -19,7 +19,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = FDescribe("Hazelcast Map Config with Persistence", Label("map_persistence"), func() {
+var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence"), func() {
 	hzName := fmt.Sprintf("hz-map-pers-%d", GinkgoParallelProcess())
 	hbName := fmt.Sprintf("hz-map-pers-hb-%d", GinkgoParallelProcess())
 	mapName := fmt.Sprintf("hz-map-pers-map-%d", GinkgoParallelProcess())
