@@ -58,6 +58,16 @@ spec:
                 description: Configuration for removing data from the map when it
                   reaches its max size. It can be updated.
                 properties:
+                  evictionPolicy:
+                    default: NONE
+                    description: Eviction policy to be applied when map reaches its
+                      max size according to the max size policy.
+                    enum:
+                    - NONE
+                    - LRU
+                    - LFU
+                    - RANDOM
+                    type: string
                   maxSize:
                     default: 0
                     description: Max size of the map.
@@ -77,16 +87,6 @@ spec:
                     - USED_NATIVE_MEMORY_PERCENTAGE
                     - FREE_NATIVE_MEMORY_SIZE
                     - FREE_NATIVE_MEMORY_PERCENTAGE
-                    type: string
-                  persistenceEnabled:
-                    default: NONE
-                    description: Eviction policy to be applied when map reaches its
-                      max size according to the max size policy.
-                    enum:
-                    - NONE
-                    - LRU
-                    - LFU
-                    - RANDOM
                     type: string
                 type: object
               hazelcastResourceName:

@@ -210,6 +210,24 @@ spec:
                       to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                     type: object
                 type: object
+              restore:
+                description: Restore Agent configuration
+                properties:
+                  agentRepository:
+                    default: docker.io/hazelcast/platform-operator-agent
+                    description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
+                    type: string
+                  agentVersion:
+                    default: 1.0.0
+                    description: Version of Hazelcast Platform Operator Agent.
+                    type: string
+                  bucketPath:
+                    description: Full path to blob storage bucket.
+                    type: string
+                  bucketSecret:
+                    description: Name of the secret with credentials for cloud providers.
+                    type: string
+                type: object
               scheduling:
                 description: Scheduling details
                 properties:

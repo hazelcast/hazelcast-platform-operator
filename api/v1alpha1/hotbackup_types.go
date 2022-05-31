@@ -6,6 +6,7 @@ type HotBackupState string
 
 const (
 	HotBackupUnknown    HotBackupState = "Unknown"
+	HotBackupPending    HotBackupState = "Pending"
 	HotBackupNotStarted HotBackupState = "NotStarted"
 	HotBackupInProgress HotBackupState = "InProgress"
 	HotBackupFailure    HotBackupState = "Failure"
@@ -14,6 +15,12 @@ const (
 
 func (s HotBackupState) IsFinished() bool {
 	return s == HotBackupFailure || s == HotBackupSuccess
+}
+
+// IsRunning returns true if the HotBackup is scheduled to run or is running but not yet finished.
+// Returns false if the HotBackup is not yet scheduled to run or finished it execution including the failure state.
+func (s HotBackupState) IsRunning() bool {
+	return !s.IsFinished() && s != ""
 }
 
 // HotBackupStatus defines the observed state of HotBackup

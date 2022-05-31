@@ -38,6 +38,14 @@ func pendingStatus(retryAfter time.Duration) mapOptionsBuilder {
 		retryAfter: retryAfter,
 	}
 }
+
+func persistingStatus(retryAfter time.Duration) mapOptionsBuilder {
+	return mapOptionsBuilder{
+		status:     hazelcastv1alpha1.MapPersisting,
+		retryAfter: retryAfter,
+	}
+}
+
 func (o mapOptionsBuilder) withMessage(m string) mapOptionsBuilder {
 	o.message = m
 	return o
@@ -67,7 +75,7 @@ func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1alpha1.
 	if options.status == hazelcastv1alpha1.MapFailed {
 		return ctrl.Result{}, options.err
 	}
-	if options.status == hazelcastv1alpha1.MapPending {
+	if options.status == hazelcastv1alpha1.MapPending || options.status == hazelcastv1alpha1.MapPersisting {
 		return ctrl.Result{Requeue: true, RequeueAfter: options.retryAfter}, nil
 	}
 	return ctrl.Result{}, nil

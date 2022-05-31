@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/codec"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
@@ -218,6 +218,7 @@ func (c *Client) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *Ti
 	jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
 	if err != nil {
 		c.Log.Error(err, "Fetching TimedMemberState failed.", "CR", c.NamespacedName)
+		return nil
 	}
 	state := &TimedMemberStateWrapper{}
 	err = json.Unmarshal([]byte(jsonState), state)

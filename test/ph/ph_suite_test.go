@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	. "github.com/hazelcast/hazelcast-platform-operator/test"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -23,9 +24,8 @@ var (
 
 func TestPhoneHome(t *testing.T) {
 	RegisterFailHandler(Fail)
-
-	RunSpecs(t,
-		"Controller Suite")
+	SpecLabelsChecker()
+	RunSpecs(t, "Controller Suite")
 }
 
 var _ = BeforeSuite(func() {

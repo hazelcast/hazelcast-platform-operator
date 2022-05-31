@@ -1,0 +1,90 @@
+name: "Install tool dependency"
+description: "Installing all required libraries and data: go, cache, preflight, opm, operator SDK and PFLT_CERTIFICATION_PROJECT_ID"
+
+inputs:
+  PFLT_PYXIS_API_TOKEN:
+    description: "An API Key can be created in Red Hat Partner Connect at the following URL: https://connect.redhat.com/account/api-keys"
+    required: false
+  PROJECT_ID:
+    description: "Certification Project ID from connect.redhat.com. Should be supplied w/ the ospid- prefix."
+    required: false
+  PREFLIGHT_VERSION:
+    description: "Preflight tool version"
+    required: false
+  OPERATOR_SDK_INSTALL:
+    description: "Install Operator SDK or not. Non empty values are consider as 'true'."
+    required: false
+  OPM_INSTALL:
+    description: "Install opm tool or not. Non empty values are consider as 'true'."
+    required: false
+
+outputs:
+  PFLT_CERTIFICATION_PROJECT_ID:
+    description: "Certification Project ID from connect.redhat.com. Should be supplied w/o the ospid- prefix."
+    value: ${{ steps.pflt-cert-prj.outputs.PFLT_CERTIFICATION_PROJECT_ID }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout to hazelcast-operator
+      uses: actions/checkout@v3
+
+    - name: Set up Golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.16'
+
+    - name: Cache Golang dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install preflight tool
+      shell: bash
+      run: |
+        if [[ ! -z "${{ inputs.PREFLIGHT_VERSION }}" ]]; then
+           echo "✅ Installing preflight tool"
+           mkdir -p ${GITHUB_WORKSPACE}/bin
+           echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
+           curl -L --fail --show-error --silent https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/${{ inputs.PREFLIGHT_VERSION }}/preflight-linux-amd64 \
+           -o ${GITHUB_WORKSPACE}/bin/preflight && chmod +x ${GITHUB_WORKSPACE}/bin/preflight
+        else
+           echo "⏭ Skipping preflight tool installation"
+        fi
+
+    - name: Get Certification ID
+      shell: bash
+      id: pflt-cert-prj
+      run: |
+        if [[ ! -z "${{ inputs.PROJECT_ID }}" ]]; then
+          echo "✅ Getting PFLT_CERTIFICATION_PROJECT_ID variable"
+          PFLT_CERTIFICATION_PROJECT_ID=$(curl --fail --show-error --silent --request GET -H "X-API-KEY: ${{ inputs.PFLT_PYXIS_API_TOKEN }}" \
+          "https://catalog.redhat.com/api/containers/v1/projects/certification/pid/${{ inputs.PROJECT_ID }}" | jq -r '._id')
+          echo "PFLT_CERTIFICATION_PROJECT_ID=${PFLT_CERTIFICATION_PROJECT_ID}" >> $GITHUB_ENV
+          echo "::set-output name=PFLT_CERTIFICATION_PROJECT_ID::${PFLT_CERTIFICATION_PROJECT_ID}"
+        else
+           echo "⏭ Skipping getting preflight certification Id"
+        fi
+
+    - name: Install OPM tool
+      shell: bash
+      run: |
+        if [[ ! -z "${{ inputs.OPM_INSTALL }}" ]]; then
+          echo "✅ Installing OPM for generating index images"
+          make opm
+        else
+           echo "⏭ Skipping OPM tool installation"
+        fi
+
+    - name: Install operator SDK
+      shell: bash
+      run: |
+        if [[ ! -z "${{ inputs.OPERATOR_SDK_INSTALL }}" ]]; then
+          echo "✅ Installing OPERATOR_SDK"
+          make operator-sdk
+        else
+           echo "⏭ Skipping OPERATOR_SDK installation"
+        fi
