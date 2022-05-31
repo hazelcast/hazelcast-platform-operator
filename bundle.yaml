@@ -780,6 +780,9 @@ spec:
               schedule:
                 description: "Schedule contains a crontab-like expression that defines the schedule in which HotBackup will be started. If the Schedule is empty the HotBackup will start only once when applied. --- Several pre-defined schedules in place of a cron expression can be used. \tEntry                  | Description                                | Equivalent To \t-----                  | -----------                                | ------------- \t@yearly (or @annually) | Run once a year, midnight, Jan. 1st        | 0 0 1 1 * \t@monthly               | Run once a month, midnight, first of month | 0 0 1 * * \t@weekly                | Run once a week, midnight between Sat/Sun  | 0 0 * * 0 \t@daily (or @midnight)  | Run once a day, midnight                   | 0 0 * * * \t@hourly                | Run once an hour, beginning of hour        | 0 * * * *"
                 type: string
+              secretName:
+                description: Name of the secret with credentials for cloud providers.
+                type: string
             required:
             - hazelcastResourceName
             type: object
@@ -1459,8 +1462,7 @@ spec:
                 properties:
                   evictionPolicy:
                     default: NONE
-                    description: Eviction policy to be applied when map reaches its
-                      max size according to the max size policy.
+                    description: Eviction policy to be applied when map reaches its max size according to the max size policy.
                     enum:
                     - NONE
                     - LRU
@@ -1743,6 +1745,7 @@ rules:
   - endpoints
   - nodes
   - pods
+  - secrets
   - services
   verbs:
   - get
