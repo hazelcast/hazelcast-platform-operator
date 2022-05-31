@@ -56,7 +56,7 @@ func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
 			return false
 		}
 		return errors.IsNotFound(err)
-	}, 2*Minute, interval).Should(BeTrue())
+	}, 3*Minute, interval).Should(BeTrue())
 }
 
 func assertExists(name types.NamespacedName, obj client.Object) {

@@ -112,10 +112,14 @@ func DeletePod(podName string, gracePeriod int64) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	assertDoesNotExist(types.NamespacedName{
-		Name:      podName,
-		Namespace: hzNamespace,
-	}, &corev1.Pod{})
+	By("waiting for POD to be removed", func() {
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      podName,
+				Namespace: hzNamespace,
+			}, &corev1.Pod{})
+		}, 5*Minute, interval).ShouldNot(Succeed())
+	})
 }
 
 func GetHzClient(ctx context.Context, unisocket bool) *hzClient.Client {
