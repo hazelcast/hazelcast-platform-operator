@@ -117,7 +117,7 @@ var _ = Describe("Hazelcast", func() {
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
-	It("should successfully start after one member restart", Label("slow", "backup"), func() {
+	It("should successfully start after one member restart", Label("slow"), func() {
 		mapName := "backup-map-2"
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
