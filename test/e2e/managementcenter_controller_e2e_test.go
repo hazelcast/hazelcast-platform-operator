@@ -72,7 +72,7 @@ var _ = Describe("Management-Center", func() {
 				err := k8sClient.Get(context.Background(), lookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
 				return isManagementCenterRunning(mc)
-			}, 1*Minute, interval).Should(BeTrue())
+			}, 2*Minute, interval).Should(BeTrue())
 		})
 	}
 
