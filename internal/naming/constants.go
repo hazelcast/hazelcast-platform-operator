@@ -66,10 +66,8 @@ const (
 
 	BucketDataAzureStorageAccount    = "storage-account"
 	BucketDataAzureStorageKey        = "storage-key"
-	BucketDataAzureSASToken          = "sas-token"
 	BucketDataAzureEnvStorageAccount = "AZURE_STORAGE_ACCOUNT"
 	BucketDataAzureEnvStorageKey     = "AZURE_STORAGE_KEY"
-	BucketDataAzureEnvSASToken       = "AZURE_STORAGE_SAS_TOKEN"
 
 	GCP   = "gs"
 	AWS   = "s3"

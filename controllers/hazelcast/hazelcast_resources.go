@@ -816,18 +816,6 @@ func restoreAgentCredentials(secret string, provider string) []v1.EnvVar {
 					},
 				},
 			},
-			// TODO
-			//{
-			//	Name: n.BucketDataAzureEnvSASToken,
-			//	ValueFrom: &v1.EnvVarSource{
-			//		SecretKeyRef: &v1.SecretKeySelector{
-			//			LocalObjectReference: v1.LocalObjectReference{
-			//				Name: secret,
-			//			},
-			//			Key: n.BucketDataAzureSASToken,
-			//		},
-			//	},
-			//},
 		}
 	default:
 		return nil
