@@ -154,7 +154,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
 	})
 
-	FIt("should persist the map successfully created configs into the configmap", Label("fast"), func() {
+	It("should persist the map successfully created configs into the configmap", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
