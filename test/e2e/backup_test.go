@@ -61,7 +61,7 @@ var _ = Describe("Hazelcast Backup", func() {
 		assertDoesNotExist(lookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
-	It("should restart successfully after shutting down Hazelcast", Label("slow"), func() {
+	It("should restart successfully after shutting down Hazelcast", Label("slow", "backup"), func() {
 		mapName := "backup-map-1"
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
@@ -117,7 +117,7 @@ var _ = Describe("Hazelcast Backup", func() {
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
-	It("should successfully start after one member restart", Label("slow"), func() {
+	It("should successfully start after one member restart", Label("slow", "backup"), func() {
 		mapName := "backup-map-2"
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
@@ -166,7 +166,7 @@ var _ = Describe("Hazelcast Backup", func() {
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
-	It("should restore 2 GB data after planned shutdown", Label("slow"), func() {
+	It("should restore 2 GB data after planned shutdown", Label("slow", "backup"), func() {
 		var mapSizeInGb = "2"
 		var mapName = "backup-map-3"
 		ctx := context.Background()

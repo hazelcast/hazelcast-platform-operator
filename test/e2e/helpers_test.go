@@ -180,8 +180,7 @@ func FillTheMapWithHugeData(ctx context.Context, mapName string, mapSizeInGb str
 	// 1310.72 entries per one Go routine. Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
 	err := client.Shutdown(ctx)
 	Expect(err).ToNot(HaveOccurred())
-	DeletePod(clientPod.Name, 0)
-
+	defer DeletePod(clientPod.Name, 0)
 }
 
 func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *corev1.Pod {
