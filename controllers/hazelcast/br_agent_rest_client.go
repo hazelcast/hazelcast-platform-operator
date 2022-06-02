@@ -35,10 +35,10 @@ type AgentRestClient struct {
 func NewAgentRestClient(h *v1alpha1.Hazelcast, hb *v1alpha1.HotBackup, addresses []string) *AgentRestClient {
 	return &AgentRestClient{
 		addresses:        addresses,
-		bucketURL:        hb.Spec.BucketURL,
+		bucketURL:        hb.Spec.BucketURI,
 		backupFolderPath: h.Spec.Persistence.BaseDir,
 		hazelcastCRName:  hb.Spec.HazelcastResourceName,
-		secretName:       hb.Spec.SecretName,
+		secretName:       hb.Spec.Secret,
 	}
 }
 

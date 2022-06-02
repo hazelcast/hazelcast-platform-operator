@@ -41,7 +41,7 @@ spec:
           spec:
             description: HotBackupSpec defines the Spec of HotBackup
             properties:
-              bucket:
+              bucketURI:
                 description: URL of the bucket to download HotBackup folders.
                 type: string
               hazelcastResourceName:
@@ -63,7 +63,7 @@ spec:
                   0 * * * \t@hourly                | Run once an hour, beginning of
                   hour        | 0 * * * *"
                 type: string
-              secretName:
+              secret:
                 description: Name of the secret with credentials for cloud providers.
                 type: string
             required:

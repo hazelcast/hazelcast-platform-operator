@@ -7,6 +7,9 @@ spec:
   repository: "docker.io/hazelcast/hazelcast-enterprise"
   version: "5.1"
   licenseKeySecret: hazelcast-license-key
+  agent:
+    repository: hazelcast/platform-operator-agent
+    version: 0.1.0
   persistence:
     baseDir: "/data/hot-restart/"
     clusterDataRecoveryPolicy: "FullRecoveryOnly"
@@ -14,8 +17,6 @@ spec:
       accessModes: ["ReadWriteOnce"]
       requestStorage: 8Gi
       storageClassName: "standard"
-  restore:
-    agentRepository: hazelcast/platform-operator-agent
-    agentVersion: latest
-    bucketSecret: br-secret
-    bucketPath: "s3://restore-backup?prefix=hazelcast/2022-02-21-14-23-52/&region=us-east-1"
+    restore:
+      secret: br-secret-az
+      bucketURI: "azblob://backup?prefix=hazelcast/2022-06-02-21-57-49/"

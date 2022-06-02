@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"hash/crc32"
 	"net"
 	"strconv"
@@ -187,7 +188,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	var service *corev1.Service
-	if h.Spec.Backup.IsEnabled() {
+	if h.Spec.Persistence.IsExternal() {
 		service = &corev1.Service{
 			ObjectMeta: metadata(h),
 			Spec: corev1.ServiceSpec{
@@ -664,15 +665,16 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		} else {
 			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 		}
-	}
-
-	if h.Spec.Persistence.IsEnabled() {
-		if h.Spec.Backup.IsEnabled() {
+		if h.Spec.Persistence.IsExternal() {
 			sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 		}
-		if h.Spec.Restore.IsEnabled() {
-
-			provider, err := h.Spec.Restore.GetProvider()
+		if h.Spec.Persistence.IsRestoreEnabled() {
+			err := validation.ValidateRestoreConfiguration(h.Spec.Persistence.Restore)
+			if err != nil {
+				logger.Error(err, "Invalid RestoreConfiguration")
+				return err
+			}
+			provider, err := h.Spec.Persistence.Restore.GetProvider()
 			if err != nil {
 				logger.Error(err, "Failed to create init container for restore operation")
 				return err
@@ -682,7 +684,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					Name: n.GCPCredentialVolumeName,
 					VolumeSource: v1.VolumeSource{
 						Secret: &v1.SecretVolumeSource{
-							SecretName: h.Spec.Restore.BucketSecret,
+							SecretName: h.Spec.Persistence.Restore.Secret,
 						},
 					},
 				})
@@ -825,7 +827,7 @@ func restoreAgentCredentials(secret string, provider string) []v1.EnvVar {
 func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
 		Name:  n.BackupAgent,
-		Image: h.BackupAgentDockerImage(),
+		Image: h.AgentDockerImage(),
 		Ports: []v1.ContainerPort{{
 			ContainerPort: n.DefaultAgentPort,
 			Name:          n.BackupAgent,
@@ -870,12 +872,12 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.Container {
 	return v1.Container{
 		Name:  n.RestoreAgent,
-		Image: h.RestoreAgentDockerImage(),
+		Image: h.AgentDockerImage(),
 		Args:  []string{"restore"},
-		Env: append(restoreAgentCredentials(h.Spec.Restore.BucketSecret, provider),
+		Env: append(restoreAgentCredentials(h.Spec.Persistence.Restore.Secret, provider),
 			v1.EnvVar{
 				Name:  "RESTORE_BUCKET",
-				Value: h.Spec.Restore.BucketPath,
+				Value: h.Spec.Persistence.Restore.BucketURI,
 			},
 			v1.EnvVar{
 				Name:  "RESTORE_DESTINATION",
@@ -990,7 +992,7 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 
 func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	// make sure restore is active
-	if !h.Spec.Restore.IsEnabled() {
+	if !h.Spec.Persistence.IsRestoreEnabled() {
 		return nil
 	}
 

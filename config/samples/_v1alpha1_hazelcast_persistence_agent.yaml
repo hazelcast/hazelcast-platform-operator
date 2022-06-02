@@ -7,14 +7,14 @@ spec:
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
   version: '5.1'
   licenseKeySecret: hazelcast-license-key
+  agent:
+    repository: hazelcast/platform-operator-agent
+    version: 0.1.0
   persistence:
+    backupType: "External"
     baseDir: "/data/hot-restart/"
     clusterDataRecoveryPolicy: "FullRecoveryOnly"
     pvc:
       accessModes: ["ReadWriteOnce"]
       requestStorage: 8Gi
       storageClassName: "standard"
-  backup:
-    agentRepository: hazelcast/platform-operator-agent
-    agentVersion: 0.1.0
-    bucketSecret: br-secret

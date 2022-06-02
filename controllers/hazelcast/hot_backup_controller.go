@@ -135,7 +135,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		r.reconcileHotBackupStatus(ctx, hb)
 	}
 
-	if hb.Spec.BucketURL != "" {
+	if hb.Spec.BucketURI != "" {
 		if err := validation.ValidateHotBackupSpec(hb); err != nil {
 			return ctrl.Result{}, err
 		}
