@@ -23,7 +23,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast Backup", Label("backup"), func() {
+var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 	hzName := fmt.Sprintf("hz-backup-%d", GinkgoParallelProcess())
 	hbName := fmt.Sprintf("hz-backup-hb-%d", GinkgoParallelProcess())
 	mapName := fmt.Sprintf("hz-backup-map-%d", GinkgoParallelProcess())
@@ -55,7 +55,7 @@ var _ = Describe("Hazelcast Backup", Label("backup"), func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 10*Second, interval).Should(Equal(int32(1)))
+			}, 90*Second, interval).Should(Equal(int32(1)))
 		})
 	})
 
