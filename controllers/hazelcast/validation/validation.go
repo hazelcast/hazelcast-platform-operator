@@ -2,7 +2,6 @@ package validation
 
 import (
 	"errors"
-
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -35,6 +34,13 @@ func validateExposeExternally(h *hazelcastv1alpha1.Hazelcast) error {
 func validateLicense(h *hazelcastv1alpha1.Hazelcast) error {
 	if util.IsEnterprise(h.Spec.Repository) && len(h.Spec.LicenseKeySecret) == 0 {
 		return errors.New("when Hazelcast Enterprise is deployed, licenseKeySecret must be set")
+	}
+	return nil
+}
+
+func ValidateHotBackupSpec(hb *hazelcastv1alpha1.HotBackup) error {
+	if hb.Spec.SecretName == "" {
+		return errors.New("when using external Backup, SecretName must be set")
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"strconv"
 	"sync"
 	"time"
@@ -135,8 +136,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	}
 
 	if hb.Spec.BucketURL != "" {
-		if hb.Spec.SecretName == "" {
-			logger.Error(err, "You need to specify secret name for triggering backup in the external storage.")
+		if err := validation.ValidateHotBackupSpec(hb); err != nil {
 			return ctrl.Result{}, err
 		}
 		agentAddresses, err := r.getAgentAddresses(ctx, hb)
