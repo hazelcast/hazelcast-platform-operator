@@ -54,7 +54,7 @@ func main() {
 		}()
 	}
 	wg.Wait()
-	WaitForMapSize(ctx, m, n*100, 5*time.Second, 10*time.Minute)
+	WaitForMapSize(ctx, m, n*100, 5*time.Second, 20*time.Minute)
 	fmt.Println("Finish to fill the map with entries.")
 	fmt.Println(m.Size(ctx))
 	err = client.Shutdown(ctx)

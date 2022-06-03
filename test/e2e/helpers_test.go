@@ -77,7 +77,7 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
 	lk := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
-	By("Checking Hazelcast CR running", func() {
+	By("checking Hazelcast CR running", func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
 		Eventually(func() bool {
 			err := k8sClient.Get(context.Background(), lk, hz)
@@ -88,7 +88,7 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 }
 
 func CreateHazelcastCRWithoutCheck(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
-	By("Creating Hazelcast CR", func() {
+	By("creating Hazelcast CR", func() {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
 }
