@@ -33,7 +33,7 @@ jobs:
             --zone=${{ env.GKE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
-            --machine-type=n1-standard-8 \
+            --machine-type=n1-standard-16 \
             --num-nodes=2
           sleep 30
 

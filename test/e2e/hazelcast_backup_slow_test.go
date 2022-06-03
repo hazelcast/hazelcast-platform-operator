@@ -172,8 +172,8 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
-	It("should restore 9 GB data after planned shutdown", Label("slow"), func() {
-		var mapSizeInGb = "9"
+	FIt("should restore 10 GB data after planned shutdown", Label("slow"), func() {
+		var mapSizeInGb = "10"
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
 		if !ee {
@@ -191,7 +191,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse("9Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse("11Gi")}[0]
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the map config successfully")
@@ -224,7 +224,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse("9Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse("11Gi")}[0]
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
