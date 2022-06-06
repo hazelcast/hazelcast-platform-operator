@@ -138,7 +138,7 @@ func cleanUpHostPath(namespace, hostPath, hzDir string) {
 		})
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).
+		test.EventuallyInLogs(scanner, 40*Second, logInterval).
 			Should(ContainSubstring("done"))
 	}
 	Expect(k8sClient.Delete(context.Background(), ds)).Should(Succeed())
