@@ -82,7 +82,7 @@ type HazelcastSpec struct {
 
 	// B&R Agent configurations
 	// +optional
-	// +kubebuilder:default:={}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.0"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
 }
 

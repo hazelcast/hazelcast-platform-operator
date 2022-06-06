@@ -50,6 +50,9 @@ spec:
             description: HazelcastSpec defines the desired state of Hazelcast
             properties:
               agent:
+                default:
+                  repository: docker.io/hazelcast/platform-operator-agent
+                  version: 0.1.0
                 description: B&R Agent configurations
                 properties:
                   repository:

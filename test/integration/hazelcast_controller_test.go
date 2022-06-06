@@ -771,12 +771,6 @@ var _ = Describe("Hazelcast controller", func() {
 						StorageClassName: &[]string{"standard"}[0],
 					},
 				}
-				// TODO: If we don't pass agent configuration it's not using default values
-				// since kubebuilder default parameter is not working properly
-				spec.Agent = &hazelcastv1alpha1.AgentConfiguration{
-					Repository: "hazelcast/platform-operator-agent",
-					Version:    "0.1.0",
-				}
 
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
