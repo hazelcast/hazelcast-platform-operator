@@ -124,7 +124,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 				err := k8sClient.Get(context.Background(), mcLookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
 				return mc.Status.Phase
-			}, 1*Minute, interval).Should(Equal(phase))
+			}, 2*Minute, interval).Should(Equal(phase))
 			Expect(mc.Status.Message).Should(Not(BeEmpty()))
 		}
 

@@ -83,7 +83,7 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 			err := k8sClient.Get(context.Background(), lk, hz)
 			Expect(err).ToNot(HaveOccurred())
 			return isHazelcastRunning(hz)
-		}, 5*Minute, interval).Should(BeTrue())
+		}, 10*Minute, interval).Should(BeTrue())
 	})
 }
 
