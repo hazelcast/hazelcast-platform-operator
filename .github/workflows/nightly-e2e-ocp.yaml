@@ -61,6 +61,11 @@ jobs:
         if: matrix.edition == 'ee'
         run: oc create secret generic hazelcast-license-key --from-literal=license-key=${HZ_LICENSE_KEY}
 
+          kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
+            --from-literal=region=us-east-1 \
+            --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
       - name: Run Hazelcast E2E tests at OCP
         id: e2e-test
         run: |

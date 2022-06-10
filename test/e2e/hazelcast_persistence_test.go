@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"strconv"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -244,4 +245,57 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Entry("with HostPath configuration single node", Label("slow"), "/tmp/hazelcast/singleNode", "dummyNodeName"),
 		Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
 	)
+
+	DescribeTable("should successfully restart from HotBackup data", func(bucketURI, secretName string) {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+
+		By("Create cluster with external backup enabled")
+		hazelcast := hazelcastconfig.ExternalBackup(hzLookupKey, true, labels)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey, 1)
+
+		By("Trigger backup")
+		t := Now()
+		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
+		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+
+		By("Wait for backup to finish")
+		hb := &hazelcastcomv1alpha1.HotBackup{}
+		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
+			err := k8sClient.Get(
+				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
+			Expect(err).ToNot(HaveOccurred())
+			return hb.Status.State
+		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+
+		seq := GetBackupSequence(t, hzLookupKey)
+
+		Sleep(10 * Second)
+
+		By("Remove cluster")
+		RemoveHazelcastCR(hazelcast)
+
+		timestamp, _ := strconv.ParseInt(seq, 10, 64)
+		bucketURI += fmt.Sprintf("?prefix=%s/%s/", hzLookupKey.Name,
+			unixMilli(timestamp).UTC().Format("2006-01-02-15-04-05")) // hazelcast/2022-06-02-21-57-49/
+
+		By("Create cluster from external backup")
+		hazelcast = hazelcastconfig.ExternalRestore(hzLookupKey, true, labels, bucketURI, secretName)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey, 1)
+
+		logs := InitLogs(t, hzLookupKey)
+		defer logs.Close()
+		scanner := bufio.NewScanner(logs)
+		test.EventuallyInLogs(scanner, 1*Second, logInterval).Should(ContainSubstring("Found existing hot-restart directory"))
+		test.EventuallyInLogs(scanner, 1*Second, logInterval).Should(ContainSubstring("Local Hot Restart procedure completed with success."))
+	},
+		Entry("using AWS S3 bucket", Label("slow"), "s3://hazelcast-cn-306-restore-tests", "br-secret-s3"),
+	)
 })
+
+func unixMilli(msec int64) Time {
+	return Unix(msec/1e3, (msec%1e3)*1e6)
+}

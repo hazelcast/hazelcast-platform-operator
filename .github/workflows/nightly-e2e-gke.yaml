@@ -40,11 +40,11 @@ jobs:
   gke-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-20.04
-    needs: [ create-gke-cluster ]
+    needs: [create-gke-cluster]
     strategy:
       fail-fast: false
       matrix:
-        edition: [ 'os', 'ee' ]
+        edition: ["os", "ee"]
     env:
       IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
@@ -59,7 +59,7 @@ jobs:
       - name: Set up Golang
         uses: actions/setup-go@v3
         with:
-          go-version: '1.16'
+          go-version: "1.16"
 
       - name: Cache Golang dependencies
         uses: actions/cache@v3
@@ -78,7 +78,7 @@ jobs:
           chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.7.0'
+        uses: "google-github-actions/auth@v0.7.0"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -118,6 +118,11 @@ jobs:
           kubectl create secret generic hazelcast-license-key \
             --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
+          kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
+            --from-literal=region=us-east-1 \
+            --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
         run: |
@@ -137,7 +142,7 @@ jobs:
     name: Run E2E tests
     runs-on: ubuntu-20.04
     if: always()
-    needs: [ create-gke-cluster, gke-e2e-tests ]
+    needs: [create-gke-cluster, gke-e2e-tests]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
@@ -155,8 +160,8 @@ jobs:
 
   slack_notify:
     name: Slack Notify
-    needs: [ 'gke-e2e-tests', 'delete-cluster' ]
-    if: always() && ( needs.gke-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success') 
+    needs: ["gke-e2e-tests", "delete-cluster"]
+    if: always() && ( needs.gke-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04

@@ -68,6 +68,7 @@ func InitLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 	}, &corev1.PodLogOptions{
 		Follow:    true,
 		SinceTime: &metav1.Time{Time: t},
+		Container: "hazelcast",
 	})
 	return logs
 }

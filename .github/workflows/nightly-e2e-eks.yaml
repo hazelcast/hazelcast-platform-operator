@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        edition: [ 'os', 'ee' ]
+        edition: ["os", "ee"]
     env:
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
       IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
@@ -58,7 +58,7 @@ jobs:
       - name: Set up Golang
         uses: actions/setup-go@v3
         with:
-          go-version: '1.16'
+          go-version: "1.16"
 
       - name: Cache Golang dependencies
         uses: actions/cache@v3
@@ -112,6 +112,11 @@ jobs:
           kubectl create secret generic hazelcast-license-key \
             --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
+          kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
+            --from-literal=region=us-east-1 \
+            --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
         run: |
@@ -131,7 +136,7 @@ jobs:
     name: Delete EKS cluster
     runs-on: ubuntu-20.04
     if: always()
-    needs: [ "prepare-env", "eks-e2e-tests" ]
+    needs: ["prepare-env", "eks-e2e-tests"]
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -155,8 +160,8 @@ jobs:
 
   slack_notify:
     name: Slack Notify
-    needs: [ 'eks-e2e-tests', 'delete-cluster' ]
-    if: always() && ( needs.eks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success') 
+    needs: ["eks-e2e-tests", "delete-cluster"]
+    if: always() && ( needs.eks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
