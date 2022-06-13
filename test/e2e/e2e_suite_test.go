@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -35,7 +36,29 @@ func TestE2E(t *testing.T) {
 	RunSpecs(t, "Controller Suite")
 }
 
-var _ = BeforeSuite(func() {
+var _ = SynchronizedBeforeSuite(func() []byte {
+	cfg := setupEnv()
+
+	if ee {
+		err := platform.FindAndSetPlatform(cfg)
+		Expect(err).NotTo(HaveOccurred())
+		if platform.GetType() == platform.OpenShift {
+			cleanUpHostPath("default", "/tmp", "hazelcast")
+		}
+	}
+
+	return []byte{}
+}, func(bytes []byte) {
+	setupEnv()
+})
+
+var _ = AfterSuite(func() {
+	By("tearing down the test environment")
+	err := testEnv.Stop()
+	Expect(err).NotTo(HaveOccurred())
+})
+
+func setupEnv() *rest.Config {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	By("bootstrapping test environment")
@@ -54,19 +77,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	if ee {
-		err = platform.FindAndSetPlatform(cfg)
-		Expect(err).NotTo(HaveOccurred())
-		if platform.GetType() == platform.OpenShift {
-			cleanUpHostPath("default", "/tmp", "hazelcast")
-		}
-	}
-
 	controllerManagerName.Namespace = hzNamespace
-})
 
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
-})
+	return cfg
+}
