@@ -61,7 +61,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 				err := k8sClient.Get(context.Background(), mcLookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
 				return isManagementCenterRunning(mc)
-			}, 2*Minute, interval).Should(BeTrue())
+			}, 5*Minute, interval).Should(BeTrue())
 		})
 	}
 
@@ -96,7 +96,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 					err := k8sClient.Get(context.Background(), mcLookupKey, &cr)
 					Expect(err).ToNot(HaveOccurred())
 					return cr.Status.ExternalAddresses
-				}, 1*Minute, interval).Should(Not(BeEmpty()))
+				}, 5*Minute, interval).Should(Not(BeEmpty()))
 			})
 		})
 	})
