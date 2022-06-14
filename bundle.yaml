@@ -998,7 +998,7 @@ spec:
                     type: array
                 type: object
               version:
-                default: "5.1"
+                default: 5.1.2
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
@@ -2146,7 +2146,7 @@ spec:
                     type: array
                 type: object
               version:
-                default: 5.1.1
+                default: 5.1.3
                 description: Version of Management Center.
                 type: string
             type: object

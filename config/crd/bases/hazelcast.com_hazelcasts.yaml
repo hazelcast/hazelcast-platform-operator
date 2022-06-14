@@ -1000,7 +1000,7 @@ spec:
                     type: array
                 type: object
               version:
-                default: "5.1"
+                default: 5.1.2
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
