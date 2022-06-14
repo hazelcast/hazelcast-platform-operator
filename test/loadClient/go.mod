@@ -37,3 +37,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.0.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
+
+replace (
+	// to fix vulnerability: CVE-2021-3121 in github.com/gogo/protobuf < v1.3.2
+	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
+)
