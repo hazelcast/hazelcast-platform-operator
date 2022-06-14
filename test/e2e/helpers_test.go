@@ -128,7 +128,7 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 		err := k8sClient.Get(context.Background(), lk, s)
 		Expect(err).ToNot(HaveOccurred())
 		return len(s.Status.LoadBalancer.Ingress) > 0
-	}, 1*Minute, interval).Should(BeTrue())
+	}, 3*Minute, interval).Should(BeTrue())
 	addr := s.Status.LoadBalancer.Ingress[0].IP
 	if addr == "" {
 		addr = s.Status.LoadBalancer.Ingress[0].Hostname
@@ -401,6 +401,9 @@ func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcas
 				Namespace: h.Namespace,
 			}, checkHz)
 			if err != nil {
+				return ""
+			}
+			if checkHz.Status.Restore == nil {
 				return ""
 			}
 			return checkHz.Status.Restore.State
