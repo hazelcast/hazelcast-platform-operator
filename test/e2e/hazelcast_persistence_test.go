@@ -186,7 +186,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		evaluateReadyMembers(hzLookupKey, 2)
 	})
 
-	DescribeTable("should successfully restart from HotBackup data", func(params ...interface{}) {
+	DescribeTable("should successfully restart from HotBackup data", Serial, func(params ...interface{}) {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -214,15 +214,15 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		defer logs.Close()
 
 		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).
+		test.EventuallyInLogs(scanner, 30*Second, logInterval).
 			Should(ContainSubstring("Starting hot-restart service. Base directory: " + baseDir))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).
+		test.EventuallyInLogs(scanner, 30*Second, logInterval).
 			Should(ContainSubstring("Starting the Hot Restart procedure."))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).
+		test.EventuallyInLogs(scanner, 30*Second, logInterval).
 			Should(ContainSubstring("Local Hot Restart procedure completed with success."))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).
+		test.EventuallyInLogs(scanner, 30*Second, logInterval).
 			Should(ContainSubstring("Completed hot restart with final cluster state: ACTIVE"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).
+		test.EventuallyInLogs(scanner, 30*Second, logInterval).
 			Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 
 		Expect(logs.Close()).Should(Succeed())
