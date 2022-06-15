@@ -6,12 +6,12 @@ on:
     branches:
       - main
     paths-ignore:
-      - '**.md'
+      - "**.md"
   pull_request:
     branches:
       - main
     paths-ignore:
-      - '**.md'
+      - "**.md"
 
 env:
   GCP_PROJECT_ID: hazelcast-33
@@ -29,7 +29,7 @@ jobs:
       - name: Set up Golang
         uses: actions/setup-go@v3
         with:
-          go-version: '1.16'
+          go-version: "1.16"
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3.1.0
@@ -64,7 +64,7 @@ jobs:
       - name: Set up Golang
         uses: actions/setup-go@v3
         with:
-          go-version: '1.16'
+          go-version: "1.16"
 
       - name: Cache Golang dependencies
         uses: actions/cache@v3
@@ -119,7 +119,7 @@ jobs:
       - name: Set up Golang
         uses: actions/setup-go@v3
         with:
-          go-version: '1.16'
+          go-version: "1.16"
 
       - name: Cache Golang dependencies
         uses: actions/cache@v3
@@ -130,7 +130,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.7.0'
+        uses: "google-github-actions/auth@v0.7.0"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -160,7 +160,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        edition: [ 'os', 'ee' ]
+        edition: ["os", "ee"]
     env:
       NAMESPACE: test-operator-${{ matrix.edition }}
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
@@ -184,7 +184,7 @@ jobs:
       - name: Set up Golang
         uses: actions/setup-go@v3
         with:
-          go-version: '1.16'
+          go-version: "1.16"
 
       - name: Cache Golang dependencies
         uses: actions/cache@v3
@@ -202,7 +202,7 @@ jobs:
             -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.7.0'
+        uses: "google-github-actions/auth@v0.7.0"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -243,6 +243,11 @@ jobs:
             --namespace ${{ env.NAMESPACE }} \
             --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
+          kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
+            --from-literal=region=us-east-1 \
+            --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
         run: |
@@ -258,17 +263,16 @@ jobs:
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
-
   delete-cluster:
     name: Delete Cluster
     runs-on: ubuntu-20.04
     if: always() && needs.create-gke-cluster.result != 'skipped'
-    needs: [ create-gke-cluster, gke-e2e-tests ]
+    needs: [create-gke-cluster, gke-e2e-tests]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.7.0'
+        uses: "google-github-actions/auth@v0.7.0"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 

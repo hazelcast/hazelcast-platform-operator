@@ -7,14 +7,13 @@ import (
 	"time"
 
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 type optionsBuilder struct {
@@ -127,7 +126,7 @@ func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast
 
 	cl, ok := GetClient(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 
-	if ok && cl.client != nil && cl.client.Running() {
+	if ok && cl.IsClientConnected() {
 		h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
 	}
 

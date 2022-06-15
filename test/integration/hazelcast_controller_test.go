@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
@@ -757,36 +758,11 @@ var _ = Describe("Hazelcast controller", func() {
 	})
 
 	Context("Backup Agent configuration", func() {
-		When("Backup Agent is configured", func() {
-			It("Persistence Configuration must be enabled", Label("fast"), func() {
-				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.Backup = &hazelcastv1alpha1.BackupAgentConfiguration{
-					AgentRepository: "hazelcast/platform-operator-agent",
-					AgentVersion:    "0.1.0",
-					BucketSecret:    "br-secret",
-				}
-
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec:       spec,
-				}
-
-				Create(hz)
-				fetchedCR := EnsureStatus(hz)
-				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
-
-				Eventually(func() int {
-					ss := getStatefulSet(hz)
-					return len(ss.Spec.Template.Spec.Containers)
-				}, timeout, interval).Should(Equal(1))
-
-				Delete(hz)
-			})
-		})
 		When("Backup Agent is configured with Persistence", func() {
 			It("should be deployed as a sidecar container", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BackupType:                hazelcastv1alpha1.External,
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
@@ -794,11 +770,6 @@ var _ = Describe("Hazelcast controller", func() {
 						RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 						StorageClassName: &[]string{"standard"}[0],
 					},
-				}
-				spec.Backup = &hazelcastv1alpha1.BackupAgentConfiguration{
-					AgentRepository: "hazelcast/platform-operator-agent",
-					AgentVersion:    "0.1.0",
-					BucketSecret:    "br-secret",
 				}
 
 				hz := &hazelcastv1alpha1.Hazelcast{
@@ -814,6 +785,112 @@ var _ = Describe("Hazelcast controller", func() {
 					ss := getStatefulSet(hz)
 					return len(ss.Spec.Template.Spec.Containers)
 				}, timeout, interval).Should(Equal(2))
+
+				Delete(hz)
+			})
+		})
+	})
+
+	Context("Statefulset Updates", func() {
+		firstSpec := hazelcastv1alpha1.HazelcastSpec{
+			ClusterSize:      pointer.Int32Ptr(2),
+			Repository:       "hazelcast/hazelcast-enterprise",
+			Version:          "5.2",
+			ImagePullPolicy:  corev1.PullAlways,
+			ImagePullSecrets: nil,
+			ExposeExternally: nil,
+			LicenseKeySecret: "key-secret",
+			Scheduling:       nil,
+			Resources:        nil,
+		}
+		secondSpec := hazelcastv1alpha1.HazelcastSpec{
+			ClusterSize:     pointer.Int32Ptr(3),
+			Repository:      "hazelcast/hazelcast",
+			Version:         "5.3",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			ImagePullSecrets: []corev1.LocalObjectReference{
+				{Name: "secret1"},
+				{Name: "secret2"},
+			},
+			ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type: hazelcastv1alpha1.ExposeExternallyTypeSmart,
+			},
+			LicenseKeySecret: "",
+			Scheduling: &hazelcastv1alpha1.SchedulingConfiguration{
+				Affinity: &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{Key: "node.gpu", Operator: corev1.NodeSelectorOpExists},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Resources: &corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    resource.MustParse("250m"),
+					corev1.ResourceMemory: resource.MustParse("5Gi"),
+				},
+			},
+		}
+		When("Hazelcast Spec is updated", func() {
+			It("Should forward changes to StatefulSet", Label("fast"), func() {
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       firstSpec,
+				}
+
+				Create(hz)
+				hz = EnsureStatus(hz)
+				hz.Spec = secondSpec
+				Update(hz)
+				ss := getStatefulSet(hz)
+
+				By("Checking if StatefulSet ClusterSize is updated")
+				Eventually(func() int32 {
+					ss = getStatefulSet(hz)
+					return *ss.Spec.Replicas
+				}, timeout, interval).Should(Equal(*secondSpec.ClusterSize))
+
+				By("Checking if StatefulSet Image is updated")
+				Expect(ss.Spec.Template.Spec.Containers[0].Image).To(Equal(fmt.Sprintf("%s:%s", secondSpec.Repository, secondSpec.Version)))
+
+				By("Checking if StatefulSet ImagePullPolicy is updated")
+				Expect(ss.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(secondSpec.ImagePullPolicy))
+
+				By("Checking if StatefulSet ImagePullSecrets is updated")
+				Expect(ss.Spec.Template.Spec.ImagePullSecrets).To(Equal(secondSpec.ImagePullSecrets))
+
+				By("Checking if StatefulSet ExposeExternally is updated")
+				an, ok := ss.Annotations[n.ServicePerPodCountAnnotation]
+				Expect(ok).To(BeTrue())
+				Expect(an).To(Equal(strconv.Itoa(int(*hz.Spec.ClusterSize))))
+
+				an, ok = ss.Spec.Template.Annotations[n.ExposeExternallyAnnotation]
+				Expect(ok).To(BeTrue())
+				Expect(an).To(Equal(string(hz.Spec.ExposeExternally.MemberAccessType())))
+
+				By("Checking if StatefulSet LicenseKeySecret is updated")
+				el := ss.Spec.Template.Spec.Containers[0].Env
+				for _, env := range el {
+					if env.Name == "HZ_LICENSEKEY" {
+						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.LicenseKeySecret))
+					}
+				}
+
+				By("Checking if StatefulSet Scheduling is updated")
+				Expect(*ss.Spec.Template.Spec.Affinity).To(Equal(*secondSpec.Scheduling.Affinity))
+				Expect(ss.Spec.Template.Spec.NodeSelector).To(Equal(secondSpec.Scheduling.NodeSelector))
+				Expect(ss.Spec.Template.Spec.Tolerations).To(Equal(secondSpec.Scheduling.Tolerations))
+				Expect(ss.Spec.Template.Spec.TopologySpreadConstraints).To(Equal(secondSpec.Scheduling.TopologySpreadConstraints))
+
+				By("Checking if StatefulSet Resources is updated")
+				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
 
 				Delete(hz)
 			})

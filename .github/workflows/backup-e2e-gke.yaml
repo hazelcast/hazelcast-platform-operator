@@ -1,0 +1,158 @@
+name: Backup E2E tests on GKE
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 */3 * *"
+
+env:
+  GCP_PROJECT_ID: hazelcast-33
+  GKE_ZONE: europe-west1-b
+
+jobs:
+  create-gke-cluster:
+    name: Create GKE cluster
+    runs-on: ubuntu-20.04
+    outputs:
+      CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
+    env:
+      GCP_NETWORK: operator-test-network
+    steps:
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0.6.0
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Create GKE cluster
+        id: set-cluster-name
+        run: |-
+          CLUSTER_NAME="operator-e2e-backup-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
+          gcloud container clusters create ${CLUSTER_NAME} \
+            --zone=${{ env.GKE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --network=${{ env.GCP_NETWORK }} \
+            --machine-type=n1-standard-16 \
+            --num-nodes=2
+          sleep 30
+
+  gke-e2e-backup-tests:
+    name: Run E2E Backup tests
+    runs-on: ubuntu-20.04
+    needs: [ create-gke-cluster ]
+    env:
+      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
+      NAMESPACE: test-operator-backup-ee
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      NAME_PREFIX: hp-ee-${{ github.run_id }}-
+      KUBECTL_VERSION: 1.22.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Golang
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.16'
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install kubectl
+        run: |
+          mkdir -p ${GITHUB_WORKSPACE}/bin
+          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
+          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
+            -o ${GITHUB_WORKSPACE}/bin/kubectl
+          chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v0.7.0'
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0.6.0
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Connect to the GKE cluster
+        run: |
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+            --zone ${{ env.GKE_ZONE }} --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Build Image
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          IMG=ttl.sh/$(uuidgen):1h
+          echo "IMG=${IMG}" >> $GITHUB_ENV
+
+          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+          make docker-push IMG=$IMG
+
+      - name: Deploy Operator to GKE
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }}
+          kubectl config set-context --current --namespace=$NAMESPACE
+
+          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+          echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
+
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          kubectl rollout status deployment $DEPLOY_NAME
+
+      - name: Create secret
+        run: |
+          kubectl create secret generic hazelcast-license-key \
+            --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+
+      - name: Run Hazelcast E2E tests at GKE
+        id: e2e-test
+        run: |
+          make test-e2e NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=backup_slow
+
+      - name: Clean up after Tests
+        if: always()
+        run: |
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
+
+  delete-cluster:
+    name: Cleanup the environment
+    runs-on: ubuntu-20.04
+    if: always()
+    needs: [ create-gke-cluster, gke-e2e-backup-tests ]
+    env:
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+    steps:
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0.6.0
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Delete GKE cluster
+        if: always()
+        run: |-
+          gcloud container clusters delete ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --quiet
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'gke-e2e-backup-tests', 'delete-cluster' ]
+    if: always() && ( needs.gke-e2e-backup-tests.result != 'success' || needs.delete-cluster.result != 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

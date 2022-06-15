@@ -25,7 +25,8 @@ func (s HotBackupState) IsRunning() bool {
 
 // HotBackupStatus defines the observed state of HotBackup
 type HotBackupStatus struct {
-	State HotBackupState `json:"state"`
+	State   HotBackupState `json:"state"`
+	Message string         `json:"message,omitempty"`
 }
 
 // HotBackupSpec defines the Spec of HotBackup
@@ -49,7 +50,11 @@ type HotBackupSpec struct {
 
 	// URL of the bucket to download HotBackup folders.
 	// +optional
-	BucketURL string `json:"bucket"`
+	BucketURI string `json:"bucketURI"`
+
+	// Name of the secret with credentials for cloud providers.
+	// +optional
+	Secret string `json:"secret"`
 }
 
 //+kubebuilder:object:root=true

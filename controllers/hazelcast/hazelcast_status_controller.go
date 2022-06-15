@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/codec"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
@@ -30,6 +30,34 @@ type Client struct {
 	Status               *Status
 	triggerReconcileChan chan event.GenericEvent
 	statusTicker         *StatusTicker
+}
+
+func (cl *Client) IsClientConnected() bool {
+	if cl.client == nil {
+		return false
+	}
+
+	icl := hazelcast.NewClientInternal(cl.client)
+	for _, mem := range icl.OrderedMembers() {
+		if icl.ConnectedToMember(mem.UUID) {
+			return true
+		}
+	}
+	return false
+}
+
+func (cl *Client) AreAllMembersAccessible() bool {
+	if cl.client == nil {
+		return false
+	}
+
+	icl := hazelcast.NewClientInternal(cl.client)
+	for _, mem := range icl.OrderedMembers() {
+		if !icl.ConnectedToMember(mem.UUID) {
+			return false
+		}
+	}
+	return true
 }
 
 type Status struct {
@@ -190,6 +218,7 @@ func (c *Client) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *Ti
 	jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
 	if err != nil {
 		c.Log.Error(err, "Fetching TimedMemberState failed.", "CR", c.NamespacedName)
+		return nil
 	}
 	state := &TimedMemberStateWrapper{}
 	err = json.Unmarshal([]byte(jsonState), state)

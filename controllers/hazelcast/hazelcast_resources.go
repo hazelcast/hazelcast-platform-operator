@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"hash/crc32"
 	"net"
 	"strconv"
 
 	"github.com/go-logr/logr"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -22,10 +23,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/config"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // Environment variables used for Hazelcast cluster configuration
@@ -41,7 +42,7 @@ func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1al
 		if err != nil {
 			return err
 		}
-		logger.V(1).Info("Finalizer added into custom resource successfully")
+		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
 	}
 	return nil
 }
@@ -52,18 +53,15 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	}
 
 	if err := r.removeClusterRole(ctx, h, logger); err != nil {
-		logger.Error(err, "ClusterRole could not be removed")
-		return err
+		return fmt.Errorf("ClusterRole could not be removed: %w", err)
 	}
 	if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
-		logger.Error(err, "ClusterRoleBinding could not be removed")
-		return err
+		return fmt.Errorf("ClusterRoleBinding could not be removed: %w", err)
 	}
 	controllerutil.RemoveFinalizer(h, n.Finalizer)
 	err := r.Update(ctx, h)
 	if err != nil {
-		logger.Error(err, "Failed to remove finalizer from custom resource")
-		return err
+		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
 	if util.IsPhoneHomeEnabled() {
 		delete(r.metrics.HazelcastMetrics, h.UID)
@@ -76,16 +74,15 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 	clusterRole := &rbacv1.ClusterRole{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, clusterRole)
 	if err != nil && errors.IsNotFound(err) {
-		logger.V(1).Info("ClusterRole is not created yet. Or it is already removed.")
+		logger.V(util.DebugLevel).Info("ClusterRole is not created yet. Or it is already removed.")
 		return nil
 	}
 
 	err = r.Delete(ctx, clusterRole)
 	if err != nil {
-		logger.Error(err, "Failed to clean up ClusterRole")
-		return err
+		return fmt.Errorf("failed to clean up ClusterRole: %w", err)
 	}
-	logger.V(1).Info("ClusterRole removed successfully")
+	logger.V(util.DebugLevel).Info("ClusterRole removed successfully")
 	return nil
 }
 
@@ -93,16 +90,15 @@ func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *h
 	crb := &rbacv1.ClusterRoleBinding{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, crb)
 	if err != nil && errors.IsNotFound(err) {
-		logger.V(1).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
+		logger.V(util.DebugLevel).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
 		return nil
 	}
 
 	err = r.Delete(ctx, crb)
 	if err != nil {
-		logger.Error(err, "Failed to clean up ClusterRoleBinding")
-		return err
+		return fmt.Errorf("failed to clean up ClusterRoleBinding: %w", err)
 	}
-	logger.V(1).Info("ClusterRoleBinding removed successfully")
+	logger.V(util.DebugLevel).Info("ClusterRoleBinding removed successfully")
 	return nil
 }
 
@@ -116,7 +112,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"endpoints", "pods", "nodes", "services"},
+				Resources: []string{"endpoints", "pods", "nodes", "services", "secrets"},
 				Verbs:     []string{"get", "list"},
 			},
 		},
@@ -147,8 +143,7 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 
 	err := controllerutil.SetControllerReference(h, serviceAccount, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on ServiceAccount")
-		return err
+		return fmt.Errorf("failed to set owner reference on ServiceAccount: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
@@ -193,7 +188,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	var service *corev1.Service
-	if h.Spec.Backup.IsEnabled() {
+	if h.Spec.Persistence.IsExternal() {
 		service = &corev1.Service{
 			ObjectMeta: metadata(h),
 			Spec: corev1.ServiceSpec{
@@ -213,8 +208,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Service")
-		return err
+		return fmt.Errorf("failed to set owner reference on Service: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
@@ -370,7 +364,7 @@ func hazelcastAndAgentPort() []v1.ServicePort {
 	}
 }
 
-func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, _ logr.Logger) bool {
+func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) bool {
 	if !h.Spec.ExposeExternally.IsSmart() {
 		// Service per pod applies only to Smart type
 		return true
@@ -412,8 +406,7 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on ConfigMap")
-		return err
+		return fmt.Errorf("failed to set owner reference on ConfigMap: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
@@ -662,17 +655,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
-	if h.Spec.Scheduling != nil {
-		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
-		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
-		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
-		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
-	}
-
-	if h.Spec.Resources != nil {
-		sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
-	}
-
 	if h.Spec.Persistence.IsEnabled() {
 		if h.Spec.Persistence.UseHostPath() {
 			sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, hostPathVolume(h))
@@ -685,16 +667,38 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		} else {
 			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 		}
-	}
+		if h.Spec.Persistence.IsExternal() {
+			sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
+		}
+		if h.Spec.Persistence.IsRestoreEnabled() {
+			err := validation.ValidateRestoreConfiguration(h.Spec.Persistence.Restore)
+			if err != nil {
+				logger.Error(err, "Invalid RestoreConfiguration")
+				return err
+			}
+			provider, err := h.Spec.Persistence.Restore.GetProvider()
+			if err != nil {
+				logger.Error(err, "Failed to create init container for restore operation")
+				return err
+			}
+			if provider == n.GCP {
+				sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, v1.Volume{
+					Name: n.GCPCredentialVolumeName,
+					VolumeSource: v1.VolumeSource{
+						Secret: &v1.SecretVolumeSource{
+							SecretName: h.Spec.Persistence.Restore.Secret,
+						},
+					},
+				})
+			}
 
-	if h.Spec.Persistence.IsEnabled() && h.Spec.Backup.IsEnabled() {
-		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
+			sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, restoreAgentContainer(h, provider))
+		}
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Statefulset")
-		return err
+		return fmt.Errorf("failed to set owner reference on Statefulset: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
@@ -708,12 +712,118 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
+
+		if h.Spec.Scheduling != nil {
+			sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
+			sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
+			sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
+			sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
+		} else {
+			sts.Spec.Template.Spec.Affinity = nil
+			sts.Spec.Template.Spec.Tolerations = nil
+			sts.Spec.Template.Spec.NodeSelector = nil
+			sts.Spec.Template.Spec.TopologySpreadConstraints = nil
+		}
+
+		if h.Spec.Resources != nil {
+			sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
+		} else {
+			sts.Spec.Template.Spec.Containers[0].Resources = v1.ResourceRequirements{}
+		}
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
 	}
 	return err
+}
+func restoreAgentVolumeMounts(h *hazelcastv1alpha1.Hazelcast, provider string) []v1.VolumeMount {
+	volumeMounts := []v1.VolumeMount{{
+		Name:      n.PersistenceVolumeName,
+		MountPath: h.Spec.Persistence.BaseDir,
+	}}
+	if provider == n.GCP {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      n.GCPCredentialVolumeName,
+			MountPath: n.GCPCredentialVolumePath,
+		})
+	}
+	return volumeMounts
+}
+
+func restoreAgentCredentials(secret string, provider string) []v1.EnvVar {
+	switch provider {
+	case n.AWS:
+		return []v1.EnvVar{
+			{
+				Name: n.BucketDataS3EnvAccessKeyID,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataS3AccessKeyID,
+					},
+				},
+			},
+			{
+				Name: n.BucketDataS3EnvSecretAccessKey,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataS3SecretAccessKey,
+					},
+				},
+			},
+			{
+				Name: n.BucketDataS3EnvRegion,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataS3Region,
+					},
+				},
+			},
+		}
+	case n.GCP:
+		return []v1.EnvVar{
+			{
+				Name:  n.BucketDataGCPEnvCredentialFile,
+				Value: n.GCPCredentialVolumePath + "/" + n.BucketDataGCPCredentialFile,
+			},
+		}
+	case n.AZURE:
+		return []v1.EnvVar{
+			{
+				Name: n.BucketDataAzureEnvStorageAccount,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataAzureStorageAccount,
+					},
+				},
+			},
+			{
+				Name: n.BucketDataAzureEnvStorageKey,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: secret,
+						},
+						Key: n.BucketDataAzureStorageKey,
+					},
+				},
+			},
+		}
+	default:
+		return nil
+	}
 }
 
 func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
@@ -754,45 +864,37 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			SuccessThreshold:    1,
 			FailureThreshold:    10,
 		},
-		Env: []v1.EnvVar{
-			{
-				Name: "AWS_ACCESS_KEY_ID",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.Backup.BucketSecret,
-						},
-						Key: n.BucketDataS3AccessKeyID,
-					},
-				},
-			},
-			{
-				Name: "AWS_SECRET_ACCESS_KEY",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.Backup.BucketSecret,
-						},
-						Key: n.BucketDataS3SecretAccessKey,
-					},
-				},
-			},
-			{
-				Name: "AWS_REGION",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.Backup.BucketSecret,
-						},
-						Key: n.BucketDataS3Region,
-					},
-				},
-			},
-		},
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
 		}},
+	}
+}
+
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.Container {
+	return v1.Container{
+		Name:  n.RestoreAgent,
+		Image: h.AgentDockerImage(),
+		Args:  []string{"restore"},
+		Env: append(restoreAgentCredentials(h.Spec.Persistence.Restore.Secret, provider),
+			v1.EnvVar{
+				Name:  "RESTORE_BUCKET",
+				Value: h.Spec.Persistence.Restore.BucketURI,
+			},
+			v1.EnvVar{
+				Name:  "RESTORE_DESTINATION",
+				Value: h.Spec.Persistence.BaseDir,
+			},
+			v1.EnvVar{
+				Name: "RESTORE_HOSTNAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.name",
+					},
+				},
+			},
+		),
+		VolumeMounts: restoreAgentVolumeMounts(h, provider),
 	}
 }
 
@@ -888,6 +990,43 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 		}
 	}
 	return nil
+}
+
+func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	// make sure restore is active
+	if !h.Spec.Persistence.IsRestoreEnabled() {
+		return nil
+	}
+
+	// make sure restore was successfull
+	if h.Status.Restore == nil {
+		return nil
+	}
+
+	if h.Status.Restore.State != hazelcastv1alpha1.RestoreSucceeded {
+		return nil
+	}
+
+	if h.Status.Phase == hazelcastv1alpha1.Pending {
+		return nil
+	}
+
+	// check if all cluster members are in passive state
+	for _, member := range h.Status.Members {
+		if ClusterState(member.State) != Passive {
+			return nil
+		}
+	}
+
+	rest := NewRestClient(h)
+	state, err := rest.GetState(ctx)
+	if err != nil {
+		return err
+	}
+	if state != "passive" {
+		return nil
+	}
+	return rest.ChangeState(ctx, Active)
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {

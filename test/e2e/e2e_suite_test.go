@@ -5,15 +5,17 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	. "github.com/hazelcast/hazelcast-platform-operator/test"
 	//+kubebuilder:scaffold:imports
 )
@@ -23,13 +25,40 @@ var (
 	testEnv   *envtest.Environment
 )
 
+var controllerManagerName = types.NamespacedName{
+	Name: GetControllerManagerName(),
+	// Namespace is set in init() function
+}
+
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	SpecLabelsChecker()
 	RunSpecs(t, "Controller Suite")
 }
 
-var _ = BeforeSuite(func() {
+var _ = SynchronizedBeforeSuite(func() []byte {
+	cfg := setupEnv()
+
+	if ee {
+		err := platform.FindAndSetPlatform(cfg)
+		Expect(err).NotTo(HaveOccurred())
+		if platform.GetType() == platform.OpenShift {
+			cleanUpHostPath("default", "/tmp", "hazelcast")
+		}
+	}
+
+	return []byte{}
+}, func(bytes []byte) {
+	setupEnv()
+})
+
+var _ = AfterSuite(func() {
+	By("tearing down the test environment")
+	err := testEnv.Stop()
+	Expect(err).NotTo(HaveOccurred())
+})
+
+func setupEnv() *rest.Config {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	By("bootstrapping test environment")
@@ -48,17 +77,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	if ee {
-		err = platform.FindAndSetPlatform(cfg)
-		Expect(err).NotTo(HaveOccurred())
-		if platform.GetType() == platform.OpenShift {
-			cleanUpHostPath("default", "/tmp", "hazelcast")
-		}
-	}
-})
+	controllerManagerName.Namespace = hzNamespace
 
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
-})
+	return cfg
+}

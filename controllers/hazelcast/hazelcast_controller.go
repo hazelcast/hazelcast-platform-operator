@@ -21,9 +21,9 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // retryAfter is the time in seconds to requeue for the Pending phase
@@ -57,7 +57,7 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=system
 // ClusterRole inherited from Hazelcast ClusterRole
-//+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
+//+kubebuilder:rbac:groups="",resources=endpoints;secrets;pods;nodes;services,verbs=get;list
 // Role related to Reconcile()
 //+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
@@ -74,7 +74,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			logger.Info("Hazelcast resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "Failed to get Hazelcast")
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
@@ -89,7 +88,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// Execute finalizer's pre-delete function to cleanup ClusterRole
 		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
-			logger.Error(err, "Finalizer execution failed")
 			return update(ctx, r.Client, h, failedPhase(err))
 		}
 		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
@@ -140,7 +138,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
-	if !r.isServicePerPodReady(ctx, h, logger) {
+	if !r.isServicePerPodReady(ctx, h) {
 		logger.Info("Service per pod is not ready, waiting.")
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
@@ -161,6 +159,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if err = r.checkHotRestart(ctx, h, logger); err != nil {
 		logger.Error(err, "Cluster HotRestart did not finish successfully")
+		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+	}
+
+	if err = r.ensureClusterActive(ctx, h, logger); err != nil {
+		logger.Error(err, "Cluster activation attempt after hot restore failed")
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
 
@@ -260,11 +263,15 @@ func clientConnectionMessage(req ctrl.Request) string {
 		return fmt.Sprintf("Operator failed to connect to the cluster. Some features might be unavailable. %s", c.Error.Error())
 	}
 
-	if c.client != nil && c.client.Running() {
-		return ""
+	if !c.IsClientConnected() {
+		return "Operator could not connect to the cluster. Some features might be unavailable."
 	}
 
-	return "Operator is in progress of connecting to the cluster. Some features might be unavailable."
+	if !c.AreAllMembersAccessible() {
+		return "Operator could not connect to all cluster members. Some features might be unavailable."
+	}
+
+	return ""
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {

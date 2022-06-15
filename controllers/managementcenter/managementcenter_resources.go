@@ -15,9 +15,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // Environment variables used for Management Center configuration
@@ -34,15 +34,14 @@ func (r *ManagementCenterReconciler) addFinalizer(ctx context.Context, mc *hazel
 		controllerutil.AddFinalizer(mc, n.Finalizer)
 		err := r.Update(ctx, mc)
 		if err != nil {
-			logger.Error(err, "Failed to add finalizer into custom resource")
-			return err
+			return fmt.Errorf("failed to add finalizer into custom resource: %w", err)
 		}
-		logger.V(1).Info("Finalizer added into custom resource successfully")
+		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
 	}
 	return nil
 }
 
-func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter) error {
 	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
 		return nil
 	}
@@ -50,8 +49,7 @@ func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *h
 	controllerutil.RemoveFinalizer(mc, n.Finalizer)
 	err := r.Update(ctx, mc)
 	if err != nil {
-		logger.Error(err, "Failed to remove finalizer from custom resource")
-		return err
+		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
 	if util.IsPhoneHomeEnabled() {
 		delete(r.metrics.MCMetrics, mc.UID)
@@ -77,8 +75,7 @@ func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *haze
 
 	err := controllerutil.SetControllerReference(mc, role, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Role")
-		return err
+		return fmt.Errorf("failed to set owner reference on Role: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
@@ -103,8 +100,7 @@ func (r *ManagementCenterReconciler) reconcileServiceAccount(ctx context.Context
 
 	err := controllerutil.SetControllerReference(mc, serviceAccount, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on ServiceAccount")
-		return err
+		return fmt.Errorf("failed to set owner reference on ServiceAccount: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
@@ -138,8 +134,7 @@ func (r *ManagementCenterReconciler) reconcileRoleBinding(ctx context.Context, m
 	}
 	err := controllerutil.SetControllerReference(mc, rb, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on RoleBinding")
-		return err
+		return fmt.Errorf("failed to set owner reference on RoleBinding: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, rb, func() error {
@@ -162,8 +157,7 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 
 	err := controllerutil.SetControllerReference(mc, service, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Service")
-		return err
+		return fmt.Errorf("failed to set owner reference on Service: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
@@ -276,24 +270,13 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		},
 	}
 
-	if mc.Spec.Scheduling != nil {
-		sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
-		sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
-		sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
-	}
-
-	if mc.Spec.Resources != nil {
-		sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
-	}
-
 	if platform.GetType() == platform.OpenShift {
 		sts.Spec.Template.Spec.ServiceAccountName = mc.Name
 	}
 
 	err := controllerutil.SetControllerReference(mc, sts, r.Scheme)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Statefulset")
-		return err
+		return fmt.Errorf("failed to set owner reference on StatefulSet: %w", err)
 	}
 
 	if mc.Spec.Persistence.IsEnabled() {
@@ -310,6 +293,23 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
+		if mc.Spec.Scheduling != nil {
+			sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
+			sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
+			sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
+			sts.Spec.Template.Spec.TopologySpreadConstraints = mc.Spec.Scheduling.TopologySpreadConstraints
+		} else {
+			sts.Spec.Template.Spec.Affinity = nil
+			sts.Spec.Template.Spec.Tolerations = nil
+			sts.Spec.Template.Spec.NodeSelector = nil
+			sts.Spec.Template.Spec.TopologySpreadConstraints = nil
+		}
+
+		if mc.Spec.Resources != nil {
+			sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
+		} else {
+			sts.Spec.Template.Spec.Containers[0].Resources = v1.ResourceRequirements{}
+		}
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

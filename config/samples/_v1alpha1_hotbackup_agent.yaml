@@ -4,4 +4,11 @@ metadata:
   name: hot-backup
 spec:
   hazelcastResourceName: hazelcast
-  bucket: "s3://operator-backup"
+  bucketURI: "s3://operator-backup"
+  secret: "br-secret-s3"
+
+#  bucketURI: "gs://operator-agent-backup"
+#  secret: "br-secret-gcp"
+
+#  bucketURI: "azblob://backup"
+#  secret: "br-secret-az"

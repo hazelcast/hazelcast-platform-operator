@@ -4,17 +4,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 var (
-	ClusterName = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
+	ClusterName = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "hazelcast",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
@@ -26,11 +28,12 @@ var (
 		}
 	}
 
-	Default = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
+	Default = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "hazelcast",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
@@ -41,11 +44,12 @@ var (
 		}
 	}
 
-	ExposeExternallySmartLoadBalancer = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallySmartLoadBalancer = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "hazelcast",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
@@ -61,11 +65,12 @@ var (
 		}
 	}
 
-	ExposeExternallySmartNodePort = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallySmartNodePort = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "hazelcast",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
@@ -81,11 +86,12 @@ var (
 		}
 	}
 
-	ExposeExternallySmartNodePortNodeName = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallySmartNodePortNodeName = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "hazelcast",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
@@ -101,11 +107,12 @@ var (
 		}
 	}
 
-	ExposeExternallyUnisocket = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
+	ExposeExternallyUnisocket = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "hazelcast",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
@@ -120,7 +127,7 @@ var (
 		}
 	}
 
-	PersistenceEnabled = func(ns, baseDir string, params ...interface{}) *hazelcastv1alpha1.Hazelcast {
+	PersistenceEnabled = func(lk types.NamespacedName, baseDir string, lbls map[string]string, params ...interface{}) *hazelcastv1alpha1.Hazelcast {
 		var hostPath, nodeName string
 		var hok, nok bool
 		if len(params) > 0 {
@@ -131,8 +138,9 @@ var (
 		}
 		hz := &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "hazelcast",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
@@ -180,11 +188,80 @@ var (
 		return hz
 	}
 
-	HotBackup = func(hzName, ns string) *hazelcastv1alpha1.HotBackup {
+	ExternalBackup = func(lk types.NamespacedName, ee bool, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    labels,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:      &[]int32{1}[0],
+				Repository:       repo(ee),
+				Version:          naming.HazelcastVersion,
+				LicenseKeySecret: licenseKey(ee),
+				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart",
+					BackupType:                "External",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+					},
+				},
+			},
+		}
+	}
+
+	ExternalRestore = func(lk types.NamespacedName, ee bool, labels map[string]string, bucketURI, secretName string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    labels,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:      &[]int32{1}[0],
+				Repository:       repo(ee),
+				Version:          naming.HazelcastVersion,
+				LicenseKeySecret: licenseKey(ee),
+				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+					},
+					Restore: &hazelcastv1alpha1.RestoreConfiguration{
+						BucketURI: bucketURI,
+						Secret:    secretName,
+					},
+				},
+			},
+		}
+	}
+
+	HotBackupAgent = func(lk types.NamespacedName, hzName string, lbls map[string]string, bucketURI, secretName string) *hazelcastv1alpha1.HotBackup {
 		return &hazelcastv1alpha1.HotBackup{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "hot-backup",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HotBackupSpec{
+				HazelcastResourceName: hzName,
+				BucketURI:             bucketURI,
+				Secret:                secretName,
+			},
+		}
+	}
+
+	HotBackup = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastv1alpha1.HotBackup {
+		return &hazelcastv1alpha1.HotBackup{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HotBackupSpec{
 				HazelcastResourceName: hzName,
@@ -192,11 +269,12 @@ var (
 		}
 	}
 
-	Faulty = func(ns string, ee bool) *hazelcastv1alpha1.Hazelcast {
+	Faulty = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "hazelcast",
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
@@ -207,11 +285,12 @@ var (
 		}
 	}
 
-	DefaultMap = func(hzName, mapName, ns string) *hazelcastv1alpha1.Map {
+	DefaultMap = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastv1alpha1.Map {
 		return &hazelcastv1alpha1.Map{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      mapName,
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.MapSpec{
 				HazelcastResourceName: hzName,
@@ -219,11 +298,12 @@ var (
 		}
 	}
 
-	Map = func(ms hazelcastv1alpha1.MapSpec, mapName, ns string) *hazelcastv1alpha1.Map {
+	Map = func(ms hazelcastv1alpha1.MapSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.Map {
 		return &hazelcastv1alpha1.Map{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      mapName,
-				Namespace: ns,
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
 			},
 			Spec: ms,
 		}
