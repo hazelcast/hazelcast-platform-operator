@@ -131,5 +131,7 @@ const (
 
 // WAN related configuration constants
 const (
+	// DefaultMergePolicyClassName is the default value for
+	// merge policy in WAN reference config
 	DefaultMergePolicyClassName = "PassThroughMergePolicy"
 )
