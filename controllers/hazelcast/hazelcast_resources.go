@@ -835,14 +835,6 @@ func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.Conta
 				Name:  "CCD_DESTINATION",
 				Value: n.UserCustomClassPath,
 			},
-			v1.EnvVar{
-				Name: "CCD_HOSTNAME",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "metadata.name",
-					},
-				},
-			},
 		),
 		VolumeMounts: []v1.VolumeMount{ccdAgentVolumeMount(h)},
 	}
