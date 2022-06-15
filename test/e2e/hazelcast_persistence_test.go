@@ -246,7 +246,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
 	)
 
-	DescribeTable("should successfully restart from HotBackup data", Serial, func(bucketURI, secretName string) {
+	DescribeTable("Should successfully restore from external backup", func(bucketURI, secretName string) {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -271,8 +271,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
 
 		seq := GetBackupSequence(t, hzLookupKey)
-
-		Sleep(10 * Second)
 
 		By("Remove cluster")
 		RemoveHazelcastCR(hazelcast)
