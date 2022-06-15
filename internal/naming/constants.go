@@ -46,11 +46,14 @@ const (
 
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
 	PersistenceVolumeName = "hot-restart-persistence"
+	CustomClassVolumeName = "custom-class"
 
 	BackupAgent         = "backup-agent"
 	BackupAgentPortName = "backup-agent-port"
 	RestoreAgent        = "restore-agent"
 	BucketSecret        = "br-secret"
+
+	UserCustomClassPath = "/opt/hazelcast/customClass"
 )
 
 // Hazelcast default configurations
