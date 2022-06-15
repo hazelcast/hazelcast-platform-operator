@@ -825,7 +825,7 @@ func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.Conta
 	return v1.Container{
 		Name:  n.RestoreAgent,
 		Image: h.AgentDockerImage(),
-		Args:  []string{"custom_class_download"},
+		Args:  []string{"custom-class-download"},
 		Env: append(agentCredentials(h.Spec.Persistence.Restore.Secret, provider),
 			v1.EnvVar{
 				Name:  "CCD_BUCKET",
