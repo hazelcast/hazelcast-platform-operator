@@ -1,4 +1,4 @@
-name: Publish Docs Site
+name: (5) Publish Docs Site
 on:
   workflow_dispatch:
     inputs:

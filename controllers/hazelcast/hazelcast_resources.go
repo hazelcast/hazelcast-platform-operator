@@ -428,7 +428,7 @@ func hazelcastConfigMapData(c client.Client, ctx context.Context, h *hazelcastv1
 	ml := filterPersistedMaps(mapList.Items)
 
 	cfg := hazelcastConfigMapStruct(h)
-	fillHazelcastConfigWithMaps(&cfg, ml)
+	fillHazelcastConfigWithMaps(&cfg, h, ml)
 
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 	if err != nil {
@@ -533,17 +533,18 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 	return "FULL_RECOVERY_ONLY"
 }
 
-func fillHazelcastConfigWithMaps(cfg *config.Hazelcast, ml []hazelcastv1alpha1.Map) {
+func fillHazelcastConfigWithMaps(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) {
 	if len(ml) != 0 {
 		cfg.Map = map[string]config.Map{}
 		for _, mcfg := range ml {
-			cfg.Map[mcfg.MapName()] = createMapConfig(&mcfg.Spec)
+			cfg.Map[mcfg.MapName()] = createMapConfig(h, &mcfg)
 		}
 	}
 }
 
-func createMapConfig(ms *hazelcastv1alpha1.MapSpec) config.Map {
-	m := config.Map{
+func createMapConfig(hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) config.Map {
+	ms := m.Spec
+	mc := config.Map{
 		BackupCount:       *ms.BackupCount,
 		AsyncBackupCount:  int32(0),
 		TimeToLiveSeconds: *ms.TimeToLiveSeconds,
@@ -560,8 +561,9 @@ func createMapConfig(ms *hazelcastv1alpha1.MapSpec) config.Map {
 			Enabled: ms.PersistenceEnabled,
 			Fsync:   false,
 		},
+		WanReplicationReference: wanReplicationRef(defaultWanReplicationRefCodec(hz, m)),
 	}
-	return m
+	return mc
 }
 
 func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {

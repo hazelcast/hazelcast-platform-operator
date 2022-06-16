@@ -111,7 +111,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return requeue, err
 	}
 
-	ms, err := r.ReconcileMapConfig(ctx, m, cl, createdBefore)
+	ms, err := r.ReconcileMapConfig(ctx, m, h, cl, createdBefore)
 	if err != nil {
 		return updateMapStatus(ctx, r.Client, m, pendingStatus(retryAfterForMap).
 			withError(err).
@@ -124,7 +124,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return requeue, err
 	}
 
-	persisted, err := r.validateMapConfigPersistence(ctx, m)
+	persisted, err := r.validateMapConfigPersistence(ctx, h, m)
 	if err != nil {
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
@@ -196,7 +196,13 @@ func GetHazelcastClient(m *hazelcastv1alpha1.Map) (*hazelcast.Client, error) {
 	return hzcl.client, nil
 }
 
-func (r *MapReconciler) ReconcileMapConfig(ctx context.Context, m *hazelcastv1alpha1.Map, cl *hazelcast.Client, createdBefore bool) (map[string]hazelcastv1alpha1.MapConfigState, error) {
+func (r *MapReconciler) ReconcileMapConfig(
+	ctx context.Context,
+	m *hazelcastv1alpha1.Map,
+	hz *hazelcastv1alpha1.Hazelcast,
+	cl *hazelcast.Client,
+	createdBefore bool,
+) (map[string]hazelcastv1alpha1.MapConfigState, error) {
 	ci := hazelcast.NewClientInternal(cl)
 	var req *proto.ClientMessage
 	if createdBefore {
@@ -211,7 +217,7 @@ func (r *MapReconciler) ReconcileMapConfig(ctx context.Context, m *hazelcastv1al
 		)
 	} else {
 		mapInput := codecTypes.DefaultAddMapConfigInput()
-		fillAddMapConfigInput(mapInput, m)
+		fillAddMapConfigInput(mapInput, hz, m)
 		req = codec.EncodeDynamicConfigAddMapConfigRequest(mapInput)
 	}
 
@@ -238,7 +244,7 @@ func (r *MapReconciler) ReconcileMapConfig(ctx context.Context, m *hazelcastv1al
 	return memberStatuses, nil
 }
 
-func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, m *hazelcastv1alpha1.Map) {
+func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) {
 	mapInput.Name = m.MapName()
 
 	ms := m.Spec
@@ -252,7 +258,34 @@ func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, m *hazelcastv
 	}
 	mapInput.IndexConfigs = copyIndexes(ms.Indexes)
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
+	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)
+}
 
+func defaultWanReplicationRefCodec(hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) codecTypes.WanReplicationRef {
+	if !util.IsEnterprise(hz.Spec.Repository) {
+		return codecTypes.WanReplicationRef{}
+	}
+
+	return codecTypes.WanReplicationRef{
+		Name:                 defaultWanReplicationRefName(m),
+		MergePolicyClassName: n.DefaultMergePolicyClassName,
+		Filters:              []string{},
+		RepublishingEnabled:  true,
+	}
+}
+
+func wanReplicationRef(ref codecTypes.WanReplicationRef) map[string]config.WanReplicationReference {
+	return map[string]config.WanReplicationReference{
+		ref.Name: {
+			MergePolicyClassName: ref.MergePolicyClassName,
+			RepublishingEnabled:  ref.RepublishingEnabled,
+			Filters:              ref.Filters,
+		},
+	}
+}
+
+func defaultWanReplicationRefName(m *hazelcastv1alpha1.Map) string {
+	return m.GetName() + "-default"
 }
 
 func copyIndexes(idx []hazelcastv1alpha1.IndexConfig) []codecTypes.IndexConfig {
@@ -294,7 +327,7 @@ func (r *MapReconciler) updateLastSuccessfulConfiguration(ctx context.Context, m
 	return err
 }
 
-func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, m *hazelcastv1alpha1.Map) (bool, error) {
+func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (bool, error) {
 	cm := &corev1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace}, cm)
 	if err != nil {
@@ -308,7 +341,7 @@ func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, m *haz
 	}
 
 	if mcfg, ok := hzConfig.Hazelcast.Map[m.MapName()]; !ok {
-		currentMcfg := createMapConfig(&m.Spec)
+		currentMcfg := createMapConfig(h, m)
 		if !reflect.DeepEqual(mcfg, currentMcfg) { // TODO replace DeepEqual with custom implementation
 			return false, nil
 		}
