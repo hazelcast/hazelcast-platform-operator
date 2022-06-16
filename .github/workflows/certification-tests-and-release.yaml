@@ -12,7 +12,6 @@ on:
     - cron: "0 9 * * *"
 
 env:
-  PROJECT_ID: ${{ secrets.PROJECT_ID }}
   PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
   PFLT_DOCKERCONFIG: /home/runner/.docker/config.json
   PREFLIGHT_VERSION: 1.1.0
@@ -29,7 +28,6 @@ jobs:
     outputs:
       RELEASE_VERSION: ${{ steps.setup-envs.outputs.RELEASE_VERSION }}
       CONTAINER_IMAGE: ${{ steps.setup-envs.outputs.CONTAINER_IMAGE }}
-      PROJECT_ID: ${{ steps.setup-envs.outputs.PROJECT_ID }}
       PREFLIGHT_VERSION: ${{ steps.setup-envs.outputs.PREFLIGHT_VERSION }}
     steps:
       - name: Checkout to hazelcast-operator
@@ -39,7 +37,6 @@ jobs:
         uses: ./.github/actions/operator-tests
         with:
           PFLT_PYXIS_API_TOKEN: $PFLT_PYXIS_API_TOKEN
-          PROJECT_ID: $PROJECT_ID
           PREFLIGHT_VERSION: $PREFLIGHT_VERSION
 
       - name: Set Environment Variables And Job Outputs
@@ -59,7 +56,6 @@ jobs:
               CONTAINER_IMAGE=ttl.sh/$CONTAINER_REPOSITORY:1h
               echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}" >> $GITHUB_ENV
               echo "::set-output name=CONTAINER_IMAGE::${CONTAINER_IMAGE}"
-              echo "::set-output name=PROJECT_ID::${PROJECT_ID}"
               echo "::set-output name=PREFLIGHT_VERSION::${PREFLIGHT_VERSION}"
 
       - name: Validate version
@@ -240,7 +236,6 @@ jobs:
     uses: ./.github/workflows/publish-release.yaml
     with:
       RELEASE_VERSION: ${{ needs.test_container.outputs.RELEASE_VERSION }}
-      PROJECT_ID: ${{ needs.test_container.outputs.PROJECT_ID }}
       PREFLIGHT_VERSION: ${{ needs.test_container.outputs.PREFLIGHT_VERSION }}
     secrets:
       PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
