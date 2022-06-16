@@ -119,6 +119,12 @@ jobs:
             --from-literal=region=us-east-1 \
             --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
             --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+          
+          kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
+            --from-literal=storage-account=operatortest \
+            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
 
       - name: Run Hazelcast Phone Home tests at GKE
         id: ph-test
