@@ -292,7 +292,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Found existing hot-restart directory"))
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Local Hot Restart procedure completed with success."))
 	},
-		Entry("using AWS S3 bucket", Label("slow"), "s3://hazelcast-cn-306-restore-tests", "br-secret-s3"),
+		Entry("using AWS S3 bucket", Label("slow"), "s3://operator-e2e-external-backup", "br-secret-s3"),
 		Entry("using GCP bucket", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp"),
 		Entry("using Azure bucket", Label("slow"), "azblob://operator-e2e-external-backup", "br-secret-az"),
 	)
