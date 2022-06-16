@@ -19,6 +19,15 @@ on:
       DOCKERHUB_PASSWORD:
         description: "Docker Hub registry password"
         required: true
+      PROJECT_ID:
+        description: "Project ID w/o osp prefix"
+        required: true
+      JFROG_TOKEN:
+        required: true
+      DEVOPS_GITHUB_TOKEN:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: true
 
 env:
   OPERATOR_NAME: "hazelcast-platform-operator"

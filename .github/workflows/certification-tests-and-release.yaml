@@ -241,6 +241,10 @@ jobs:
       PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      JFROG_TOKEN: ${{ secrets.JFROG_TOKEN }}
+      DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   clean_up_artifacts:
     if: always()
