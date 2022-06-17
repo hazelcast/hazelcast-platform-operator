@@ -132,7 +132,7 @@ jobs:
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v0.7.0"
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY_1 }}
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v0.6.0
@@ -204,7 +204,7 @@ jobs:
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v0.7.0"
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY_1 }}
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v0.6.0
@@ -248,7 +248,7 @@ jobs:
             --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
             --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
           
-          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY_1 }}'
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
           
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
@@ -280,7 +280,7 @@ jobs:
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v0.7.0"
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY_1 }}
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v0.6.0

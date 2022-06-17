@@ -246,7 +246,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
 	)
 
-	FDescribeTable("should successfully restart from HotBackup data", Serial, func(bucketURI, secretName string) {
+	DescribeTable("should successfully restart from HotBackup data", Serial, func(bucketURI, secretName string) {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
