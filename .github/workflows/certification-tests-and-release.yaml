@@ -14,7 +14,7 @@ on:
 env:
   PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
   PFLT_DOCKERCONFIG: /home/runner/.docker/config.json
-  PREFLIGHT_VERSION: 1.1.0
+  PREFLIGHT_VERSION: latest
   NAMESPACE: oc-test-operator-${{ github.run_id }}
   PARDOT_ID: redhat
 
@@ -38,6 +38,7 @@ jobs:
         with:
           PFLT_PYXIS_API_TOKEN: $PFLT_PYXIS_API_TOKEN
           PREFLIGHT_VERSION: $PREFLIGHT_VERSION
+          DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
 
       - name: Set Environment Variables And Job Outputs
         id: setup-envs
@@ -142,6 +143,7 @@ jobs:
         uses: ./.github/actions/operator-tests
         with:
           PREFLIGHT_VERSION: $PREFLIGHT_VERSION
+          DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
           OPM_INSTALL: true
 
       - name: Set Environment Variables And Job Outputs
@@ -203,6 +205,7 @@ jobs:
         uses: ./.github/actions/operator-tests
         with:
           PREFLIGHT_VERSION: $PREFLIGHT_VERSION
+          DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
           OPERATOR_SDK_INSTALL: true
 
       - name: Login to Docker Hub Registry
