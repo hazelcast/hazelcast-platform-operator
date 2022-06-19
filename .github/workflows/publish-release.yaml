@@ -45,6 +45,8 @@ jobs:
     outputs:
       RELEASE_VERSION: ${{ steps.set-outputs.outputs.RELEASE_VERSION }}
       IMAGE_NAME: ${{ steps.set-outputs.outputs.IMAGE_NAME }}
+      IMAGE_DIGEST: ${{ steps.build-operator-image.outputs.IMAGE_DIGEST }}
+      CURRENT_LATEST_TAG: ${{ steps.get-current-latest-tag.outputs.CURRENT_LATEST_TAG }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -61,9 +63,27 @@ jobs:
           echo "::set-output name=RELEASE_VERSION::${RELEASE_VERSION}"
           echo "::set-output name=IMAGE_NAME::${IMAGE_NAME}"
 
+      - name: Get the Current Latest Tag
+          id: get-current-latest-tag
+          run: |
+            token=$(curl -L -s -X POST 'https://hub.docker.com/v2/users/login' \
+            -H 'Content-Type: application/json' \
+            --data-raw '{
+              "username": "${{ secrets.DOCKERHUB_USERNAME }}",
+              "password": "${{ secrets.DOCKERHUB_PASSWORD }}"
+            }'| jq -r '.token')
+
+            CURRENT_LATEST_TAG=$(curl -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
+            -H "Authorization: Bearer $token" | jq -r  '.results[] | select((.tags | length == 2) and .tags[].tag =="latest") | .tags[].tag | select(. !="latest")')
+            echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
+            echo "::set-output name=CURRENT_LATEST_TAG::${CURRENT_LATEST_TAG}"
+
       - name: Build Operator Image
+        id: build-operator-image
         run: |
           make docker-build-ci IMG=${IMAGE_NAME} VERSION=${RELEASE_VERSION}
+          IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${IMAGE_NAME} | cut -d'@' -f2)
+          echo "::set-output name=IMAGE_DIGEST::${IMAGE_DIGEST}"
 
       - name: Login to Docker Hub
         run: |
@@ -132,6 +152,7 @@ jobs:
       REPO_OWNER: redhat-openshift-ecosystem
       RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.RELEASE_VERSION }}
       IMAGE_NAME: ${{ needs.publish_docker_image.outputs.IMAGE_NAME }}
+      IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -142,9 +163,7 @@ jobs:
 
       - name: Build Red Hat Bundle
         run: |
-          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${IMAGE_NAME} | cut -d'@' -f2)
-          IMAGE_NAME_DIGEST=docker.io/hazelcast/${OPERATOR_NAME}@${DIGEST}
-
+          IMAGE_NAME_DIGEST=docker.io/hazelcast/${OPERATOR_NAME}@${IMAGE_DIGEST}
           make bundle IMG=${IMAGE_NAME_DIGEST} VERSION=${RELEASE_VERSION}
           cat >> ./bundle/metadata/annotations.yaml <<EOF
             # OpenShift annotations.
@@ -277,6 +296,61 @@ jobs:
           echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" \
             --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+
+  revert_changes:
+    name: Revert Release Changes
+    if: failure()
+    needs: ['publish_docker_image']
+    runs-on: ubuntu-latest
+    env:
+      CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
+      IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
+    steps:
+      - name: Removing Published Docker Image
+        run: |
+          auth_token=$(curl -L -s -X POST 'https://hub.docker.com/v2/users/login' \
+          -H 'Content-Type: application/json' \
+          --data-raw '{
+            "username": "${{ secrets.DOCKERHUB_USERNAME }}",
+            "password": "${{ secrets.DOCKERHUB_PASSWORD }}"
+          }'| jq -r '.token')
+
+          curl -L -s -X POST 'https://hub.docker.com/v2/namespaces/hazelcast/delete-images' \
+          -H "Authorization: Bearer $auth_token" \
+          -H 'Content-Type: application/json' \
+          --data-raw '{
+            "manifests": [
+              {
+                "repository": "${OPERATOR_NAME}",
+                "digest": "$IMAGE_DIGEST"
+              }
+            ],
+              "ignore_warnings": [
+                  {
+                      "repository": "${OPERATOR_NAME}",
+                      "digest": "$IMAGE_DIGEST",
+                      "warning": "is_active"
+                  },
+                  {
+                      "repository": "${OPERATOR_NAME}",
+                      "digest": "$IMAGE_DIGEST",
+                      "warning": "current_tag",
+                      "tags": [
+                          "${RELEASE_VERSION}"
+                      ]
+                  }
+              ]
+          }'
+
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | \
+          docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Making Previous Tag As 'latest'
+        run: |
+          docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
+          make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
 
   slack_notify:
     name: Slack Notify
