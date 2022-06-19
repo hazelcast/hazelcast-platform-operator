@@ -306,6 +306,9 @@ jobs:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Removing Published Docker Image
         run: |
           auth_token=$(curl -L -s -X POST 'https://hub.docker.com/v2/users/login' \
@@ -347,10 +350,32 @@ jobs:
           echo "${{ secrets.DOCKERHUB_PASSWORD }}" | \
           docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      - name: Making Previous Tag As 'latest'
+      - name: Making Previous Docker Image Tag As 'latest'
         run: |
           docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
           make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
+
+      - name: Removing Published Jfrog Bundle and Making Previous Bundle As 'latest'
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+               -X DELETE https://hazelcast.jfrog.io/artifactory/operator/bundle-${RELEASE_VERSION}.yaml
+
+          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+               -X DELETE https://hazelcast.jfrog.io/artifactory/operator/bundle-latest.yaml
+
+          curl -L -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+              -X POST 'https://hazelcast.jfrog.io/ui/api/v1/ui/artifactactions/copy' \
+              -H 'Content-Type: application/json' \
+              --data-raw '{
+                "repoKey": "operator",
+                "path": "bundle-${CURRENT_LATEST_TAG}.yaml",
+                "targetRepoKey": "operator",
+                "targetPath": "bundle-latest.yaml"
+                }'
+
+      - name: Removing Release Tag
+        run: |
+          git push --delete origin v${RELEASE_VERSION}
 
   slack_notify:
     name: Slack Notify
