@@ -131,3 +131,31 @@ wait_for_container_publish()
         sleep 120
     done
 }
+
+checking_image_grade(){
+    local PROJECT_ID=$1
+    local VERSION=$2
+    local RHEL_API_KEY=$3
+    local FILTER="filter=deleted==false;repositories.published==false;repositories.tags.name==${VERSION}"
+    local INCLUDE="include=data.freshness_grades.grade&include=data.freshness_grades.end_date"
+
+      GRADE_PRESENCE=$(curl -s -X 'GET' \
+      "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/images?${FILTER}&page_size=100&page=0" \
+      -H "accept: application/json" \
+      -H "X-API-KEY: ${RHEL_API_KEY}" | jq -r -e '.data[0].freshness_grades | length')
+     if [[ ${GRADE_PRESENCE} -ne "0" ]]; then
+          GRADE_A=$(curl -s -X 'GET' \
+          "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/images?${INCLUDE}&${FILTER}&page_size=100&page=0" \
+          -H "accept: application/json" \
+          -H "X-API-KEY: ${RHEL_API_KEY}" | jq -e '.data[0].freshness_grades[] | select(.grade =="A") | length')
+        if [[ ${GRADE_A} -ne "0" ]]; then
+            echo "The submitted image got a health index A."
+        else
+            echo "The submitted image didn’t get a health index A"
+            exit 1
+        fi
+     else
+         echo "The submitted image has unknown health index"
+         exit 1
+     fi
+}

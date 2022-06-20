@@ -44,7 +44,7 @@ jobs:
     outputs:
       RELEASE_VERSION: ${{ steps.set-outputs.outputs.RELEASE_VERSION }}
       IMAGE_NAME: ${{ steps.set-outputs.outputs.IMAGE_NAME }}
-      IMAGE_DIGEST: ${{ steps.build-operator-image.outputs.IMAGE_DIGEST }}
+      IMAGE_DIGEST: ${{ steps.push-operator-image.outputs.IMAGE_DIGEST }}
       CURRENT_LATEST_TAG: ${{ steps.get-current-latest-tag.outputs.CURRENT_LATEST_TAG }}
     steps:
       - name: Checkout
@@ -65,24 +65,21 @@ jobs:
       - name: Get the Current Latest Tag
         id: get-current-latest-tag
         run: |
-          token=$(curl -L -s -X POST 'https://hub.docker.com/v2/users/login' \
+          token=$(curl --fail -L -s -X POST 'https://hub.docker.com/v2/users/login' \
           -H 'Content-Type: application/json' \
           --data-raw '{
             "username": "${{ secrets.DOCKERHUB_USERNAME }}",
             "password": "${{ secrets.DOCKERHUB_PASSWORD }}"
           }'| jq -r '.token')
 
-          CURRENT_LATEST_TAG=$(curl -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
+          CURRENT_LATEST_TAG=$(curl --fail -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
           -H "Authorization: Bearer $token" | jq -r  '.results[] | select((.tags | length == 2) and .tags[].tag =="latest") | .tags[].tag | select(. !="latest")')
           echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
           echo "::set-output name=CURRENT_LATEST_TAG::${CURRENT_LATEST_TAG}"
 
       - name: Build Operator Image
-        id: build-operator-image
         run: |
           make docker-build-ci IMG=${IMAGE_NAME} VERSION=${RELEASE_VERSION}
-          IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${IMAGE_NAME} | cut -d'@' -f2)
-          echo "::set-output name=IMAGE_DIGEST::${IMAGE_DIGEST}"
 
       - name: Login to Docker Hub
         run: |
@@ -90,17 +87,22 @@ jobs:
             docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push Operator Image
-        run: make docker-push docker-push-latest IMG="${IMAGE_NAME}"
+        id: push-operator-image
+        run: |
+          make docker-push docker-push-latest IMG="${IMAGE_NAME}"
+          IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${IMAGE_NAME} | cut -d'@' -f2)
+          echo "IMAGE_DIGEST=${IMAGE_DIGEST}" >> $GITHUB_ENV
+          echo "::set-output name=IMAGE_DIGEST::${IMAGE_DIGEST}"
 
       - name: Upload Bundle to Jfrog
         run: |
           make generate-bundle-yaml VERSION=${RELEASE_VERSION}
 
-          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
                -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-latest.yaml" \
                -T bundle.yaml
 
-          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
                -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-${RELEASE_VERSION}.yaml" \
                -T bundle.yaml
 
@@ -139,6 +141,7 @@ jobs:
       - name: Publish the Hazelcast-Platform-Operator Image
         run: |
           source .github/scripts/publish-rhel.sh
+          checking_image_grade "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN"
           publish_the_image "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN"
           wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$TIMEOUT_IN_MINS"
 
@@ -298,8 +301,8 @@ jobs:
 
   revert_changes:
     name: Revert Release Changes
-    if: failure()
-    needs: ['publish_docker_image']
+    needs: ['publish_docker_image', 'publish_redhat_image']
+    if: always() && (needs.publish_docker_image.result == 'failure' || needs.publish_redhat_image.result == 'failure')
     runs-on: ubuntu-latest
     env:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
@@ -310,35 +313,36 @@ jobs:
 
       - name: Removing Published Docker Image
         run: |
-          auth_token=$(curl -L -s -X POST 'https://hub.docker.com/v2/users/login' \
+          auth_token=$(curl --fail -L -s -X POST 'https://hub.docker.com/v2/users/login' \
           -H 'Content-Type: application/json' \
           --data-raw '{
             "username": "${{ secrets.DOCKERHUB_USERNAME }}",
             "password": "${{ secrets.DOCKERHUB_PASSWORD }}"
           }'| jq -r '.token')
 
-          curl -L -s -X POST 'https://hub.docker.com/v2/namespaces/hazelcast/delete-images' \
+          curl --fail -L -s -X POST 'https://hub.docker.com/v2/namespaces/hazelcast/delete-images' \
           -H "Authorization: Bearer $auth_token" \
           -H 'Content-Type: application/json' \
           --data-raw '{
-            "manifests": [
-              {
-                "repository": "${OPERATOR_NAME}",
-                "digest": "$IMAGE_DIGEST"
-              }
-            ],
+              "manifests": [
+                  {
+                      "repository": "${{ env.OPERATOR_NAME }}",
+                      "digest": "${{ env.IMAGE_DIGEST }}"
+                  }
+              ],
               "ignore_warnings": [
                   {
-                      "repository": "${OPERATOR_NAME}",
-                      "digest": "$IMAGE_DIGEST",
+                      "repository": "${{ env.OPERATOR_NAME }}",
+                      "digest": "${{ env.IMAGE_DIGEST }}",
                       "warning": "is_active"
                   },
                   {
-                      "repository": "${OPERATOR_NAME}",
-                      "digest": "$IMAGE_DIGEST",
+                      "repository": "${{ env.OPERATOR_NAME }}",
+                      "digest": "${{ env.IMAGE_DIGEST }}",
                       "warning": "current_tag",
                       "tags": [
-                          "${RELEASE_VERSION}"
+                          "${{ env.RELEASE_VERSION }}",
+                          "latest"
                       ]
                   }
               ]
@@ -356,21 +360,14 @@ jobs:
 
       - name: Removing Published Jfrog Bundle and Making Previous Bundle As 'latest'
         run: |
-          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
                -X DELETE https://hazelcast.jfrog.io/artifactory/operator/bundle-${RELEASE_VERSION}.yaml
 
-          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
                -X DELETE https://hazelcast.jfrog.io/artifactory/operator/bundle-latest.yaml
 
-          curl -L -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
-              -X POST 'https://hazelcast.jfrog.io/ui/api/v1/ui/artifactactions/copy' \
-              -H 'Content-Type: application/json' \
-              --data-raw '{
-                "repoKey": "operator",
-                "path": "bundle-${CURRENT_LATEST_TAG}.yaml",
-                "targetRepoKey": "operator",
-                "targetPath": "bundle-latest.yaml"
-                }'
+          curl --fail -L -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+               -X POST "https://hazelcast.jfrog.io/artifactory/api/copy/operator/bundle-${CURRENT_LATEST_TAG}.yaml?to=/operator/bundle-latest.yaml"
 
       - name: Removing Release Tag
         run: |
