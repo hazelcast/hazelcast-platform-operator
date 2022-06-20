@@ -13,7 +13,6 @@ on:
 
 env:
   PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
-  PFLT_DOCKERCONFIG: /home/runner/.docker/config.json
   PREFLIGHT_VERSION: latest
   NAMESPACE: oc-test-operator-${{ github.run_id }}
   PARDOT_ID: redhat

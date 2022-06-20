@@ -34,7 +34,6 @@ env:
   RELEASE_VERSION: ${{ inputs.RELEASE_VERSION }}
   PROJECT_ID: ${{ secrets.PROJECT_ID }}
   PFLT_PYXIS_API_TOKEN: ${{ secrets.PFLT_PYXIS_API_TOKEN }}
-  PFLT_DOCKERCONFIG: /home/runner/.docker/config.json
   PREFLIGHT_VERSION: ${{ inputs.PREFLIGHT_VERSION }}
   TIMEOUT_IN_MINS: "60"
 
@@ -129,11 +128,11 @@ jobs:
       - name: Test and Submit Container Results to Red Hat [prod]
         run: |
           echo "Submit test container results to Red Hat"
-          podman login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_PASSWORD }} docker.io --authfile auth.json
+          podman login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_PASSWORD }} docker.io --authfile /home/runner/.docker/config.json
 
           preflight check container $IMAGE_NAME \
           --submit \
-          --docker-config=auth.json \
+          --docker-config=/home/runner/.docker/config.json \
           --certification-project-id=$PROJECT_ID
           grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
 
