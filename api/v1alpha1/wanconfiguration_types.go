@@ -84,8 +84,8 @@ const (
 
 // WanConfigurationStatus defines the observed state of WanConfiguration
 type WanConfigurationStatus struct {
-	// State represents the current Hazelcast WAN Replication state
-	State string `json:"state,omitempty"`
+	// PublisherId is the ID used for WAN publisher ID
+	PublisherId string `json:"publisherId,omitempty"`
 }
 
 //+kubebuilder:object:root=true

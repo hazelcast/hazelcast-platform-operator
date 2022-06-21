@@ -111,9 +111,8 @@ spec:
           status:
             description: WanConfigurationStatus defines the observed state of WanConfiguration
             properties:
-              state:
-                description: State represents the current Hazelcast WAN Replication
-                  state
+              publisherId:
+                description: PublisherId is the ID used for WAN publisher ID
                 type: string
             type: object
         type: object

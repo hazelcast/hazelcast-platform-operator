@@ -6,9 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -19,7 +17,6 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // WanConfigurationReconciler reconciles a WanConfiguration object
@@ -103,22 +100,18 @@ func (r *WanConfigurationReconciler) getHazelcastClient(ctx context.Context, wan
 	return GetHazelcastClient(m)
 }
 
+// applyWanConfiguration fills `wan.Status.PublisherId` field and add batchPublisher to Hazelcast instance with same ID
 func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanConfiguration) error {
-	if ok, err := r.isInStore(ctx, wan); ok && err == nil {
+	if wan.Status.PublisherId != "" {
 		return nil
-	} else if err != nil {
-		return err
 	}
 
-	publisherName, err := r.saveToStore(ctx, wan)
-	if err != nil {
-		return err
-	}
+	wan.Status.PublisherId = wan.Name + "-" + rand.String(16)
 
 	req := &addBatchPublisherRequest{
 		hazelcastWanConfigurationName(wan.Spec.MapResourceName),
 		wan.Spec.TargetClusterName,
-		publisherName,
+		wan.Status.PublisherId,
 		wan.Spec.Endpoints,
 		wan.Spec.Queue.Capacity,
 		wan.Spec.Batch.Size,
@@ -127,7 +120,8 @@ func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, 
 		convertAckType(wan.Spec.Acknowledgement.Type),
 		convertQueueBehavior(wan.Spec.Queue.FullBehavior),
 	}
-	err = addBatchPublisherConfig(ctx, client, req)
+
+	err := addBatchPublisherConfig(ctx, client, req)
 	if err != nil {
 		return fmt.Errorf("failed to apply WAN configuration: %w", err)
 	}
@@ -135,81 +129,18 @@ func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, 
 }
 
 func (r *WanConfigurationReconciler) stopWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanConfiguration) error {
-	publisherName, err := r.deleteFromStore(ctx, wan)
-	if err != nil {
-		return err
+	log := getLogger(ctx)
+	if wan.Status.PublisherId == "" {
+		log.V(2).Info("publisherId is empty, will skip stopping WAN replication")
+		return nil
 	}
 
 	req := &changeWanStateRequest{
 		name:        hazelcastWanConfigurationName(wan.Spec.MapResourceName),
-		publisherId: publisherName,
+		publisherId: wan.Status.PublisherId,
 		state:       codecTypes.WanReplicationStateStopped,
 	}
 	return changeWanState(ctx, client, req)
-}
-
-func (r *WanConfigurationReconciler) saveToStore(ctx context.Context, wan *hazelcastcomv1alpha1.WanConfiguration) (string, error) {
-	cm, err := r.getConfigMap(ctx, wan)
-	if err != nil {
-		return "", err
-	}
-
-	publisherName := wan.Name + "-" + rand.String(16)
-	if cm.Data == nil {
-		cm.Data = make(map[string]string)
-	}
-	cm.Data[wan.Name] = publisherName
-	err = r.Client.Update(ctx, cm)
-	if err != nil {
-		return "", err
-	}
-	return publisherName, nil
-}
-
-func (r *WanConfigurationReconciler) isInStore(ctx context.Context, wan *hazelcastcomv1alpha1.WanConfiguration) (bool, error) {
-	cm, err := r.getConfigMap(ctx, wan)
-	if err != nil {
-		return false, err
-	}
-	if cm.Data == nil {
-		return false, nil
-	}
-	_, ok := cm.Data[wan.Name]
-	return ok, nil
-}
-
-func (r *WanConfigurationReconciler) deleteFromStore(ctx context.Context, wan *hazelcastcomv1alpha1.WanConfiguration) (string, error) {
-	cm, err := r.getConfigMap(ctx, wan)
-	if err != nil {
-		return "", err
-	}
-
-	name, ok := cm.Data[wan.Name]
-	if !ok {
-		return "", fmt.Errorf("failed to find publisher name in configmap")
-	}
-
-	delete(cm.Data, wan.Name)
-
-	err = r.Client.Update(ctx, cm)
-	if err != nil {
-		return "", err
-	}
-
-	return name, nil
-}
-
-func (r *WanConfigurationReconciler) getConfigMap(ctx context.Context, wan *hazelcastcomv1alpha1.WanConfiguration) (*corev1.ConfigMap, error) {
-	cm := &corev1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      "wan-target-" + wan.Spec.TargetClusterName + "-map-" + wan.Spec.MapResourceName,
-			Namespace: wan.GetNamespace(),
-		},
-	}
-	if err := util.CreateOrGet(ctx, r.Client, client.ObjectKeyFromObject(cm), cm); err != nil {
-		return nil, err
-	}
-	return cm, nil
 }
 
 func hazelcastWanConfigurationName(mapName string) string {
@@ -307,3 +238,9 @@ func convertQueueBehavior(behavior hazelcastcomv1alpha1.FullBehaviorSetting) int
 }
 
 type LogKey string
+
+var ctxLogger = LogKey("logger")
+
+func getLogger(ctx context.Context) logr.Logger {
+	return ctx.Value(ctxLogger).(logr.Logger)
+}
