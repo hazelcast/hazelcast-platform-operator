@@ -2804,8 +2804,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: DEVELOPER_MODE_ENABLED
-          value: "true"
         image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: Always
         livenessProbe:
@@ -2830,7 +2828,5 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
-      securityContext:
-        runAsNonRoot: true
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10
