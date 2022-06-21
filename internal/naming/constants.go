@@ -48,12 +48,13 @@ const (
 	PersistenceVolumeName = "hot-restart-persistence"
 	CustomClassVolumeName = "custom-class"
 
-	BackupAgent         = "backup-agent"
-	BackupAgentPortName = "backup-agent-port"
-	RestoreAgent        = "restore-agent"
-	BucketSecret        = "br-secret"
+	BackupAgent              = "backup-agent"
+	BackupAgentPortName      = "backup-agent-port"
+	RestoreAgent             = "restore-agent"
+	BucketSecret             = "br-secret"
+	CustomClassDownloadAgent = "ccd-agent"
 
-	UserCustomClassPath = "/opt/hazelcast/customClass"
+	CustomClassPath = "/opt/hazelcast/customClass"
 )
 
 // Hazelcast default configurations

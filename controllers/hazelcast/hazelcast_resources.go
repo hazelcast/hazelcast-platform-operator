@@ -718,14 +718,16 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		}
 
 		if h.Spec.CustomClass.IsEnabled() {
-			sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, customClassVolume(h))
+			// TODO add clean up when it is disabled
 			provider, err := hazelcastv1alpha1.BucketConfiguration(*h.Spec.CustomClass).GetProvider()
 			if err != nil {
 				return err
 			}
-			sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, ccdAgentContainer(h, provider))
-			sts.Spec.Template.Spec.Containers[0].VolumeMounts = append(sts.Spec.Template.Spec.Containers[0].VolumeMounts, ccdAgentVolumeMount(h))
-
+			if !containerExists(sts.Spec.Template.Spec.InitContainers, n.CustomClassDownloadAgent) {
+				sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, ccdAgentContainer(h, provider))
+				sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, customClassVolume(h))
+				sts.Spec.Template.Spec.Containers[0].VolumeMounts = append(sts.Spec.Template.Spec.Containers[0].VolumeMounts, ccdAgentVolumeMount(h))
+			}
 		}
 		return nil
 	})
@@ -734,6 +736,23 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 	return err
 }
+<<<<<<< HEAD
+=======
+
+func restoreAgentVolumeMounts(h *hazelcastv1alpha1.Hazelcast, provider string) []v1.VolumeMount {
+	volumeMounts := []v1.VolumeMount{{
+		Name:      n.PersistenceVolumeName,
+		MountPath: h.Spec.Persistence.BaseDir,
+	}}
+	if provider == n.GCP {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      n.GCPCredentialVolumeName,
+			MountPath: n.GCPCredentialVolumePath,
+		})
+	}
+	return volumeMounts
+}
+>>>>>>> 198f646 (Force append functions to run once when custom class is enabled)
 
 func ccdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
 	return v1.VolumeMount{
@@ -823,7 +842,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 
 func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.Container {
 	return v1.Container{
-		Name:  n.RestoreAgent,
+		Name:  n.CustomClassDownloadAgent,
 		Image: h.AgentDockerImage(),
 		Args:  []string{"custom-class-download"},
 		Env: append(agentCredentials(h.Spec.CustomClass.Secret, provider),
@@ -838,6 +857,15 @@ func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.Conta
 		),
 		VolumeMounts: []v1.VolumeMount{ccdAgentVolumeMount(h)},
 	}
+}
+
+func containerExists(cs []corev1.Container, cn string) bool {
+	for _, c := range cs {
+		if c.Name == cn {
+			return true
+		}
+	}
+	return false
 }
 
 func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
