@@ -132,10 +132,6 @@ const (
 
 // WAN related configuration constants
 const (
-	// TemporaryPublisherIdAnnotation will be used for saving publisherId before saving
-	// it to the status field
-	TemporaryPublisherIdAnnotation = "hazelcast.com/wan-publisher-id"
-
 	// DefaultMergePolicyClassName is the default value for
 	// merge policy in WAN reference config
 	DefaultMergePolicyClassName = "PassThroughMergePolicy"

@@ -254,9 +254,9 @@ func changeWanState(ctx context.Context, client *hazelcast.Client, request *chan
 
 func convertAckType(ackType hazelcastcomv1alpha1.AcknowledgementType) int32 {
 	switch ackType {
-	case hazelcastcomv1alpha1.ACK_ON_RECEIPT:
+	case hazelcastcomv1alpha1.AckOnReceipt:
 		return 0
-	case hazelcastcomv1alpha1.ACK_ON_OPERATION_COMPLETE:
+	case hazelcastcomv1alpha1.AckOnOperationComplete:
 		return 1
 	default:
 		return -1
@@ -265,11 +265,11 @@ func convertAckType(ackType hazelcastcomv1alpha1.AcknowledgementType) int32 {
 
 func convertQueueBehavior(behavior hazelcastcomv1alpha1.FullBehaviorSetting) int32 {
 	switch behavior {
-	case hazelcastcomv1alpha1.DISCARD_AFTER_MUTATION:
+	case hazelcastcomv1alpha1.DiscardAfterMutation:
 		return 0
-	case hazelcastcomv1alpha1.THROW_EXCEPTION:
+	case hazelcastcomv1alpha1.ThrowException:
 		return 1
-	case hazelcastcomv1alpha1.THROW_EXCEPTION_ONLY_IF_REPLICATION_ACTIVE:
+	case hazelcastcomv1alpha1.ThrowExceptionOnlyIfReplicationActive:
 		return 2
 	default:
 		return -1

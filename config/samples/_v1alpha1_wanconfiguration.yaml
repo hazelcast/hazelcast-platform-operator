@@ -3,4 +3,7 @@ kind: WanConfiguration
 metadata:
   name: wanconfiguration-sample
 spec:
-  # TODO(user): Add fields here
+  mapResourceName: map
+  targetClusterName: dev
+  endpoints: "56.64.3.2"
+

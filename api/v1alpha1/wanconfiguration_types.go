@@ -19,9 +19,11 @@ type WanConfigurationSpec struct {
 	Endpoints string `json:"endpoints"`
 
 	// Queue is the configuration for WAN events queue.
+	// +optional
 	Queue QueueSetting `json:"queue,omitempty"`
 
 	// Batch is the configuration for WAN events batch.
+	// +optional
 	Batch BatchSetting `json:"batch,omitempty"`
 
 	// Acknowledgement is the configuration for the condition when the next batch of WAN events are sent.
@@ -32,22 +34,24 @@ type WanConfigurationSpec struct {
 type QueueSetting struct {
 	// Capacity is the total capacity of WAN queue.
 	// +kubebuilder:default:=10000
+	// +optional
 	Capacity int32 `json:"capacity,omitempty"`
 
 	// FullBehavior represents the behavior of the new arrival when the queue is full.
 	// +kubebuilder:validation:Enum=DISCARD_AFTER_MUTATION;THROW_EXCEPTION;THROW_EXCEPTION_ONLY_IF_REPLICATION_ACTIVE
 	// +kubebuilder:default:=DISCARD_AFTER_MUTATION
+	// +optional
 	FullBehavior FullBehaviorSetting `json:"fullBehavior,omitempty"`
 }
 
 type FullBehaviorSetting string
 
 const (
-	DISCARD_AFTER_MUTATION FullBehaviorSetting = "DISCARD_AFTER_MUTATION"
+	DiscardAfterMutation FullBehaviorSetting = "DISCARD_AFTER_MUTATION"
 
-	THROW_EXCEPTION FullBehaviorSetting = "THROW_EXCEPTION"
+	ThrowException FullBehaviorSetting = "THROW_EXCEPTION"
 
-	THROW_EXCEPTION_ONLY_IF_REPLICATION_ACTIVE = "THROW_EXCEPTION_ONLY_IF_REPLICATION_ACTIVE"
+	ThrowExceptionOnlyIfReplicationActive = "THROW_EXCEPTION_ONLY_IF_REPLICATION_ACTIVE"
 )
 
 type BatchSetting struct {
@@ -77,9 +81,9 @@ type AcknowledgementSetting struct {
 type AcknowledgementType string
 
 const (
-	ACK_ON_RECEIPT AcknowledgementType = "ACK_ON_RECEIPT"
+	AckOnReceipt AcknowledgementType = "ACK_ON_RECEIPT"
 
-	ACK_ON_OPERATION_COMPLETE AcknowledgementType = "ACK_ON_OPERATION_COMPLETE"
+	AckOnOperationComplete AcknowledgementType = "ACK_ON_OPERATION_COMPLETE"
 )
 
 // WanConfigurationStatus defines the observed state of WanConfiguration
