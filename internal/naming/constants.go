@@ -16,6 +16,7 @@ const (
 	ServicePerPodLabelName                       = "hazelcast.com/service-per-pod"
 	ServicePerPodCountAnnotation                 = "hazelcast.com/service-per-pod-count"
 	ExposeExternallyAnnotation                   = "hazelcast.com/expose-externally-member-access"
+	LastAppliedSpecAnnotation                    = "hazelcast.com/last-applied-spec"
 	LastSuccessfulSpecAnnotation                 = "hazelcast.com/last-successful-spec"
 	CurrentHazelcastConfigForcingRestartChecksum = "hazelcast.com/current-hazelcast-config-forcing-restart-checksum"
 
@@ -131,6 +132,10 @@ const (
 
 // WAN related configuration constants
 const (
+	// TemporaryPublisherIdAnnotation will be used for saving publisherId before saving
+	// it to the status field
+	TemporaryPublisherIdAnnotation = "hazelcast.com/wan-publisher-id"
+
 	// DefaultMergePolicyClassName is the default value for
 	// merge policy in WAN reference config
 	DefaultMergePolicyClassName = "PassThroughMergePolicy"

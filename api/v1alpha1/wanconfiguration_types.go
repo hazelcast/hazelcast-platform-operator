@@ -86,7 +86,21 @@ const (
 type WanConfigurationStatus struct {
 	// PublisherId is the ID used for WAN publisher ID
 	PublisherId string `json:"publisherId,omitempty"`
+
+	// Status is the status of WAN replication
+	Status WanStatus `json:"status,omitempty"`
+
+	// Message is the field to show detail information or error
+	Message string `json:"message,omitempty"`
 }
+
+type WanStatus string
+
+const (
+	WanStatusFailed  = "Failed"
+	WanStatusPending = "Pending"
+	WanStatusSuccess = "Success"
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status

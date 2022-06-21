@@ -2477,8 +2477,14 @@ spec:
           status:
             description: WanConfigurationStatus defines the observed state of WanConfiguration
             properties:
+              message:
+                description: Message is the field to show detail information or error
+                type: string
               publisherId:
                 description: PublisherId is the ID used for WAN publisher ID
+                type: string
+              status:
+                description: Status is the status of WAN replication
                 type: string
             type: object
         type: object
@@ -2798,6 +2804,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DEVELOPER_MODE_ENABLED
+          value: "true"
         image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: Always
         livenessProbe:
@@ -2822,5 +2830,7 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
+      securityContext:
+        runAsNonRoot: true
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10

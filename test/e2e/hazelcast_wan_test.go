@@ -126,7 +126,14 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		)
 		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
 
-		// TODO: Create a condition to wait for
+		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+			wan := &hazelcastcomv1alpha1.WanConfiguration{}
+			err := k8sClient.Get(context.Background(), wanLookupKey, wan)
+			if err != nil {
+				return hazelcastcomv1alpha1.WanStatusFailed, err
+			}
+			return wan.Status.Status, nil
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
 		// Fill the map in source cluster
 		mapSize := 1024

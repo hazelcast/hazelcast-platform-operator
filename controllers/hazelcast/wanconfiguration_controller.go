@@ -2,7 +2,9 @@ package hazelcast
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
@@ -62,6 +64,7 @@ func (r *WanConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if err := r.Update(ctx, wan); err != nil {
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{}, nil
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
@@ -78,11 +81,52 @@ func (r *WanConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	logger.Info("Applying WAN configuration")
-	if err := r.applyWanConfiguration(ctx, cli, wan); err != nil {
-		return ctrl.Result{}, err
+	if !isApplied(wan) {
+		if err := r.Update(ctx, insertLastAppliedSpec(wan)); err != nil {
+			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+		} else {
+			return updateWanStatus(ctx, r.Client, wan, wanPendingStatus())
+		}
 	}
-	return ctrl.Result{}, nil
+
+	updated, err := hasUpdate(wan)
+	if err != nil {
+		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+	}
+	if updated {
+		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage("WanConfiguration spec is not updatable"))
+	}
+
+	// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
+	if wan.Status.PublisherId == "" {
+		logger.Info("Applying WAN configuration")
+		if publisherId, err := r.applyWanConfiguration(ctx, cli, wan); err != nil {
+			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+		} else {
+			return updateWanStatus(ctx, r.Client, wan, wanPendingStatus().withPublisherId(publisherId))
+		}
+	}
+
+	if !isSuccessfullyApplied(wan) {
+		if err := r.Update(ctx, insertLastSuccessfullyAppliedSpec(wan)); err != nil {
+			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+		}
+	}
+
+	return updateWanStatus(ctx, r.Client, wan, wanSuccessStatus().withPublisherId(wan.Status.PublisherId))
+}
+
+func hasUpdate(wan *hazelcastcomv1alpha1.WanConfiguration) (bool, error) {
+	specStr, ok := wan.Annotations[n.LastAppliedSpecAnnotation]
+	if !ok {
+		return false, fmt.Errorf("last applied spec is not present")
+	}
+	lastSpec := &hazelcastcomv1alpha1.WanConfiguration{}
+	err := json.Unmarshal([]byte(specStr), lastSpec)
+	if err != nil {
+		return false, fmt.Errorf("last applied spec is not properly formatted")
+	}
+	return !reflect.DeepEqual(wan.Spec, lastSpec), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -100,13 +144,8 @@ func (r *WanConfigurationReconciler) getHazelcastClient(ctx context.Context, wan
 	return GetHazelcastClient(m)
 }
 
-// applyWanConfiguration fills `wan.Status.PublisherId` field and add batchPublisher to Hazelcast instance with same ID
-func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanConfiguration) error {
-	if wan.Status.PublisherId != "" {
-		return nil
-	}
-
-	wan.Status.PublisherId = wan.Name + "-" + rand.String(16)
+func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanConfiguration) (string, error) {
+	publisherId := wan.Name + "-" + rand.String(16)
 
 	req := &addBatchPublisherRequest{
 		hazelcastWanConfigurationName(wan.Spec.MapResourceName),
@@ -123,9 +162,9 @@ func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, 
 
 	err := addBatchPublisherConfig(ctx, client, req)
 	if err != nil {
-		return fmt.Errorf("failed to apply WAN configuration: %w", err)
+		return "", fmt.Errorf("failed to apply WAN configuration: %w", err)
 	}
-	return nil
+	return publisherId, nil
 }
 
 func (r *WanConfigurationReconciler) stopWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanConfiguration) error {
@@ -235,6 +274,28 @@ func convertQueueBehavior(behavior hazelcastcomv1alpha1.FullBehaviorSetting) int
 	default:
 		return -1
 	}
+}
+
+func isApplied(wan *hazelcastcomv1alpha1.WanConfiguration) bool {
+	_, ok := wan.Annotations[n.LastAppliedSpecAnnotation]
+	return ok
+}
+
+func isSuccessfullyApplied(wan *hazelcastcomv1alpha1.WanConfiguration) bool {
+	_, ok := wan.Annotations[n.LastSuccessfulSpecAnnotation]
+	return ok
+}
+
+func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanConfiguration) *hazelcastcomv1alpha1.WanConfiguration {
+	b, _ := json.Marshal(wan)
+	wan.Annotations[n.LastAppliedSpecAnnotation] = string(b)
+	return wan
+}
+
+func insertLastSuccessfullyAppliedSpec(wan *hazelcastcomv1alpha1.WanConfiguration) *hazelcastcomv1alpha1.WanConfiguration {
+	b, _ := json.Marshal(wan)
+	wan.Annotations[n.LastSuccessfulSpecAnnotation] = string(b)
+	return wan
 }
 
 type LogKey string
