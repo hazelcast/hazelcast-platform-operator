@@ -738,7 +738,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 func ccdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.CustomClassVolumeName,
-		MountPath: n.UserCustomClassPath,
+		MountPath: n.CustomClassPath,
 	}
 }
 
@@ -833,7 +833,7 @@ func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.Conta
 			},
 			v1.EnvVar{
 				Name:  "CCD_DESTINATION",
-				Value: n.UserCustomClassPath,
+				Value: n.CustomClassPath,
 			},
 		),
 		VolumeMounts: []v1.VolumeMount{ccdAgentVolumeMount(h)},
