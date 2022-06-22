@@ -19,6 +19,7 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // WanConfigurationReconciler reconciles a WanConfiguration object
@@ -44,7 +45,7 @@ func (r *WanConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	wan := &hazelcastcomv1alpha1.WanConfiguration{}
 	if err := r.Get(ctx, req.NamespacedName, wan); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.V(2).Info("Could not find WanConfiguration, it is probably already deleted")
+			logger.V(util.DebugLevel).Info("Could not find WanConfiguration, it is probably already deleted")
 			return ctrl.Result{}, nil
 		} else {
 			return ctrl.Result{}, err
@@ -170,7 +171,7 @@ func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, 
 func (r *WanConfigurationReconciler) stopWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanConfiguration) error {
 	log := getLogger(ctx)
 	if wan.Status.PublisherId == "" {
-		log.V(2).Info("publisherId is empty, will skip stopping WAN replication")
+		log.V(util.DebugLevel).Info("publisherId is empty, will skip stopping WAN replication")
 		return nil
 	}
 
