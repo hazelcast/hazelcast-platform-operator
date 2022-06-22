@@ -141,7 +141,7 @@ checking_image_grade()
     FILTER="filter=deleted==false;repositories.published==false;repositories.tags.name==${VERSION}"
     INCLUDE="include=data.freshness_grades.grade&include=data.freshness_grades.end_date"
 
-    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS / 2 ))
+    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
     for i in `seq 1 ${NOF_RETRIES}`; do
 
     local GRADE_PRESENCE=$(curl -s -X 'GET' \
