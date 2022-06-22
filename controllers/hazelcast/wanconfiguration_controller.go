@@ -151,7 +151,7 @@ func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, 
 	req := &addBatchPublisherRequest{
 		hazelcastWanConfigurationName(wan.Spec.MapResourceName),
 		wan.Spec.TargetClusterName,
-		wan.Status.PublisherId,
+		publisherId,
 		wan.Spec.Endpoints,
 		wan.Spec.Queue.Capacity,
 		wan.Spec.Batch.Size,
