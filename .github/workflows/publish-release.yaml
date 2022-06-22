@@ -39,7 +39,7 @@ env:
 
 jobs:
   publish_docker_image:
-    name: Publish Release to Docker Hub
+    name: Publish Release Image to Docker Hub
     runs-on: ubuntu-latest
     outputs:
       RELEASE_VERSION: ${{ steps.set-outputs.outputs.RELEASE_VERSION }}
@@ -106,8 +106,8 @@ jobs:
                -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-${RELEASE_VERSION}.yaml" \
                -T bundle.yaml
 
-  publish_redhat_image:
-    name: Build and Publish Red Hat Image
+  publish_image_to_redhat:
+    name: Certify and Publish Container Image to Red Hat
     needs: publish_docker_image
     defaults:
       run:
@@ -127,10 +127,10 @@ jobs:
           PREFLIGHT_VERSION: $PREFLIGHT_VERSION
           DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
 
-      - name: Test and Submit Container Results to Red Hat [prod]
+      - name: Test and Submit Container Results to Red Hat
         run: |
           echo "Submit test container results to Red Hat"
-          podman login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_PASSWORD }} docker.io --authfile /home/runner/.docker/config.json
+          podman login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_PASSWORD }} index.docker.io --authfile /home/runner/.docker/config.json
 
           preflight check container $IMAGE_NAME \
           --submit \
@@ -145,10 +145,10 @@ jobs:
           publish_the_image "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN"
           wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$TIMEOUT_IN_MINS"
 
-  redhat_bundle_release:
+  redhat_certified_operator_release:
     name: Create a PR in 'certified-operators' Repository
     runs-on: ubuntu-latest
-    needs: ['publish_docker_image', 'publish_redhat_image']
+    needs: ['publish_docker_image', 'publish_image_to_redhat']
     env:
       REPO_NAME: certified-operators
       REPO_OWNER: redhat-openshift-ecosystem
@@ -224,7 +224,7 @@ jobs:
   operatorhub_release:
     name: Create a PR in
     runs-on: ubuntu-latest
-    needs: ['publish_docker_image', 'publish_redhat_image']
+    needs: ['publish_docker_image', 'publish_image_to_redhat']
     strategy:
       fail-fast: false
       matrix:
@@ -301,8 +301,8 @@ jobs:
 
   revert_changes:
     name: Revert Release Changes
-    needs: ['publish_docker_image', 'publish_redhat_image']
-    if: always() && (needs.publish_docker_image.result == 'failure' || needs.publish_redhat_image.result == 'failure')
+    needs: ['publish_docker_image', 'publish_image_to_redhat']
+    if: always() && (needs.publish_docker_image.result == 'failure' || needs.publish_image_to_redhat.result == 'failure')
     runs-on: ubuntu-latest
     env:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
@@ -375,8 +375,8 @@ jobs:
 
   slack_notify:
     name: Slack Notify
-    needs: ['publish_docker_image', 'publish_redhat_image', 'operatorhub_release', 'redhat_bundle_release' ]
-    if: needs.operatorhub_release.result != 'success' && needs.redhat_bundle_release.result != 'success'
+    needs: ['publish_docker_image', 'publish_image_to_redhat', 'operatorhub_release', 'redhat_certified_operator_release' ]
+    if: needs.operatorhub_release.result != 'success' && needs.redhat_certified_operator_release.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04

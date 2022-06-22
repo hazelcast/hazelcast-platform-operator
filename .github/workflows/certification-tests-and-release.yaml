@@ -232,7 +232,7 @@ jobs:
     with:
       BUNDLE_VERSION: ${{ needs.build_bundle.outputs.BUNDLE_VERSION }}
 
-  release_operator:
+  publish_release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [test_container, test_operator, community_operators_test_suite]
     uses: ./.github/workflows/publish-release.yaml
