@@ -35,7 +35,8 @@ env:
   PROJECT_ID: ${{ secrets.PROJECT_ID }}
   PFLT_PYXIS_API_TOKEN: ${{ secrets.PFLT_PYXIS_API_TOKEN }}
   PREFLIGHT_VERSION: ${{ inputs.PREFLIGHT_VERSION }}
-  TIMEOUT_IN_MINS: "60"
+  PUBLISH_TIMEOUT_IN_MINS: "60"
+  GRADE_CHECK_TIMEOUT_IN_MINS: "10"
 
 jobs:
   publish_docker_image:
@@ -141,9 +142,9 @@ jobs:
       - name: Publish the Hazelcast-Platform-Operator Image
         run: |
           source .github/scripts/publish-rhel.sh
-          checking_image_grade "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN"
+          checking_image_grade "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$GRADE_CHECK_TIMEOUT_IN_MINS"
           publish_the_image "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN"
-          wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$TIMEOUT_IN_MINS"
+          wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$PUBLISH_TIMEOUT_IN_MINS"
 
   redhat_certified_operator_release:
     name: Create a PR in 'certified-operators' Repository
