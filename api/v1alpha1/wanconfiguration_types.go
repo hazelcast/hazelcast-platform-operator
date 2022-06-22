@@ -101,9 +101,9 @@ type WanConfigurationStatus struct {
 type WanStatus string
 
 const (
-	WanStatusFailed  = "Failed"
-	WanStatusPending = "Pending"
-	WanStatusSuccess = "Success"
+	WanStatusFailed  WanStatus = "Failed"
+	WanStatusPending WanStatus = "Pending"
+	WanStatusSuccess WanStatus = "Success"
 )
 
 //+kubebuilder:object:root=true

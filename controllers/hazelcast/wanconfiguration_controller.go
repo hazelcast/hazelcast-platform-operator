@@ -126,7 +126,7 @@ func hasUpdate(wan *hazelcastcomv1alpha1.WanConfiguration) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("last applied spec is not properly formatted")
 	}
-	return !reflect.DeepEqual(wan.Spec, lastSpec), nil
+	return !reflect.DeepEqual(&wan.Spec, lastSpec), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
