@@ -57,12 +57,14 @@ const (
 type BatchSetting struct {
 	// Size represents the maximum batch size.
 	// +kubebuilder:default:=500
+	// +optional
 	Size int32 `json:"size,omitempty"`
 
 	// MaximumDelay represents the maximum delay in milliseconds.
 	// If the batch size is not reached, the events will be sent after
 	// the maximum delay.
 	// +kubebuilder:default:=1000
+	// +optional
 	MaximumDelay int32 `json:"maximumDelay,omitempty"`
 }
 
@@ -70,11 +72,13 @@ type AcknowledgementSetting struct {
 	// Type represents how a batch of replication events is considered successfully replicated.
 	// +kubebuilder:validation:Enum=ACK_ON_OPERATION_COMPLETE;ACK_ON_RECEIPT
 	// +kubebuilder:default:=ACK_ON_OPERATION_COMPLETE
+	// +optional
 	Type AcknowledgementType `json:"type,omitempty"`
 
 	// Timeout represents the time the source cluster waits for the acknowledgement.
 	// After timeout, the events will be resent.
 	// +kubebuilder:default:=60000
+	// +optional
 	Timeout int32 `json:"timeout,omitempty"`
 }
 
