@@ -8,8 +8,6 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
-
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
@@ -737,23 +735,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 	return err
 }
-<<<<<<< HEAD
-=======
-
-func restoreAgentVolumeMounts(h *hazelcastv1alpha1.Hazelcast, provider string) []v1.VolumeMount {
-	volumeMounts := []v1.VolumeMount{{
-		Name:      n.PersistenceVolumeName,
-		MountPath: h.Spec.Persistence.BaseDir,
-	}}
-	if provider == n.GCP {
-		volumeMounts = append(volumeMounts, v1.VolumeMount{
-			Name:      n.GCPCredentialVolumeName,
-			MountPath: n.GCPCredentialVolumePath,
-		})
-	}
-	return volumeMounts
-}
->>>>>>> 198f646 (Force append functions to run once when custom class is enabled)
 
 func ccdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
 	return v1.VolumeMount{
