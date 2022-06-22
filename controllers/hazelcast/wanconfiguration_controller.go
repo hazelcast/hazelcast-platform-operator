@@ -121,7 +121,7 @@ func hasUpdate(wan *hazelcastcomv1alpha1.WanConfiguration) (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("last applied spec is not present")
 	}
-	lastSpec := &hazelcastcomv1alpha1.WanConfiguration{}
+	lastSpec := &hazelcastcomv1alpha1.WanConfigurationSpec{}
 	err := json.Unmarshal([]byte(specStr), lastSpec)
 	if err != nil {
 		return false, fmt.Errorf("last applied spec is not properly formatted")
@@ -287,13 +287,19 @@ func isSuccessfullyApplied(wan *hazelcastcomv1alpha1.WanConfiguration) bool {
 }
 
 func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanConfiguration) *hazelcastcomv1alpha1.WanConfiguration {
-	b, _ := json.Marshal(wan)
+	b, _ := json.Marshal(wan.Spec)
+	if wan.Annotations == nil {
+		wan.Annotations = make(map[string]string)
+	}
 	wan.Annotations[n.LastAppliedSpecAnnotation] = string(b)
 	return wan
 }
 
 func insertLastSuccessfullyAppliedSpec(wan *hazelcastcomv1alpha1.WanConfiguration) *hazelcastcomv1alpha1.WanConfiguration {
-	b, _ := json.Marshal(wan)
+	b, _ := json.Marshal(wan.Spec)
+	if wan.Annotations == nil {
+		wan.Annotations = make(map[string]string)
+	}
 	wan.Annotations[n.LastSuccessfulSpecAnnotation] = string(b)
 	return wan
 }
