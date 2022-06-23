@@ -158,6 +158,9 @@ test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
 test-ph: generate fmt vet ginkgo ## Run phone-home tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
+test-e2e-focus: generate fmt vet ginkgo ## Run focused end-to-end tests
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -eventually-timeout 15m  -delete-timeout 8m $(GO_TEST_FLAGS)
+
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
 CUSTOM_GO_BUILD_TAGS ?= localrun
