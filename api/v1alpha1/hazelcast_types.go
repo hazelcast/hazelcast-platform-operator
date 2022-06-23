@@ -3,9 +3,6 @@ package v1alpha1
 import (
 	"fmt"
 	"hash/fnv"
-	"strings"
-
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -341,16 +338,6 @@ func (p *HazelcastPersistenceConfiguration) IsExternal() bool {
 // IsRestoreEnabled returns true if Restore Agent configuration is specified
 func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
 	return p != nil && p.Restore != nil && !(*p.Restore == (RestoreConfiguration{}))
-}
-
-// GetProvider returns the cloud provider for Restore operation according to the BucketURI
-func (r *RestoreConfiguration) GetProvider() (string, error) {
-	provider := strings.Split(r.BucketURI, ":")[0]
-
-	if provider == n.AWS || provider == n.GCP || provider == n.AZURE {
-		return provider, nil
-	}
-	return "", fmt.Errorf("invalid bucket URI")
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
