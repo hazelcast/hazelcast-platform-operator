@@ -723,13 +723,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
-func restoreAgentVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
-	return []v1.VolumeMount{{
-		Name:      n.PersistenceVolumeName,
-		MountPath: h.Spec.Persistence.BaseDir,
-	}}
-}
-
 func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
 		Name:  n.BackupAgent,
@@ -802,7 +795,10 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				},
 			},
 		},
-		VolumeMounts: restoreAgentVolumeMounts(h),
+		VolumeMounts: []v1.VolumeMount{{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		}},
 	}
 }
 
