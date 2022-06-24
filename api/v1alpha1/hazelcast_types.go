@@ -90,10 +90,12 @@ type HazelcastSpec struct {
 
 type BucketConfiguration struct {
 	// Name of the secret with credentials for cloud providers.
-	Secret string `json:"secret,omitempty"`
+	// +kubebuilder:validation:MinLength:=1
+	Secret string `json:"secret"`
 
 	// Full path to blob storage bucket.
-	BucketURI string `json:"bucketURI,omitempty"`
+	// +kubebuilder:validation:MinLength:=6
+	BucketURI string `json:"bucketURI"`
 }
 
 // CustomClassConfiguration contains the configuration for Custom Class download operation

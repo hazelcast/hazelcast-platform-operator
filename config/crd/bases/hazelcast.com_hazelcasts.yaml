@@ -81,10 +81,15 @@ spec:
                 properties:
                   bucketURI:
                     description: Full path to blob storage bucket.
+                    minLength: 6
                     type: string
                   secret:
                     description: Name of the secret with credentials for cloud providers.
+                    minLength: 1
                     type: string
+                required:
+                - bucketURI
+                - secret
                 type: object
               exposeExternally:
                 description: Configuration to expose Hazelcast cluster to external
@@ -200,11 +205,16 @@ spec:
                     properties:
                       bucketURI:
                         description: Full path to blob storage bucket.
+                        minLength: 6
                         type: string
                       secret:
                         description: Name of the secret with credentials for cloud
                           providers.
+                        minLength: 1
                         type: string
+                    required:
+                    - bucketURI
+                    - secret
                     type: object
                 required:
                 - baseDir
