@@ -91,6 +91,7 @@ jobs:
           BRANCH_NAME=v/${MAJOR_MINOR_VERSION}
           if [[ ${MAJOR_MINOR_VERSION} == ${RELEASE_VERSION} ]] ;then
             git checkout -b $BRANCH_NAME
+            git pull
           fi
 
           # Commit and push changes
@@ -138,6 +139,7 @@ jobs:
           git config user.name "devOpsHelm"
           BRANCH_NAME=opr-${MAJOR_MINOR_VERSION}-${{ matrix.edition }}
           git checkout -b $BRANCH_NAME
+          git pull
 
           # Commit and push changes
           git add _redirects search-config.json
