@@ -3,9 +3,6 @@ kind: Hazelcast
 metadata:
   name: hazelcast
 spec:
-  agent:
-    repository: mtypey/hpa
-    version: "0.2.0"
   customClass:
     secret: cc-secret
-    bucketURI: "gs://muhammet-test"
+    bucketURI: "gs://customClass"
