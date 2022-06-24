@@ -99,7 +99,12 @@ type BucketConfiguration struct {
 }
 
 // CustomClassConfiguration contains the configuration for Custom Class download operation
-type CustomClassConfiguration BucketConfiguration
+type CustomClassConfiguration struct {
+	BucketConfiguration `json:",inline"`
+	// A string for triggering a rolling restart for re-downloading the custom classes.
+	// +optional
+	TriggerSequence string `json:"triggerSequence,omitempty"`
+}
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)

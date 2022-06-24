@@ -818,7 +818,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 
 func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
-		Name:  n.CustomClassDownloadAgent,
+		Name:  n.CustomClassDownloadAgent + h.Spec.CustomClass.TriggerSequence,
 		Image: h.AgentDockerImage(),
 		Args:  []string{"custom-class-download"},
 		Env: []v1.EnvVar{

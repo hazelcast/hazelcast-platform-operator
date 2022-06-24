@@ -87,6 +87,10 @@ spec:
                     description: Name of the secret with credentials for cloud providers.
                     minLength: 1
                     type: string
+                  triggerSequence:
+                    description: A string for triggering a rolling restart for re-downloading
+                      the custom classes.
+                    type: string
                 required:
                 - bucketURI
                 - secret
