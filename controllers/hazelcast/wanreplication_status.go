@@ -44,7 +44,7 @@ func (o wanOptionsBuilder) withMessage(msg string) wanOptionsBuilder {
 	return o
 }
 
-func updateWanStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanConfiguration, options wanOptionsBuilder) (ctrl.Result, error) {
+func updateWanStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, options wanOptionsBuilder) (ctrl.Result, error) {
 	wan.Status.Status = options.status
 	wan.Status.PublisherId = options.publisherId
 	wan.Status.Message = options.message

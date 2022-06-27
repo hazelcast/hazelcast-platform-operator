@@ -46,7 +46,7 @@ rules:
 - apiGroups:
   - hazelcast.com
   resources:
-  - wanconfigurations
+  - wanreplications
   verbs:
   - create
   - delete
@@ -58,13 +58,13 @@ rules:
 - apiGroups:
   - hazelcast.com
   resources:
-  - wanconfigurations/finalizers
+  - wanreplications/finalizers
   verbs:
   - update
 - apiGroups:
   - hazelcast.com
   resources:
-  - wanconfigurations/status
+  - wanreplications/status
   verbs:
   - get
   - patch

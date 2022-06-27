@@ -4,8 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// WanConfigurationSpec defines the desired state of WanConfiguration
-type WanConfigurationSpec struct {
+// WanReplicationSpec defines the desired state of WanReplication
+type WanReplicationSpec struct {
 	// MapResourceName is the name of Map custom resource which WAN replication will be applied to.
 	// +kubebuilder:validation:MinLength:=1
 	MapResourceName string `json:"mapResourceName"`
@@ -91,8 +91,16 @@ const (
 	AckOnOperationComplete AcknowledgementType = "ACK_ON_OPERATION_COMPLETE"
 )
 
-// WanConfigurationStatus defines the observed state of WanConfiguration
-type WanConfigurationStatus struct {
+type WanStatus string
+
+const (
+	WanStatusFailed  WanStatus = "Failed"
+	WanStatusPending WanStatus = "Pending"
+	WanStatusSuccess WanStatus = "Success"
+)
+
+// WanReplicationStatus defines the observed state of WanReplication
+type WanReplicationStatus struct {
 	// PublisherId is the ID used for WAN publisher ID
 	PublisherId string `json:"publisherId,omitempty"`
 
@@ -103,36 +111,28 @@ type WanConfigurationStatus struct {
 	Message string `json:"message,omitempty"`
 }
 
-type WanStatus string
-
-const (
-	WanStatusFailed  WanStatus = "Failed"
-	WanStatusPending WanStatus = "Pending"
-	WanStatusSuccess WanStatus = "Success"
-)
-
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status",description="Current state of the Hazelcast WAN Replication"
 
-// WanConfiguration is the Schema for the wanconfigurations API
-type WanConfiguration struct {
+// WanReplication is the Schema for the wanreplications API
+type WanReplication struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   WanConfigurationSpec   `json:"spec,omitempty"`
-	Status WanConfigurationStatus `json:"status,omitempty"`
+	Spec   WanReplicationSpec   `json:"spec,omitempty"`
+	Status WanReplicationStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// WanConfigurationList contains a list of WanConfiguration
-type WanConfigurationList struct {
+// WanReplicationList contains a list of WanReplication
+type WanReplicationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []WanConfiguration `json:"items"`
+	Items           []WanReplication `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&WanConfiguration{}, &WanConfigurationList{})
+	SchemeBuilder.Register(&WanReplication{}, &WanReplicationList{})
 }

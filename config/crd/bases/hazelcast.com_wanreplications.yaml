@@ -6,14 +6,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: wanconfigurations.hazelcast.com
+  name: wanreplications.hazelcast.com
 spec:
   group: hazelcast.com
   names:
-    kind: WanConfiguration
-    listKind: WanConfigurationList
-    plural: wanconfigurations
-    singular: wanconfiguration
+    kind: WanReplication
+    listKind: WanReplicationList
+    plural: wanreplications
+    singular: wanreplication
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -24,7 +24,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: WanConfiguration is the Schema for the wanconfigurations API
+        description: WanReplication is the Schema for the wanreplications API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -39,7 +39,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: WanConfigurationSpec defines the desired state of WanConfiguration
+            description: WanReplicationSpec defines the desired state of WanReplication
             properties:
               acknowledgement:
                 description: Acknowledgement is the configuration for the condition
@@ -114,7 +114,7 @@ spec:
             - targetClusterName
             type: object
           status:
-            description: WanConfigurationStatus defines the observed state of WanConfiguration
+            description: WanReplicationStatus defines the observed state of WanReplication
             properties:
               message:
                 description: Message is the field to show detail information or error

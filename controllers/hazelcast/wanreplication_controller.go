@@ -22,27 +22,27 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
-// WanConfigurationReconciler reconciles a WanConfiguration object
-type WanConfigurationReconciler struct {
+// WanReplicationReconciler reconciles a WanReplication object
+type WanReplicationReconciler struct {
 	client.Client
 	logr.Logger
 }
 
-func NewWanConfigurationReconciler(client client.Client, log logr.Logger) *WanConfigurationReconciler {
-	return &WanConfigurationReconciler{
+func NewWanReplicationReconciler(client client.Client, log logr.Logger) *WanReplicationReconciler {
+	return &WanReplicationReconciler{
 		Client: client,
 		Logger: log,
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wanconfigurations,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wanconfigurations/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wanconfigurations/finalizers,verbs=update
+//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/finalizers,verbs=update
 
-func (r *WanConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.WithValues("name", req.Name, "namespace", req.NamespacedName)
 
-	wan := &hazelcastcomv1alpha1.WanConfiguration{}
+	wan := &hazelcastcomv1alpha1.WanReplication{}
 	if err := r.Get(ctx, req.NamespacedName, wan); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.V(util.DebugLevel).Info("Could not find WanConfiguration, it is probably already deleted")
@@ -117,12 +117,12 @@ func (r *WanConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return updateWanStatus(ctx, r.Client, wan, wanSuccessStatus().withPublisherId(wan.Status.PublisherId))
 }
 
-func hasUpdate(wan *hazelcastcomv1alpha1.WanConfiguration) (bool, error) {
+func hasUpdate(wan *hazelcastcomv1alpha1.WanReplication) (bool, error) {
 	specStr, ok := wan.Annotations[n.LastAppliedSpecAnnotation]
 	if !ok {
 		return false, fmt.Errorf("last applied spec is not present")
 	}
-	lastSpec := &hazelcastcomv1alpha1.WanConfigurationSpec{}
+	lastSpec := &hazelcastcomv1alpha1.WanReplicationSpec{}
 	err := json.Unmarshal([]byte(specStr), lastSpec)
 	if err != nil {
 		return false, fmt.Errorf("last applied spec is not properly formatted")
@@ -130,14 +130,7 @@ func hasUpdate(wan *hazelcastcomv1alpha1.WanConfiguration) (bool, error) {
 	return !reflect.DeepEqual(&wan.Spec, lastSpec), nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *WanConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastcomv1alpha1.WanConfiguration{}).
-		Complete(r)
-}
-
-func (r *WanConfigurationReconciler) getHazelcastClient(ctx context.Context, wan *hazelcastcomv1alpha1.WanConfiguration) (*hazelcast.Client, error) {
+func (r *WanReplicationReconciler) getHazelcastClient(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication) (*hazelcast.Client, error) {
 	m := &hazelcastcomv1alpha1.Map{}
 	if err := r.Client.Get(ctx, types.NamespacedName{Name: wan.Spec.MapResourceName, Namespace: wan.Namespace}, m); err != nil {
 		return nil, fmt.Errorf("failed to get Map CR from WanConfiguration: %w", err)
@@ -145,7 +138,7 @@ func (r *WanConfigurationReconciler) getHazelcastClient(ctx context.Context, wan
 	return GetHazelcastClient(m)
 }
 
-func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanConfiguration) (string, error) {
+func (r *WanReplicationReconciler) applyWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) (string, error) {
 	publisherId := wan.Name + "-" + rand.String(16)
 
 	req := &addBatchPublisherRequest{
@@ -168,7 +161,7 @@ func (r *WanConfigurationReconciler) applyWanConfiguration(ctx context.Context, 
 	return publisherId, nil
 }
 
-func (r *WanConfigurationReconciler) stopWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanConfiguration) error {
+func (r *WanReplicationReconciler) stopWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) error {
 	log := getLogger(ctx)
 	if wan.Status.PublisherId == "" {
 		log.V(util.DebugLevel).Info("publisherId is empty, will skip stopping WAN replication")
@@ -277,17 +270,17 @@ func convertQueueBehavior(behavior hazelcastcomv1alpha1.FullBehaviorSetting) int
 	}
 }
 
-func isApplied(wan *hazelcastcomv1alpha1.WanConfiguration) bool {
+func isApplied(wan *hazelcastcomv1alpha1.WanReplication) bool {
 	_, ok := wan.Annotations[n.LastAppliedSpecAnnotation]
 	return ok
 }
 
-func isSuccessfullyApplied(wan *hazelcastcomv1alpha1.WanConfiguration) bool {
+func isSuccessfullyApplied(wan *hazelcastcomv1alpha1.WanReplication) bool {
 	_, ok := wan.Annotations[n.LastSuccessfulSpecAnnotation]
 	return ok
 }
 
-func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanConfiguration) *hazelcastcomv1alpha1.WanConfiguration {
+func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication) *hazelcastcomv1alpha1.WanReplication {
 	b, _ := json.Marshal(wan.Spec)
 	if wan.Annotations == nil {
 		wan.Annotations = make(map[string]string)
@@ -296,7 +289,7 @@ func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanConfiguration) *hazelcas
 	return wan
 }
 
-func insertLastSuccessfullyAppliedSpec(wan *hazelcastcomv1alpha1.WanConfiguration) *hazelcastcomv1alpha1.WanConfiguration {
+func insertLastSuccessfullyAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication) *hazelcastcomv1alpha1.WanReplication {
 	b, _ := json.Marshal(wan.Spec)
 	if wan.Annotations == nil {
 		wan.Annotations = make(map[string]string)
@@ -311,4 +304,11 @@ var ctxLogger = LogKey("logger")
 
 func getLogger(ctx context.Context) logr.Logger {
 	return ctx.Value(ctxLogger).(logr.Logger)
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&hazelcastcomv1alpha1.WanReplication{}).
+		Complete(r)
 }
