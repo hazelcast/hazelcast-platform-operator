@@ -16,7 +16,12 @@ spec:
     singular: wanconfiguration
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the Hazelcast WAN Replication
+      jsonPath: .status.status
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: WanConfiguration is the Schema for the wanconfigurations API

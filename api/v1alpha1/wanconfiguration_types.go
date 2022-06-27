@@ -27,6 +27,7 @@ type WanConfigurationSpec struct {
 	Batch BatchSetting `json:"batch,omitempty"`
 
 	// Acknowledgement is the configuration for the condition when the next batch of WAN events are sent.
+	// +optional
 	Acknowledgement AcknowledgementSetting `json:"acknowledgement,omitempty"`
 }
 
@@ -112,6 +113,7 @@ const (
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status",description="Current state of the Hazelcast WAN Replication"
 
 // WanConfiguration is the Schema for the wanconfigurations API
 type WanConfiguration struct {

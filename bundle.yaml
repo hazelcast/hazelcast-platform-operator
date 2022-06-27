@@ -2382,7 +2382,12 @@ spec:
     singular: wanconfiguration
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the Hazelcast WAN Replication
+      jsonPath: .status.status
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: WanConfiguration is the Schema for the wanconfigurations API
@@ -2804,6 +2809,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DEVELOPER_MODE_ENABLED
+          value: "true"
         image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: Always
         livenessProbe:
@@ -2828,5 +2835,7 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
+      securityContext:
+        runAsNonRoot: true
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10
