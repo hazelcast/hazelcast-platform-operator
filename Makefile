@@ -208,7 +208,7 @@ endif
 	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 ifneq (false,$(APPLY_MANIFESTS))
-	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply --server-side=true --force-conflicts=true -f -
 else
 	@$(KUSTOMIZE) build config/default
 endif
