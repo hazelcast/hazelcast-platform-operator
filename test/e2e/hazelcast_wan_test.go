@@ -19,7 +19,7 @@ import (
 var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	hzName := fmt.Sprintf("hz-wan-%d", GinkgoParallelProcess())
 	hzTargetName := fmt.Sprintf("hz-wan-target-%d", GinkgoParallelProcess())
-	wanName := fmt.Sprintf("hz-wan-wanconfig-%d", GinkgoParallelProcess())
+	wanName := fmt.Sprintf("hz-wan-wan-%d", GinkgoParallelProcess())
 	mapName := fmt.Sprintf("hz-wan-map-%d", GinkgoParallelProcess())
 
 	hzSourceLookupKey := types.NamespacedName{
@@ -77,7 +77,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	AfterEach(func() {
 		Expect(k8sClient.DeleteAllOf(
 			context.Background(),
-			&hazelcastcomv1alpha1.WanConfiguration{},
+			&hazelcastcomv1alpha1.WanReplication{},
 			client.InNamespace(hzNamespace),
 			client.PropagationPolicy(v1.DeletePropagationForeground),
 			client.MatchingLabels(labels)),
@@ -117,7 +117,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 
 		// Create WAN configuration for the map
 		By("creating WAN configuration")
-		wan := hazelcastconfig.DefaultWanConfiguration(
+		wan := hazelcastconfig.DefaultWanReplication(
 			wanLookupKey,
 			m.Name,
 			hazelcastTarget.Spec.ClusterName,
@@ -127,7 +127,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
 
 		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
-			wan := &hazelcastcomv1alpha1.WanConfiguration{}
+			wan := &hazelcastcomv1alpha1.WanReplication{}
 			err := k8sClient.Get(context.Background(), wanLookupKey, wan)
 			if err != nil {
 				return hazelcastcomv1alpha1.WanStatusFailed, err

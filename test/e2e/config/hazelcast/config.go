@@ -310,14 +310,14 @@ var (
 
 	}
 
-	DefaultWanConfiguration = func(wan types.NamespacedName, mapName, targetClusterName, endpoints string, lbls map[string]string) *hazelcastv1alpha1.WanConfiguration {
-		return &hazelcastv1alpha1.WanConfiguration{
+	DefaultWanReplication = func(wan types.NamespacedName, mapName, targetClusterName, endpoints string, lbls map[string]string) *hazelcastv1alpha1.WanReplication {
+		return &hazelcastv1alpha1.WanReplication{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      wan.Name,
 				Namespace: wan.Namespace,
 				Labels:    lbls,
 			},
-			Spec: hazelcastv1alpha1.WanConfigurationSpec{
+			Spec: hazelcastv1alpha1.WanReplicationSpec{
 				MapResourceName:   mapName,
 				TargetClusterName: targetClusterName,
 				Endpoints:         endpoints,

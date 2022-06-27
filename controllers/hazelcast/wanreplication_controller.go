@@ -45,7 +45,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	wan := &hazelcastcomv1alpha1.WanReplication{}
 	if err := r.Get(ctx, req.NamespacedName, wan); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.V(util.DebugLevel).Info("Could not find WanConfiguration, it is probably already deleted")
+			logger.V(util.DebugLevel).Info("Could not find WanReplication, it is probably already deleted")
 			return ctrl.Result{}, nil
 		} else {
 			return ctrl.Result{}, err
@@ -70,7 +70,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	} else {
 		if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
 			logger.Info("Deleting WAN configuration")
-			if err := r.stopWanConfiguration(ctx, cli, wan); err != nil {
+			if err := r.stopWanReplication(ctx, cli, wan); err != nil {
 				return ctrl.Result{}, err
 			}
 			logger.Info("Deleting WAN configuration finalizer")
@@ -95,13 +95,13 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 	}
 	if updated {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage("WanConfiguration spec is not updatable"))
+		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage("WanReplicationSpec is not updatable"))
 	}
 
 	// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
 	if wan.Status.PublisherId == "" {
 		logger.Info("Applying WAN configuration")
-		if publisherId, err := r.applyWanConfiguration(ctx, cli, wan); err != nil {
+		if publisherId, err := r.applyWanReplication(ctx, cli, wan); err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		} else {
 			return updateWanStatus(ctx, r.Client, wan, wanPendingStatus().withPublisherId(publisherId))
@@ -133,16 +133,16 @@ func hasUpdate(wan *hazelcastcomv1alpha1.WanReplication) (bool, error) {
 func (r *WanReplicationReconciler) getHazelcastClient(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication) (*hazelcast.Client, error) {
 	m := &hazelcastcomv1alpha1.Map{}
 	if err := r.Client.Get(ctx, types.NamespacedName{Name: wan.Spec.MapResourceName, Namespace: wan.Namespace}, m); err != nil {
-		return nil, fmt.Errorf("failed to get Map CR from WanConfiguration: %w", err)
+		return nil, fmt.Errorf("failed to get Map CR from WanReplication: %w", err)
 	}
 	return GetHazelcastClient(m)
 }
 
-func (r *WanReplicationReconciler) applyWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) (string, error) {
+func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) (string, error) {
 	publisherId := wan.Name + "-" + rand.String(16)
 
 	req := &addBatchPublisherRequest{
-		hazelcastWanConfigurationName(wan.Spec.MapResourceName),
+		hazelcastWanReplicationName(wan.Spec.MapResourceName),
 		wan.Spec.TargetClusterName,
 		publisherId,
 		wan.Spec.Endpoints,
@@ -161,7 +161,7 @@ func (r *WanReplicationReconciler) applyWanConfiguration(ctx context.Context, cl
 	return publisherId, nil
 }
 
-func (r *WanReplicationReconciler) stopWanConfiguration(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) error {
+func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) error {
 	log := getLogger(ctx)
 	if wan.Status.PublisherId == "" {
 		log.V(util.DebugLevel).Info("publisherId is empty, will skip stopping WAN replication")
@@ -169,14 +169,14 @@ func (r *WanReplicationReconciler) stopWanConfiguration(ctx context.Context, cli
 	}
 
 	req := &changeWanStateRequest{
-		name:        hazelcastWanConfigurationName(wan.Spec.MapResourceName),
+		name:        hazelcastWanReplicationName(wan.Spec.MapResourceName),
 		publisherId: wan.Status.PublisherId,
 		state:       codecTypes.WanReplicationStateStopped,
 	}
 	return changeWanState(ctx, client, req)
 }
 
-func hazelcastWanConfigurationName(mapName string) string {
+func hazelcastWanReplicationName(mapName string) string {
 	return mapName + "-default"
 }
 
