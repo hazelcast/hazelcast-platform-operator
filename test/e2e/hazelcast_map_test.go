@@ -65,9 +65,14 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	})
 
 	AfterEach(func() {
-		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(hzLookupKey), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 		Expect(k8sClient.DeleteAllOf(
-			context.Background(), &hazelcastcomv1alpha1.Map{}, client.InNamespace(hzNamespace), client.MatchingLabels(labels))).Should(Succeed())
+			context.Background(),
+			&hazelcastcomv1alpha1.Map{},
+			client.InNamespace(hzNamespace),
+			client.MatchingLabels(labels),
+			client.PropagationPolicy(v1.DeletePropagationForeground),
+		)).Should(Succeed())
+		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(hzLookupKey), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})

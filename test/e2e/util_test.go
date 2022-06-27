@@ -208,7 +208,7 @@ func deletePVCs(lk types.NamespacedName) {
 		}
 		for _, pvc := range pvcL.Items {
 			if strings.Contains(pvc.Name, lk.Name) {
-				err = k8sClient.Delete(context.Background(), &pvc)
+				err = k8sClient.Delete(context.Background(), &pvc, client.PropagationPolicy(metav1.DeletePropagationForeground))
 				if err != nil {
 					return false
 				}
