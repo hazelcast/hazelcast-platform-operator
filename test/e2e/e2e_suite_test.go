@@ -49,7 +49,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	return []byte{}
 }, func(bytes []byte) {
-	setupEnv()
+	cfg := setupEnv()
+	platform.FindAndSetPlatform(cfg)
 })
 
 var _ = AfterSuite(func() {
