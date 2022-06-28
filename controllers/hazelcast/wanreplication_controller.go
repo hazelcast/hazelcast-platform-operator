@@ -58,16 +58,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	if wan.GetDeletionTimestamp().IsZero() {
-		if !controllerutil.ContainsFinalizer(wan, n.Finalizer) {
-			controllerutil.AddFinalizer(wan, n.Finalizer)
-			logger.Info("Adding finalizer")
-			if err := r.Update(ctx, wan); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, nil
-		}
-	} else {
+	if !wan.GetDeletionTimestamp().IsZero() {
 		if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
 			logger.Info("Deleting WAN configuration")
 			if err := r.stopWanReplication(ctx, cli, wan); err != nil {
@@ -78,6 +69,14 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			if err := r.Update(ctx, wan); err != nil {
 				return ctrl.Result{}, err
 			}
+		}
+		return ctrl.Result{}, nil
+	}
+	if !controllerutil.ContainsFinalizer(wan, n.Finalizer) {
+		controllerutil.AddFinalizer(wan, n.Finalizer)
+		logger.Info("Adding finalizer")
+		if err := r.Update(ctx, wan); err != nil {
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
