@@ -234,7 +234,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 				Namespace: hzNamespace,
 			}, hz)
 			return hz.Status.Restore
-		}, 5*Second, interval).Should(And(
+		}, 20*Second, interval).Should(And(
 			Not(BeNil()),
 			WithTransform(func(h *hazelcastcomv1alpha1.RestoreStatus) hazelcastcomv1alpha1.RestoreState {
 				return h.State
