@@ -1,0 +1,9 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: WanReplication
+metadata:
+  name: wanreplication-sample
+spec:
+  mapResourceName: map
+  targetClusterName: dev
+  endpoints: "35.192.33.252"
+

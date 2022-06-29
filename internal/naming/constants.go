@@ -16,6 +16,7 @@ const (
 	ServicePerPodLabelName                       = "hazelcast.com/service-per-pod"
 	ServicePerPodCountAnnotation                 = "hazelcast.com/service-per-pod-count"
 	ExposeExternallyAnnotation                   = "hazelcast.com/expose-externally-member-access"
+	LastAppliedSpecAnnotation                    = "hazelcast.com/last-applied-spec"
 	LastSuccessfulSpecAnnotation                 = "hazelcast.com/last-successful-spec"
 	CurrentHazelcastConfigForcingRestartChecksum = "hazelcast.com/current-hazelcast-config-forcing-restart-checksum"
 

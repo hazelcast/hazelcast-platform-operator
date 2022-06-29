@@ -215,7 +215,7 @@ func deletePVCs(lk types.NamespacedName) {
 			}
 		}
 		return true
-	}, timeout, interval).Should(BeTrue())
+	}, 1*Minute, interval).Should(BeTrue())
 
 }
 
