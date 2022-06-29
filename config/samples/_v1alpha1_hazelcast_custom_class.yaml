@@ -1,0 +1,8 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  customClass:
+    secret: cc-secret
+    bucketURI: "gs://customClass"

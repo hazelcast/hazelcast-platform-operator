@@ -11,10 +11,11 @@ const (
 	HotBackupInProgress HotBackupState = "InProgress"
 	HotBackupFailure    HotBackupState = "Failure"
 	HotBackupSuccess    HotBackupState = "Success"
+	HotBackupWaiting    HotBackupState = "Waiting"
 )
 
 func (s HotBackupState) IsFinished() bool {
-	return s == HotBackupFailure || s == HotBackupSuccess
+	return s == HotBackupFailure || s == HotBackupSuccess || s == HotBackupWaiting
 }
 
 // IsRunning returns true if the HotBackup is scheduled to run or is running but not yet finished.

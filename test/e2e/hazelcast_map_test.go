@@ -17,6 +17,7 @@ import (
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
@@ -37,6 +38,17 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		"test_suite": fmt.Sprintf("map_%d", GinkgoParallelProcess()),
 	}
 	localPort := strconv.Itoa(8100 + GinkgoParallelProcess())
+
+	configEqualsSpec := func(mapSpec *hazelcastcomv1alpha1.MapSpec) func(config codecTypes.MapConfig) bool {
+		return func(config codecTypes.MapConfig) bool {
+			return *mapSpec.TimeToLiveSeconds == config.TimeToLiveSeconds &&
+				*mapSpec.MaxIdleSeconds == config.MaxIdleSeconds &&
+				!config.ReadBackupData && *mapSpec.Eviction.MaxSize == config.MaxSize &&
+				config.MaxSizePolicy == hazelcastcomv1alpha1.EncodeMaxSizePolicy[mapSpec.Eviction.MaxSizePolicy] &&
+				config.EvictionPolicy == hazelcastcomv1alpha1.EncodeEvictionPolicyType[mapSpec.Eviction.EvictionPolicy]
+		}
+	}
+
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -191,13 +203,11 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 			err := cl.Shutdown(context.Background())
 			Expect(err).To(BeNil())
 		}()
-		mapConfig := getMapConfig(context.Background(), cl, m.MapName())
-		Expect(mapConfig.TimeToLiveSeconds).Should(Equal(*m.Spec.TimeToLiveSeconds))
-		Expect(mapConfig.MaxIdleSeconds).Should(Equal(*m.Spec.MaxIdleSeconds))
-		Expect(mapConfig.ReadBackupData).Should(Equal(false))
-		Expect(mapConfig.MaxSize).Should(Equal(*m.Spec.Eviction.MaxSize))
-		Expect(mapConfig.MaxSizePolicy).Should(Equal(hazelcastcomv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy]))
-		Expect(mapConfig.EvictionPolicy).Should(Equal(hazelcastcomv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy]))
+
+		Eventually(func() codecTypes.MapConfig {
+			return getMapConfig(context.Background(), cl, m.MapName())
+		}, 20*Second, interval).Should(Satisfy(configEqualsSpec(&m.Spec)))
+
 	})
 
 	It("should fail to update backupCount", Label("fast"), func() {

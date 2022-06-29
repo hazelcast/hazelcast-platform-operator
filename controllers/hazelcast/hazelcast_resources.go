@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"hash/crc32"
 	"net"
 	"strconv"
@@ -671,28 +670,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 		}
 		if h.Spec.Persistence.IsRestoreEnabled() {
-			err := validation.ValidateRestoreConfiguration(h.Spec.Persistence.Restore)
-			if err != nil {
-				logger.Error(err, "Invalid RestoreConfiguration")
-				return err
-			}
-			provider, err := h.Spec.Persistence.Restore.GetProvider()
-			if err != nil {
-				logger.Error(err, "Failed to create init container for restore operation")
-				return err
-			}
-			if provider == n.GCP {
-				sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, v1.Volume{
-					Name: n.GCPCredentialVolumeName,
-					VolumeSource: v1.VolumeSource{
-						Secret: &v1.SecretVolumeSource{
-							SecretName: h.Spec.Persistence.Restore.Secret,
-						},
-					},
-				})
-			}
-
-			sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, restoreAgentContainer(h, provider))
+			sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, restoreAgentContainer(h))
 		}
 	}
 
@@ -700,6 +678,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Statefulset: %w", err)
 	}
+	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, customClassVolume(h))
+	sts.Spec.Template.Spec.Containers[0].VolumeMounts = append(sts.Spec.Template.Spec.Containers[0].VolumeMounts, ccdAgentVolumeMount(h))
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		sts.Spec.Replicas = h.Spec.ClusterSize
@@ -730,6 +710,18 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		} else {
 			sts.Spec.Template.Spec.Containers[0].Resources = v1.ResourceRequirements{}
 		}
+
+		if h.Spec.CustomClass.IsEnabled() {
+			if _, ok := containerExists(sts.Spec.Template.Spec.InitContainers, n.CustomClassDownloadAgent); !ok {
+				sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, ccdAgentContainer(h))
+			}
+		} else {
+			if index, ok := containerExists(sts.Spec.Template.Spec.InitContainers, n.CustomClassDownloadAgent); ok {
+				sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers[:index],
+					sts.Spec.Template.Spec.InitContainers[index+1:]...)
+			}
+		}
+
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -737,92 +729,11 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 	return err
 }
-func restoreAgentVolumeMounts(h *hazelcastv1alpha1.Hazelcast, provider string) []v1.VolumeMount {
-	volumeMounts := []v1.VolumeMount{{
-		Name:      n.PersistenceVolumeName,
-		MountPath: h.Spec.Persistence.BaseDir,
-	}}
-	if provider == n.GCP {
-		volumeMounts = append(volumeMounts, v1.VolumeMount{
-			Name:      n.GCPCredentialVolumeName,
-			MountPath: n.GCPCredentialVolumePath,
-		})
-	}
-	return volumeMounts
-}
 
-func restoreAgentCredentials(secret string, provider string) []v1.EnvVar {
-	switch provider {
-	case n.AWS:
-		return []v1.EnvVar{
-			{
-				Name: n.BucketDataS3EnvAccessKeyID,
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: secret,
-						},
-						Key: n.BucketDataS3AccessKeyID,
-					},
-				},
-			},
-			{
-				Name: n.BucketDataS3EnvSecretAccessKey,
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: secret,
-						},
-						Key: n.BucketDataS3SecretAccessKey,
-					},
-				},
-			},
-			{
-				Name: n.BucketDataS3EnvRegion,
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: secret,
-						},
-						Key: n.BucketDataS3Region,
-					},
-				},
-			},
-		}
-	case n.GCP:
-		return []v1.EnvVar{
-			{
-				Name:  n.BucketDataGCPEnvCredentialFile,
-				Value: n.GCPCredentialVolumePath + "/" + n.BucketDataGCPCredentialFile,
-			},
-		}
-	case n.AZURE:
-		return []v1.EnvVar{
-			{
-				Name: n.BucketDataAzureEnvStorageAccount,
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: secret,
-						},
-						Key: n.BucketDataAzureStorageAccount,
-					},
-				},
-			},
-			{
-				Name: n.BucketDataAzureEnvStorageKey,
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: secret,
-						},
-						Key: n.BucketDataAzureStorageKey,
-					},
-				},
-			},
-		}
-	default:
-		return nil
+func ccdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.CustomClassVolumeName,
+		MountPath: n.CustomClassPath,
 	}
 }
 
@@ -871,21 +782,25 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
-func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.Container {
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
 		Name:  n.RestoreAgent,
 		Image: h.AgentDockerImage(),
 		Args:  []string{"restore"},
-		Env: append(restoreAgentCredentials(h.Spec.Persistence.Restore.Secret, provider),
-			v1.EnvVar{
+		Env: []v1.EnvVar{
+			{
+				Name:  "RESTORE_SECRET_NAME",
+				Value: h.Spec.Persistence.Restore.Secret,
+			},
+			{
 				Name:  "RESTORE_BUCKET",
 				Value: h.Spec.Persistence.Restore.BucketURI,
 			},
-			v1.EnvVar{
+			{
 				Name:  "RESTORE_DESTINATION",
 				Value: h.Spec.Persistence.BaseDir,
 			},
-			v1.EnvVar{
+			{
 				Name: "RESTORE_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
@@ -893,9 +808,44 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, provider string) v1.C
 					},
 				},
 			},
-		),
-		VolumeMounts: restoreAgentVolumeMounts(h, provider),
+		},
+		VolumeMounts: []v1.VolumeMount{{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		}},
 	}
+}
+
+func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	return v1.Container{
+		Name:  n.CustomClassDownloadAgent + h.Spec.CustomClass.TriggerSequence,
+		Image: h.AgentDockerImage(),
+		Args:  []string{"custom-class-download"},
+		Env: []v1.EnvVar{
+			{
+				Name:  "CCD_SECRET_NAME",
+				Value: h.Spec.CustomClass.Secret,
+			},
+			{
+				Name:  "CCD_BUCKET",
+				Value: h.Spec.CustomClass.BucketURI,
+			},
+			{
+				Name:  "CCD_DESTINATION",
+				Value: n.CustomClassPath,
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{ccdAgentVolumeMount(h)},
+	}
+}
+
+func containerExists(cs []corev1.Container, cn string) (int, bool) {
+	for i, c := range cs {
+		if c.Name == cn {
+			return i, true
+		}
+	}
+	return -1, false
 }
 
 func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
@@ -909,6 +859,15 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 					},
 				},
 			},
+		},
+	}
+}
+
+func customClassVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
+	return v1.Volume{
+		Name: n.CustomClassVolumeName,
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
 	}
 }

@@ -11,6 +11,8 @@ jobs:
   prepare-env:
     name: Create AKS cluster
     runs-on: ubuntu-20.04
+    outputs:
+      CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Azure login
         uses: azure/login@v1
@@ -18,18 +20,68 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Create AKS cluster
+        id: create-cluster
         uses: azure/CLI@v1
         with:
           azcliversion: 2.31.0
           inlineScript: |
             CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+            echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
             az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" \
               --node-count 2 --generate-ssh-keys
+
+  new-relic-setup:
+    name: Setup New Relic agent
+    needs: "prepare-env"
+    env:
+      NR_CLUSTER_NAME: gke-operator
+      KUBECTL_VERSION: 1.22.0
+      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install kubectl
+        run: |
+          mkdir -p ${GITHUB_WORKSPACE}/bin
+          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
+          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
+          -o ${GITHUB_WORKSPACE}/bin/kubectl
+          chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update kubeconfig
+        run: |-
+          az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
+
+      - name: Install helm and New Relic repo
+        run: |
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+          helm repo add newrelic https://helm-charts.newrelic.com
+
+      - name: Install New Relic agent
+        run: |
+          kubectl create namespace newrelic
+          helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
+            --set "global.cluster=azure-operator" \
+            --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ env.CLUSTER_NAME }}" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[2].name=GITHUB_RUN_NUMBER,newrelic-logging.fluentBit.additionalEnvVariables[2].value=\"${{ github.run_number }}\"" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
+            newrelic/nri-bundle
 
   aks-e2e-tests:
     name: Run e2e test on AKS
     runs-on: ubuntu-20.04
-    needs: "prepare-env"
+    needs: ["prepare-env", "new-relic-setup"]
     defaults:
       run:
         shell: bash
@@ -103,6 +155,12 @@ jobs:
             --from-literal=region=us-east-1 \
             --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
             --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+          
+          kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
+            --from-literal=storage-account=operatortest \
+            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
 
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test

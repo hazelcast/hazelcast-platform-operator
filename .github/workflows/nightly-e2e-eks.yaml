@@ -11,6 +11,8 @@ jobs:
   prepare-env:
     name: Create EKS cluster
     runs-on: ubuntu-20.04
+    outputs:
+      CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -27,8 +29,10 @@ jobs:
           sudo mv /tmp/eksctl /usr/local/bin
 
       - name: Create EKS cluster
+        id: create-cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
           eksctl create cluster --name "${CLUSTER_NAME}" \
             --zones ${AWS_REGION}a --zones ${AWS_REGION}c \
             --with-oidc --without-nodegroup
@@ -36,10 +40,61 @@ jobs:
             --name node-group-1 --node-type t3.medium \
             --nodes 3 --nodes-min 2 --nodes-max 4 --managed
 
+  new-relic-setup:
+    name: Setup New Relic agent
+    needs: "prepare-env"
+    env:
+      NR_CLUSTER_NAME: gke-operator
+      KUBECTL_VERSION: 1.22.0
+      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install kubectl
+        run: |
+          mkdir -p ${GITHUB_WORKSPACE}/bin
+          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
+          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
+          -o ${GITHUB_WORKSPACE}/bin/kubectl
+          chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |-
+          aws eks update-kubeconfig --name "${{ env.CLUSTER_NAME }}"
+
+      - name: Install helm and New Relic repo
+        run: |
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+          helm repo add newrelic https://helm-charts.newrelic.com
+
+      - name: Install New Relic agent
+        run: |
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          kubectl create namespace newrelic
+          helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
+            --set "global.cluster=aws-operator" \
+            --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ env.CLUSTER_NAME }}" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[2].name=GITHUB_RUN_NUMBER,newrelic-logging.fluentBit.additionalEnvVariables[2].value=\"${{ github.run_number }}\"" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
+            newrelic/nri-bundle
+
   eks-e2e-tests:
     name: Run e2e test on EKS
     runs-on: ubuntu-20.04
-    needs: "prepare-env"
+    needs: ["prepare-env", "new-relic-setup"]
     defaults:
       run:
         shell: bash
@@ -116,6 +171,12 @@ jobs:
             --from-literal=region=us-east-1 \
             --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
             --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+          
+          kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
+            --from-literal=storage-account=operatortest \
+            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
 
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test

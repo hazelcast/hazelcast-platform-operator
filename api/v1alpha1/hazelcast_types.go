@@ -3,9 +3,6 @@ package v1alpha1
 import (
 	"fmt"
 	"hash/fnv"
-	"strings"
-
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -83,11 +80,31 @@ type HazelcastSpec struct {
 
 	// B&R Agent configurations
 	// +optional
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.0"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.3"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
+
+	// Custom Classes to Download into Class Path
+	// +optional
+	CustomClass *CustomClassConfiguration `json:"customClass,omitempty"`
 }
 
-// TODO: We need to figure out how to pass default AgentConfiguration
+type BucketConfiguration struct {
+	// Name of the secret with credentials for cloud providers.
+	// +kubebuilder:validation:MinLength:=1
+	Secret string `json:"secret"`
+
+	// Full path to blob storage bucket.
+	// +kubebuilder:validation:MinLength:=6
+	BucketURI string `json:"bucketURI"`
+}
+
+// CustomClassConfiguration contains the configuration for Custom Class download operation
+type CustomClassConfiguration struct {
+	BucketConfiguration `json:",inline"`
+	// A string for triggering a rolling restart for re-downloading the custom classes.
+	// +optional
+	TriggerSequence string `json:"triggerSequence,omitempty"`
+}
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
@@ -96,19 +113,13 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.0"
+	// +kubebuilder:default:="0.1.3"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
-type RestoreConfiguration struct {
-	// Name of the secret with credentials for cloud providers.
-	Secret string `json:"secret,omitempty"`
-
-	// Full path to blob storage bucket.
-	BucketURI string `json:"bucketURI,omitempty"`
-}
+type RestoreConfiguration BucketConfiguration
 
 // BackupType represents the storage options for the HotBackup
 // +kubebuilder:validation:Enum=External;Local
@@ -268,6 +279,11 @@ func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
 }
 
+// Returns true if customClass configuration is specified.
+func (c *CustomClassConfiguration) IsEnabled() bool {
+	return c != nil && !(*c == (CustomClassConfiguration{}))
+}
+
 // Returns true if Smart configuration is specified and therefore each Hazelcast member needs to be exposed with a separate address.
 func (c *ExposeExternallyConfiguration) IsSmart() bool {
 	return c != nil && c.Type == ExposeExternallyTypeSmart
@@ -341,16 +357,6 @@ func (p *HazelcastPersistenceConfiguration) IsExternal() bool {
 // IsRestoreEnabled returns true if Restore Agent configuration is specified
 func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
 	return p != nil && p.Restore != nil && !(*p.Restore == (RestoreConfiguration{}))
-}
-
-// GetProvider returns the cloud provider for Restore operation according to the BucketURI
-func (r *RestoreConfiguration) GetProvider() (string, error) {
-	provider := strings.Split(r.BucketURI, ":")[0]
-
-	if provider == n.AWS || provider == n.GCP || provider == n.AZURE {
-		return provider, nil
-	}
-	return "", fmt.Errorf("invalid bucket URI")
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

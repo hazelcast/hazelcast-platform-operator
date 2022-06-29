@@ -37,10 +37,64 @@ jobs:
             --num-nodes=2
           sleep 30
 
+  new-relic-setup:
+    name: Setup New Relic agent
+    needs: [create-gke-cluster]
+    env:
+      NR_CLUSTER_NAME: gke-operator
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      KUBECTL_VERSION: 1.22.0
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install kubectl
+        run: |
+          mkdir -p ${GITHUB_WORKSPACE}/bin
+          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
+          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
+          -o ${GITHUB_WORKSPACE}/bin/kubectl
+          chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+
+      - name: Authenticate to GCP
+        uses: "google-github-actions/auth@v0.7.0"
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0.6.0
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Connect to the GKE cluster
+        run: |
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+            --zone ${{ env.GKE_ZONE }} --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Install helm and New Relic repo
+        run: |
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+          helm repo add newrelic https://helm-charts.newrelic.com
+
+      - name: Install New Relic agent
+        run: |
+          kubectl create namespace newrelic
+          helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
+            --set "global.cluster=gke-operator" \
+            --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ env.CLUSTER_NAME }}" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[2].name=GITHUB_RUN_NUMBER,newrelic-logging.fluentBit.additionalEnvVariables[2].value=\"${{ github.run_number }}\"" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
+            newrelic/nri-bundle
+
   gke-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-20.04
-    needs: [create-gke-cluster]
+    needs: [create-gke-cluster, new-relic-setup]
     strategy:
       fail-fast: false
       matrix:
@@ -122,6 +176,12 @@ jobs:
             --from-literal=region=us-east-1 \
             --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
             --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+          
+          kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
+            --from-literal=storage-account=operatortest \
+            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
 
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
