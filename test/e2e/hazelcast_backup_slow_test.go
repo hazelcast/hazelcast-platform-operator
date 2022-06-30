@@ -3,7 +3,6 @@ package e2e
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"math"
 	"strconv"
 	. "time"
@@ -14,9 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
@@ -24,26 +21,6 @@ import (
 )
 
 var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
-	hzName := fmt.Sprintf("hz-backup-%d", GinkgoParallelProcess())
-	hbName := fmt.Sprintf("hz-backup-hb-%d", GinkgoParallelProcess())
-	mapName := fmt.Sprintf("hz-backup-map-%d", GinkgoParallelProcess())
-
-	var hzLookupKey = types.NamespacedName{
-		Name:      hzName,
-		Namespace: hzNamespace,
-	}
-	var mapLookupKey = types.NamespacedName{
-		Name:      mapName,
-		Namespace: hzNamespace,
-	}
-
-	var hbLookupKey = types.NamespacedName{
-		Name:      hbName,
-		Namespace: hzNamespace,
-	}
-	labels := map[string]string{
-		"test_suite": fmt.Sprintf("hazelcast_backup_%d", GinkgoParallelProcess()),
-	}
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -60,26 +37,15 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 	})
 
 	AfterEach(func() {
-		Expect(k8sClient.DeleteAllOf(
-			context.Background(),
-			&hazelcastcomv1alpha1.HotBackup{},
-			client.InNamespace(hzNamespace),
-			client.MatchingLabels(labels),
-			client.PropagationPolicy(v1.DeletePropagationForeground),
-		)).Should(Succeed())
-		Expect(k8sClient.DeleteAllOf(
-			context.Background(),
-			&hazelcastcomv1alpha1.Map{},
-			client.InNamespace(hzNamespace),
-			client.MatchingLabels(labels),
-			client.PropagationPolicy(v1.DeletePropagationForeground),
-		)).Should(Succeed())
-		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(hzLookupKey), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
+		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
 	It("should restart successfully after shutting down Hazelcast", Label("slow"), func() {
+		setLabelAndCRName("hbs-1")
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
 		if !ee {
@@ -129,12 +95,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			err := client.Shutdown(ctx)
 			Expect(err).To(BeNil())
 		}()
-		cl, err := client.GetMap(ctx, mapName)
+		cl, err := client.GetMap(ctx, m.Name)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
 	It("should successfully start after one member restart", Label("slow"), func() {
+		setLabelAndCRName("hbs-2")
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
 		if !ee {
@@ -162,7 +129,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
 
 		By("deleting the pod")
-		DeletePod(hzName+"-2", 0)
+		DeletePod(hazelcast.Name+"-2", 0)
 		evaluateReadyMembers(hzLookupKey, 3)
 
 		logs := InitLogs(t, hzLookupKey)
@@ -177,12 +144,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			err := client.Shutdown(ctx)
 			Expect(err).To(BeNil())
 		}()
-		cl, err := client.GetMap(ctx, mapName)
+		cl, err := client.GetMap(ctx, m.Name)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
 	It("should restore 10 GB data after planned shutdown", Label("slow"), func() {
+		setLabelAndCRName("hbs-3")
 		var mapSizeInGb = "10"
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
@@ -211,7 +179,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(dm, hazelcastcomv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapWithHugeData(ctx, mapName, mapSizeInGb, hazelcast)
+		FillTheMapWithHugeData(ctx, dm.Name, mapSizeInGb, hazelcast)
 
 		By("creating HotBackup CR")
 		t := Now()
@@ -268,7 +236,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			err := client.Shutdown(context.Background())
 			Expect(err).To(BeNil())
 		}()
-		m, _ = client.GetMap(ctx, mapName)
+		m, _ = client.GetMap(ctx, dm.Name)
 		// 1310.72 entries per one Go routine.  Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
 		Eventually(func() (int, error) {
 			return m.Size(ctx)

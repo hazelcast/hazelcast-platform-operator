@@ -10,24 +10,13 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
 
 var _ = Describe("Management-Center", Label("mc"), func() {
-	mcName := fmt.Sprintf("managementcenter-%d", GinkgoParallelProcess())
-
-	var mcLookupKey = types.NamespacedName{
-		Name:      mcName,
-		Namespace: hzNamespace,
-	}
-	labels := map[string]string{
-		"test_suite": fmt.Sprintf("mc-%d", GinkgoParallelProcess()),
-	}
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -45,8 +34,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 	})
 
 	AfterEach(func() {
-		Expect(k8sClient.Delete(context.Background(), emptyManagementCenter(mcLookupKey), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
-		assertDoesNotExist(mcLookupKey, &hazelcastcomv1alpha1.ManagementCenter{})
+		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, hzNamespace, labels)
 		deletePVCs(mcLookupKey)
 	})
 
@@ -73,6 +61,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 
 	Describe("Default ManagementCenter CR", func() {
 		It("Should create ManagementCenter resources", Label("fast"), func() {
+			setLabelAndCRName("mc-1")
 			mc := mcconfig.Default(mcLookupKey, ee, labels)
 			create(mc)
 
@@ -103,6 +92,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 
 	Describe("ManagementCenter CR without Persistence", func() {
 		It("Should create ManagementCenter resources and no PVC", Label("fast"), func() {
+			setLabelAndCRName("mc-2")
 			mc := mcconfig.PersistenceDisabled(mcLookupKey, ee, labels)
 			create(mc)
 
@@ -129,6 +119,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		}
 
 		It("should be reflected to Management CR status", Label("fast"), func() {
+			setLabelAndCRName("mc-3")
 			createWithoutCheck(mcconfig.Faulty(mcLookupKey, ee, labels))
 			assertStatusEventually(hazelcastcomv1alpha1.Failed)
 		})

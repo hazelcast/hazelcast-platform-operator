@@ -231,3 +231,13 @@ func deletePods(lk types.NamespacedName) {
 		}
 	}
 }
+
+func DeleteAllOf(obj client.Object, ns string, labels map[string]string) {
+	Expect(k8sClient.DeleteAllOf(
+		context.Background(),
+		obj,
+		client.InNamespace(ns),
+		client.MatchingLabels(labels),
+		client.PropagationPolicy(metav1.DeletePropagationForeground),
+	)).Should(Succeed())
+}

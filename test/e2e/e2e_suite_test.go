@@ -81,6 +81,7 @@ func setupEnv() *rest.Config {
 	Expect(k8sClient).NotTo(BeNil())
 
 	controllerManagerName.Namespace = hzNamespace
+	setCRNamespace(hzNamespace)
 
 	return cfg
 }

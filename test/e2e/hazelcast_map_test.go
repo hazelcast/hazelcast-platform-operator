@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 	. "time"
@@ -10,10 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -22,21 +18,6 @@ import (
 )
 
 var _ = Describe("Hazelcast Map Config", Label("map"), func() {
-	hzName := fmt.Sprintf("hz-map-%d", GinkgoParallelProcess())
-	mapName := fmt.Sprintf("map-%d", GinkgoParallelProcess())
-
-	var hzLookupKey = types.NamespacedName{
-		Name:      hzName,
-		Namespace: hzNamespace,
-	}
-
-	var mapLookupKey = types.NamespacedName{
-		Name:      mapName,
-		Namespace: hzNamespace,
-	}
-	labels := map[string]string{
-		"test_suite": fmt.Sprintf("map_%d", GinkgoParallelProcess()),
-	}
 	localPort := strconv.Itoa(8100 + GinkgoParallelProcess())
 
 	configEqualsSpec := func(mapSpec *hazelcastcomv1alpha1.MapSpec) func(config codecTypes.MapConfig) bool {
@@ -65,19 +46,14 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	})
 
 	AfterEach(func() {
-		Expect(k8sClient.DeleteAllOf(
-			context.Background(),
-			&hazelcastcomv1alpha1.Map{},
-			client.InNamespace(hzNamespace),
-			client.MatchingLabels(labels),
-			client.PropagationPolicy(v1.DeletePropagationForeground),
-		)).Should(Succeed())
-		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(hzLookupKey), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
 	It("should create Map Config", Label("fast"), func() {
+		setLabelAndCRName("hm-1")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
@@ -87,6 +63,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	})
 
 	It("should create Map Config with correct default values", Label("fast"), func() {
+		setLabelAndCRName("hm-2")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
@@ -122,6 +99,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	})
 
 	It("should create Map Config with Indexes", Label("fast"), func() {
+		setLabelAndCRName("hm-3")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
@@ -177,6 +155,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	})
 
 	It("should update the map correctly", Label("fast"), func() {
+		setLabelAndCRName("hm-4")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
@@ -216,6 +195,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	})
 
 	It("should fail to update backupCount", Label("fast"), func() {
+		setLabelAndCRName("hm-5")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 

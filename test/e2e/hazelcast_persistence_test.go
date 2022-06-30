@@ -11,7 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -22,26 +21,6 @@ import (
 )
 
 var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_persistence"), func() {
-	hzName := fmt.Sprintf("hz-persistence-%d", GinkgoParallelProcess())
-	hbName := fmt.Sprintf("hz-hb-%d", GinkgoParallelProcess())
-	mapName := fmt.Sprintf("hz-map-%d", GinkgoParallelProcess())
-
-	var hzLookupKey = types.NamespacedName{
-		Name:      hzName,
-		Namespace: hzNamespace,
-	}
-	var mapLookupKey = types.NamespacedName{
-		Name:      mapName,
-		Namespace: hzNamespace,
-	}
-
-	var hbLookupKey = types.NamespacedName{
-		Name:      hbName,
-		Namespace: hzNamespace,
-	}
-	labels := map[string]string{
-		"test_suite": fmt.Sprintf("hz_persistence-%d", GinkgoParallelProcess()),
-	}
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -58,25 +37,9 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 	})
 
 	AfterEach(func() {
-		Expect(k8sClient.DeleteAllOf(
-			context.Background(),
-			&hazelcastcomv1alpha1.HotBackup{},
-			client.InNamespace(hzNamespace),
-			client.MatchingLabels(labels),
-			client.PropagationPolicy(v1.DeletePropagationForeground),
-		)).Should(Succeed())
-		Expect(k8sClient.DeleteAllOf(
-			context.Background(),
-			&hazelcastcomv1alpha1.Map{},
-			client.InNamespace(hzNamespace),
-			client.MatchingLabels(labels),
-			client.PropagationPolicy(v1.DeletePropagationForeground),
-		)).Should(Succeed())
-		Expect(k8sClient.Delete(
-			context.Background(),
-			emptyHazelcast(hzLookupKey),
-			client.PropagationPolicy(v1.DeletePropagationForeground),
-		)).Should(Succeed())
+		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
@@ -85,6 +48,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		setLabelAndCRName("hp-1")
 		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, "/data/hot-restart", labels)
 		CreateHazelcastCR(hazelcast)
 		assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
@@ -117,6 +81,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		setLabelAndCRName("hp-2")
 		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, "/data/hot-restart", labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -134,7 +99,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapData(ctx, hzLookupKey, true, mapName, 100)
+		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
 
 		By("Creating HotBackup CR")
 		t := Now()
@@ -169,7 +134,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			err := client.Shutdown(ctx)
 			Expect(err).To(BeNil())
 		}()
-		cl, err := client.GetMap(ctx, mapName)
+		cl, err := client.GetMap(ctx, m.Name)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
@@ -178,6 +143,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		setLabelAndCRName("hp-3")
 		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, "/data/hot-restart", labels, false)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
@@ -204,6 +170,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		setLabelAndCRName("hp-4")
 		baseDir := "/data/hot-restart"
 		hazelcast := addNodeSelectorForName(hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels, params...), getFirstWorkerNodeName())
 		CreateHazelcastCR(hazelcast)
@@ -244,7 +211,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Eventually(func() *hazelcastcomv1alpha1.RestoreStatus {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			_ = k8sClient.Get(context.Background(), types.NamespacedName{
-				Name:      hzName,
+				Name:      hazelcast.Name,
 				Namespace: hzNamespace,
 			}, hz)
 			return hz.Status.Restore
@@ -264,7 +231,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-
+		setLabelAndCRName("hp-5")
+		
 		By("Create cluster with external backup enabled")
 		hazelcast := hazelcastconfig.ExternalBackup(hzLookupKey, true, labels)
 		CreateHazelcastCR(hazelcast)
