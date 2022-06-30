@@ -17,6 +17,10 @@ env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linter:
     name: Run linters
@@ -33,13 +37,13 @@ jobs:
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3.1.0
-        if: always()
+        if: ${{ !cancelled() && always() }}
         with:
           args: --timeout 2m --build-tags hazelcastinternal
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
-        if: always()
+        if: ${{ !cancelled() && always() }}
         with:
           config_file: hack/yamllint.yaml
 
@@ -56,7 +60,6 @@ jobs:
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-20.04
-    needs: linter
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -86,8 +89,9 @@ jobs:
   create-gke-cluster:
     name: Create GKE cluster and push image
     runs-on: ubuntu-20.04
+    needs: unit-tests
     if: >-
-      always() && (
+      (!cancelled() && always()) && (
       (github.event_name == 'pull_request_target'
         && github.event.action == 'labeled'
         && github.event.label.name == 'safe-to-test'
@@ -95,8 +99,7 @@ jobs:
       ||
       (github.event_name == 'pull_request'
         && github.event.pull_request.head.repo.full_name == github.repository
-        && needs.unit-tests.result == 'success') )
-    needs: unit-tests
+        && needs.unit-tests.result == 'success'))
     outputs:
       CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
     env:
@@ -156,7 +159,7 @@ jobs:
     name: Run E2E tests
     runs-on: ubuntu-20.04
     needs: create-gke-cluster
-    if: always() && needs.create-gke-cluster.result == 'success'
+    if: (!cancelled() && always() && needs.create-gke-cluster.result == 'success')
     strategy:
       fail-fast: false
       matrix:
@@ -265,14 +268,14 @@ jobs:
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
 
       - name: Clean up after Tests
-        if: always()
+        if: ${{ !cancelled() && always() }}
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
   delete-cluster:
     name: Delete Cluster
     runs-on: ubuntu-20.04
-    if: always() && needs.create-gke-cluster.result != 'skipped'
+    if: (!cancelled() && always() && needs.create-gke-cluster.result != 'skipped')
     needs: [create-gke-cluster, gke-e2e-tests]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
@@ -288,6 +291,5 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Delete GKE cluster
-        if: always()
         run: |-
           gcloud container clusters delete ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --quiet
