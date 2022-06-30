@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"fmt"
 	"math/rand"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -30,7 +29,7 @@ func setCRNamespace(ns string) {
 }
 
 func setLabelAndCRName(n string) {
-	n = n + "-" + randString(6) + "-" + fmt.Sprintf("%d", GinkgoParallelProcess())
+	n = n + "-" + randString(6)
 	labels["test_suite"] = n
 	hzLookupKey.Name = n
 	mapLookupKey.Name = n
