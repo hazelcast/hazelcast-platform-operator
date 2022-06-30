@@ -24,7 +24,6 @@ import (
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -247,15 +246,6 @@ func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *core
 	return clientPod
 }
 
-func emptyHazelcast(lk types.NamespacedName) *hazelcastcomv1alpha1.Hazelcast {
-	return &hazelcastcomv1alpha1.Hazelcast{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      lk.Name,
-			Namespace: lk.Namespace,
-		},
-	}
-}
-
 func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
 	return hz.Status.Phase == "Running"
 }
@@ -400,15 +390,6 @@ func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcas
 	client, err := hzClient.StartNewClientWithConfig(ctx, config)
 	Expect(err).To(BeNil())
 	return client
-}
-
-func emptyManagementCenter(lk types.NamespacedName) *hazelcastcomv1alpha1.ManagementCenter {
-	return &hazelcastcomv1alpha1.ManagementCenter{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      lk.Name,
-			Namespace: lk.Namespace,
-		},
-	}
 }
 
 func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
