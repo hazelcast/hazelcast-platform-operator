@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 // Section contains the REST API endpoints.
@@ -25,16 +27,16 @@ type uploadRequest struct {
 }
 
 type AgentRestClient struct {
-	addresses        []string
+	h                *v1alpha1.Hazelcast
 	bucketURL        string
 	backupFolderPath string
 	hazelcastCRName  string
 	secretName       string
 }
 
-func NewAgentRestClient(h *v1alpha1.Hazelcast, hb *v1alpha1.HotBackup, addresses []string) *AgentRestClient {
+func NewAgentRestClient(h *v1alpha1.Hazelcast, hb *v1alpha1.HotBackup) *AgentRestClient {
 	return &AgentRestClient{
-		addresses:        addresses,
+		h:                h,
 		bucketURL:        hb.Spec.BucketURI,
 		backupFolderPath: h.Spec.Persistence.BaseDir,
 		hazelcastCRName:  hb.Spec.HazelcastResourceName,
@@ -55,7 +57,8 @@ func (ac *AgentRestClient) UploadBackup(ctx context.Context) error {
 	}
 	ctxT, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	for _, address := range ac.addresses {
+	for _, member := range ac.h.Status.Members {
+		address := fmt.Sprintf("%s:%d", member.Ip, n.DefaultAgentPort)
 		req, err := postRequestWithBody(ctxT, reqBody, address, uploadBackup)
 		if err != nil {
 			return fmt.Errorf("request creation failed: %s, address --> %q , URL --> %q ", err, address, address+uploadBackup)

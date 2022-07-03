@@ -5,13 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
-
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
@@ -141,11 +138,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		if err := validation.ValidateHotBackupSpec(hb); err != nil {
 			return ctrl.Result{}, err
 		}
-		agentAddresses, err := r.getAgentAddresses(ctx, hb)
-		if err != nil {
-			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(fmt.Errorf("could not fetch Backup agent addresses properly: %w", err)))
-		}
-		agentRest := NewAgentRestClient(h, hb, agentAddresses)
+		agentRest := NewAgentRestClient(h, hb)
 		err = r.triggerUploadBackup(ctx, hb, agentRest, logger)
 		if err != nil {
 			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(fmt.Errorf("error while uploading the backup: %w", err)))
@@ -343,23 +336,6 @@ func (r *HotBackupReconciler) triggerUploadBackup(ctx context.Context, h *hazelc
 			time.Sleep(1 * time.Second)
 		}
 	}
-}
-
-func (r *HotBackupReconciler) getAgentAddresses(ctx context.Context, hb *hazelcastv1alpha1.HotBackup) ([]string, error) {
-	var containerAddresses []string
-	pods := &corev1.PodList{}
-	podLabels := client.MatchingLabels{
-		n.ApplicationNameLabel:         n.Hazelcast,
-		n.ApplicationInstanceNameLabel: hb.Spec.HazelcastResourceName,
-		n.ApplicationManagedByLabel:    n.OperatorName,
-	}
-	if err := r.Client.List(ctx, pods, podLabels); err != nil {
-		return containerAddresses, err
-	}
-	for _, pod := range pods.Items {
-		containerAddresses = append(containerAddresses, pod.Status.PodIP+":"+strconv.Itoa(n.DefaultAgentPort))
-	}
-	return containerAddresses, nil
 }
 
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
