@@ -24,6 +24,7 @@ type uploadRequest struct {
 	BackupFolderPath string `json:"backup_folder_path"`
 	HazelcastCRName  string `json:"hz_cr_name"`
 	SecretName       string `json:"secret_name"`
+	MemberUUID       string `json:"member_uuid"`
 }
 
 type AgentRestClient struct {
@@ -45,20 +46,21 @@ func NewAgentRestClient(h *v1alpha1.Hazelcast, hb *v1alpha1.HotBackup) *AgentRes
 }
 
 func (ac *AgentRestClient) UploadBackup(ctx context.Context) error {
-	req := uploadRequest{
-		BucketURL:        ac.bucketURL,
-		BackupFolderPath: ac.backupFolderPath + "/hot-backup",
-		HazelcastCRName:  ac.hazelcastCRName,
-		SecretName:       ac.secretName,
-	}
-	reqBody, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
 	ctxT, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	for _, member := range ac.h.Status.Members {
 		address := fmt.Sprintf("%s:%d", member.Ip, n.DefaultAgentPort)
+		upload := uploadRequest{
+			BucketURL:        ac.bucketURL,
+			BackupFolderPath: ac.backupFolderPath + "/hot-backup",
+			HazelcastCRName:  ac.hazelcastCRName,
+			SecretName:       ac.secretName,
+			MemberUUID:       member.Uid,
+		}
+		reqBody, err := json.Marshal(upload)
+		if err != nil {
+			return err
+		}
 		req, err := postRequestWithBody(ctxT, reqBody, address, uploadBackup)
 		if err != nil {
 			return fmt.Errorf("request creation failed: %s, address --> %q , URL --> %q ", err, address, address+uploadBackup)
