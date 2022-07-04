@@ -37,7 +37,7 @@ jobs:
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3.1.0
-        if: ${{ !cancelled() && always() }}
+        if: ${{ !cancelled() }}
         with:
           args: --timeout 2m --build-tags hazelcastinternal
 
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: unit-tests
     if: >-
-      (!cancelled() && always()) && (
+      ${{ !cancelled() }} && (
       (github.event_name == 'pull_request_target'
         && github.event.action == 'labeled'
         && github.event.label.name == 'safe-to-test'
@@ -159,7 +159,7 @@ jobs:
     name: Run E2E tests
     runs-on: ubuntu-20.04
     needs: create-gke-cluster
-    if: (!cancelled() && always() && needs.create-gke-cluster.result == 'success')
+    if: (!cancelled() && needs.create-gke-cluster.result == 'success')
     strategy:
       fail-fast: false
       matrix:
@@ -268,14 +268,14 @@ jobs:
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
 
       - name: Clean up after Tests
-        if: ${{ !cancelled() && always() }}
+        if: ${{ always() }}
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
   delete-cluster:
     name: Delete Cluster
     runs-on: ubuntu-20.04
-    if: (!cancelled() && always() && needs.create-gke-cluster.result != 'skipped')
+    if: (always() && needs.create-gke-cluster.result != 'skipped')
     needs: [create-gke-cluster, gke-e2e-tests]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
