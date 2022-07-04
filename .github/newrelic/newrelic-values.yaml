@@ -127,7 +127,7 @@ global:
 
   # -- (bool) Reduces number of metrics sent in order to reduce costs
   # @default -- false
-  lowDataMode:
+  lowDataMode: true
 
   # -- (bool) In each integration it has different behavior. See [Further information](#values-managed-globally-3) but all aims to send less metrics to the backend to try to save costs |
   # @default -- false
