@@ -43,7 +43,7 @@ jobs:
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
-        if: ${{ !cancelled() && always() }}
+        if: ${{ !cancelled() }}
         with:
           config_file: hack/yamllint.yaml
 
@@ -250,9 +250,9 @@ jobs:
             --from-literal=region=us-east-1 \
             --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
             --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          
+
           kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
-          
+
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
             --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
@@ -268,7 +268,7 @@ jobs:
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
 
       - name: Clean up after Tests
-        if: ${{ always() }}
+        if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
