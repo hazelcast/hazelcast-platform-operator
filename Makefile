@@ -236,7 +236,7 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 
 	for CR_NAME in $(CR_NAMES); do \
 		crs=$$($(KUBECTL) get $${CR_NAME} -n $(NAMESPACE) -o name); \
-		[[ "$${crs}" != "" ]] && $(KUBECTL) patch $${crs} -n $(NAMESPACE) -p '{"metadata":{"finalizers":null}}' --type=merge ;\
+		[[ "$${crs}" != "" ]] && $(KUBECTL) patch $${crs} -n $(NAMESPACE) -p '{"metadata":{"finalizers":null}}' --type=merge || echo "$${CR_NAME} already deleted";\
 	done 
 
 	$(KUBECTL) delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=1m
