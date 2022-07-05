@@ -91,15 +91,16 @@ jobs:
     runs-on: ubuntu-20.04
     needs: ['unit-tests','linter']
     if: >-
-      ${{ !cancelled() }} && (
-      (github.event_name == 'pull_request_target'
-        && github.event.action == 'labeled'
-        && github.event.label.name == 'safe-to-test'
-        && github.event.pull_request.head.repo.full_name != github.repository)
-      ||
-      (github.event_name == 'pull_request'
-        && github.event.pull_request.head.repo.full_name == github.repository
-        && needs.unit-tests.result == 'success'))
+      ( !cancelled()
+      && ((github.event_name == 'pull_request_target'
+            && github.event.action == 'labeled'
+            && github.event.label.name == 'safe-to-test'
+            && github.event.pull_request.head.repo.full_name != github.repository)
+          ||
+          (github.event_name == 'pull_request'
+            && github.event.pull_request.head.repo.full_name == github.repository))
+      && needs.unit-tests.result == 'success'
+      && needs.linter.result == 'success')
     outputs:
       CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
     env:
