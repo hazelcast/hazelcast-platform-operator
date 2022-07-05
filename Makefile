@@ -12,7 +12,6 @@ ifeq (,$(PATCH_VERSION))
 BUNDLE_VERSION := $(BUNDLE_VERSION).0
 endif
 
-CR_NAMES := wanreplication map hotbackup hazelcast managementcenter  
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -227,6 +226,7 @@ undeploy-keep-crd:
 	cd config/default && $(KUSTOMIZE) edit add resource ../crd
 
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
+	$(eval CR_NAMES := $(shell $(KUBECTL) get crd -o jsonpath='{range.items[*]}{..metadata.name}{"\n"}{end}' | grep hazelcast.com))
 	for CR_NAME in $(CR_NAMES); do \
 		crs=$$($(KUBECTL) get $${CR_NAME} -n $(NAMESPACE) -o name); \
 		[[ "$${crs}" != "" ]] && $(KUBECTL) delete $${crs} -n $(NAMESPACE) --wait=true --timeout=30s || echo "no $${CR_NAME} resources" ;\
