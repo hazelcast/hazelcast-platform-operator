@@ -85,6 +85,7 @@ jobs:
       - name: Run integration tests (EE)
         run: make GO_TEST_FLAGS="-ee=true" test-it
 
+
   create-gke-cluster:
     name: Create GKE cluster and push image
     runs-on: ubuntu-20.04
