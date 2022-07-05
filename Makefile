@@ -12,7 +12,7 @@ ifeq (,$(PATCH_VERSION))
 BUNDLE_VERSION := $(BUNDLE_VERSION).0
 endif
 
-
+CR_NAMES := wanreplication map hotbackup hazelcast managementcenter  
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -227,21 +227,21 @@ undeploy-keep-crd:
 	cd config/default && $(KUSTOMIZE) edit add resource ../crd
 
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
-	$(eval mc := $(shell $(KUBECTL) get managementcenter -n $(NAMESPACE) -o name))
-	$(eval hz := $(shell $(KUBECTL) get hazelcast -n $(NAMESPACE) -o name))
-	[[ "$(hz)" != "" ]] && $(KUBECTL) delete $(hz) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no hazelcast resources"
-	[[ "$(mc)" != "" ]] && $(KUBECTL) delete $(mc) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no managementcenter resources"
+	for CR_NAME in $(CR_NAMES); do \
+		crs=$$($(KUBECTL) get $${CR_NAME} -n $(NAMESPACE) -o name); \
+		[[ "$${crs}" != "" ]] && $(KUBECTL) delete $${crs} -n $(NAMESPACE) --wait=true --timeout=30s || echo "no $${CR_NAME} resources" ;\
+	done 
 	$(KUBECTL) delete secret hazelcast-license-key -n $(NAMESPACE) --wait=false || echo "no hazelcast-license-key secret found"
+	$(MAKE) undeploy-keep-crd
+
+	for CR_NAME in $(CR_NAMES); do \
+		crs=$$($(KUBECTL) get $${CR_NAME} -n $(NAMESPACE) -o name); \
+		[[ "$${crs}" != "" ]] && $(KUBECTL) patch $${crs} -n $(NAMESPACE) -p '{"metadata":{"finalizers":null}}' --type=merge ;\
+	done 
+
 	$(KUBECTL) delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=1m
 	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=4m
-	$(MAKE) undeploy-keep-crd
-	@if [[ -n "$($(KUBECTL) get hazelcast -n $(NAMESPACE) -o name)" ]]; then \
-		$(KUBECTL) patch $(hz) -p '{"metadata":{"finalizers":null}}' --type=merge; \
-	fi
-	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
-		$(KUBECTL) patch $(mc) -p '{"metadata":{"finalizers":null}}' --type=merge; \
-	fi
-	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 1m
+	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 2m
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
