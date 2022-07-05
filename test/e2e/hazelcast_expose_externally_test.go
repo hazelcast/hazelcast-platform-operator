@@ -47,7 +47,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", Label("slow"), func() {
 		setLabelAndCRName("hee-1")
 		assertUseHazelcastUnisocket := func() {
-			FillTheMapData(ctx, hzLookupKey, false, "map", 100)
+			FillTheMapData(ctx, hzLookupKey, true, "map", 100)
 		}
 		hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
