@@ -28,3 +28,4 @@ lintbin/*
 
 # Source code for external modules used in the Tiltfile
 tilt_modules/
+/allure-results/
