@@ -116,12 +116,26 @@ jobs:
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
         run: |
-          make test-e2e NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=backup_slow
+          make test-e2e NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=backup_slow WORKFLOW_ID=backup
 
       - name: Clean up after Tests
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report
+          path: allure-results/backup/test-report.xml
+
+  report-generation:
+    needs: gke-e2e-backup-tests
+    if: always()
+    uses: ./.github/workflows/generate-test-report.yaml
+    with:
+      WORKFLOW_ID: backup
 
   delete-cluster:
     name: Cleanup the environment

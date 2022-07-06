@@ -170,12 +170,26 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX}
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} WORKFLOW_ID=aks
 
       - name: Clean up after Tests
         if: ${{ always() }}
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report
+          path: allure-results/aks/test-report.xml
+
+  report-generation:
+    needs: aks-e2e-tests
+    if: always()
+    uses: ./.github/workflows/generate-test-report.yaml
+    with:
+      WORKFLOW_ID: aks
 
   delete-cluster:
     name: Delete AKS cluster

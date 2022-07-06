@@ -130,12 +130,26 @@ jobs:
         id: ph-test
         run: |
           GO_TEST_FLAGS=-ee=true
-          make test-ph GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          make test-ph GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=ph
 
       - name: Clean up after Tests
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report
+          path: allure-results/ph/test-report.xml
+
+  report-generation:
+    needs: gke-ph-tests
+    if: always()
+    uses: ./.github/workflows/generate-test-report.yaml
+    with:
+      WORKFLOW_ID: ph
 
   delete-cluster:
     name: Delete PhoneHome cluster
