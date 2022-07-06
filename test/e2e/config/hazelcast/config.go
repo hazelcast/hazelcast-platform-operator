@@ -169,7 +169,7 @@ var (
 						LabelSelector: &v1.LabelSelector{
 							MatchLabels: map[string]string{
 								naming.ApplicationNameLabel:         naming.Hazelcast,
-								naming.ApplicationInstanceNameLabel: "hazelcast",
+								naming.ApplicationInstanceNameLabel: hz.Name,
 								naming.ApplicationManagedByLabel:    naming.OperatorName,
 							},
 						},
