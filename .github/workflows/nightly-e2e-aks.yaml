@@ -182,7 +182,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-report
-          path: allure-results/aks/test-report.xml
+          path: allure-results/aks/
 
   report-generation:
     needs: aks-e2e-tests

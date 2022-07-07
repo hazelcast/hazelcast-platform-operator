@@ -25,7 +25,7 @@ var (
 func TestPhoneHome(t *testing.T) {
 	RegisterFailHandler(Fail)
 	SpecLabelsChecker()
-	RunSpecs(t, "Controller Suite")
+	RunSpecs(t, GetSuiteName())
 }
 
 var _ = BeforeSuite(func() {

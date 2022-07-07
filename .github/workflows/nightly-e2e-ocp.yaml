@@ -94,7 +94,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-report
-          path: allure-results/ocp/test-report.xml
+          path: allure-results/ocp/
 
   report-generation:
     needs: ocp-e2e-tests

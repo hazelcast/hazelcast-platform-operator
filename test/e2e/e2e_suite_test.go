@@ -33,7 +33,7 @@ var controllerManagerName = types.NamespacedName{
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	SpecLabelsChecker()
-	RunSpecs(t, "Controller Suite")
+	RunSpecs(t, GetSuiteName())
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {

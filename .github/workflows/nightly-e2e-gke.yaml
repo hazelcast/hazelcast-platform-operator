@@ -203,7 +203,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-report
-          path: allure-results/gke/test-report.xml
+          path: allure-results/gke/
 
   report-generation:
     needs: gke-e2e-tests

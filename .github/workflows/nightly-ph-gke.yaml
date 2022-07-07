@@ -142,7 +142,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-report
-          path: allure-results/ph/test-report.xml
+          path: allure-results/ph/
 
   report-generation:
     needs: gke-ph-tests
