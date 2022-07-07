@@ -139,6 +139,7 @@ jobs:
       - name: Deploy Operator to EKS
         run: |
           kubectl create namespace ${NAMESPACE}
+          kubectl label namespace ${NAMESPACE} newrelic.com/scrape=true
           kubectl config set-context --current --namespace=${NAMESPACE}
 
           make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}

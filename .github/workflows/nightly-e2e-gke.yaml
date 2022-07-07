@@ -157,7 +157,8 @@ jobs:
 
       - name: Deploy Operator to GKE
         run: |
-          kubectl create namespace ${{ env.NAMESPACE }}
+          kubectl create namespace ${NAMESPACE}
+          kubectl label namespace ${NAMESPACE} newrelic.com/scrape=true
           kubectl config set-context --current --namespace=$NAMESPACE
 
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
