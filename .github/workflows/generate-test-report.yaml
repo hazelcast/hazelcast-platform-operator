@@ -10,6 +10,9 @@ jobs:
   report-creation:
     name: Test Report Creation
     runs-on: ubuntu-latest
+    environment:
+      name: report
+      url: https://hazelcast.github.io/hazelcast-platform-operator/
     steps:
       - name: Get Test Run History
         uses: actions/checkout@v3
