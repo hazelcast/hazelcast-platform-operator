@@ -140,7 +140,7 @@ tilt-remote-ttl:
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 GO_TEST_FLAGS ?= "-ee=true"
-SUITE := $(subst \",,\$(firstword \$(subst =, ,$(GO_TEST_FLAGS))))
+SUITE := $(firstword $(subst =, ,$(GO_TEST_FLAGS)))
 
 test-it: manifests generate fmt vet ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
