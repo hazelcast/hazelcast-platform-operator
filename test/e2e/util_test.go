@@ -42,11 +42,7 @@ func GetSuiteName() string {
 	if !ee {
 		return "Operator Suite OS"
 	}
-	if ee {
-		return "Operator Suite EE"
-	} else {
-		return "Operator Suite"
-	}
+	return "Operator Suite EE"
 }
 
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
