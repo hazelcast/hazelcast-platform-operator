@@ -3,11 +3,12 @@ package hazelcast
 import (
 	"context"
 	"net/http"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/robfig/cron/v3"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,8 +40,9 @@ func TestHotBackupReconciler_shouldScheduleHotBackupExecution(t *testing.T) {
 	}
 	hb := &hazelcastv1alpha1.HotBackup{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.Name,
-			Namespace: n.Namespace,
+			Name:        n.Name,
+			Namespace:   n.Namespace,
+			Annotations: make(map[string]string),
 		},
 		Spec: hazelcastv1alpha1.HotBackupSpec{
 			HazelcastResourceName: "hazelcast",
@@ -140,10 +142,15 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 
 	r := hotBackupReconcilerWithCRs(h, hb)
 	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
-	Expect(err).Should(Not(BeNil()))
+	Expect(err).Should(BeNil())
 
 	_ = r.Client.Get(context.TODO(), n, hb)
-	Expect(hb.Status.State).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+	Expect(hb.Status.State).Should(Equal(hazelcastv1alpha1.HotBackupPending))
+
+	Eventually(func() hazelcastv1alpha1.HotBackupState {
+		_ = r.Client.Get(context.TODO(), n, hb)
+		return hb.Status.State
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
 }
 
 func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
@@ -176,6 +183,7 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 	var hotBackupTriggers int32
 	ts, err := fakeHttpServer(hazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
 		if request.RequestURI == hotBackup {
+			t.Log(request.Method, request.URL)
 			atomic.AddInt32(&hotBackupTriggers, 1)
 			restCallWg.Wait()
 		}
@@ -199,7 +207,7 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 	Eventually(func() hazelcastv1alpha1.HotBackupState {
 		_ = r.Client.Get(context.TODO(), n, hb)
 		return hb.Status.State
-	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupPending))
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupInProgress))
 
 	reconcileWg.Add(1)
 	go func() {

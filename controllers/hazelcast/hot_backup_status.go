@@ -2,10 +2,11 @@ package hazelcast
 
 import (
 	"context"
+	"errors"
+	"time"
 
+	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type hotBackupOptionsBuilder struct {
@@ -28,41 +29,45 @@ func failedHbStatus(err error) hotBackupOptionsBuilder {
 	}
 }
 
-func pendingHbStatus() hotBackupOptionsBuilder {
-	return hotBackupOptionsBuilder{
-		status: hazelcastv1alpha1.HotBackupPending,
-	}
-}
+var (
+	errBackupFailed            = errors.New("Backup failed")
+	errBackupMemberStateFailed = errors.New("Backup member state update failed")
+	errBackupNoTask            = errors.New("Backup member state indicates no task started")
+)
 
-func updateHotBackupStatus(ctx context.Context, c client.Client, hb *hazelcastv1alpha1.HotBackup, options hotBackupOptionsBuilder) (ctrl.Result, error) {
-	hb.Status.State = options.status
-	hb.Status.Message = options.message
-	err := c.Status().Update(ctx, hb)
-	if options.status == hazelcastv1alpha1.HotBackupFailure {
-		return ctrl.Result{}, options.err
-	}
-	return ctrl.Result{}, err
-}
-
-func hotBackupState(hbs HotRestartState, currentState hazelcastv1alpha1.HotBackupState, hz *hazelcastv1alpha1.Hazelcast) hazelcastv1alpha1.HotBackupState {
-	switch hbs.BackupTaskState {
-	case "NOT_STARTED":
-		if currentState == hazelcastv1alpha1.HotBackupUnknown {
-			return hazelcastv1alpha1.HotBackupNotStarted
+func waitUntilBackupSucceed(ctx context.Context, client *Client, uuid hztypes.UUID) error {
+	var n int
+	for {
+		state := client.getTimedMemberState(ctx, uuid)
+		if state == nil {
+			return errBackupMemberStateFailed
 		}
-	case "IN_PROGRESS":
-		return hazelcastv1alpha1.HotBackupInProgress
-	case "FAILURE":
-		return hazelcastv1alpha1.HotBackupFailure
-	case "SUCCESS":
-		if currentState == hazelcastv1alpha1.HotBackupUnknown {
-			if hz.Spec.Persistence.IsExternal() {
-				return hazelcastv1alpha1.HotBackupWaiting
+
+		s := state.TimedMemberState.MemberState.HotRestartState.BackupTaskState
+		switch s {
+		case "FAILURE":
+			return errBackupFailed
+		case "SUCCESS":
+			return nil
+		case "NO_TASK":
+			// sometimes it takes few seconds for task to start
+			if n > 10 {
+				return errBackupNoTask
 			}
-			return hazelcastv1alpha1.HotBackupSuccess
+			n++
+		case "IN_PROGRESS":
+			// expected, check status again (no return)
+		default:
+			return errors.New("Backup unknown status: " + s)
+
 		}
-	default:
-		return hazelcastv1alpha1.HotBackupUnknown
+
+		// wait for timer or context to cancel
+		select {
+		case <-time.After(1 * time.Second):
+			continue
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
-	return currentState
 }
