@@ -1,7 +1,6 @@
 newrelic-infrastructure:
   # newrelic-infrastructure.enabled -- Install the [`newrelic-infrastructure` chart](https://github.com/newrelic/nri-kubernetes/tree/main/charts/newrelic-infrastructure)
   enabled: true
-  lowDataMode: true
   common:
     config:
       namespaceSelector:
@@ -33,7 +32,6 @@ nri-kube-events:
 newrelic-logging:
   # newrelic-logging.enabled -- Install the [`newrelic-logging` chart](https://github.com/newrelic/helm-charts/tree/master/charts/newrelic-logging)
   enabled: true
-  lowDataMode: false
   fluentBit:
     config:
       filters: |
