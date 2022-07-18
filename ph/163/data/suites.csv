@@ -1,0 +1,8 @@
+"Status","Start Time","Stop Time","Duration in ms","Parent Suite","Suite","Sub Suite","Test Class","Test Method","Name","Description"
+"passed","Mon Jul 18 09:19:14 GMT 2022","Mon Jul 18 09:19:14 GMT 2022","0","","Operator Suite EE","","Operator Suite EE","","[DeferCleanup (Suite)]",""
+"passed","Mon Jul 18 09:19:14 GMT 2022","Mon Jul 18 09:21:28 GMT 2022","134227","","Operator Suite EE","","Operator Suite EE","","[It] Hazelcast Phone Home Table with installed Hazelcast should have correct metrics with ExposeExternallyUnisocket configuration [slow]",""
+"passed","Mon Jul 18 09:19:14 GMT 2022","Mon Jul 18 09:20:51 GMT 2022","97176","","Operator Suite EE","","Operator Suite EE","","[It] Hazelcast Phone Home table with installed Management Center should have correct metrics [fast]",""
+"passed","Mon Jul 18 09:19:14 GMT 2022","Mon Jul 18 09:21:37 GMT 2022","143842","","Operator Suite EE","","Operator Suite EE","","[It] Hazelcast Phone Home Table with installed Hazelcast should have correct metrics with ExposeExternallySmartLoadBalancer configuration [slow]",""
+"passed","Mon Jul 18 09:19:14 GMT 2022","Mon Jul 18 09:19:46 GMT 2022","32649","","Operator Suite EE","","Operator Suite EE","","[It] Hazelcast Phone Home Table with installed Hazelcast should have correct metrics with ExposeExternallySmartNodePortNodeName configuration [fast]",""
+"passed","Mon Jul 18 09:19:14 GMT 2022","Mon Jul 18 09:19:17 GMT 2022","3474","","Operator Suite EE","","Operator Suite EE","","[BeforeSuite]",""
+"passed","Mon Jul 18 09:19:14 GMT 2022","Mon Jul 18 09:20:37 GMT 2022","83946","","Operator Suite EE","","Operator Suite EE","","[It] Hazelcast Phone Home Table with installed Hazelcast should have correct metrics with ExposeExternallySmartNodePort configuration [slow]",""
