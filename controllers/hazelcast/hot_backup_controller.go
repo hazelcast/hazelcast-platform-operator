@@ -5,13 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
-
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
@@ -105,11 +102,6 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(apiErrors.NewServiceUnavailable("Hazelcast CR is not ready")))
 	}
 
-	var backupType hazelcastv1alpha1.BackupType
-	if hb.Spec.BucketURI != "" {
-		backupType = hazelcastv1alpha1.External
-	}
-
 	rest := NewRestClient(h)
 
 	if hb.Spec.Schedule != "" {
@@ -119,7 +111,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			if err != nil {
 				logger.Error(err, "Hot Backups process failed")
 			}
-			r.reconcileHotBackupStatus(ctx, hb, backupType)
+			r.reconcileHotBackupStatus(ctx, hb, h)
 		})
 		if err != nil {
 			logger.Error(err, "Error creating new Schedule Hot Restart.")
@@ -139,18 +131,14 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(err))
 		}
 
-		r.reconcileHotBackupStatus(ctx, hb, backupType)
+		r.reconcileHotBackupStatus(ctx, hb, h)
 	}
 
-	if hb.Spec.BucketURI != "" {
+	if h.Spec.Persistence.IsExternal() {
 		if err := validation.ValidateHotBackupSpec(hb); err != nil {
 			return ctrl.Result{}, err
 		}
-		agentAddresses, err := r.getAgentAddresses(ctx, hb)
-		if err != nil {
-			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(fmt.Errorf("could not fetch Backup agent addresses properly: %w", err)))
-		}
-		agentRest := NewAgentRestClient(h, hb, agentAddresses)
+		agentRest := NewAgentRestClient(h, hb)
 		err = r.triggerUploadBackup(ctx, hb, agentRest, logger)
 		if err != nil {
 			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(fmt.Errorf("error while uploading the backup: %w", err)))
@@ -168,7 +156,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	return ctrl.Result{}, nil
 }
 
-func (r *HotBackupReconciler) reconcileHotBackupStatus(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, backupType hazelcastv1alpha1.BackupType) {
+func (r *HotBackupReconciler) reconcileHotBackupStatus(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, hz *hazelcastv1alpha1.Hazelcast) {
 	hzClient, ok := GetClient(types.NamespacedName{Name: hb.Spec.HazelcastResourceName, Namespace: hb.Namespace})
 	if !ok {
 		return
@@ -184,13 +172,13 @@ func (r *HotBackupReconciler) reconcileHotBackupStatus(ctx context.Context, hb *
 			case <-s.done:
 				return
 			case <-s.ticker.C:
-				r.updateHotBackupStatus(hzClient, ctx, hb, backupType)
+				r.updateHotBackupStatus(hzClient, ctx, hb, hz)
 			}
 		}
 	}(ctx, t)
 }
 
-func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *Client, ctx context.Context, h *hazelcastv1alpha1.HotBackup, backupType hazelcastv1alpha1.BackupType) {
+func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *Client, ctx context.Context, h *hazelcastv1alpha1.HotBackup, hz *hazelcastv1alpha1.Hazelcast) {
 	currentState := hazelcastv1alpha1.HotBackupUnknown
 	for uuid := range hzClient.Status.MemberMap {
 		state := hzClient.getTimedMemberState(ctx, uuid)
@@ -198,7 +186,7 @@ func (r *HotBackupReconciler) updateHotBackupStatus(hzClient *Client, ctx contex
 			continue
 		}
 		r.Log.V(util.DebugLevel).Info("Received HotBackup state for member.", "HotRestartState", state)
-		currentState = hotBackupState(state.TimedMemberState.MemberState.HotRestartState, currentState, backupType)
+		currentState = hotBackupState(state.TimedMemberState.MemberState.HotRestartState, currentState, hz)
 	}
 
 	if err := r.setHotBackupStatus(ctx, h, currentState); err != nil {
@@ -348,23 +336,6 @@ func (r *HotBackupReconciler) triggerUploadBackup(ctx context.Context, h *hazelc
 			time.Sleep(1 * time.Second)
 		}
 	}
-}
-
-func (r *HotBackupReconciler) getAgentAddresses(ctx context.Context, hb *hazelcastv1alpha1.HotBackup) ([]string, error) {
-	var containerAddresses []string
-	pods := &corev1.PodList{}
-	podLabels := client.MatchingLabels{
-		n.ApplicationNameLabel:         n.Hazelcast,
-		n.ApplicationInstanceNameLabel: hb.Spec.HazelcastResourceName,
-		n.ApplicationManagedByLabel:    n.OperatorName,
-	}
-	if err := r.Client.List(ctx, pods, podLabels); err != nil {
-		return containerAddresses, err
-	}
-	for _, pod := range pods.Items {
-		containerAddresses = append(containerAddresses, pod.Status.PodIP+":"+strconv.Itoa(n.DefaultAgentPort))
-	}
-	return containerAddresses, nil
 }
 
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {

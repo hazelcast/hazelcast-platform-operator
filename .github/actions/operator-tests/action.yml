@@ -14,6 +14,9 @@ inputs:
   OPM_INSTALL:
     description: "Install opm tool or not. Non empty values are consider as 'true'."
     required: false
+  DEVOPS_GITHUB_TOKEN:
+    description: "Authentication token for GitHub"
+    required: false
 
 runs:
   using: "composite"
@@ -39,9 +42,15 @@ runs:
       run: |
         if [[ ! -z "${{ inputs.PREFLIGHT_VERSION }}" ]]; then
            echo "✅ Installing preflight tool"
+           echo "PREFLIGHT_VERSION=${{ inputs.PREFLIGHT_VERSION }}" >> $GITHUB_ENV
+        if [[ "${{ inputs.PREFLIGHT_VERSION }}" -eq "latest" ]]; then
+           PREFLIGHT_VERSION=$(curl --silent -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${{ inputs.DEVOPS_GITHUB_TOKEN }}" \
+           https://api.github.com/repos/redhat-openshift-ecosystem/openshift-preflight/releases/latest | jq -r '.name')
+           echo "PREFLIGHT_VERSION=$PREFLIGHT_VERSION" >> $GITHUB_ENV
+        fi
            mkdir -p ${GITHUB_WORKSPACE}/bin
            echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-           curl -L --fail --show-error --silent https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/${{ inputs.PREFLIGHT_VERSION }}/preflight-linux-amd64 \
+           curl -L --fail --show-error --silent https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/${PREFLIGHT_VERSION}/preflight-linux-amd64 \
            -o ${GITHUB_WORKSPACE}/bin/preflight && chmod +x ${GITHUB_WORKSPACE}/bin/preflight
         else
            echo "⏭ Skipping preflight tool installation"

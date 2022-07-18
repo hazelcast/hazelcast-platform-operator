@@ -169,7 +169,7 @@ var (
 						LabelSelector: &v1.LabelSelector{
 							MatchLabels: map[string]string{
 								naming.ApplicationNameLabel:         naming.Hazelcast,
-								naming.ApplicationInstanceNameLabel: "hazelcast",
+								naming.ApplicationInstanceNameLabel: hz.Name,
 								naming.ApplicationManagedByLabel:    naming.OperatorName,
 							},
 						},
@@ -308,6 +308,21 @@ var (
 			Spec: ms,
 		}
 
+	}
+
+	DefaultWanReplication = func(wan types.NamespacedName, mapName, targetClusterName, endpoints string, lbls map[string]string) *hazelcastv1alpha1.WanReplication {
+		return &hazelcastv1alpha1.WanReplication{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      wan.Name,
+				Namespace: wan.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.WanReplicationSpec{
+				MapResourceName:   mapName,
+				TargetClusterName: targetClusterName,
+				Endpoints:         endpoints,
+			},
+		}
 	}
 )
 

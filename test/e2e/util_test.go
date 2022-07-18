@@ -38,6 +38,13 @@ func GetControllerManagerName() string {
 	return np + "controller-manager"
 }
 
+func GetSuiteName() string {
+	if !ee {
+		return "Operator Suite OS"
+	}
+	return "Operator Suite EE"
+}
+
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
 	err := k8sClient.Get(ctx, name, deploy)
 	if err != nil {
@@ -208,7 +215,7 @@ func deletePVCs(lk types.NamespacedName) {
 		}
 		for _, pvc := range pvcL.Items {
 			if strings.Contains(pvc.Name, lk.Name) {
-				err = k8sClient.Delete(context.Background(), &pvc)
+				err = k8sClient.Delete(context.Background(), &pvc, client.PropagationPolicy(metav1.DeletePropagationForeground))
 				if err != nil {
 					return false
 				}
@@ -230,4 +237,14 @@ func deletePods(lk types.NamespacedName) {
 			Expect(err).To(BeNil())
 		}
 	}
+}
+
+func DeleteAllOf(obj client.Object, ns string, labels map[string]string) {
+	Expect(k8sClient.DeleteAllOf(
+		context.Background(),
+		obj,
+		client.InNamespace(ns),
+		client.MatchingLabels(labels),
+		client.PropagationPolicy(metav1.DeletePropagationForeground),
+	)).Should(Succeed())
 }

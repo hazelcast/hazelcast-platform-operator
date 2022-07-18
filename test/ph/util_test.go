@@ -89,6 +89,13 @@ func getOperatorId() string {
 	return uid
 }
 
+func GetSuiteName() string {
+	if !ee {
+		return "Operator Suite OS"
+	}
+	return "Operator Suite EE"
+}
+
 func query(ctx context.Context, client *bigquery.Client) (*bigquery.RowIterator, error) {
 	query := client.Query(
 		`SELECT * FROM ` + bigQueryTable() + `

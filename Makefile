@@ -12,7 +12,6 @@ ifeq (,$(PATCH_VERSION))
 BUNDLE_VERSION := $(BUNDLE_VERSION).0
 endif
 
-
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -141,12 +140,14 @@ tilt-remote-ttl:
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 GO_TEST_FLAGS ?= "-ee=true"
+SUITE = $(subst =,-,$(GO_TEST_FLAGS))
+
 test-it: manifests generate fmt vet ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
-E2E_TEST_SUITE ?= hz || mc || hz_persistence || hz_expose_externally || map || map_persistence
+E2E_TEST_SUITE ?= hz || mc || hz_persistence || hz_expose_externally || map || map_persistence || hz_wan
 ifeq (,$(E2E_TEST_SUITE))
 E2E_TEST_LABELS =
 else 
@@ -154,10 +155,10 @@ E2E_TEST_LABELS = && $(E2E_TEST_SUITE)
 endif
 GINKGO_PARALLEL_PROCESSES ?= 2
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 test-ph: generate fmt vet ginkgo ## Run phone-home tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 test-e2e-focus: generate fmt vet ginkgo ## Run focused end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
@@ -213,7 +214,7 @@ endif
 	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 ifneq (false,$(APPLY_MANIFESTS))
-	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply --server-side=true --force-conflicts=true -f -
 else
 	@$(KUSTOMIZE) build config/default
 endif
@@ -227,21 +228,22 @@ undeploy-keep-crd:
 	cd config/default && $(KUSTOMIZE) edit add resource ../crd
 
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
-	$(eval mc := $(shell $(KUBECTL) get managementcenter -n $(NAMESPACE) -o name))
-	$(eval hz := $(shell $(KUBECTL) get hazelcast -n $(NAMESPACE) -o name))
-	[[ "$(hz)" != "" ]] && $(KUBECTL) delete $(hz) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no hazelcast resources"
-	[[ "$(mc)" != "" ]] && $(KUBECTL) delete $(mc) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no managementcenter resources"
+	$(eval CR_NAMES := $(shell $(KUBECTL) get crd -o jsonpath='{range.items[*]}{..metadata.name}{"\n"}{end}' | grep hazelcast.com))
+	for CR_NAME in $(CR_NAMES); do \
+		crs=$$($(KUBECTL) get $${CR_NAME} -n $(NAMESPACE) -o name); \
+		[[ "$${crs}" != "" ]] && $(KUBECTL) delete $${crs} -n $(NAMESPACE) --wait=true --timeout=30s || echo "no $${CR_NAME} resources" ;\
+	done 
 	$(KUBECTL) delete secret hazelcast-license-key -n $(NAMESPACE) --wait=false || echo "no hazelcast-license-key secret found"
+	$(MAKE) undeploy-keep-crd
+
+	for CR_NAME in $(CR_NAMES); do \
+		crs=$$($(KUBECTL) get $${CR_NAME} -n $(NAMESPACE) -o name); \
+		[[ "$${crs}" != "" ]] && $(KUBECTL) patch $${crs} -n $(NAMESPACE) -p '{"metadata":{"finalizers":null}}' --type=merge || echo "$${CR_NAME} already deleted";\
+	done 
+
 	$(KUBECTL) delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=1m
 	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=4m
-	$(MAKE) undeploy-keep-crd
-	@if [[ -n "$($(KUBECTL) get hazelcast -n $(NAMESPACE) -o name)" ]]; then \
-		$(KUBECTL) patch $(hz) -p '{"metadata":{"finalizers":null}}' --type=merge; \
-	fi
-	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
-		$(KUBECTL) patch $(mc) -p '{"metadata":{"finalizers":null}}' --type=merge; \
-	fi
-	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 1m
+	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 2m
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.

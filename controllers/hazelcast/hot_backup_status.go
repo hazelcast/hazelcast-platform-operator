@@ -44,7 +44,7 @@ func updateHotBackupStatus(ctx context.Context, c client.Client, hb *hazelcastv1
 	return ctrl.Result{}, err
 }
 
-func hotBackupState(hbs HotRestartState, currentState hazelcastv1alpha1.HotBackupState, backupType hazelcastv1alpha1.BackupType) hazelcastv1alpha1.HotBackupState {
+func hotBackupState(hbs HotRestartState, currentState hazelcastv1alpha1.HotBackupState, hz *hazelcastv1alpha1.Hazelcast) hazelcastv1alpha1.HotBackupState {
 	switch hbs.BackupTaskState {
 	case "NOT_STARTED":
 		if currentState == hazelcastv1alpha1.HotBackupUnknown {
@@ -56,13 +56,10 @@ func hotBackupState(hbs HotRestartState, currentState hazelcastv1alpha1.HotBacku
 		return hazelcastv1alpha1.HotBackupFailure
 	case "SUCCESS":
 		if currentState == hazelcastv1alpha1.HotBackupUnknown {
-			switch backupType {
-			case hazelcastv1alpha1.External:
+			if hz.Spec.Persistence.IsExternal() {
 				return hazelcastv1alpha1.HotBackupWaiting
-
-			default:
-				return hazelcastv1alpha1.HotBackupSuccess
 			}
+			return hazelcastv1alpha1.HotBackupSuccess
 		}
 	default:
 		return hazelcastv1alpha1.HotBackupUnknown

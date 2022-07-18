@@ -33,6 +33,19 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 	return opResult, err
 }
 
+func CreateOrGet(ctx context.Context, c client.Client, key client.ObjectKey, obj client.Object) error {
+	err := c.Get(ctx, key, obj)
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return err
+		} else {
+			return c.Create(ctx, obj)
+		}
+	} else {
+		return nil
+	}
+}
+
 func CheckIfRunning(ctx context.Context, cl client.Client, namespacedName types.NamespacedName, expectedReplicas int32) (bool, error) {
 	sts := &appsv1.StatefulSet{}
 	err := cl.Get(ctx, client.ObjectKey{Name: namespacedName.Name, Namespace: namespacedName.Namespace}, sts)

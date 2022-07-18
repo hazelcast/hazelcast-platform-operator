@@ -232,6 +232,7 @@ func (r *MapReconciler) ReconcileMapConfig(
 		if err != nil {
 			memberStatuses[member.UUID.String()] = hazelcastv1alpha1.MapFailed
 			failedMembers.WriteString(member.UUID.String() + ", ")
+			r.Log.Error(err, "Failed with member")
 			continue
 		}
 		memberStatuses[member.UUID.String()] = hazelcastv1alpha1.MapSuccess

@@ -2,30 +2,18 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose_externally"), func() {
-	hzName := fmt.Sprintf("hz-ex-ex-%d", GinkgoParallelProcess())
 
-	var hzLookupKey = types.NamespacedName{
-		Name:      hzName,
-		Namespace: hzNamespace,
-	}
-	labels := map[string]string{
-		"test_suite": fmt.Sprintf("hz_expose_externally_%d", GinkgoParallelProcess()),
-	}
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -42,9 +30,9 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	})
 
 	AfterEach(func() {
-		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(hzLookupKey), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 	})
+
 	ctx := context.Background()
 	assertExternalAddressesNotEmpty := func() {
 		By("status external addresses should not be empty")
@@ -57,8 +45,9 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	}
 
 	It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", Label("slow"), func() {
+		setLabelAndCRName("hee-1")
 		assertUseHazelcastUnisocket := func() {
-			FillTheMapData(ctx, hzLookupKey, false, "map", 100)
+			FillTheMapData(ctx, hzLookupKey, true, "map", 100)
 		}
 		hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
@@ -67,6 +56,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	})
 
 	It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("slow"), func() {
+		setLabelAndCRName("hee-2")
 		assertUseHazelcastSmart := func() {
 			FillTheMapData(ctx, hzLookupKey, false, "map", 100)
 		}
@@ -77,6 +67,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	})
 
 	It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("slow"), func() {
+		setLabelAndCRName("hee-3")
 		assertUseHazelcastSmart := func() {
 			FillTheMapData(ctx, hzLookupKey, false, "map", 100)
 		}

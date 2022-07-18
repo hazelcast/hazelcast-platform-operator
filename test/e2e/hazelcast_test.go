@@ -2,15 +2,11 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
@@ -21,14 +17,6 @@ const (
 )
 
 var _ = Describe("Hazelcast", Label("hz"), func() {
-	hzName := fmt.Sprintf("hz-%d", GinkgoParallelProcess())
-	var hzLookupKey = types.NamespacedName{
-		Name:      hzName,
-		Namespace: hzNamespace,
-	}
-	labels := map[string]string{
-		"test_suite": fmt.Sprintf("hz-%d", GinkgoParallelProcess()),
-	}
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -45,17 +33,14 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 	})
 
 	AfterEach(func() {
-		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(hzLookupKey), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
-		Expect(k8sClient.DeleteAllOf(
-			context.Background(), &hazelcastcomv1alpha1.HotBackup{}, client.InNamespace(hzNamespace), client.MatchingLabels(labels))).Should(Succeed())
-		Expect(k8sClient.DeleteAllOf(
-			context.Background(), &hazelcastcomv1alpha1.Map{}, client.InNamespace(hzNamespace), client.MatchingLabels(labels))).Should(Succeed())
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
 	Describe("Default Hazelcast CR", func() {
 		It("should create Hazelcast cluster", Label("fast"), func() {
+			setLabelAndCRName("h-1")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 		})
@@ -63,6 +48,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 	Describe("Hazelcast cluster name", func() {
 		It("should create a Hazelcust cluster with Cluster name: development", Label("fast"), func() {
+			setLabelAndCRName("h-2")
 			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
@@ -71,6 +57,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 	Context("Hazelcast member status", func() {
 		It("should update HZ ready members status", Label("slow"), func() {
+			setLabelAndCRName("h-3")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey, 3)
@@ -83,6 +70,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		})
 
 		It("should update HZ detailed member status", Label("fast"), func() {
+			setLabelAndCRName("h-4")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey, 3)
@@ -117,6 +105,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		}
 
 		It("should be reflected to Hazelcast CR status", Label("fast"), func() {
+			setLabelAndCRName("h-5")
 			CreateHazelcastCRWithoutCheck(hazelcastconfig.Faulty(hzLookupKey, ee, labels))
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})

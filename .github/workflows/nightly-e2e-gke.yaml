@@ -157,7 +157,8 @@ jobs:
 
       - name: Deploy Operator to GKE
         run: |
-          kubectl create namespace ${{ env.NAMESPACE }}
+          kubectl create namespace ${NAMESPACE}
+          kubectl label namespace ${NAMESPACE} newrelic.com/scrape=true
           kubectl config set-context --current --namespace=$NAMESPACE
 
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
@@ -191,15 +192,29 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=gke
 
       - name: Clean up after Tests
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report
+          path: allure-results/gke/
+
+  report-generation:
+    needs: gke-e2e-tests
+    if: always()
+    uses: ./.github/workflows/generate-test-report.yaml
+    with:
+      WORKFLOW_ID: gke
+
   delete-cluster:
-    name: Run E2E tests
+    name: Delete GKE cluster
     runs-on: ubuntu-20.04
     if: always()
     needs: [create-gke-cluster, gke-e2e-tests]
