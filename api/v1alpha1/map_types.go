@@ -53,6 +53,11 @@ type MapSpec struct {
 	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:validation:MinLength:=1
 	HazelcastResourceName string `json:"hazelcastResourceName"`
+
+	// Configuration options when you want to load/store the map entries
+	// from/to a persistent data store such as a relational database
+	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/data-structures/working-with-external-data
+	MapStore *MapStoreConfig `json:"mapStore,omitempty"`
 }
 
 type EvictionConfig struct {
@@ -187,6 +192,48 @@ const (
 	MapPending MapConfigState = "Pending"
 	// Map config is added into all members but waiting for map to be persisten into ConfigMap
 	MapPersisting MapConfigState = "Persisting"
+)
+
+type MapStoreConfig struct {
+	// Sets the initial entry loading mode.
+	// +kubebuilder:default:=LAZY
+	// +optional
+	InitialMode InitialModeType `json:"initialMode,omitempty"`
+
+	// Name of your class implementing MapLoader and/or MapStore interface.
+	ClassName string `json:"className"`
+
+	// Number of seconds to delay the storing of entries.
+	// +kubebuilder:default:0
+	// +optional
+	WriteDelaySeconds int32 `json:"writeDelaySeconds"`
+
+	// Used to create batches when writing to map store.
+	// +kubebuilder:default:=1
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	WriteBatchSize int32 `json:"writeBatchSize,omitempty"`
+
+	// It is meaningful if you are using write behind in MapStore. When it is set to true,
+	// only the latest store operation on a key during the write-delay-seconds will be
+	// reflected to MapStore.
+	// +kubebuilder:default:=true
+	// +optional
+	WriteCoealescing *bool `json:"writeCoealescing,omitempty"`
+
+	// Properties can be used for giving information to the MapStore implementation
+	// +optional
+	PropertiesSecretName string `json:"propertiesSecretName,omitempty"`
+}
+
+// +kubebuilder:validation:Enum=LAZY;EAGER
+type InitialModeType string
+
+const (
+	// Loading is asynchronous. It is the default mode.
+	InitialModeLazy InitialModeType = "LAZY"
+	// Loading is blocked until all partitions are loaded.
+	InitialModeEager InitialModeType = "EAGER"
 )
 
 //+kubebuilder:object:root=true

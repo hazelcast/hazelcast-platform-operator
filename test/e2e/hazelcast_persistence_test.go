@@ -232,7 +232,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hp-5")
-		
+
 		By("Create cluster with external backup enabled")
 		hazelcast := hazelcastconfig.ExternalBackup(hzLookupKey, true, labels)
 		CreateHazelcastCR(hazelcast)

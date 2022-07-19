@@ -1,0 +1,9 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Map
+metadata:
+  name: map-store
+spec:
+  hazelcastResourceName: hazelcast
+  mapStore:
+    className: SimpleStore
+    propertiesSecretName: props
