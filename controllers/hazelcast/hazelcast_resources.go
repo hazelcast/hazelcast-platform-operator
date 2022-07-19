@@ -26,6 +26,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -428,7 +429,10 @@ func hazelcastConfigMapData(c client.Client, ctx context.Context, h *hazelcastv1
 	ml := filterPersistedMaps(mapList.Items)
 
 	cfg := hazelcastConfigMapStruct(h)
-	fillHazelcastConfigWithMaps(&cfg, h, ml)
+	err = fillHazelcastConfigWithMaps(c, ctx, &cfg, h, ml)
+	if err != nil {
+		return nil, err
+	}
 
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 	if err != nil {
@@ -533,16 +537,21 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 	return "FULL_RECOVERY_ONLY"
 }
 
-func fillHazelcastConfigWithMaps(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) {
+func fillHazelcastConfigWithMaps(c client.Client, ctx context.Context, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
 	if len(ml) != 0 {
 		cfg.Map = map[string]config.Map{}
 		for _, mcfg := range ml {
-			cfg.Map[mcfg.MapName()] = createMapConfig(h, &mcfg)
+			m, err := createMapConfig(c, ctx, h, &mcfg)
+			if err != nil {
+				return err
+			}
+			cfg.Map[mcfg.MapName()] = m
 		}
 	}
+	return nil
 }
 
-func createMapConfig(hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) config.Map {
+func createMapConfig(c client.Client, ctx context.Context, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
 	ms := m.Spec
 	mc := config.Map{
 		BackupCount:       *ms.BackupCount,
@@ -561,9 +570,56 @@ func createMapConfig(hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) 
 			Enabled: ms.PersistenceEnabled,
 			Fsync:   false,
 		},
-		WanReplicationReference: wanReplicationRef(defaultWanReplicationRefCodec(hz, m)),
 	}
-	return mc
+
+	if util.IsEnterprise(hz.Spec.Repository) {
+		mc.WanReplicationReference = wanReplicationRef(defaultWanReplicationRefCodec(hz, m))
+	}
+
+	if ms.MapStore != nil {
+		msp, err := getMapStoreProperties(c, ctx, ms.MapStore.PropertiesSecretName, hz.Namespace)
+		if err != nil {
+			return config.Map{}, err
+		}
+		mc.MapStoreConfig = config.MapStoreConfig{
+			Enabled:           true,
+			WriteCoalescing:   ms.MapStore.WriteCoealescing,
+			WriteDelaySeconds: ms.MapStore.WriteDelaySeconds,
+			WriteBatchSize:    ms.MapStore.WriteBatchSize,
+			ClassName:         string(ms.MapStore.ClassName),
+			Properties:        msp,
+			InitialLoadMode:   string(ms.MapStore.InitialMode),
+		}
+
+	}
+	return mc, nil
+}
+
+func wanReplicationRef(ref codecTypes.WanReplicationRef) map[string]config.WanReplicationReference {
+	return map[string]config.WanReplicationReference{
+		ref.Name: {
+			MergePolicyClassName: ref.MergePolicyClassName,
+			RepublishingEnabled:  ref.RepublishingEnabled,
+			Filters:              ref.Filters,
+		},
+	}
+}
+
+func getMapStoreProperties(c client.Client, ctx context.Context, sn, ns string) (map[string]string, error) {
+	if sn == "" {
+		return nil, nil
+	}
+	s := &v1.Secret{}
+	err := c.Get(ctx, types.NamespacedName{Name: sn, Namespace: ns}, s)
+	if err != nil {
+		return nil, err
+	}
+
+	props := map[string]string{}
+	for k, v := range s.Data {
+		props[k] = string(v)
+	}
+	return props, nil
 }
 
 func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
@@ -1006,6 +1062,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		{
 			Name:  "LOGGING_PATTERN",
 			Value: `{"time":"%date{ISO8601}", "logger": "%logger{36}", "level": "%level", "msg": "%enc{%m %xEx}{JSON}"}%n`,
+		},
+		{
+			Name:  "CLASSPATH",
+			Value: n.CustomClassPath + "/*",
 		},
 	}
 	if h.Spec.LicenseKeySecret != "" {
