@@ -138,7 +138,7 @@ spec:
               mapStore:
                 description: Configuration options when you want to load/store the
                   map entries from/to a persistent data store such as a relational
-                  database
+                  database You can learn more at https://docs.hazelcast.com/hazelcast/latest/data-structures/working-with-external-data
                 properties:
                   className:
                     description: Name of your class implementing MapLoader and/or
