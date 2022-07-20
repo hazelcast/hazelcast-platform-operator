@@ -168,6 +168,21 @@ func GetClientSet() *kubernetes.Clientset {
 	return clientSet
 }
 
+func SwitchKubeContext(context string) {
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
+	rawConfig, err := kubeConfig.RawConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if rawConfig.Contexts[context] == nil {
+		log.Fatalf("Specified context %v doesn't exists. Please check you default kubeconfig path", context)
+	}
+	rawConfig.CurrentContext = context
+	err = clientcmd.ModifyConfig(clientcmd.NewDefaultPathOptions(), rawConfig, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool, mapName string, mapSize int) {
 	var m *hzClient.Map
 	clientHz := GetHzClient(ctx, lk, unisocket)
@@ -184,50 +199,65 @@ func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool
 	Expect(err).ToNot(HaveOccurred())
 }
 
-func waitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int) {
-	var m *hzClient.Map
+func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int) {
+	var hzMap *hzClient.Map
 	clientHz := GetHzClient(ctx, lk, true)
-	By("using Hazelcast client")
-	m, err := clientHz.GetMap(ctx, mapName)
-	Expect(err).ToNot(HaveOccurred())
+	defer func() {
+		err := clientHz.Shutdown(ctx)
+		Expect(err).To(BeNil())
+	}()
+	hzMap, _ = clientHz.GetMap(ctx, mapName)
 	Eventually(func() (int, error) {
-		return m.Size(ctx)
-	}, 2*Minute, interval).Should(Equal(mapSize))
+		return hzMap.Size(ctx)
+	}, 30*Minute, 10*Second).Should(Equal(mapSize))
 }
 
-func FillTheMapWithHugeData(ctx context.Context, mapName string, mapSizeInGb string, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
+// 1310.72 entries per one Go routine = 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
+func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
 	hzAddress := fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzConfig.Name, hzConfig.Namespace, n.DefaultHzPort)
-	var m *hzClient.Map
-	clientPod := CreateClientPod(hzAddress, mapSizeInGb, mapName)
-	defer DeletePod(clientPod.Name, 0)
-	mapSize, _ := strconv.ParseFloat(mapSizeInGb, 64)
-	client := GetHzClient(ctx, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace}, false)
-	m, _ = client.GetMap(ctx, mapName)
-	Eventually(func() (int, error) {
-		return m.Size(ctx)
-	}, 15*Minute, interval).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
-	// 1310.72 entries per one Go routine. Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
-	err := client.Shutdown(ctx)
-	Expect(err).ToNot(HaveOccurred())
+	clientHz := GetHzClient(ctx, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace}, true)
+	mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInGb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
+	Eventually(func() int {
+		return countKeySet(ctx, clientHz, mapName, hzConfig)
+	}, 15*Minute, interval).Should(Equal(int(float64(sizeInGb) * math.Round(1310.72) * 100)))
+	defer func() {
+		err := clientHz.Shutdown(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		DeletePod(mapLoaderPod.Name, 0)
+	}()
 }
 
-func CreateClientPod(hzAddress string, mapSizeInGb string, mapName string) *corev1.Pod {
+func countKeySet(ctx context.Context, clientHz *hzClient.Client, mapName string, hzConfig *hazelcastcomv1alpha1.Hazelcast) int {
+	keyCount := 0
+	m, _ := clientHz.GetMap(ctx, mapName)
+	keySet, _ := m.GetKeySet(ctx)
+	for _, key := range keySet {
+		if strings.HasPrefix(fmt.Sprint(key), hzConfig.Spec.ClusterName) {
+			keyCount++
+		}
+	}
+	return keyCount
+}
+
+func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName string, lk types.NamespacedName) *corev1.Pod {
+	size := strconv.Itoa(mapSizeInGb)
 	clientPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				"client": "true",
+				"maploader": "true",
 			},
-			Name: "client-pod",
+			Name:      "maploader-" + lk.Name,
+			Namespace: hzNamespace,
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  "client-container",
+					Name:  "maploader-container",
 					Image: "cheels/docker-backup:latest",
-					Args:  []string{"/fill_map", "-address", hzAddress, "-size", mapSizeInGb, "-mapName", mapName},
+					Args:  []string{"/maploader", "-address", hzAddress, "-clusterName", clusterName, "-size", size, "-mapName", mapName},
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")}},
+							corev1.ResourceMemory: resource.MustParse(size + "Gi")}},
 				},
 			},
 			RestartPolicy: corev1.RestartPolicyNever,

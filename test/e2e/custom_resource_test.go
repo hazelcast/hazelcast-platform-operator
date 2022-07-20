@@ -8,23 +8,29 @@ import (
 )
 
 var (
-	labels            = map[string]string{}
-	hzLookupKey       = types.NamespacedName{}
-	mapLookupKey      = types.NamespacedName{}
-	hbLookupKey       = types.NamespacedName{}
-	hzSourceLookupKey = types.NamespacedName{}
-	hzTargetLookupKey = types.NamespacedName{}
-	wanLookupKey      = types.NamespacedName{}
-	mcLookupKey       = types.NamespacedName{}
+	labels             = map[string]string{}
+	hzLookupKey        = types.NamespacedName{}
+	mapSourceLookupKey = types.NamespacedName{}
+	mapTargetLookupKey = types.NamespacedName{}
+	mapLookupKey       = types.NamespacedName{}
+	hbLookupKey        = types.NamespacedName{}
+	hzSourceLookupKey  = types.NamespacedName{}
+	hzTargetLookupKey  = types.NamespacedName{}
+	wanSourceLookupKey = types.NamespacedName{}
+	wanTargetLookupKey = types.NamespacedName{}
+	mcLookupKey        = types.NamespacedName{}
 )
 
 func setCRNamespace(ns string) {
 	hzLookupKey.Namespace = ns
+	mapSourceLookupKey.Namespace = ns
+	mapTargetLookupKey.Namespace = ns
 	mapLookupKey.Namespace = ns
 	hbLookupKey.Namespace = ns
 	hzSourceLookupKey.Namespace = ns
 	hzTargetLookupKey.Namespace = ns
-	wanLookupKey.Namespace = ns
+	wanSourceLookupKey.Namespace = ns
+	wanTargetLookupKey.Namespace = ns
 	mcLookupKey.Namespace = ns
 }
 
@@ -32,11 +38,14 @@ func setLabelAndCRName(n string) {
 	n = n + "-" + randString(6)
 	labels["test_suite"] = n
 	hzLookupKey.Name = n
+	mapSourceLookupKey.Name = "src" + "-" + n
+	mapTargetLookupKey.Name = "trg" + "-" + n
 	mapLookupKey.Name = n
 	hbLookupKey.Name = n
 	hzSourceLookupKey.Name = "src" + "-" + n
 	hzTargetLookupKey.Name = "trg" + "-" + n
-	wanLookupKey.Name = n
+	wanSourceLookupKey.Name = "src" + "-" + n
+	wanTargetLookupKey.Name = "trg" + "-" + n
 	mcLookupKey.Name = n
 	GinkgoWriter.Printf("Resource name is: %s\n", n)
 }

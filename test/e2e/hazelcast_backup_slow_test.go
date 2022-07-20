@@ -7,7 +7,6 @@ import (
 	"strconv"
 	. "time"
 
-	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -90,14 +89,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(logs.Close()).Should(Succeed())
 
 		By("checking the Map size")
-		client := GetHzClient(ctx, hzLookupKey, true)
-		defer func() {
-			err := client.Shutdown(ctx)
-			Expect(err).To(BeNil())
-		}()
-		cl, err := client.GetMap(ctx, m.Name)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100)
 	})
 
 	It("should successfully start after one member restart", Label("slow"), func() {
@@ -139,19 +131,12 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(logs.Close()).Should(Succeed())
 
 		By("checking the Map size")
-		client := GetHzClient(ctx, hzLookupKey, true)
-		defer func() {
-			err := client.Shutdown(ctx)
-			Expect(err).To(BeNil())
-		}()
-		cl, err := client.GetMap(ctx, m.Name)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100)
 	})
 
 	It("should restore 10 GB data after planned shutdown", Label("slow"), func() {
 		setLabelAndCRName("hbs-3")
-		var mapSizeInGb = "10"
+		var mapSizeInGb = 10
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
 		if !ee {
@@ -167,9 +152,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(mapSizeInGb + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")}[0]
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the map config successfully")
@@ -209,9 +194,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(mapSizeInGb + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")}[0]
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
@@ -229,17 +214,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
 		By("checking the Map size")
-		var m *hzClient.Map
-		mapSize, _ := strconv.ParseFloat(mapSizeInGb, 64)
-		client := GetHzClient(ctx, hzLookupKey, true)
-		defer func() {
-			err := client.Shutdown(context.Background())
-			Expect(err).To(BeNil())
-		}()
-		m, _ = client.GetMap(ctx, dm.Name)
-		// 1310.72 entries per one Go routine.  Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
-		Eventually(func() (int, error) {
-			return m.Size(ctx)
-		}, 20*Minute, interval).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
+		WaitForMapSize(context.Background(), hzLookupKey, dm.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
 	})
 })

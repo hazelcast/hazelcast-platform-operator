@@ -2,6 +2,10 @@ package e2e
 
 import (
 	"context"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"math"
+	"strconv"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -48,56 +52,346 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 	})
 
-	It("should send data to another cluster", Label("slow"), func() {
+	It("should send data in active-passive mode on the same namespace", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("hw-1")
-		// Create source and target Hazelcast clusters
-		hazelcastSource := hazelcastconfig.ExposeExternallyUnisocket(hzSourceLookupKey, ee, labels)
+		setLabelAndCRName("hwap-1")
+		var mapSizeInGb = 10
+
+		By("creating source Hazelcast cluster")
+		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzSourceLookupKey, ee, labels)
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")},
+		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
-		hazelcastTarget := hazelcastconfig.ExposeExternallyUnisocket(hzTargetLookupKey, ee, labels)
+
+		By("creating target Hazelcast cluster")
+		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzTargetLookupKey, ee, labels)
+
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")},
+		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
+
 		evaluateReadyMembers(hzSourceLookupKey, 3)
 		evaluateReadyMembers(hzTargetLookupKey, 3)
 
 		_ = waitForLBAddress(hzSourceLookupKey)
 		targetAddress := waitForLBAddress(hzTargetLookupKey)
 
-		// Create map for source Hazelcast cluster
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcastSource.Name, labels)
+		By("Creating map for source Hazelcast cluster")
+		m := hazelcastconfig.DefaultMap(mapSourceLookupKey, hazelcastSource.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		// Create WAN configuration for the map
 		By("creating WAN configuration")
 		wan := hazelcastconfig.DefaultWanReplication(
-			wanLookupKey,
+			wanSourceLookupKey,
 			m.Name,
 			hazelcastTarget.Spec.ClusterName,
 			targetAddress,
 			labels,
 		)
+		wan.Spec.Queue.Capacity = 3000000
 		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
 
 		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
 			wan := &hazelcastcomv1alpha1.WanReplication{}
-			err := k8sClient.Get(context.Background(), wanLookupKey, wan)
+			err := k8sClient.Get(context.Background(), wanSourceLookupKey, wan)
 			if err != nil {
 				return hazelcastcomv1alpha1.WanStatusFailed, err
 			}
 			return wan.Status.Status, nil
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
-		// Fill the map in source cluster
-		mapSize := 1024
-		By("filling the source")
-		FillTheMapData(context.Background(), hzSourceLookupKey, true, m.Name, mapSize)
+		By("filling the Map")
+		FillTheMapWithHugeData(context.Background(), m.Name, mapSizeInGb, hazelcastSource)
 
-		// Wait for data to appear in target cluster
-		By("checking the size of the map in the target cluster")
-		waitForMapSize(context.Background(), hzTargetLookupKey, m.Name, mapSize)
+		By("checking the target Map size")
+		WaitForMapSize(context.Background(), hzTargetLookupKey, m.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+	})
+
+	It("should send data in active-active mode on the same namespace", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		var mapSizeInGb = 10
+		setLabelAndCRName("hwaa-1")
+
+		By("creating source Hazelcast cluster")
+		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzSourceLookupKey, ee, labels)
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*2) + "Gi")},
+		}
+		hazelcastSource.Spec.ClusterName = "source"
+		CreateHazelcastCR(hazelcastSource)
+		sourceAddress := waitForLBAddress(hzSourceLookupKey)
+		evaluateReadyMembers(hzSourceLookupKey, 3)
+
+		By("creating target Hazelcast cluster")
+		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzTargetLookupKey, ee, labels)
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*2) + "Gi")},
+		}
+		hazelcastTarget.Spec.ClusterName = "target"
+		CreateHazelcastCR(hazelcastTarget)
+		targetAddress := waitForLBAddress(hzTargetLookupKey)
+		evaluateReadyMembers(hzTargetLookupKey, 3)
+
+		By("Creating map for source Hazelcast cluster")
+		mapSrc := hazelcastconfig.DefaultMap(mapSourceLookupKey, hazelcastSource.Name, labels)
+		mapSrc.Spec.Name = "wanmap"
+		Expect(k8sClient.Create(context.Background(), mapSrc)).Should(Succeed())
+		mapSrc = assertMapStatus(mapSrc, hazelcastcomv1alpha1.MapSuccess)
+
+		By("Creating map for target Hazelcast cluster")
+		mapTrg := hazelcastconfig.DefaultMap(mapTargetLookupKey, hazelcastTarget.Name, labels)
+		mapTrg.Spec.Name = "wanmap"
+		Expect(k8sClient.Create(context.Background(), mapTrg)).Should(Succeed())
+		mapTrg = assertMapStatus(mapTrg, hazelcastcomv1alpha1.MapSuccess)
+
+		By("creating WAN configuration for source Hazelcast cluster")
+		wanSrc := hazelcastconfig.DefaultWanReplication(
+			wanSourceLookupKey,
+			mapSrc.Name,
+			hazelcastTarget.Spec.ClusterName,
+			targetAddress,
+			labels,
+		)
+		wanSrc.Spec.Queue.Capacity = 3000000
+		Expect(k8sClient.Create(context.Background(), wanSrc)).Should(Succeed())
+
+		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+			wanSrc := &hazelcastcomv1alpha1.WanReplication{}
+			err := k8sClient.Get(context.Background(), wanSourceLookupKey, wanSrc)
+			if err != nil {
+				return hazelcastcomv1alpha1.WanStatusFailed, err
+			}
+			return wanSrc.Status.Status, nil
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+
+		By("creating WAN configuration for target Hazelcast cluster")
+		wanTrg := hazelcastconfig.DefaultWanReplication(
+			wanTargetLookupKey,
+			mapTrg.Name,
+			hazelcastSource.Spec.ClusterName,
+			sourceAddress,
+			labels,
+		)
+		wanTrg.Spec.Queue.Capacity = 3000000
+
+		Expect(k8sClient.Create(context.Background(), wanTrg)).Should(Succeed())
+
+		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+			wanTrg := &hazelcastcomv1alpha1.WanReplication{}
+			err := k8sClient.Get(context.Background(), wanTargetLookupKey, wanTrg)
+			if err != nil {
+				return hazelcastcomv1alpha1.WanStatusFailed, err
+			}
+			return wanTrg.Status.Status, nil
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+
+		// 1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		By("filling the source Map")
+		FillTheMapWithHugeData(context.Background(), mapSrc.Spec.Name, mapSizeInGb, hazelcastSource)
+
+		By("checking the target Map size")
+		WaitForMapSize(context.Background(), hzTargetLookupKey, mapSrc.Spec.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+
+		By("filling the target Map")
+		FillTheMapWithHugeData(context.Background(), mapTrg.Spec.Name, mapSizeInGb, hazelcastTarget)
+
+		By("checking the source Map size")
+		WaitForMapSize(context.Background(), hzSourceLookupKey, mapTrg.Spec.Name, int(float64(mapSizeInGb*2)*math.Round(1310.72)*100))
+	})
+
+	It("should send data in active-passive mode on the different GKE clusters", Serial, Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hwapdc-1")
+		var mapSizeInGb = 10
+
+		By("creating source Hazelcast cluster")
+		SwitchKubeContext(context1)
+		setupEnv()
+		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzSourceLookupKey, ee, labels)
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")},
+		}
+		hazelcastSource.Spec.ClusterName = "source"
+		CreateHazelcastCR(hazelcastSource)
+		evaluateReadyMembers(hzSourceLookupKey, 3)
+		_ = waitForLBAddress(hzSourceLookupKey)
+
+		By("creating target Hazelcast cluster")
+		SwitchKubeContext(context2)
+		setupEnv()
+		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzTargetLookupKey, ee, labels)
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")},
+		}
+		hazelcastTarget.Spec.ClusterName = "target"
+		CreateHazelcastCR(hazelcastTarget)
+		evaluateReadyMembers(hzTargetLookupKey, 3)
+		targetAddress := waitForLBAddress(hzTargetLookupKey)
+
+		By("Creating map for source Hazelcast cluster")
+		SwitchKubeContext(context1)
+		setupEnv()
+		m := hazelcastconfig.DefaultMap(mapSourceLookupKey, hazelcastSource.Name, labels)
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+		By("creating WAN configuration")
+		wan := hazelcastconfig.DefaultWanReplication(
+			wanSourceLookupKey,
+			m.Name,
+			hazelcastTarget.Spec.ClusterName,
+			targetAddress,
+			labels,
+		)
+		wan.Spec.Queue.Capacity = 3000000
+		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+
+		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+			wan := &hazelcastcomv1alpha1.WanReplication{}
+			err := k8sClient.Get(context.Background(), wanSourceLookupKey, wan)
+			if err != nil {
+				return hazelcastcomv1alpha1.WanStatusFailed, err
+			}
+			return wan.Status.Status, nil
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+
+		By("filling the Map")
+		FillTheMapWithHugeData(context.Background(), m.Name, mapSizeInGb, hazelcastSource)
+
+		By("checking the target Map size")
+		SwitchKubeContext(context2)
+		setupEnv()
+		WaitForMapSize(context.Background(), hzTargetLookupKey, m.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+	})
+
+	It("should send data in active-active mode on the different GKE clusters", Serial, Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		var mapSizeInGb = 10
+		setLabelAndCRName("hwaadc-1")
+
+		By("creating source Hazelcast cluster")
+		SwitchKubeContext(context1)
+		setupEnv()
+		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzSourceLookupKey, ee, labels)
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*2) + "Gi")},
+		}
+		hazelcastSource.Spec.ClusterName = "source"
+		CreateHazelcastCR(hazelcastSource)
+		sourceAddress := waitForLBAddress(hzSourceLookupKey)
+		evaluateReadyMembers(hzSourceLookupKey, 3)
+
+		By("creating target Hazelcast cluster")
+		SwitchKubeContext(context2)
+		setupEnv()
+		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzTargetLookupKey, ee, labels)
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*2) + "Gi")},
+		}
+		hazelcastTarget.Spec.ClusterName = "target"
+		CreateHazelcastCR(hazelcastTarget)
+		targetAddress := waitForLBAddress(hzTargetLookupKey)
+		evaluateReadyMembers(hzTargetLookupKey, 3)
+
+		By("Creating map for source Hazelcast cluster")
+		SwitchKubeContext(context1)
+		setupEnv()
+		mapSrc := hazelcastconfig.DefaultMap(mapSourceLookupKey, hazelcastSource.Name, labels)
+		mapSrc.Spec.Name = "wanmap"
+		Expect(k8sClient.Create(context.Background(), mapSrc)).Should(Succeed())
+		mapSrc = assertMapStatus(mapSrc, hazelcastcomv1alpha1.MapSuccess)
+
+		By("Creating map for target Hazelcast cluster")
+		SwitchKubeContext(context2)
+		setupEnv()
+		mapTrg := hazelcastconfig.DefaultMap(mapTargetLookupKey, hazelcastTarget.Name, labels)
+		mapTrg.Spec.Name = "wanmap"
+		Expect(k8sClient.Create(context.Background(), mapTrg)).Should(Succeed())
+		mapTrg = assertMapStatus(mapTrg, hazelcastcomv1alpha1.MapSuccess)
+
+		By("creating WAN configuration for source Hazelcast cluster")
+		SwitchKubeContext(context1)
+		setupEnv()
+		wanSrc := hazelcastconfig.DefaultWanReplication(
+			wanSourceLookupKey,
+			mapSrc.Name,
+			hazelcastTarget.Spec.ClusterName,
+			targetAddress,
+			labels,
+		)
+		wanSrc.Spec.Queue.Capacity = 3000000
+		Expect(k8sClient.Create(context.Background(), wanSrc)).Should(Succeed())
+
+		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+			wanSrc := &hazelcastcomv1alpha1.WanReplication{}
+			err := k8sClient.Get(context.Background(), wanSourceLookupKey, wanSrc)
+			if err != nil {
+				return hazelcastcomv1alpha1.WanStatusFailed, err
+			}
+			return wanSrc.Status.Status, nil
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+
+		By("creating WAN configuration for target Hazelcast cluster")
+		SwitchKubeContext(context2)
+		setupEnv()
+		wanTrg := hazelcastconfig.DefaultWanReplication(
+			wanTargetLookupKey,
+			mapTrg.Name,
+			hazelcastSource.Spec.ClusterName,
+			sourceAddress,
+			labels,
+		)
+		wanTrg.Spec.Queue.Capacity = 3000000
+		Expect(k8sClient.Create(context.Background(), wanTrg)).Should(Succeed())
+
+		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+			wanTrg := &hazelcastcomv1alpha1.WanReplication{}
+			err := k8sClient.Get(context.Background(), wanTargetLookupKey, wanTrg)
+			if err != nil {
+				return hazelcastcomv1alpha1.WanStatusFailed, err
+			}
+			return wanTrg.Status.Status, nil
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+
+		// 1310.72 entries per one Go routine = 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
+		By("filling the source Map")
+		SwitchKubeContext(context1)
+		setupEnv()
+		FillTheMapWithHugeData(context.Background(), mapSrc.Spec.Name, mapSizeInGb, hazelcastSource)
+
+		By("checking the target Map size")
+		SwitchKubeContext(context2)
+		setupEnv()
+		WaitForMapSize(context.Background(), hzTargetLookupKey, mapSrc.Spec.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+
+		By("filling the target Map")
+		FillTheMapWithHugeData(context.Background(), mapTrg.Spec.Name, mapSizeInGb, hazelcastTarget)
+
+		By("checking the source Map size")
+		SwitchKubeContext(context1)
+		setupEnv()
+		WaitForMapSize(context.Background(), hzSourceLookupKey, mapTrg.Spec.Name, int(float64(mapSizeInGb*2)*math.Round(1310.72)*100))
+
 	})
 })
