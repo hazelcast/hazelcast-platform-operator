@@ -411,7 +411,7 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
-		cm.Data, err = hazelcastConfigMapData(r.Client, ctx, h)
+		cm.Data, err = hazelcastConfigMapData(ctx, r.Client, h)
 		return err
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -420,7 +420,7 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 	return err
 }
 
-func hazelcastConfigMapData(c client.Client, ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
+func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
 	mapList := &hazelcastv1alpha1.MapList{}
 	err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": h.Name})
 	if err != nil {
@@ -429,7 +429,7 @@ func hazelcastConfigMapData(c client.Client, ctx context.Context, h *hazelcastv1
 	ml := filterPersistedMaps(mapList.Items)
 
 	cfg := hazelcastConfigMapStruct(h)
-	err = fillHazelcastConfigWithMaps(c, ctx, &cfg, h, ml)
+	err = fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml)
 	if err != nil {
 		return nil, err
 	}
@@ -537,11 +537,11 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 	return "FULL_RECOVERY_ONLY"
 }
 
-func fillHazelcastConfigWithMaps(c client.Client, ctx context.Context, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
+func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
 	if len(ml) != 0 {
 		cfg.Map = map[string]config.Map{}
 		for _, mcfg := range ml {
-			m, err := createMapConfig(c, ctx, h, &mcfg)
+			m, err := createMapConfig(ctx, c, h, &mcfg)
 			if err != nil {
 				return err
 			}
@@ -551,7 +551,7 @@ func fillHazelcastConfigWithMaps(c client.Client, ctx context.Context, cfg *conf
 	return nil
 }
 
-func createMapConfig(c client.Client, ctx context.Context, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
+func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
 	ms := m.Spec
 	mc := config.Map{
 		BackupCount:       *ms.BackupCount,
@@ -577,7 +577,7 @@ func createMapConfig(c client.Client, ctx context.Context, hz *hazelcastv1alpha1
 	}
 
 	if ms.MapStore != nil {
-		msp, err := getMapStoreProperties(c, ctx, ms.MapStore.PropertiesSecretName, hz.Namespace)
+		msp, err := getMapStoreProperties(ctx, c, ms.MapStore.PropertiesSecretName, hz.Namespace)
 		if err != nil {
 			return config.Map{}, err
 		}
@@ -605,7 +605,7 @@ func wanReplicationRef(ref codecTypes.WanReplicationRef) map[string]config.WanRe
 	}
 }
 
-func getMapStoreProperties(c client.Client, ctx context.Context, sn, ns string) (map[string]string, error) {
+func getMapStoreProperties(ctx context.Context, c client.Client, sn, ns string) (map[string]string, error) {
 	if sn == "" {
 		return nil, nil
 	}

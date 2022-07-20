@@ -218,7 +218,7 @@ func (r *MapReconciler) ReconcileMapConfig(
 		)
 	} else {
 		mapInput := codecTypes.DefaultAddMapConfigInput()
-		err := fillAddMapConfigInput(r.Client, ctx, mapInput, hz, m)
+		err := fillAddMapConfigInput(ctx, r.Client, mapInput, hz, m)
 		if err != nil {
 			return nil, err
 		}
@@ -249,7 +249,7 @@ func (r *MapReconciler) ReconcileMapConfig(
 	return memberStatuses, nil
 }
 
-func fillAddMapConfigInput(c client.Client, ctx context.Context, mapInput *codecTypes.AddMapConfigInput, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) error {
+func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codecTypes.AddMapConfigInput, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) error {
 	mapInput.Name = m.MapName()
 
 	ms := m.Spec
@@ -265,7 +265,7 @@ func fillAddMapConfigInput(c client.Client, ctx context.Context, mapInput *codec
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
 	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)
 	if ms.MapStore != nil {
-		props, err := getMapStoreProperties(c, ctx, ms.MapStore.PropertiesSecretName, hz.Namespace)
+		props, err := getMapStoreProperties(ctx, c, ms.MapStore.PropertiesSecretName, hz.Namespace)
 		if err != nil {
 			return err
 		}
@@ -357,7 +357,7 @@ func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, h *haz
 	}
 
 	if mcfg, ok := hzConfig.Hazelcast.Map[m.MapName()]; !ok {
-		currentMcfg, err := createMapConfig(r.Client, ctx, h, m)
+		currentMcfg, err := createMapConfig(ctx, r.Client, h, m)
 		if err != nil {
 			return false, err
 		}
