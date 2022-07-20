@@ -161,6 +161,11 @@ jobs:
           esac
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} WORKFLOW_ID=aks
 
+      - name: Clean up after Tests
+        if: always()
+        run: |
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
+
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v3

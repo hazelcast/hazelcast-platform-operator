@@ -111,6 +111,11 @@ jobs:
         run: |
           make test-e2e NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=backup_slow WORKFLOW_ID=backup
 
+      - name: Clean up after Tests
+        if: always()
+        run: |
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
+
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v3
