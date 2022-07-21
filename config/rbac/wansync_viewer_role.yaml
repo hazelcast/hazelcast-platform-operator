@@ -1,0 +1,20 @@
+# permissions for end users to view wansyncs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: wansync-viewer-role
+rules:
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - wansyncs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - wansyncs/status
+  verbs:
+  - get

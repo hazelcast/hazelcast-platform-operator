@@ -53,6 +53,17 @@ type MapSpec struct {
 	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:validation:MinLength:=1
 	HazelcastResourceName string `json:"hazelcastResourceName"`
+
+	// MerkleTree defines the configuration for the Merkle tree data structure.
+	// +kubebuilder:default:={enabled: false}
+	// +optional
+	MerkleTree *MerkleTreeConfig `json:"merkleTree,omitempty"`
+}
+
+type MerkleTreeConfig struct {
+	// Depth of the merkle tree.
+	// +kubebuilder:default:=10
+	Depth int32 `json:"depth,omitempty"`
 }
 
 type EvictionConfig struct {

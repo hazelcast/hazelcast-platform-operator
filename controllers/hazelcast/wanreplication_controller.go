@@ -151,6 +151,7 @@ func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, clie
 		wan.Spec.Acknowledgement.Timeout,
 		convertAckType(wan.Spec.Acknowledgement.Type),
 		convertQueueBehavior(wan.Spec.Queue.FullBehavior),
+		string(wan.Spec.Sync.ConsistencyCheckStrategy),
 	}
 
 	err := addBatchPublisherConfig(ctx, client, req)
@@ -190,6 +191,7 @@ type addBatchPublisherRequest struct {
 	responseTimeoutMillis int32
 	ackType               int32
 	queueFullBehavior     int32
+	consistencyCheck      string
 }
 
 func addBatchPublisherConfig(

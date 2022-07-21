@@ -29,6 +29,26 @@ type WanReplicationSpec struct {
 	// Acknowledgement is the configuration for the condition when the next batch of WAN events are sent.
 	// +optional
 	Acknowledgement AcknowledgementSetting `json:"acknowledgement,omitempty"`
+
+	// Sync is the configuration for the WAN sync mechanism.
+	// +optional
+	Sync *Sync `json:"sync,omitempty"`
+}
+
+type ConsistencyCheckStrategy string
+
+const (
+	None        = "NONE"
+	MerkleTrees = "MERKLE_TREES"
+)
+
+// Sync configuration object for the WAN sync mechanism.
+type Sync struct {
+
+	// ConsistencyCheckStrategy is the strategy for checking the consistency of data between replicas.
+	// +kubebuilder:validation:Enum=MERKLE_TREES;THROW_EXCEPTION;NONE
+	// +kubebuilder:default:=NONE
+	ConsistencyCheckStrategy ConsistencyCheckStrategy `json:"consistencyCheckStrategy"`
 }
 
 // QueueSetting defines the configuration for Hazelcast WAN queue

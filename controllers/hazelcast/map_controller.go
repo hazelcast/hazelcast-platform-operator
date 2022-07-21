@@ -260,6 +260,12 @@ func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, hz *hazelcast
 	mapInput.IndexConfigs = copyIndexes(ms.Indexes)
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
 	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)
+	if ms.MerkleTree != nil {
+		mapInput.MerkleTreeConfig = codecTypes.MerkleTreeConfig{
+			Enabled: true,
+			Depth:   ms.MerkleTree.Depth,
+		}
+	}
 }
 
 func defaultWanReplicationRefCodec(hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) codecTypes.WanReplicationRef {
