@@ -19,7 +19,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast Map Config", Label("map"), func() {
+var _ = Describe("Hazelcast Map Config With Custom Class Upload", Label("map"), func() {
 	localPort := strconv.Itoa(8200 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
