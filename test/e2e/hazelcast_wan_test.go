@@ -52,12 +52,12 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 	})
 
-	It("should send data in active-passive mode on the same namespace", Label("slow"), func() {
+	It("should send 9 GB data in active-passive mode on the same namespace", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hwap-1")
-		var mapSizeInGb = 10
+		var mapSizeInGb = 1
 
 		By("creating source Hazelcast cluster")
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzSourceLookupKey, ee, labels)
@@ -70,7 +70,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 
 		By("creating target Hazelcast cluster")
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzTargetLookupKey, ee, labels)
-
 		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")},
@@ -116,11 +115,11 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		WaitForMapSize(context.Background(), hzTargetLookupKey, m.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
 	})
 
-	It("should send data in active-active mode on the same namespace", Label("slow"), func() {
+	It("should send 9 GB data in active-active mode on the same namespace", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		var mapSizeInGb = 10
+		var mapSizeInGb = 3
 		setLabelAndCRName("hwaa-1")
 
 		By("creating source Hazelcast cluster")
@@ -212,12 +211,12 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		WaitForMapSize(context.Background(), hzSourceLookupKey, mapTrg.Spec.Name, int(float64(mapSizeInGb*2)*math.Round(1310.72)*100))
 	})
 
-	It("should send data in active-passive mode on the different GKE clusters", Serial, Label("slow"), func() {
+	It("should send 9 GB data in active-passive mode on the different GKE clusters", Serial, Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hwapdc-1")
-		var mapSizeInGb = 10
+		var mapSizeInGb = 3
 
 		By("creating source Hazelcast cluster")
 		SwitchKubeContext(context1)
@@ -281,11 +280,11 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		WaitForMapSize(context.Background(), hzTargetLookupKey, m.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
 	})
 
-	It("should send data in active-active mode on the different GKE clusters", Serial, Label("slow"), func() {
+	It("should send 9 GB data in active-active mode on the different GKE clusters", Serial, Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		var mapSizeInGb = 10
+		var mapSizeInGb = 3
 		setLabelAndCRName("hwaadc-1")
 
 		By("creating source Hazelcast cluster")
