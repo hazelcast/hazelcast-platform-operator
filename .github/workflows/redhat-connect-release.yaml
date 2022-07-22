@@ -219,11 +219,6 @@ jobs:
           --zone ${{ env.GKE_ZONE }} \
           --project ${{ env.GCP_PROJECT_ID }}
 
-      - name: Clean up after Tests on ${{ matrix.cluster }} Cluster and ${{ matrix.namespace }} Namespace
-        if: always()
-        run: |
-          make clean-up-namespace NAMESPACE=${{ matrix.namespace }}
-
       - name: Delete ${{ matrix.cluster }} GKE Cluster
         if: always()
         run: |-
