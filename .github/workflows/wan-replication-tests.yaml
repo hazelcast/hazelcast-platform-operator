@@ -178,8 +178,8 @@ jobs:
     with:
       WORKFLOW_ID: wan
 
-  delete-gke-cluster:
-    name: Delete GKE Cluster
+  cleanup-namespaces:
+    name: Cleanup Namespaces
     if: always()
     needs: [create-gke-cluster, wan-gke-tests]
     runs-on: ubuntu-20.04
@@ -210,6 +210,30 @@ jobs:
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${{ matrix.namespace }}
+
+  delete-gke-cluster:
+    name: Delete GKE Cluster
+    if: always()
+    needs: [create-gke-cluster, wan-gke-tests, cleanup-namespaces]
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cluster: ["first", "second"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Authenticate To GCP
+        uses: 'google-github-actions/auth@v0.8.0'
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Connect To ${{ matrix.cluster }} GCP Cluster
+        run: |-
+          gcloud container clusters get-credentials ${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER} \
+          --zone ${{ env.GKE_ZONE }} \
+          --project ${{ env.GCP_PROJECT_ID }}
 
       - name: Delete ${{ matrix.cluster }} GKE Cluster
         if: always()
