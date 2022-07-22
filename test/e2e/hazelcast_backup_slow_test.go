@@ -135,9 +135,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		waitForMapSize(context.Background(), hzLookupKey, m.Name, 100)
 	})
 
-	It("should restore 10 GB data after planned shutdown", Label("slow"), func() {
+	It("should restore 9 GB data after planned shutdown", Label("slow"), func() {
 		setLabelAndCRName("hbs-3")
-		var mapSizeInGb = 10
+		var mapSizeInGb = 3
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
 		if !ee {
@@ -218,13 +218,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		waitForMapSize(context.Background(), hzLookupKey, dm.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
 	})
 
-	It("Should successfully restore 10 Gb data from external backup using GCP bucket", Label("slow"), func() {
+	It("Should successfully restore 9 Gb data from external backup using GCP bucket", Label("slow"), func() {
 		setLabelAndCRName("hbs-4")
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
 		ctx := context.Background()
-		var mapSizeInGb = 10
+		var mapSizeInGb = 3
 		var bucketURI = "gs://operator-e2e-external-backup"
 		var secretName = "br-secret-gcp"
 
@@ -265,6 +265,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			err := k8sClient.Get(
 				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
 			return hb.Status.State
 		}, 20*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
 
