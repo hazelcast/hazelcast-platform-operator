@@ -80,8 +80,6 @@ jobs:
         namespace: ["first-ns", "second-ns"]
         exclude:
           - cluster: second
-            namespace: first-ns
-          - cluster: second
             namespace: second-ns
     env:
       IMG: ${{ needs.get-image.outputs.IMG }}
@@ -191,8 +189,6 @@ jobs:
         cluster: ["first", "second"]
         namespace: ["first-ns", "second-ns"]
         exclude:
-          - cluster: second
-            namespace: first-ns
           - cluster: second
             namespace: second-ns
     steps:

@@ -1,7 +1,8 @@
 name: Wan Replication Tests
 on:
   workflow_dispatch:
-
+  schedule:
+    - cron: "0 9 * * *"
 
 env:
   GCP_PROJECT_ID: hazelcast-33
@@ -78,8 +79,6 @@ jobs:
         cluster: ["first", "second"]
         namespace: ["first-ns", "second-ns"]
         exclude:
-          - cluster: second
-            namespace: first-ns
           - cluster: second
             namespace: second-ns
     env:
@@ -162,10 +161,6 @@ jobs:
           --zone ${{ env.GKE_ZONE }} \
           --project ${{ env.GCP_PROJECT_ID }}
 
-      #- name: Run Wan Test
-        #run: make test-e2e NAMESPACE=first-ns NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=hz_wan WORKFLOW_ID=wan
-
-
   delete-gke-cluster:
     name: Delete GKE Cluster
     if: always()
@@ -177,8 +172,6 @@ jobs:
         cluster: ["first", "second"]
         namespace: ["first-ns", "second-ns"]
         exclude:
-          - cluster: second
-            namespace: first-ns
           - cluster: second
             namespace: second-ns
     steps:
