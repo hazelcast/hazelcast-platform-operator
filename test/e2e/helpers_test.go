@@ -78,6 +78,7 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
 	lk := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
+	message := ""
 	By("checking Hazelcast CR running", func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
 		Eventually(func() bool {
@@ -85,8 +86,9 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 			if err != nil {
 				return false
 			}
+			message = hz.Status.Message
 			return isHazelcastRunning(hz)
-		}, 10*Minute, interval).Should(BeTrue())
+		}, 10*Minute, interval).Should(BeTrue(), "Message: %v", message)
 	})
 }
 

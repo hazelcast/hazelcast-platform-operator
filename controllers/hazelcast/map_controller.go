@@ -217,7 +217,10 @@ func (r *MapReconciler) ReconcileMapConfig(
 		)
 	} else {
 		mapInput := codecTypes.DefaultAddMapConfigInput()
-		fillAddMapConfigInput(mapInput, hz, m)
+		err := fillAddMapConfigInput(ctx, r.Client, mapInput, hz, m)
+		if err != nil {
+			return nil, err
+		}
 		req = codec.EncodeDynamicConfigAddMapConfigRequest(mapInput)
 	}
 
@@ -245,7 +248,7 @@ func (r *MapReconciler) ReconcileMapConfig(
 	return memberStatuses, nil
 }
 
-func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) {
+func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codecTypes.AddMapConfigInput, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) error {
 	mapInput.Name = m.MapName()
 
 	ms := m.Spec
@@ -260,6 +263,27 @@ func fillAddMapConfigInput(mapInput *codecTypes.AddMapConfigInput, hz *hazelcast
 	mapInput.IndexConfigs = copyIndexes(ms.Indexes)
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
 	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)
+	if ms.MapStore != nil {
+		props, err := getMapStoreProperties(ctx, c, ms.MapStore.PropertiesSecretName, hz.Namespace)
+		if err != nil {
+			return err
+		}
+		// TODO: Temporary solution for https://github.com/hazelcast/hazelcast/issues/21799
+		if len(props) == 0 {
+			props = map[string]string{"no_empty_props_allowed": ""}
+		}
+		mapInput.MapStoreConfig.Enabled = true
+		mapInput.MapStoreConfig.ClassName = string(ms.MapStore.ClassName)
+		mapInput.MapStoreConfig.WriteCoalescing = true
+		if ms.MapStore.WriteCoealescing != nil {
+			mapInput.MapStoreConfig.WriteCoalescing = *ms.MapStore.WriteCoealescing
+		}
+		mapInput.MapStoreConfig.WriteDelaySeconds = ms.MapStore.WriteDelaySeconds
+		mapInput.MapStoreConfig.WriteBatchSize = ms.MapStore.WriteBatchSize
+		mapInput.MapStoreConfig.Properties = props
+		mapInput.MapStoreConfig.InitialLoadMode = string(ms.MapStore.InitialMode)
+	}
+	return nil
 }
 
 func defaultWanReplicationRefCodec(hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) codecTypes.WanReplicationRef {
@@ -272,16 +296,6 @@ func defaultWanReplicationRefCodec(hz *hazelcastv1alpha1.Hazelcast, m *hazelcast
 		MergePolicyClassName: n.DefaultMergePolicyClassName,
 		Filters:              []string{},
 		RepublishingEnabled:  true,
-	}
-}
-
-func wanReplicationRef(ref codecTypes.WanReplicationRef) map[string]config.WanReplicationReference {
-	return map[string]config.WanReplicationReference{
-		ref.Name: {
-			MergePolicyClassName: ref.MergePolicyClassName,
-			RepublishingEnabled:  ref.RepublishingEnabled,
-			Filters:              ref.Filters,
-		},
 	}
 }
 
@@ -342,7 +356,10 @@ func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, h *haz
 	}
 
 	if mcfg, ok := hzConfig.Hazelcast.Map[m.MapName()]; !ok {
-		currentMcfg := createMapConfig(h, m)
+		currentMcfg, err := createMapConfig(ctx, r.Client, h, m)
+		if err != nil {
+			return false, err
+		}
 		if !reflect.DeepEqual(mcfg, currentMcfg) { // TODO replace DeepEqual with custom implementation
 			return false, nil
 		}

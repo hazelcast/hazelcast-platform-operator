@@ -2338,6 +2338,46 @@ spec:
                   - type
                   type: object
                 type: array
+              mapStore:
+                description: Configuration options when you want to load/store the
+                  map entries from/to a persistent data store such as a relational
+                  database You can learn more at https://docs.hazelcast.com/hazelcast/latest/data-structures/working-with-external-data
+                properties:
+                  className:
+                    description: Name of your class implementing MapLoader and/or
+                      MapStore interface.
+                    type: string
+                  initialMode:
+                    default: LAZY
+                    description: Sets the initial entry loading mode.
+                    enum:
+                    - LAZY
+                    - EAGER
+                    type: string
+                  propertiesSecretName:
+                    description: Properties can be used for giving information to
+                      the MapStore implementation
+                    type: string
+                  writeBatchSize:
+                    default: 1
+                    description: Used to create batches when writing to map store.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  writeCoealescing:
+                    default: true
+                    description: It is meaningful if you are using write behind in
+                      MapStore. When it is set to true, only the latest store operation
+                      on a key during the write-delay-seconds will be reflected to
+                      MapStore.
+                    type: boolean
+                  writeDelaySeconds:
+                    description: Number of seconds to delay the storing of entries.
+                    format: int32
+                    type: integer
+                required:
+                - className
+                type: object
               maxIdleSeconds:
                 default: 0
                 description: Maximum time in seconds for each entry to stay idle in
@@ -2571,6 +2611,13 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
   - watch
 - apiGroups:
   - apps
