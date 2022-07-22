@@ -6,11 +6,10 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  KUBECTL_VERSION: 1.22.0
 jobs:
   prepare-env:
     name: Create EKS cluster
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     outputs:
       CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
     steps:
@@ -45,20 +44,11 @@ jobs:
     needs: "prepare-env"
     env:
       NR_CLUSTER_NAME: gke-operator
-      KUBECTL_VERSION: 1.22.0
       CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Install kubectl
-        run: |
-          mkdir -p ${GITHUB_WORKSPACE}/bin
-          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
-          -o ${GITHUB_WORKSPACE}/bin/kubectl
-          chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -71,11 +61,8 @@ jobs:
         run: |-
           aws eks update-kubeconfig --name "${{ env.CLUSTER_NAME }}"
 
-      - name: Install helm and New Relic repo
+      - name: Install New Relic repo
         run: |
-          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-          chmod 700 get_helm.sh
-          ./get_helm.sh
           helm repo add newrelic https://helm-charts.newrelic.com
 
       - name: Install New Relic agent
@@ -91,10 +78,32 @@ jobs:
             --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
             newrelic/nri-bundle
 
+  get-image:
+    name: Get Image
+    runs-on: ubuntu-latest
+    outputs:
+      IMG: ${{ steps.build-img.outputs.IMG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build and push image to ttl.sh
+        id: build-img
+        run: |
+          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
+            IMG=ttl.sh/$(uuidgen):2h
+            echo "::set-output name=IMG::${IMG}"
+            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+            make docker-push IMG=$IMG
+          else
+            IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
+            echo "::set-output name=IMG::${IMG}"
+          fi
+
   eks-e2e-tests:
     name: Run e2e test on EKS
-    runs-on: ubuntu-20.04
-    needs: ["prepare-env", "new-relic-setup"]
+    runs-on: ubuntu-latest
+    needs: ["prepare-env", "new-relic-setup", "get-image"]
     defaults:
       run:
         shell: bash
@@ -104,16 +113,11 @@ jobs:
         edition: ["os", "ee"]
     env:
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
-      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+      IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Set up Golang
-        uses: actions/setup-go@v3
-        with:
-          go-version: "1.16"
 
       - name: Cache Golang dependencies
         uses: actions/cache@v3
@@ -122,13 +126,6 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-
-      - name: Install kubectl
-        run: |
-          mkdir -p ${GITHUB_WORKSPACE}/bin
-          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-          curl -L https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl \
-            -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -141,15 +138,6 @@ jobs:
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
-
-      - name: Build Image
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          IMG=ttl.sh/$(uuidgen):1h
-          echo "IMG=${IMG}" >> $GITHUB_ENV
-
-          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-          make docker-push IMG=$IMG
 
       - name: Deploy Operator to EKS
         run: |
@@ -210,7 +198,7 @@ jobs:
 
   delete-cluster:
     name: Delete EKS cluster
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: always()
     needs: ["prepare-env", "eks-e2e-tests"]
     steps:

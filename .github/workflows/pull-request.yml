@@ -24,15 +24,10 @@ concurrency:
 jobs:
   linter:
     name: Run linters
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Set up Golang
-        uses: actions/setup-go@v3
-        with:
-          go-version: "1.16"
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3.1.0
@@ -58,15 +53,10 @@ jobs:
 
   unit-tests:
     name: Run unit and integration tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Set up Golang
-        uses: actions/setup-go@v3
-        with:
-          go-version: "1.16"
 
       - name: Cache Golang dependencies
         uses: actions/cache@v3
@@ -87,8 +77,8 @@ jobs:
 
   create-gke-cluster:
     name: Create GKE cluster and push image
-    runs-on: ubuntu-20.04
-    needs: ['unit-tests','linter']
+    runs-on: ubuntu-latest
+    needs: ['unit-tests']
     if: >-
       ( !cancelled()
       && ((github.event_name == 'pull_request_target'
@@ -98,8 +88,7 @@ jobs:
           ||
           (github.event_name == 'pull_request'
             && github.event.pull_request.head.repo.full_name == github.repository))
-      && needs.unit-tests.result == 'success'
-      && needs.linter.result == 'success')
+      && needs.unit-tests.result == 'success')
     outputs:
       CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
     env:
@@ -119,11 +108,6 @@ jobs:
         with:
           ref: ${{steps.decide-ref.outputs.ref}}
 
-      - name: Set up Golang
-        uses: actions/setup-go@v3
-        with:
-          go-version: "1.16"
-
       - name: Cache Golang dependencies
         uses: actions/cache@v3
         with:
@@ -136,11 +120,6 @@ jobs:
         uses: "google-github-actions/auth@v0.7.0"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.6.0
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Create GKE cluster
         id: set-cluster-name
@@ -155,10 +134,28 @@ jobs:
             --num-nodes=2
           sleep 30
 
+  get-image:
+    name: Get Image
+    runs-on: ubuntu-latest
+    outputs:
+      IMG: ${{ steps.build-img.outputs.IMG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build and push image to ttl.sh
+        id: build-img
+        run: |
+            IMG=ttl.sh/$(uuidgen):2h
+            echo "::set-output name=IMG::${IMG}"
+
+            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+            make docker-push IMG=$IMG
+
   gke-e2e-tests:
     name: Run E2E tests
-    runs-on: ubuntu-20.04
-    needs: create-gke-cluster
+    runs-on: ubuntu-latest
+    needs: [create-gke-cluster, get-image]
     if: (!cancelled() && needs.create-gke-cluster.result == 'success')
     strategy:
       fail-fast: false
@@ -168,7 +165,7 @@ jobs:
       NAMESPACE: test-operator-${{ matrix.edition }}
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
-      KUBECTL_VERSION: 1.22.0
+      IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Decide which ref to checkout
         id: decide-ref
@@ -184,11 +181,6 @@ jobs:
         with:
           ref: ${{steps.decide-ref.outputs.ref}}
 
-      - name: Set up Golang
-        uses: actions/setup-go@v3
-        with:
-          go-version: "1.16"
-
       - name: Cache Golang dependencies
         uses: actions/cache@v3
         with:
@@ -197,36 +189,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Install kubectl
-        run: |
-          mkdir -p ${GITHUB_WORKSPACE}/bin
-          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
-            -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
-
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v0.7.0"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.6.0
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Connect to the GKE cluster
         run: |
           gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
             --zone ${{ env.GKE_ZONE }} \
             --project ${{ env.GCP_PROJECT_ID }}
-
-      - name: Build Operator Image and Push to Ephemeral Registry(ttl.sh)
-        run: |
-          IMAGE=ttl.sh/$(uuidgen):1h
-          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
-
-          make docker-build-ci IMG=$IMAGE VERSION=${{github.sha}}
-          make docker-push IMG=$IMAGE
 
       - name: Deploy Operator to GKE
         run: |
@@ -236,7 +208,7 @@ jobs:
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
 
-          make deploy IMG=$IMAGE NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secret
@@ -274,7 +246,7 @@ jobs:
 
   delete-cluster:
     name: Delete Cluster
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: (always() && needs.create-gke-cluster.result != 'skipped')
     needs: [create-gke-cluster, gke-e2e-tests]
     env:
@@ -284,11 +256,6 @@ jobs:
         uses: "google-github-actions/auth@v0.7.0"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.6.0
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Delete GKE cluster
         run: |-

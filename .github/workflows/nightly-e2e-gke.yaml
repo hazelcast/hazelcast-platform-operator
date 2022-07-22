@@ -11,18 +11,16 @@ env:
 jobs:
   create-gke-cluster:
     name: Create GKE cluster
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     outputs:
       CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
     env:
       GCP_NETWORK: operator-test-network
     steps:
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.6.0
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v0.7.0'
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GKE_SA_KEY }}
-          export_default_credentials: true
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
 
       - name: Create GKE cluster
         id: set-cluster-name
@@ -43,40 +41,24 @@ jobs:
     env:
       NR_CLUSTER_NAME: gke-operator
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      KUBECTL_VERSION: 1.22.0
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Install kubectl
-        run: |
-          mkdir -p ${GITHUB_WORKSPACE}/bin
-          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
-          -o ${GITHUB_WORKSPACE}/bin/kubectl
-          chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v0.7.0"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.6.0
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-
       - name: Connect to the GKE cluster
         run: |
           gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
-            --zone ${{ env.GKE_ZONE }} --project ${{ env.GCP_PROJECT_ID }}
+            --zone ${{ env.GKE_ZONE }} \
+            --project ${{ env.GCP_PROJECT_ID }}
 
-      - name: Install helm and New Relic repo
+      - name: Install New Relic repo
         run: |
-          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-          chmod 700 get_helm.sh
-          ./get_helm.sh
           helm repo add newrelic https://helm-charts.newrelic.com
 
       - name: Install New Relic agent
@@ -91,29 +73,45 @@ jobs:
             --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
             newrelic/nri-bundle
 
+  get-image:
+    name: Get Image
+    runs-on: ubuntu-latest
+    outputs:
+      IMG: ${{ steps.build-img.outputs.IMG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build and push image to ttl.sh
+        id: build-img
+        run: |
+          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
+            IMG=ttl.sh/$(uuidgen):2h
+            echo "::set-output name=IMG::${IMG}"
+            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+            make docker-push IMG=$IMG
+          else
+            IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
+            echo "::set-output name=IMG::${IMG}"
+          fi
+
   gke-e2e-tests:
     name: Run E2E tests
-    runs-on: ubuntu-20.04
-    needs: [create-gke-cluster, new-relic-setup]
+    runs-on: ubuntu-latest
+    needs: [create-gke-cluster, new-relic-setup, get-image]
     strategy:
       fail-fast: false
       matrix:
         edition: ["os", "ee"]
     env:
-      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
-      KUBECTL_VERSION: 1.22.0
+      IMG: ${{ needs.get-image.outputs.IMG }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Set up Golang
-        uses: actions/setup-go@v3
-        with:
-          go-version: "1.16"
 
       - name: Cache Golang dependencies
         uses: actions/cache@v3
@@ -123,37 +121,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Install kubectl
-        run: |
-          mkdir -p ${GITHUB_WORKSPACE}/bin
-          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
-            -o ${GITHUB_WORKSPACE}/bin/kubectl
-          chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
-
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v0.7.0"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.6.0
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-
       - name: Connect to the GKE cluster
         run: |
           gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
-            --zone ${{ env.GKE_ZONE }} --project ${{ env.GCP_PROJECT_ID }}
-
-      - name: Build Image
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          IMG=ttl.sh/$(uuidgen):1h
-          echo "IMG=${IMG}" >> $GITHUB_ENV
-
-          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-          make docker-push IMG=$IMG
+            --zone ${{ env.GKE_ZONE }} \
+            --project ${{ env.GCP_PROJECT_ID }}
 
       - name: Deploy Operator to GKE
         run: |
@@ -177,9 +154,9 @@ jobs:
             --from-literal=region=us-east-1 \
             --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
             --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          
+
           kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
-          
+
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
             --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
@@ -215,18 +192,16 @@ jobs:
 
   delete-cluster:
     name: Delete GKE cluster
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: always()
     needs: [create-gke-cluster, gke-e2e-tests]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.6.0
+      - name: Authenticate to GCP
+        uses: "google-github-actions/auth@v0.7.0"
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GKE_SA_KEY }}
-          export_default_credentials: true
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
 
       - name: Delete GKE cluster
         if: always()
