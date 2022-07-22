@@ -143,6 +143,7 @@ func main() {
 	if err = hazelcast.NewWanReplicationReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("WanReplication"),
+		mgr.GetScheme(),
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controllers", "WanReplication")
 		os.Exit(1)
