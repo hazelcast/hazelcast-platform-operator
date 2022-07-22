@@ -37,8 +37,16 @@ jobs:
           gh_pages: test-report-pages
           allure_report: allure-report
           allure_history: allure-history
-          keep_reports: 30
+          keep_reports: 100
           subfolder: ${{ inputs.WORKFLOW_ID }}
+
+      - name: Update Test Files
+        run: |
+          sudo chown -R $USER:$USER allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/data/test-cases
+          cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/data/test-cases
+          for i in $(ls); do
+           cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not)) )) | .testStage.steps[].hasContent=true |.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID"))} | del(.testStage.steps[] | select(.name | select(contains("CR_ID")))) | .links=[{"name":"https://one.newrelic.com/logger","url":"https://one.newrelic.com/logger"}]|.extra.tags.tag |= sub("CR_ID:"; "")' $i) > $i
+          done
 
       - name: Replace index.html Content
         if: always()

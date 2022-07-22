@@ -39,6 +39,7 @@ func setLabelAndCRName(n string) {
 	wanLookupKey.Name = n
 	mcLookupKey.Name = n
 	GinkgoWriter.Printf("Resource name is: %s\n", n)
+	AddReportEntry("CR_ID:" + n)
 }
 
 const charset = "abcdefghijklmnopqrstuvwxyz" +
