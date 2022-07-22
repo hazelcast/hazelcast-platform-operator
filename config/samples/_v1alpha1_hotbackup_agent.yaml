@@ -4,7 +4,7 @@ metadata:
   name: hot-backup
 spec:
   hazelcastResourceName: hazelcast
-  bucketURI: "s3://operator-backup"
+  bucketURI: "s3://operator-e2e-external-backup"
   secret: "br-secret-s3"
 
 #  bucketURI: "gs://operator-agent-backup"
