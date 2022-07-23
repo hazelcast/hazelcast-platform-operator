@@ -1,0 +1,172 @@
+{
+  "uid": "2b2229b00a162b1c",
+  "name": "[It] Hazelcast Map Config should create Map Config [map, fast]",
+  "historyId": "Operator Suite EE:Operator Suite EE#[It] Hazelcast Map Config should create Map Config [map, fast]",
+  "time": {
+    "start": 1658567325000,
+    "stop": 1658567345694,
+    "duration": 20694
+  },
+  "status": "passed",
+  "flaky": false,
+  "newFailed": false,
+  "newBroken": false,
+  "newPassed": false,
+  "retriesCount": 0,
+  "retriesStatusChange": false,
+  "beforeStages": [],
+  "testStage": {
+    "steps": [
+      {
+        "name": "&{Text:Checking hazelcast-platform-controller-manager running Duration:54.625109ms}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:creating Hazelcast CR Duration:57.222514ms}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:checking Hazelcast CR running Duration:13.832350734s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:waiting for Map CR status Duration:5.377527591s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      }
+    ],
+    "attachments": [],
+    "parameters": [],
+    "stepsCount": 25,
+    "attachmentsCount": 0,
+    "shouldDisplayMessage": false,
+    "hasContent": true
+  },
+  "afterStages": [],
+  "labels": [
+    {
+      "name": "resultFormat",
+      "value": "junit"
+    },
+    {
+      "name": "suite",
+      "value": "Operator Suite EE"
+    },
+    {
+      "name": "testClass",
+      "value": "Operator Suite EE"
+    },
+    {
+      "name": "package",
+      "value": "Operator Suite EE"
+    }
+  ],
+  "parameters": [],
+  "links": [
+    {
+      "name": "https://one.newrelic.com/logger",
+      "url": "https://one.newrelic.com/logger"
+    }
+  ],
+  "hidden": false,
+  "retry": false,
+  "extra": {
+    "severity": "normal",
+    "retries": [],
+    "categories": [],
+    "history": {
+      "statistic": {
+        "failed": 0,
+        "broken": 0,
+        "skipped": 0,
+        "passed": 6,
+        "unknown": 0,
+        "total": 6
+      },
+      "items": [
+        {
+          "uid": "31b7fcbe391da664",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/259//#testresult/31b7fcbe391da664",
+          "status": "passed",
+          "time": {
+            "start": 1658480926000,
+            "stop": 1658480943600,
+            "duration": 17600
+          }
+        },
+        {
+          "uid": "73ac239086e95559",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/258//#testresult/73ac239086e95559",
+          "status": "passed",
+          "time": {
+            "start": 1658394515000,
+            "stop": 1658394532373,
+            "duration": 17373
+          }
+        },
+        {
+          "uid": "91c5808451bd3447",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/257//#testresult/91c5808451bd3447",
+          "status": "passed",
+          "time": {
+            "start": 1658308132000,
+            "stop": 1658308149133,
+            "duration": 17133
+          }
+        },
+        {
+          "uid": "c325a7251200f771",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/256//#testresult/c325a7251200f771",
+          "status": "passed",
+          "time": {
+            "start": 1658222172000,
+            "stop": 1658222194397,
+            "duration": 22397
+          }
+        },
+        {
+          "uid": "d08259e029c08c47",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/255//#testresult/d08259e029c08c47",
+          "status": "passed",
+          "time": {
+            "start": 1658135340000,
+            "stop": 1658135357283,
+            "duration": 17283
+          }
+        }
+      ]
+    },
+    "tags": {
+      "tag": "hm-1-9dh8cl"
+    }
+  },
+  "source": "2b2229b00a162b1c.json",
+  "parameterValues": []
+}

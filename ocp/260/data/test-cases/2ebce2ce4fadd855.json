@@ -1,0 +1,150 @@
+{
+  "uid": "2ebce2ce4fadd855",
+  "name": "[It] Hazelcast External API errors should be reflected to Hazelcast CR status [hz, fast]",
+  "historyId": "Operator Suite EE:Operator Suite EE#[It] Hazelcast External API errors should be reflected to Hazelcast CR status [hz, fast]",
+  "time": {
+    "start": 1658567325000,
+    "stop": 1658567331695,
+    "duration": 6695
+  },
+  "status": "passed",
+  "flaky": false,
+  "newFailed": false,
+  "newBroken": false,
+  "newPassed": false,
+  "retriesCount": 0,
+  "retriesStatusChange": false,
+  "beforeStages": [],
+  "testStage": {
+    "steps": [
+      {
+        "name": "&{Text:Checking hazelcast-platform-controller-manager running Duration:55.660219ms}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:creating Hazelcast CR Duration:57.995624ms}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      }
+    ],
+    "attachments": [],
+    "parameters": [],
+    "stepsCount": 15,
+    "attachmentsCount": 0,
+    "shouldDisplayMessage": false,
+    "hasContent": true
+  },
+  "afterStages": [],
+  "labels": [
+    {
+      "name": "resultFormat",
+      "value": "junit"
+    },
+    {
+      "name": "suite",
+      "value": "Operator Suite EE"
+    },
+    {
+      "name": "testClass",
+      "value": "Operator Suite EE"
+    },
+    {
+      "name": "package",
+      "value": "Operator Suite EE"
+    }
+  ],
+  "parameters": [],
+  "links": [
+    {
+      "name": "https://one.newrelic.com/logger",
+      "url": "https://one.newrelic.com/logger"
+    }
+  ],
+  "hidden": false,
+  "retry": false,
+  "extra": {
+    "severity": "normal",
+    "retries": [],
+    "categories": [],
+    "history": {
+      "statistic": {
+        "failed": 0,
+        "broken": 0,
+        "skipped": 0,
+        "passed": 6,
+        "unknown": 0,
+        "total": 6
+      },
+      "items": [
+        {
+          "uid": "e3783225820aeb51",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/259//#testresult/e3783225820aeb51",
+          "status": "passed",
+          "time": {
+            "start": 1658480926000,
+            "stop": 1658480932263,
+            "duration": 6263
+          }
+        },
+        {
+          "uid": "d915ca25f967ebf6",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/258//#testresult/d915ca25f967ebf6",
+          "status": "passed",
+          "time": {
+            "start": 1658394515000,
+            "stop": 1658394521196,
+            "duration": 6196
+          }
+        },
+        {
+          "uid": "101979dc88161347",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/257//#testresult/101979dc88161347",
+          "status": "passed",
+          "time": {
+            "start": 1658308132000,
+            "stop": 1658308139577,
+            "duration": 7577
+          }
+        },
+        {
+          "uid": "654d195d513b0113",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/256//#testresult/654d195d513b0113",
+          "status": "passed",
+          "time": {
+            "start": 1658222172000,
+            "stop": 1658222178995,
+            "duration": 6995
+          }
+        },
+        {
+          "uid": "367e5b6196b7ea31",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/255//#testresult/367e5b6196b7ea31",
+          "status": "passed",
+          "time": {
+            "start": 1658135340000,
+            "stop": 1658135346459,
+            "duration": 6459
+          }
+        }
+      ]
+    },
+    "tags": {
+      "tag": "h-5-imexzr"
+    }
+  },
+  "source": "2ebce2ce4fadd855.json",
+  "parameterValues": []
+}
