@@ -1,0 +1,295 @@
+{
+  "uid": "83ca604eefc165ea",
+  "name": "[It] Hazelcast CR with expose externally feature should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client [hz_expose_externally, slow]",
+  "historyId": "Operator Suite EE:Operator Suite EE#[It] Hazelcast CR with expose externally feature should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client [hz_expose_externally, slow]",
+  "time": {
+    "start": 1658567574000,
+    "stop": 1658567638424,
+    "duration": 64424
+  },
+  "status": "passed",
+  "flaky": false,
+  "newFailed": false,
+  "newBroken": false,
+  "newPassed": false,
+  "retriesCount": 0,
+  "retriesStatusChange": false,
+  "beforeStages": [],
+  "testStage": {
+    "steps": [
+      {
+        "name": "&{Text:Checking hazelcast-platform-controller-manager running Duration:67.718699ms}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:creating Hazelcast CR Duration:73.131415ms}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:checking Hazelcast CR running Duration:12.954621642s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:connecting Hazelcast client Duration:0s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:using Hazelcast client Duration:0s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:status external addresses should not be empty Duration:0s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      }
+    ],
+    "attachments": [],
+    "parameters": [],
+    "stepsCount": 70,
+    "attachmentsCount": 0,
+    "shouldDisplayMessage": false,
+    "hasContent": true
+  },
+  "afterStages": [],
+  "labels": [
+    {
+      "name": "resultFormat",
+      "value": "junit"
+    },
+    {
+      "name": "suite",
+      "value": "Operator Suite EE"
+    },
+    {
+      "name": "testClass",
+      "value": "Operator Suite EE"
+    },
+    {
+      "name": "package",
+      "value": "Operator Suite EE"
+    }
+  ],
+  "parameters": [],
+  "links": [
+    {
+      "name": "https://one.newrelic.com/logger",
+      "url": "https://one.newrelic.com/logger"
+    }
+  ],
+  "hidden": false,
+  "retry": false,
+  "extra": {
+    "severity": "normal",
+    "retries": [],
+    "categories": [],
+    "history": {
+      "statistic": {
+        "failed": 0,
+        "broken": 1,
+        "skipped": 0,
+        "passed": 15,
+        "unknown": 0,
+        "total": 16
+      },
+      "items": [
+        {
+          "uid": "a4f1eac1553c8ff2",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/246//#testresult/a4f1eac1553c8ff2",
+          "status": "passed",
+          "time": {
+            "start": 1658481192000,
+            "stop": 1658481233788,
+            "duration": 41788
+          }
+        },
+        {
+          "uid": "47f01b976a17a3",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/245//#testresult/47f01b976a17a3",
+          "status": "passed",
+          "time": {
+            "start": 1658394759000,
+            "stop": 1658394880058,
+            "duration": 121058
+          }
+        },
+        {
+          "uid": "360e43f27615b9c3",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/244//#testresult/360e43f27615b9c3",
+          "status": "passed",
+          "time": {
+            "start": 1658308372000,
+            "stop": 1658308462346,
+            "duration": 90346
+          }
+        },
+        {
+          "uid": "893e5db885cf8021",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/243//#testresult/893e5db885cf8021",
+          "status": "passed",
+          "time": {
+            "start": 1658222749000,
+            "stop": 1658222785911,
+            "duration": 36911
+          }
+        },
+        {
+          "uid": "caa72736c16202d0",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/242//#testresult/caa72736c16202d0",
+          "status": "passed",
+          "time": {
+            "start": 1658135537000,
+            "stop": 1658135604055,
+            "duration": 67055
+          }
+        },
+        {
+          "uid": "aa76e09607007788",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/241//#testresult/aa76e09607007788",
+          "status": "passed",
+          "time": {
+            "start": 1658049055000,
+            "stop": 1658049130851,
+            "duration": 75851
+          }
+        },
+        {
+          "uid": "b7c6447429a74d50",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/240//#testresult/b7c6447429a74d50",
+          "status": "broken",
+          "statusDetails": "interrupted",
+          "time": {
+            "start": 1657962664000,
+            "stop": 1657962863720,
+            "duration": 199720
+          }
+        },
+        {
+          "uid": "4f6bafd1f3478fbf",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/239//#testresult/4f6bafd1f3478fbf",
+          "status": "passed",
+          "time": {
+            "start": 1657876326000,
+            "stop": 1657876409371,
+            "duration": 83371
+          }
+        },
+        {
+          "uid": "f4d9b9074696ec63",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/238//#testresult/f4d9b9074696ec63",
+          "status": "passed",
+          "time": {
+            "start": 1657789926000,
+            "stop": 1657790000518,
+            "duration": 74518
+          }
+        },
+        {
+          "uid": "4db4dac46de43750",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/237//#testresult/4db4dac46de43750",
+          "status": "passed",
+          "time": {
+            "start": 1657703527000,
+            "stop": 1657703550901,
+            "duration": 23901
+          }
+        },
+        {
+          "uid": "16683d526e706a0f",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/236//#testresult/16683d526e706a0f",
+          "status": "passed",
+          "time": {
+            "start": 1657618216000,
+            "stop": 1657618270045,
+            "duration": 54045
+          }
+        },
+        {
+          "uid": "e714f4312e2fb9b",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/235//#testresult/e714f4312e2fb9b",
+          "status": "passed",
+          "time": {
+            "start": 1657530701000,
+            "stop": 1657530760292,
+            "duration": 59292
+          }
+        },
+        {
+          "uid": "f5b386f690392cca",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/234//#testresult/f5b386f690392cca",
+          "status": "passed",
+          "time": {
+            "start": 1657444296000,
+            "stop": 1657444375142,
+            "duration": 79142
+          }
+        },
+        {
+          "uid": "6f5dea5cd09de901",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/233//#testresult/6f5dea5cd09de901",
+          "status": "passed",
+          "time": {
+            "start": 1657371429000,
+            "stop": 1657371544674,
+            "duration": 115674
+          }
+        },
+        {
+          "uid": "10f50e8ade9f2589",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/aks/232//#testresult/10f50e8ade9f2589",
+          "status": "passed",
+          "time": {
+            "start": 1657357853000,
+            "stop": 1657357891682,
+            "duration": 38682
+          }
+        }
+      ]
+    },
+    "tags": {
+      "tag": "hee-2-1j9vd4"
+    }
+  },
+  "source": "83ca604eefc165ea.json",
+  "parameterValues": []
+}
