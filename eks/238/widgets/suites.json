@@ -1,0 +1,1 @@
+{"total":2,"items":[{"uid":"fb850ba25ceb06c7b2b56dd821744585","name":"Operator Suite EE","statistic":{"failed":3,"broken":0,"skipped":3,"passed":30,"unknown":0,"total":36}},{"uid":"0b301d038a17885b818e60273771cfeb","name":"Operator Suite OS","statistic":{"failed":0,"broken":0,"skipped":15,"passed":21,"unknown":0,"total":36}}]}
