@@ -1,0 +1,226 @@
+{
+  "uid": "14a5d1d7cc5659f5",
+  "name": "[It] Hazelcast Map Config with Persistence should continue persisting last applied Map Config in case of failure [map_persistence, fast]",
+  "historyId": "Operator Suite EE:Operator Suite EE#[It] Hazelcast Map Config with Persistence should continue persisting last applied Map Config in case of failure [map_persistence, fast]",
+  "time": {
+    "start": 1658653727000,
+    "stop": 1658653754885,
+    "duration": 27885
+  },
+  "status": "passed",
+  "flaky": false,
+  "newFailed": false,
+  "newBroken": false,
+  "newPassed": false,
+  "retriesCount": 0,
+  "retriesStatusChange": false,
+  "beforeStages": [],
+  "testStage": {
+    "steps": [
+      {
+        "name": "&{Text:Checking hazelcast-platform-controller-manager running Duration:20.334768ms}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:creating Hazelcast CR Duration:23.124305ms}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:checking Hazelcast CR running Duration:19.466224137s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:waiting for Map CR status Duration:1.04509169s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:checking if the map config is persisted Duration:0s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:failing to update the map config Duration:0s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:waiting for Map CR status Duration:20.889074ms}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      },
+      {
+        "name": "&{Text:checking if the same map config is still there Duration:0s}",
+        "time": {},
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+        "stepsCount": 0,
+        "attachmentsCount": 0,
+        "shouldDisplayMessage": false,
+        "hasContent": true
+      }
+    ],
+    "attachments": [],
+    "parameters": [],
+    "stepsCount": 45,
+    "attachmentsCount": 0,
+    "shouldDisplayMessage": false,
+    "hasContent": true
+  },
+  "afterStages": [],
+  "labels": [
+    {
+      "name": "resultFormat",
+      "value": "junit"
+    },
+    {
+      "name": "suite",
+      "value": "Operator Suite EE"
+    },
+    {
+      "name": "testClass",
+      "value": "Operator Suite EE"
+    },
+    {
+      "name": "package",
+      "value": "Operator Suite EE"
+    }
+  ],
+  "parameters": [],
+  "links": [
+    {
+      "name": "https://one.newrelic.com/logger",
+      "url": "https://one.newrelic.com/logger"
+    }
+  ],
+  "hidden": false,
+  "retry": false,
+  "extra": {
+    "severity": "normal",
+    "retries": [],
+    "categories": [],
+    "history": {
+      "statistic": {
+        "failed": 0,
+        "broken": 0,
+        "skipped": 0,
+        "passed": 7,
+        "unknown": 0,
+        "total": 7
+      },
+      "items": [
+        {
+          "uid": "7af325ef477f4ab6",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/260//#testresult/7af325ef477f4ab6",
+          "status": "passed",
+          "time": {
+            "start": 1658567325000,
+            "stop": 1658567351949,
+            "duration": 26949
+          }
+        },
+        {
+          "uid": "13027838032c58ff",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/259//#testresult/13027838032c58ff",
+          "status": "passed",
+          "time": {
+            "start": 1658480926000,
+            "stop": 1658480951790,
+            "duration": 25790
+          }
+        },
+        {
+          "uid": "b4bca41625c72e4a",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/258//#testresult/b4bca41625c72e4a",
+          "status": "passed",
+          "time": {
+            "start": 1658394515000,
+            "stop": 1658394538547,
+            "duration": 23547
+          }
+        },
+        {
+          "uid": "1d6306da6dd07ad4",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/257//#testresult/1d6306da6dd07ad4",
+          "status": "passed",
+          "time": {
+            "start": 1658308132000,
+            "stop": 1658308154340,
+            "duration": 22340
+          }
+        },
+        {
+          "uid": "cf465fe24f8f4428",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/256//#testresult/cf465fe24f8f4428",
+          "status": "passed",
+          "time": {
+            "start": 1658222172000,
+            "stop": 1658222193261,
+            "duration": 21261
+          }
+        },
+        {
+          "uid": "e87e93dd25a9157a",
+          "reportUrl": "https://hazelcast.github.io/hazelcast-platform-operator/ocp/255//#testresult/e87e93dd25a9157a",
+          "status": "passed",
+          "time": {
+            "start": 1658135340000,
+            "stop": 1658135371738,
+            "duration": 31738
+          }
+        }
+      ]
+    },
+    "tags": {
+      "tag": "hmp-5-mvuvvm"
+    }
+  },
+  "source": "14a5d1d7cc5659f5.json",
+  "parameterValues": []
+}
