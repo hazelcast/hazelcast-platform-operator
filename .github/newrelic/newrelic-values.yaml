@@ -6,6 +6,22 @@ newrelic-infrastructure:
       namespaceSelector:
         matchLabels:
           newrelic.com/scrape: "true"
+  controlPlane:
+    affinity: false  # https://github.com/helm/helm/issues/9136
+    kind: Deployment
+    config:
+      etcd:
+        enabled: false
+      scheduler:
+        enabled: false
+      controllerManager:
+        enabled: false
+      apiServer:
+        staticEndpoint:
+          url: "https://kubernetes.default:443"
+          insecureSkipVerify: true
+          auth:
+            type: bearer
 
 nri-prometheus:
   # nri-prometheus.enabled -- Install the [`nri-prometheus` chart](https://github.com/newrelic/nri-prometheus/tree/main/charts/nri-prometheus)
