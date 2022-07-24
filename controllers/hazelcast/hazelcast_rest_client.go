@@ -19,6 +19,7 @@ const (
 	getState    = "/hazelcast/rest/management/cluster/state"
 	forceStart  = "/hazelcast/rest/management/cluster/forceStart"
 	hotBackup   = "/hazelcast/rest/management/cluster/hotBackup"
+	wanSync     = "/hazelcast/rest/wan/sync/map"
 )
 
 type ClusterState string
@@ -135,6 +136,32 @@ func (c *RestClient) HotBackup(ctx context.Context) error {
 	}
 	defer res.Body.Close()
 	return nil
+}
+
+func (c *RestClient) WanSync(ctx context.Context, wan WanPublisherObject) error {
+	d := c.wanSyncData(wan)
+	ctxT, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	req, err := postRequest(ctxT, d, c.url, wanSync)
+	if err != nil {
+		return err
+	}
+	res, err := c.executeRequest(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	return nil
+}
+
+func (c *RestClient) wanSyncData(wan WanPublisherObject) string {
+	if wan.WanPublisherConfig().MapResourceName != "" {
+		return fmt.Sprintf("%s&&%s&%s&%s",
+			c.clusterName, wan.PublisherId(),
+			wan.WanPublisherConfig().TargetClusterName,
+			wan.WanPublisherConfig().MapResourceName)
+	}
+	return fmt.Sprintf("%s&&%s&%s", c.clusterName, wan.PublisherId(), wan.WanPublisherConfig().TargetClusterName)
 }
 
 func (c *RestClient) executeRequest(req *http.Request) (*http.Response, error) {

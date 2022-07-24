@@ -21,43 +21,27 @@ type WanSource struct {
 	// Config is the configuration for the WAN replication publisher.
 	// If specified the Syc operation will create a new WAN publisher.
 	// +optional
-	Config *WanSyncConfig `json:"config,omitempty"`
+	Config *WanPublisherConfig `json:"config,omitempty"`
 }
 
-type WanSyncConfig struct {
-	// MapResourceName is the name of Map custom resource which WAN replication will be applied to.
-	// +kubebuilder:validation:MinLength:=1
-	MapResourceName string `json:"mapResourceName"`
+type WanSyncPhase string
 
-	// TargetClusterName is the clusterName field of the target Hazelcast resource.
-	// +kubebuilder:validation:MinLength:=1
-	TargetClusterName string `json:"targetClusterName"`
-
-	// Endpoints is the target cluster endpoints.
-	// +kubebuilder:validation:MinLength:=1
-	Endpoints string `json:"endpoints"`
-
-	// Queue is the configuration for WAN events queue.
-	// +optional
-	Queue QueueSetting `json:"queue,omitempty"`
-
-	// Batch is the configuration for WAN events batch.
-	// +optional
-	Batch BatchSetting `json:"batch,omitempty"`
-
-	// Acknowledgement is the configuration for the condition when the next batch of WAN events are sent.
-	// +optional
-	Acknowledgement AcknowledgementSetting `json:"acknowledgement,omitempty"`
-
-	// Sync is the configuration for the WAN sync mechanism.
-	// +optional
-	Sync *Sync `json:"sync,omitempty"`
-}
+const (
+	WanSyncFailed    WanSyncPhase = "Failed"
+	WanSyncPending   WanSyncPhase = "Pending"
+	WanSyncCompleted WanSyncPhase = "Completed"
+)
 
 // WanSyncStatus defines the observed state of WanSync
 type WanSyncStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// PublisherId is the ID used for WAN publisher ID
+	PublisherId string `json:"publisherId,omitempty"`
+
+	// Status is the status of WAN replication
+	Phase WanSyncPhase `json:"phase,omitempty"`
+
+	// Message is the field to show detail information or error
+	Message string `json:"message,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -70,6 +54,14 @@ type WanSync struct {
 
 	Spec   WanSyncSpec   `json:"spec,omitempty"`
 	Status WanSyncStatus `json:"status,omitempty"`
+}
+
+func (w *WanSync) WanPublisherConfig() *WanPublisherConfig {
+	return w.Spec.Config
+}
+
+func (w *WanSync) PublisherId() string {
+	return w.Status.PublisherId
 }
 
 //+kubebuilder:object:root=true

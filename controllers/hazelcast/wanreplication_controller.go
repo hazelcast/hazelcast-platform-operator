@@ -10,15 +10,12 @@ import (
 	"github.com/hazelcast/hazelcast-go-client"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
-	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -51,7 +48,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 	}
-	ctx = context.WithValue(ctx, LogKey("logger"), logger)
+	ctx = context.WithValue(ctx, util.CtxLogger, logger)
 
 	cli, err := r.getHazelcastClient(ctx, wan)
 	if err != nil {
@@ -61,7 +58,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if !wan.GetDeletionTimestamp().IsZero() {
 		if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
 			logger.Info("Deleting WAN configuration")
-			if err := r.stopWanReplication(ctx, cli, wan); err != nil {
+			if err := stopWanReplication(ctx, cli, wan); err != nil {
 				return ctrl.Result{}, err
 			}
 			logger.Info("Deleting WAN configuration finalizer")
@@ -100,7 +97,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
 	if wan.Status.PublisherId == "" {
 		logger.Info("Applying WAN configuration")
-		if publisherId, err := r.applyWanReplication(ctx, cli, wan); err != nil {
+		if publisherId, err := applyWanReplication(ctx, cli, wan); err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		} else {
 			return updateWanStatus(ctx, r.Client, wan, wanPendingStatus().withPublisherId(publisherId))
@@ -137,114 +134,8 @@ func (r *WanReplicationReconciler) getHazelcastClient(ctx context.Context, wan *
 	return GetHazelcastClient(m)
 }
 
-func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) (string, error) {
-	publisherId := wan.Name + "-" + rand.String(16)
-
-	req := &addBatchPublisherRequest{
-		hazelcastWanReplicationName(wan.Spec.MapResourceName),
-		wan.Spec.TargetClusterName,
-		publisherId,
-		wan.Spec.Endpoints,
-		wan.Spec.Queue.Capacity,
-		wan.Spec.Batch.Size,
-		wan.Spec.Batch.MaximumDelay,
-		wan.Spec.Acknowledgement.Timeout,
-		convertAckType(wan.Spec.Acknowledgement.Type),
-		convertQueueBehavior(wan.Spec.Queue.FullBehavior),
-		string(wan.Spec.Sync.ConsistencyCheckStrategy),
-	}
-
-	err := addBatchPublisherConfig(ctx, client, req)
-	if err != nil {
-		return "", fmt.Errorf("failed to apply WAN configuration: %w", err)
-	}
-	return publisherId, nil
-}
-
-func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) error {
-	log := getLogger(ctx)
-	if wan.Status.PublisherId == "" {
-		log.V(util.DebugLevel).Info("publisherId is empty, will skip stopping WAN replication")
-		return nil
-	}
-
-	req := &changeWanStateRequest{
-		name:        hazelcastWanReplicationName(wan.Spec.MapResourceName),
-		publisherId: wan.Status.PublisherId,
-		state:       codecTypes.WanReplicationStateStopped,
-	}
-	return changeWanState(ctx, client, req)
-}
-
 func hazelcastWanReplicationName(mapName string) string {
 	return mapName + "-default"
-}
-
-type addBatchPublisherRequest struct {
-	name                  string
-	targetCluster         string
-	publisherId           string
-	endpoints             string
-	queueCapacity         int32
-	batchSize             int32
-	batchMaxDelayMillis   int32
-	responseTimeoutMillis int32
-	ackType               int32
-	queueFullBehavior     int32
-	consistencyCheck      string
-}
-
-func addBatchPublisherConfig(
-	ctx context.Context,
-	client *hazelcast.Client,
-	request *addBatchPublisherRequest,
-) error {
-	cliInt := hazelcast.NewClientInternal(client)
-
-	req := codec.EncodeMCAddWanBatchPublisherConfigRequest(
-		request.name,
-		request.targetCluster,
-		request.publisherId,
-		request.endpoints,
-		request.queueCapacity,
-		request.batchSize,
-		request.batchMaxDelayMillis,
-		request.responseTimeoutMillis,
-		request.ackType,
-		request.queueFullBehavior,
-	)
-
-	for _, member := range cliInt.OrderedMembers() {
-		_, err := cliInt.InvokeOnMember(ctx, req, member.UUID, nil)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-type changeWanStateRequest struct {
-	name        string
-	publisherId string
-	state       codecTypes.WanReplicationState
-}
-
-func changeWanState(ctx context.Context, client *hazelcast.Client, request *changeWanStateRequest) error {
-	cliInt := hazelcast.NewClientInternal(client)
-
-	req := codec.EncodeMCChangeWanReplicationStateRequest(
-		request.name,
-		request.publisherId,
-		request.state,
-	)
-
-	for _, member := range cliInt.OrderedMembers() {
-		_, err := cliInt.InvokeOnMember(ctx, req, member.UUID, nil)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func convertAckType(ackType hazelcastcomv1alpha1.AcknowledgementType) int32 {
@@ -297,14 +188,6 @@ func insertLastSuccessfullyAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication)
 	}
 	wan.Annotations[n.LastSuccessfulSpecAnnotation] = string(b)
 	return wan
-}
-
-type LogKey string
-
-var ctxLogger = LogKey("logger")
-
-func getLogger(ctx context.Context) logr.Logger {
-	return ctx.Value(ctxLogger).(logr.Logger)
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -104,8 +104,8 @@ spec:
                     type: string
                 type: object
               targetClusterName:
-                description: ClusterName is the clusterName field of the target Hazelcast
-                  resource.
+                description: TargetClusterName is the clusterName field of the target
+                  Hazelcast resource.
                 minLength: 1
                 type: string
             required:
