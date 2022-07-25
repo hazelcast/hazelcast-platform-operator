@@ -143,8 +143,6 @@ spec:
                 format: int32
                 type: integer
               merkleTree:
-                default:
-                  enabled: false
                 description: MerkleTree defines the configuration for the Merkle tree
                   data structure.
                 properties:
