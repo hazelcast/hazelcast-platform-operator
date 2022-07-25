@@ -684,7 +684,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		sts.Spec.Replicas = h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
-		sts.Spec.Template.Annotations, err = podAnnotations(h)
+		sts.Spec.Template.Annotations, err = podAnnotations(sts.Spec.Template.Annotations, h)
 		if err != nil {
 			return err
 		}
@@ -1037,19 +1037,21 @@ func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return ans
 }
 
-func podAnnotations(h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
-	ans := map[string]string{}
+func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
 	if h.Spec.ExposeExternally.IsSmart() {
-		ans[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccessType())
+		annotations[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccessType())
 	}
 	cfg := config.HazelcastWrapper{Hazelcast: hazelcastConfigMapStruct(h).HazelcastConfigForcingRestart()}
 	cfgYaml, err := yaml.Marshal(cfg)
 	if err != nil {
 		return nil, err
 	}
-	ans[n.CurrentHazelcastConfigForcingRestartChecksum] = fmt.Sprint(crc32.ChecksumIEEE(cfgYaml))
+	annotations[n.CurrentHazelcastConfigForcingRestartChecksum] = fmt.Sprint(crc32.ChecksumIEEE(cfgYaml))
 
-	return ans, nil
+	return annotations, nil
 }
 
 func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
