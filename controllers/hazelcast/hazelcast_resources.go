@@ -483,6 +483,9 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 					Persistence: config.EndpointGroup{
 						Enabled: &[]bool{true}[0],
 					},
+					Wan: config.EndpointGroup{
+						Enabled: &[]bool{true}[0],
+					},
 				},
 			},
 		},

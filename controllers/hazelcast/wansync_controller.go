@@ -67,6 +67,10 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
+	if util.IsSuccessfullyApplied(wan.ObjectMeta) {
+		return ctrl.Result{}, nil
+	}
+
 	if !controllerutil.ContainsFinalizer(wan, n.Finalizer) {
 		controllerutil.AddFinalizer(wan, n.Finalizer)
 		logger.Info("Adding finalizer")
@@ -76,7 +80,15 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
+	if !util.IsApplied(wan.ObjectMeta) {
+		if err := r.Update(ctx, util.InsertLastAppliedSpec(wan.Spec, wan)); err != nil {
+			return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
+		} else {
+			return updateWanSyncStatus(ctx, r.Client, wan, wanSyncPendingStatus())
+		}
+	}
+
+	// Check publisherId is registered to the status, otherwise issue WanReplication config to Hazelcast
 	if wan.Status.PublisherId == "" {
 		logger.Info("Applying WAN configuration")
 		publisherId, err := r.getWanPublisherId(ctx, cli, wan)
@@ -86,24 +98,29 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		if publisherId == "" {
 			return updateWanSyncStatus(ctx, r.Client, wan,
-				wanSyncPendingStatus())
+				wanSyncFailedStatus(fmt.Errorf("publisherId is empty")))
 		}
 		logger.V(util.DebugLevel).Info("Applied the wan replication publisher",
 			"WanSync", req.NamespacedName, "publisherId", publisherId)
-		h := &hazelcastcomv1alpha1.Hazelcast{}
-		if err := r.Client.Get(ctx, types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: wan.Namespace}, h); err != nil {
-			return updateWanSyncStatus(ctx, r.Client, wan,
-				wanSyncFailedStatus(fmt.Errorf("failed to get Hazelcast CR for WAN Sync: %w", err)))
-		}
-		rest := NewRestClient(h)
-		err = rest.WanSync(ctx, wan)
-		if err != nil {
-			return updateWanSyncStatus(ctx, r.Client, wan,
-				wanSyncFailedStatus(fmt.Errorf("failed to execute WAN Sync: %w", err)))
-		}
-		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncSuccessStatus().withPublisherId(publisherId))
+
+		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncPendingStatus().withPublisherId(publisherId))
 	}
-	return ctrl.Result{}, nil
+
+	h := &hazelcastcomv1alpha1.Hazelcast{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: wan.Namespace}, h); err != nil {
+		return updateWanSyncStatus(ctx, r.Client, wan,
+			wanSyncFailedStatus(fmt.Errorf("failed to get Hazelcast CR for WAN Sync: %w", err)))
+	}
+	rest := NewRestClient(h)
+	err = rest.WanSync(ctx, wan)
+	if err != nil {
+		return updateWanSyncStatus(ctx, r.Client, wan,
+			wanSyncFailedStatus(fmt.Errorf("failed to execute WAN Sync: %w", err)))
+	}
+	if err := r.Update(ctx, util.InsertLastSuccessfullyAppliedSpec(wan.Spec, wan)); err != nil {
+		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
+	}
+	return updateWanSyncStatus(ctx, r.Client, wan, wanSyncSuccessStatus())
 }
 
 func (r *WanSyncReconciler) getWanPublisherId(

@@ -9,7 +9,7 @@ spec:
   externalConnectivity:
     type: LoadBalancer
   hazelcastClusters:
-    - address: hazelcast
+    - address: hazelcast-source
       name: dev
   persistence:
     enabled: true

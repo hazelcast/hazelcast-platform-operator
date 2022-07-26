@@ -3,4 +3,5 @@ kind: Map
 metadata:
   name: map
 spec:
-  hazelcastResourceName: hazelcast
+  hazelcastResourceName: hazelcast-source
+  name: map

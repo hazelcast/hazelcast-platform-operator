@@ -3,4 +3,7 @@ kind: WanSync
 metadata:
   name: wansync-sample
 spec:
-  # TODO(user): Add fields here
+  config:
+    endpoints: "10.4.16.123:5701"
+    mapResourceName: map
+    targetClusterName: dev

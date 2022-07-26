@@ -20,6 +20,7 @@ const (
 	forceStart  = "/hazelcast/rest/management/cluster/forceStart"
 	hotBackup   = "/hazelcast/rest/management/cluster/hotBackup"
 	wanSync     = "/hazelcast/rest/wan/sync/map"
+	wanSyncAll  = "/hazelcast/rest/wan/sync/allMaps"
 )
 
 type ClusterState string
@@ -142,7 +143,13 @@ func (c *RestClient) WanSync(ctx context.Context, wan WanPublisherObject) error 
 	d := c.wanSyncData(wan)
 	ctxT, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	req, err := postRequest(ctxT, d, c.url, wanSync)
+	var url string
+	if wan.WanPublisherConfig().MapResourceName != "" {
+		url = wanSync
+	} else {
+		url = wanSyncAll
+	}
+	req, err := postRequest(ctxT, d, c.url, url)
 	if err != nil {
 		return err
 	}
@@ -151,17 +158,23 @@ func (c *RestClient) WanSync(ctx context.Context, wan WanPublisherObject) error 
 		return err
 	}
 	defer res.Body.Close()
+	var rBody map[string]string
+	err = json.NewDecoder(res.Body).Decode(&rBody)
+	if s := rBody["status"]; s != "success" {
+		return fmt.Errorf("error executing WAN Sync: %s, %s", s, rBody["message"])
+	}
 	return nil
 }
 
 func (c *RestClient) wanSyncData(wan WanPublisherObject) string {
-	if wan.WanPublisherConfig().MapResourceName != "" {
+	wpc := wan.WanPublisherConfig()
+	if wpc.MapResourceName != "" {
 		return fmt.Sprintf("%s&&%s&%s&%s",
-			c.clusterName, wan.PublisherId(),
-			wan.WanPublisherConfig().TargetClusterName,
-			wan.WanPublisherConfig().MapResourceName)
+			c.clusterName, hazelcastWanReplicationName(wpc.MapResourceName),
+			wan.PublisherId(),
+			wpc.MapResourceName)
 	}
-	return fmt.Sprintf("%s&&%s&%s", c.clusterName, wan.PublisherId(), wan.WanPublisherConfig().TargetClusterName)
+	return fmt.Sprintf("%s&&%s&%s", c.clusterName, hazelcastWanReplicationName(wpc.MapResourceName), wan.PublisherId())
 }
 
 func (c *RestClient) executeRequest(req *http.Request) (*http.Response, error) {

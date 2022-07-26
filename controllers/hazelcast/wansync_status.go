@@ -47,7 +47,9 @@ func (o wanSyncOptionsBuilder) withMessage(msg string) wanSyncOptionsBuilder {
 
 func updateWanSyncStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanSync, options wanSyncOptionsBuilder) (ctrl.Result, error) {
 	wan.Status.Phase = options.phase
-	wan.Status.PublisherId = options.publisherId
+	if options.publisherId != "" {
+		wan.Status.PublisherId = options.publisherId
+	}
 	wan.Status.Message = options.message
 
 	if err := c.Status().Update(ctx, wan); err != nil {
@@ -55,6 +57,9 @@ func updateWanSyncStatus(ctx context.Context, c client.Client, wan *hazelcastv1a
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
+	}
+	if options.phase == hazelcastv1alpha1.WanSyncPending {
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	return ctrl.Result{}, nil

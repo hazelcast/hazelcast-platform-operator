@@ -5,5 +5,5 @@ metadata:
 spec:
   mapResourceName: map
   targetClusterName: dev
-  endpoints: "35.240.29.156:5701"
+  endpoints: "10.4.16.123:5701"
 

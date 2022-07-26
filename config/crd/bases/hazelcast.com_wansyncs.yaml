@@ -16,7 +16,12 @@ spec:
     singular: wansync
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the Hazelcast WAN Sync
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: WanSync is the Schema for the wansyncs API

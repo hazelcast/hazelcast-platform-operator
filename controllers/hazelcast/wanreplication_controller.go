@@ -78,8 +78,8 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	if !isApplied(wan) {
-		if err := r.Update(ctx, insertLastAppliedSpec(wan)); err != nil {
+	if !util.IsApplied(wan.ObjectMeta) {
+		if err := r.Update(ctx, util.InsertLastAppliedSpec(wan.Spec, wan)); err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		} else {
 			return updateWanStatus(ctx, r.Client, wan, wanPendingStatus())
@@ -104,8 +104,8 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if !isSuccessfullyApplied(wan) {
-		if err := r.Update(ctx, insertLastSuccessfullyAppliedSpec(wan)); err != nil {
+	if !util.IsSuccessfullyApplied(wan.ObjectMeta) {
+		if err := r.Update(ctx, util.InsertLastSuccessfullyAppliedSpec(wan.Spec, wan)); err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		}
 	}
@@ -160,34 +160,6 @@ func convertQueueBehavior(behavior hazelcastcomv1alpha1.FullBehaviorSetting) int
 	default:
 		return -1
 	}
-}
-
-func isApplied(wan *hazelcastcomv1alpha1.WanReplication) bool {
-	_, ok := wan.Annotations[n.LastAppliedSpecAnnotation]
-	return ok
-}
-
-func isSuccessfullyApplied(wan *hazelcastcomv1alpha1.WanReplication) bool {
-	_, ok := wan.Annotations[n.LastSuccessfulSpecAnnotation]
-	return ok
-}
-
-func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication) *hazelcastcomv1alpha1.WanReplication {
-	b, _ := json.Marshal(wan.Spec)
-	if wan.Annotations == nil {
-		wan.Annotations = make(map[string]string)
-	}
-	wan.Annotations[n.LastAppliedSpecAnnotation] = string(b)
-	return wan
-}
-
-func insertLastSuccessfullyAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication) *hazelcastcomv1alpha1.WanReplication {
-	b, _ := json.Marshal(wan.Spec)
-	if wan.Annotations == nil {
-		wan.Annotations = make(map[string]string)
-	}
-	wan.Annotations[n.LastSuccessfulSpecAnnotation] = string(b)
-	return wan
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -46,6 +46,7 @@ type WanSyncStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast WAN Sync"
 
 // WanSync is the Schema for the wansyncs API
 type WanSync struct {
