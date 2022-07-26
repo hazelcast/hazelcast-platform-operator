@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -20,8 +21,8 @@ type optionsBuilder struct {
 	phase             hazelcastv1alpha1.Phase
 	retryAfter        time.Duration
 	err               error
-	readyMembers      map[hztypes.UUID]*MemberData
-	restoreState      ClusterHotRestartStatus
+	readyMembers      map[hztypes.UUID]*hzclient.MemberData
+	restoreState      hzclient.ClusterHotRestartStatus
 	message           string
 	externalAddresses string
 }
@@ -46,7 +47,7 @@ func runningPhase() optionsBuilder {
 	}
 }
 
-func (o optionsBuilder) withStatus(s *Status) optionsBuilder {
+func (o optionsBuilder) withStatus(s *hzclient.Status) optionsBuilder {
 	o.readyMembers = s.MemberMap
 	o.restoreState = s.ClusterHotRestartStatus
 	return o
@@ -62,7 +63,7 @@ func (o optionsBuilder) withExternalAddresses(addrs string) optionsBuilder {
 	return o
 }
 
-func statusMembers(m map[hztypes.UUID]*MemberData) []hazelcastv1alpha1.HazelcastMemberStatus {
+func statusMembers(m map[hztypes.UUID]*hzclient.MemberData) []hazelcastv1alpha1.HazelcastMemberStatus {
 	members := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(m))
 	for uid, member := range m {
 		a := member.Address
@@ -124,7 +125,7 @@ func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast
 	h.Status.Phase = options.phase
 	h.Status.Cluster.ReadyMembers = "N/A"
 
-	cl, ok := GetClient(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+	cl, ok := hzclient.GetClient(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 
 	if ok && cl.IsClientConnected() {
 		h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
@@ -140,11 +141,11 @@ func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast
 			}
 		}
 	}
-	if rs := options.restoreState.restoreState(); h.Spec.Persistence.IsEnabled() && rs != hazelcastv1alpha1.RestoreUnknown {
+	if rs := options.restoreState.RestoreState(); h.Spec.Persistence.IsEnabled() && rs != hazelcastv1alpha1.RestoreUnknown {
 		h.Status.Restore = &hazelcastv1alpha1.RestoreStatus{
-			State:                   options.restoreState.restoreState(),
-			RemainingDataLoadTime:   options.restoreState.remainingDataLoadTimeSec(),
-			RemainingValidationTime: options.restoreState.remainingValidationTimeSec(),
+			State:                   options.restoreState.RestoreState(),
+			RemainingDataLoadTime:   options.restoreState.RemainingDataLoadTimeSec(),
+			RemainingValidationTime: options.restoreState.RemainingValidationTimeSec(),
 		}
 	}
 	if err := c.Status().Update(ctx, h); err != nil {

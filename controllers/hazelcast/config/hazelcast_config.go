@@ -1,7 +1,7 @@
 //go:build !localrun && !unittest
 // +build !localrun,!unittest
 
-package hazelcast
+package config
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-func buildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
+func BuildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	config := hazelcast.Config{
 		Logger: logger.Config{
 			Level: logger.OffLevel,
@@ -21,14 +21,14 @@ func buildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	}
 	cc := &config.Cluster
 	cc.Name = h.Spec.ClusterName
-	cc.Network.SetAddresses(hazelcastUrl(h))
+	cc.Network.SetAddresses(HazelcastUrl(h))
 	return config
 }
 
-func restUrl(h *hazelcastv1alpha1.Hazelcast) string {
-	return fmt.Sprintf("http://%s", hazelcastUrl(h))
+func RestUrl(h *hazelcastv1alpha1.Hazelcast) string {
+	return fmt.Sprintf("http://%s", HazelcastUrl(h))
 }
 
-func hazelcastUrl(h *hazelcastv1alpha1.Hazelcast) string {
+func HazelcastUrl(h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort)
 }

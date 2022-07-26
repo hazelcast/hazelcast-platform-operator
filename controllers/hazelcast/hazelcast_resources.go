@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -65,7 +66,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if util.IsPhoneHomeEnabled() {
 		delete(r.metrics.HazelcastMetrics, h.UID)
 	}
-	ShutdownClient(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+	hzclient.ShutdownClient(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 	return nil
 }
 

@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -185,15 +186,15 @@ func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelc
 }
 
 func GetHazelcastClient(m *hazelcastv1alpha1.Map) (*hazelcast.Client, error) {
-	hzcl, ok := GetClient(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
+	hzcl, ok := hzclient.GetClient(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
 	if !ok {
 		return nil, errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", m.Spec.HazelcastResourceName))
 	}
-	if hzcl.client == nil || !hzcl.client.Running() {
+	if hzcl.Client == nil || !hzcl.Client.Running() {
 		return nil, fmt.Errorf("trying to connect to the cluster %s", m.Spec.HazelcastResourceName)
 	}
 
-	return hzcl.client, nil
+	return hzcl.Client, nil
 }
 
 func (r *MapReconciler) ReconcileMapConfig(

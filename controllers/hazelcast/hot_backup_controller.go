@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/backup"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/upload"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -29,6 +30,8 @@ type HotBackupReconciler struct {
 	Log       logr.Logger
 	scheduled sync.Map
 	cron      *cron.Cron
+
+	backup map[types.NamespacedName]struct{}
 }
 
 func NewHotBackupReconciler(c client.Client, log logr.Logger) *HotBackupReconciler {
@@ -36,6 +39,7 @@ func NewHotBackupReconciler(c client.Client, log logr.Logger) *HotBackupReconcil
 		Client: c,
 		Log:    log,
 		cron:   cron.New(),
+		backup: make(map[types.NamespacedName]struct{}),
 	}
 }
 
@@ -77,7 +81,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return
 	}
 
-	if hb.Status.State.IsRunning() {
+	if hb.Status.State.IsRunning() || r.checkBackup(req.NamespacedName) {
 		logger.Info("HotBackup is already running.",
 			"name", hb.Name, "namespace", hb.Namespace, "state", hb.Status.State)
 		return
@@ -125,6 +129,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			return result, err
 		}
 		r.removeSchedule(req.NamespacedName, logger)
+		r.lockBackup(req.NamespacedName)
 		go r.startBackup(context.Background(), req.NamespacedName, hazelcastName, logger) //nolint:errcheck
 	}
 
@@ -169,6 +174,7 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 		Name:      hb.Name,
 		Namespace: hb.Namespace,
 	}
+	r.unlockBackup(key)
 	r.removeSchedule(key, logger)
 	controllerutil.RemoveFinalizer(hb, n.Finalizer)
 	err := r.Update(ctx, hb)
@@ -217,10 +223,18 @@ func (r *HotBackupReconciler) scheduleBackup(ctx context.Context, schedule strin
 	r.cron.Start()
 }
 
-var (
-	errBackupClientNotFound  = errors.New("client not found for hot backup CR")
-	errBackupClientNoMembers = errors.New("client couldnt connect to members")
-)
+func (r *HotBackupReconciler) checkBackup(name types.NamespacedName) bool {
+	_, ok := r.backup[name]
+	return ok
+}
+
+func (r *HotBackupReconciler) lockBackup(name types.NamespacedName) {
+	r.backup[name] = struct{}{}
+}
+
+func (r *HotBackupReconciler) unlockBackup(name types.NamespacedName) {
+	delete(r.backup, name)
+}
 
 func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.NamespacedName, hazelcastName types.NamespacedName, logger logr.Logger) (ctrl.Result, error) {
 	logger.Info("Starting backup")
@@ -240,40 +254,29 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
 
-	logger.Info("Trigger cluster wide backup")
-	if err := r.hotBackup(ctx, hz); err != nil {
-		logger.Error(err, "Cluster backup failed")
+	b, err := backup.NewClusterBackup(hz)
+	if err != nil {
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
 
-	c, ok := GetClient(hazelcastName)
-	if !ok {
-		return r.updateStatus(ctx, backupName, failedHbStatus(errBackupClientNotFound))
+	if err := b.Start(ctx); err != nil {
+		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
-	c.updateMembers(context.TODO())
-
-	if c.Status == nil {
-		return r.updateStatus(ctx, backupName, failedHbStatus(errBackupClientNoMembers))
-	}
-
-	if len(c.Status.MemberMap) == 0 {
-		return r.updateStatus(ctx, backupName, failedHbStatus(errBackupClientNoMembers))
-	}
-
-	g, groupCtx := errgroup.WithContext(ctx)
 
 	// for each member monitor and upload backup if needed
-	for uuid, member := range c.Status.MemberMap {
-		uuid, memberAddress := uuid, member.Address
+	g, groupCtx := errgroup.WithContext(ctx)
+	for _, m := range b.Members() {
+		m := m
 		g.Go(func() error {
-			logger := logger.WithValues("uuid", uuid)
+			logger := logger.WithValues("uuid", m.UUID)
 
 			logger.Info("Member status monitor started")
 			defer logger.Info("Member status monitor finished")
 
 			logger.Info("Wait for member backup to finish")
-			if err := waitUntilBackupSucceed(groupCtx, c, uuid); err != nil {
-				return err
+			if err := m.Wait(groupCtx); err != nil {
+				// cancel cluster backup
+				return b.Cancel(ctx)
 			}
 
 			// skip upload for local backup
@@ -288,7 +291,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 
 			logger.Info("Start and wait for member backup upload")
 			u, err := upload.NewUpload(&upload.Config{
-				MemberAddress: memberAddress,
+				MemberAddress: m.Address,
 				BucketURI:     hb.Spec.BucketURI,
 				BackupPath:    hz.Spec.Persistence.BaseDir,
 				HazelcastName: hb.Spec.HazelcastResourceName,
@@ -307,7 +310,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				if errors.Is(err, context.Canceled) {
 					// notify agent so we can cleanup if needed
 					logger.Info("Cancel upload")
-					return u.Cancel(groupCtx)
+					return u.Cancel(ctx)
 				}
 				return err
 			}
@@ -325,15 +328,6 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 
 	logger.Info("All members finished with no errors")
 	return r.updateStatus(ctx, backupName, hbWithStatus(hazelcastv1alpha1.HotBackupSuccess))
-}
-
-func (r *HotBackupReconciler) hotBackup(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast) error {
-	client := NewRestClient(hz)
-	if err := client.ChangeState(ctx, Passive); err != nil {
-		return err
-	}
-	defer client.ChangeState(ctx, Active) //nolint:errcheck
-	return client.HotBackup(ctx)
 }
 
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {

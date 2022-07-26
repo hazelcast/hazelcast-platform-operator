@@ -20,7 +20,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
+	hzconfig "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/config"
 )
 
 func TestHotBackupReconciler_shouldScheduleHotBackupExecution(t *testing.T) {
@@ -126,7 +129,7 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 		},
 	}
 
-	ts, err := fakeHttpServer(hazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
+	ts, err := fakeHttpServer(hzconfig.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
 		if request.RequestURI == hotBackup {
 			writer.WriteHeader(500)
 			_, _ = writer.Write([]byte("{\"status\":\"failed\"}"))
@@ -178,10 +181,16 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 		},
 	}
 
+	hzclient.Clients.Store(types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &hzclient.Client{
+		Status: &hzclient.Status{
+			MemberMap: make(map[hztypes.UUID]*hzclient.MemberData),
+		},
+	})
+
 	var restCallWg sync.WaitGroup
 	restCallWg.Add(1)
 	var hotBackupTriggers int32
-	ts, err := fakeHttpServer(hazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
+	ts, err := fakeHttpServer(hzconfig.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
 		if request.RequestURI == hotBackup {
 			t.Log(request.Method, request.URL)
 			atomic.AddInt32(&hotBackupTriggers, 1)
@@ -243,7 +252,7 @@ func TestHotBackupReconciler_shouldUpdateWhenScheduledBackupChangedToInstantBack
 			Schedule:              "0 23 31 2 *",
 		},
 	}
-	ts, err := fakeHttpServer(hazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
+	ts, err := fakeHttpServer(hzconfig.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(200)
 		_, _ = writer.Write([]byte("{\"status\":\"success\"}"))
 	})
@@ -314,5 +323,6 @@ func hotBackupReconcilerWithCRs(initObjs ...client.Object) HotBackupReconciler {
 		Client: fakeClient(initObjs...),
 		Log:    ctrl.Log.WithName("test").WithName("Hazelcast"),
 		cron:   cron.New(),
+		backup: make(map[types.NamespacedName]struct{}),
 	}
 }
