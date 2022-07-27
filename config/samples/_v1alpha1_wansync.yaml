@@ -4,6 +4,6 @@ metadata:
   name: wansync-sample
 spec:
   config:
-    endpoints: "10.4.16.123:5701"
+    endpoints: "35.192.33.252:5701"
     mapResourceName: map
     targetClusterName: dev
