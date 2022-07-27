@@ -4,4 +4,3 @@ metadata:
   name: map
 spec:
   hazelcastResourceName: hazelcast-source
-  name: map

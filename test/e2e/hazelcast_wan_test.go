@@ -100,4 +100,126 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		By("checking the size of the map in the target cluster")
 		waitForMapSize(context.Background(), hzTargetLookupKey, m.Name, mapSize)
 	})
+
+	It("should WAN Sync data to another cluster", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hws-1")
+		// Create source and target Hazelcast clusters
+		hazelcastSource := hazelcastconfig.ExposeExternallyUnisocket(hzSourceLookupKey, ee, labels)
+		hazelcastSource.Spec.ClusterName = "source"
+		CreateHazelcastCR(hazelcastSource)
+		hazelcastTarget := hazelcastconfig.ExposeExternallyUnisocket(hzTargetLookupKey, ee, labels)
+		hazelcastTarget.Spec.ClusterName = "target"
+		CreateHazelcastCR(hazelcastTarget)
+		evaluateReadyMembers(hzSourceLookupKey, 3)
+		evaluateReadyMembers(hzTargetLookupKey, 3)
+
+		_ = waitForLBAddress(hzSourceLookupKey)
+		targetAddress := waitForLBAddress(hzTargetLookupKey)
+
+		// Create map for source Hazelcast cluster
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcastSource.Name, labels)
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+		// Fill the map in source cluster
+		mapSize := 1024
+		By("filling the source")
+		FillTheMapData(context.Background(), hzSourceLookupKey, true, m.Name, mapSize)
+
+		// Create WAN Sync configuration for the map
+		By("creating WAN Sync configuration")
+		wan := hazelcastconfig.DefaultWanSync(
+			wanLookupKey,
+			m.Name,
+			hazelcastTarget.Spec.ClusterName,
+			targetAddress,
+			labels,
+		)
+		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+
+		Eventually(func() (hazelcastcomv1alpha1.WanSyncPhase, error) {
+			wan := &hazelcastcomv1alpha1.WanSync{}
+			err := k8sClient.Get(context.Background(), wanLookupKey, wan)
+			if err != nil {
+				return hazelcastcomv1alpha1.WanSyncFailed, err
+			}
+			return wan.Status.Phase, nil
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanSyncCompleted))
+
+		// Wait for data to appear in target cluster
+		By("checking the size of the map in the target cluster")
+		waitForMapSize(context.Background(), hzTargetLookupKey, m.Name, mapSize)
+	})
+
+	It("should WAN Sync data using existing WanReplication", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hws-2")
+
+		// Create source and target Hazelcast clusters
+		hazelcastSource := hazelcastconfig.ExposeExternallyUnisocket(hzSourceLookupKey, ee, labels)
+		hazelcastSource.Spec.ClusterName = "source"
+		CreateHazelcastCR(hazelcastSource)
+		hazelcastTarget := hazelcastconfig.ExposeExternallyUnisocket(hzTargetLookupKey, ee, labels)
+		hazelcastTarget.Spec.ClusterName = "target"
+		CreateHazelcastCR(hazelcastTarget)
+		evaluateReadyMembers(hzSourceLookupKey, 3)
+		evaluateReadyMembers(hzTargetLookupKey, 3)
+
+		_ = waitForLBAddress(hzSourceLookupKey)
+		targetAddress := waitForLBAddress(hzTargetLookupKey)
+
+		// Create map for source Hazelcast cluster
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcastSource.Name, labels)
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+		// Fill the map in source cluster
+		mapSize := 1024
+		By("filling the source")
+		FillTheMapData(context.Background(), hzSourceLookupKey, true, m.Name, mapSize)
+
+		// Create WAN Sync configuration for the map
+		By("creating WAN Sync configuration")
+		wanR := hazelcastconfig.DefaultWanSync(
+			wanLookupKey,
+			m.Name,
+			hazelcastTarget.Spec.ClusterName,
+			targetAddress,
+			labels,
+		)
+		Expect(k8sClient.Create(context.Background(), wanR)).Should(Succeed())
+		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+			w := &hazelcastcomv1alpha1.WanReplication{}
+			err := k8sClient.Get(context.Background(), wanLookupKey, w)
+			if err != nil {
+				return hazelcastcomv1alpha1.WanStatusFailed, err
+			}
+			return w.Status.Status, nil
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+
+		wan := hazelcastconfig.WanSyncFromWanReplication(
+			wanLookupKey,
+			wanR.Name,
+			labels,
+		)
+		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+
+		Eventually(func() (hazelcastcomv1alpha1.WanSyncPhase, error) {
+			wan := &hazelcastcomv1alpha1.WanSync{}
+			err := k8sClient.Get(context.Background(), wanLookupKey, wan)
+			if err != nil {
+				return hazelcastcomv1alpha1.WanSyncFailed, err
+			}
+			return wan.Status.Phase, nil
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanSyncCompleted))
+
+		// Wait for data to appear in target cluster
+		By("checking the size of the map in the target cluster")
+		waitForMapSize(context.Background(), hzTargetLookupKey, m.Name, mapSize)
+	})
 })

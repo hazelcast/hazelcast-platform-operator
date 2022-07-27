@@ -318,9 +318,45 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.WanReplicationSpec{
-				MapResourceName:   mapName,
-				TargetClusterName: targetClusterName,
-				Endpoints:         endpoints,
+				WanPublisherConfig: hazelcastv1alpha1.WanPublisherConfig{
+					MapResourceName:   mapName,
+					TargetClusterName: targetClusterName,
+					Endpoints:         endpoints,
+				},
+			},
+		}
+	}
+
+	DefaultWanSync = func(wan types.NamespacedName, mapName, targetClusterName, endpoints string, lbls map[string]string) *hazelcastv1alpha1.WanSync {
+		return &hazelcastv1alpha1.WanSync{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      wan.Name,
+				Namespace: wan.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.WanSyncSpec{
+				WanSource: hazelcastv1alpha1.WanSource{
+					Config: &hazelcastv1alpha1.WanPublisherConfig{
+						MapResourceName:   mapName,
+						TargetClusterName: targetClusterName,
+						Endpoints:         endpoints,
+					},
+				},
+			},
+		}
+	}
+
+	WanSyncFromWanReplication = func(wan types.NamespacedName, wanName string, lbls map[string]string) *hazelcastv1alpha1.WanSync {
+		return &hazelcastv1alpha1.WanSync{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      wan.Name,
+				Namespace: wan.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.WanSyncSpec{
+				WanSource: hazelcastv1alpha1.WanSource{
+					WanReplicationName: wanName,
+				},
 			},
 		}
 	}

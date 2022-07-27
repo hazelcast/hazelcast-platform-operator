@@ -7,7 +7,7 @@ kind: Kustomization
 images:
 - name: controller
   newName: sbishyr/hz-operator-wansync
-  newTag: "0.13"
+  newTag: "0.14"
 patches:
 - path: enable_developer_mode.yaml
   target:
