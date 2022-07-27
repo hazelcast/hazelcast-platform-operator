@@ -86,7 +86,84 @@ type HazelcastSpec struct {
 	// Custom Classes to Download into Class Path
 	// +optional
 	CustomClass *CustomClassConfiguration `json:"customClass,omitempty"`
+
+	// +optional
+	ExecutorServices *ExecutorServices `json:"executorServices,omitempty"`
 }
+
+type ExecutorServices struct {
+	// +optional
+	BasicExecutorServices []ExecutorServiceConfiguration `json:"basicExecutorServices,omitempty"`
+
+	// +optional
+	DurableExecutorServices []DurableExecutorServiceConfiguration `json:"durableExecutorServices,omitempty"`
+
+	// +optional
+	ScheduledExecutorServices []ScheduledExecutorServiceConfiguration `json:"scheduledExecutorServices,omitempty"`
+}
+
+type ExecutorServiceConfiguration struct {
+	// The name of the executor service
+	// +kubebuilder:default:="default"
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// The number of executor threads per member.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=8
+	// +optional
+	PoolSize int32 `json:"poolSize,omitempty"`
+
+	// Task queue capacity of the executor.
+	// +kubebuilder:default:=0
+	// +optional
+	QueueCapacity int32 `json:"queueCapacity"`
+}
+
+type DurableExecutorServiceConfiguration struct {
+	// The name of the executor service
+	// +kubebuilder:default:="default"
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// The number of executor threads per member.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=16
+	// +optional
+	PoolSize int32 `json:"poolSize,omitempty"`
+
+	// Durability of the executor.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=1
+	// +optional
+	Durability int32 `json:"durability,omitempty"`
+
+	// Capacity of the executor task per partition.
+	// +kubebuilder:default:=100
+	// +optional
+	Capacity int32 `json:"capacity,omitempty"`
+}
+
+type ScheduledExecutorServiceConfiguration struct {
+	DurableExecutorServiceConfiguration `json:",inline"`
+
+	// The active policy for the capacity setting.
+	// +kubebuilder:default:=PER_NODE
+	// +optional
+	CapacityPolicy string `json:"capacityPolicy,omitempty"`
+}
+
+// CapacityPolicyType represents the active policy types for the capacity setting
+// +kubebuilder:validation:Enum=PER_NODE;PER_PARTITION
+type CapacityPolicyType string
+
+const (
+	// CapacityPolicyPerNode is the policy for limiting the maximum number of tasks in each Hazelcast instance
+	CapacityPolicyPerNode CapacityPolicyType = "PER_NODE"
+
+	// CapacityPolicyPerPartition is the policy for limiting the maximum number of tasks within each partition.
+	CapacityPolicyPerPartition CapacityPolicyType = "PER_PARTITION"
+)
 
 type BucketConfiguration struct {
 	// Name of the secret with credentials for cloud providers.

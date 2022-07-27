@@ -430,10 +430,13 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	ml := filterPersistedMaps(mapList.Items)
 
 	cfg := hazelcastConfigMapStruct(h)
+
 	err = fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml)
 	if err != nil {
 		return nil, err
 	}
+
+	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 	if err != nil {
@@ -552,6 +555,34 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 	return nil
 }
 
+func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
+	if h.Spec.ExecutorServices == nil {
+		return
+	}
+	es := h.Spec.ExecutorServices
+
+	if len(es.BasicExecutorServices) != 0 {
+		cfg.ExecutorService = map[string]config.ExecutorService{}
+		for _, escfg := range es.BasicExecutorServices {
+			cfg.ExecutorService[escfg.Name] = createExecutorServiceConfig(&escfg)
+		}
+	}
+
+	if len(es.DurableExecutorServices) != 0 {
+		cfg.DurableExecutorService = map[string]config.DurableExecutorService{}
+		for _, descfg := range es.DurableExecutorServices {
+			cfg.DurableExecutorService[descfg.Name] = createDurableExecutorServiceConfig(&descfg)
+		}
+	}
+
+	if len(es.ScheduledExecutorServices) != 0 {
+		cfg.ScheduledExecutorService = map[string]config.ScheduledExecutorService{}
+		for _, sescfg := range es.ScheduledExecutorServices {
+			cfg.ScheduledExecutorService[sescfg.Name] = createScheduledExecutorServiceConfig(&sescfg)
+		}
+	}
+}
+
 func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
 	ms := m.Spec
 	mc := config.Map{
@@ -621,6 +652,18 @@ func getMapStoreProperties(ctx context.Context, c client.Client, sn, ns string) 
 		props[k] = string(v)
 	}
 	return props, nil
+}
+
+func createExecutorServiceConfig(es *hazelcastv1alpha1.ExecutorServiceConfiguration) config.ExecutorService {
+	return config.ExecutorService{PoolSize: es.PoolSize, QueueCapacity: es.QueueCapacity}
+}
+
+func createDurableExecutorServiceConfig(des *hazelcastv1alpha1.DurableExecutorServiceConfiguration) config.DurableExecutorService {
+	return config.DurableExecutorService{PoolSize: des.PoolSize, Durability: des.Durability, Capacity: des.Capacity}
+}
+
+func createScheduledExecutorServiceConfig(ses *hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) config.ScheduledExecutorService {
+	return config.ScheduledExecutorService{PoolSize: ses.PoolSize, Durability: ses.Durability, Capacity: ses.Capacity, CapacityPolicy: ses.CapacityPolicy}
 }
 
 func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
@@ -1091,6 +1134,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Value: strconv.FormatBool(util.IsPhoneHomeEnabled()),
 		},
 		{
+
 			Name:  "LOGGING_PATTERN",
 			Value: `{"time":"%date{ISO8601}", "logger": "%logger{36}", "level": "%level", "msg": "%enc{%m %xEx}{JSON}"}%n`,
 		},
