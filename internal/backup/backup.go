@@ -17,6 +17,14 @@ import (
 	hzconfig "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/config"
 )
 
+// backupBackoff is based on retry.DefaultBackoff
+var backupBackoff = wait.Backoff{
+	Steps:    8,
+	Duration: 10 * time.Millisecond,
+	Factor:   2.0,
+	Jitter:   0.1,
+}
+
 type ClusterBackup struct {
 	client  *hzclient.Client
 	service *rest.HazelcastService
@@ -76,7 +84,7 @@ func (b *ClusterBackup) Start(ctx context.Context) error {
 		return err
 	})
 
-	return retryOnError(retry.DefaultBackoff, func() error {
+	return retryOnError(backupBackoff, func() error {
 		_, err := b.service.HotBackup(ctx, b.clusterName)
 		return err
 	})
