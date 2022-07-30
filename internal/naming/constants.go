@@ -117,5 +117,5 @@ const (
 const (
 	// DefaultMergePolicyClassName is the default value for
 	// merge policy in WAN reference config
-	DefaultMergePolicyClassName = "PassThroughMergePolicy"
+	DefaultMergePolicyClassName = "com.hazelcast.spi.merge.PassThroughMergePolicy"
 )
