@@ -100,10 +100,17 @@ type BucketConfiguration struct {
 
 // CustomClassConfiguration contains the configuration for Custom Class download operation
 type CustomClassConfiguration struct {
-	BucketConfiguration `json:",inline"`
+	// Jar files in the bucket will be put under CLASSPATH.
+	// +optional
+	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
+
 	// A string for triggering a rolling restart for re-downloading the custom classes.
 	// +optional
 	TriggerSequence string `json:"triggerSequence,omitempty"`
+
+	// Files in the ConfigMaps will be put under CLASSPATH.
+	// +optional
+	ConfigMaps []string `json:"configMaps,omitempty"`
 }
 
 type AgentConfiguration struct {
@@ -280,8 +287,13 @@ func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 }
 
 // Returns true if customClass configuration is specified.
-func (c *CustomClassConfiguration) IsEnabled() bool {
-	return c != nil && !(*c == (CustomClassConfiguration{}))
+func (c *CustomClassConfiguration) IsBucketEnabled() bool {
+	return c != nil && c.BucketConfiguration != nil
+}
+
+// Returns true if customClass configuration is specified.
+func (c *CustomClassConfiguration) IsConfigMapEnabled() bool {
+	return c != nil && (len(c.ConfigMaps) != 0)
 }
 
 // Returns true if Smart configuration is specified and therefore each Hazelcast member needs to be exposed with a separate address.

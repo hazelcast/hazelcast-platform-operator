@@ -55,7 +55,8 @@ const (
 	BucketSecret             = "br-secret"
 	CustomClassDownloadAgent = "ccd-agent"
 
-	CustomClassPath = "/opt/hazelcast/customClass"
+	CustomClassBucketPath    = "/opt/hazelcast/customClass/bucket"
+	CustomClassConfigMapPath = "/opt/hazelcast/customClass/cm"
 )
 
 // Hazelcast default configurations

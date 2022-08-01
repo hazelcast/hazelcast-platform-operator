@@ -79,21 +79,31 @@ spec:
               customClass:
                 description: Custom Classes to Download into Class Path
                 properties:
-                  bucketURI:
-                    description: Full path to blob storage bucket.
-                    minLength: 6
-                    type: string
-                  secret:
-                    description: Name of the secret with credentials for cloud providers.
-                    minLength: 1
-                    type: string
+                  bucketConfig:
+                    description: Jar files in the bucket will be put under CLASSPATH.
+                    properties:
+                      bucketURI:
+                        description: Full path to blob storage bucket.
+                        minLength: 6
+                        type: string
+                      secret:
+                        description: Name of the secret with credentials for cloud
+                          providers.
+                        minLength: 1
+                        type: string
+                    required:
+                    - bucketURI
+                    - secret
+                    type: object
+                  configMaps:
+                    description: Files in the ConfigMaps will be put under CLASSPATH.
+                    items:
+                      type: string
+                    type: array
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading
                       the custom classes.
                     type: string
-                required:
-                - bucketURI
-                - secret
                 type: object
               exposeExternally:
                 description: Configuration to expose Hazelcast cluster to external
