@@ -16,7 +16,6 @@ type WanPublisherObject interface {
 	metav1.Object
 	WanPublisherConfig() *hazelcastv1alpha1.WanPublisherConfig
 	PublisherId() string
-	WanConfigName() string
 }
 type addBatchPublisherRequest struct {
 	name                  string
