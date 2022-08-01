@@ -286,12 +286,12 @@ func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
 }
 
-// Returns true if customClass configuration is specified.
+// Returns true if customClass.bucketConfiguration is specified.
 func (c *CustomClassConfiguration) IsBucketEnabled() bool {
 	return c != nil && c.BucketConfiguration != nil
 }
 
-// Returns true if customClass configuration is specified.
+// Returns true if customClass.configMaps configuration is specified.
 func (c *CustomClassConfiguration) IsConfigMapEnabled() bool {
 	return c != nil && (len(c.ConfigMaps) != 0)
 }
