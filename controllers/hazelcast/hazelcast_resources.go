@@ -840,14 +840,14 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 }
 
 func initContainers(h *hazelcastv1alpha1.Hazelcast) []corev1.Container {
-	var ctnrs []corev1.Container
+	var containers []corev1.Container
 	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.IsRestoreEnabled() {
-		ctnrs = append(ctnrs, restoreAgentContainer(h))
+		containers = append(containers, restoreAgentContainer(h))
 	}
 	if h.Spec.CustomClass.IsBucketEnabled() {
-		ctnrs = append(ctnrs, ccdAgentContainer(h))
+		containers = append(containers, ccdAgentContainer(h))
 	}
-	return nil
+	return containers
 }
 
 func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
