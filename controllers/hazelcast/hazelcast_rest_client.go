@@ -160,6 +160,9 @@ func (c *RestClient) WanSync(ctx context.Context, wan WanPublisherObject) error 
 	defer res.Body.Close()
 	var rBody map[string]string
 	err = json.NewDecoder(res.Body).Decode(&rBody)
+	if err != nil {
+		return err
+	}
 	if s := rBody["status"]; s != "success" {
 		return fmt.Errorf("error executing WAN Sync: %s, %s", s, rBody["message"])
 	}
