@@ -40,11 +40,6 @@ func (o wanSyncOptionsBuilder) withPublisherId(id string) wanSyncOptionsBuilder 
 	return o
 }
 
-func (o wanSyncOptionsBuilder) withMessage(msg string) wanSyncOptionsBuilder {
-	o.message = msg
-	return o
-}
-
 func updateWanSyncStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanSync, options wanSyncOptionsBuilder) (ctrl.Result, error) {
 	wan.Status.Phase = options.phase
 	if options.publisherId != "" {
