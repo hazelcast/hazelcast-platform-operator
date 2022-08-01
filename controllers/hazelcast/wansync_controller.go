@@ -52,19 +52,7 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	if !wan.GetDeletionTimestamp().IsZero() {
-		if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
-			logger.Info("Deleting WAN configuration")
-			if err := stopWanReplication(ctx, cli, wan); err != nil {
-				return updateWanSyncStatus(ctx, r.Client, wan,
-					wanSyncFailedStatus(fmt.Errorf("stopping WAN replication failed: %w", err)))
-			}
-			logger.Info("Deleting WAN configuration finalizer")
-			controllerutil.RemoveFinalizer(wan, n.Finalizer)
-			if err := r.Update(ctx, wan); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
+		return r.executeFinalizer(ctx, wan, cli)
 	}
 
 	if util.IsSuccessfullyApplied(wan.ObjectMeta) {
@@ -123,25 +111,66 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return updateWanSyncStatus(ctx, r.Client, wan, wanSyncSuccessStatus())
 }
 
+func (r *WanSyncReconciler) executeFinalizer(ctx context.Context, wan *hazelcastcomv1alpha1.WanSync, cli *hazelcast.Client) (ctrl.Result, error) {
+	if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
+		logger := util.GetLogger(ctx)
+		logger.Info("Deleting WAN configuration")
+		wpo, err := r.getWanPublisherObject(ctx, wan)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := stopWanReplication(ctx, cli, wpo); err != nil {
+			return updateWanSyncStatus(ctx, r.Client, wan,
+				wanSyncFailedStatus(fmt.Errorf("stopping WAN replication failed: %w", err)))
+		}
+		logger.Info("Deleting WAN configuration finalizer")
+		controllerutil.RemoveFinalizer(wan, n.Finalizer)
+		if err := r.Update(ctx, wan); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *WanSyncReconciler) getWanPublisherObject(ctx context.Context, wan *hazelcastcomv1alpha1.WanSync) (WanPublisherObject, error) {
+	if wan.Spec.WanReplicationName != "" {
+		wr, err := r.getWanReplicationForSync(ctx, wan)
+		if err != nil {
+			return nil, err
+		}
+		return wr, nil
+	}
+	return wan, nil
+}
+
 func (r *WanSyncReconciler) getWanPublisherId(
 	ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanSync) (string, error) {
 	if wan.Spec.WanReplicationName == "" {
 		return applyWanReplication(ctx, client, wan)
 	}
-	wr := &hazelcastcomv1alpha1.WanReplication{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: wan.Spec.WanReplicationName, Namespace: wan.Namespace}, wr)
+	wr, err := r.getWanReplicationForSync(ctx, wan)
 	if err != nil {
 		return "", err
 	}
 	return wr.Status.PublisherId, nil
 }
 
+func (r *WanSyncReconciler) getWanReplicationForSync(
+	ctx context.Context, wan *hazelcastcomv1alpha1.WanSync) (*hazelcastcomv1alpha1.WanReplication, error) {
+	wr := &hazelcastcomv1alpha1.WanReplication{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: wan.Spec.WanReplicationName, Namespace: wan.Namespace}, wr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get WanReplication CR from WanSync: %w", err)
+	}
+	return wr, nil
+}
+
 func (r *WanSyncReconciler) getWanMap(ctx context.Context, wan *hazelcastcomv1alpha1.WanSync) (*hazelcastcomv1alpha1.Map, error) {
 	var wpc *hazelcastcomv1alpha1.WanPublisherConfig
 	if wan.Spec.WanReplicationName != "" {
-		wr := &hazelcastcomv1alpha1.WanReplication{}
-		if err := r.Client.Get(ctx, types.NamespacedName{Name: wan.Spec.WanReplicationName, Namespace: wan.Namespace}, wr); err != nil {
-			return nil, fmt.Errorf("failed to get WanReplication CR from WanSync: %w", err)
+		wr, err := r.getWanReplicationForSync(ctx, wan)
+		if err != nil {
+			return nil, err
 		}
 		wpc = &wr.Spec.WanPublisherConfig
 	} else {

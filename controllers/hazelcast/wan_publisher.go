@@ -16,6 +16,7 @@ type WanPublisherObject interface {
 	metav1.Object
 	WanPublisherConfig() *hazelcastv1alpha1.WanPublisherConfig
 	PublisherId() string
+	WanConfigName() string
 }
 type addBatchPublisherRequest struct {
 	name                  string
@@ -34,6 +35,10 @@ type changeWanStateRequest struct {
 	name        string
 	publisherId string
 	state       codecTypes.WanReplicationState
+}
+
+func hazelcastWanReplicationName(mapName string) string {
+	return mapName + "-default"
 }
 
 func applyWanReplication(ctx context.Context, client *hazelcast.Client, wan WanPublisherObject) (string, error) {
@@ -97,7 +102,7 @@ func stopWanReplication(
 	}
 
 	req := &changeWanStateRequest{
-		name:        hazelcastWanReplicationName(wan.GetName()),
+		name:        hazelcastWanReplicationName(wan.WanPublisherConfig().MapResourceName),
 		publisherId: wan.PublisherId(),
 		state:       codecTypes.WanReplicationStateStopped,
 	}

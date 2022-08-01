@@ -134,10 +134,6 @@ func (r *WanReplicationReconciler) getHazelcastClient(ctx context.Context, wan *
 	return GetHazelcastClient(m)
 }
 
-func hazelcastWanReplicationName(mapName string) string {
-	return mapName + "-default"
-}
-
 func convertAckType(ackType hazelcastcomv1alpha1.AcknowledgementType) int32 {
 	switch ackType {
 	case hazelcastcomv1alpha1.AckOnReceipt:
