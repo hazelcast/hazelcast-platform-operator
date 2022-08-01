@@ -103,7 +103,8 @@ jobs:
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX PHONE_HOME_ENABLED=${{ env.PHONE_HOME_ENABLED }}
           kubectl rollout status deployment $DEPLOY_NAME
 
-      - name: Create secret
+      - name: Create secrets
+        if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
             --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
@@ -112,12 +113,14 @@ jobs:
             --from-literal=region=us-east-1 \
             --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
             --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          
-          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
-          
+
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
             --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
+
+      - name: Create secret for both OS and EE tests
+        run: |
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
 
       - name: Run Hazelcast Phone Home tests at GKE
         id: ph-test
