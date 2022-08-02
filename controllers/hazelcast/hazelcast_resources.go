@@ -1118,6 +1118,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 	b := []string{n.CustomClassBucketPath + "/*"}
 
+	if !h.Spec.CustomClass.IsConfigMapEnabled() {
+		return b[0]
+	}
+
 	for _, cm := range h.Spec.CustomClass.ConfigMaps {
 		b = append(b, n.CustomClassConfigMapPath+"/"+cm+"/*")
 	}
