@@ -909,7 +909,7 @@ func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 
 func ccdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
 	return v1.VolumeMount{
-		Name:      n.CustomClassVolumeName,
+		Name:      n.CustomClassBucketVolumeName,
 		MountPath: n.CustomClassBucketPath,
 	}
 }
@@ -939,7 +939,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 
 func customClassAgentVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	return v1.Volume{
-		Name: n.CustomClassVolumeName,
+		Name: n.CustomClassBucketVolumeName,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
@@ -961,8 +961,8 @@ func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 func customClassConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
 	var vols []corev1.Volume
 	for _, cm := range h.Spec.CustomClass.ConfigMaps {
-		vol := corev1.Volume{
-			Name: cm + "-cc-" + h.Spec.CustomClass.TriggerSequence,
+		vols = append(vols, corev1.Volume{
+			Name: n.CustomClassConfigMapNamePrefix + cm + h.Spec.CustomClass.TriggerSequence,
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -970,8 +970,7 @@ func customClassConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume
 					},
 				},
 			},
-		}
-		vols = append(vols, vol)
+		})
 	}
 	return vols
 }
@@ -1000,11 +999,10 @@ func volumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 func customClassConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 	var vms []corev1.VolumeMount
 	for _, cm := range h.Spec.CustomClass.ConfigMaps {
-		vm := corev1.VolumeMount{
-			Name:      cm + "-cc-" + h.Spec.CustomClass.TriggerSequence,
-			MountPath: n.CustomClassConfigMapPath + "-" + cm,
-		}
-		vms = append(vms, vm)
+		vms = append(vms, corev1.VolumeMount{
+			Name:      n.CustomClassConfigMapNamePrefix + cm + h.Spec.CustomClass.TriggerSequence,
+			MountPath: n.CustomClassConfigMapPath + "/" + cm,
+		})
 	}
 	return vms
 }
@@ -1119,12 +1117,9 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 	b := []string{n.CustomClassBucketPath + "/*"}
-	if !h.Spec.CustomClass.IsConfigMapEnabled() {
-		return b[0]
-	}
 
 	for _, cm := range h.Spec.CustomClass.ConfigMaps {
-		b = append(b, n.CustomClassConfigMapPath+"-"+cm+"/*")
+		b = append(b, n.CustomClassConfigMapPath+"/"+cm+"/*")
 	}
 
 	return strings.Join(b, ":")

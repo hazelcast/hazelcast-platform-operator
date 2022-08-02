@@ -46,8 +46,9 @@ const (
 	MancenterStorageName = Mancenter + "-storage"
 
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
-	PersistenceVolumeName = "hot-restart-persistence"
-	CustomClassVolumeName = "custom-class"
+	PersistenceVolumeName          = "hot-restart-persistence"
+	CustomClassBucketVolumeName    = "custom-class-bucket"
+	CustomClassConfigMapNamePrefix = "custom-class-cm-"
 
 	BackupAgent              = "backup-agent"
 	BackupAgentPortName      = "backup-agent-port"
