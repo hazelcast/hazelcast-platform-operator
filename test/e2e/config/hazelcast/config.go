@@ -254,7 +254,7 @@ var (
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
 				CustomClass: &hazelcastv1alpha1.CustomClassConfiguration{
-					BucketConfiguration: hazelcastv1alpha1.BucketConfiguration{
+					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
 						Secret:    s,
 						BucketURI: bkt,
 					},
