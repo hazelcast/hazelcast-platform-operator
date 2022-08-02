@@ -117,12 +117,12 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 		}, 1*Minute, interval).ShouldNot(Succeed())
 	})
 }
-func DeletePod(podName string, gracePeriod int64) {
+func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 	log.Printf("deleting POD with name '%s'", podName)
 	deleteOptions := metav1.DeleteOptions{
 		GracePeriodSeconds: &gracePeriod,
 	}
-	err := GetClientSet().CoreV1().Pods(hzNamespace).Delete(context.Background(), podName, deleteOptions)
+	err := GetClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -149,14 +149,14 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 	}
 
 	By("connecting Hazelcast client")
-	config := hzClient.Config{}
-	config.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", addr))
-	config.Cluster.Unisocket = unisocket
-	config.Cluster.Name = clusterName
-	config.Cluster.Discovery.UsePublicIP = true
-	client, err := hzClient.StartNewClientWithConfig(ctx, config)
+	c := hzClient.Config{}
+	c.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", addr))
+	c.Cluster.Unisocket = unisocket
+	c.Cluster.Name = clusterName
+	c.Cluster.Discovery.UsePublicIP = true
+	clientWithConfig, err := hzClient.StartNewClientWithConfig(ctx, c)
 	Expect(err).ToNot(HaveOccurred())
-	return client
+	return clientWithConfig
 }
 
 func GetClientSet() *kubernetes.Clientset {
@@ -172,10 +172,24 @@ func GetClientSet() *kubernetes.Clientset {
 	return clientSet
 }
 
+func SwitchContext(context string) {
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
+	rawConfig, err := kubeConfig.RawConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if rawConfig.Contexts[context] == nil {
+		log.Fatalf("Specified context %v doesn't exists. Please check you default kubeconfig path", context)
+	}
+	rawConfig.CurrentContext = context
+	err = clientcmd.ModifyConfig(clientcmd.NewDefaultPathOptions(), rawConfig, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool, mapName string, mapSize int) {
 	var m *hzClient.Map
 	clientHz := GetHzClient(ctx, lk, unisocket)
-	By("using Hazelcast client")
 	m, err := clientHz.GetMap(ctx, mapName)
 	Expect(err).ToNot(HaveOccurred())
 	entries := make([]hzclienttypes.Entry, 0, mapSize)
@@ -188,7 +202,7 @@ func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool
 	Expect(err).ToNot(HaveOccurred())
 }
 
-func waitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int) {
+func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int) {
 	var hzMap *hzClient.Map
 	clientHz := GetHzClient(ctx, lk, true)
 	defer func() {
@@ -198,21 +212,23 @@ func waitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 	hzMap, _ = clientHz.GetMap(ctx, mapName)
 	Eventually(func() (int, error) {
 		return hzMap.Size(ctx)
-	}, 15*Minute, interval).Should(Equal(mapSize))
+	}, 30*Minute, 10*Second).Should(Equal(mapSize))
 }
 
-// 1310.72 entries per one Go routine = 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
+/**
+1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+*/
 func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
 	hzAddress := fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzConfig.Name, hzConfig.Namespace, n.DefaultHzPort)
 	clientHz := GetHzClient(ctx, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace}, true)
-	mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInGb, mapName)
+	mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInGb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
 	Eventually(func() int {
 		return countKeySet(ctx, clientHz, mapName, hzConfig)
 	}, 15*Minute, interval).Should(Equal(int(float64(sizeInGb) * math.Round(1310.72) * 100)))
 	defer func() {
 		err := clientHz.Shutdown(ctx)
 		Expect(err).ToNot(HaveOccurred())
-		DeletePod(mapLoaderPod.Name, 0)
+		DeletePod(mapLoaderPod.Name, 0, types.NamespacedName{Namespace: hzConfig.Namespace})
 	}()
 }
 
@@ -228,14 +244,15 @@ func countKeySet(ctx context.Context, clientHz *hzClient.Client, mapName string,
 	return keyCount
 }
 
-func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName string) *corev1.Pod {
+func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName string, lk types.NamespacedName) *corev1.Pod {
 	size := strconv.Itoa(mapSizeInGb)
 	clientPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
 				"maploader": "true",
 			},
-			Name: "maploader",
+			Name:      "maploader-" + lk.Name,
+			Namespace: lk.Namespace,
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -251,15 +268,15 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName 
 			RestartPolicy: corev1.RestartPolicyNever,
 		},
 	}
-	_, err := GetClientSet().CoreV1().Pods(hzNamespace).Create(context.Background(), clientPod, metav1.CreateOptions{})
+	_, err := GetClientSet().CoreV1().Pods(lk.Namespace).Create(context.Background(), clientPod, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	err = k8sClient.Get(context.Background(), types.NamespacedName{
 		Name:      clientPod.Name,
-		Namespace: hzNamespace,
+		Namespace: lk.Namespace,
 	}, clientPod)
 	Expect(err).ToNot(HaveOccurred())
 	Eventually(func() bool {
-		pod, err := GetClientSet().CoreV1().Pods(hzNamespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
+		pod, err := GetClientSet().CoreV1().Pods(lk.Namespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		return pod.Status.ContainerStatuses[0].Ready
 	}, 5*Minute, interval).Should(Equal(true))
@@ -377,14 +394,14 @@ func portForwardPod(sName, sNamespace, port string) (chan struct{}, chan struct{
 
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
-	config, err := kubeConfig.ClientConfig()
+	clientConfig, err := kubeConfig.ClientConfig()
 	Expect(err).To(BeNil())
 
-	roundTripper, upgrader, err := spdy.RoundTripperFor(config)
+	roundTripper, upgrader, err := spdy.RoundTripperFor(clientConfig)
 	Expect(err).To(BeNil())
 
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", sNamespace, sName)
-	hostIP := strings.TrimPrefix(config.Host, "https://")
+	hostIP := strings.TrimPrefix(clientConfig.Host, "https://")
 	serverURL := url.URL{Scheme: "https", Path: path, Host: hostIP}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: roundTripper}, http.MethodPost, &serverURL)
 
@@ -403,13 +420,13 @@ func portForwardPod(sName, sNamespace, port string) (chan struct{}, chan struct{
 }
 
 func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
-	config := hzClient.Config{}
-	cc := &config.Cluster
+	c := hzClient.Config{}
+	cc := &c.Cluster
 	cc.Name = h.Spec.ClusterName
 	cc.Network.SetAddresses("localhost:" + localPort)
-	client, err := hzClient.StartNewClientWithConfig(ctx, config)
+	clientWithConfig, err := hzClient.StartNewClientWithConfig(ctx, c)
 	Expect(err).To(BeNil())
-	return client
+	return clientWithConfig
 }
 
 func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {

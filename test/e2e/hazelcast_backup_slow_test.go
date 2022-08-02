@@ -95,7 +95,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(logs.Close()).Should(Succeed())
 
 		By("checking the Map size")
-		waitForMapSize(context.Background(), hzLookupKey, m.Name, 100)
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100)
 	})
 
 	It("should successfully start after one member restart", Label("slow"), func() {
@@ -128,7 +128,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
 
 		By("deleting the pod")
-		DeletePod(hazelcast.Name+"-2", 0)
+		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
 		evaluateReadyMembers(hzLookupKey, 3)
 
 		logs := InitLogs(t, hzLookupKey)
@@ -138,7 +138,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(logs.Close()).Should(Succeed())
 
 		By("checking the Map size")
-		waitForMapSize(context.Background(), hzLookupKey, m.Name, 100)
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100)
 	})
 
 	It("should restore 9 GB data after planned shutdown", Label("slow"), func() {
@@ -221,7 +221,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
 		By("checking the Map size")
-		waitForMapSize(context.Background(), hzLookupKey, dm.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+		WaitForMapSize(context.Background(), hzLookupKey, dm.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
 	})
 
 	It("Should successfully restore 9 Gb data from external backup using GCP bucket", Label("slow"), func() {
@@ -309,6 +309,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Local Hot Restart procedure completed with success."))
 
 		By("checking the Map size")
-		waitForMapSize(context.Background(), hzLookupKey, dm.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+		WaitForMapSize(context.Background(), hzLookupKey, dm.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
 	})
 })
