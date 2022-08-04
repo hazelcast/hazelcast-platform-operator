@@ -923,6 +923,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 					LocalObjectReference: v1.LocalObjectReference{
 						Name: h.Name,
 					},
+					DefaultMode: &[]int32{420}[0],
 				},
 			},
 		},
@@ -968,6 +969,7 @@ func customClassConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume
 					LocalObjectReference: v1.LocalObjectReference{
 						Name: cm,
 					},
+					DefaultMode: &[]int32{420}[0],
 				},
 			},
 		})
