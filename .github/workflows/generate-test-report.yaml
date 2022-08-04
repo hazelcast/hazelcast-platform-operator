@@ -5,6 +5,9 @@ on:
       WORKFLOW_ID:
         required: true
         type: string
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CLEANUP_TIMEOUT: 5
 
 jobs:
   report-creation:
@@ -14,6 +17,9 @@ jobs:
       name: report
       url: https://hazelcast.github.io/hazelcast-platform-operator/
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Get Test Run History
         uses: actions/checkout@v3
         if: always()
@@ -48,11 +54,6 @@ jobs:
            cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not)) )) | .testStage.steps[].hasContent=true |.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID"))} | del(.testStage.steps[] | select(.name | select(contains("CR_ID")))) | .links=[{"name":"https://one.newrelic.com/logger","url":"https://one.newrelic.com/logger"}]|.extra.tags.tag |= sub("CR_ID:"; "")' $i) > $i
           done
 
-      - name: Replace index.html Content
-        if: always()
-        run: |
-          cat test-report-pages/template.html >> test-report-pages/index.html
-
       - name: Deploy Report to Github Pages
         if: always()
         uses: peaceiris/actions-gh-pages@v3
@@ -60,6 +61,12 @@ jobs:
           publish_branch: test-report-pages
           publish_dir: allure-history
           personal_token: ${{ secrets.GITHUB_TOKEN }}
+          commit_message: deploy report with run number ${{ github.run_number }} and commit
+
+      - name: Cleanup Page Publish Runs
+        run: |
+          source .github/scripts/utils.sh
+          cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${GITHUB_RUN_NUMBER} $CLEANUP_TIMEOUT
 
       - name: Delete Test Artifact
         uses: geekyeggo/delete-artifact@v1
