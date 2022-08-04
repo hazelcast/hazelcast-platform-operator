@@ -13,6 +13,8 @@ spec:
     kind: WanReplication
     listKind: WanReplicationList
     plural: wanreplications
+    shortNames:
+    - wr
     singular: wanreplication
   scope: Namespaced
   versions:

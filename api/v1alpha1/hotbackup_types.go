@@ -62,6 +62,7 @@ type HotBackupSpec struct {
 
 // HotBackup is the Schema for the hot backup API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the HotBackup process"
+// +kubebuilder:resource:shortName=hb
 type HotBackup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
