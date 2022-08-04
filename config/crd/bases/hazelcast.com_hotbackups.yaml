@@ -21,6 +21,11 @@ spec:
       jsonPath: .status.state
       name: Status
       type: string
+    - description: Message for the current HotBackup Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:

@@ -27,6 +27,11 @@ spec:
       jsonPath: .status.externalAddresses
       name: External-Addresses
       type: string
+    - description: Message for the current Hazelcast Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -1167,6 +1172,11 @@ spec:
       jsonPath: .status.state
       name: Status
       type: string
+    - description: Message for the current HotBackup Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -1263,6 +1273,11 @@ spec:
     - description: External addresses of the Management Center deployment
       jsonPath: .status.externalAddresses
       name: External-Addresses
+      type: string
+    - description: Message for the current ManagementCenter Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
       type: string
     name: v1alpha1
     schema:
@@ -2450,6 +2465,11 @@ spec:
     - description: Current state of the Hazelcast WAN Replication
       jsonPath: .status.status
       name: Status
+      type: string
+    - description: Message for the current WanReplication Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
       type: string
     name: v1alpha1
     schema:
