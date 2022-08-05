@@ -7,6 +7,7 @@ import (
 	"hash/crc32"
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v3"
@@ -702,10 +703,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								Drop: []v1.Capability{"ALL"},
 							},
 						},
-						VolumeMounts: volumeMount(h),
 					}},
 					TerminationGracePeriodSeconds: &[]int64{600}[0],
-					Volumes:                       volumes(h),
 				},
 			},
 		},
@@ -713,7 +712,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 
 	if h.Spec.Persistence.IsEnabled() {
 		if h.Spec.Persistence.UseHostPath() {
-			sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, hostPathVolume(h))
 			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot = &[]bool{false}[0]
 			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsUser = &[]int64{0}[0]
 			if platform.GetType() == platform.OpenShift {
@@ -726,17 +724,12 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		if h.Spec.Persistence.IsExternal() {
 			sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 		}
-		if h.Spec.Persistence.IsRestoreEnabled() {
-			sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, restoreAgentContainer(h))
-		}
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Statefulset: %w", err)
 	}
-	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, customClassVolume(h))
-	sts.Spec.Template.Spec.Containers[0].VolumeMounts = append(sts.Spec.Template.Spec.Containers[0].VolumeMounts, ccdAgentVolumeMount(h))
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		sts.Spec.Replicas = h.Spec.ClusterSize
@@ -768,16 +761,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Containers[0].Resources = v1.ResourceRequirements{}
 		}
 
-		if h.Spec.CustomClass.IsEnabled() {
-			if _, ok := containerExists(sts.Spec.Template.Spec.InitContainers, n.CustomClassDownloadAgent); !ok {
-				sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, ccdAgentContainer(h))
-			}
-		} else {
-			if index, ok := containerExists(sts.Spec.Template.Spec.InitContainers, n.CustomClassDownloadAgent); ok {
-				sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers[:index],
-					sts.Spec.Template.Spec.InitContainers[index+1:]...)
-			}
-		}
+		sts.Spec.Template.Spec.InitContainers = initContainers(h)
+		sts.Spec.Template.Spec.Volumes = volumes(h)
+		sts.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts(h)
 
 		return nil
 	})
@@ -787,10 +773,24 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
-func ccdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
-	return v1.VolumeMount{
-		Name:      n.CustomClassVolumeName,
-		MountPath: n.CustomClassPath,
+func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
+	return []v1.PersistentVolumeClaim{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      n.PersistenceVolumeName,
+				Namespace: h.Namespace,
+				Labels:    labels(h),
+			},
+			Spec: v1.PersistentVolumeClaimSpec{
+				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
+				Resources: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						corev1.ResourceStorage: *h.Spec.Persistence.Pvc.RequestStorage,
+					},
+				},
+				StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,
+			},
+		},
 	}
 }
 
@@ -839,6 +839,17 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
+func initContainers(h *hazelcastv1alpha1.Hazelcast) []corev1.Container {
+	var containers []corev1.Container
+	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.IsRestoreEnabled() {
+		containers = append(containers, restoreAgentContainer(h))
+	}
+	if h.Spec.CustomClass.IsBucketEnabled() {
+		containers = append(containers, ccdAgentContainer(h))
+	}
+	return containers
+}
+
 func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
 		Name:  n.RestoreAgent,
@@ -881,32 +892,30 @@ func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		Env: []v1.EnvVar{
 			{
 				Name:  "CCD_SECRET_NAME",
-				Value: h.Spec.CustomClass.Secret,
+				Value: h.Spec.CustomClass.BucketConfiguration.Secret,
 			},
 			{
 				Name:  "CCD_BUCKET",
-				Value: h.Spec.CustomClass.BucketURI,
+				Value: h.Spec.CustomClass.BucketConfiguration.BucketURI,
 			},
 			{
 				Name:  "CCD_DESTINATION",
-				Value: n.CustomClassPath,
+				Value: n.CustomClassBucketPath,
 			},
 		},
 		VolumeMounts: []v1.VolumeMount{ccdAgentVolumeMount(h)},
 	}
 }
 
-func containerExists(cs []corev1.Container, cn string) (int, bool) {
-	for i, c := range cs {
-		if c.Name == cn {
-			return i, true
-		}
+func ccdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.CustomClassBucketVolumeName,
+		MountPath: n.CustomClassBucketPath,
 	}
-	return -1, false
 }
 
 func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
-	return []v1.Volume{
+	vols := []v1.Volume{
 		{
 			Name: n.HazelcastStorageName,
 			VolumeSource: v1.VolumeSource{
@@ -917,12 +926,20 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 				},
 			},
 		},
+		customClassAgentVolume(h),
 	}
+	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.UseHostPath() {
+		vols = append(vols, hostPathVolume(h))
+	}
+	if h.Spec.CustomClass.IsConfigMapEnabled() {
+		vols = append(vols, customClassConfigMapVolumes(h)...)
+	}
+	return vols
 }
 
-func customClassVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
+func customClassAgentVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	return v1.Volume{
-		Name: n.CustomClassVolumeName,
+		Name: n.CustomClassBucketVolumeName,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
@@ -941,33 +958,30 @@ func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	}
 }
 
-func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
-	return []v1.PersistentVolumeClaim{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      n.PersistenceVolumeName,
-				Namespace: h.Namespace,
-				Labels:    labels(h),
-			},
-			Spec: v1.PersistentVolumeClaimSpec{
-				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
-				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
-						corev1.ResourceStorage: *h.Spec.Persistence.Pvc.RequestStorage,
+func customClassConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
+	var vols []corev1.Volume
+	for _, cm := range h.Spec.CustomClass.ConfigMaps {
+		vols = append(vols, corev1.Volume{
+			Name: n.CustomClassConfigMapNamePrefix + cm + h.Spec.CustomClass.TriggerSequence,
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: cm,
 					},
 				},
-				StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,
 			},
-		},
+		})
 	}
+	return vols
 }
 
-func volumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func volumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,
 			MountPath: n.HazelcastMountPath,
 		},
+		ccdAgentVolumeMount(h),
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
@@ -975,7 +989,22 @@ func volumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 			MountPath: h.Spec.Persistence.BaseDir,
 		})
 	}
+
+	if h.Spec.CustomClass.IsConfigMapEnabled() {
+		mounts = append(mounts, customClassConfigMapVolumeMounts(h)...)
+	}
 	return mounts
+}
+
+func customClassConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+	var vms []corev1.VolumeMount
+	for _, cm := range h.Spec.CustomClass.ConfigMaps {
+		vms = append(vms, corev1.VolumeMount{
+			Name:      n.CustomClassConfigMapNamePrefix + cm + h.Spec.CustomClass.TriggerSequence,
+			MountPath: n.CustomClassConfigMapPath + "/" + cm,
+		})
+	}
+	return vms
 }
 
 // checkHotRestart checks if the persistence feature and AutoForceStart is enabled, pods are failing,
@@ -1065,7 +1094,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		},
 		{
 			Name:  "CLASSPATH",
-			Value: n.CustomClassPath + "/*",
+			Value: javaClassPath(h),
 		},
 	}
 	if h.Spec.LicenseKeySecret != "" {
@@ -1084,6 +1113,20 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	}
 
 	return envs
+}
+
+func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
+	b := []string{n.CustomClassBucketPath + "/*"}
+
+	if !h.Spec.CustomClass.IsConfigMapEnabled() {
+		return b[0]
+	}
+
+	for _, cm := range h.Spec.CustomClass.ConfigMaps {
+		b = append(b, n.CustomClassConfigMapPath+"/"+cm+"/*")
+	}
+
+	return strings.Join(b, ":")
 }
 
 func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
