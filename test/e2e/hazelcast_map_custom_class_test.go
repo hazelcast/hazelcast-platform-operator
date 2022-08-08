@@ -42,9 +42,9 @@ var _ = Describe("Hazelcast Map Config With Custom Class Upload", Label("map"), 
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
-		DeleteAllOf(&corev1.Secret{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, &hazelcastcomv1alpha1.HazelcastList{}, hzNamespace, labels)
+		DeleteAllOf(&corev1.Secret{}, &corev1.SecretList{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())

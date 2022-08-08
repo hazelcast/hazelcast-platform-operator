@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	. "time"
 
@@ -239,7 +240,7 @@ func deletePods(lk types.NamespacedName) {
 	}
 }
 
-func DeleteAllOf(obj client.Object, ns string, labels map[string]string) {
+func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels map[string]string) {
 	Expect(k8sClient.DeleteAllOf(
 		context.Background(),
 		obj,
@@ -247,4 +248,22 @@ func DeleteAllOf(obj client.Object, ns string, labels map[string]string) {
 		client.MatchingLabels(labels),
 		client.PropagationPolicy(metav1.DeletePropagationForeground),
 	)).Should(Succeed())
+
+	Eventually(func() bool {
+		err := k8sClient.List(context.Background(), objList,
+			client.InNamespace(ns),
+			client.MatchingLabels(labels))
+		if err != nil {
+			return false
+		}
+		objListVal := reflect.ValueOf(objList)
+		if objListVal.Kind() == reflect.Ptr || objListVal.Kind() == reflect.Interface {
+			objListVal = objListVal.Elem()
+		}
+
+		items := objListVal.FieldByName("Items")
+		len := items.Len()
+		return len == 0
+
+	}, 1*Minute, interval).Should(BeTrue())
 }
