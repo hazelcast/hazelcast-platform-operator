@@ -95,7 +95,7 @@ spec:
                 type: object
               executorServices:
                 properties:
-                  basicExecutorServices:
+                  basic:
                     items:
                       properties:
                         name:
@@ -115,7 +115,7 @@ spec:
                           type: integer
                       type: object
                     type: array
-                  durableExecutorServices:
+                  durable:
                     items:
                       properties:
                         capacity:
@@ -141,7 +141,7 @@ spec:
                           type: integer
                       type: object
                     type: array
-                  scheduledExecutorServices:
+                  scheduled:
                     items:
                       properties:
                         capacity:

@@ -7,6 +7,6 @@ spec:
     secret: br-secret-gcp
     bucketURI: "gs://operator-custom-class/executorService"
   executorServices:
-    basicExecutorServices:
+    basic:
       - name: service1
 
