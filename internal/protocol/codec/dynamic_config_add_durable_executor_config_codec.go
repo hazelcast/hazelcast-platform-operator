@@ -36,7 +36,7 @@ const (
 // If a durable executor configuration with the given {@code name} already exists, then
 // the new configuration is ignored and the existing one is preserved.
 
-func EncodeDynamicConfigAddDurableExecutorConfigRequest(es *types.AddDurableExecutorInput) *proto.ClientMessage {
+func EncodeDynamicConfigAddDurableExecutorConfigRequest(es *types.DurableExecutorServiceConfig) *proto.ClientMessage {
 	clientMessage := proto.NewClientMessageForEncode()
 	clientMessage.SetRetryable(false)
 

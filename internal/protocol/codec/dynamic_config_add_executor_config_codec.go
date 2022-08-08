@@ -35,7 +35,7 @@ const (
 // If an executor configuration with the given {@code name} already exists, then
 // the new configuration is ignored and the existing one is preserved.
 
-func EncodeDynamicConfigAddExecutorConfigRequest(es *types.AddExecutorInput) *proto.ClientMessage {
+func EncodeDynamicConfigAddExecutorConfigRequest(es *types.ExecutorServiceConfig) *proto.ClientMessage {
 	clientMessage := proto.NewClientMessageForEncode()
 	clientMessage.SetRetryable(false)
 

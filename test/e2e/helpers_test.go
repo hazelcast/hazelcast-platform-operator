@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/xml"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"math"
 	"net/http"
@@ -41,6 +43,8 @@ import (
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
+
+type UpdateFn func(*hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast
 
 func GetBackupSequence(t Time, lk types.NamespacedName) string {
 	By("Finding Backup sequence")
@@ -92,6 +96,30 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 			return isHazelcastRunning(hz)
 		}, 10*Minute, interval).Should(BeTrue(), "Message: %v", message)
 	})
+}
+
+func UpdateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast, fns ...UpdateFn) {
+	By("updating the CR with specs successfully")
+	if len(fns) == 0 {
+		Expect(k8sClient.Update(context.Background(), hazelcast)).Should(Succeed())
+	} else {
+		lk := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
+		for {
+			cr := &hazelcastcomv1alpha1.Hazelcast{}
+			Expect(k8sClient.Get(context.Background(), lk, cr)).Should(Succeed())
+			for _, fn := range fns {
+				cr = fn(cr)
+			}
+			err := k8sClient.Update(context.Background(), cr)
+			if err == nil {
+				break
+			} else if errors.IsConflict(err) {
+				continue
+			} else {
+				Fail(err.Error())
+			}
+		}
+	}
 }
 
 func CreateHazelcastCRWithoutCheck(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
@@ -363,6 +391,14 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 	return checkMap
 }
 
+func getMemberConfig(ctx context.Context, client *hzClient.Client) string {
+	ci := hzClient.NewClientInternal(client)
+	req := codec.EncodeMCGetMemberConfigRequest()
+	resp, err := ci.InvokeOnRandomTarget(ctx, req, nil)
+	Expect(err).To(BeNil())
+	return codec.DecodeMCGetMemberConfigResponse(resp)
+}
+
 func getMapConfig(ctx context.Context, client *hzClient.Client, mapName string) codecTypes.MapConfig {
 	ci := hzClient.NewClientInternal(client)
 	req := codec.EncodeMCGetMapConfigRequest(mapName)
@@ -482,4 +518,45 @@ func printDebugState() {
 	GinkgoWriter.Println(string(byt))
 
 	GinkgoWriter.Printf("Current Ginkgo Spec Report State is: %+v\n", CurrentSpecReport().State)
+}
+
+func getExecutorServiceConfigFromMemberConfig(memberConfigXML string) codecTypes.ExecutorServices {
+	var executorServices codecTypes.ExecutorServices
+	err := xml.Unmarshal([]byte(memberConfigXML), &executorServices)
+	Expect(err).To(BeNil())
+	return executorServices
+}
+
+func assertExecutorServices(es1 map[string]interface{}, es2 codecTypes.ExecutorServices) {
+	for i, bes1 := range es1["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration) {
+		// `i+1`'s reason is the default executor service added by hazelcast in any case.
+		assertBasicES(bes1, es2.Basic[i+1])
+	}
+	for i, des1 := range es1["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration) {
+		assertDurableES(des1, es2.Durable[i])
+	}
+	for i, ses1 := range es1["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration) {
+		assertScheduledES(ses1, es2.Scheduled[i])
+	}
+}
+
+func assertBasicES(bes1 hazelcastcomv1alpha1.ExecutorServiceConfiguration, bes2 codecTypes.ExecutorServiceConfig) {
+	Expect(bes1.Name).Should(Equal(bes2.Name))
+	Expect(bes1.PoolSize).Should(Equal(bes2.PoolSize))
+	Expect(bes1.QueueCapacity).Should(Equal(bes2.QueueCapacity))
+}
+
+func assertDurableES(des1 hazelcastcomv1alpha1.DurableExecutorServiceConfiguration, des2 codecTypes.DurableExecutorServiceConfig) {
+	Expect(des1.Name).Should(Equal(des2.Name))
+	Expect(des1.PoolSize).Should(Equal(des2.PoolSize))
+	Expect(des1.Capacity).Should(Equal(des2.Capacity))
+	Expect(des1.Durability).Should(Equal(des2.Durability))
+}
+
+func assertScheduledES(ses1 hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration, ses2 codecTypes.ScheduledExecutorServiceConfig) {
+	Expect(ses1.Name).Should(Equal(ses2.Name))
+	Expect(ses1.PoolSize).Should(Equal(ses2.PoolSize))
+	Expect(ses1.Capacity).Should(Equal(ses2.Capacity))
+	Expect(ses1.Durability).Should(Equal(ses2.Durability))
+	Expect(ses1.CapacityPolicy).Should(Equal(ses2.CapacityPolicy))
 }

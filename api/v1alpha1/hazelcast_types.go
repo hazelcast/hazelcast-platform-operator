@@ -88,12 +88,7 @@ type HazelcastSpec struct {
 	CustomClass *CustomClassConfiguration `json:"customClass,omitempty"`
 
 	// +optional
-	ExecutorServices *ExecutorServices `json:"executorServices,omitempty"`
-}
-
-type ExecutorServices struct {
-	// +optional
-	BasicExecutorServices []ExecutorServiceConfiguration `json:"basicExecutorServices,omitempty"`
+	ExecutorServices []ExecutorServiceConfiguration `json:"executorServices,omitempty"`
 
 	// +optional
 	DurableExecutorServices []DurableExecutorServiceConfiguration `json:"durableExecutorServices,omitempty"`
@@ -145,7 +140,27 @@ type DurableExecutorServiceConfiguration struct {
 }
 
 type ScheduledExecutorServiceConfiguration struct {
-	DurableExecutorServiceConfiguration `json:",inline"`
+	// The name of the executor service
+	// +kubebuilder:default:="default"
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// The number of executor threads per member.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=16
+	// +optional
+	PoolSize int32 `json:"poolSize,omitempty"`
+
+	// Durability of the executor.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=1
+	// +optional
+	Durability int32 `json:"durability,omitempty"`
+
+	// Capacity of the executor task per partition.
+	// +kubebuilder:default:=100
+	// +optional
+	Capacity int32 `json:"capacity,omitempty"`
 
 	// The active policy for the capacity setting.
 	// +kubebuilder:default:=PER_NODE

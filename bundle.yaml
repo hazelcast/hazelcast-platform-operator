@@ -110,85 +110,52 @@ spec:
                       the custom classes.
                     type: string
                 type: object
+              durableExecutorServices:
+                items:
+                  properties:
+                    capacity:
+                      default: 100
+                      description: Capacity of the executor task per partition.
+                      format: int32
+                      type: integer
+                    durability:
+                      default: 1
+                      description: Durability of the executor.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    name:
+                      default: default
+                      description: The name of the executor service
+                      type: string
+                    poolSize:
+                      default: 16
+                      description: The number of executor threads per member.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                  type: object
+                type: array
               executorServices:
-                properties:
-                  basicExecutorServices:
-                    items:
-                      properties:
-                        name:
-                          default: default
-                          description: The name of the executor service
-                          type: string
-                        poolSize:
-                          default: 8
-                          description: The number of executor threads per member.
-                          format: int32
-                          minimum: 1
-                          type: integer
-                        queueCapacity:
-                          default: 0
-                          description: Task queue capacity of the executor.
-                          format: int32
-                          type: integer
-                      type: object
-                    type: array
-                  durableExecutorServices:
-                    items:
-                      properties:
-                        capacity:
-                          default: 100
-                          description: Capacity of the executor task per partition.
-                          format: int32
-                          type: integer
-                        durability:
-                          default: 1
-                          description: Durability of the executor.
-                          format: int32
-                          minimum: 1
-                          type: integer
-                        name:
-                          default: default
-                          description: The name of the executor service
-                          type: string
-                        poolSize:
-                          default: 16
-                          description: The number of executor threads per member.
-                          format: int32
-                          minimum: 1
-                          type: integer
-                      type: object
-                    type: array
-                  scheduledExecutorServices:
-                    items:
-                      properties:
-                        capacity:
-                          default: 100
-                          description: Capacity of the executor task per partition.
-                          format: int32
-                          type: integer
-                        capacityPolicy:
-                          default: PER_NODE
-                          description: The active policy for the capacity setting.
-                          type: string
-                        durability:
-                          default: 1
-                          description: Durability of the executor.
-                          format: int32
-                          minimum: 1
-                          type: integer
-                        name:
-                          default: default
-                          description: The name of the executor service
-                          type: string
-                        poolSize:
-                          default: 16
-                          description: The number of executor threads per member.
-                          format: int32
-                          minimum: 1
-                          type: integer
-                      type: object
-                    type: array
-                type: object
+                items:
+                  properties:
+                    name:
+                      default: default
+                      description: The name of the executor service
+                      type: string
+                    poolSize:
+                      default: 8
+                      description: The number of executor threads per member.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    queueCapacity:
+                      default: 0
+                      description: Task queue capacity of the executor.
+                      format: int32
+                      type: integer
+                  type: object
+                type: array
               exposeExternally:
                 description: Configuration to expose Hazelcast cluster to external
                   clients.
@@ -347,6 +314,36 @@ spec:
                       to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                     type: object
                 type: object
+              scheduledExecutorServices:
+                items:
+                  properties:
+                    capacity:
+                      default: 100
+                      description: Capacity of the executor task per partition.
+                      format: int32
+                      type: integer
+                    capacityPolicy:
+                      default: PER_NODE
+                      description: The active policy for the capacity setting.
+                      type: string
+                    durability:
+                      default: 1
+                      description: Durability of the executor.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    name:
+                      default: default
+                      description: The name of the executor service
+                      type: string
+                    poolSize:
+                      default: 16
+                      description: The number of executor threads per member.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                  type: object
+                type: array
               scheduling:
                 description: Scheduling details
                 properties:
@@ -2997,6 +2994,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DEVELOPER_MODE_ENABLED
+          value: "true"
         image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: Always
         livenessProbe:
