@@ -478,7 +478,7 @@ func printState() {
 
 	GinkgoWriter.Println("kubectl get all:")
 
-	cmd := exec.Command("kubectl", "get", "all")
+	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,wanreplication", "-o=wide")
 	byt, err := cmd.Output()
 	Expect(err).To(BeNil())
 	GinkgoWriter.Println(string(byt))
