@@ -12,6 +12,8 @@ type WanSyncSpec struct {
 
 // WanSource represents the source of a WAN publisher.
 // Only one of its members may be specified.
+// +kubebuilder:validation:MinProperties:=1
+// +kubebuilder:validation:MaxProperties:=1
 type WanSource struct {
 	// WanReplicationName is the name of WanReplication CR that contains the WAN publisher configuration.
 	// If specified the Sync operation will use existing WAN publisher.

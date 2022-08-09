@@ -144,7 +144,7 @@ func (c *RestClient) WanSync(ctx context.Context, wan WanPublisherObject) error 
 	ctxT, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	var url string
-	if wan.WanPublisherConfig().MapResourceName != "" {
+	if wan.WanPublisherConfig().MapResourceName != "" && wan.WanPublisherConfig().MapResourceName != "*" {
 		url = wanSync
 	} else {
 		url = wanSyncAll
@@ -171,7 +171,7 @@ func (c *RestClient) WanSync(ctx context.Context, wan WanPublisherObject) error 
 
 func (c *RestClient) wanSyncData(wan WanPublisherObject) string {
 	wpc := wan.WanPublisherConfig()
-	if wpc.MapResourceName != "" {
+	if wpc.MapResourceName != "" && wpc.MapResourceName != "*" {
 		return fmt.Sprintf("%s&&%s&%s&%s",
 			c.clusterName, hazelcastWanReplicationName(wpc.MapResourceName),
 			wan.PublisherId(),

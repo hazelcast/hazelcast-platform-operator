@@ -40,6 +40,8 @@ spec:
             type: object
           spec:
             description: WanSyncSpec defines the desired state of WanSync
+            maxProperties: 1
+            minProperties: 1
             properties:
               config:
                 description: Config is the configuration for the WAN replication publisher.

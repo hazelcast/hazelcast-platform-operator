@@ -2578,6 +2578,8 @@ spec:
             type: object
           spec:
             description: WanSyncSpec defines the desired state of WanSync
+            maxProperties: 1
+            minProperties: 1
             properties:
               config:
                 description: Config is the configuration for the WAN replication publisher.
@@ -3018,8 +3020,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: DEVELOPER_MODE_ENABLED
-          value: "true"
         image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: Always
         livenessProbe:
@@ -3044,7 +3044,5 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
-      securityContext:
-        runAsNonRoot: true
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10
