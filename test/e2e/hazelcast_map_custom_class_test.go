@@ -19,7 +19,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast Map Config With Custom Class Upload", Label("map"), func() {
+var _ = Describe("Hazelcast Map Config With User Code Deployment", Label("map"), func() {
 	localPort := strconv.Itoa(8200 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast Map Config With Custom Class Upload", Label("map"), 
 		msClassName := "SimpleStore"
 
 		By("creating the Hazelcast CR")
-		hazelcast := hazelcastconfig.CustomClass(hzLookupKey, ee, "br-secret-gcp", "gs://operator-custom-class/mapStore", labels)
+		hazelcast := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/mapStore", labels)
 		CreateHazelcastCR(hazelcast)
 
 		By("port-forwarding to Hazelcast master pod")

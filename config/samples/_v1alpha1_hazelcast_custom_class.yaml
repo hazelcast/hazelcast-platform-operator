@@ -3,6 +3,6 @@ kind: Hazelcast
 metadata:
   name: hazelcast
 spec:
-  customClass:
+  userCode:
     secret: cc-secret
-    bucketURI: "gs://customClass"
+    bucketURI: "gs://userCode"

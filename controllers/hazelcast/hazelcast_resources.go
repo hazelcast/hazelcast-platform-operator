@@ -884,8 +884,8 @@ func initContainers(h *hazelcastv1alpha1.Hazelcast) []corev1.Container {
 	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.IsRestoreEnabled() {
 		containers = append(containers, restoreAgentContainer(h))
 	}
-	if h.Spec.CustomClass.IsBucketEnabled() {
-		containers = append(containers, ccdAgentContainer(h))
+	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
+		containers = append(containers, ucdAgentContainer(h))
 	}
 	return containers
 }
@@ -924,33 +924,33 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
-func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func ucdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
-		Name:  n.CustomClassDownloadAgent + h.Spec.CustomClass.TriggerSequence,
+		Name:  n.UserCodeDownloadAgent + h.Spec.UserCodeDeployment.TriggerSequence,
 		Image: h.AgentDockerImage(),
-		Args:  []string{"custom-class-download"},
+		Args:  []string{"user-code-deployment"},
 		Env: []v1.EnvVar{
 			{
-				Name:  "CCD_SECRET_NAME",
-				Value: h.Spec.CustomClass.BucketConfiguration.Secret,
+				Name:  "UCD_SECRET_NAME",
+				Value: h.Spec.UserCodeDeployment.BucketConfiguration.Secret,
 			},
 			{
-				Name:  "CCD_BUCKET",
-				Value: h.Spec.CustomClass.BucketConfiguration.BucketURI,
+				Name:  "UCD_BUCKET",
+				Value: h.Spec.UserCodeDeployment.BucketConfiguration.BucketURI,
 			},
 			{
-				Name:  "CCD_DESTINATION",
-				Value: n.CustomClassBucketPath,
+				Name:  "UCD_DESTINATION",
+				Value: n.UserCodeBucketPath,
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{ccdAgentVolumeMount(h)},
+		VolumeMounts: []v1.VolumeMount{ucdAgentVolumeMount(h)},
 	}
 }
 
-func ccdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
+func ucdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
 	return v1.VolumeMount{
-		Name:      n.CustomClassBucketVolumeName,
-		MountPath: n.CustomClassBucketPath,
+		Name:      n.UserCodeBucketVolumeName,
+		MountPath: n.UserCodeBucketPath,
 	}
 }
 
@@ -967,20 +967,20 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 				},
 			},
 		},
-		customClassAgentVolume(h),
+		userCodeAgentVolume(h),
 	}
 	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.UseHostPath() {
 		vols = append(vols, hostPathVolume(h))
 	}
-	if h.Spec.CustomClass.IsConfigMapEnabled() {
-		vols = append(vols, customClassConfigMapVolumes(h)...)
+	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
+		vols = append(vols, userCodeConfigMapVolumes(h)...)
 	}
 	return vols
 }
 
-func customClassAgentVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
+func userCodeAgentVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	return v1.Volume{
-		Name: n.CustomClassBucketVolumeName,
+		Name: n.UserCodeBucketVolumeName,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
@@ -999,11 +999,11 @@ func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	}
 }
 
-func customClassConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
+func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
 	var vols []corev1.Volume
-	for _, cm := range h.Spec.CustomClass.ConfigMaps {
+	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
 		vols = append(vols, corev1.Volume{
-			Name: n.CustomClassConfigMapNamePrefix + cm + h.Spec.CustomClass.TriggerSequence,
+			Name: n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -1023,7 +1023,7 @@ func volumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 			Name:      n.HazelcastStorageName,
 			MountPath: n.HazelcastMountPath,
 		},
-		ccdAgentVolumeMount(h),
+		ucdAgentVolumeMount(h),
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
@@ -1032,18 +1032,18 @@ func volumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 		})
 	}
 
-	if h.Spec.CustomClass.IsConfigMapEnabled() {
-		mounts = append(mounts, customClassConfigMapVolumeMounts(h)...)
+	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
+		mounts = append(mounts, userCodeConfigMapVolumeMounts(h)...)
 	}
 	return mounts
 }
 
-func customClassConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 	var vms []corev1.VolumeMount
-	for _, cm := range h.Spec.CustomClass.ConfigMaps {
+	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
 		vms = append(vms, corev1.VolumeMount{
-			Name:      n.CustomClassConfigMapNamePrefix + cm + h.Spec.CustomClass.TriggerSequence,
-			MountPath: n.CustomClassConfigMapPath + "/" + cm,
+			Name:      n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
+			MountPath: n.UserCodeConfigMapPath + "/" + cm,
 		})
 	}
 	return vms
@@ -1158,14 +1158,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 }
 
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
-	b := []string{n.CustomClassBucketPath + "/*"}
+	b := []string{n.UserCodeBucketPath + "/*"}
 
-	if !h.Spec.CustomClass.IsConfigMapEnabled() {
+	if !h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
 		return b[0]
 	}
 
-	for _, cm := range h.Spec.CustomClass.ConfigMaps {
-		b = append(b, n.CustomClassConfigMapPath+"/"+cm+"/*")
+	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+		b = append(b, n.UserCodeConfigMapPath+"/"+cm+"/*")
 	}
 
 	return strings.Join(b, ":")
