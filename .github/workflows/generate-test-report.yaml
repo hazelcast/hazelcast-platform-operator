@@ -8,6 +8,7 @@ on:
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   CLEANUP_TIMEOUT: 5
+  GITHUB_PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
 
 jobs:
   report-creation:
@@ -15,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: report
-      url: https://hazelcast.github.io/hazelcast-platform-operator/
+      url: ${{ env.GITHUB_PAGES_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -35,6 +36,20 @@ jobs:
           name: test-report
           path: allure-results/${{ inputs.WORKFLOW_ID }}
 
+      - name: Create environment.properties
+        run: |-
+          echo "GKE=$GITHUB_PAGES_URL/gke" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "OCP=$GITHUB_PAGES_URL/ocp" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "EKS=$GITHUB_PAGES_URL/eks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "AKS=$GITHUB_PAGES_URL/aks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "BACKUP=$GITHUB_PAGES_URL/backup" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "PHONE_HOME=$GITHUB_PAGES_URL/ph" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "WAN=$GITHUB_PAGES_URL/wan" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+
+      - name: Create Custom Defects Classification
+        run: |-
+          echo "[{\"name\":\"Backup Slow Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_backup_slow_test.*\"},{\"name\":\"Expose Externally Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_expose_externally_test.*\"},{\"name\":\"Map Custom Class Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_custom_class_test.*\"},{\"name\":\"Map Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_persistence_test.*\"},{\"name\":\"Map Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_test.*\"},{\"name\":\"Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_persistence_test.*\"},{\"name\":\"Hazelcast Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_test.*\"},{\"name\":\"Hazelcast Wan Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_wan_test.*\"},{\"name\":\"Management Center Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*management_center_test.*\"},{\"name\":\"Phone Home Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*phone_home_test.*\"}]" > allure-results/${{ inputs.WORKFLOW_ID }}/categories.json
+
       - name: Generate Test Report
         uses: simple-elf/allure-report-action@master
         if: always()
@@ -46,13 +61,59 @@ jobs:
           keep_reports: 100
           subfolder: ${{ inputs.WORKFLOW_ID }}
 
-      - name: Update Test Files
+      - name: Update Permission
         run: |
-          sudo chown -R $USER:$USER allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/data/test-cases
+          sudo chown -R $USER:$USER allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
+
+      - name: Update Test Files
+        run: |-
           cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/data/test-cases
           for i in $(ls); do
-           cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not)) )) | .testStage.steps[].hasContent=true |.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID"))} | del(.testStage.steps[] | select(.name | select(contains("CR_ID")))) | .links=[{"name":"https://one.newrelic.com/logger","url":"https://one.newrelic.com/logger"}]|.extra.tags.tag |= sub("CR_ID:"; "")' $i) > $i
+          cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not))))
+                           |.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID"))}
+                           |del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))
+                           |.extra.tags.tag |= sub("CR_ID:"; "")
+                           |.testStage.steps[].name |= sub("&{Text:";"")
+                           |.testStage.steps[].name |= sub("}";"")
+                           |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
+                           |.testStage.steps[].name |= sub(" Duration.*";"")
+                           |.testStage.steps[].time.duration |= sub(".*Duration:";"")
+                           |.testStage.steps[].time.duration |= (if contains("ms") then split("ms") | .[0]|tonumber elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
+                           |.testStage.steps[]+={status: "passed"}
+                           |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
+                           |to_entries
+                           |walk(if type == "object" and (.value | select(contains("${{ github.event.repository.name }}/${{ github.event.repository.name }}"))) then . else . end)
+                           |del(.[].key)
+                           |.[].value|=sub("\\t";"")
+                           |.[].value|=sub("\\+0.*";"")
+                           |.[].value|=sub(" ";"")
+                           |.[].value|= sub("/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}";"https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/blob/main")
+                           |.[].value|= sub(".go:";".go#L")
+                           |unique
+                           |to_entries[]
+                           |.+={name: ("ERROR_LINE"+ "_" + (.key|tonumber+1|tostring))}
+                           |.url+=.value[]
+                           |del(.key)|del(.value)
+                           |.+={type: "issue"}]}
+                           |.testStage.steps[-1]+={status: "failed"} else . end)
+                           |.links|= [{"name":"https://one.newrelic.com/logger","url":"https://one.newrelic.com/logger",type: "tms"}] + .' $i) > $i
           done
+
+      - name: Update environment.properties
+        run: |-
+          cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/widgets
+          cat <<< $(jq -e 'del(.[] | select(has("name") and (.name | select(contains("URL")))))' environment.json) > environment.json
+
+      - name: Update Summary Report
+        run: |-
+          cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/widgets
+          cat <<< $(jq -e '.reportName="${{ github.workflow }}"' summary.json) > summary.json
+
+      - name: Update Hazelcast Logo
+        run: |-
+          sed -i "s/>Allure</></g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/app.js
+          sed -i "s/Allure Report/Hazelcast Operator Test Report/g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/index.html
+          mv -f test-report-pages/styles.css allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
 
       - name: Deploy Report to Github Pages
         if: always()
@@ -64,6 +125,7 @@ jobs:
           commit_message: deploy report with run number ${{ github.run_number }} and commit
 
       - name: Cleanup Page Publish Runs
+        if: always()
         run: |
           source .github/scripts/utils.sh
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${GITHUB_RUN_NUMBER} $CLEANUP_TIMEOUT
@@ -72,4 +134,3 @@ jobs:
         uses: geekyeggo/delete-artifact@v1
         with:
           name: test-report
-
