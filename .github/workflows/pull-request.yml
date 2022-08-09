@@ -242,11 +242,13 @@ jobs:
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
 
       - name: Clean up after Tests
+        if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
   delete-cluster:
     name: Delete Cluster
+    if: always()
     runs-on: ubuntu-latest
     needs: [create-gke-cluster, gke-e2e-tests]
     env:

@@ -47,6 +47,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 
 	AfterEach(func() {
 		printState()
+		defer GinkgoWriter.Printf("Aftereach End time is %v\n", Now().String())
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)

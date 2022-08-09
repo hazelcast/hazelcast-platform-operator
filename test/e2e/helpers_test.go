@@ -462,6 +462,7 @@ func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps .
 }
 
 func printState() {
+	GinkgoWriter.Printf("Aftereach Start time is %v\n", Now().String())
 
 	GinkgoWriter.Printf("Started aftereach function for hzLookupkey : '%s'\n", hzLookupKey)
 	hzl := &hazelcastcomv1alpha1.HazelcastList{}

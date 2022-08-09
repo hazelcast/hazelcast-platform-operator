@@ -44,6 +44,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 
 	AfterEach(func() {
 		printState()
+		defer GinkgoWriter.Printf("Aftereach End time is %v\n", Now().String())
 		DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
