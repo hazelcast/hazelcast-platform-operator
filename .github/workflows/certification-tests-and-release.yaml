@@ -27,6 +27,7 @@ jobs:
     outputs:
       RELEASE_VERSION: ${{ steps.setup-envs.outputs.RELEASE_VERSION }}
       CONTAINER_IMAGE: ${{ steps.setup-envs.outputs.CONTAINER_IMAGE }}
+      CONTAINER_IMAGE_DIGEST: ${{ steps.push-operator-image.outputs.CONTAINER_IMAGE_DIGEST }}
       PREFLIGHT_VERSION: ${{ steps.setup-envs.outputs.PREFLIGHT_VERSION }}
     steps:
       - name: Checkout to hazelcast-operator
@@ -69,9 +70,12 @@ jobs:
           make docker-build-ci IMG=$CONTAINER_IMAGE VERSION=${RELEASE_VERSION} PARDOT_ID=${PARDOT_ID}
 
       - name: Push Operator Image to ttl.sh
+        id: push-operator-image
         run: |
           echo "Pushing the operator image to ttl.sh repository"
           make docker-push IMG=$CONTAINER_IMAGE
+          CONTAINER_IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${CONTAINER_IMAGE} | cut -d'@' -f2)
+          echo "::set-output name=CONTAINER_IMAGE_DIGEST::${CONTAINER_IMAGE_DIGEST}"
 
       - name: Initiating a Container Scan
         run: |
@@ -128,10 +132,12 @@ jobs:
         shell: bash
     env:
       CONTAINER_IMAGE: ${{ needs.test_container.outputs.CONTAINER_IMAGE }}
+      CONTAINER_IMAGE_DIGEST: ${{ needs.test_container.outputs.CONTAINER_IMAGE_DIGEST }}
       RELEASE_VERSION: ${{ needs.test_container.outputs.RELEASE_VERSION }}
     outputs:
       BUNDLE_VERSION: ${{ steps.build-bundle-outputs.outputs.BUNDLE_VERSION }}
       BUNDLE_IMAGE: ${{ steps.build-bundle-outputs.outputs.BUNDLE_IMAGE }}
+      BUNDLE_IMAGE_DIGEST: ${{ steps.push-bundle-image.outputs.BUNDLE_IMAGE_DIGEST }}
       PFLT_INDEXIMAGE: ${{ steps.build-bundle-outputs.outputs.PFLT_INDEXIMAGE }}
     runs-on: ubuntu-latest
     steps:
@@ -162,7 +168,8 @@ jobs:
 
       - name: Build Bundle
         run: |
-          make bundle IMG=${CONTAINER_IMAGE} VERSION=${RELEASE_VERSION}
+          IMAGE_NAME_DIGEST=${CONTAINER_IMAGE}@${CONTAINER_IMAGE_DIGEST}
+          make bundle IMG=${IMAGE_NAME_DIGEST} VERSION=${RELEASE_VERSION}
           cat >> ./bundle/metadata/annotations.yaml <<EOF
             # OpenShift annotations.
             com.redhat.openshift.versions: "v4.6"
@@ -176,9 +183,12 @@ jobs:
           path: ./bundle/
 
       - name: Build and Push Bundle Image
+        id: push-bundle-image
         run: |
           docker build -f bundle.Dockerfile -t ${BUNDLE_IMAGE} .
           docker push ${BUNDLE_IMAGE}
+          BUNDLE_IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${BUNDLE_IMAGE} | cut -d'@' -f2)
+          echo "::set-output name=BUNDLE_IMAGE_DIGEST::${BUNDLE_IMAGE_DIGEST}"
 
       - name: Create Bundle Index
         run: |
@@ -192,6 +202,7 @@ jobs:
     env:
       PFLT_INDEXIMAGE: ${{ needs.build_bundle.outputs.PFLT_INDEXIMAGE }}
       BUNDLE_IMAGE: ${{ needs.build_bundle.outputs.BUNDLE_IMAGE }}
+      BUNDLE_IMAGE_DIGEST: ${{ needs.build_bundle.outputs.BUNDLE_IMAGE_DIGEST }}
       OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
       OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
       OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
@@ -221,7 +232,7 @@ jobs:
 
       - name: Initiating an Operator Bundle Scan
         run: |
-          preflight check operator ${BUNDLE_IMAGE}
+          preflight check operator ${BUNDLE_IMAGE}@${BUNDLE_IMAGE_DIGEST}
           grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
 
       - name: Clean Up Openshift Namespace
