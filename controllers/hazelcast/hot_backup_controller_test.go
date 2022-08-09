@@ -320,9 +320,10 @@ func fail(t *testing.T) func(message string, callerSkip ...int) {
 
 func hotBackupReconcilerWithCRs(initObjs ...client.Object) HotBackupReconciler {
 	return HotBackupReconciler{
-		Client: fakeClient(initObjs...),
-		Log:    ctrl.Log.WithName("test").WithName("Hazelcast"),
-		cron:   cron.New(),
-		backup: make(map[types.NamespacedName]struct{}),
+		Client:    fakeClient(initObjs...),
+		Log:       ctrl.Log.WithName("test").WithName("Hazelcast"),
+		cron:      cron.New(),
+		cancelMap: make(map[types.NamespacedName]context.CancelFunc),
+		backup:    make(map[types.NamespacedName]struct{}),
 	}
 }
