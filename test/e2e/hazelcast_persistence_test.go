@@ -38,13 +38,12 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 	AfterEach(func() {
 		printState()
-		defer GinkgoWriter.Printf("Aftereach End time is %v\n", Now().String())
-
 		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		GinkgoWriter.Printf("Aftereach End time is %v\n", Now().String())
 
 	})
 

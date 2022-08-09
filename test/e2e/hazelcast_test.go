@@ -34,10 +34,10 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 	AfterEach(func() {
 		printState()
-		defer GinkgoWriter.Printf("Aftereach End time is %v\n", Now().String())
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		GinkgoWriter.Printf("Aftereach End time is %v\n", Now().String())
 	})
 
 	Describe("Default Hazelcast CR", func() {

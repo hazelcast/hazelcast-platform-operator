@@ -38,12 +38,12 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 	AfterEach(func() {
 		printState()
-		defer GinkgoWriter.Printf("Aftereach End time is %v\n", Now().String())
 		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		GinkgoWriter.Printf("Aftereach End time is %v\n", Now().String())
 	})
 
 	FIt("should fail when persistence of Map CR and Hazelcast CR do not match", FlakeAttempts(3), Label("fast"), func() {
