@@ -171,10 +171,9 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=gke
+          make test-e2e-focus GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=gke
 
       - name: Clean up after Tests
-        if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
@@ -195,7 +194,6 @@ jobs:
   delete-cluster:
     name: Delete GKE cluster
     runs-on: ubuntu-latest
-    if: always()
     needs: [create-gke-cluster, gke-e2e-tests]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
