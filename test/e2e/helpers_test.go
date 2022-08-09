@@ -462,7 +462,8 @@ func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps .
 }
 
 func printState() {
-	GinkgoWriter.Printf("Started aftereach function")
+
+	GinkgoWriter.Printf("Started aftereach function for hzLookupkey : '%s'\n", hzLookupKey)
 	hzl := &hazelcastcomv1alpha1.HazelcastList{}
 	Expect(k8sClient.List(
 		context.Background(),
@@ -470,14 +471,17 @@ func printState() {
 		client.InNamespace(hzNamespace),
 		client.MatchingLabels(labels),
 	)).Should(Succeed())
-	GinkgoWriter.Printf("Hazelcast list is %+v\n", hzl.Items)
+	for _, it := range hzl.Items {
+		GinkgoWriter.Printf("Hazelcast item name and namespace %+v, %+v\n Spec is %+v", it.Name, it.Namespace, it.Spec)
+	}
 
 	GinkgoWriter.Println("kubectl get all:")
 
 	cmd := exec.Command("kubectl", "get", "all")
-	err := cmd.Run()
-	Expect(err).To(BeNil())
 	byt, err := cmd.Output()
 	Expect(err).To(BeNil())
 	GinkgoWriter.Println(string(byt))
+
+	GinkgoWriter.Println("Current Ginkgo Spec Report")
+	GinkgoWriter.Printf("State is: %+v\n", CurrentSpecReport().State)
 }
