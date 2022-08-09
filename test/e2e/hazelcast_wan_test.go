@@ -43,6 +43,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	AfterEach(func() {
+		printState()
 		DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)

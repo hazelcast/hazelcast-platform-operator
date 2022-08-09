@@ -33,6 +33,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 	})
 
 	AfterEach(func() {
+		printState()
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})

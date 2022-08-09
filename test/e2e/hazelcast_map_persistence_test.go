@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	. "time"
 
 	hzTypes "github.com/hazelcast/hazelcast-go-client/types"
@@ -14,7 +13,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
@@ -39,18 +37,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 	})
 
 	AfterEach(func() {
-		GinkgoWriter.Printf("Started aftereach function")
-		if strings.HasPrefix(hzLookupKey.Name, "hmp-1") {
-			hzl := &hazelcastcomv1alpha1.HazelcastList{}
-			Expect(k8sClient.List(
-				context.Background(),
-				hzl,
-				client.InNamespace(hzNamespace),
-				client.MatchingLabels(labels),
-			)).Should(Succeed())
-			GinkgoWriter.Printf("Hazelcast list is %+v\n", hzl.Items)
-		}
-
+		printState()
 		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)

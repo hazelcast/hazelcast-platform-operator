@@ -37,6 +37,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 	})
 
 	AfterEach(func() {
+		printState()
 		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)

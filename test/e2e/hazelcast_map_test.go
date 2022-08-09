@@ -46,6 +46,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	})
 
 	AfterEach(func() {
+		printState()
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)

@@ -30,6 +30,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	})
 
 	AfterEach(func() {
+		printState()
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 	})
 
