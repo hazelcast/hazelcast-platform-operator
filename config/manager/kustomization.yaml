@@ -9,6 +9,6 @@ images:
   newName: hazelcast/hazelcast-platform-operator
   newTag: latest-snapshot
 patches:
-- path: enable_developer_mode.yaml
+- path: remove_security_context.yaml
   target:
     kind: Deployment
