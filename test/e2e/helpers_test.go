@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -458,4 +459,16 @@ func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps .
 		return keys
 	}, 20*Second, interval).Should(ConsistOf(maps))
 	return returnConfig
+}
+
+func printDebugState() {
+	GinkgoWriter.Printf("Started aftereach function for hzLookupkey : '%s'\n", hzLookupKey)
+
+	GinkgoWriter.Println("kubectl get all:")
+	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter", "-o=wide")
+	byt, err := cmd.Output()
+	Expect(err).To(BeNil())
+	GinkgoWriter.Println(string(byt))
+
+	GinkgoWriter.Printf("Current Ginkgo Spec Report State is: %+v\n", CurrentSpecReport().State)
 }

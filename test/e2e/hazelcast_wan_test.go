@@ -5,6 +5,7 @@ import (
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
+	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -43,9 +44,17 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	AfterEach(func() {
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if CurrentSpecReport().State == ginkgoTypes.SpecStateSkipped {
+			return
+		}
+		if CurrentSpecReport().State != ginkgoTypes.SpecStatePassed {
+			printDebugState()
+		}
 		DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	It("should send data to another cluster", Label("slow"), func() {

@@ -7,6 +7,7 @@ import (
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
+	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/utils/pointer"
@@ -46,10 +47,18 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	})
 
 	AfterEach(func() {
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if CurrentSpecReport().State == ginkgoTypes.SpecStateSkipped {
+			return
+		}
+		if CurrentSpecReport().State != ginkgoTypes.SpecStatePassed {
+			printDebugState()
+		}
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	It("should create Map Config", Label("fast"), func() {

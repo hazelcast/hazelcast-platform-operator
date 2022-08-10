@@ -9,6 +9,7 @@ import (
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
+	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,20 +38,28 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 	})
 
 	AfterEach(func() {
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if CurrentSpecReport().State == ginkgoTypes.SpecStateSkipped {
+			return
+		}
+		if CurrentSpecReport().State != ginkgoTypes.SpecStatePassed {
+			printDebugState()
+		}
 		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	It("should restart successfully after shutting down Hazelcast", Label("slow"), func() {
-		setLabelAndCRName("hbs-1")
-		ctx := context.Background()
-		baseDir := "/data/hot-restart"
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		setLabelAndCRName("hbs-1")
+		ctx := context.Background()
+		baseDir := "/data/hot-restart"
 
 		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
@@ -94,12 +103,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 	})
 
 	It("should successfully start after one member restart", Label("slow"), func() {
-		setLabelAndCRName("hbs-2")
-		ctx := context.Background()
-		baseDir := "/data/hot-restart"
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		setLabelAndCRName("hbs-2")
+		ctx := context.Background()
+		baseDir := "/data/hot-restart"
+
 		t := Now()
 		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
@@ -136,13 +146,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 	})
 
 	It("should restore 9 GB data after planned shutdown", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
 		setLabelAndCRName("hbs-3")
 		var mapSizeInGb = 3
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 
 		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
@@ -219,10 +229,11 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 	})
 
 	It("Should successfully restore 9 Gb data from external backup using GCP bucket", Label("slow"), func() {
-		setLabelAndCRName("hbs-4")
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		setLabelAndCRName("hbs-4")
+
 		ctx := context.Background()
 		var mapSizeInGb = 3
 		var bucketURI = "gs://operator-e2e-external-backup"
