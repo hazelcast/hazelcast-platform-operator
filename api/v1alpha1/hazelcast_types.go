@@ -85,7 +85,7 @@ type HazelcastSpec struct {
 
 	// User Codes to Download into CLASSPATH
 	// +optional
-	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCode,omitempty"`
+	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
 
 	// +optional
 	ExecutorServices []ExecutorServiceConfiguration `json:"executorServices,omitempty"`

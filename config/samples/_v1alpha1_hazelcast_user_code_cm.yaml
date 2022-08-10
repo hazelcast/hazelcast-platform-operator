@@ -3,7 +3,7 @@ kind: Hazelcast
 metadata:
   name: hazelcast
 spec:
-  userCode:
+  userCodeDeployment:
     configMaps:
       - cm1
       - cm2

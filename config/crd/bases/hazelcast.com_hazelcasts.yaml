@@ -1087,7 +1087,7 @@ spec:
                       type: object
                     type: array
                 type: object
-              userCode:
+              userCodeDeployment:
                 description: User Codes to Download into CLASSPATH
                 properties:
                   bucketConfig:

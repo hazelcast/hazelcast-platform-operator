@@ -1,8 +1,0 @@
-apiVersion: hazelcast.com/v1alpha1
-kind: Hazelcast
-metadata:
-  name: hazelcast
-spec:
-  userCode:
-    secret: cc-secret
-    bucketURI: "gs://userCode"
