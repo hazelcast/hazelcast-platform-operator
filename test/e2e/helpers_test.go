@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"math"
 	"net/http"
@@ -17,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	. "time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -559,4 +560,18 @@ func assertScheduledES(expectedSES hazelcastcomv1alpha1.ScheduledExecutorService
 	Expect(expectedSES.Capacity).Should(Equal(actualSES.Capacity))
 	Expect(expectedSES.Durability).Should(Equal(actualSES.Durability))
 	Expect(expectedSES.CapacityPolicy).Should(Equal(actualSES.CapacityPolicy))
+}
+
+func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *hazelcastcomv1alpha1.HotBackup {
+	hbCheck := &hazelcastcomv1alpha1.HotBackup{}
+	By("waiting for HotBackup CR status to be Success", func() {
+		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
+			err := k8sClient.Get(
+				context.Background(), types.NamespacedName{Name: hb.Name, Namespace: hzNamespace}, hbCheck)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(hbCheck.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hbCheck.Status.Message)
+			return hbCheck.Status.State
+		}, t, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+	})
+	return hbCheck
 }

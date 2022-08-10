@@ -266,16 +266,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		By("waiting for backup to finish")
-		hb := &hazelcastcomv1alpha1.HotBackup{}
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
-			return hb.Status.State
-		}, 20*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
-
+		assertHotBackupSuccess(hotBackup, 20*Minute)
 		seq := GetBackupSequence(t, hzLookupKey)
 
 		By("removing cluster")

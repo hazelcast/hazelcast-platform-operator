@@ -125,14 +125,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
 		Expect(logs.Close()).Should(Succeed())
 
-		hb := &hazelcastcomv1alpha1.HotBackup{}
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
-			return hb.Status.State
-		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+		assertHotBackupSuccess(hotBackup, 1*Minute)
 
 		By("checking the Map size")
 		client := GetHzClient(ctx, hzLookupKey, true)
@@ -159,15 +152,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		By("Wait for backup to finish")
-		hb := &hazelcastcomv1alpha1.HotBackup{}
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
-			return hb.Status.State
-		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+		assertHotBackupSuccess(hotBackup, 1*Minute)
 
 		seq := GetBackupSequence(t, hzLookupKey)
 		RemoveHazelcastCR(hazelcast)
@@ -197,15 +182,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		By("Wait for backup to finish")
-		hb := &hazelcastcomv1alpha1.HotBackup{}
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
-			return hb.Status.State
-		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+		assertHotBackupSuccess(hotBackup, 1*Minute)
 
 		seq := GetBackupSequence(t, hzLookupKey)
 		RemoveHazelcastCR(hazelcast)
@@ -269,15 +246,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		By("Wait for backup to finish")
-		hb := &hazelcastcomv1alpha1.HotBackup{}
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
-			return hb.Status.State
-		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+		assertHotBackupSuccess(hotBackup, 1*Minute)
 
 		seq := GetBackupSequence(t, hzLookupKey)
 
