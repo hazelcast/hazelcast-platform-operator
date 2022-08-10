@@ -21,6 +21,7 @@ import (
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo/v2"
+	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -459,6 +460,16 @@ func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps .
 		return keys
 	}, 20*Second, interval).Should(ConsistOf(maps))
 	return returnConfig
+}
+
+func skipCleanup() bool {
+	if CurrentSpecReport().State == ginkgoTypes.SpecStateSkipped {
+		return true
+	}
+	if CurrentSpecReport().State != ginkgoTypes.SpecStatePassed {
+		printDebugState()
+	}
+	return false
 }
 
 func printDebugState() {

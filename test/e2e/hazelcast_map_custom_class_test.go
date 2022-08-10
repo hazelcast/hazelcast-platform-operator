@@ -8,7 +8,6 @@ import (
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
-	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -40,11 +39,8 @@ var _ = Describe("Hazelcast Map Config With Custom Class Upload", Label("map"), 
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
-		if CurrentSpecReport().State == ginkgoTypes.SpecStateSkipped {
+		if skipCleanup() {
 			return
-		}
-		if CurrentSpecReport().State != ginkgoTypes.SpecStatePassed {
-			printDebugState()
 		}
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)

@@ -8,7 +8,6 @@ import (
 
 	hzTypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
-	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,11 +38,8 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
-		if CurrentSpecReport().State == ginkgoTypes.SpecStateSkipped {
+		if skipCleanup() {
 			return
-		}
-		if CurrentSpecReport().State != ginkgoTypes.SpecStatePassed {
-			printDebugState()
 		}
 		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
@@ -53,7 +49,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	FIt("should fail when persistence of Map CR and Hazelcast CR do not match", FlakeAttempts(3), Label("fast"), func() {
+	It("should fail when persistence of Map CR and Hazelcast CR do not match", Label("fast"), func() {
 		setLabelAndCRName("hmp-1")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
