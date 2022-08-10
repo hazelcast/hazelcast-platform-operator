@@ -378,7 +378,7 @@ func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
 }
 
-// Returns true if userCode.bucketConfiguration is specified.
+// Returns true if userCodeDeployment.bucketConfiguration is specified.
 func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
 	return c != nil && c.BucketConfiguration != nil
 }
