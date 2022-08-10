@@ -46,8 +46,9 @@ const (
 	MancenterStorageName = Mancenter + "-storage"
 
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
-	PersistenceVolumeName = "hot-restart-persistence"
-	CustomClassVolumeName = "custom-class"
+	PersistenceVolumeName          = "hot-restart-persistence"
+	CustomClassBucketVolumeName    = "custom-class-bucket"
+	CustomClassConfigMapNamePrefix = "custom-class-cm-"
 
 	BackupAgent              = "backup-agent"
 	BackupAgentPortName      = "backup-agent-port"
@@ -55,7 +56,8 @@ const (
 	BucketSecret             = "br-secret"
 	CustomClassDownloadAgent = "ccd-agent"
 
-	CustomClassPath = "/opt/hazelcast/customClass"
+	CustomClassBucketPath    = "/opt/hazelcast/customClass/bucket"
+	CustomClassConfigMapPath = "/opt/hazelcast/customClass/cm"
 )
 
 // Hazelcast default configurations

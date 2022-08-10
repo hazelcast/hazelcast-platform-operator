@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -26,12 +27,14 @@ import (
 type WanReplicationReconciler struct {
 	client.Client
 	logr.Logger
+	Scheme *runtime.Scheme
 }
 
-func NewWanReplicationReconciler(client client.Client, log logr.Logger) *WanReplicationReconciler {
+func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme) *WanReplicationReconciler {
 	return &WanReplicationReconciler{
 		Client: client,
 		Logger: log,
+		Scheme: scheme,
 	}
 }
 
@@ -53,15 +56,19 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	ctx = context.WithValue(ctx, LogKey("logger"), logger)
 
-	cli, err := r.getHazelcastClient(ctx, wan)
-	if err != nil {
-		return ctrl.Result{}, err
+	if !controllerutil.ContainsFinalizer(wan, n.Finalizer) && wan.GetDeletionTimestamp().IsZero() {
+		controllerutil.AddFinalizer(wan, n.Finalizer)
+		logger.Info("Adding finalizer")
+		if err := r.Update(ctx, wan); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
 	}
 
 	if !wan.GetDeletionTimestamp().IsZero() {
 		if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
 			logger.Info("Deleting WAN configuration")
-			if err := r.stopWanReplication(ctx, cli, wan); err != nil {
+			if err := r.stopWanReplication(ctx, wan); err != nil {
 				return ctrl.Result{}, err
 			}
 			logger.Info("Deleting WAN configuration finalizer")
@@ -72,13 +79,15 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		return ctrl.Result{}, nil
 	}
-	if !controllerutil.ContainsFinalizer(wan, n.Finalizer) {
-		controllerutil.AddFinalizer(wan, n.Finalizer)
-		logger.Info("Adding finalizer")
-		if err := r.Update(ctx, wan); err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
+
+	m, err := r.getWanMap(ctx, wan, true)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	cli, err := GetHazelcastClient(m)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if !isApplied(wan) {
@@ -129,12 +138,21 @@ func hasUpdate(wan *hazelcastcomv1alpha1.WanReplication) (bool, error) {
 	return !reflect.DeepEqual(&wan.Spec, lastSpec), nil
 }
 
-func (r *WanReplicationReconciler) getHazelcastClient(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication) (*hazelcast.Client, error) {
+func (r *WanReplicationReconciler) getWanMap(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication, checkSuccess bool) (*hazelcastcomv1alpha1.Map, error) {
 	m := &hazelcastcomv1alpha1.Map{}
 	if err := r.Client.Get(ctx, types.NamespacedName{Name: wan.Spec.MapResourceName, Namespace: wan.Namespace}, m); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("failed to get Map CR from WanReplication: %w", err)
 	}
-	return GetHazelcastClient(m)
+
+	if checkSuccess && m.Status.State != hazelcastcomv1alpha1.MapSuccess {
+		return nil, fmt.Errorf("status of map %s is not success:", m.Name)
+	}
+
+	return m, nil
+
 }
 
 func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) (string, error) {
@@ -160,11 +178,34 @@ func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, clie
 	return publisherId, nil
 }
 
-func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication) error {
+func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication) error {
 	log := getLogger(ctx)
 	if wan.Status.PublisherId == "" {
 		log.V(util.DebugLevel).Info("publisherId is empty, will skip stopping WAN replication")
 		return nil
+	}
+
+	m, err := r.getWanMap(ctx, wan, false)
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return err
+		}
+		// This case should not happen but if it happens should not prevent finalizer deletion.
+		return nil
+	}
+
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace},
+		&hazelcastcomv1alpha1.Hazelcast{}); err != nil {
+		if !kerrors.IsNotFound(err) {
+			return err
+		}
+		// This case should not happen but if it happens should not prevent finalizer deletion.
+		return nil
+	}
+
+	client, err := GetHazelcastClient(m)
+	if err != nil {
+		return err
 	}
 
 	req := &changeWanStateRequest{

@@ -11,6 +11,8 @@ spec:
     kind: Hazelcast
     listKind: HazelcastList
     plural: hazelcasts
+    shortNames:
+    - hz
     singular: hazelcast
   scope: Namespaced
   versions:
@@ -26,6 +28,11 @@ spec:
     - description: External addresses of the Hazelcast cluster
       jsonPath: .status.externalAddresses
       name: External-Addresses
+      type: string
+    - description: Message for the current Hazelcast Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
       type: string
     name: v1alpha1
     schema:
@@ -77,21 +84,31 @@ spec:
               customClass:
                 description: Custom Classes to Download into Class Path
                 properties:
-                  bucketURI:
-                    description: Full path to blob storage bucket.
-                    minLength: 6
-                    type: string
-                  secret:
-                    description: Name of the secret with credentials for cloud providers.
-                    minLength: 1
-                    type: string
+                  bucketConfig:
+                    description: Jar files in the bucket will be put under CLASSPATH.
+                    properties:
+                      bucketURI:
+                        description: Full path to blob storage bucket.
+                        minLength: 6
+                        type: string
+                      secret:
+                        description: Name of the secret with credentials for cloud
+                          providers.
+                        minLength: 1
+                        type: string
+                    required:
+                    - bucketURI
+                    - secret
+                    type: object
+                  configMaps:
+                    description: Files in the ConfigMaps will be put under CLASSPATH.
+                    items:
+                      type: string
+                    type: array
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading
                       the custom classes.
                     type: string
-                required:
-                - bucketURI
-                - secret
                 type: object
               durableExecutorServices:
                 items:
@@ -1235,6 +1252,8 @@ spec:
     kind: HotBackup
     listKind: HotBackupList
     plural: hotbackups
+    shortNames:
+    - hb
     singular: hotbackup
   scope: Namespaced
   versions:
@@ -1242,6 +1261,11 @@ spec:
     - description: Current state of the HotBackup process
       jsonPath: .status.state
       name: Status
+      type: string
+    - description: Message for the current HotBackup Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
       type: string
     name: v1alpha1
     schema:
@@ -1328,6 +1352,8 @@ spec:
     kind: ManagementCenter
     listKind: ManagementCenterList
     plural: managementcenters
+    shortNames:
+    - mc
     singular: managementcenter
   scope: Namespaced
   versions:
@@ -1339,6 +1365,11 @@ spec:
     - description: External addresses of the Management Center deployment
       jsonPath: .status.externalAddresses
       name: External-Addresses
+      type: string
+    - description: Message for the current ManagementCenter Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
       type: string
     name: v1alpha1
     schema:
@@ -2414,6 +2445,46 @@ spec:
                   - type
                   type: object
                 type: array
+              mapStore:
+                description: Configuration options when you want to load/store the
+                  map entries from/to a persistent data store such as a relational
+                  database You can learn more at https://docs.hazelcast.com/hazelcast/latest/data-structures/working-with-external-data
+                properties:
+                  className:
+                    description: Name of your class implementing MapLoader and/or
+                      MapStore interface.
+                    type: string
+                  initialMode:
+                    default: LAZY
+                    description: Sets the initial entry loading mode.
+                    enum:
+                    - LAZY
+                    - EAGER
+                    type: string
+                  propertiesSecretName:
+                    description: Properties can be used for giving information to
+                      the MapStore implementation
+                    type: string
+                  writeBatchSize:
+                    default: 1
+                    description: Used to create batches when writing to map store.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  writeCoealescing:
+                    default: true
+                    description: It is meaningful if you are using write behind in
+                      MapStore. When it is set to true, only the latest store operation
+                      on a key during the write-delay-seconds will be reflected to
+                      MapStore.
+                    type: boolean
+                  writeDelaySeconds:
+                    description: Number of seconds to delay the storing of entries.
+                    format: int32
+                    type: integer
+                required:
+                - className
+                type: object
               maxIdleSeconds:
                 default: 0
                 description: Maximum time in seconds for each entry to stay idle in
@@ -2479,6 +2550,8 @@ spec:
     kind: WanReplication
     listKind: WanReplicationList
     plural: wanreplications
+    shortNames:
+    - wr
     singular: wanreplication
   scope: Namespaced
   versions:
@@ -2486,6 +2559,11 @@ spec:
     - description: Current state of the Hazelcast WAN Replication
       jsonPath: .status.status
       name: Status
+      type: string
+    - description: Message for the current WanReplication Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
       type: string
     name: v1alpha1
     schema:
@@ -2647,6 +2725,13 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
   - watch
 - apiGroups:
   - apps

@@ -115,8 +115,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		test.EventuallyInLogs(scanner, 15*Second, logInterval).
 			Should(ContainSubstring("Starting new hot backup with sequence"))
 		test.EventuallyInLogs(scanner, 15*Second, logInterval).
-			Should(MatchRegexp("Backup of hot restart store \\S+ finished"))
-		test.EventuallyInLogs(scanner, 15*Second, logInterval).
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
 		Expect(logs.Close()).Should(Succeed())
 

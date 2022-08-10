@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -891,6 +892,74 @@ var _ = Describe("Hazelcast controller", func() {
 
 				By("Checking if StatefulSet Resources is updated")
 				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
+
+				Delete(hz)
+			})
+		})
+	})
+	Context("Hazelcast Custom Class with ConfigMap", func() {
+		When("Two Configmaps are given in customClass field", func() {
+			It("Should put correct fields in StatefulSet", Label("fast"), func() {
+				cms := []string{
+					"cm1",
+					"cm2",
+				}
+				ts := "trigger-sequence"
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.HazelcastSpec{
+						CustomClass: &hazelcastv1alpha1.CustomClassConfiguration{
+							ConfigMaps:      cms,
+							TriggerSequence: ts,
+						},
+					},
+				}
+
+				Create(hz)
+				hz = EnsureStatus(hz)
+				ss := getStatefulSet(hz)
+
+				By("Checking if StatefulSet has the ConfigMap Volumes")
+				expectedVols := []corev1.Volume{}
+				for _, cm := range cms {
+					expectedVols = append(expectedVols, corev1.Volume{
+						Name: n.CustomClassConfigMapNamePrefix + cm + ts,
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: cm,
+								},
+								DefaultMode: pointer.Int32Ptr(420),
+							},
+						},
+					})
+				}
+				Expect(ss.Spec.Template.Spec.Volumes).To(ContainElements(expectedVols))
+
+				By("Checking if StatefulSet has the ConfigMap Volumes Mounts")
+				expectedVolMounts := []corev1.VolumeMount{}
+				for _, cm := range cms {
+					expectedVolMounts = append(expectedVolMounts, corev1.VolumeMount{
+						Name:      n.CustomClassConfigMapNamePrefix + cm + ts,
+						MountPath: n.CustomClassConfigMapPath + "/" + cm,
+					})
+				}
+				Expect(ss.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElements(expectedVolMounts))
+
+				By("Checking if Hazelcast Container has the correct CLASSPATH")
+				b := []string{}
+
+				for _, cm := range cms {
+					b = append(b, n.CustomClassConfigMapPath+"/"+cm+"/*")
+				}
+				expectedClassPath := strings.Join(b, ":")
+				classPath := ""
+				for _, env := range ss.Spec.Template.Spec.Containers[0].Env {
+					if env.Name == "CLASSPATH" {
+						classPath = env.Value
+					}
+				}
+				Expect(classPath).To(ContainSubstring(expectedClassPath))
 
 				Delete(hz)
 			})

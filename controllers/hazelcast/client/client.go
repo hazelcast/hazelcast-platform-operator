@@ -1,4 +1,4 @@
-package hazelcast
+package client
 
 import (
 	"context"
@@ -18,11 +18,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/config"
 )
 
 type Client struct {
 	sync.Mutex
-	client               *hazelcast.Client
+	Client               *hazelcast.Client
 	cancel               context.CancelFunc
 	NamespacedName       types.NamespacedName
 	Error                error
@@ -33,11 +34,11 @@ type Client struct {
 }
 
 func (cl *Client) IsClientConnected() bool {
-	if cl.client == nil {
+	if cl.Client == nil {
 		return false
 	}
 
-	icl := hazelcast.NewClientInternal(cl.client)
+	icl := hazelcast.NewClientInternal(cl.Client)
 	for _, mem := range icl.OrderedMembers() {
 		if icl.ConnectedToMember(mem.UUID) {
 			return true
@@ -47,11 +48,11 @@ func (cl *Client) IsClientConnected() bool {
 }
 
 func (cl *Client) AreAllMembersAccessible() bool {
-	if cl.client == nil {
+	if cl.Client == nil {
 		return false
 	}
 
-	icl := hazelcast.NewClientInternal(cl.client)
+	icl := hazelcast.NewClientInternal(cl.Client)
 	for _, mem := range icl.OrderedMembers() {
 		if !icl.ConnectedToMember(mem.UUID) {
 			return false
@@ -106,10 +107,10 @@ func (s *StatusTicker) stop() {
 	s.done <- true
 }
 
-var clients sync.Map
+var Clients sync.Map
 
 func GetClient(ns types.NamespacedName) (client *Client, ok bool) {
-	if v, ok := clients.Load(ns); ok {
+	if v, ok := Clients.Load(ns); ok {
 		return v.(*Client), true
 	}
 	return nil, false
@@ -117,17 +118,17 @@ func GetClient(ns types.NamespacedName) (client *Client, ok bool) {
 
 func CreateClient(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, channel chan event.GenericEvent, l logr.Logger) {
 	ns := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
-	if _, ok := clients.Load(ns); ok {
+	if _, ok := Clients.Load(ns); ok {
 		return
 	}
-	config := buildConfig(h)
+	config := config.BuildConfig(h)
 	c := newHazelcastClient(l, ns, channel)
 	c.start(ctx, config)
-	clients.Store(ns, c)
+	Clients.Store(ns, c)
 }
 
 func ShutdownClient(ctx context.Context, ns types.NamespacedName) {
-	if c, ok := clients.LoadAndDelete(ns); ok {
+	if c, ok := Clients.LoadAndDelete(ns); ok {
 		c.(*Client).shutdown(ctx)
 	}
 }
@@ -167,7 +168,7 @@ func (c *Client) start(ctx context.Context, config hazelcast.Config) {
 			case <-s.done:
 				return
 			case <-s.ticker.C:
-				c.updateMembers(ctx)
+				c.UpdateMembers(ctx)
 				c.triggerReconcile()
 			}
 		}
@@ -183,7 +184,7 @@ func (c *Client) initHzClient(ctx context.Context, config hazelcast.Config) {
 		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
 		c.Error = err
 	} else {
-		c.client = hzClient
+		c.Client = hzClient
 	}
 }
 
@@ -195,10 +196,10 @@ func (c *Client) shutdown(ctx context.Context) {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.client == nil {
+	if c.Client == nil {
 		return
 	}
-	if err := c.client.Shutdown(ctx); err != nil {
+	if err := c.Client.Shutdown(ctx); err != nil {
 		c.Log.Error(err, "Problem occurred while shutting down the client connection")
 	}
 	if c.statusTicker != nil {
@@ -214,8 +215,8 @@ func (c *Client) triggerReconcile() {
 		}}}
 }
 
-func (c *Client) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *TimedMemberStateWrapper {
-	jsonState, err := fetchTimedMemberState(ctx, c.client, uuid)
+func (c *Client) GetTimedMemberState(ctx context.Context, uuid hztypes.UUID) *TimedMemberStateWrapper {
+	jsonState, err := fetchTimedMemberState(ctx, c.Client, uuid)
 	if err != nil {
 		c.Log.Error(err, "Fetching TimedMemberState failed.", "CR", c.NamespacedName)
 		return nil
@@ -229,12 +230,12 @@ func (c *Client) getTimedMemberState(ctx context.Context, uuid hztypes.UUID) *Ti
 	return state
 }
 
-func (c *Client) updateMembers(ctx context.Context) {
-	if c.client == nil {
+func (c *Client) UpdateMembers(ctx context.Context) {
+	if c.Client == nil {
 		return
 	}
 	c.Log.V(2).Info("Updating Hazelcast status", "CR", c.NamespacedName)
-	hzInternalClient := hazelcast.NewClientInternal(c.client)
+	hzInternalClient := hazelcast.NewClientInternal(c.Client)
 
 	activeMemberList := hzInternalClient.OrderedMembers()
 	activeMembers := make(map[hztypes.UUID]*MemberData, len(activeMemberList))
@@ -242,7 +243,7 @@ func (c *Client) updateMembers(ctx context.Context) {
 
 	for _, memberInfo := range activeMemberList {
 		activeMembers[memberInfo.UUID] = newMemberData(memberInfo)
-		state := c.getTimedMemberState(ctx, memberInfo.UUID)
+		state := c.GetTimedMemberState(ctx, memberInfo.UUID)
 		if state != nil {
 			activeMembers[memberInfo.UUID].enrichMemberData(state.TimedMemberState)
 			newClusterHotRestartStatus = &state.TimedMemberState.MemberState.ClusterHotRestartStatus
@@ -307,15 +308,15 @@ type ClusterHotRestartStatus struct {
 	RemainingDataLoadTimeMillis   int64  `json:"remainingDataLoadTimeMillis"`
 }
 
-func (c ClusterHotRestartStatus) remainingValidationTimeSec() int64 {
+func (c ClusterHotRestartStatus) RemainingValidationTimeSec() int64 {
 	return int64((time.Duration(c.RemainingValidationTimeMillis) * time.Millisecond).Seconds())
 }
 
-func (c ClusterHotRestartStatus) remainingDataLoadTimeSec() int64 {
+func (c ClusterHotRestartStatus) RemainingDataLoadTimeSec() int64 {
 	return int64((time.Duration(c.RemainingDataLoadTimeMillis) * time.Millisecond).Seconds())
 }
 
-func (c ClusterHotRestartStatus) restoreState() hazelcastv1alpha1.RestoreState {
+func (c ClusterHotRestartStatus) RestoreState() hazelcastv1alpha1.RestoreState {
 	switch c.HotRestartStatus {
 	case "SUCCEEDED":
 		return hazelcastv1alpha1.RestoreSucceeded

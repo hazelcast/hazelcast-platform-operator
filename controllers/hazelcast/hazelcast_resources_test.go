@@ -9,6 +9,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
 )
 
 func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
@@ -19,7 +20,7 @@ func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
 		},
 	}
 	r := reconcilerWithCR(h)
-	clients.Store(types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &Client{})
+	hzclient.Clients.Store(types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &hzclient.Client{})
 
 	err := r.executeFinalizer(context.Background(), h, ctrl.Log)
 	if err != nil {

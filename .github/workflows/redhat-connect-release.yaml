@@ -70,14 +70,14 @@ jobs:
       - name: Wait for Scan to Complete
         run: |
           PROJECT_ID=$( echo ${RHEL_REPOSITORY} | grep -m 1 -Po "/\K.+(?=/)" )
-          source .github/scripts/publish-rhel.sh
+          source .github/scripts/utils.sh
 
           wait_for_container_scan "$PROJECT_ID" "$RELEASE_VERSION" "$RHEL_API_KEY" "$TIMEOUT_IN_MINS"
 
       - name: Publish the Hazelcast-Platform-Operator image
         run: |
           PROJECT_ID=$( echo ${RHEL_REPOSITORY} | grep -m 1 -Po "/\K.+(?=/)" )
-          source .github/scripts/publish-rhel.sh
+          source .github/scripts/utils.sh
 
           publish_the_image "$PROJECT_ID" "$RELEASE_VERSION" "$RHEL_API_KEY"
 

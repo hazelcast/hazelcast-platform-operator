@@ -75,6 +75,7 @@ type Map struct {
 	Indexes                 []MapIndex                         `yaml:"indexes,omitempty"`
 	HotRestart              MapHotRestart                      `yaml:"hot-restart,omitempty"`
 	WanReplicationReference map[string]WanReplicationReference `yaml:"wan-replication-ref,omitempty"`
+	MapStoreConfig          MapStoreConfig                     `yaml:"map-store,omitempty"`
 }
 
 type MapEviction struct {
@@ -122,6 +123,16 @@ type ScheduledExecutorService struct {
 	Durability     int32  `yaml:"durability"`
 	Capacity       int32  `yaml:"capacity"`
 	CapacityPolicy string `yaml:"capacity-policy"`
+}
+
+type MapStoreConfig struct {
+	Enabled           bool              `yaml:"enabled"`
+	WriteCoalescing   *bool             `yaml:"write-coalescing,omitempty"`
+	WriteDelaySeconds int32             `yaml:"write-delay-seconds"`
+	WriteBatchSize    int32             `yaml:"write-batch-size"`
+	ClassName         string            `yaml:"class-name"`
+	Properties        map[string]string `yaml:"properties"`
+	InitialLoadMode   string            `yaml:"initial-mode"`
 }
 
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {

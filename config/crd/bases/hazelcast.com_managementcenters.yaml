@@ -13,6 +13,8 @@ spec:
     kind: ManagementCenter
     listKind: ManagementCenterList
     plural: managementcenters
+    shortNames:
+    - mc
     singular: managementcenter
   scope: Namespaced
   versions:
@@ -24,6 +26,11 @@ spec:
     - description: External addresses of the Management Center deployment
       jsonPath: .status.externalAddresses
       name: External-Addresses
+      type: string
+    - description: Message for the current ManagementCenter Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
       type: string
     name: v1alpha1
     schema:

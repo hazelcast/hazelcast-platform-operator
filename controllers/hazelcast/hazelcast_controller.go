@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
@@ -61,6 +62,7 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 // Role related to Reconcile()
 //+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=watch;get,namespace=system
 // ClusterRole related to Reconcile()
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 
@@ -185,7 +187,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	CreateClient(ctx, h, r.triggerReconcileChan, r.Log)
+	hzclient.CreateClient(ctx, h, r.triggerReconcileChan, r.Log)
 
 	if util.IsPhoneHomeEnabled() {
 		firstDeployment := r.metrics.HazelcastMetrics[h.UID].FillAfterDeployment(h)
@@ -214,7 +216,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 func (r *HazelcastReconciler) runningPhaseWithStatus(req ctrl.Request) optionsBuilder {
-	if hzClient, ok := GetClient(req.NamespacedName); ok {
+	if hzClient, ok := hzclient.GetClient(req.NamespacedName); ok {
 		return runningPhase().withStatus(hzClient.Status)
 	}
 	return runningPhase()
@@ -271,7 +273,7 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 }
 
 func clientConnectionMessage(req ctrl.Request) string {
-	c, ok := GetClient(req.NamespacedName)
+	c, ok := hzclient.GetClient(req.NamespacedName)
 	if !ok {
 		return "Operator failed to create connection to cluster, some features might be unavailable."
 	}

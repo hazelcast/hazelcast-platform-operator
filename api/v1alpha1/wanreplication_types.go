@@ -111,11 +111,12 @@ type WanReplicationStatus struct {
 	Message string `json:"message,omitempty"`
 }
 
+// WanReplication is the Schema for the wanreplications API
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status",description="Current state of the Hazelcast WAN Replication"
-
-// WanReplication is the Schema for the wanreplications API
+//+kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current WanReplication Config"
+//+kubebuilder:resource:shortName=wr
 type WanReplication struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -192,10 +192,17 @@ type BucketConfiguration struct {
 
 // CustomClassConfiguration contains the configuration for Custom Class download operation
 type CustomClassConfiguration struct {
-	BucketConfiguration `json:",inline"`
+	// Jar files in the bucket will be put under CLASSPATH.
+	// +optional
+	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
+
 	// A string for triggering a rolling restart for re-downloading the custom classes.
 	// +optional
 	TriggerSequence string `json:"triggerSequence,omitempty"`
+
+	// Files in the ConfigMaps will be put under CLASSPATH.
+	// +optional
+	ConfigMaps []string `json:"configMaps,omitempty"`
 }
 
 type AgentConfiguration struct {
@@ -371,9 +378,14 @@ func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
 }
 
-// Returns true if customClass configuration is specified.
-func (c *CustomClassConfiguration) IsEnabled() bool {
-	return c != nil && !(*c == (CustomClassConfiguration{}))
+// Returns true if customClass.bucketConfiguration is specified.
+func (c *CustomClassConfiguration) IsBucketEnabled() bool {
+	return c != nil && c.BucketConfiguration != nil
+}
+
+// Returns true if customClass.configMaps configuration is specified.
+func (c *CustomClassConfiguration) IsConfigMapEnabled() bool {
+	return c != nil && (len(c.ConfigMaps) != 0)
 }
 
 // Returns true if Smart configuration is specified and therefore each Hazelcast member needs to be exposed with a separate address.
@@ -565,6 +577,8 @@ type HazelcastClusterStatus struct {
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 // +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
 // +kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Hazelcast cluster"
+//+kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Hazelcast Config"
+// +kubebuilder:resource:shortName=hz
 type Hazelcast struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

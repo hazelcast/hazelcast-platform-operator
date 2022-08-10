@@ -213,9 +213,11 @@ jobs:
             docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Login to OCP and Create New Project
+        id: project_creation
         run: |
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           oc new-project ${NAMESPACE}
+          echo ::set-output name=exit_code::$?
 
       - name: Initiating an Operator Bundle Scan
         run: |
@@ -223,6 +225,7 @@ jobs:
           grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
 
       - name: Clean Up Openshift Namespace
+        if: always() && steps.project_creation.outputs.exit_code == 0
         run: |
           oc delete project ${NAMESPACE}
 
