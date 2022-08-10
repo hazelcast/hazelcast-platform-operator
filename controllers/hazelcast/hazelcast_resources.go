@@ -30,7 +30,7 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 
-  "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -438,8 +438,8 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	if err != nil {
 		return nil, err
 	}
-  fillHazelcastConfigWithExecutorServices(&cfg, h)
-  
+	fillHazelcastConfigWithExecutorServices(&cfg, h)
+
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 	if err != nil {
 		return nil, err

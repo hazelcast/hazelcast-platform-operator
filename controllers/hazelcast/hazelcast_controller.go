@@ -197,11 +197,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if newExecutorServices != nil {
-		hzClient, ok := GetClient(req.NamespacedName)
+		hzClient, ok := hzclient.GetClient(req.NamespacedName)
 		if !(ok && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
 			return update(ctx, r.Client, h, pendingPhase(retryAfter))
 		}
-		r.addExecutorServices(ctx, hzClient.client, newExecutorServices)
+		r.addExecutorServices(ctx, hzClient.Client, newExecutorServices)
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, h, logger)
