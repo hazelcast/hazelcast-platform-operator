@@ -383,7 +383,7 @@ func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
 	return c != nil && c.BucketConfiguration != nil
 }
 
-// Returns true if userCode.configMaps configuration is specified.
+// Returns true if userCodeDeployment.configMaps configuration is specified.
 func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
 	return c != nil && (len(c.ConfigMaps) != 0)
 }
