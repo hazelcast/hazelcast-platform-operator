@@ -547,28 +547,23 @@ func fillHazelcastConfigWithMaps(cfg *config.Hazelcast, h *hazelcastv1alpha1.Haz
 }
 
 func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
-	if h.Spec.ExecutorServices == nil {
-		return
-	}
-	es := h.Spec.ExecutorServices
-
-	if len(es.Basic) != 0 {
+	if len(h.Spec.ExecutorServices) != 0 {
 		cfg.ExecutorService = map[string]config.ExecutorService{}
-		for _, escfg := range es.Basic {
+		for _, escfg := range h.Spec.ExecutorServices {
 			cfg.ExecutorService[escfg.Name] = createExecutorServiceConfig(&escfg)
 		}
 	}
 
-	if len(es.Durable) != 0 {
+	if len(h.Spec.DurableExecutorServices) != 0 {
 		cfg.DurableExecutorService = map[string]config.DurableExecutorService{}
-		for _, descfg := range es.Durable {
+		for _, descfg := range h.Spec.DurableExecutorServices {
 			cfg.DurableExecutorService[descfg.Name] = createDurableExecutorServiceConfig(&descfg)
 		}
 	}
 
-	if len(es.Scheduled) != 0 {
+	if len(h.Spec.ScheduledExecutorServices) != 0 {
 		cfg.ScheduledExecutorService = map[string]config.ScheduledExecutorService{}
-		for _, sescfg := range es.Scheduled {
+		for _, sescfg := range h.Spec.ScheduledExecutorServices {
 			cfg.ScheduledExecutorService[sescfg.Name] = createScheduledExecutorServiceConfig(&sescfg)
 		}
 	}
@@ -1136,7 +1131,7 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	return err
 }
 
-func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Hazelcast, rawLastSpec string) (*hazelcastv1alpha1.ExecutorServices, error) {
+func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Hazelcast, rawLastSpec string) (map[string]interface{}, error) {
 	hs, err := json.Marshal(h.Spec)
 
 	if err != nil {
@@ -1153,57 +1148,51 @@ func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Haz
 		return nil, err
 	}
 
-	return getNewExecutorServiceConfigs(h.Spec.ExecutorServices, lastSpec.ExecutorServices), nil
-}
+	currentSpec := h.Spec
 
-func getNewExecutorServiceConfigs(current *hazelcastv1alpha1.ExecutorServices, last *hazelcastv1alpha1.ExecutorServices) *hazelcastv1alpha1.ExecutorServices {
-
-	if current == nil {
-		return nil
-	}
-	existExecutorServices := make(map[string]struct{}, len(last.Basic))
-	newBasicExecutorServices := make([]hazelcastv1alpha1.ExecutorServiceConfiguration, 0, len(current.Basic))
-	for _, es := range last.Basic {
+	existExecutorServices := make(map[string]struct{}, len(lastSpec.ExecutorServices))
+	newExecutorServices := make([]hazelcastv1alpha1.ExecutorServiceConfiguration, 0, len(currentSpec.ExecutorServices))
+	for _, es := range lastSpec.ExecutorServices {
 		existExecutorServices[es.Name] = struct{}{}
 	}
-	for _, es := range current.Basic {
+	for _, es := range currentSpec.ExecutorServices {
 		_, ok := existExecutorServices[es.Name]
 		if !ok {
-			newBasicExecutorServices = append(newBasicExecutorServices, es)
+			newExecutorServices = append(newExecutorServices, es)
 		}
 	}
 
-	existExecutorServices = make(map[string]struct{}, len(last.Durable))
-	newDurableExecutorServices := make([]hazelcastv1alpha1.DurableExecutorServiceConfiguration, 0, len(current.Durable))
-	for _, es := range last.Durable {
+	existExecutorServices = make(map[string]struct{}, len(lastSpec.DurableExecutorServices))
+	newDurableExecutorServices := make([]hazelcastv1alpha1.DurableExecutorServiceConfiguration, 0, len(currentSpec.DurableExecutorServices))
+	for _, es := range lastSpec.DurableExecutorServices {
 		existExecutorServices[es.Name] = struct{}{}
 	}
-	for _, es := range current.Durable {
+	for _, es := range currentSpec.DurableExecutorServices {
 		_, ok := existExecutorServices[es.Name]
 		if !ok {
 			newDurableExecutorServices = append(newDurableExecutorServices, es)
 		}
 	}
 
-	existExecutorServices = make(map[string]struct{}, len(last.Scheduled))
-	newScheduledExecutorServices := make([]hazelcastv1alpha1.ScheduledExecutorServiceConfiguration, 0, len(current.Scheduled))
-	for _, es := range last.Scheduled {
+	existExecutorServices = make(map[string]struct{}, len(lastSpec.ScheduledExecutorServices))
+	newScheduledExecutorServices := make([]hazelcastv1alpha1.ScheduledExecutorServiceConfiguration, 0, len(currentSpec.ScheduledExecutorServices))
+	for _, es := range lastSpec.ScheduledExecutorServices {
 		existExecutorServices[es.Name] = struct{}{}
 	}
-	for _, es := range current.Scheduled {
+	for _, es := range currentSpec.ScheduledExecutorServices {
 		_, ok := existExecutorServices[es.Name]
 		if !ok {
 			newScheduledExecutorServices = append(newScheduledExecutorServices, es)
 		}
 	}
 
-	return &hazelcastv1alpha1.ExecutorServices{Basic: newBasicExecutorServices, Durable: newDurableExecutorServices, Scheduled: newScheduledExecutorServices}
+	return map[string]interface{}{"es": newExecutorServices, "des": newDurableExecutorServices, "ses": newScheduledExecutorServices}, nil
 }
 
-func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *hazelcast.Client, newExecutorServices *hazelcastv1alpha1.ExecutorServices) {
+func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *hazelcast.Client, newExecutorServices map[string]interface{}) {
 	ci := hazelcast.NewClientInternal(client)
 	var req *proto.ClientMessage
-	for _, es := range newExecutorServices.Basic {
+	for _, es := range newExecutorServices["es"].([]hazelcastv1alpha1.ExecutorServiceConfiguration) {
 		esInput := codecTypes.DefaultAddExecutorServiceInput()
 		fillAddExecutorServiceInput(esInput, es)
 		req = codec.EncodeDynamicConfigAddExecutorConfigRequest(esInput)
@@ -1215,9 +1204,9 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *h
 			}
 		}
 	}
-	for _, es := range newExecutorServices.Durable {
+	for _, des := range newExecutorServices["des"].([]hazelcastv1alpha1.DurableExecutorServiceConfiguration) {
 		esInput := codecTypes.DefaultAddDurableExecutorServiceInput()
-		fillAddDurableExecutorServiceInput(esInput, es)
+		fillAddDurableExecutorServiceInput(esInput, des)
 		req = codec.EncodeDynamicConfigAddDurableExecutorConfigRequest(esInput)
 
 		for _, member := range ci.OrderedMembers() {
@@ -1227,9 +1216,9 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *h
 			}
 		}
 	}
-	for _, es := range newExecutorServices.Scheduled {
+	for _, ses := range newExecutorServices["ses"].([]hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) {
 		esInput := codecTypes.DefaultAddScheduledExecutorServiceInput()
-		fillAddScheduledExecutorServiceInput(esInput, es)
+		fillAddScheduledExecutorServiceInput(esInput, ses)
 		req = codec.EncodeDynamicConfigAddScheduledExecutorConfigRequest(esInput)
 
 		for _, member := range ci.OrderedMembers() {

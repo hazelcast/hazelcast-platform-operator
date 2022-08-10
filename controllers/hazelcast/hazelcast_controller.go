@@ -145,7 +145,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	s, createdBefore := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 
-	var newExecutorServices *hazelcastv1alpha1.ExecutorServices
+	var newExecutorServices map[string]interface{}
 	if createdBefore {
 		newExecutorServices, err = r.detectNewExecutorServices(h, s)
 		if err != nil {

@@ -88,18 +88,13 @@ type HazelcastSpec struct {
 	CustomClass *CustomClassConfiguration `json:"customClass,omitempty"`
 
 	// +optional
-	ExecutorServices *ExecutorServices `json:"executorServices,omitempty"`
-}
-
-type ExecutorServices struct {
-	// +optional
-	Basic []ExecutorServiceConfiguration `json:"basic,omitempty"`
+	ExecutorServices []ExecutorServiceConfiguration `json:"executorServices,omitempty"`
 
 	// +optional
-	Durable []DurableExecutorServiceConfiguration `json:"durable,omitempty"`
+	DurableExecutorServices []DurableExecutorServiceConfiguration `json:"durableExecutorServices,omitempty"`
 
 	// +optional
-	Scheduled []ScheduledExecutorServiceConfiguration `json:"scheduled,omitempty"`
+	ScheduledExecutorServices []ScheduledExecutorServiceConfiguration `json:"scheduledExecutorServices,omitempty"`
 }
 
 type ExecutorServiceConfiguration struct {
