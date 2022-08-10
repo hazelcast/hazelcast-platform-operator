@@ -249,9 +249,9 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 		client.PropagationPolicy(metav1.DeletePropagationForeground),
 	)).Should(Succeed())
 
-	// do not wait if list is nil
+	// do not wait if objList is nil
 	objListVal := reflect.ValueOf(objList)
-	if objListVal.IsNil() {
+	if !objListVal.IsValid() {
 		return
 	}
 
