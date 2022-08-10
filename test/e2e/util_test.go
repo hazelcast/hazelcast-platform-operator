@@ -249,21 +249,25 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 		client.PropagationPolicy(metav1.DeletePropagationForeground),
 	)).Should(Succeed())
 
-	Eventually(func() bool {
+	// do not wait if list is nil
+	objListVal := reflect.ValueOf(objList)
+	if objListVal.IsNil() {
+		return
+	}
+
+	Eventually(func() int {
 		err := k8sClient.List(context.Background(), objList,
 			client.InNamespace(ns),
 			client.MatchingLabels(labels))
 		if err != nil {
-			return false
+			return -1
 		}
-		objListVal := reflect.ValueOf(objList)
 		if objListVal.Kind() == reflect.Ptr || objListVal.Kind() == reflect.Interface {
 			objListVal = objListVal.Elem()
 		}
-
 		items := objListVal.FieldByName("Items")
 		len := items.Len()
-		return len == 0
+		return len
 
-	}, 1*Minute, interval).Should(BeTrue())
+	}, 2*Minute, interval).Should(Equal(int(0)))
 }
