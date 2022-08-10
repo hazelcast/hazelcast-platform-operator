@@ -47,6 +47,13 @@ func runningPhase() optionsBuilder {
 	}
 }
 
+func terminatingPhase(err error) optionsBuilder {
+	return optionsBuilder{
+		phase: hazelcastv1alpha1.Terminating,
+		err:   err,
+	}
+}
+
 func (o optionsBuilder) withStatus(s *hzclient.Status) optionsBuilder {
 	o.readyMembers = s.MemberMap
 	o.restoreState = s.ClusterHotRestartStatus

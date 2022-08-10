@@ -184,6 +184,7 @@ type MapStatus struct {
 	MemberStatuses map[string]MapConfigState `json:"memberStatuses,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=Success;Failed;Pending;Persisting;Terminating
 type MapConfigState string
 
 const (
@@ -191,7 +192,8 @@ const (
 	MapSuccess MapConfigState = "Success"
 	MapPending MapConfigState = "Pending"
 	// Map config is added into all members but waiting for map to be persisten into ConfigMap
-	MapPersisting MapConfigState = "Persisting"
+	MapPersisting  MapConfigState = "Persisting"
+	MapTerminating MapConfigState = "Terminating"
 )
 
 type MapStoreConfig struct {

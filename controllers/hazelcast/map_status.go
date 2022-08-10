@@ -46,6 +46,13 @@ func persistingStatus(retryAfter time.Duration) mapOptionsBuilder {
 	}
 }
 
+func terminatingStatus(err error) mapOptionsBuilder {
+	return mapOptionsBuilder{
+		status: hazelcastv1alpha1.MapTerminating,
+		err:    err,
+	}
+}
+
 func (o mapOptionsBuilder) withMessage(m string) mapOptionsBuilder {
 	o.message = m
 	return o

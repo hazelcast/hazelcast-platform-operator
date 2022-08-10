@@ -88,9 +88,10 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Check if the Hazelcast CR is marked to be deleted
 	if h.GetDeletionTimestamp() != nil {
 		// Execute finalizer's pre-delete function to cleanup ClusterRole
+		update(ctx, r.Client, h, terminatingPhase(nil)) //nolint:errcheck
 		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
-			return update(ctx, r.Client, h, failedPhase(err))
+			return update(ctx, r.Client, h, terminatingPhase(err).withMessage(err.Error()))
 		}
 		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
@@ -298,6 +299,12 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.Map{}, "hazelcastResourceName", func(rawObj client.Object) []string {
 		m := rawObj.(*hazelcastv1alpha1.Map)
 		return []string{m.Spec.HazelcastResourceName}
+	}); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.HotBackup{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		hb := rawObj.(*hazelcastv1alpha1.HotBackup)
+		return []string{hb.Spec.HazelcastResourceName}
 	}); err != nil {
 		return err
 	}

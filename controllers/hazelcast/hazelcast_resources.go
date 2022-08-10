@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -57,7 +58,9 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
 	}
-
+	if err := r.deleteDependentCRs(ctx, h, logger); err != nil {
+		return fmt.Errorf("Could not delete all dependent CRs: %w", err)
+	}
 	if err := r.removeClusterRole(ctx, h, logger); err != nil {
 		return fmt.Errorf("ClusterRole could not be removed: %w", err)
 	}
@@ -73,6 +76,88 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 		delete(r.metrics.HazelcastMetrics, h.UID)
 	}
 	hzclient.ShutdownClient(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+	return nil
+}
+
+func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	err := r.deleteDependentHotBackups(ctx, h, logger)
+	if err != nil {
+		return err
+	}
+	err = r.deleteDependentMaps(ctx, h, logger)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *HazelcastReconciler) deleteDependentHotBackups(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	hbl := &hazelcastv1alpha1.HotBackupList{}
+
+	if err := r.Client.List(ctx, hbl,
+		client.MatchingFields{"hazelcastResourceName": h.Name},
+		client.InNamespace(h.Namespace),
+	); err != nil {
+		return fmt.Errorf("Could not get Hazelcast dependent HotBackups %w", err)
+	}
+
+	if len(hbl.Items) == 0 {
+		return nil
+	}
+
+	g, groupCtx := errgroup.WithContext(ctx)
+	for i := 0; i < len(hbl.Items); i++ {
+		i := i
+		g.Go(func() error {
+			return util.DeleteObject(groupCtx, r.Client, &hbl.Items[i])
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("Error deleting HotBackup CRs %w", err)
+	}
+
+	if err := r.Client.List(ctx, hbl,
+		client.MatchingFields{"hazelcastResourceName": h.Name},
+		client.InNamespace(h.Namespace),
+	); err != nil {
+		return fmt.Errorf("Hazelcast dependent HotBackup resources are not deleted yet %w", err)
+	}
+	return nil
+}
+
+func (r *HazelcastReconciler) deleteDependentMaps(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	ml := &hazelcastv1alpha1.MapList{}
+
+	if err := r.Client.List(ctx, ml,
+		client.MatchingFields{"hazelcastResourceName": h.Name},
+		client.InNamespace(h.Namespace),
+	); err != nil {
+		return fmt.Errorf("Could not get Hazelcast dependent Maps resources %w", err)
+	}
+
+	if len(ml.Items) == 0 {
+		return nil
+	}
+
+	g, groupCtx := errgroup.WithContext(ctx)
+	for i := 0; i < len(ml.Items); i++ {
+		i := i
+		g.Go(func() error {
+			return util.DeleteObject(groupCtx, r.Client, &ml.Items[i])
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("Error deleting Map resources %w", err)
+	}
+
+	if err := r.Client.List(ctx, ml,
+		client.MatchingFields{"hazelcastResourceName": h.Name},
+		client.InNamespace(h.Namespace),
+	); err != nil {
+		return fmt.Errorf("Hazelcast dependent Maps resources are not deleted yet %w", err)
+	}
 	return nil
 }
 

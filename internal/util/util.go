@@ -302,3 +302,11 @@ func stringSliceEquals(a, b []string) bool {
 	}
 	return true
 }
+
+func DeleteObject(ctx context.Context, c client.Client, obj client.Object) error {
+	err := c.Delete(ctx, obj, client.PropagationPolicy(metav1.DeletePropagationForeground))
+	if err != nil && !kerrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}

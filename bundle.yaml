@@ -1203,6 +1203,7 @@ spec:
                 - Running
                 - Failed
                 - Pending
+                - Terminating
                 type: string
               restore:
                 description: Status of restore process of the Hazelcast cluster
@@ -2296,6 +2297,7 @@ spec:
                 - Running
                 - Failed
                 - Pending
+                - Terminating
                 type: string
             type: object
         type: object
@@ -2516,11 +2518,23 @@ spec:
             properties:
               memberStatuses:
                 additionalProperties:
+                  enum:
+                  - Success
+                  - Failed
+                  - Pending
+                  - Persisting
+                  - Terminating
                   type: string
                 type: object
               message:
                 type: string
               state:
+                enum:
+                - Success
+                - Failed
+                - Pending
+                - Persisting
+                - Terminating
                 type: string
             type: object
         required:

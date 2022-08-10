@@ -206,11 +206,23 @@ spec:
             properties:
               memberStatuses:
                 additionalProperties:
+                  enum:
+                  - Success
+                  - Failed
+                  - Pending
+                  - Persisting
+                  - Terminating
                   type: string
                 type: object
               message:
                 type: string
               state:
+                enum:
+                - Success
+                - Failed
+                - Pending
+                - Persisting
+                - Terminating
                 type: string
             type: object
         required:

@@ -10,7 +10,7 @@ import (
 )
 
 // Phase represents the current state of the cluster
-// +kubebuilder:validation:Enum=Running;Failed;Pending
+// +kubebuilder:validation:Enum=Running;Failed;Pending;Terminating
 type Phase string
 
 const (
@@ -20,6 +20,8 @@ const (
 	Failed Phase = "Failed"
 	// Pending phase is the state of starting the cluster when not all the members are started yet
 	Pending Phase = "Pending"
+	// Terminating phase is the state where deletion of cluster scoped resources and Hazelcast dependent resources happen
+	Terminating Phase = "Terminating"
 )
 
 // HazelcastSpec defines the desired state of Hazelcast

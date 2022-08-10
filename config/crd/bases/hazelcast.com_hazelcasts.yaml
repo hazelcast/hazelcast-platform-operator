@@ -1205,6 +1205,7 @@ spec:
                 - Running
                 - Failed
                 - Pending
+                - Terminating
                 type: string
               restore:
                 description: Status of restore process of the Hazelcast cluster
