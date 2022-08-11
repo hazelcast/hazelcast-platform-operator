@@ -179,8 +179,8 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 	}
 	if cancelFunc, ok := r.cancelMap[key]; ok {
 		cancelFunc()
+		delete(r.cancelMap, key)
 	}
-	delete(r.cancelMap, key)
 	r.unlockBackup(key)
 	r.removeSchedule(key, logger)
 	controllerutil.RemoveFinalizer(hb, n.Finalizer)
