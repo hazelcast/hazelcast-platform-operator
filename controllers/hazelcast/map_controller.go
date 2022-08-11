@@ -187,12 +187,12 @@ func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alph
 }
 
 func (r *MapReconciler) deleteDependentCRs(ctx context.Context, m *hazelcastv1alpha1.Map, logger logr.Logger) error {
+	fieldMatcher := client.MatchingFields{"mapResourceName": m.Name}
+	nsMatcher := client.InNamespace(m.Namespace)
+
 	wrl := &hazelcastv1alpha1.WanReplicationList{}
 
-	if err := r.Client.List(ctx, wrl,
-		client.MatchingFields{"mapResourceName": m.Name},
-		client.InNamespace(m.Namespace),
-	); err != nil {
+	if err := r.Client.List(ctx, wrl, fieldMatcher, nsMatcher); err != nil {
 		return fmt.Errorf("Could not get Map dependent WanReplication resources %w", err)
 	}
 
@@ -212,10 +212,7 @@ func (r *MapReconciler) deleteDependentCRs(ctx context.Context, m *hazelcastv1al
 		return fmt.Errorf("Error deleting WanReplication resources %w", err)
 	}
 
-	if err := r.Client.List(ctx, &hazelcastv1alpha1.WanReplicationList{},
-		client.MatchingFields{"mapResourceName": m.Name},
-		client.InNamespace(m.Namespace),
-	); err != nil {
+	if err := r.Client.List(ctx, wrl, fieldMatcher, nsMatcher); err != nil {
 		return fmt.Errorf("Map dependent WanReplication resources are not deleted yet %w", err)
 	}
 	return nil

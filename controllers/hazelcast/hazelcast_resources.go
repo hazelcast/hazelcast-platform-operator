@@ -92,13 +92,13 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 }
 
 func (r *HazelcastReconciler) deleteDependentHotBackups(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
 	hbl := &hazelcastv1alpha1.HotBackupList{}
 
-	if err := r.Client.List(ctx, hbl,
-		client.MatchingFields{"hazelcastResourceName": h.Name},
-		client.InNamespace(h.Namespace),
-	); err != nil {
-		return fmt.Errorf("Could not get Hazelcast dependent HotBackups %w", err)
+	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Could not get Hazelcast dependent HotBackup resources %w", err)
 	}
 
 	if len(hbl.Items) == 0 {
@@ -114,26 +114,23 @@ func (r *HazelcastReconciler) deleteDependentHotBackups(ctx context.Context, h *
 	}
 
 	if err := g.Wait(); err != nil {
-		return fmt.Errorf("Error deleting HotBackup CRs %w", err)
+		return fmt.Errorf("Error deleting HotBackup resources %w", err)
 	}
 
-	if err := r.Client.List(ctx, hbl,
-		client.MatchingFields{"hazelcastResourceName": h.Name},
-		client.InNamespace(h.Namespace),
-	); err != nil {
+	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
 		return fmt.Errorf("Hazelcast dependent HotBackup resources are not deleted yet %w", err)
 	}
 	return nil
 }
 
 func (r *HazelcastReconciler) deleteDependentMaps(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
 	ml := &hazelcastv1alpha1.MapList{}
 
-	if err := r.Client.List(ctx, ml,
-		client.MatchingFields{"hazelcastResourceName": h.Name},
-		client.InNamespace(h.Namespace),
-	); err != nil {
-		return fmt.Errorf("Could not get Hazelcast dependent Maps resources %w", err)
+	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Could not get Hazelcast dependent Map resources %w", err)
 	}
 
 	if len(ml.Items) == 0 {
@@ -152,11 +149,8 @@ func (r *HazelcastReconciler) deleteDependentMaps(ctx context.Context, h *hazelc
 		return fmt.Errorf("Error deleting Map resources %w", err)
 	}
 
-	if err := r.Client.List(ctx, ml,
-		client.MatchingFields{"hazelcastResourceName": h.Name},
-		client.InNamespace(h.Namespace),
-	); err != nil {
-		return fmt.Errorf("Hazelcast dependent Maps resources are not deleted yet %w", err)
+	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Hazelcast dependent Map resources are not deleted yet %w", err)
 	}
 	return nil
 }
