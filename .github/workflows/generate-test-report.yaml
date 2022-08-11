@@ -94,8 +94,7 @@ jobs:
                            |.+={name: ("ERROR_LINE"+ "_" + (.key|tonumber+1|tostring))}
                            |.url+=.value[]
                            |del(.key)|del(.value)
-                           |.+={type: "issue"}]}
-                           |.testStage.steps[-1]+={status: "failed"} else . end)
+                           |.+={type: "issue"}]} else . end)
                            |.links|= [{"name":"https://one.newrelic.com/logger","url":"https://one.newrelic.com/logger",type: "tms"}] + .' $i) > $i
           done
 
