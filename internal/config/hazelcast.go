@@ -135,24 +135,6 @@ type MapStoreConfig struct {
 	InitialLoadMode   string            `yaml:"initial-mode"`
 }
 
-type ExecutorService struct {
-	PoolSize      int32 `yaml:"pool-size"`
-	QueueCapacity int32 `yaml:"queue-capacity"`
-}
-
-type DurableExecutorService struct {
-	PoolSize   int32 `yaml:"pool-size"`
-	Durability int32 `yaml:"durability"`
-	Capacity   int32 `yaml:"capacity"`
-}
-
-type ScheduledExecutorService struct {
-	PoolSize       int32  `yaml:"pool-size"`
-	Durability     int32  `yaml:"durability"`
-	Capacity       int32  `yaml:"capacity"`
-	CapacityPolicy string `yaml:"capacity-policy"`
-}
-
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
 	return Hazelcast{
 		ClusterName: hz.ClusterName,
