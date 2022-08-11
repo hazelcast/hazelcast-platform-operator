@@ -120,6 +120,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 	Describe("Hazelcast CR dependent CRs", func() {
 		When("Hazelcast CR is deleted", func() {
 			It("dependent Map, WanReplication and HotBackup CRs should be deleted", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
 				setLabelAndCRName("h-6")
 				hz := hazelcastconfig.PersistenceEnabled(hzLookupKey, "/data/hot-backup", labels)
 				CreateHazelcastCR(hz)
