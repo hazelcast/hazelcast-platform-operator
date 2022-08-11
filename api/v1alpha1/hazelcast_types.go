@@ -80,12 +80,12 @@ type HazelcastSpec struct {
 
 	// B&R Agent configurations
 	// +optional
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.5"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.6"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
 
-	// Custom Classes to Download into Class Path
+	// User Codes to Download into CLASSPATH
 	// +optional
-	CustomClass *CustomClassConfiguration `json:"customClass,omitempty"`
+	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
 
 	// +optional
 	ExecutorServices []ExecutorServiceConfiguration `json:"executorServices,omitempty"`
@@ -190,13 +190,13 @@ type BucketConfiguration struct {
 	BucketURI string `json:"bucketURI"`
 }
 
-// CustomClassConfiguration contains the configuration for Custom Class download operation
-type CustomClassConfiguration struct {
+// UserCodeDeploymentConfig contains the configuration for User Code download operation
+type UserCodeDeploymentConfig struct {
 	// Jar files in the bucket will be put under CLASSPATH.
 	// +optional
 	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
 
-	// A string for triggering a rolling restart for re-downloading the custom classes.
+	// A string for triggering a rolling restart for re-downloading the user codes.
 	// +optional
 	TriggerSequence string `json:"triggerSequence,omitempty"`
 
@@ -212,7 +212,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.5"
+	// +kubebuilder:default:="0.1.6"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
@@ -378,13 +378,13 @@ func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
 }
 
-// Returns true if customClass.bucketConfiguration is specified.
-func (c *CustomClassConfiguration) IsBucketEnabled() bool {
+// Returns true if userCodeDeployment.bucketConfiguration is specified.
+func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
 	return c != nil && c.BucketConfiguration != nil
 }
 
-// Returns true if customClass.configMaps configuration is specified.
-func (c *CustomClassConfiguration) IsConfigMapEnabled() bool {
+// Returns true if userCodeDeployment.configMaps configuration is specified.
+func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
 	return c != nil && (len(c.ConfigMaps) != 0)
 }
 

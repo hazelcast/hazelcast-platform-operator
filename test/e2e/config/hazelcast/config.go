@@ -241,7 +241,7 @@ var (
 		}
 	}
 
-	CustomClass = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+	UserCode = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -253,7 +253,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				CustomClass: &hazelcastv1alpha1.CustomClassConfiguration{
+				UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
 					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
 						Secret:    s,
 						BucketURI: bkt,

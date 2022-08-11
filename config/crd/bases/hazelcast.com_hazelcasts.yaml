@@ -61,7 +61,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.5
+                  version: 0.1.6
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -69,7 +69,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.5
+                    default: 0.1.6
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -83,35 +83,6 @@ spec:
                 format: int32
                 minimum: 0
                 type: integer
-              customClass:
-                description: Custom Classes to Download into Class Path
-                properties:
-                  bucketConfig:
-                    description: Jar files in the bucket will be put under CLASSPATH.
-                    properties:
-                      bucketURI:
-                        description: Full path to blob storage bucket.
-                        minLength: 6
-                        type: string
-                      secret:
-                        description: Name of the secret with credentials for cloud
-                          providers.
-                        minLength: 1
-                        type: string
-                    required:
-                    - bucketURI
-                    - secret
-                    type: object
-                  configMaps:
-                    description: Files in the ConfigMaps will be put under CLASSPATH.
-                    items:
-                      type: string
-                    type: array
-                  triggerSequence:
-                    description: A string for triggering a rolling restart for re-downloading
-                      the custom classes.
-                    type: string
-                type: object
               durableExecutorServices:
                 items:
                   properties:
@@ -1115,6 +1086,35 @@ spec:
                       - whenUnsatisfiable
                       type: object
                     type: array
+                type: object
+              userCodeDeployment:
+                description: User Codes to Download into CLASSPATH
+                properties:
+                  bucketConfig:
+                    description: Jar files in the bucket will be put under CLASSPATH.
+                    properties:
+                      bucketURI:
+                        description: Full path to blob storage bucket.
+                        minLength: 6
+                        type: string
+                      secret:
+                        description: Name of the secret with credentials for cloud
+                          providers.
+                        minLength: 1
+                        type: string
+                    required:
+                    - bucketURI
+                    - secret
+                    type: object
+                  configMaps:
+                    description: Files in the ConfigMaps will be put under CLASSPATH.
+                    items:
+                      type: string
+                    type: array
+                  triggerSequence:
+                    description: A string for triggering a rolling restart for re-downloading
+                      the user codes.
+                    type: string
                 type: object
               version:
                 default: 5.1.2

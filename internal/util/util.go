@@ -50,6 +50,9 @@ func CheckIfRunning(ctx context.Context, cl client.Client, namespacedName types.
 	sts := &appsv1.StatefulSet{}
 	err := cl.Get(ctx, client.ObjectKey{Name: namespacedName.Name, Namespace: namespacedName.Namespace}, sts)
 	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return false, nil
+		}
 		return false, err
 	}
 	if isStatefulSetReady(sts, expectedReplicas) {
