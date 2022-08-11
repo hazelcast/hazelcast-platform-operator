@@ -19,7 +19,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = FDescribe("Hazelcast Custom Class Upload", Label("custom_class"), func() {
+var _ = Describe("Hazelcast Custom Class Upload", Label("custom_class"), func() {
 	localPort := strconv.Itoa(8200 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
