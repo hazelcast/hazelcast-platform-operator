@@ -7,20 +7,23 @@ import (
 )
 
 var (
-	labels             = map[string]string{}
-	hzLookupKey        = types.NamespacedName{}
+	labels       = map[string]string{}
+	hzLookupKey  = types.NamespacedName{}
+	mapLookupKey = types.NamespacedName{}
+	wanLookupKey = types.NamespacedName{}
+	mcLookupKey  = types.NamespacedName{}
+	hbLookupKey  = types.NamespacedName{}
+)
+
+var (
 	hzSourceLookupKey  = types.NamespacedName{}
 	hzTargetLookupKey  = types.NamespacedName{}
 	hzSrcLookupKey     = types.NamespacedName{}
 	hzTrgLookupKey     = types.NamespacedName{}
-	mapLookupKey       = types.NamespacedName{}
 	mapSourceLookupKey = types.NamespacedName{}
 	mapTargetLookupKey = types.NamespacedName{}
-	wanLookupKey       = types.NamespacedName{}
 	wanSourceLookupKey = types.NamespacedName{}
 	wanTargetLookupKey = types.NamespacedName{}
-	mcLookupKey        = types.NamespacedName{}
-	hbLookupKey        = types.NamespacedName{}
 )
 
 func setCRNamespace(ns string) {

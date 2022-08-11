@@ -53,6 +53,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		setLabelAndCRName("hwap-1")
 		var mapSizeInGb = 3
+		expectedTrgMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
 
 		By("creating source Hazelcast cluster")
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzSourceLookupKey, ee, labels)
@@ -105,7 +106,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		FillTheMapWithHugeData(context.Background(), m.Name, mapSizeInGb, hazelcastSource)
 
 		By("checking the target Map size")
-		WaitForMapSize(context.Background(), hzTargetLookupKey, m.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+		WaitForMapSize(context.Background(), hzTargetLookupKey, m.Name, expectedTrgMapSize)
 	})
 
 	It("should send 9 GB data by each cluster in active-active mode in the different namespaces", Label("slow"), func() {
@@ -113,6 +114,11 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			Skip("This test will only run in EE configuration")
 		}
 		var mapSizeInGb = 3
+		/**
+		1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		*/
+		expectedTrgMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
+		expectedSrcMapSize := int(float64(mapSizeInGb*2) * math.Round(1310.72) * 100)
 		setLabelAndCRName("hwaa-1")
 
 		By("creating source Hazelcast cluster")
@@ -190,20 +196,17 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			return wanTrg.Status.Status, nil
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
-		/**
-		1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
-		*/
 		By("filling the source Map")
 		FillTheMapWithHugeData(context.Background(), mapSrc.Spec.Name, mapSizeInGb, hazelcastSource)
 
 		By("checking the target Map size")
-		WaitForMapSize(context.Background(), hzTargetLookupKey, mapSrc.Spec.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+		WaitForMapSize(context.Background(), hzTargetLookupKey, mapSrc.Spec.Name, expectedTrgMapSize)
 
 		By("filling the target Map")
 		FillTheMapWithHugeData(context.Background(), mapTrg.Spec.Name, mapSizeInGb, hazelcastTarget)
 
 		By("checking the source Map size")
-		WaitForMapSize(context.Background(), hzSourceLookupKey, mapTrg.Spec.Name, int(float64(mapSizeInGb*2)*math.Round(1310.72)*100))
+		WaitForMapSize(context.Background(), hzSourceLookupKey, mapTrg.Spec.Name, expectedSrcMapSize)
 	})
 
 	It("should send 9 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Label("slow"), func() {
@@ -212,6 +215,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		setLabelAndCRName("hwapdc-1")
 		var mapSizeInGb = 3
+		/**
+		1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		*/
+		expectedTrgMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
 
 		By("creating source Hazelcast cluster")
 		SwitchContext(context1)
@@ -272,7 +279,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		By("checking the target Map size")
 		SwitchContext(context2)
 		setupEnv()
-		WaitForMapSize(context.Background(), hzTargetLookupKey, m.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+		WaitForMapSize(context.Background(), hzTargetLookupKey, m.Name, expectedTrgMapSize)
 	})
 
 	It("should send 9 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Label("slow"), func() {
@@ -280,6 +287,12 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			Skip("This test will only run in EE configuration")
 		}
 		var mapSizeInGb = 3
+		/**
+		1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		*/
+		expectedTrgMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
+		expectedSrcMapSize := int(float64(mapSizeInGb*2) * math.Round(1310.72) * 100)
+
 		setLabelAndCRName("hwaadc-1")
 
 		By("creating source Hazelcast cluster")
@@ -368,9 +381,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			return wanTrg.Status.Status, nil
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
-		/**
-		1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
-		*/
 		By("filling the source Map")
 		SwitchContext(context1)
 		setupEnv()
@@ -379,7 +389,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		By("checking the target Map size")
 		SwitchContext(context2)
 		setupEnv()
-		WaitForMapSize(context.Background(), hzTargetLookupKey, mapSrc.Spec.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
+		WaitForMapSize(context.Background(), hzTargetLookupKey, mapSrc.Spec.Name, expectedTrgMapSize)
 
 		By("filling the target Map")
 		FillTheMapWithHugeData(context.Background(), mapTrg.Spec.Name, mapSizeInGb, hazelcastTarget)
@@ -387,6 +397,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		By("checking the source Map size")
 		SwitchContext(context1)
 		setupEnv()
-		WaitForMapSize(context.Background(), hzSourceLookupKey, mapTrg.Spec.Name, int(float64(mapSizeInGb*2)*math.Round(1310.72)*100))
+		WaitForMapSize(context.Background(), hzSourceLookupKey, mapTrg.Spec.Name, expectedSrcMapSize)
 	})
 })

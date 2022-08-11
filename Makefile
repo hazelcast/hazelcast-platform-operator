@@ -224,13 +224,13 @@ else
 	@$(KUSTOMIZE) build config/default
 endif
 
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f - --ignore-not-found
 
-undeploy-keep-crd:
-	cd config/default && kustomize edit remove resource ../crd
-	kustomize build config/default | kubectl delete -f - --ignore-not-found
-	cd config/default && kustomize edit add resource ../crd
+undeploy-keep-crd: kustomize
+	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
+	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found
+	cd config/default && $(KUSTOMIZE) edit add resource ../crd
 
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
 	$(eval CR_NAMES := $(shell $(KUBECTL) get crd -o jsonpath='{range.items[*]}{..metadata.name}{"\n"}{end}' | grep hazelcast.com))
