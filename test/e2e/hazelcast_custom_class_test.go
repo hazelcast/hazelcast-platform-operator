@@ -157,8 +157,8 @@ var _ = Describe("Hazelcast Custom Class Upload", Label("custom_class"), func() 
 		}()
 
 		memberConfigXML := getMemberConfig(context.Background(), cl)
-		es := getExecutorServiceConfigFromMemberConfig(memberConfigXML)
-		assertExecutorServices(sampleExecutorServices, es)
+		actualES := getExecutorServiceConfigFromMemberConfig(memberConfigXML)
+		assertExecutorServices(sampleExecutorServices, actualES)
 
 		By("adding new executor services dynamically")
 		sampleExecutorServices["es"] = append(sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration), hazelcastcomv1alpha1.ExecutorServiceConfiguration{Name: "new-service", QueueCapacity: 50})
@@ -175,12 +175,12 @@ var _ = Describe("Hazelcast Custom Class Upload", Label("custom_class"), func() 
 		By("checking if all the executor service configs are created correctly", func() {
 			Eventually(func() int {
 				memberConfigXML = getMemberConfig(context.Background(), cl)
-				es = getExecutorServiceConfigFromMemberConfig(memberConfigXML)
-				return len(es.Durable)
+				actualES = getExecutorServiceConfigFromMemberConfig(memberConfigXML)
+				return len(actualES.Durable)
 			}, 90*Second, interval).Should(Equal(2))
 		})
 
-		assertExecutorServices(sampleExecutorServices, es)
+		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
 })
