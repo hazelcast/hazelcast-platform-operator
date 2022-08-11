@@ -9,7 +9,6 @@ spec:
   licenseKeySecret: hazelcast-license-key
   agent:
     repository: hazelcast/platform-operator-agent
-    version: 0.1.0
   persistence:
     baseDir: "/data/hot-restart/"
     clusterDataRecoveryPolicy: "FullRecoveryOnly"
