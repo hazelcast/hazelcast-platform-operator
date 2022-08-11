@@ -40,10 +40,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 	})
 
 	AfterEach(func() {
-		for _, lookupKey := range []string{hzSourceLookupKey.Namespace, hzTargetLookupKey.Namespace} {
-			DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, lookupKey, labels)
-			DeleteAllOf(&hazelcastcomv1alpha1.Map{}, lookupKey, labels)
-			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, lookupKey, labels)
+		for _, ns := range []string{hzSourceLookupKey.Namespace, hzTargetLookupKey.Namespace} {
+			DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, &hazelcastcomv1alpha1.WanReplicationList{}, ns, labels)
+			DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, ns, labels)
+			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, &hazelcastcomv1alpha1.HazelcastList{}, ns, labels)
 		}
 	})
 
