@@ -34,12 +34,12 @@ func setCRNamespace(ns string) {
 	wanLookupKey.Namespace = ns
 	hzSrcLookupKey.Namespace = ns
 	hzTrgLookupKey.Namespace = ns
-	mapSourceLookupKey.Namespace = "src-ns"
-	mapTargetLookupKey.Namespace = "trg-ns"
-	hzSourceLookupKey.Namespace = "src-ns"
-	hzTargetLookupKey.Namespace = "trg-ns"
-	wanSourceLookupKey.Namespace = "src-ns"
-	wanTargetLookupKey.Namespace = "trg-ns"
+	mapSourceLookupKey.Namespace = mapSourceNamespace
+	mapTargetLookupKey.Namespace = mapTargetNamespace
+	hzSourceLookupKey.Namespace = hzSourceNamespace
+	hzTargetLookupKey.Namespace = hzTargetNamespace
+	wanSourceLookupKey.Namespace = wanSourceNamespace
+	wanTargetLookupKey.Namespace = wanTargetNamespace
 }
 
 func setLabelAndCRName(n string) {
