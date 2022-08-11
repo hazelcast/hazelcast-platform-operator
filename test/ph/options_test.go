@@ -2,6 +2,7 @@ package ph
 
 import (
 	"flag"
+	"os"
 	"time"
 )
 
@@ -11,6 +12,7 @@ var (
 	timeout       time.Duration
 	ee            bool
 	deleteTimeout time.Duration
+	version       string
 )
 
 func init() {
@@ -19,5 +21,5 @@ func init() {
 	flag.DurationVar(&timeout, "eventually-timeout", 5*time.Minute, "Timeout for test steps")
 	flag.BoolVar(&ee, "ee", true, "Flag to define whether Enterprise edition of Hazelcast will be used")
 	flag.DurationVar(&deleteTimeout, "delete-timeout", 5*time.Minute, "Timeout for resource deletions")
-
+	flag.StringVar(&version, "VERSION", os.Getenv("VERSION"), "Image version")
 }
