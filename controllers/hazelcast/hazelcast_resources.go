@@ -120,6 +120,11 @@ func (r *HazelcastReconciler) deleteDependentHotBackups(ctx context.Context, h *
 	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
 		return fmt.Errorf("Hazelcast dependent HotBackup resources are not deleted yet %w", err)
 	}
+
+	if len(hbl.Items) != 0 {
+		return fmt.Errorf("Hazelcast dependent HotBackup resources are not deleted yet.")
+	}
+
 	return nil
 }
 
@@ -152,6 +157,11 @@ func (r *HazelcastReconciler) deleteDependentMaps(ctx context.Context, h *hazelc
 	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
 		return fmt.Errorf("Hazelcast dependent Map resources are not deleted yet %w", err)
 	}
+
+	if len(ml.Items) != 0 {
+		return fmt.Errorf("Hazelcast dependent Map resources are not deleted yet.")
+	}
+
 	return nil
 }
 

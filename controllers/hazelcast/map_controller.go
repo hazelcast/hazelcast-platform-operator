@@ -215,6 +215,11 @@ func (r *MapReconciler) deleteDependentCRs(ctx context.Context, m *hazelcastv1al
 	if err := r.Client.List(ctx, wrl, fieldMatcher, nsMatcher); err != nil {
 		return fmt.Errorf("Map dependent WanReplication resources are not deleted yet %w", err)
 	}
+
+	if len(wrl.Items) != 0 {
+		return fmt.Errorf("Map dependent WanReplication resources are not deleted yet.")
+	}
+
 	return nil
 }
 
