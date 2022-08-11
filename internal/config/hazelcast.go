@@ -107,6 +107,24 @@ type WanReplicationReference struct {
 	Filters              []string `yaml:"filters"`
 }
 
+type ExecutorService struct {
+	PoolSize      int32 `yaml:"pool-size"`
+	QueueCapacity int32 `yaml:"queue-capacity"`
+}
+
+type DurableExecutorService struct {
+	PoolSize   int32 `yaml:"pool-size"`
+	Durability int32 `yaml:"durability"`
+	Capacity   int32 `yaml:"capacity"`
+}
+
+type ScheduledExecutorService struct {
+	PoolSize       int32  `yaml:"pool-size"`
+	Durability     int32  `yaml:"durability"`
+	Capacity       int32  `yaml:"capacity"`
+	CapacityPolicy string `yaml:"capacity-policy"`
+}
+
 type MapStoreConfig struct {
 	Enabled           bool              `yaml:"enabled"`
 	WriteCoalescing   *bool             `yaml:"write-coalescing,omitempty"`

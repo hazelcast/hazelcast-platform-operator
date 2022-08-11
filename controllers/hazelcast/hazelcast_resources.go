@@ -439,6 +439,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	if err != nil {
 		return nil, err
 	}
+	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
