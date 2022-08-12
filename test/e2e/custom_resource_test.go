@@ -16,14 +16,10 @@ var (
 )
 
 var (
-	hzSourceLookupKey  = types.NamespacedName{}
-	hzTargetLookupKey  = types.NamespacedName{}
-	hzSrcLookupKey     = types.NamespacedName{}
-	hzTrgLookupKey     = types.NamespacedName{}
-	mapSourceLookupKey = types.NamespacedName{}
-	mapTargetLookupKey = types.NamespacedName{}
-	wanSourceLookupKey = types.NamespacedName{}
-	wanTargetLookupKey = types.NamespacedName{}
+	hzSrcLookupKey  = types.NamespacedName{}
+	hzTrgLookupKey  = types.NamespacedName{}
+	sourceLookupKey = types.NamespacedName{}
+	targetLookupKey = types.NamespacedName{}
 )
 
 func setCRNamespace(ns string) {
@@ -34,12 +30,8 @@ func setCRNamespace(ns string) {
 	wanLookupKey.Namespace = ns
 	hzSrcLookupKey.Namespace = ns
 	hzTrgLookupKey.Namespace = ns
-	mapSourceLookupKey.Namespace = mapSourceNamespace
-	mapTargetLookupKey.Namespace = mapTargetNamespace
-	hzSourceLookupKey.Namespace = hzSourceNamespace
-	hzTargetLookupKey.Namespace = hzTargetNamespace
-	wanSourceLookupKey.Namespace = wanSourceNamespace
-	wanTargetLookupKey.Namespace = wanTargetNamespace
+	sourceLookupKey.Namespace = sourceNamespace
+	targetLookupKey.Namespace = targetNamespace
 }
 
 func setLabelAndCRName(n string) {
@@ -50,14 +42,10 @@ func setLabelAndCRName(n string) {
 	mapLookupKey.Name = n
 	hbLookupKey.Name = n
 	mcLookupKey.Name = n
-	mapSourceLookupKey.Name = "src-" + n
-	mapTargetLookupKey.Name = "trg-" + n
-	hzSourceLookupKey.Name = "src-" + n
-	hzTargetLookupKey.Name = "trg-" + n
 	hzSrcLookupKey.Name = "src-" + n
 	hzTrgLookupKey.Name = "trg-" + n
-	wanSourceLookupKey.Name = "src-" + n
-	wanTargetLookupKey.Name = "trg-" + n
+	sourceLookupKey.Name = "src-" + n
+	targetLookupKey.Name = "trg-" + n
 	GinkgoWriter.Printf("Resource name is: %s\n", n)
 	AddReportEntry("CR_ID:" + n)
 }

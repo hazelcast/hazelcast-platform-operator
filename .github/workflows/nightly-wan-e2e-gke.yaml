@@ -143,12 +143,8 @@ jobs:
           SECOND_CONTEXT_NAME="gke_${{ env.GCP_PROJECT_ID }}_${{ env.GKE_ZONE }}_${SECOND_CLUSTER_NAME}"
           echo "SECOND_CONTEXT_NAME=${SECOND_CONTEXT_NAME}" >> $GITHUB_ENV
 
-          echo "mapSourceNamespace="src-ns"" >> $GITHUB_ENV
-          echo "mapTargetNamespace="trg-ns"" >> $GITHUB_ENV
-          echo "hzSourceNamespace="src-ns"" >> $GITHUB_ENV
-          echo "hzTargetNamespace="trg-ns"" >> $GITHUB_ENV
-          echo "wanSourceNamespace="src-ns"" >> $GITHUB_ENV
-          echo "wanTargetNamespace="trg-ns"" >> $GITHUB_ENV
+          echo "sourceNamespace="src-ns"" >> $GITHUB_ENV
+          echo "targetNamespace="trg-ns"" >> $GITHUB_ENV
 
       - name: Connect To The Second GKE Cluster
         run: |-
