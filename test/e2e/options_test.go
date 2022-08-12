@@ -19,8 +19,8 @@ var (
 
 func init() {
 	flag.StringVar(&hzNamespace, "namespace", "default", "The namespace to run e2e tests")
-	flag.StringVar(&sourceNamespace, os.Getenv("sourceNamespace"), "src-ns", "The source namespace to run e2e wan tests")
-	flag.StringVar(&targetNamespace, os.Getenv("targetNamespace"), "trg-ns", "The target namespace to run e2e wan tests")
+	flag.StringVar(&sourceNamespace, "sourceNamespace", os.Getenv("sourceNamespace"), "The source namespace to run e2e wan tests")
+	flag.StringVar(&targetNamespace, "targetNamespace", os.Getenv("targetNamespace"), "The target namespace to run e2e wan tests")
 	flag.StringVar(&context1, "FIRST_CONTEXT_NAME", os.Getenv("FIRST_CONTEXT_NAME"), "First context name")
 	flag.StringVar(&context2, "SECOND_CONTEXT_NAME", os.Getenv("SECOND_CONTEXT_NAME"), "Second context name")
 	flag.DurationVar(&interval, "interval", 1*time.Second, "The length of time between checks")
