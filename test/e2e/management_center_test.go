@@ -34,7 +34,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 	})
 
 	AfterEach(func() {
-		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, &hazelcastcomv1alpha1.ManagementCenterList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, nil, hzNamespace, labels)
 		deletePVCs(mcLookupKey)
 	})
 
