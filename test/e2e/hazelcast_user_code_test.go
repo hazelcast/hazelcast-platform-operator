@@ -87,8 +87,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		entryCount := 5
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
 		defer func() {
-			err = cl.Shutdown(context.Background())
-			Expect(err).To(BeNil())
+			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()
 		mp, err := cl.GetMap(context.Background(), m.GetName())
 		Expect(err).To(BeNil())
@@ -152,8 +151,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		By("checking if the initially added executor service configs are created correctly")
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
 		defer func() {
-			err = cl.Shutdown(context.Background())
-			Expect(err).To(BeNil())
+			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()
 
 		memberConfigXML := getMemberConfig(context.Background(), cl)
