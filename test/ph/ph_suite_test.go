@@ -1,6 +1,7 @@
 package ph
 
 import (
+	"k8s.io/apimachinery/pkg/types"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -21,6 +22,10 @@ var (
 	k8sClient client.Client
 	testEnv   *envtest.Environment
 )
+
+var controllerManagerName = types.NamespacedName{
+	Name: GetControllerManagerName(),
+}
 
 func TestPhoneHome(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -46,6 +51,9 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
+
+	controllerManagerName.Namespace = hzNamespace
+	setCRNamespace(hzNamespace)
 
 	DeferCleanup(func() {
 		By("tearing down the test environment")

@@ -8,7 +8,7 @@ on:
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   CLEANUP_TIMEOUT: 5
-  GITHUB_PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+  GITHUB_PAGES_URL: https://${{ github.repository_owner }}.github.io/hazelcast-platform-operator
 
 jobs:
   report-creation:
@@ -82,20 +82,19 @@ jobs:
                            |.testStage.steps[]+={status: "passed"}
                            |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
                            |to_entries
-                           |walk(if type == "object" and (.value | select(contains("${{ github.event.repository.name }}/${{ github.event.repository.name }}"))) then . else . end)
+                           |walk(if type == "object" and (.value | select(contains("hazelcast-platform-operator/hazelcast-platform-operator"))) then . else . end)
                            |del(.[].key)
                            |.[].value|=sub("\\t";"")
                            |.[].value|=sub("\\+0.*";"")
                            |.[].value|=sub(" ";"")
-                           |.[].value|= sub("/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}";"https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/blob/main")
+                           |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/${{ github.repository_owner }}/hazelcast-platform-operator/blob/main")
                            |.[].value|= sub(".go:";".go#L")
                            |unique
                            |to_entries[]
                            |.+={name: ("ERROR_LINE"+ "_" + (.key|tonumber+1|tostring))}
                            |.url+=.value[]
                            |del(.key)|del(.value)
-                           |.+={type: "issue"}]}
-                           |.testStage.steps[-1]+={status: "failed"} else . end)
+                           |.+={type: "issue"}]} else . end)
                            |.links|= [{"name":"https://one.newrelic.com/logger","url":"https://one.newrelic.com/logger",type: "tms"}] + .' $i) > $i
           done
 
