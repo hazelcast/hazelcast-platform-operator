@@ -9,7 +9,7 @@ spec:
   licenseKeySecret: hazelcast-license-key
   agent:
     repository: hazelcast/platform-operator-agent
-    version: 0.1.0
+    version: 8.8.8
   persistence:
     backupType: "External"
     baseDir: "/data/hot-restart/"
