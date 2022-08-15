@@ -70,6 +70,7 @@ jobs:
           sed -i '/prerelease/d' docs/antora.yml
           sed -i "s/page-latest-supported-hazelcast:.*/page-latest-supported-hazelcast: '${{ github.event.inputs.LATEST_SUPPORTED_HAZELCAST }}'/" docs/antora.yml
           sed -i "s/page-latest-supported-mc:.*/page-latest-supported-mc: '${{ github.event.inputs.LATEST_SUPPORTED_MC }}'/" docs/antora.yml
+          sed -i "s/release-notes.adoc.*/release-notes.adoc[${RELEASE_VERSION}]/" docs/modules/ROOT/nav.adoc
 
       - name: Generate API Reference Docs
         working-directory: operator-repo
@@ -95,7 +96,7 @@ jobs:
           fi
 
           # Commit and push changes
-          git add docs/antora.yml docs/modules/ROOT/pages/api-ref.adoc
+          git add docs/antora.yml docs/modules/ROOT/pages/api-ref.adoc docs/modules/ROOT/nav.adoc
           git commit --signoff -m "Update docs to ${RELEASE_VERSION}"
           git push -u origin $BRANCH_NAME
 
