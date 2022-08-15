@@ -73,6 +73,18 @@ func InitLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 	return logs
 }
 
+func InitAgentLogs(t Time, lk types.NamespacedName) io.ReadCloser {
+	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
+		Name:      lk.Name + "-0",
+		Namespace: lk.Namespace,
+	}, &corev1.PodLogOptions{
+		Follow:    true,
+		SinceTime: &metav1.Time{Time: t},
+		Container: "backup-agent",
+	})
+	return logs
+}
+
 func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	By("creating Hazelcast CR", func() {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())

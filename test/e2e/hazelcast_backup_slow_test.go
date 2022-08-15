@@ -304,4 +304,77 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		By("checking the Map size")
 		waitForMapSize(context.Background(), hzLookupKey, dm.Name, int(float64(mapSizeInGb)*math.Round(1310.72)*100))
 	})
+
+	It("should interrupt external backup process when the hotbackup is deleted", Label("slow"), func() {
+		setLabelAndCRName("hbs-5")
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		ctx := context.Background()
+		bucketURI := "gs://operator-e2e-external-backup"
+		secretName := "br-secret-gcp"
+		mapSizeInGb := 1
+
+		By("creating cluster with external backup enabled")
+		hazelcast := hazelcastconfig.ExternalBackup(hzLookupKey, true, labels)
+		hazelcast.Spec.ClusterSize = &[]int32{3}[0]
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")},
+		}
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")}[0]
+		CreateHazelcastCR(hazelcast)
+		defer func() {
+			By("removing Hazelcast cluster")
+			RemoveHazelcastCR(hazelcast)
+		}()
+		evaluateReadyMembers(hzLookupKey, 3)
+
+		By("creating the map config")
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+		m.Spec.PersistenceEnabled = true
+		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+		By("filling the Map")
+		FillTheMapWithHugeData(ctx, m.Name, mapSizeInGb, hazelcast)
+
+		t := Now()
+
+		By("creating HotBackup CR")
+		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
+		Expect(k8sClient.Create(ctx, hotBackup)).Should(Succeed())
+
+		By("wait for backup to start")
+		Sleep(5 * Second)
+
+		By("get hotbackup object")
+		hb := &hazelcastcomv1alpha1.HotBackup{}
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(hb.Status.State).Should(Equal(hazelcastcomv1alpha1.HotBackupInProgress))
+
+		By("delete hotbackup to cancel backup process")
+		err = k8sClient.Delete(ctx, hb)
+		Expect(err).ToNot(HaveOccurred())
+
+		// hazelcast logs
+		hzLogs := InitLogs(t, hzLookupKey)
+		defer hzLogs.Close()
+		scanner := bufio.NewScanner(hzLogs)
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
+
+		// agent logs
+		agentLogs := InitAgentLogs(t, hzLookupKey)
+		defer agentLogs.Close()
+		scanner = bufio.NewScanner(agentLogs)
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("POST /upload"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Uploading"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("DELETE"))
+	})
 })

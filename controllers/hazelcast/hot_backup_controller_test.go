@@ -355,8 +355,8 @@ func TestHotBackupReconciler_shouldCancelContextIfHazelcastCRIsDeleted(t *testin
 	Expect(r.Client.Get(context.TODO(), n, hb)).Should(Succeed())
 	Expect(r.cancelMap).Should(&matchers.HaveLenMatcher{Count: 1})
 
-	time := metav1.Now()
-	hb.ObjectMeta.DeletionTimestamp = &time
+	timeNow := metav1.Now()
+	hb.ObjectMeta.DeletionTimestamp = &timeNow
 	err = r.Client.Update(context.TODO(), hb)
 	if err != nil {
 		t.Errorf("Error on update hotbackup: %v", err)
