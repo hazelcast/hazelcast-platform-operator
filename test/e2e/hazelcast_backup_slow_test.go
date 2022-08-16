@@ -329,10 +329,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")}[0]
 		CreateHazelcastCR(hazelcast)
-		defer func() {
-			By("removing Hazelcast cluster")
-			RemoveHazelcastCR(hazelcast)
-		}()
 		evaluateReadyMembers(hzLookupKey, 3)
 
 		By("creating the map config")
@@ -368,9 +364,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		defer hzLogs.Close()
 		scanner := bufio.NewScanner(hzLogs)
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp(`Backup of hot restart store (.*?) finished in [0-9]* ms`))
 
 		// agent logs
-		agentLogs := InitAgentLogs(t, hzLookupKey)
+		agentLogs := SidecarAgentLogs(t, hzLookupKey)
 		defer agentLogs.Close()
 		scanner = bufio.NewScanner(agentLogs)
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("POST /upload"))

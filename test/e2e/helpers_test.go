@@ -73,7 +73,7 @@ func InitLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 	return logs
 }
 
-func InitAgentLogs(t Time, lk types.NamespacedName) io.ReadCloser {
+func SidecarAgentLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
 		Name:      lk.Name + "-0",
 		Namespace: lk.Namespace,
