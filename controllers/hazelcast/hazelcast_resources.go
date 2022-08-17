@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/hazelcast/hazelcast-go-client"
+	proto "github.com/hazelcast/hazelcast-go-client"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +29,8 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -430,10 +434,13 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	ml := filterPersistedMaps(mapList.Items)
 
 	cfg := hazelcastConfigMapStruct(h)
+
 	err = fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml)
 	if err != nil {
 		return nil, err
 	}
+
+	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 	if err != nil {
@@ -552,6 +559,29 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 	return nil
 }
 
+func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
+	if len(h.Spec.ExecutorServices) != 0 {
+		cfg.ExecutorService = map[string]config.ExecutorService{}
+		for _, escfg := range h.Spec.ExecutorServices {
+			cfg.ExecutorService[escfg.Name] = createExecutorServiceConfig(&escfg)
+		}
+	}
+
+	if len(h.Spec.DurableExecutorServices) != 0 {
+		cfg.DurableExecutorService = map[string]config.DurableExecutorService{}
+		for _, descfg := range h.Spec.DurableExecutorServices {
+			cfg.DurableExecutorService[descfg.Name] = createDurableExecutorServiceConfig(&descfg)
+		}
+	}
+
+	if len(h.Spec.ScheduledExecutorServices) != 0 {
+		cfg.ScheduledExecutorService = map[string]config.ScheduledExecutorService{}
+		for _, sescfg := range h.Spec.ScheduledExecutorServices {
+			cfg.ScheduledExecutorService[sescfg.Name] = createScheduledExecutorServiceConfig(&sescfg)
+		}
+	}
+}
+
 func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
 	ms := m.Spec
 	mc := config.Map{
@@ -621,6 +651,18 @@ func getMapStoreProperties(ctx context.Context, c client.Client, sn, ns string) 
 		props[k] = string(v)
 	}
 	return props, nil
+}
+
+func createExecutorServiceConfig(es *hazelcastv1alpha1.ExecutorServiceConfiguration) config.ExecutorService {
+	return config.ExecutorService{PoolSize: es.PoolSize, QueueCapacity: es.QueueCapacity}
+}
+
+func createDurableExecutorServiceConfig(des *hazelcastv1alpha1.DurableExecutorServiceConfiguration) config.DurableExecutorService {
+	return config.DurableExecutorService{PoolSize: des.PoolSize, Durability: des.Durability, Capacity: des.Capacity}
+}
+
+func createScheduledExecutorServiceConfig(ses *hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) config.ScheduledExecutorService {
+	return config.ScheduledExecutorService{PoolSize: ses.PoolSize, Durability: ses.Durability, Capacity: ses.Capacity, CapacityPolicy: ses.CapacityPolicy}
 }
 
 func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
@@ -844,8 +886,8 @@ func initContainers(h *hazelcastv1alpha1.Hazelcast) []corev1.Container {
 	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.IsRestoreEnabled() {
 		containers = append(containers, restoreAgentContainer(h))
 	}
-	if h.Spec.CustomClass.IsBucketEnabled() {
-		containers = append(containers, ccdAgentContainer(h))
+	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
+		containers = append(containers, ucdAgentContainer(h))
 	}
 	return containers
 }
@@ -884,33 +926,33 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
-func ccdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func ucdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
-		Name:  n.CustomClassDownloadAgent + h.Spec.CustomClass.TriggerSequence,
+		Name:  n.UserCodeDownloadAgent + h.Spec.UserCodeDeployment.TriggerSequence,
 		Image: h.AgentDockerImage(),
-		Args:  []string{"custom-class-download"},
+		Args:  []string{"user-code-deployment"},
 		Env: []v1.EnvVar{
 			{
-				Name:  "CCD_SECRET_NAME",
-				Value: h.Spec.CustomClass.BucketConfiguration.Secret,
+				Name:  "UCD_SECRET_NAME",
+				Value: h.Spec.UserCodeDeployment.BucketConfiguration.Secret,
 			},
 			{
-				Name:  "CCD_BUCKET",
-				Value: h.Spec.CustomClass.BucketConfiguration.BucketURI,
+				Name:  "UCD_BUCKET",
+				Value: h.Spec.UserCodeDeployment.BucketConfiguration.BucketURI,
 			},
 			{
-				Name:  "CCD_DESTINATION",
-				Value: n.CustomClassBucketPath,
+				Name:  "UCD_DESTINATION",
+				Value: n.UserCodeBucketPath,
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{ccdAgentVolumeMount(h)},
+		VolumeMounts: []v1.VolumeMount{ucdAgentVolumeMount(h)},
 	}
 }
 
-func ccdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
+func ucdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
 	return v1.VolumeMount{
-		Name:      n.CustomClassBucketVolumeName,
-		MountPath: n.CustomClassBucketPath,
+		Name:      n.UserCodeBucketVolumeName,
+		MountPath: n.UserCodeBucketPath,
 	}
 }
 
@@ -923,23 +965,24 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 					LocalObjectReference: v1.LocalObjectReference{
 						Name: h.Name,
 					},
+					DefaultMode: &[]int32{420}[0],
 				},
 			},
 		},
-		customClassAgentVolume(h),
+		userCodeAgentVolume(h),
 	}
 	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.UseHostPath() {
 		vols = append(vols, hostPathVolume(h))
 	}
-	if h.Spec.CustomClass.IsConfigMapEnabled() {
-		vols = append(vols, customClassConfigMapVolumes(h)...)
+	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
+		vols = append(vols, userCodeConfigMapVolumes(h)...)
 	}
 	return vols
 }
 
-func customClassAgentVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
+func userCodeAgentVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	return v1.Volume{
-		Name: n.CustomClassBucketVolumeName,
+		Name: n.UserCodeBucketVolumeName,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
@@ -958,16 +1001,17 @@ func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	}
 }
 
-func customClassConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
+func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
 	var vols []corev1.Volume
-	for _, cm := range h.Spec.CustomClass.ConfigMaps {
+	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
 		vols = append(vols, corev1.Volume{
-			Name: n.CustomClassConfigMapNamePrefix + cm + h.Spec.CustomClass.TriggerSequence,
+			Name: n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
 						Name: cm,
 					},
+					DefaultMode: &[]int32{420}[0],
 				},
 			},
 		})
@@ -981,7 +1025,7 @@ func volumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 			Name:      n.HazelcastStorageName,
 			MountPath: n.HazelcastMountPath,
 		},
-		ccdAgentVolumeMount(h),
+		ucdAgentVolumeMount(h),
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
@@ -990,18 +1034,18 @@ func volumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 		})
 	}
 
-	if h.Spec.CustomClass.IsConfigMapEnabled() {
-		mounts = append(mounts, customClassConfigMapVolumeMounts(h)...)
+	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
+		mounts = append(mounts, userCodeConfigMapVolumeMounts(h)...)
 	}
 	return mounts
 }
 
-func customClassConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 	var vms []corev1.VolumeMount
-	for _, cm := range h.Spec.CustomClass.ConfigMaps {
+	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
 		vms = append(vms, corev1.VolumeMount{
-			Name:      n.CustomClassConfigMapNamePrefix + cm + h.Spec.CustomClass.TriggerSequence,
-			MountPath: n.CustomClassConfigMapPath + "/" + cm,
+			Name:      n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
+			MountPath: n.UserCodeConfigMapPath + "/" + cm,
 		})
 	}
 	return vms
@@ -1089,6 +1133,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Value: strconv.FormatBool(util.IsPhoneHomeEnabled()),
 		},
 		{
+
 			Name:  "LOGGING_PATTERN",
 			Value: `{"time":"%date{ISO8601}", "logger": "%logger{36}", "level": "%level", "msg": "%enc{%m %xEx}{JSON}"}%n`,
 		},
@@ -1116,14 +1161,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 }
 
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
-	b := []string{n.CustomClassBucketPath + "/*"}
+	b := []string{n.UserCodeBucketPath + "/*"}
 
-	if !h.Spec.CustomClass.IsConfigMapEnabled() {
+	if !h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
 		return b[0]
 	}
 
-	for _, cm := range h.Spec.CustomClass.ConfigMaps {
-		b = append(b, n.CustomClassConfigMapPath+"/"+cm+"/*")
+	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+		b = append(b, n.UserCodeConfigMapPath+"/"+cm+"/*")
 	}
 
 	return strings.Join(b, ":")
@@ -1188,4 +1233,124 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 		logger.Info("Operation result", "Hazelcast Annotation", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Hazelcast, rawLastSpec string) (map[string]interface{}, error) {
+	hs, err := json.Marshal(h.Spec)
+
+	if err != nil {
+		err = fmt.Errorf("error marshaling Hazelcast as JSON: %w", err)
+		return nil, err
+	}
+	if rawLastSpec == string(hs) {
+		return nil, nil
+	}
+	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
+	err = json.Unmarshal([]byte(rawLastSpec), lastSpec)
+	if err != nil {
+		err = fmt.Errorf("error unmarshaling Last HZ Spec: %w", err)
+		return nil, err
+	}
+
+	currentSpec := h.Spec
+
+	existExecutorServices := make(map[string]struct{}, len(lastSpec.ExecutorServices))
+	newExecutorServices := make([]hazelcastv1alpha1.ExecutorServiceConfiguration, 0, len(currentSpec.ExecutorServices))
+	for _, es := range lastSpec.ExecutorServices {
+		existExecutorServices[es.Name] = struct{}{}
+	}
+	for _, es := range currentSpec.ExecutorServices {
+		_, ok := existExecutorServices[es.Name]
+		if !ok {
+			newExecutorServices = append(newExecutorServices, es)
+		}
+	}
+
+	existExecutorServices = make(map[string]struct{}, len(lastSpec.DurableExecutorServices))
+	newDurableExecutorServices := make([]hazelcastv1alpha1.DurableExecutorServiceConfiguration, 0, len(currentSpec.DurableExecutorServices))
+	for _, es := range lastSpec.DurableExecutorServices {
+		existExecutorServices[es.Name] = struct{}{}
+	}
+	for _, es := range currentSpec.DurableExecutorServices {
+		_, ok := existExecutorServices[es.Name]
+		if !ok {
+			newDurableExecutorServices = append(newDurableExecutorServices, es)
+		}
+	}
+
+	existExecutorServices = make(map[string]struct{}, len(lastSpec.ScheduledExecutorServices))
+	newScheduledExecutorServices := make([]hazelcastv1alpha1.ScheduledExecutorServiceConfiguration, 0, len(currentSpec.ScheduledExecutorServices))
+	for _, es := range lastSpec.ScheduledExecutorServices {
+		existExecutorServices[es.Name] = struct{}{}
+	}
+	for _, es := range currentSpec.ScheduledExecutorServices {
+		_, ok := existExecutorServices[es.Name]
+		if !ok {
+			newScheduledExecutorServices = append(newScheduledExecutorServices, es)
+		}
+	}
+
+	return map[string]interface{}{"es": newExecutorServices, "des": newDurableExecutorServices, "ses": newScheduledExecutorServices}, nil
+}
+
+func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *hazelcast.Client, newExecutorServices map[string]interface{}) {
+	ci := hazelcast.NewClientInternal(client)
+	var req *proto.ClientMessage
+	for _, es := range newExecutorServices["es"].([]hazelcastv1alpha1.ExecutorServiceConfiguration) {
+		esInput := codecTypes.DefaultAddExecutorServiceInput()
+		fillAddExecutorServiceInput(esInput, es)
+		req = codec.EncodeDynamicConfigAddExecutorConfigRequest(esInput)
+
+		for _, member := range ci.OrderedMembers() {
+			_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+			if err != nil {
+				continue
+			}
+		}
+	}
+	for _, des := range newExecutorServices["des"].([]hazelcastv1alpha1.DurableExecutorServiceConfiguration) {
+		esInput := codecTypes.DefaultAddDurableExecutorServiceInput()
+		fillAddDurableExecutorServiceInput(esInput, des)
+		req = codec.EncodeDynamicConfigAddDurableExecutorConfigRequest(esInput)
+
+		for _, member := range ci.OrderedMembers() {
+			_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+			if err != nil {
+				continue
+			}
+		}
+	}
+	for _, ses := range newExecutorServices["ses"].([]hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) {
+		esInput := codecTypes.DefaultAddScheduledExecutorServiceInput()
+		fillAddScheduledExecutorServiceInput(esInput, ses)
+		req = codec.EncodeDynamicConfigAddScheduledExecutorConfigRequest(esInput)
+
+		for _, member := range ci.OrderedMembers() {
+			_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+			if err != nil {
+				continue
+			}
+		}
+	}
+}
+
+func fillAddExecutorServiceInput(esInput *codecTypes.ExecutorServiceConfig, es hazelcastv1alpha1.ExecutorServiceConfiguration) {
+	esInput.Name = es.Name
+	esInput.PoolSize = es.PoolSize
+	esInput.QueueCapacity = es.QueueCapacity
+}
+
+func fillAddDurableExecutorServiceInput(esInput *codecTypes.DurableExecutorServiceConfig, es hazelcastv1alpha1.DurableExecutorServiceConfiguration) {
+	esInput.Name = es.Name
+	esInput.PoolSize = es.PoolSize
+	esInput.Capacity = es.Capacity
+	esInput.Durability = es.Durability
+}
+
+func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorServiceConfig, es hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) {
+	esInput.Name = es.Name
+	esInput.PoolSize = es.PoolSize
+	esInput.Capacity = es.Capacity
+	esInput.CapacityPolicy = es.CapacityPolicy
+	esInput.Durability = es.Durability
 }

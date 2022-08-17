@@ -3,6 +3,7 @@ package ph
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 	"time"
 	. "time"
 
@@ -10,8 +11,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -22,20 +21,6 @@ import (
 )
 
 var _ = Describe("Hazelcast", func() {
-
-	var lookupKeyHz = types.NamespacedName{
-		Name:      hzName,
-		Namespace: hzNamespace,
-	}
-	var lookupKeyMc = types.NamespacedName{
-		Name:      mcName,
-		Namespace: hzNamespace,
-	}
-
-	var controllerManagerName = types.NamespacedName{
-		Name:      controllerManagerName(),
-		Namespace: hzNamespace,
-	}
 
 	BeforeEach(func() {
 		if !useExistingCluster() {
@@ -69,31 +54,36 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Phone Home Table with installed Hazelcast", func() {
 		AfterEach(func() {
-			Expect(k8sClient.Delete(context.Background(), emptyHazelcast(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
-			assertDoesNotExist(lookupKeyHz, &hazelcastcomv1alpha1.Hazelcast{})
+			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, &hazelcastcomv1alpha1.HazelcastList{}, hzNamespace, nil)
+			assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		})
+
 		DescribeTable("should have correct metrics",
-			func(h *hazelcastcomv1alpha1.Hazelcast,
-				createdEnterpriseClusterCount int,
-				unisocket int,
-				smart int,
-				discoveryLoadBalancer int,
-				discoveryNodePort int,
-				memberNodePortExternalIP int,
-				memberNodePortNodeName int,
-				memberLoadBalancer int) {
-
-				CreateHazelcastCR(h, lookupKeyHz)
+			func(config string, createdEnterpriseClusterCount int, unisocket int, smart int, discoveryLoadBalancer int, discoveryNodePort int, memberNodePortExternalIP int, memberNodePortNodeName int, memberLoadBalancer int) {
+				setLabelAndCRName("phhz")
+				var cfg *hazelcastcomv1alpha1.Hazelcast
+				switch config {
+				case "unisocket":
+					cfg = hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, nil)
+				case "smartNodePort":
+					cfg = hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, nil)
+				case "smartLoadBalancer":
+					cfg = hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, nil)
+				case "smartNodePortNodeName":
+					cfg = hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzLookupKey, ee, nil)
+				default:
+					Fail("Incorrect input configuration")
+				}
+				CreateHazelcastCR(cfg)
 				hzCreationTime := time.Now().UTC().Truncate(time.Hour)
-				evaluateReadyMembers(lookupKeyHz, 3)
-				assertAnnotationExists(h)
-
+				evaluateReadyMembers(hzLookupKey, 3)
+				assertAnnotationExists(cfg)
 				bigQueryTable := getBigQueryTable()
 				Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
 				Expect(bigQueryTable.PingTime.Truncate(time.Hour)).Should(BeTemporally("~", hzCreationTime), "Ping time should be near to current date")
 				Expect(bigQueryTable.OperatorID).Should(Equal(getOperatorId()), "Operator UID metric")
 				Expect(bigQueryTable.PardotID).Should(Equal("dockerhub"), "Pardot ID metric")
-				Expect(bigQueryTable.Version).Should(Equal("latest-snapshot"), "Version metric")
+				Expect(bigQueryTable.Version).Should(Equal(version), "Version metric")
 				Expect(bigQueryTable.Uptime).ShouldNot(BeZero(), "Version metric")
 				Expect(bigQueryTable.K8sDistribution).Should(Equal("GKE"), "K8sDistribution metric")
 				Expect(bigQueryTable.K8sVersion).ShouldNot(BeEmpty(), "K8sVersion metric")
@@ -111,26 +101,26 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName), "MemberNodePortNodeName metric")
 				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer), "MemberLoadBalancer metric")
 			},
-			Entry("with ExposeExternallyUnisocket configuration", Label("slow"), hazelcastconfig.ExposeExternallyUnisocket(lookupKeyHz, ee, nil), 1, 1, 0, 1, 0, 0, 0, 0),
-			Entry("with ExposeExternallySmartNodePort configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartNodePort(lookupKeyHz, ee, nil), 1, 0, 1, 1, 0, 1, 0, 0),
-			Entry("with ExposeExternallySmartLoadBalancer configuration", Label("slow"), hazelcastconfig.ExposeExternallySmartLoadBalancer(lookupKeyHz, ee, nil), 1, 0, 1, 1, 0, 0, 0, 1),
-			Entry("with ExposeExternallySmartNodePortNodeName configuration", Label("fast"), hazelcastconfig.ExposeExternallySmartNodePortNodeName(lookupKeyHz, ee, nil), 1, 0, 1, 0, 1, 0, 1, 0),
+			Entry("with ExposeExternallyUnisocket configuration", Label("slow"), "unisocket", 1, 1, 0, 1, 0, 0, 0, 0),
+			Entry("with ExposeExternallySmartNodePort configuration", Label("slow"), "smartNodePort", 1, 0, 1, 1, 0, 1, 0, 0),
+			Entry("with ExposeExternallySmartLoadBalancer configuration", Label("slow"), "smartLoadBalancer", 1, 0, 1, 1, 0, 0, 0, 1),
+			Entry("with ExposeExternallySmartNodePortNodeName configuration", Label("fast"), "smartNodePortNodeName", 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
-
 	Describe("Phone Home table with installed Management Center", func() {
 		AfterEach(func() {
-			Expect(k8sClient.Delete(context.Background(), emptyManagementCenter(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
-			assertDoesNotExist(lookupKeyMc, &hazelcastcomv1alpha1.ManagementCenter{})
+			DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, &hazelcastcomv1alpha1.ManagementCenterList{}, hzNamespace, labels)
+			assertDoesNotExist(mcLookupKey, &hazelcastcomv1alpha1.ManagementCenter{})
 			pvcLookupKey := types.NamespacedName{
-				Name:      fmt.Sprintf("mancenter-storage-%s-0", lookupKeyMc.Name),
-				Namespace: lookupKeyMc.Namespace,
+				Name:      fmt.Sprintf("mancenter-storage-%s-0", mcLookupKey.Name),
+				Namespace: mcLookupKey.Namespace,
 			}
 			deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
 		})
 		It("should have correct metrics", Label("fast"), func() {
-			mc := mcconfig.Default(lookupKeyMc, ee, nil)
-			CreateMC(mc, lookupKeyMc)
+			setLabelAndCRName("phmc")
+			mc := mcconfig.Default(mcLookupKey, ee, labels)
+			CreateMC(mc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
 			assertAnnotationExists(mc)
 			bigQueryTable := getBigQueryTable()
@@ -138,7 +128,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(bigQueryTable.PingTime.Truncate(time.Hour)).Should(BeTemporally("~", mcCreationTime), "Ping time should be near to current date")
 			Expect(bigQueryTable.OperatorID).Should(Equal(getOperatorId()), "Operator UID should be equal to Hazelcast Operator UID")
 			Expect(bigQueryTable.PardotID).Should(Equal("dockerhub"), "Pardot ID metric")
-			Expect(bigQueryTable.Version).Should(Equal("latest-snapshot"), "Version metric")
+			Expect(bigQueryTable.Version).Should(Equal(version), "Version metric")
 			Expect(bigQueryTable.Uptime).ShouldNot(BeZero(), "Uptime metric")
 			Expect(bigQueryTable.K8sDistribution).Should(Equal("GKE"), "K8sDistribution metric")
 			Expect(bigQueryTable.K8sVersion).ShouldNot(BeEmpty(), "K8sVersion metric")

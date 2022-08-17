@@ -7,4 +7,4 @@ COPY go.sum ./
 
 COPY *.go ./
 
-RUN go build -o /fill_map
+RUN go build -o /maploader

@@ -30,7 +30,12 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	})
 
 	AfterEach(func() {
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if skipCleanup() {
+			return
+		}
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	ctx := context.Background()

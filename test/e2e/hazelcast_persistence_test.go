@@ -37,11 +37,17 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 	})
 
 	AfterEach(func() {
-		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if skipCleanup() {
+			return
+		}
+		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, &hazelcastcomv1alpha1.HotBackupList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
+
 	})
 
 	It("should enable persistence for members successfully", Label("fast"), func() {
@@ -77,11 +83,12 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 	})
 
 	It("should successfully trigger HotBackup", Label("slow"), func() {
-		ctx := context.Background()
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		ctx := context.Background()
 		setLabelAndCRName("hp-2")
+
 		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, "/data/hot-restart", labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -114,8 +121,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
 		test.EventuallyInLogs(scanner, 15*Second, logInterval).
 			Should(ContainSubstring("Starting new hot backup with sequence"))
-		test.EventuallyInLogs(scanner, 15*Second, logInterval).
-			Should(MatchRegexp("Backup of hot restart store \\S+ finished"))
 		test.EventuallyInLogs(scanner, 15*Second, logInterval).
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
 		Expect(logs.Close()).Should(Succeed())

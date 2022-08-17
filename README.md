@@ -20,7 +20,7 @@ Here is a short video to deploy a simple Hazelcast Platform cluster and Manageme
 ## Documentation
 
 1. [Get started](https://docs.hazelcast.com/operator/latest/get-started) with the Operator.
-2. [Connect the cluster from outside Kubernetes](https://guides.hazelcast.org/hazelcast-platform-operator-expose-externally/main)
+2. [Connect the cluster from outside Kubernetes](https://docs.hazelcast.com/tutorials/hazelcast-platform-operator-expose-externally)
    from the outside.
 
 ## Features

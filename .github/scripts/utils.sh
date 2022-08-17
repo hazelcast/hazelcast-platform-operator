@@ -190,7 +190,7 @@ cleanup_page_publish_runs()
                     gh api repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID} -X DELETE >/dev/null
                 return 0
             else
-                echo "The '${JOB_NAME}' job that was triggered by job with run number '${MASTER_JOB_RUN_NUMBER}' is not finished yet with. Waiting..."
+                echo "The '${JOB_NAME}' job that was triggered by job with run number '${MASTER_JOB_RUN_NUMBER}' is not finished yet. Waiting..."
             fi
             if [[ ${i} == ${NOF_RETRIES} ]]; then
                 echo "Timeout! 'pages-build-deployment' job still not completed."

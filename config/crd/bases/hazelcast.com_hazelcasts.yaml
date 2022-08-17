@@ -61,7 +61,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.5
+                  version: 0.1.6
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -69,7 +69,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.5
+                    default: 0.1.6
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -83,35 +83,52 @@ spec:
                 format: int32
                 minimum: 0
                 type: integer
-              customClass:
-                description: Custom Classes to Download into Class Path
-                properties:
-                  bucketConfig:
-                    description: Jar files in the bucket will be put under CLASSPATH.
-                    properties:
-                      bucketURI:
-                        description: Full path to blob storage bucket.
-                        minLength: 6
-                        type: string
-                      secret:
-                        description: Name of the secret with credentials for cloud
-                          providers.
-                        minLength: 1
-                        type: string
-                    required:
-                    - bucketURI
-                    - secret
-                    type: object
-                  configMaps:
-                    description: Files in the ConfigMaps will be put under CLASSPATH.
-                    items:
+              durableExecutorServices:
+                items:
+                  properties:
+                    capacity:
+                      default: 100
+                      description: Capacity of the executor task per partition.
+                      format: int32
+                      type: integer
+                    durability:
+                      default: 1
+                      description: Durability of the executor.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    name:
+                      default: default
+                      description: The name of the executor service
                       type: string
-                    type: array
-                  triggerSequence:
-                    description: A string for triggering a rolling restart for re-downloading
-                      the custom classes.
-                    type: string
-                type: object
+                    poolSize:
+                      default: 16
+                      description: The number of executor threads per member.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                  type: object
+                type: array
+              executorServices:
+                items:
+                  properties:
+                    name:
+                      default: default
+                      description: The name of the executor service
+                      type: string
+                    poolSize:
+                      default: 8
+                      description: The number of executor threads per member.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    queueCapacity:
+                      default: 0
+                      description: Task queue capacity of the executor.
+                      format: int32
+                      type: integer
+                  type: object
+                type: array
               exposeExternally:
                 description: Configuration to expose Hazelcast cluster to external
                   clients.
@@ -270,6 +287,36 @@ spec:
                       to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                     type: object
                 type: object
+              scheduledExecutorServices:
+                items:
+                  properties:
+                    capacity:
+                      default: 100
+                      description: Capacity of the executor task per partition.
+                      format: int32
+                      type: integer
+                    capacityPolicy:
+                      default: PER_NODE
+                      description: The active policy for the capacity setting.
+                      type: string
+                    durability:
+                      default: 1
+                      description: Durability of the executor.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    name:
+                      default: default
+                      description: The name of the executor service
+                      type: string
+                    poolSize:
+                      default: 16
+                      description: The number of executor threads per member.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                  type: object
+                type: array
               scheduling:
                 description: Scheduling details
                 properties:
@@ -1040,8 +1087,37 @@ spec:
                       type: object
                     type: array
                 type: object
+              userCodeDeployment:
+                description: User Codes to Download into CLASSPATH
+                properties:
+                  bucketConfig:
+                    description: Jar files in the bucket will be put under CLASSPATH.
+                    properties:
+                      bucketURI:
+                        description: Full path to blob storage bucket.
+                        minLength: 6
+                        type: string
+                      secret:
+                        description: Name of the secret with credentials for cloud
+                          providers.
+                        minLength: 1
+                        type: string
+                    required:
+                    - bucketURI
+                    - secret
+                    type: object
+                  configMaps:
+                    description: Files in the ConfigMaps will be put under CLASSPATH.
+                    items:
+                      type: string
+                    type: array
+                  triggerSequence:
+                    description: A string for triggering a rolling restart for re-downloading
+                      the user codes.
+                    type: string
+                type: object
               version:
-                default: 5.1.2
+                default: 5.1.3
                 description: Version of Hazelcast Platform.
                 type: string
             type: object

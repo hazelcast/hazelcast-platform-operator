@@ -145,6 +145,16 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
 
+	s, createdBefore := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+
+	var newExecutorServices map[string]interface{}
+	if createdBefore {
+		newExecutorServices, err = r.detectNewExecutorServices(h, s)
+		if err != nil {
+			return update(ctx, r.Client, h, failedPhase(err))
+		}
+	}
+
 	err = r.reconcileConfigMap(ctx, h, logger)
 	if err != nil {
 		return update(ctx, r.Client, h, failedPhase(err))
@@ -184,6 +194,14 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if firstDeployment {
 			phonehome.CallPhoneHome(r.metrics)
 		}
+	}
+
+	if newExecutorServices != nil {
+		hzClient, ok := hzclient.GetClient(req.NamespacedName)
+		if !(ok && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
+			return update(ctx, r.Client, h, pendingPhase(retryAfter))
+		}
+		r.addExecutorServices(ctx, hzClient.Client, newExecutorServices)
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, h, logger)

@@ -897,8 +897,8 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
-	Context("Hazelcast Custom Class with ConfigMap", func() {
-		When("Two Configmaps are given in customClass field", func() {
+	Context("Hazelcast User Code Deployment with ConfigMap", func() {
+		When("Two Configmaps are given in userCode field", func() {
 			It("Should put correct fields in StatefulSet", Label("fast"), func() {
 				cms := []string{
 					"cm1",
@@ -908,7 +908,7 @@ var _ = Describe("Hazelcast controller", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						CustomClass: &hazelcastv1alpha1.CustomClassConfiguration{
+						UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
 							ConfigMaps:      cms,
 							TriggerSequence: ts,
 						},
@@ -923,7 +923,7 @@ var _ = Describe("Hazelcast controller", func() {
 				expectedVols := []corev1.Volume{}
 				for _, cm := range cms {
 					expectedVols = append(expectedVols, corev1.Volume{
-						Name: n.CustomClassConfigMapNamePrefix + cm + ts,
+						Name: n.UserCodeConfigMapNamePrefix + cm + ts,
 						VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{
 								LocalObjectReference: corev1.LocalObjectReference{
@@ -940,8 +940,8 @@ var _ = Describe("Hazelcast controller", func() {
 				expectedVolMounts := []corev1.VolumeMount{}
 				for _, cm := range cms {
 					expectedVolMounts = append(expectedVolMounts, corev1.VolumeMount{
-						Name:      n.CustomClassConfigMapNamePrefix + cm + ts,
-						MountPath: n.CustomClassConfigMapPath + "/" + cm,
+						Name:      n.UserCodeConfigMapNamePrefix + cm + ts,
+						MountPath: n.UserCodeConfigMapPath + "/" + cm,
 					})
 				}
 				Expect(ss.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElements(expectedVolMounts))
@@ -950,7 +950,7 @@ var _ = Describe("Hazelcast controller", func() {
 				b := []string{}
 
 				for _, cm := range cms {
-					b = append(b, n.CustomClassConfigMapPath+"/"+cm+"/*")
+					b = append(b, n.UserCodeConfigMapPath+"/"+cm+"/*")
 				}
 				expectedClassPath := strings.Join(b, ":")
 				classPath := ""

@@ -46,18 +46,18 @@ const (
 	MancenterStorageName = Mancenter + "-storage"
 
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
-	PersistenceVolumeName          = "hot-restart-persistence"
-	CustomClassBucketVolumeName    = "custom-class-bucket"
-	CustomClassConfigMapNamePrefix = "custom-class-cm-"
+	PersistenceVolumeName       = "hot-restart-persistence"
+	UserCodeBucketVolumeName    = "user-code-bucket"
+	UserCodeConfigMapNamePrefix = "user-code-cm-"
 
-	BackupAgent              = "backup-agent"
-	BackupAgentPortName      = "backup-agent-port"
-	RestoreAgent             = "restore-agent"
-	BucketSecret             = "br-secret"
-	CustomClassDownloadAgent = "ccd-agent"
+	BackupAgent           = "backup-agent"
+	BackupAgentPortName   = "backup-agent-port"
+	RestoreAgent          = "restore-agent"
+	BucketSecret          = "br-secret"
+	UserCodeDownloadAgent = "ucd-agent"
 
-	CustomClassBucketPath    = "/opt/hazelcast/customClass/bucket"
-	CustomClassConfigMapPath = "/opt/hazelcast/customClass/cm"
+	UserCodeBucketPath    = "/opt/hazelcast/userCode/bucket"
+	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 )
 
 // Hazelcast default configurations
@@ -73,7 +73,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.1.2"
+	HazelcastVersion = "5.1.3"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
@@ -83,7 +83,7 @@ const (
 	// MCRepo image repository for Management Center
 	MCRepo = "docker.io/hazelcast/management-center"
 	// MCVersion version of Management Center image
-	MCVersion = "5.1.3"
+	MCVersion = "5.1.4"
 	// MCImagePullPolicy pull policy for Management Center image
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )

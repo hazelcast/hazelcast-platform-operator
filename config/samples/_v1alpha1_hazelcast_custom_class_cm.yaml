@@ -1,9 +1,0 @@
-apiVersion: hazelcast.com/v1alpha1
-kind: Hazelcast
-metadata:
-  name: hazelcast
-spec:
-  customClass:
-    configMaps:
-      - cm1
-      - cm2

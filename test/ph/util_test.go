@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 	. "time"
 
@@ -15,18 +16,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-)
-
-const (
-	hzName = "hazelcast"
-	mcName = "managementcenter"
 )
 
 type OperatorPhoneHome struct {
@@ -57,14 +52,6 @@ type ExposeExternally struct {
 	MemberLoadBalancer       int `bigquery:"memberLoadBalancer"`
 }
 
-func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
-	return &hazelcastcomv1alpha1.Hazelcast{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      hzName,
-			Namespace: hzNamespace,
-		},
-	}
-}
 func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
 	return hz.Status.Phase == "Running"
 }
@@ -82,7 +69,7 @@ func getOperatorId() string {
 	var uid string
 	operatorUid, _ := GetClientSet().AppsV1().Deployments(hzNamespace).List(context.Background(), metav1.ListOptions{})
 	for _, item := range operatorUid.Items {
-		if item.Name == controllerManagerName() {
+		if item.Name == GetControllerManagerName() {
 			uid = string(item.UID)
 		}
 	}
@@ -127,15 +114,6 @@ func getBigQueryTable() OperatorPhoneHome {
 
 }
 
-func emptyManagementCenter() *hazelcastcomv1alpha1.ManagementCenter {
-	return &hazelcastcomv1alpha1.ManagementCenter{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      mcName,
-			Namespace: hzNamespace,
-		},
-	}
-}
-
 func useExistingCluster() bool {
 	return strings.ToLower(os.Getenv("USE_EXISTING_CLUSTER")) == "true"
 }
@@ -152,7 +130,8 @@ func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
 		return errors.IsNotFound(err)
 	}, deleteTimeout, interval).Should(BeTrue())
 }
-func controllerManagerName() string {
+
+func GetControllerManagerName() string {
 	np := os.Getenv("NAME_PREFIX")
 	if np == "" {
 		return "hazelcast-platform-controller-manager"
@@ -192,6 +171,38 @@ func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
 	return mc.Status.Phase == "Running"
 }
 
+func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels map[string]string) {
+	Expect(k8sClient.DeleteAllOf(
+		context.Background(),
+		obj,
+		client.InNamespace(ns),
+		client.MatchingLabels(labels),
+		client.PropagationPolicy(metav1.DeletePropagationForeground),
+	)).Should(Succeed())
+
+	// do not wait if objList is nil
+	objListVal := reflect.ValueOf(objList)
+	if !objListVal.IsValid() {
+		return
+	}
+
+	Eventually(func() int {
+		err := k8sClient.List(context.Background(), objList,
+			client.InNamespace(ns),
+			client.MatchingLabels(labels))
+		if err != nil {
+			return -1
+		}
+		if objListVal.Kind() == reflect.Ptr || objListVal.Kind() == reflect.Interface {
+			objListVal = objListVal.Elem()
+		}
+		items := objListVal.FieldByName("Items")
+		len := items.Len()
+		return len
+
+	}, 2*Minute, interval).Should(Equal(int(0)))
+}
+
 func deleteIfExists(name types.NamespacedName, obj client.Object) {
 	Eventually(func() error {
 		err := k8sClient.Get(context.Background(), name, obj)
@@ -215,32 +226,36 @@ func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
 	}, 3*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
 }
 
-func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast, lookupKey types.NamespacedName) {
-	By("Creating Hazelcast CR", func() {
+func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+	By("creating Hazelcast CR", func() {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
-
-	By("Checking Hazelcast CR running", func() {
+	lk := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
+	message := ""
+	By("checking Hazelcast CR running", func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
 		Eventually(func() bool {
-			err := k8sClient.Get(context.Background(), lookupKey, hz)
-			Expect(err).ToNot(HaveOccurred())
+			err := k8sClient.Get(context.Background(), lk, hz)
+			if err != nil {
+				return false
+			}
+			message = hz.Status.Message
 			return isHazelcastRunning(hz)
-		}, timeout, interval).Should(BeTrue())
+		}, 10*Minute, interval).Should(BeTrue(), "Message: %v", message)
 	})
 }
 
-func CreateMC(mancenter *hazelcastcomv1alpha1.ManagementCenter, lookupKey types.NamespacedName) {
-	By("Creating ManagementCenter", func() {
+func CreateMC(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
+	By("Creating ManagementCenter CR", func() {
 		Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
 	})
 
-	By("Checking ManagementCenter is running", func() {
+	By("Checking ManagementCenter CR running", func() {
 		mc := &hazelcastcomv1alpha1.ManagementCenter{}
 		Eventually(func() bool {
-			err := k8sClient.Get(context.Background(), lookupKey, mc)
+			err := k8sClient.Get(context.Background(), mcLookupKey, mc)
 			Expect(err).ToNot(HaveOccurred())
 			return isManagementCenterRunning(mc)
-		}, timeout, interval).Should(BeTrue())
+		}, 5*Minute, interval).Should(BeTrue())
 	})
 }

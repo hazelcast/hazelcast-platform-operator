@@ -5,11 +5,14 @@ type HazelcastWrapper struct {
 }
 
 type Hazelcast struct {
-	Jet         Jet            `yaml:"jet,omitempty"`
-	Network     Network        `yaml:"network,omitempty"`
-	ClusterName string         `yaml:"cluster-name,omitempty"`
-	Persistence Persistence    `yaml:"persistence,omitempty"`
-	Map         map[string]Map `yaml:"map,omitempty"`
+	Jet                      Jet                                 `yaml:"jet,omitempty"`
+	Network                  Network                             `yaml:"network,omitempty"`
+	ClusterName              string                              `yaml:"cluster-name,omitempty"`
+	Persistence              Persistence                         `yaml:"persistence,omitempty"`
+	Map                      map[string]Map                      `yaml:"map,omitempty"`
+	ExecutorService          map[string]ExecutorService          `yaml:"executor-service,omitempty"`
+	DurableExecutorService   map[string]DurableExecutorService   `yaml:"durable-executor-service,omitempty"`
+	ScheduledExecutorService map[string]ScheduledExecutorService `yaml:"scheduled-executor-service,omitempty"`
 }
 
 type Jet struct {
@@ -102,6 +105,24 @@ type WanReplicationReference struct {
 	MergePolicyClassName string   `yaml:"merge-policy-class-name"`
 	RepublishingEnabled  bool     `yaml:"republishing-enabled"`
 	Filters              []string `yaml:"filters"`
+}
+
+type ExecutorService struct {
+	PoolSize      int32 `yaml:"pool-size"`
+	QueueCapacity int32 `yaml:"queue-capacity"`
+}
+
+type DurableExecutorService struct {
+	PoolSize   int32 `yaml:"pool-size"`
+	Durability int32 `yaml:"durability"`
+	Capacity   int32 `yaml:"capacity"`
+}
+
+type ScheduledExecutorService struct {
+	PoolSize       int32  `yaml:"pool-size"`
+	Durability     int32  `yaml:"durability"`
+	Capacity       int32  `yaml:"capacity"`
+	CapacityPolicy string `yaml:"capacity-policy"`
 }
 
 type MapStoreConfig struct {

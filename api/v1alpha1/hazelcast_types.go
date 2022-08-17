@@ -36,7 +36,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.1.2"
+	// +kubebuilder:default:="5.1.3"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -80,13 +80,105 @@ type HazelcastSpec struct {
 
 	// B&R Agent configurations
 	// +optional
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.5"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.6"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
 
-	// Custom Classes to Download into Class Path
+	// User Codes to Download into CLASSPATH
 	// +optional
-	CustomClass *CustomClassConfiguration `json:"customClass,omitempty"`
+	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
+
+	// +optional
+	ExecutorServices []ExecutorServiceConfiguration `json:"executorServices,omitempty"`
+
+	// +optional
+	DurableExecutorServices []DurableExecutorServiceConfiguration `json:"durableExecutorServices,omitempty"`
+
+	// +optional
+	ScheduledExecutorServices []ScheduledExecutorServiceConfiguration `json:"scheduledExecutorServices,omitempty"`
 }
+
+type ExecutorServiceConfiguration struct {
+	// The name of the executor service
+	// +kubebuilder:default:="default"
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// The number of executor threads per member.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=8
+	// +optional
+	PoolSize int32 `json:"poolSize,omitempty"`
+
+	// Task queue capacity of the executor.
+	// +kubebuilder:default:=0
+	// +optional
+	QueueCapacity int32 `json:"queueCapacity"`
+}
+
+type DurableExecutorServiceConfiguration struct {
+	// The name of the executor service
+	// +kubebuilder:default:="default"
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// The number of executor threads per member.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=16
+	// +optional
+	PoolSize int32 `json:"poolSize,omitempty"`
+
+	// Durability of the executor.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=1
+	// +optional
+	Durability int32 `json:"durability,omitempty"`
+
+	// Capacity of the executor task per partition.
+	// +kubebuilder:default:=100
+	// +optional
+	Capacity int32 `json:"capacity,omitempty"`
+}
+
+type ScheduledExecutorServiceConfiguration struct {
+	// The name of the executor service
+	// +kubebuilder:default:="default"
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// The number of executor threads per member.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=16
+	// +optional
+	PoolSize int32 `json:"poolSize,omitempty"`
+
+	// Durability of the executor.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=1
+	// +optional
+	Durability int32 `json:"durability,omitempty"`
+
+	// Capacity of the executor task per partition.
+	// +kubebuilder:default:=100
+	// +optional
+	Capacity int32 `json:"capacity,omitempty"`
+
+	// The active policy for the capacity setting.
+	// +kubebuilder:default:=PER_NODE
+	// +optional
+	CapacityPolicy string `json:"capacityPolicy,omitempty"`
+}
+
+// CapacityPolicyType represents the active policy types for the capacity setting
+// +kubebuilder:validation:Enum=PER_NODE;PER_PARTITION
+type CapacityPolicyType string
+
+const (
+	// CapacityPolicyPerNode is the policy for limiting the maximum number of tasks in each Hazelcast instance
+	CapacityPolicyPerNode CapacityPolicyType = "PER_NODE"
+
+	// CapacityPolicyPerPartition is the policy for limiting the maximum number of tasks within each partition.
+	CapacityPolicyPerPartition CapacityPolicyType = "PER_PARTITION"
+)
 
 type BucketConfiguration struct {
 	// Name of the secret with credentials for cloud providers.
@@ -98,13 +190,13 @@ type BucketConfiguration struct {
 	BucketURI string `json:"bucketURI"`
 }
 
-// CustomClassConfiguration contains the configuration for Custom Class download operation
-type CustomClassConfiguration struct {
+// UserCodeDeploymentConfig contains the configuration for User Code download operation
+type UserCodeDeploymentConfig struct {
 	// Jar files in the bucket will be put under CLASSPATH.
 	// +optional
 	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
 
-	// A string for triggering a rolling restart for re-downloading the custom classes.
+	// A string for triggering a rolling restart for re-downloading the user codes.
 	// +optional
 	TriggerSequence string `json:"triggerSequence,omitempty"`
 
@@ -120,7 +212,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.5"
+	// +kubebuilder:default:="0.1.6"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
@@ -286,13 +378,13 @@ func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
 }
 
-// Returns true if customClass.bucketConfiguration is specified.
-func (c *CustomClassConfiguration) IsBucketEnabled() bool {
+// Returns true if userCodeDeployment.bucketConfiguration is specified.
+func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
 	return c != nil && c.BucketConfiguration != nil
 }
 
-// Returns true if customClass.configMaps configuration is specified.
-func (c *CustomClassConfiguration) IsConfigMapEnabled() bool {
+// Returns true if userCodeDeployment.configMaps configuration is specified.
+func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
 	return c != nil && (len(c.ConfigMaps) != 0)
 }
 

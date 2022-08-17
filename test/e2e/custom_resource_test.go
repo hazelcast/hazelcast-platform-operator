@@ -1,43 +1,51 @@
 package e2e
 
 import (
-	"math/rand"
-
 	. "github.com/onsi/ginkgo/v2"
 	"k8s.io/apimachinery/pkg/types"
+	"math/rand"
 )
 
 var (
-	labels            = map[string]string{}
-	hzLookupKey       = types.NamespacedName{}
-	mapLookupKey      = types.NamespacedName{}
-	hbLookupKey       = types.NamespacedName{}
-	hzSourceLookupKey = types.NamespacedName{}
-	hzTargetLookupKey = types.NamespacedName{}
-	wanLookupKey      = types.NamespacedName{}
-	mcLookupKey       = types.NamespacedName{}
+	labels       = map[string]string{}
+	hzLookupKey  = types.NamespacedName{}
+	mapLookupKey = types.NamespacedName{}
+	wanLookupKey = types.NamespacedName{}
+	mcLookupKey  = types.NamespacedName{}
+	hbLookupKey  = types.NamespacedName{}
+)
+
+var (
+	hzSrcLookupKey  = types.NamespacedName{}
+	hzTrgLookupKey  = types.NamespacedName{}
+	sourceLookupKey = types.NamespacedName{}
+	targetLookupKey = types.NamespacedName{}
 )
 
 func setCRNamespace(ns string) {
 	hzLookupKey.Namespace = ns
 	mapLookupKey.Namespace = ns
 	hbLookupKey.Namespace = ns
-	hzSourceLookupKey.Namespace = ns
-	hzTargetLookupKey.Namespace = ns
-	wanLookupKey.Namespace = ns
 	mcLookupKey.Namespace = ns
+	wanLookupKey.Namespace = ns
+	hzSrcLookupKey.Namespace = ns
+	hzTrgLookupKey.Namespace = ns
+	sourceLookupKey.Namespace = sourceNamespace
+	targetLookupKey.Namespace = targetNamespace
 }
 
 func setLabelAndCRName(n string) {
 	n = n + "-" + randString(6)
 	labels["test_suite"] = n
 	hzLookupKey.Name = n
+	wanLookupKey.Name = n
 	mapLookupKey.Name = n
 	hbLookupKey.Name = n
-	hzSourceLookupKey.Name = "src" + "-" + n
-	hzTargetLookupKey.Name = "trg" + "-" + n
-	wanLookupKey.Name = n
 	mcLookupKey.Name = n
+	hzSrcLookupKey.Name = "src-" + n
+	hzTrgLookupKey.Name = "trg-" + n
+	sourceLookupKey.Name = "src-" + n
+	targetLookupKey.Name = "trg-" + n
 	GinkgoWriter.Printf("Resource name is: %s\n", n)
 	AddReportEntry("CR_ID:" + n)
 }

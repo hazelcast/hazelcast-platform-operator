@@ -43,9 +43,14 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	AfterEach(func() {
-		DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if skipCleanup() {
+			return
+		}
+		DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, &hazelcastcomv1alpha1.WanReplicationList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	It("should send data to another cluster", Label("slow"), func() {
@@ -53,25 +58,27 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hw-1")
-		// Create source and target Hazelcast clusters
-		hazelcastSource := hazelcastconfig.ExposeExternallyUnisocket(hzSourceLookupKey, ee, labels)
+
+		By("creating source Hazelcast cluster")
+		hazelcastSource := hazelcastconfig.ExposeExternallyUnisocket(hzSrcLookupKey, ee, labels)
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
-		hazelcastTarget := hazelcastconfig.ExposeExternallyUnisocket(hzTargetLookupKey, ee, labels)
+
+		By("creating target Hazelcast cluster")
+		hazelcastTarget := hazelcastconfig.ExposeExternallyUnisocket(hzTrgLookupKey, ee, labels)
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
-		evaluateReadyMembers(hzSourceLookupKey, 3)
-		evaluateReadyMembers(hzTargetLookupKey, 3)
+		evaluateReadyMembers(hzSrcLookupKey, 3)
+		evaluateReadyMembers(hzTrgLookupKey, 3)
 
-		_ = waitForLBAddress(hzSourceLookupKey)
-		targetAddress := waitForLBAddress(hzTargetLookupKey)
+		_ = waitForLBAddress(hzSrcLookupKey)
+		targetAddress := waitForLBAddress(hzTrgLookupKey)
 
-		// Create map for source Hazelcast cluster
+		By("Creating map for source Hazelcast cluster")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcastSource.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		// Create WAN configuration for the map
 		By("creating WAN configuration")
 		wan := hazelcastconfig.DefaultWanReplication(
 			wanLookupKey,
@@ -91,13 +98,11 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 			return wan.Status.Status, nil
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
-		// Fill the map in source cluster
 		mapSize := 1024
 		By("filling the source")
-		FillTheMapData(context.Background(), hzSourceLookupKey, true, m.Name, mapSize)
+		FillTheMapData(context.Background(), hzSrcLookupKey, true, m.Name, mapSize)
 
-		// Wait for data to appear in target cluster
 		By("checking the size of the map in the target cluster")
-		waitForMapSize(context.Background(), hzTargetLookupKey, m.Name, mapSize)
+		WaitForMapSize(context.Background(), hzTrgLookupKey, m.Name, mapSize)
 	})
 })

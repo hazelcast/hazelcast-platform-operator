@@ -1,0 +1,280 @@
+name: Nightly Wan Replication Tests on GKE
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *"
+
+env:
+  GCP_PROJECT_ID: hazelcast-33
+  GKE_ZONE: europe-west1-b
+  NUMBER_OF_NODES: 2
+  GCP_NETWORK: operator-test-network
+
+jobs:
+  get-image:
+    name: Get Image
+    runs-on: ubuntu-20.04
+    outputs:
+      IMG: ${{ steps.build-img.outputs.IMG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build And Push Image To ttl.sh
+        id: build-img
+        run: |
+          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
+            IMG=ttl.sh/$(uuidgen):2h
+            echo "::set-output name=IMG::${IMG}"
+            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+            make docker-push IMG=$IMG
+          else
+            IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
+            echo "::set-output name=IMG::${IMG}"
+          fi
+
+  create-gke-cluster:
+    name: Create GKE Cluster
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: true
+      matrix:
+        cluster: ["src", "trg"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Cache Golang Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
+        uses: 'google-github-actions/auth@v0.8.0'
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Create ${{ matrix.cluster }} GKE Cluster
+        id: set-cluster-data
+        run: |-
+          gcloud container clusters create ${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER} \
+            --zone=${{ env.GKE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --network=${{ env.GCP_NETWORK }} \
+            --machine-type=n1-standard-16 \
+            --num-nodes=${{ env.NUMBER_OF_NODES }}
+          sleep 10
+
+  new-relic-setup:
+    name: Setup New Relic agent
+    needs: [create-gke-cluster]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        cluster: ["src", "trg"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Authenticate to GCP
+        uses: "google-github-actions/auth@v0.7.0"
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Connect To The ${{ matrix.cluster }} GKE Cluster
+        run: |-
+          gcloud container clusters get-credentials ${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER} \
+          --zone ${{ env.GKE_ZONE }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Install New Relic repo
+        run: |
+          helm repo add newrelic https://helm-charts.newrelic.com
+
+      - name: Install New Relic agent
+        run: |
+          kubectl create namespace newrelic
+          helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
+            --set "global.cluster=wan-operator" \
+            --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER}" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[2].name=GITHUB_RUN_NUMBER,newrelic-logging.fluentBit.additionalEnvVariables[2].value=\"${{ github.run_number }}\"" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
+            newrelic/nri-bundle
+
+  deploy-operator:
+    name: Deploy Hazelcast Operator
+    needs: [create-gke-cluster, new-relic-setup, get-image]
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: true
+      matrix:
+        cluster: ["src", "trg"]
+        namespace: ["src-ns", "trg-ns"]
+        exclude:
+          - cluster: trg
+            namespace: src-ns
+    env:
+      IMG: ${{ needs.get-image.outputs.IMG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
+        uses: 'google-github-actions/auth@v0.8.0'
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Connect To The ${{ matrix.cluster }} GKE Cluster
+        run: |-
+          gcloud container clusters get-credentials ${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER} \
+          --zone ${{ env.GKE_ZONE }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Deploy Operator To ${{ matrix.cluster }} GKE Cluster and ${{ matrix.namespace }} namespace
+        run: |
+          kubectl create namespace ${{ matrix.namespace }}
+          kubectl label namespace ${{ matrix.namespace }} newrelic.com/scrape=true
+          kubectl config set-context --current --namespace=${{ matrix.namespace }}
+          DEPLOY_NAME=${{ matrix.namespace }}-controller-manager
+          echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
+          make deploy IMG=$IMG NAMESPACE=${{ matrix.namespace }} NAME_PREFIX=${{ matrix.namespace }}-
+          kubectl rollout status deployment $DEPLOY_NAME
+
+      - name: Create Secret On ${{ matrix.cluster }} Cluster and ${{ matrix.namespace }} namespace
+        run: |
+          kubectl create secret generic hazelcast-license-key \
+            --namespace ${{ matrix.namespace }} \
+            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+
+  wan-gke-tests:
+    name: Run Wan Test
+    runs-on: ubuntu-20.04
+    needs: [deploy-operator]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v0.8.0'
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Set Cluster And Context Name Variables
+        run: |
+          FIRST_CLUSTER_NAME="src-wan-cluster-${GITHUB_RUN_NUMBER}"
+          echo "FIRST_CLUSTER_NAME=${FIRST_CLUSTER_NAME}" >> $GITHUB_ENV
+          SECOND_CLUSTER_NAME="trg-wan-cluster-${GITHUB_RUN_NUMBER}"
+          echo "SECOND_CLUSTER_NAME=${SECOND_CLUSTER_NAME}" >> $GITHUB_ENV
+          FIRST_CONTEXT_NAME="gke_${{ env.GCP_PROJECT_ID }}_${{ env.GKE_ZONE }}_${FIRST_CLUSTER_NAME}"
+          echo "FIRST_CONTEXT_NAME=${FIRST_CONTEXT_NAME}" >> $GITHUB_ENV
+          SECOND_CONTEXT_NAME="gke_${{ env.GCP_PROJECT_ID }}_${{ env.GKE_ZONE }}_${SECOND_CLUSTER_NAME}"
+          echo "SECOND_CONTEXT_NAME=${SECOND_CONTEXT_NAME}" >> $GITHUB_ENV
+
+          echo "sourceNamespace="src-ns"" >> $GITHUB_ENV
+          echo "targetNamespace="trg-ns"" >> $GITHUB_ENV
+
+      - name: Connect To The Second GKE Cluster
+        run: |-
+          gcloud container clusters get-credentials $SECOND_CLUSTER_NAME \
+          --zone ${{ env.GKE_ZONE }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Connect To The First GKE Cluster
+        run: |-
+          gcloud container clusters get-credentials $FIRST_CLUSTER_NAME \
+          --zone ${{ env.GKE_ZONE }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Run Wan Test
+        run: |-
+          make test-e2e NAMESPACE=src-ns NAME_PREFIX=src-ns- E2E_TEST_SUITE=hz_wan_slow WORKFLOW_ID=wan
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report
+          path: allure-results/wan/
+
+  report-generation:
+    needs: wan-gke-tests
+    if: always()
+    uses: ./.github/workflows/generate-test-report.yaml
+    with:
+      WORKFLOW_ID: wan
+
+  cleanup-namespaces:
+    name: Cleanup Namespaces
+    if: always()
+    needs: [create-gke-cluster, wan-gke-tests]
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cluster: ["src", "trg"]
+        namespace: ["src-ns", "trg-ns"]
+        exclude:
+          - cluster: trg
+            namespace: src-ns
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Authenticate To GCP
+        uses: 'google-github-actions/auth@v0.8.0'
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Connect To ${{ matrix.cluster }} GCP Cluster
+        run: |-
+          gcloud container clusters get-credentials ${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER} \
+          --zone ${{ env.GKE_ZONE }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Clean up after Tests on ${{ matrix.cluster }} Cluster and ${{ matrix.namespace }} Namespace
+        if: always()
+        run: |
+          make clean-up-namespace NAMESPACE=${{ matrix.namespace }}
+
+  delete-gke-cluster:
+    name: Delete GKE Cluster
+    if: always()
+    needs: [create-gke-cluster, wan-gke-tests, cleanup-namespaces]
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cluster: ["src", "trg"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Authenticate To GCP
+        uses: 'google-github-actions/auth@v0.8.0'
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Connect To ${{ matrix.cluster }} GCP Cluster
+        run: |-
+          gcloud container clusters get-credentials ${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER} \
+          --zone ${{ env.GKE_ZONE }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Delete ${{ matrix.cluster }} GKE Cluster
+        if: always()
+        run: |-
+          gcloud container clusters delete ${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER} \
+           --zone ${{ env.GKE_ZONE }} \
+           --quiet

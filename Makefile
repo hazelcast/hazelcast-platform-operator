@@ -152,7 +152,7 @@ test-it-focus: manifests generate fmt vet ## Run tests.
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
 
-E2E_TEST_SUITE ?= hz || mc || hz_persistence || hz_expose_externally || map || map_persistence || hz_wan
+E2E_TEST_SUITE ?= hz || mc || hz_persistence || hz_expose_externally || map || map_persistence || hz_wan || custom_class
 ifeq (,$(E2E_TEST_SUITE))
 E2E_TEST_LABELS =
 else 
@@ -224,10 +224,10 @@ else
 	@$(KUSTOMIZE) build config/default
 endif
 
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f - --ignore-not-found
 
-undeploy-keep-crd:
+undeploy-keep-crd: kustomize
 	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
 	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found
 	cd config/default && $(KUSTOMIZE) edit add resource ../crd
