@@ -8,6 +8,7 @@ env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
   BIG_QUERY_TABLE: hazelcast-33.callHome.operator_info
+  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
 
 jobs:
   create-gke-cluster:
@@ -134,6 +135,7 @@ jobs:
     needs: gke-ph-tests
     if: always()
     uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
     with:
       WORKFLOW_ID: ph
 

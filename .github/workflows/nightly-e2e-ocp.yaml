@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "0 9 * * *"
 
+env:
+  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
+
 jobs:
   ocp-e2e-tests:
     name: Run e2e tests at OCP
@@ -99,6 +102,7 @@ jobs:
     needs: ocp-e2e-tests
     if: always()
     uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
     with:
       WORKFLOW_ID: ocp
 

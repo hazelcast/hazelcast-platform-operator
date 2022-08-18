@@ -9,10 +9,16 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   CLEANUP_TIMEOUT: 5
   GITHUB_PAGES_URL: https://${{ github.repository_owner }}.github.io/hazelcast-platform-operator
+  NEW_RELIC_BASE_URL: https://one.eu.newrelic.com/launcher/logger.log-launcher
+  NEW_RELIC_SHORT_URL_GEN: https://urly.service.newrelic.com
+  NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
 
 jobs:
   report-creation:
     name: Test Report Creation
+    defaults:
+      run:
+        shell: bash
     runs-on: ubuntu-latest
     environment:
       name: report
@@ -68,7 +74,18 @@ jobs:
       - name: Update Test Files
         run: |-
           cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/data/test-cases
+
           for i in $(ls); do
+          CR_ID=$(jq -r '.testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")' $i)
+          LAUNCHER=$(echo "{\"isEntitled\":true,\"query\":\"pod_name:\\\"$CR_ID*\\\" OR message:\\\"*$CR_ID*\\\"\",\"eventTypes\":[\"Log\"]}" | base64 -w0)
+          PANE=$(echo "{\"nerdletId\":\"logger.log-tailer\",\"accountId\":${NEW_RELIC_ACCOUNT_ID}}" | base64 -w0)
+          LINK=$(echo $NEW_RELIC_BASE_URL\?launcher\="$LAUNCHER"\&pane\="$PANE"\&platform%5BtimeRange%5D%5Bduration%5D\=86400000)
+          SHORT_LINK=$(curl -s -X POST \
+                      $NEW_RELIC_SHORT_URL_GEN \
+                      -H "Content-Type: application/json" \
+                      -H "Api-Key: ${{ secrets.NEW_RELIC_API_KEY }}" \
+                      -d '{"url":"'"$LINK"'"}' | jq -r '.url')
+
           cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not))))
                            |.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID"))}
                            |del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))
@@ -95,7 +112,7 @@ jobs:
                            |.url+=.value[]
                            |del(.key)|del(.value)
                            |.+={type: "issue"}]} else . end)
-                           |.links|= [{"name":"https://one.newrelic.com/logger","url":"https://one.newrelic.com/logger",type: "tms"}] + .' $i) > $i
+                           |.links|= [{"name":"LOGS","url":"'"$SHORT_LINK"'",type: "tms"}] + .' $i) > $i
           done
 
       - name: Update environment.properties
