@@ -95,6 +95,9 @@ type HazelcastSpec struct {
 
 	// +optional
 	ScheduledExecutorServices []ScheduledExecutorServiceConfiguration `json:"scheduledExecutorServices,omitempty"`
+
+	// +optional
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 type ExecutorServiceConfiguration struct {

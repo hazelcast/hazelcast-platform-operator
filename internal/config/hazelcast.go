@@ -13,6 +13,7 @@ type Hazelcast struct {
 	ExecutorService          map[string]ExecutorService          `yaml:"executor-service,omitempty"`
 	DurableExecutorService   map[string]DurableExecutorService   `yaml:"durable-executor-service,omitempty"`
 	ScheduledExecutorService map[string]ScheduledExecutorService `yaml:"scheduled-executor-service,omitempty"`
+	Properties               map[string]string                   `yaml:"properties,omitempty"`
 }
 
 type Jet struct {
@@ -147,5 +148,6 @@ func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
 				},
 			},
 		},
+		Properties: hz.Properties,
 	}
 }

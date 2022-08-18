@@ -90,7 +90,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 			Expect(err).To(BeNil())
 		}()
 		mapConfig := getMapConfig(context.Background(), cl, m.MapName())
-		Expect(mapConfig.InMemoryFormat).Should(Equal(int32(0)))
+		Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastcomv1alpha1.EncodeInMemoryFormat[m.Spec.InMemoryFormat]))
 		Expect(mapConfig.BackupCount).Should(Equal(n.DefaultMapBackupCount))
 		Expect(mapConfig.AsyncBackupCount).Should(Equal(int32(0)))
 		Expect(mapConfig.TimeToLiveSeconds).Should(Equal(*m.Spec.TimeToLiveSeconds))

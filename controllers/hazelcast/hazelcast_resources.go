@@ -26,6 +26,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -432,8 +433,11 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		return nil, err
 	}
 	ml := filterPersistedMaps(mapList.Items)
+	p := filterProperties(h.Spec.Properties)
 
 	cfg := hazelcastConfigMapStruct(h)
+
+	cfg.Properties = p
 
 	err = fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml)
 	if err != nil {
@@ -1353,4 +1357,14 @@ func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorS
 	esInput.Capacity = es.Capacity
 	esInput.CapacityPolicy = es.CapacityPolicy
 	esInput.Durability = es.Durability
+}
+
+func filterProperties(p map[string]string) map[string]string {
+	filteredProperties := map[string]string{}
+	for propertyKey, value := range p {
+		if _, ok := validation.BlackListProperties[propertyKey]; !ok {
+			filteredProperties[propertyKey] = value
+		}
+	}
+	return filteredProperties
 }
