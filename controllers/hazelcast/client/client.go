@@ -196,15 +196,18 @@ func (c *Client) shutdown(ctx context.Context) {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.Client == nil {
-		return
-	}
-	if err := c.Client.Shutdown(ctx); err != nil {
-		c.Log.Error(err, "Problem occurred while shutting down the client connection")
-	}
 	if c.statusTicker != nil {
 		c.statusTicker.stop()
 	}
+
+	if c.Client == nil {
+		return
+	}
+
+	if err := c.Client.Shutdown(ctx); err != nil {
+		c.Log.Error(err, "Problem occurred while shutting down the client connection")
+	}
+
 }
 
 func (c *Client) triggerReconcile() {
