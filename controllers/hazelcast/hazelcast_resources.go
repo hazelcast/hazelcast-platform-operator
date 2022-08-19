@@ -72,9 +72,6 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
-	if util.IsPhoneHomeEnabled() {
-		delete(r.metrics.HazelcastMetrics, h.UID)
-	}
 	hzclient.ShutdownClient(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 	return nil
 }

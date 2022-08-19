@@ -3,7 +3,6 @@ package ph
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
 	"time"
 	. "time"
 
@@ -11,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -89,7 +89,7 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.K8sVersion).ShouldNot(BeEmpty(), "K8sVersion metric")
 				Expect(bigQueryTable.CreatedClusterCount).Should(Equal(0), "CreatedClusterCount metric")
 				Expect(bigQueryTable.CreatedEnterpriseClusterCount).Should(Equal(createdEnterpriseClusterCount), "CreatedEnterpriseClusterCount metric")
-				Expect(bigQueryTable.AverageClusterCreationLatency).ShouldNot(BeZero(), "AverageClusterCreationLatency metric")
+				Expect(bigQueryTable.AverageClusterCreationLatency).Should(Equal(bigquery.NullInt64{}), "AverageClusterCreationLatency metric")
 				Expect(bigQueryTable.AverageMCCreationLatency).Should(Equal(bigquery.NullInt64{}), "AverageMCCreationLatency metric")
 				Expect(bigQueryTable.CreatedMemberCount).Should(Equal(3), "CreatedMemberCount metric")
 				Expect(bigQueryTable.CreatedMCCount).Should(Equal(0), "CreatedMCCount metric")
@@ -135,7 +135,7 @@ var _ = Describe("Hazelcast", func() {
 			Expect(bigQueryTable.CreatedClusterCount).Should(Equal(0), "CreatedClusterCount metric")
 			Expect(bigQueryTable.CreatedEnterpriseClusterCount).Should(Equal(0), "CreatedEnterpriseClusterCount metric")
 			Expect(bigQueryTable.AverageClusterCreationLatency).Should(Equal(bigquery.NullInt64{}), "AverageClusterCreationLatency metric")
-			Expect(bigQueryTable.AverageMCCreationLatency).ShouldNot(BeZero(), "AverageMCCreationLatency metric")
+			Expect(bigQueryTable.AverageMCCreationLatency).Should(Equal(bigquery.NullInt64{}), "AverageMCCreationLatency metric")
 			Expect(bigQueryTable.CreatedMemberCount).Should(Equal(0), "CreatedMemberCount metric")
 			Expect(bigQueryTable.CreatedMCCount).Should(Equal(1), "CreatedMCCount metric")
 			Expect(bigQueryTable.ExposeExternally.Unisocket).Should(Equal(0), "Unisocket metric")
