@@ -103,7 +103,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			}
 			Expect(fetchedCR.Spec.Persistence).Should(Equal(expectedPersistence))
 
-			By("Creating the sub resources successfully")
+			By("creating the sub resources successfully")
 			expectedOwnerReference := metav1.OwnerReference{
 				Kind:               "ManagementCenter",
 				APIVersion:         "hazelcast.com/v1alpha1",

@@ -246,11 +246,11 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 }
 
 func CreateMC(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
-	By("Creating ManagementCenter CR", func() {
+	By("creating ManagementCenter CR", func() {
 		Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
 	})
 
-	By("Checking ManagementCenter CR running", func() {
+	By("checking ManagementCenter CR running", func() {
 		mc := &hazelcastcomv1alpha1.ManagementCenter{}
 		Eventually(func() bool {
 			err := k8sClient.Get(context.Background(), mcLookupKey, mc)
