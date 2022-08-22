@@ -254,6 +254,7 @@ var (
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
 				UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
+					Enabled: true,
 					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
 						Secret:    s,
 						BucketURI: bkt,

@@ -194,11 +194,14 @@ type BucketConfiguration struct {
 
 // UserCodeDeploymentConfig contains the configuration for User Code download operation
 type UserCodeDeploymentConfig struct {
+	// When true, allows user code deployment from clients, ConfigMaps and buckets.
+	Enabled bool `json:"enabled"`
+
 	// Jar files in the bucket will be put under CLASSPATH.
 	// +optional
 	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
 
-	// A string for triggering a rolling restart for re-downloading the user codes.
+	// A string for triggering a rolling restart for re-downloading the user code.
 	// +optional
 	TriggerSequence string `json:"triggerSequence,omitempty"`
 
@@ -380,14 +383,19 @@ func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
 }
 
+// Returns true if userCodeDeployment is enabled.
+func (c *UserCodeDeploymentConfig) IsEnabled() bool {
+	return c != nil && c.Enabled
+}
+
 // Returns true if userCodeDeployment.bucketConfiguration is specified.
 func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
-	return c != nil && c.BucketConfiguration != nil
+	return c.IsEnabled() && c.BucketConfiguration != nil
 }
 
 // Returns true if userCodeDeployment.configMaps configuration is specified.
 func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
-	return c != nil && (len(c.ConfigMaps) != 0)
+	return c.IsEnabled() && (len(c.ConfigMaps) != 0)
 }
 
 // Returns true if Smart configuration is specified and therefore each Hazelcast member needs to be exposed with a separate address.

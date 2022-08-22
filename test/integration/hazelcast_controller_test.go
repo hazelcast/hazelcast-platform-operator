@@ -909,6 +909,7 @@ var _ = Describe("Hazelcast controller", func() {
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
 						UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
+							Enabled:         true,
 							ConfigMaps:      cms,
 							TriggerSequence: ts,
 						},

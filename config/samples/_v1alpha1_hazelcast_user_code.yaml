@@ -4,6 +4,7 @@ metadata:
   name: hazelcast
 spec:
   userCodeDeployment:
+    enabled: true
     bucketConfig:
       secret: cc-secret
       bucketURI: "gs://userCodeDeployment"

@@ -13,6 +13,7 @@ type Hazelcast struct {
 	ExecutorService          map[string]ExecutorService          `yaml:"executor-service,omitempty"`
 	DurableExecutorService   map[string]DurableExecutorService   `yaml:"durable-executor-service,omitempty"`
 	ScheduledExecutorService map[string]ScheduledExecutorService `yaml:"scheduled-executor-service,omitempty"`
+	UserCodeDeployment       UserCodeDeployment                  `yaml:"user-code-deployment,omitempty"`
 }
 
 type Jet struct {
@@ -135,6 +136,15 @@ type MapStoreConfig struct {
 	InitialLoadMode   string            `yaml:"initial-mode"`
 }
 
+type UserCodeDeployment struct {
+	Enabled           bool   `yaml:"enabled,omitempty"`
+	ClassCacheMode    string `yaml:"class-cache-mode,omitempty"`
+	ProviderMode      string `yaml:"provider-mode,omitempty"`
+	BlacklistPrefixes string `yaml:"blacklist-prefixes,omitempty"`
+	WhitelistPrefixes string `yaml:"whitelist-prefixes,omitempty"`
+	ProviderFilter    string `yaml:"provider-filter,omitempty"`
+}
+
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
 	return Hazelcast{
 		ClusterName: hz.ClusterName,
@@ -147,5 +157,6 @@ func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
 				},
 			},
 		},
+		UserCodeDeployment: hz.UserCodeDeployment,
 	}
 }

@@ -1109,10 +1109,16 @@ spec:
                     items:
                       type: string
                     type: array
+                  enabled:
+                    description: When true, allows user code deployment from clients,
+                      ConfigMaps and buckets.
+                    type: boolean
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading
-                      the user codes.
+                      the user code.
                     type: string
+                required:
+                - enabled
                 type: object
               version:
                 default: 5.1.3
