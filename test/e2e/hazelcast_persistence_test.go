@@ -112,7 +112,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		By("check the HotBackup creation sequence")
+		By("checking the HotBackup creation sequence")
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
@@ -227,12 +227,12 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		}
 		setLabelAndCRName("hp-5")
 
-		By("create cluster with external backup enabled")
+		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.ExternalBackup(hzLookupKey, true, labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 1)
 
-		By("trigger backup")
+		By("triggering backup")
 		t := Now()
 		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
@@ -245,7 +245,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		bucketURI += fmt.Sprintf("?prefix=%s/%s/", hzLookupKey.Name,
 			unixMilli(timestamp).UTC().Format("2006-01-02-15-04-05")) // hazelcast/2022-06-02-21-57-49/
 
-		By("create cluster from external backup")
+		By("creating cluster from external backup")
 		hazelcast = hazelcastconfig.ExternalRestore(hzLookupKey, true, labels, bucketURI, secretName)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 1)

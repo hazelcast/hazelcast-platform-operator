@@ -174,7 +174,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		seq := GetBackupSequence(t, hzLookupKey)
 
-		By("check the HotBackup creation sequence")
+		By("checking the HotBackup creation sequence")
 		hb := &hazelcastcomv1alpha1.HotBackup{}
 		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
 			err := k8sClient.Get(

@@ -77,7 +77,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		evaluateReadyMembers(targetLookupKey, 3)
 		targetAddress := waitForLBAddress(targetLookupKey)
 
-		By("Creating map for source Hazelcast cluster")
+		By("creating map for source Hazelcast cluster")
 		m := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
@@ -143,13 +143,13 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		targetAddress := waitForLBAddress(targetLookupKey)
 		evaluateReadyMembers(targetLookupKey, 3)
 
-		By("Creating map for source Hazelcast cluster")
+		By("creating map for source Hazelcast cluster")
 		mapSrc := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
 		mapSrc.Spec.Name = "wanmap"
 		Expect(k8sClient.Create(context.Background(), mapSrc)).Should(Succeed())
 		mapSrc = assertMapStatus(mapSrc, hazelcastcomv1alpha1.MapSuccess)
 
-		By("Creating map for target Hazelcast cluster")
+		By("creating map for target Hazelcast cluster")
 		mapTrg := hazelcastconfig.DefaultMap(targetLookupKey, hazelcastTarget.Name, labels)
 		mapTrg.Spec.Name = "wanmap"
 		Expect(k8sClient.Create(context.Background(), mapTrg)).Should(Succeed())

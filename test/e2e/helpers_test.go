@@ -48,23 +48,25 @@ import (
 type UpdateFn func(*hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast
 
 func GetBackupSequence(t Time, lk types.NamespacedName) string {
-	By("finding Backup sequence")
-	logs := InitLogs(t, lk)
-	scanner := bufio.NewScanner(logs)
-	test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
-	line := scanner.Text()
-	Expect(logs.Close()).Should(Succeed())
-	compRegEx := regexp.MustCompile(`Starting new hot backup with sequence (?P<seq>\d+)`)
-	match := compRegEx.FindStringSubmatch(line)
 	var seq string
-	for i, name := range compRegEx.SubexpNames() {
-		if name == "seq" && i > 0 && i <= len(match) {
-			seq = match[i]
+	By("finding Backup sequence", func() {
+		logs := InitLogs(t, lk)
+		scanner := bufio.NewScanner(logs)
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
+		line := scanner.Text()
+		Expect(logs.Close()).Should(Succeed())
+		compRegEx := regexp.MustCompile(`Starting new hot backup with sequence (?P<seq>\d+)`)
+		match := compRegEx.FindStringSubmatch(line)
+
+		for i, name := range compRegEx.SubexpNames() {
+			if name == "seq" && i > 0 && i <= len(match) {
+				seq = match[i]
+			}
 		}
-	}
-	if seq == "" {
-		Fail("Backup sequence not found")
-	}
+		if seq == "" {
+			Fail("Backup sequence not found")
+		}
+	})
 	return seq
 }
 
@@ -179,33 +181,33 @@ func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 }
 
 func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *hzClient.Client {
-	s := &corev1.Service{}
-	Eventually(func() bool {
-		err := k8sClient.Get(context.Background(), lk, s)
-		Expect(err).ToNot(HaveOccurred())
-		return len(s.Status.LoadBalancer.Ingress) > 0
-	}, 3*Minute, interval).Should(BeTrue())
-	addr := s.Status.LoadBalancer.Ingress[0].IP
-	if addr == "" {
-		addr = s.Status.LoadBalancer.Ingress[0].Hostname
-	}
-	Expect(addr).Should(Not(BeEmpty()))
+	clientWithConfig := &hzClient.Client{}
+	By("starting new Hazelcast client", func() {
+		s := &corev1.Service{}
+		Eventually(func() bool {
+			err := k8sClient.Get(context.Background(), lk, s)
+			Expect(err).ToNot(HaveOccurred())
+			return len(s.Status.LoadBalancer.Ingress) > 0
+		}, 3*Minute, interval).Should(BeTrue())
+		addr := s.Status.LoadBalancer.Ingress[0].IP
+		if addr == "" {
+			addr = s.Status.LoadBalancer.Ingress[0].Hostname
+		}
+		Expect(addr).Should(Not(BeEmpty()))
 
-	hz := &hazelcastcomv1alpha1.Hazelcast{}
-	Expect(k8sClient.Get(context.Background(), lk, hz)).Should(Succeed())
-	clusterName := "dev"
-	if len(hz.Spec.ClusterName) > 0 {
-		clusterName = hz.Spec.ClusterName
-	}
-
-	By("connecting Hazelcast client")
-	c := hzClient.Config{}
-	c.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", addr))
-	c.Cluster.Unisocket = unisocket
-	c.Cluster.Name = clusterName
-	c.Cluster.Discovery.UsePublicIP = true
-	clientWithConfig, err := hzClient.StartNewClientWithConfig(ctx, c)
-	Expect(err).ToNot(HaveOccurred())
+		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		Expect(k8sClient.Get(context.Background(), lk, hz)).Should(Succeed())
+		clusterName := "dev"
+		if len(hz.Spec.ClusterName) > 0 {
+			clusterName = hz.Spec.ClusterName
+		}
+		c := hzClient.Config{}
+		c.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", addr))
+		c.Cluster.Unisocket = unisocket
+		c.Cluster.Name = clusterName
+		c.Cluster.Discovery.UsePublicIP = true
+		clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
+	})
 	return clientWithConfig
 }
 
@@ -491,13 +493,14 @@ func portForwardPod(sName, sNamespace, port string) chan struct{} {
 }
 
 func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
-	By(fmt.Sprintf("creating Hazelcast client using address '%s'", "localhost:"+localPort))
-	c := hzClient.Config{}
-	cc := &c.Cluster
-	cc.Name = h.Spec.ClusterName
-	cc.Network.SetAddresses("localhost:" + localPort)
-	clientWithConfig, err := hzClient.StartNewClientWithConfig(ctx, c)
-	Expect(err).To(BeNil())
+	clientWithConfig := &hzClient.Client{}
+	By(fmt.Sprintf("creating Hazelcast client using address '%s'", "localhost:"+localPort), func() {
+		c := hzClient.Config{}
+		cc := &c.Cluster
+		cc.Name = h.Spec.ClusterName
+		cc.Network.SetAddresses("localhost:" + localPort)
+		clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
+	})
 	return clientWithConfig
 }
 

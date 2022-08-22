@@ -111,7 +111,8 @@ jobs:
                            |.+={name: ("ERROR_LINE"+ "_" + (.key|tonumber+1|tostring))}
                            |.url+=.value[]
                            |del(.key)|del(.value)
-                           |.+={type: "issue"}]} else . end)
+                           |.+={type: "issue"}]}
+                           |.testStage.steps[-1]+={status: "failed"} else . end)
                            |.links|= [{"name":"LOGS","url":"'"$SHORT_LINK"'",type: "tms"}] + .' $i) > $i
           done
 

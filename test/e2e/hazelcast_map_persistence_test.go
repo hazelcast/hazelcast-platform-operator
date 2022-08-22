@@ -82,7 +82,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		By("Filling the map with entries")
+		By("filling the map with entries")
 		entryCount := 100
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
 		mp, err := cl.GetMap(context.Background(), m.Name)
