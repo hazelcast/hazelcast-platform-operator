@@ -21,6 +21,10 @@ func ValidateSpec(h *hazelcastv1alpha1.Hazelcast) error {
 		return err
 	}
 
+	if err := validatePersistence(h); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -40,6 +44,19 @@ func validateExposeExternally(h *hazelcastv1alpha1.Hazelcast) error {
 func validateLicense(h *hazelcastv1alpha1.Hazelcast) error {
 	if util.IsEnterprise(h.Spec.Repository) && len(h.Spec.LicenseKeySecret) == 0 {
 		return errors.New("when Hazelcast Enterprise is deployed, licenseKeySecret must be set")
+	}
+	return nil
+}
+
+func validatePersistence(h *hazelcastv1alpha1.Hazelcast) error {
+	p := h.Spec.Persistence
+	if !p.IsEnabled() {
+		return nil
+	}
+
+	// if hostPath and PVC are both empty or set
+	if (p.HostPath == "") == p.Pvc.IsEmpty() {
+		return errors.New("when persistence is set either of \"hostPath\" or \"pvc\" fields must be set.")
 	}
 	return nil
 }

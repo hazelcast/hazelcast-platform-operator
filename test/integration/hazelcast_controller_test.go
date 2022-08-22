@@ -999,4 +999,22 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
+	It("should return expected messages when persistence is misconfigured", Label("fast"), func() {
+		By("creating Hazelcast with persistence enabled without pvc and hostPath")
+		spec := test.HazelcastSpec(defaultSpecValues, ee)
+		spec.ClusterSize = &[]int32{3}[0]
+		spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+			BaseDir: "/data/hot-backup",
+		}
+		hz := &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: GetRandomObjectMeta(),
+			Spec:       spec,
+		}
+
+		Create(hz)
+		fetchedCR := EnsureFailedStatus(hz)
+		Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when persistence is set either of \"hostPath\" or \"pvc\" fields must be set."))
+
+		Delete(fetchedCR)
+	})
 })

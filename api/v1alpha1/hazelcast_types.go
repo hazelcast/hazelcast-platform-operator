@@ -256,7 +256,7 @@ type HazelcastPersistenceConfiguration struct {
 	// DataRecoveryTimeout is timeout for each step of data recovery in seconds.
 	// Maximum timeout is equal to DataRecoveryTimeout*2 (for each step: validation and data-load).
 	// +optional
-	DataRecoveryTimeout int32 `json:"dataRecoveryTimeout"`
+	DataRecoveryTimeout int32 `json:"dataRecoveryTimeout,omitempty"`
 
 	// Configuration of PersistenceVolumeClaim.
 	// +optional
@@ -288,6 +288,10 @@ type PersistencePvcConfiguration struct {
 	// Name of StorageClass which this persistent volume belongs to.
 	// +optional
 	StorageClassName *string `json:"storageClassName,omitempty"`
+}
+
+func (pvc PersistencePvcConfiguration) IsEmpty() bool {
+	return pvc.AccessModes == nil && pvc.RequestStorage == nil && pvc.StorageClassName == nil
 }
 
 // DataRecoveryPolicyType represents the options for data recovery policy when the whole cluster restarts.
