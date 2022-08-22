@@ -9,6 +9,7 @@ import (
 	"strings"
 	. "time"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -75,81 +76,83 @@ func assertExists(name types.NamespacedName, obj client.Object) {
 }
 
 func cleanUpHostPath(namespace, hostPath, hzDir string) {
-	name := "cleanup-hostpath"
-	lb := map[string]string{
-		"cleanup": "hazelcast-hostPath",
-	}
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: lb,
+	By(fmt.Sprintf("cleanup hostpath '%s' and directory '%s' for namespace '%s'", namespace, hzDir, hostPath), func() {
+		name := "cleanup-hostpath"
+		lb := map[string]string{
+			"cleanup": "hazelcast-hostPath",
+		}
+		ds := &appsv1.DaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
 			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: lb,
+			Spec: appsv1.DaemonSetSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: lb,
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{{
-						Name:    "cleanup",
-						Image:   "ubuntu",
-						Command: []string{"sh"},
-						Args:    []string{"-c", fmt.Sprintf("rm -rf /host/%s || echo 'Could not delete'; echo 'done'; sleep 120", hzDir)},
-						SecurityContext: &v1.SecurityContext{
-							RunAsNonRoot:             &[]bool{false}[0],
-							RunAsUser:                &[]int64{0}[0],
-							Privileged:               &[]bool{true}[0],
-							ReadOnlyRootFilesystem:   &[]bool{false}[0],
-							AllowPrivilegeEscalation: &[]bool{true}[0],
-							Capabilities: &v1.Capabilities{
-								Drop: []v1.Capability{"ALL"},
+				Template: v1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: lb,
+					},
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{{
+							Name:    "cleanup",
+							Image:   "ubuntu",
+							Command: []string{"sh"},
+							Args:    []string{"-c", fmt.Sprintf("rm -rf /host/%s || echo 'Could not delete'; echo 'done'; sleep 120", hzDir)},
+							SecurityContext: &v1.SecurityContext{
+								RunAsNonRoot:             &[]bool{false}[0],
+								RunAsUser:                &[]int64{0}[0],
+								Privileged:               &[]bool{true}[0],
+								ReadOnlyRootFilesystem:   &[]bool{false}[0],
+								AllowPrivilegeEscalation: &[]bool{true}[0],
+								Capabilities: &v1.Capabilities{
+									Drop: []v1.Capability{"ALL"},
+								},
 							},
-						},
-						VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []v1.VolumeMount{
+								{
+									Name:      "hostpath-hazelcast",
+									MountPath: "/host",
+								},
+							},
+						}},
+						TerminationGracePeriodSeconds: &[]int64{0}[0],
+						Volumes: []v1.Volume{
 							{
-								Name:      "hostpath-hazelcast",
-								MountPath: "/host",
-							},
-						},
-					}},
-					TerminationGracePeriodSeconds: &[]int64{0}[0],
-					Volumes: []v1.Volume{
-						{
-							Name: "hostpath-hazelcast",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
-									Path: hostPath,
-									Type: &[]v1.HostPathType{v1.HostPathDirectory}[0],
+								Name: "hostpath-hazelcast",
+								VolumeSource: v1.VolumeSource{
+									HostPath: &v1.HostPathVolumeSource{
+										Path: hostPath,
+										Type: &[]v1.HostPathType{v1.HostPathDirectory}[0],
+									},
 								},
 							},
 						},
 					},
-				},
-			}},
-	}
-	Expect(k8sClient.Create(context.Background(), ds)).Should(Succeed())
-	pods := waitForDSPods(ds, lb)
-	for _, pod := range pods.Items {
-		running := assertRunningOrFailedMount(pod, hostPath)
-		if !running {
-			continue
+				}},
 		}
+		Expect(k8sClient.Create(context.Background(), ds)).Should(Succeed())
+		pods := waitForDSPods(ds, lb)
+		for _, pod := range pods.Items {
+			running := assertRunningOrFailedMount(pod, hostPath)
+			if !running {
+				continue
+			}
 
-		logs := test.GetPodLogs(context.Background(), types.NamespacedName{
-			Name:      pod.Name,
-			Namespace: pod.Namespace,
-		}, &corev1.PodLogOptions{
-			Follow: true,
-		})
-		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 40*Second, logInterval).
-			Should(ContainSubstring("done"))
-	}
-	Expect(k8sClient.Delete(context.Background(), ds)).Should(Succeed())
+			logs := test.GetPodLogs(context.Background(), types.NamespacedName{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			}, &corev1.PodLogOptions{
+				Follow: true,
+			})
+			defer logs.Close()
+			scanner := bufio.NewScanner(logs)
+			test.EventuallyInLogs(scanner, 40*Second, logInterval).
+				Should(ContainSubstring("done"))
+		}
+		Expect(k8sClient.Delete(context.Background(), ds)).Should(Succeed())
+	})
 }
 
 func waitForDSPods(ds *appsv1.DaemonSet, lb client.MatchingLabels) *corev1.PodList {
@@ -224,20 +227,21 @@ func deletePVCs(lk types.NamespacedName) {
 		}
 		return true
 	}, 1*Minute, interval).Should(BeTrue())
-
 }
 
 func deletePods(lk types.NamespacedName) {
-	// Because pods get recreated by the StatefulSet controller, we are not using the eventually block here
-	podL := &corev1.PodList{}
-	err := k8sClient.List(context.Background(), podL, client.InNamespace(lk.Namespace))
-	Expect(err).To(BeNil())
-	for _, pod := range podL.Items {
-		if strings.Contains(pod.Name, lk.Name) {
-			err = k8sClient.Delete(context.Background(), &pod)
-			Expect(err).To(BeNil())
+	By("deleting pods", func() {
+		// Because pods get recreated by the StatefulSet controller, we are not using the eventually block here
+		podL := &corev1.PodList{}
+		err := k8sClient.List(context.Background(), podL, client.InNamespace(lk.Namespace))
+		Expect(err).To(BeNil())
+		for _, pod := range podL.Items {
+			if strings.Contains(pod.Name, lk.Name) {
+				err = k8sClient.Delete(context.Background(), &pod)
+				Expect(err).To(BeNil())
+			}
 		}
-	}
+	})
 }
 
 func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels map[string]string) {

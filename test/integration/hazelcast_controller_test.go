@@ -236,7 +236,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			Delete(hz)
 
-			By("Expecting to ClusterRole and ClusterRoleBinding removed via finalizer")
+			By("expecting to ClusterRole and ClusterRoleBinding removed via finalizer")
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRole{})
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRoleBinding{})
 
@@ -646,7 +646,7 @@ var _ = Describe("Hazelcast controller", func() {
 				fetchedCR := EnsureStatus(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
 
-				By("Checking the Persistence CR configuration", func() {
+				By("checking the Persistence CR configuration", func() {
 					Expect(fetchedCR.Spec.Persistence.BaseDir).Should(Equal("/data/hot-restart/"))
 					Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
 						Should(Equal(hazelcastv1alpha1.FullRecovery))

@@ -74,7 +74,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		_ = waitForLBAddress(hzSrcLookupKey)
 		targetAddress := waitForLBAddress(hzTrgLookupKey)
 
-		By("Creating map for source Hazelcast cluster")
+		By("creating map for source Hazelcast cluster")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcastSource.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
@@ -99,7 +99,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
 		mapSize := 1024
-		By("filling the source")
 		FillTheMapData(context.Background(), hzSrcLookupKey, true, m.Name, mapSize)
 
 		By("checking the size of the map in the target cluster")

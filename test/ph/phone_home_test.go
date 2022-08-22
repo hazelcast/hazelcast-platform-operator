@@ -29,7 +29,7 @@ var _ = Describe("Hazelcast", func() {
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-platform-controller-manager running", func() {
+		By("checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
