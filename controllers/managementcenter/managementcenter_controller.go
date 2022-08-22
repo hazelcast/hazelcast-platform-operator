@@ -24,17 +24,17 @@ const retryAfter = 10 * time.Second
 // ManagementCenterReconciler reconciles a ManagementCenter object
 type ManagementCenterReconciler struct {
 	client.Client
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	phTrigger chan struct{}
+	Log              logr.Logger
+	Scheme           *runtime.Scheme
+	phoneHomeTrigger chan struct{}
 }
 
 func NewManagementCenterReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *ManagementCenterReconciler {
 	return &ManagementCenterReconciler{
-		Client:    c,
-		Log:       log,
-		Scheme:    s,
-		phTrigger: pht,
+		Client:           c,
+		Log:              log,
+		Scheme:           s,
+		phoneHomeTrigger: pht,
 	}
 }
 
@@ -115,7 +115,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(mc) {
-		go func() { r.phTrigger <- struct{}{} }()
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, mc, logger)

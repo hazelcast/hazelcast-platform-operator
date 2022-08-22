@@ -50,7 +50,7 @@ func Start(cl client.Client, m *Metrics) {
 func PhoneHome(cl client.Client, m *Metrics) {
 	phUrl := "http://phonehome.hazelcast.com/pingOp"
 
-	phd := fillPhoneHomeData(cl, m)
+	phd := newPhoneHomeData(cl, m)
 	jsn, err := json.Marshal(phd)
 	if err != nil {
 		return
@@ -92,7 +92,7 @@ type ExposeExternally struct {
 	MemberLoadBalancer       int `json:"mlb"`
 }
 
-func fillPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
+func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:     m.UID,
 		PardotID:       m.PardotID,

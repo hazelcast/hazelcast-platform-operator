@@ -93,9 +93,9 @@ func main() {
 	}
 
 	var metrics *phonehome.Metrics
-	var phTrigger chan struct{}
+	var phoneHomeTrigger chan struct{}
 	if util.IsPhoneHomeEnabled() {
-		phTrigger = make(chan struct{}, 10)
+		phoneHomeTrigger = make(chan struct{}, 10)
 		metrics = &phonehome.Metrics{
 			UID:            util.GetOperatorID(cfg),
 			CreatedAt:      time.Now(),
@@ -103,7 +103,7 @@ func main() {
 			Version:        util.GetOperatorVersion(),
 			K8sDistibution: platform.GetDistribution(),
 			K8sVersion:     platform.GetVersion(),
-			Trigger:        phTrigger,
+			Trigger:        phoneHomeTrigger,
 		}
 	}
 
@@ -111,7 +111,7 @@ func main() {
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
 		mgr.GetScheme(),
-		phTrigger,
+		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Hazelcast")
 		os.Exit(1)
@@ -121,7 +121,7 @@ func main() {
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Management Center"),
 		mgr.GetScheme(),
-		phTrigger,
+		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ManagementCenter")
 		os.Exit(1)

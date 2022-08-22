@@ -35,7 +35,7 @@ type HazelcastReconciler struct {
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
 	triggerReconcileChan chan event.GenericEvent
-	phTrigger            chan struct{}
+	phoneHomeTrigger     chan struct{}
 }
 
 func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *HazelcastReconciler {
@@ -44,7 +44,7 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 		Log:                  log,
 		Scheme:               s,
 		triggerReconcileChan: make(chan event.GenericEvent),
-		phTrigger:            pht,
+		phoneHomeTrigger:     pht,
 	}
 }
 
@@ -191,7 +191,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(h) {
-		go func() { r.phTrigger <- struct{}{} }()
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, h, logger)
