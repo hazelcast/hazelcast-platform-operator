@@ -598,7 +598,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
 			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
 		},
-		InMemoryFormat:    "BINARY",
+		InMemoryFormat:    string(ms.InMemoryFormat),
 		Indexes:           copyMapIndexes(ms.Indexes),
 		StatisticsEnabled: true,
 		HotRestart: config.MapHotRestart{

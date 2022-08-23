@@ -474,7 +474,7 @@ var _ = Describe("Hazelcast controller", func() {
 	})
 
 	Context("Hazelcast CustomResource with properties", func() {
-		FIt("should pass the values to ConfigMap", Label("fast"), func() {
+		It("should pass the values to ConfigMap", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			sampleProperties := map[string]string{
 				"hazelcast.slow.operation.detector.threshold.millis":           "4000",
