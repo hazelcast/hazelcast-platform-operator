@@ -81,6 +81,7 @@ type PhoneHomeData struct {
 	CreatedMemberCount            int              `json:"cmc"`
 	ExposeExternally              ExposeExternally `json:"xe"`
 	Map                           Map              `json:"m"`
+	WanReplicationCount           int              `json:"wrc"`
 }
 
 type ExposeExternally struct {
@@ -112,6 +113,7 @@ func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd.fillHazelcastMetrics(cl)
 	phd.fillMCMetrics(cl)
 	phd.fillMapMetrics(cl)
+	phd.fillWanReplicationData(cl)
 	return phd
 }
 
@@ -216,4 +218,13 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 	phm.Map.Count = createdMapCount
 	phm.Map.PersistenceCount = persistedMapCount
 	phm.Map.MapStoreCount = mapStoreMapCount
+}
+
+func (phm *PhoneHomeData) fillWanReplicationData(cl client.Client) {
+	wrl := &hazelcastv1alpha1.WanReplicationList{}
+	err := cl.List(context.Background(), wrl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	if err != nil {
+		return
+	}
+	phm.WanReplicationCount = len(wrl.Items)
 }
