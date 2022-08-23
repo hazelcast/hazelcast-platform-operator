@@ -589,7 +589,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			},
 		},
 		UserCodeDeployment: config.UserCodeDeployment{
-			Enabled: h.Spec.UserCodeDeployment.IsEnabled(),
+			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
 		},
 	}
 

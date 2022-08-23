@@ -4,7 +4,6 @@ metadata:
   name: hazelcast
 spec:
   userCodeDeployment:
-    enabled: true
     configMaps:
       - cm1
       - cm2
