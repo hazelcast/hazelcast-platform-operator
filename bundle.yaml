@@ -255,6 +255,10 @@ spec:
                 required:
                 - baseDir
                 type: object
+              properties:
+                additionalProperties:
+                  type: string
+                type: object
               repository:
                 default: docker.io/hazelcast/hazelcast
                 description: Repository to pull the Hazelcast Platform image from.
@@ -2408,6 +2412,14 @@ spec:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource. It cannot be updated after map config is created successfully.
                 minLength: 1
+                type: string
+              inMemoryFormat:
+                default: BINARY
+                description: InMemoryFormat specifies in which format data will be
+                  stored in your map
+                enum:
+                - BINARY
+                - OBJECT
                 type: string
               indexes:
                 description: Indexes to be created for the map data. You can learn

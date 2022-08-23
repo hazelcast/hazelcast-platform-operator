@@ -310,3 +310,13 @@ func DeleteObject(ctx context.Context, c client.Client, obj client.Object) error
 	}
 	return nil
 }
+
+func IsApplied(obj client.Object) bool {
+	_, ok := obj.GetAnnotations()[n.LastAppliedSpecAnnotation]
+	return ok
+}
+
+func IsSuccessfullyApplied(obj client.Object) bool {
+	_, ok := obj.GetAnnotations()[n.LastSuccessfulSpecAnnotation]
+	return ok
+}

@@ -29,7 +29,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-platform-controller-manager running", func() {
+		By("checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
@@ -60,10 +60,8 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		CreateHazelcastCR(hazelcast)
 
 		By("port-forwarding to Hazelcast master pod")
-		stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
-		err := waitForReadyChannel(readyChan, 5*Second)
-		Expect(err).To(BeNil())
 
 		By("creating mapStore properties secret")
 		secretData := map[string]string{"username": "user1", "password": "pass1"}
@@ -83,7 +81,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 		t := Now()
 
-		By("Filling the map with entries")
+		By("filling the map with entries")
 		entryCount := 5
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
 		defer func() {
@@ -100,7 +98,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		Expect(err).To(BeNil())
 		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
 
-		By("Checking the logs")
+		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
@@ -143,10 +141,8 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		CreateHazelcastCR(hazelcast)
 
 		By("port-forwarding to Hazelcast master pod")
-		stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
-		err := waitForReadyChannel(readyChan, 5*Second)
-		Expect(err).To(BeNil())
 
 		By("checking if the initially added executor service configs are created correctly")
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)

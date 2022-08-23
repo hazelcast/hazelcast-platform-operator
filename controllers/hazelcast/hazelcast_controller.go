@@ -23,7 +23,6 @@ import (
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -36,16 +35,16 @@ type HazelcastReconciler struct {
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
 	triggerReconcileChan chan event.GenericEvent
-	metrics              *phonehome.Metrics
+	phoneHomeTrigger     chan struct{}
 }
 
-func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, m *phonehome.Metrics) *HazelcastReconciler {
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *HazelcastReconciler {
 	return &HazelcastReconciler{
 		Client:               c,
 		Log:                  log,
 		Scheme:               s,
 		triggerReconcileChan: make(chan event.GenericEvent),
-		metrics:              m,
+		phoneHomeTrigger:     pht,
 	}
 }
 
@@ -95,13 +94,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
-	}
-
-	if util.IsPhoneHomeEnabled() {
-		if _, ok := r.metrics.HazelcastMetrics[h.UID]; !ok {
-			r.metrics.HazelcastMetrics[h.UID] = &phonehome.HazelcastMetrics{}
-		}
-		r.metrics.HazelcastMetrics[h.UID].FillInitial(h)
 	}
 
 	err = validation.ValidateSpec(h)
@@ -190,19 +182,16 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	hzclient.CreateClient(ctx, h, r.triggerReconcileChan, r.Log)
 
-	if util.IsPhoneHomeEnabled() {
-		firstDeployment := r.metrics.HazelcastMetrics[h.UID].FillAfterDeployment(h)
-		if firstDeployment {
-			phonehome.CallPhoneHome(r.metrics)
-		}
-	}
-
 	if newExecutorServices != nil {
 		hzClient, ok := hzclient.GetClient(req.NamespacedName)
 		if !(ok && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
 			return update(ctx, r.Client, h, pendingPhase(retryAfter))
 		}
 		r.addExecutorServices(ctx, hzClient.Client, newExecutorServices)
+	}
+
+	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(h) {
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, h, logger)

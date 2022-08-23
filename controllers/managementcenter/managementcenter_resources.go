@@ -51,9 +51,6 @@ func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *h
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
-	if util.IsPhoneHomeEnabled() {
-		delete(r.metrics.MCMetrics, mc.UID)
-	}
 	return nil
 }
 

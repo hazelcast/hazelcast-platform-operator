@@ -9,6 +9,7 @@ env:
   GKE_ZONE: europe-west1-b
   NUMBER_OF_NODES: 2
   GCP_NETWORK: operator-test-network
+  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
 
 jobs:
   get-image:
@@ -212,6 +213,7 @@ jobs:
     needs: wan-gke-tests
     if: always()
     uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
     with:
       WORKFLOW_ID: wan
 

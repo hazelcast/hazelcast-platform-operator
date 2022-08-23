@@ -1,6 +1,7 @@
 package ph
 
 import (
+	"fmt"
 	"k8s.io/apimachinery/pkg/types"
 	"math/rand"
 
@@ -20,6 +21,7 @@ func setCRNamespace(ns string) {
 
 func setLabelAndCRName(n string) {
 	n = n + "-" + randString(6)
+	By(fmt.Sprintf("setting the label and CR with name '%s'", n))
 	labels["test_suite"] = n
 	hzLookupKey.Name = n
 	mcLookupKey.Name = n

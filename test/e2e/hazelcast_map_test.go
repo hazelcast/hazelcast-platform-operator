@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"strconv"
-	"time"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -37,7 +36,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-platform-controller-manager running", func() {
+		By("checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
@@ -73,12 +72,10 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		CreateHazelcastCR(hazelcast)
 
 		By("port-forwarding to Hazelcast master pod")
-		stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
-		err := waitForReadyChannel(readyChan, 5*time.Second)
-		Expect(err).To(BeNil())
 
-		By("creating the map config successfully")
+		By("creating the map config")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
@@ -90,7 +87,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 			Expect(err).To(BeNil())
 		}()
 		mapConfig := getMapConfig(context.Background(), cl, m.MapName())
-		Expect(mapConfig.InMemoryFormat).Should(Equal(int32(0)))
+		Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastcomv1alpha1.EncodeInMemoryFormat[m.Spec.InMemoryFormat]))
 		Expect(mapConfig.BackupCount).Should(Equal(n.DefaultMapBackupCount))
 		Expect(mapConfig.AsyncBackupCount).Should(Equal(int32(0)))
 		Expect(mapConfig.TimeToLiveSeconds).Should(Equal(*m.Spec.TimeToLiveSeconds))
@@ -131,10 +128,8 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("port-forwarding to Hazelcast master pod")
-		stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
-		err := waitForReadyChannel(readyChan, 5*time.Second)
-		Expect(err).To(BeNil())
 
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
 		defer func() {
@@ -165,12 +160,10 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		CreateHazelcastCR(hazelcast)
 
 		By("port-forwarding to Hazelcast master pod")
-		stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
-		err := waitForReadyChannel(readyChan, 5*time.Second)
-		Expect(err).To(BeNil())
 
-		By("creating the map config successfully")
+		By("creating the map config")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
@@ -204,7 +197,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
-		By("creating the map config successfully")
+		By("creating the map config")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)

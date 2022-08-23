@@ -257,6 +257,10 @@ spec:
                 required:
                 - baseDir
                 type: object
+              properties:
+                additionalProperties:
+                  type: string
+                type: object
               repository:
                 default: docker.io/hazelcast/hazelcast
                 description: Repository to pull the Hazelcast Platform image from.

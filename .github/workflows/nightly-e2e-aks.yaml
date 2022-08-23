@@ -6,6 +6,7 @@ on:
 
 env:
   AZURE_RESOURCE_GROUP: operator-test
+  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
 jobs:
   prepare-env:
     name: Create AKS cluster
@@ -179,6 +180,7 @@ jobs:
     needs: aks-e2e-tests
     if: always()
     uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
     with:
       WORKFLOW_ID: aks
 

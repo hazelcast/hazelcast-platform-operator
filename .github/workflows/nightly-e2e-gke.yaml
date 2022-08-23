@@ -7,6 +7,7 @@ on:
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
+  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
 
 jobs:
   create-gke-cluster:
@@ -189,6 +190,7 @@ jobs:
     needs: gke-e2e-tests
     if: always()
     uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
     with:
       WORKFLOW_ID: gke
 

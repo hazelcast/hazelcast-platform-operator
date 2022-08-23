@@ -25,7 +25,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-platform-controller-manager running", func() {
+		By("checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
@@ -39,11 +39,11 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 	})
 
 	create := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
-		By("Creating ManagementCenter CR", func() {
+		By("creating ManagementCenter CR", func() {
 			Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
 		})
 
-		By("Checking ManagementCenter CR running", func() {
+		By("checking ManagementCenter CR running", func() {
 			mc := &hazelcastcomv1alpha1.ManagementCenter{}
 			Eventually(func() bool {
 				err := k8sClient.Get(context.Background(), mcLookupKey, mc)
@@ -54,7 +54,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 	}
 
 	createWithoutCheck := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
-		By("Creating ManagementCenter CR", func() {
+		By("creating ManagementCenter CR", func() {
 			Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
 		})
 	}
@@ -65,7 +65,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 			mc := mcconfig.Default(mcLookupKey, ee, labels)
 			create(mc)
 
-			By("Checking if it created PVC with correct size", func() {
+			By("checking if it created PVC with correct size", func() {
 				fetchedPVC := &corev1.PersistentVolumeClaim{}
 				pvcLookupKey := types.NamespacedName{
 					Name:      fmt.Sprintf("mancenter-storage-%s-0", mcLookupKey.Name),
@@ -79,7 +79,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 				Expect(fetchedPVC.Status.Capacity).Should(Equal(expectedResourceList))
 			})
 
-			By("Assert status external addresses not empty", func() {
+			By("asserting status of external addresses are not empty", func() {
 				Eventually(func() string {
 					cr := hazelcastcomv1alpha1.ManagementCenter{}
 					err := k8sClient.Get(context.Background(), mcLookupKey, &cr)
@@ -96,7 +96,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 			mc := mcconfig.PersistenceDisabled(mcLookupKey, ee, labels)
 			create(mc)
 
-			By("Checking if PVC does not exist", func() {
+			By("checking if PVC doesn't exist", func() {
 				fetchedPVC := &corev1.PersistentVolumeClaim{}
 				pvcLookupKey := types.NamespacedName{
 					Name:      fmt.Sprintf("mancenter-storage-%s-0", mcLookupKey.Name),

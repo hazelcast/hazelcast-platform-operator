@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	. "github.com/onsi/ginkgo/v2"
 	"k8s.io/apimachinery/pkg/types"
 	"math/rand"
@@ -36,6 +37,7 @@ func setCRNamespace(ns string) {
 
 func setLabelAndCRName(n string) {
 	n = n + "-" + randString(6)
+	By(fmt.Sprintf("setting the label and CR with name '%s'", n))
 	labels["test_suite"] = n
 	hzLookupKey.Name = n
 	wanLookupKey.Name = n
@@ -46,7 +48,6 @@ func setLabelAndCRName(n string) {
 	hzTrgLookupKey.Name = "trg-" + n
 	sourceLookupKey.Name = "src-" + n
 	targetLookupKey.Name = "trg-" + n
-	GinkgoWriter.Printf("Resource name is: %s\n", n)
 	AddReportEntry("CR_ID:" + n)
 }
 

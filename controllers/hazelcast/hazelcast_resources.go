@@ -27,6 +27,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -71,9 +72,6 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	err := r.Update(ctx, h)
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
-	}
-	if util.IsPhoneHomeEnabled() {
-		delete(r.metrics.HazelcastMetrics, h.UID)
 	}
 	hzclient.ShutdownClient(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 	return nil
@@ -521,8 +519,11 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		return nil, err
 	}
 	ml := filterPersistedMaps(mapList.Items)
+	p := filterProperties(h.Spec.Properties)
 
 	cfg := hazelcastConfigMapStruct(h)
+
+	cfg.Properties = p
 
 	err = fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml)
 	if err != nil {
@@ -686,7 +687,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
 			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
 		},
-		InMemoryFormat:    "BINARY",
+		InMemoryFormat:    string(ms.InMemoryFormat),
 		Indexes:           copyMapIndexes(ms.Indexes),
 		StatisticsEnabled: true,
 		HotRestart: config.MapHotRestart{
@@ -1445,4 +1446,14 @@ func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorS
 	esInput.Capacity = es.Capacity
 	esInput.CapacityPolicy = es.CapacityPolicy
 	esInput.Durability = es.Durability
+}
+
+func filterProperties(p map[string]string) map[string]string {
+	filteredProperties := map[string]string{}
+	for propertyKey, value := range p {
+		if _, ok := validation.BlackListProperties[propertyKey]; !ok {
+			filteredProperties[propertyKey] = value
+		}
+	}
+	return filteredProperties
 }
