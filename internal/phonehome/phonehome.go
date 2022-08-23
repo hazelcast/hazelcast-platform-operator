@@ -223,7 +223,7 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 func (phm *PhoneHomeData) fillWanReplicationData(cl client.Client) {
 	wrl := &hazelcastv1alpha1.WanReplicationList{}
 	err := cl.List(context.Background(), wrl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
-	if err != nil {
+	if err != nil || wrl.Items == nil {
 		return
 	}
 	phm.WanReplicationCount = len(wrl.Items)
