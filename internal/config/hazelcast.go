@@ -159,6 +159,6 @@ func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
 			},
 		},
 		UserCodeDeployment: hz.UserCodeDeployment,
-		Properties: hz.Properties,
+		Properties:         hz.Properties,
 	}
 }
