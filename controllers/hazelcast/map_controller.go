@@ -33,8 +33,18 @@ import (
 // MapReconciler reconciles a Map object
 type MapReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log              logr.Logger
+	Scheme           *runtime.Scheme
+	phoneHomeTrigger chan struct{}
+}
+
+func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *MapReconciler {
+	return &MapReconciler{
+		Client:           c,
+		Log:              log,
+		Scheme:           s,
+		phoneHomeTrigger: pht,
+	}
 }
 
 const retryAfterForMap = 5 * time.Second
@@ -148,6 +158,10 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	if !persisted {
 		return updateMapStatus(ctx, r.Client, m, persistingStatus(1*time.Second).withMessage("Waiting for Map Config to be persisted."))
+	}
+
+	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(m) {
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, m)

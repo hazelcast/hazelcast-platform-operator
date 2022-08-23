@@ -127,18 +127,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = hazelcast.NewHotBackupReconciler(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("HotBackup")).SetupWithManager(mgr); err != nil {
+	if err = hazelcast.NewHotBackupReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("HotBackup"),
+	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HotBackup")
 		os.Exit(1)
 	}
-	if err = (&hazelcast.MapReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Map"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+
+	if err = hazelcast.NewMapReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Map"),
+		mgr.GetScheme(),
+		phoneHomeTrigger,
+	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Map")
 		os.Exit(1)
 	}
+
 	if err = hazelcast.NewWanReplicationReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("WanReplication"),

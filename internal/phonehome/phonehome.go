@@ -80,6 +80,7 @@ type PhoneHomeData struct {
 	CreatedMCcount                int              `json:"cmcc"`
 	CreatedMemberCount            int              `json:"cmc"`
 	ExposeExternally              ExposeExternally `json:"xe"`
+	Map                           Map              `json:"m"`
 }
 
 type ExposeExternally struct {
@@ -90,6 +91,12 @@ type ExposeExternally struct {
 	MemberNodePortExternalIP int `json:"mnpei"`
 	MemberNodePortNodeName   int `json:"mnpnn"`
 	MemberLoadBalancer       int `json:"mlb"`
+}
+
+type Map struct {
+	Count            int `json:"c"`
+	PersistenceCount int `json:"pc"`
+	MapStoreCount    int `json:"msc"`
 }
 
 func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
@@ -104,6 +111,7 @@ func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 
 	phd.fillHazelcastMetrics(cl)
 	phd.fillMCMetrics(cl)
+	phd.fillMapMetrics(cl)
 	return phd
 }
 
@@ -189,4 +197,29 @@ func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
 		}
 	}
 	phm.CreatedMCcount = createdMCCount
+}
+
+func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
+	createdMapCount := 0
+	persistedMapCount := 0
+	mapStoreMapCount := 0
+
+	ml := &hazelcastv1alpha1.MapList{}
+	err := cl.List(context.Background(), ml, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	if err != nil {
+		return //TODO maybe add retry
+	}
+
+	for _, m := range ml.Items {
+		createdMapCount += 1
+		if m.Spec.PersistenceEnabled {
+			persistedMapCount += 1
+		}
+		if m.Spec.MapStore != nil {
+			mapStoreMapCount += 1
+		}
+	}
+	phm.Map.Count = createdMapCount
+	phm.Map.PersistenceCount = persistedMapCount
+	phm.Map.MapStoreCount = mapStoreMapCount
 }
