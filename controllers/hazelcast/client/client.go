@@ -62,6 +62,7 @@ func (cl *Client) AreAllMembersAccessible() bool {
 }
 
 type Status struct {
+	sync.Mutex
 	MemberMap               map[hztypes.UUID]*MemberData
 	ClusterHotRestartStatus ClusterHotRestartStatus
 }
@@ -253,10 +254,10 @@ func (c *Client) UpdateMembers(ctx context.Context) {
 		}
 	}
 
-	c.Lock()
+	c.Status.Lock()
 	c.Status.MemberMap = activeMembers
 	c.Status.ClusterHotRestartStatus = *newClusterHotRestartStatus
-	c.Unlock()
+	c.Status.Unlock()
 }
 
 func fetchTimedMemberState(ctx context.Context, client *hazelcast.Client, uuid hztypes.UUID) (string, error) {
