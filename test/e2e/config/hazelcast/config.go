@@ -160,6 +160,7 @@ var (
 
 		if hok {
 			hz.Spec.Persistence.HostPath = hostPath
+			hz.Spec.Persistence.Pvc = hazelcastv1alpha1.PersistencePvcConfiguration{}
 			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 					{
