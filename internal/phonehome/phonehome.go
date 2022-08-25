@@ -124,7 +124,6 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client) {
 	createdEnterpriseClusterCount := 0
 	createdClusterCount := 0
 	createdMemberCount := 0
-	successfullyCreatedClusterCount := 0
 
 	hzl := &hazelcastv1alpha1.HazelcastList{}
 	err := cl.List(context.Background(), hzl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
@@ -141,11 +140,6 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client) {
 
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
-
-		if hz.Status.Phase == hazelcastv1alpha1.Running {
-			successfullyCreatedClusterCount += 1
-		}
-
 	}
 	phm.CreatedClusterCount = createdClusterCount
 	phm.CreatedEnterpriseClusterCount = createdEnterpriseClusterCount
