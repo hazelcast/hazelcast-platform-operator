@@ -28,7 +28,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-platform-controller-manager running", func() {
+		By("checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
@@ -99,21 +99,20 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
 
-		By("creating the map config successfully")
+		By("creating the map config")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		m.Spec.PersistenceEnabled = true
 		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		By("filling the Map")
 		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
 
-		By("Creating HotBackup CR")
+		By("creating HotBackup CR")
 		t := Now()
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		By("Check the HotBackup creation sequence")
+		By("checking the HotBackup creation sequence")
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
@@ -125,24 +124,9 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
 		Expect(logs.Close()).Should(Succeed())
 
-		hb := &hazelcastcomv1alpha1.HotBackup{}
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
-			return hb.Status.State
-		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+		assertHotBackupSuccess(hotBackup, 1*Minute)
 
-		By("checking the Map size")
-		client := GetHzClient(ctx, hzLookupKey, true)
-		defer func() {
-			err := client.Shutdown(ctx)
-			Expect(err).To(BeNil())
-		}()
-		cl, err := client.GetMap(ctx, m.Name)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
+		WaitForMapSize(ctx, hzLookupKey, m.Name, 100)
 	})
 
 	It("should trigger ForceStart when restart from HotBackup failed", Label("slow"), func() {
@@ -154,25 +138,17 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
 
-		By("Creating HotBackup CR")
+		By("creating HotBackup CR")
 		t := Now()
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		By("Wait for backup to finish")
-		hb := &hazelcastcomv1alpha1.HotBackup{}
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
-			return hb.Status.State
-		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+		assertHotBackupSuccess(hotBackup, 1*Minute)
 
 		seq := GetBackupSequence(t, hzLookupKey)
 		RemoveHazelcastCR(hazelcast)
 
-		By("Creating new Hazelcast cluster from existing backup with 2 members")
+		By("creating new Hazelcast cluster from existing backup with 2 members")
 		baseDir := "/data/hot-restart/hot-backup/backup-" + seq
 		hazelcast = hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels, false)
 		hazelcast.Spec.ClusterSize = &[]int32{2}[0]
@@ -192,25 +168,17 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
 
-		By("Creating HotBackup CR")
+		By("creating HotBackup CR")
 		t := Now()
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		By("Wait for backup to finish")
-		hb := &hazelcastcomv1alpha1.HotBackup{}
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
-			return hb.Status.State
-		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+		assertHotBackupSuccess(hotBackup, 1*Minute)
 
 		seq := GetBackupSequence(t, hzLookupKey)
 		RemoveHazelcastCR(hazelcast)
 
-		By("Creating new Hazelcast cluster from existing backup")
+		By("creating new Hazelcast cluster from existing backup")
 		baseDir += "/hot-backup/backup-" + seq
 		hazelcast = addNodeSelectorForName(hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels, params...), getFirstWorkerNodeName())
 
@@ -259,36 +227,25 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		}
 		setLabelAndCRName("hp-5")
 
-		By("Create cluster with external backup enabled")
+		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.ExternalBackup(hzLookupKey, true, labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 1)
 
-		By("Trigger backup")
+		By("triggering backup")
 		t := Now()
 		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
-
-		By("Wait for backup to finish")
-		hb := &hazelcastcomv1alpha1.HotBackup{}
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(hb.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hb.Status.Message)
-			return hb.Status.State
-		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+		assertHotBackupSuccess(hotBackup, 1*Minute)
 
 		seq := GetBackupSequence(t, hzLookupKey)
-
-		By("Remove cluster")
 		RemoveHazelcastCR(hazelcast)
 
 		timestamp, _ := strconv.ParseInt(seq, 10, 64)
 		bucketURI += fmt.Sprintf("?prefix=%s/%s/", hzLookupKey.Name,
 			unixMilli(timestamp).UTC().Format("2006-01-02-15-04-05")) // hazelcast/2022-06-02-21-57-49/
 
-		By("Create cluster from external backup")
+		By("creating cluster from external backup")
 		hazelcast = hazelcastconfig.ExternalRestore(hzLookupKey, true, labels, bucketURI, secretName)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 1)

@@ -10,7 +10,7 @@ import (
 )
 
 // Phase represents the current state of the cluster
-// +kubebuilder:validation:Enum=Running;Failed;Pending
+// +kubebuilder:validation:Enum=Running;Failed;Pending;Terminating
 type Phase string
 
 const (
@@ -20,6 +20,8 @@ const (
 	Failed Phase = "Failed"
 	// Pending phase is the state of starting the cluster when not all the members are started yet
 	Pending Phase = "Pending"
+	// Terminating phase is the state where deletion of cluster scoped resources and Hazelcast dependent resources happen
+	Terminating Phase = "Terminating"
 )
 
 // HazelcastSpec defines the desired state of Hazelcast
@@ -95,6 +97,9 @@ type HazelcastSpec struct {
 
 	// +optional
 	ScheduledExecutorServices []ScheduledExecutorServiceConfiguration `json:"scheduledExecutorServices,omitempty"`
+
+	// +optional
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 type ExecutorServiceConfiguration struct {
@@ -192,11 +197,15 @@ type BucketConfiguration struct {
 
 // UserCodeDeploymentConfig contains the configuration for User Code download operation
 type UserCodeDeploymentConfig struct {
+	// When true, allows user code deployment from clients.
+	// +optional
+	ClientEnabled bool `json:"clientEnabled,omitempty"`
+
 	// Jar files in the bucket will be put under CLASSPATH.
 	// +optional
 	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
 
-	// A string for triggering a rolling restart for re-downloading the user codes.
+	// A string for triggering a rolling restart for re-downloading the user code.
 	// +optional
 	TriggerSequence string `json:"triggerSequence,omitempty"`
 

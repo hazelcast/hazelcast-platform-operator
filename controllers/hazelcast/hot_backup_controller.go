@@ -30,16 +30,17 @@ type HotBackupReconciler struct {
 	Log       logr.Logger
 	scheduled sync.Map
 	cron      *cron.Cron
-
-	backup map[types.NamespacedName]struct{}
+	cancelMap map[types.NamespacedName]context.CancelFunc
+	backup    map[types.NamespacedName]struct{}
 }
 
 func NewHotBackupReconciler(c client.Client, log logr.Logger) *HotBackupReconciler {
 	return &HotBackupReconciler{
-		Client: c,
-		Log:    log,
-		cron:   cron.New(),
-		backup: make(map[types.NamespacedName]struct{}),
+		Client:    c,
+		Log:       log,
+		cron:      cron.New(),
+		cancelMap: make(map[types.NamespacedName]context.CancelFunc),
+		backup:    make(map[types.NamespacedName]struct{}),
 	}
 }
 
@@ -120,9 +121,11 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	}
 
 	logger.Info("Ready to start backup")
+	cancelCtx, cancelFunc := context.WithCancel(context.Background())
+	r.cancelMap[req.NamespacedName] = cancelFunc
 	if hb.Spec.Schedule != "" {
 		logger.Info("Adding backup to schedule")
-		r.scheduleBackup(context.Background(), hb.Spec.Schedule, req.NamespacedName, hazelcastName, logger)
+		r.scheduleBackup(cancelCtx, hb.Spec.Schedule, req.NamespacedName, hazelcastName, logger)
 	} else {
 		result, err = r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupPending))
 		if err != nil {
@@ -130,7 +133,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 		r.removeSchedule(req.NamespacedName, logger)
 		r.lockBackup(req.NamespacedName)
-		go r.startBackup(context.Background(), req.NamespacedName, hazelcastName, logger) //nolint:errcheck
+		go r.startBackup(cancelCtx, req.NamespacedName, hazelcastName, logger) //nolint:errcheck
 	}
 
 	return
@@ -173,6 +176,10 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 	key := types.NamespacedName{
 		Name:      hb.Name,
 		Namespace: hb.Namespace,
+	}
+	if cancelFunc, ok := r.cancelMap[key]; ok {
+		cancelFunc()
+		delete(r.cancelMap, key)
 	}
 	r.unlockBackup(key)
 	r.removeSchedule(key, logger)

@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -57,7 +59,9 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
 	}
-
+	if err := r.deleteDependentCRs(ctx, h, logger); err != nil {
+		return fmt.Errorf("Could not delete all dependent CRs: %w", err)
+	}
 	if err := r.removeClusterRole(ctx, h, logger); err != nil {
 		return fmt.Errorf("ClusterRole could not be removed: %w", err)
 	}
@@ -69,10 +73,93 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
-	if util.IsPhoneHomeEnabled() {
-		delete(r.metrics.HazelcastMetrics, h.UID)
-	}
 	hzclient.ShutdownClient(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+	return nil
+}
+
+func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	err := r.deleteDependentHotBackups(ctx, h, logger)
+	if err != nil {
+		return err
+	}
+	err = r.deleteDependentMaps(ctx, h, logger)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *HazelcastReconciler) deleteDependentHotBackups(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	hbl := &hazelcastv1alpha1.HotBackupList{}
+
+	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Could not get Hazelcast dependent HotBackup resources %w", err)
+	}
+
+	if len(hbl.Items) == 0 {
+		return nil
+	}
+
+	g, groupCtx := errgroup.WithContext(ctx)
+	for i := 0; i < len(hbl.Items); i++ {
+		i := i
+		g.Go(func() error {
+			return util.DeleteObject(groupCtx, r.Client, &hbl.Items[i])
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("Error deleting HotBackup resources %w", err)
+	}
+
+	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Hazelcast dependent HotBackup resources are not deleted yet %w", err)
+	}
+
+	if len(hbl.Items) != 0 {
+		return fmt.Errorf("Hazelcast dependent HotBackup resources are not deleted yet.")
+	}
+
+	return nil
+}
+
+func (r *HazelcastReconciler) deleteDependentMaps(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	ml := &hazelcastv1alpha1.MapList{}
+
+	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Could not get Hazelcast dependent Map resources %w", err)
+	}
+
+	if len(ml.Items) == 0 {
+		return nil
+	}
+
+	g, groupCtx := errgroup.WithContext(ctx)
+	for i := 0; i < len(ml.Items); i++ {
+		i := i
+		g.Go(func() error {
+			return util.DeleteObject(groupCtx, r.Client, &ml.Items[i])
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("Error deleting Map resources %w", err)
+	}
+
+	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Hazelcast dependent Map resources are not deleted yet %w", err)
+	}
+
+	if len(ml.Items) != 0 {
+		return fmt.Errorf("Hazelcast dependent Map resources are not deleted yet.")
+	}
+
 	return nil
 }
 
@@ -432,8 +519,11 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		return nil, err
 	}
 	ml := filterPersistedMaps(mapList.Items)
+	p := filterProperties(h.Spec.Properties)
 
 	cfg := hazelcastConfigMapStruct(h)
+
+	cfg.Properties = p
 
 	err = fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml)
 	if err != nil {
@@ -499,6 +589,12 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				},
 			},
 		},
+	}
+
+	if h.Spec.UserCodeDeployment != nil {
+		cfg.UserCodeDeployment = config.UserCodeDeployment{
+			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
+		}
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
@@ -594,7 +690,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
 			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
 		},
-		InMemoryFormat:    "BINARY",
+		InMemoryFormat:    string(ms.InMemoryFormat),
 		Indexes:           copyMapIndexes(ms.Indexes),
 		StatisticsEnabled: true,
 		HotRestart: config.MapHotRestart{
@@ -1353,4 +1449,14 @@ func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorS
 	esInput.Capacity = es.Capacity
 	esInput.CapacityPolicy = es.CapacityPolicy
 	esInput.Durability = es.Durability
+}
+
+func filterProperties(p map[string]string) map[string]string {
+	filteredProperties := map[string]string{}
+	for propertyKey, value := range p {
+		if _, ok := validation.BlackListProperties[propertyKey]; !ok {
+			filteredProperties[propertyKey] = value
+		}
+	}
+	return filteredProperties
 }

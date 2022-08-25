@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -20,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
@@ -236,7 +238,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			Delete(hz)
 
-			By("Expecting to ClusterRole and ClusterRoleBinding removed via finalizer")
+			By("expecting to ClusterRole and ClusterRoleBinding removed via finalizer")
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRole{})
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRoleBinding{})
 
@@ -471,6 +473,38 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
+	Context("Hazelcast CustomResource with properties", func() {
+		It("should pass the values to ConfigMap", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			sampleProperties := map[string]string{
+				"hazelcast.slow.operation.detector.threshold.millis":           "4000",
+				"hazelcast.slow.operation.detector.stacktrace.logging.enabled": "true",
+				"hazelcast.query.optimizer.type":                               "NONE",
+			}
+			spec.Properties = sampleProperties
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Create(hz)
+			_ = EnsureStatus(hz)
+
+			Eventually(func() map[string]string {
+				cfg := getConfigMap(hz)
+				a := &config.HazelcastWrapper{}
+
+				if err := yaml.Unmarshal([]byte(cfg.Data["hazelcast.yaml"]), a); err != nil {
+					return nil
+				}
+
+				return a.Hazelcast.Properties
+			}, timeout, interval).Should(Equal(sampleProperties))
+
+			Delete(hz)
+		})
+	})
+
 	Context("Hazelcast license validation", func() {
 		When("EE repository is used", func() {
 			It("should raise error if no license key secret is provided", Label("fast"), func() {
@@ -646,7 +680,7 @@ var _ = Describe("Hazelcast controller", func() {
 				fetchedCR := EnsureStatus(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
 
-				By("Checking the Persistence CR configuration", func() {
+				By("checking the Persistence CR configuration", func() {
 					Expect(fetchedCR.Spec.Persistence.BaseDir).Should(Equal("/data/hot-restart/"))
 					Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
 						Should(Equal(hazelcastv1alpha1.FullRecovery))

@@ -94,6 +94,14 @@ spec:
                   resource. It cannot be updated after map config is created successfully.
                 minLength: 1
                 type: string
+              inMemoryFormat:
+                default: BINARY
+                description: InMemoryFormat specifies in which format data will be
+                  stored in your map
+                enum:
+                - BINARY
+                - OBJECT
+                type: string
               indexes:
                 description: Indexes to be created for the map data. You can learn
                   more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.
@@ -206,11 +214,23 @@ spec:
             properties:
               memberStatuses:
                 additionalProperties:
+                  enum:
+                  - Success
+                  - Failed
+                  - Pending
+                  - Persisting
+                  - Terminating
                   type: string
                 type: object
               message:
                 type: string
               state:
+                enum:
+                - Success
+                - Failed
+                - Pending
+                - Persisting
+                - Terminating
                 type: string
             type: object
         required:

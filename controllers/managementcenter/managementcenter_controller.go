@@ -16,7 +16,6 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -25,17 +24,17 @@ const retryAfter = 10 * time.Second
 // ManagementCenterReconciler reconciles a ManagementCenter object
 type ManagementCenterReconciler struct {
 	client.Client
-	Log     logr.Logger
-	Scheme  *runtime.Scheme
-	metrics *phonehome.Metrics
+	Log              logr.Logger
+	Scheme           *runtime.Scheme
+	phoneHomeTrigger chan struct{}
 }
 
-func NewManagementCenterReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, m *phonehome.Metrics) *ManagementCenterReconciler {
+func NewManagementCenterReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *ManagementCenterReconciler {
 	return &ManagementCenterReconciler{
-		Client:  c,
-		Log:     log,
-		Scheme:  s,
-		metrics: m,
+		Client:           c,
+		Log:              log,
+		Scheme:           s,
+		phoneHomeTrigger: pht,
 	}
 }
 
@@ -77,13 +76,6 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	if util.IsPhoneHomeEnabled() {
-		if _, ok := r.metrics.MCMetrics[mc.UID]; !ok {
-			r.metrics.MCMetrics[mc.UID] = &phonehome.MCMetrics{}
-		}
-		r.metrics.MCMetrics[mc.UID].FillInitial(mc)
-	}
-
 	err = r.reconcileRole(ctx, mc, logger)
 	if err != nil {
 		return update(ctx, r.Client, mc, failedPhase(err))
@@ -122,11 +114,8 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 
-	if util.IsPhoneHomeEnabled() {
-		firstDeployment := r.metrics.MCMetrics[mc.UID].FillAfterDeployment(mc)
-		if firstDeployment {
-			phonehome.CallPhoneHome(r.metrics)
-		}
+	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(mc) {
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, mc, logger)

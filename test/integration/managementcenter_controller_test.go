@@ -103,7 +103,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			}
 			Expect(fetchedCR.Spec.Persistence).Should(Equal(expectedPersistence))
 
-			By("Creating the sub resources successfully")
+			By("creating the sub resources successfully")
 			expectedOwnerReference := metav1.OwnerReference{
 				Kind:               "ManagementCenter",
 				APIVersion:         "hazelcast.com/v1alpha1",
@@ -424,19 +424,19 @@ var _ = Describe("ManagementCenter controller", func() {
 				Expect(k8sClient.Update(context.Background(), mc)).Should(Succeed())
 				ss := getStatefulSet(mc)
 
-				By("Checking if StatefulSet Image is updated")
+				By("checking if StatefulSet Image is updated")
 				Eventually(func() string {
 					ss = getStatefulSet(mc)
 					return ss.Spec.Template.Spec.Containers[0].Image
 				}, timeout, interval).Should(Equal(fmt.Sprintf("%s:%s", secondSpec.Repository, secondSpec.Version)))
 
-				By("Checking if StatefulSet ImagePullPolicy is updated")
+				By("checking if StatefulSet ImagePullPolicy is updated")
 				Expect(ss.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(secondSpec.ImagePullPolicy))
 
-				By("Checking if StatefulSet ImagePullSecrets is updated")
+				By("checking if StatefulSet ImagePullSecrets is updated")
 				Expect(ss.Spec.Template.Spec.ImagePullSecrets).To(Equal(secondSpec.ImagePullSecrets))
 
-				By("Checking if StatefulSet HazelcastClusters is updated")
+				By("checking if StatefulSet HazelcastClusters is updated")
 				hzcl := mc.Spec.HazelcastClusters
 				el := ss.Spec.Template.Spec.Containers[0].Env
 				for _, env := range el {
@@ -447,20 +447,20 @@ var _ = Describe("ManagementCenter controller", func() {
 						}
 					}
 				}
-				By("Checking if StatefulSet LicenseKeySecret is updated")
+				By("checking if StatefulSet LicenseKeySecret is updated")
 				for _, env := range el {
 					if env.Name == "MC_LICENSEKEY" {
 						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.LicenseKeySecret))
 					}
 				}
 
-				By("Checking if StatefulSet Scheduling is updated")
+				By("checking if StatefulSet Scheduling is updated")
 				Expect(*ss.Spec.Template.Spec.Affinity).To(Equal(*secondSpec.Scheduling.Affinity))
 				Expect(ss.Spec.Template.Spec.NodeSelector).To(Equal(secondSpec.Scheduling.NodeSelector))
 				Expect(ss.Spec.Template.Spec.Tolerations).To(Equal(secondSpec.Scheduling.Tolerations))
 				Expect(ss.Spec.Template.Spec.TopologySpreadConstraints).To(Equal(secondSpec.Scheduling.TopologySpreadConstraints))
 
-				By("Checking if StatefulSet Resources is updated")
+				By("checking if StatefulSet Resources is updated")
 				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
 
 				Delete(mc)

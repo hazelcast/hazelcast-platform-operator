@@ -58,6 +58,11 @@ type MapSpec struct {
 	// from/to a persistent data store such as a relational database
 	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/data-structures/working-with-external-data
 	MapStore *MapStoreConfig `json:"mapStore,omitempty"`
+
+	// InMemoryFormat specifies in which format data will be stored in your map
+	// +kubebuilder:default:=BINARY
+	// +optional
+	InMemoryFormat InMemoryFormatType `json:"inMemoryFormat,omitempty"`
 }
 
 type EvictionConfig struct {
@@ -184,6 +189,7 @@ type MapStatus struct {
 	MemberStatuses map[string]MapConfigState `json:"memberStatuses,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=Success;Failed;Pending;Persisting;Terminating
 type MapConfigState string
 
 const (
@@ -191,7 +197,8 @@ const (
 	MapSuccess MapConfigState = "Success"
 	MapPending MapConfigState = "Pending"
 	// Map config is added into all members but waiting for map to be persisten into ConfigMap
-	MapPersisting MapConfigState = "Persisting"
+	MapPersisting  MapConfigState = "Persisting"
+	MapTerminating MapConfigState = "Terminating"
 )
 
 type MapStoreConfig struct {
@@ -234,6 +241,22 @@ const (
 	InitialModeLazy InitialModeType = "LAZY"
 	// Loading is blocked until all partitions are loaded.
 	InitialModeEager InitialModeType = "EAGER"
+)
+
+// InMemoryFormatType represents the format options for storing the data in the map.
+// For now, we are not exposing NATIVE format type since currently there is no support for High-Density Memory Store feature in the operator.
+// +kubebuilder:validation:Enum=BINARY;OBJECT
+type InMemoryFormatType string
+
+const (
+	// InMemoryFormatBinary Data will be stored in serialized binary format.
+	InMemoryFormatBinary InMemoryFormatType = "BINARY"
+
+	// InMemoryFormatObject Data will be stored in deserialized form.
+	InMemoryFormatObject InMemoryFormatType = "OBJECT"
+
+	// InMemoryFormatNative Data will be stored in the map that uses Hazelcast's High-Density Memory Store feature.
+	InMemoryFormatNative InMemoryFormatType = "NATIVE"
 )
 
 //+kubebuilder:object:root=true
@@ -301,5 +324,11 @@ var (
 		UniqueKeyTransitionObject: 0,
 		UniqueKeyTransitionLong:   1,
 		UniqueKeyTransitionRAW:    2,
+	}
+
+	EncodeInMemoryFormat = map[InMemoryFormatType]int32{
+		InMemoryFormatBinary: 0,
+		InMemoryFormatObject: 1,
+		InMemoryFormatNative: 2,
 	}
 )

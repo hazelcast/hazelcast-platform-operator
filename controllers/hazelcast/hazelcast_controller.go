@@ -23,7 +23,6 @@ import (
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -36,16 +35,16 @@ type HazelcastReconciler struct {
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
 	triggerReconcileChan chan event.GenericEvent
-	metrics              *phonehome.Metrics
+	phoneHomeTrigger     chan struct{}
 }
 
-func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, m *phonehome.Metrics) *HazelcastReconciler {
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *HazelcastReconciler {
 	return &HazelcastReconciler{
 		Client:               c,
 		Log:                  log,
 		Scheme:               s,
 		triggerReconcileChan: make(chan event.GenericEvent),
-		metrics:              m,
+		phoneHomeTrigger:     pht,
 	}
 }
 
@@ -88,19 +87,13 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Check if the Hazelcast CR is marked to be deleted
 	if h.GetDeletionTimestamp() != nil {
 		// Execute finalizer's pre-delete function to cleanup ClusterRole
+		update(ctx, r.Client, h, terminatingPhase(nil)) //nolint:errcheck
 		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
-			return update(ctx, r.Client, h, failedPhase(err))
+			return update(ctx, r.Client, h, terminatingPhase(err).withMessage(err.Error()))
 		}
 		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
-	}
-
-	if util.IsPhoneHomeEnabled() {
-		if _, ok := r.metrics.HazelcastMetrics[h.UID]; !ok {
-			r.metrics.HazelcastMetrics[h.UID] = &phonehome.HazelcastMetrics{}
-		}
-		r.metrics.HazelcastMetrics[h.UID].FillInitial(h)
 	}
 
 	err = validation.ValidateSpec(h)
@@ -189,19 +182,16 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	hzclient.CreateClient(ctx, h, r.triggerReconcileChan, r.Log)
 
-	if util.IsPhoneHomeEnabled() {
-		firstDeployment := r.metrics.HazelcastMetrics[h.UID].FillAfterDeployment(h)
-		if firstDeployment {
-			phonehome.CallPhoneHome(r.metrics)
-		}
-	}
-
 	if newExecutorServices != nil {
 		hzClient, ok := hzclient.GetClient(req.NamespacedName)
 		if !(ok && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
 			return update(ctx, r.Client, h, pendingPhase(retryAfter))
 		}
 		r.addExecutorServices(ctx, hzClient.Client, newExecutorServices)
+	}
+
+	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(h) {
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, h, logger)
@@ -298,6 +288,12 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.Map{}, "hazelcastResourceName", func(rawObj client.Object) []string {
 		m := rawObj.(*hazelcastv1alpha1.Map)
 		return []string{m.Spec.HazelcastResourceName}
+	}); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.HotBackup{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		hb := rawObj.(*hazelcastv1alpha1.HotBackup)
+		return []string{hb.Spec.HazelcastResourceName}
 	}); err != nil {
 		return err
 	}

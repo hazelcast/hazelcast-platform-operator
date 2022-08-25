@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"github.com/onsi/gomega/matchers"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -312,6 +313,63 @@ func TestHotBackupReconciler_shouldSetStatusToFailedIfHazelcastCRNotFound(t *tes
 	Expect(hb.Status.Message).Should(Not(BeEmpty()))
 }
 
+func TestHotBackupReconciler_shouldCancelContextIfHazelcastCRIsDeleted(t *testing.T) {
+	RegisterFailHandler(fail(t))
+	n := types.NamespacedName{
+		Name:      "hazelcast",
+		Namespace: "default",
+	}
+	h := &hazelcastv1alpha1.Hazelcast{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+		},
+		Status: hazelcastv1alpha1.HazelcastStatus{Phase: hazelcastv1alpha1.Running},
+	}
+	hb := &hazelcastv1alpha1.HotBackup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+		},
+		Spec: hazelcastv1alpha1.HotBackupSpec{
+			HazelcastResourceName: "hazelcast",
+			Schedule:              "59 59 23 31 12 ? 2099",
+		},
+	}
+	ts, err := fakeHttpServer(hzconfig.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(200)
+		_, _ = writer.Write([]byte("{\"status\":\"success\"}"))
+	})
+	if err != nil {
+		t.Errorf("Failed to start fake HTTP server: %v", err)
+	}
+	defer ts.Close()
+
+	r := hotBackupReconcilerWithCRs(h, hb)
+
+	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
+	if err != nil {
+		t.Errorf("Error executing Reconcile: %v", err)
+	}
+
+	Expect(r.Client.Get(context.TODO(), n, hb)).Should(Succeed())
+	Expect(r.cancelMap).Should(&matchers.HaveLenMatcher{Count: 1})
+
+	timeNow := metav1.Now()
+	hb.ObjectMeta.DeletionTimestamp = &timeNow
+	err = r.Client.Update(context.TODO(), hb)
+	if err != nil {
+		t.Errorf("Error on update hotbackup: %v", err)
+	}
+
+	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
+	if err != nil {
+		t.Errorf("Error executing Reconcile: %v", err)
+	}
+
+	Expect(r.cancelMap).Should(&matchers.HaveLenMatcher{Count: 0})
+}
+
 func fail(t *testing.T) func(message string, callerSkip ...int) {
 	return func(message string, callerSkip ...int) {
 		t.Errorf(message)
@@ -320,9 +378,10 @@ func fail(t *testing.T) func(message string, callerSkip ...int) {
 
 func hotBackupReconcilerWithCRs(initObjs ...client.Object) HotBackupReconciler {
 	return HotBackupReconciler{
-		Client: fakeClient(initObjs...),
-		Log:    ctrl.Log.WithName("test").WithName("Hazelcast"),
-		cron:   cron.New(),
-		backup: make(map[types.NamespacedName]struct{}),
+		Client:    fakeClient(initObjs...),
+		Log:       ctrl.Log.WithName("test").WithName("Hazelcast"),
+		cron:      cron.New(),
+		cancelMap: make(map[types.NamespacedName]context.CancelFunc),
+		backup:    make(map[types.NamespacedName]struct{}),
 	}
 }

@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
@@ -24,7 +25,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-platform-controller-manager running", func() {
+		By("checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
@@ -116,4 +117,39 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		})
 	})
 
+	Describe("Hazelcast CR dependent CRs", func() {
+		When("Hazelcast CR is deleted", func() {
+			It("dependent Map, WanReplication and HotBackup CRs should be deleted", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				setLabelAndCRName("h-6")
+				hz := hazelcastconfig.PersistenceEnabled(hzLookupKey, "/data/hot-backup", labels)
+				CreateHazelcastCR(hz)
+				evaluateReadyMembers(hzLookupKey, 3)
+
+				m := hazelcastconfig.DefaultMap(mapLookupKey, hz.Name, labels)
+				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+				assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+				hb := hazelcastconfig.HotBackup(hbLookupKey, hz.Name, labels)
+				Expect(k8sClient.Create(context.Background(), hb)).Should(Succeed())
+				assertHotBackupSuccess(hb, 1*Minute)
+
+				wr := hazelcastconfig.DefaultWanReplication(wanLookupKey, m.Name, "target", "endpoints", labels)
+				Expect(k8sClient.Create(context.Background(), wr)).Should(Succeed())
+
+				DeleteAllOf(hz, &hazelcastcomv1alpha1.HazelcastList{}, hz.Namespace, labels)
+
+				err := k8sClient.Get(context.Background(), wanLookupKey, wr)
+				Expect(errors.IsNotFound(err)).To(BeTrue())
+
+				err = k8sClient.Get(context.Background(), mapLookupKey, m)
+				Expect(errors.IsNotFound(err)).To(BeTrue())
+
+				err = k8sClient.Get(context.Background(), hbLookupKey, hb)
+				Expect(errors.IsNotFound(err)).To(BeTrue())
+			})
+		})
+	})
 })

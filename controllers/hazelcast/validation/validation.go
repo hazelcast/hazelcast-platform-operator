@@ -7,6 +7,11 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
+var BlackListProperties = map[string]struct{}{
+	// TODO: Add properties which should not be exposed.
+	"": {},
+}
+
 func ValidateSpec(h *hazelcastv1alpha1.Hazelcast) error {
 	if err := validateExposeExternally(h); err != nil {
 		return err
@@ -35,13 +40,6 @@ func validateExposeExternally(h *hazelcastv1alpha1.Hazelcast) error {
 func validateLicense(h *hazelcastv1alpha1.Hazelcast) error {
 	if util.IsEnterprise(h.Spec.Repository) && len(h.Spec.LicenseKeySecret) == 0 {
 		return errors.New("when Hazelcast Enterprise is deployed, licenseKeySecret must be set")
-	}
-	return nil
-}
-
-func ValidateHotBackupSpec(hb *hazelcastv1alpha1.HotBackup) error {
-	if hb.Spec.Secret == "" {
-		return errors.New("when using external Backup, Secret must be set")
 	}
 	return nil
 }

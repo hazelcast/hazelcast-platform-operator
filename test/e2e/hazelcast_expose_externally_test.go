@@ -21,7 +21,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		if runningLocally() {
 			return
 		}
-		By("Checking hazelcast-platform-controller-manager running", func() {
+		By("checking hazelcast-platform-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
@@ -51,33 +51,26 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 
 	It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", Label("slow"), func() {
 		setLabelAndCRName("hee-1")
-		assertUseHazelcastUnisocket := func() {
-			FillTheMapData(ctx, hzLookupKey, true, "map", 100)
-		}
 		hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
-		assertUseHazelcastUnisocket()
+		FillTheMapData(ctx, hzLookupKey, true, "map", 100)
+		WaitForMapSize(ctx, hzLookupKey, "map", 100)
 		assertExternalAddressesNotEmpty()
 	})
 
 	It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("slow"), func() {
 		setLabelAndCRName("hee-2")
-		assertUseHazelcastSmart := func() {
-			FillTheMapData(ctx, hzLookupKey, false, "map", 100)
-		}
 		hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
-		assertUseHazelcastSmart()
-		assertExternalAddressesNotEmpty()
+		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
+		WaitForMapSize(ctx, hzLookupKey, "map", 100)
 	})
 
 	It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("slow"), func() {
 		setLabelAndCRName("hee-3")
-		assertUseHazelcastSmart := func() {
-			FillTheMapData(ctx, hzLookupKey, false, "map", 100)
-		}
 		hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
-		assertUseHazelcastSmart()
+		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
+		WaitForMapSize(ctx, hzLookupKey, "map", 100)
 	})
 })

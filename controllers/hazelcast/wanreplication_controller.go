@@ -90,7 +90,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	if !isApplied(wan) {
+	if !util.IsApplied(wan) {
 		if err := r.Update(ctx, insertLastAppliedSpec(wan)); err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		} else {
@@ -116,7 +116,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if !isSuccessfullyApplied(wan) {
+	if !util.IsSuccessfullyApplied(wan) {
 		if err := r.Update(ctx, insertLastSuccessfullyAppliedSpec(wan)); err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		}
@@ -308,16 +308,6 @@ func convertQueueBehavior(behavior hazelcastcomv1alpha1.FullBehaviorSetting) int
 	default:
 		return -1
 	}
-}
-
-func isApplied(wan *hazelcastcomv1alpha1.WanReplication) bool {
-	_, ok := wan.Annotations[n.LastAppliedSpecAnnotation]
-	return ok
-}
-
-func isSuccessfullyApplied(wan *hazelcastcomv1alpha1.WanReplication) bool {
-	_, ok := wan.Annotations[n.LastSuccessfulSpecAnnotation]
-	return ok
 }
 
 func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication) *hazelcastcomv1alpha1.WanReplication {

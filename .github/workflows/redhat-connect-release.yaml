@@ -175,7 +175,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && needs.redhat_bundle_release.result != 'success' 
     steps:
-      - uses: 8398a7/action-slack@f3635935f58910a6d6951b73efe9037c960c8c04
+      - uses: 8398a7/action-slack@547417cbfcd5c7deaa7e6e2b75685c686f80bec5
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure

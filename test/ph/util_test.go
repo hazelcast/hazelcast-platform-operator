@@ -67,12 +67,14 @@ func GetClientSet() *kubernetes.Clientset {
 }
 func getOperatorId() string {
 	var uid string
-	operatorUid, _ := GetClientSet().AppsV1().Deployments(hzNamespace).List(context.Background(), metav1.ListOptions{})
-	for _, item := range operatorUid.Items {
-		if item.Name == GetControllerManagerName() {
-			uid = string(item.UID)
+	By("getting operatorId", func() {
+		operatorUid, _ := GetClientSet().AppsV1().Deployments(hzNamespace).List(context.Background(), metav1.ListOptions{})
+		for _, item := range operatorUid.Items {
+			if item.Name == GetControllerManagerName() {
+				uid = string(item.UID)
+			}
 		}
-	}
+	})
 	return uid
 }
 
@@ -93,23 +95,24 @@ func query(ctx context.Context, client *bigquery.Client) (*bigquery.RowIterator,
 }
 
 func getBigQueryTable() OperatorPhoneHome {
-
-	ctx := context.Background()
-	bigQueryclient, err := bigquery.NewClient(ctx, googleCloudProjectName())
-	if err != nil {
-		log.Fatalf("bigquery.NewClient: %v", err)
-	}
-	defer bigQueryclient.Close()
-
-	rows, err := query(ctx, bigQueryclient)
-	if err != nil {
-		log.Fatal(err)
-	}
 	var row OperatorPhoneHome
-	iterErr := rows.Next(&row)
-	if iterErr == iterator.Done {
-		log.Fatalf("No more items in iterator: %v", iterErr)
-	}
+	By("getting BigQuery table", func() {
+		ctx := context.Background()
+		bigQueryclient, err := bigquery.NewClient(ctx, googleCloudProjectName())
+		if err != nil {
+			log.Fatalf("bigquery.NewClient: %v", err)
+		}
+		defer bigQueryclient.Close()
+
+		rows, err := query(ctx, bigQueryclient)
+		if err != nil {
+			log.Fatal(err)
+		}
+		iterErr := rows.Next(&row)
+		if iterErr == iterator.Done {
+			log.Fatalf("No more items in iterator: %v", iterErr)
+		}
+	})
 	return row
 
 }
@@ -218,12 +221,14 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 }
 
 func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
-	hz := &hazelcastcomv1alpha1.Hazelcast{}
-	Eventually(func() string {
-		err := k8sClient.Get(context.Background(), lookupKey, hz)
-		Expect(err).ToNot(HaveOccurred())
-		return hz.Status.Cluster.ReadyMembers
-	}, 3*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
+	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
+		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		Eventually(func() string {
+			err := k8sClient.Get(context.Background(), lookupKey, hz)
+			Expect(err).ToNot(HaveOccurred())
+			return hz.Status.Cluster.ReadyMembers
+		}, 3*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
+	})
 }
 
 func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
@@ -246,11 +251,11 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 }
 
 func CreateMC(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
-	By("Creating ManagementCenter CR", func() {
+	By("creating ManagementCenter CR", func() {
 		Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
 	})
 
-	By("Checking ManagementCenter CR running", func() {
+	By("checking ManagementCenter CR running", func() {
 		mc := &hazelcastcomv1alpha1.ManagementCenter{}
 		Eventually(func() bool {
 			err := k8sClient.Get(context.Background(), mcLookupKey, mc)

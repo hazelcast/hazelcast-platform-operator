@@ -5,8 +5,6 @@ import (
 	"os"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 
@@ -95,16 +93,17 @@ func main() {
 	}
 
 	var metrics *phonehome.Metrics
+	var phoneHomeTrigger chan struct{}
 	if util.IsPhoneHomeEnabled() {
+		phoneHomeTrigger = make(chan struct{}, 10)
 		metrics = &phonehome.Metrics{
-			UID:              util.GetOperatorID(cfg),
-			CreatedAt:        time.Now(),
-			HazelcastMetrics: make(map[types.UID]*phonehome.HazelcastMetrics),
-			MCMetrics:        make(map[types.UID]*phonehome.MCMetrics),
-			PardotID:         util.GetPardotID(),
-			Version:          util.GetOperatorVersion(),
-			K8sDistibution:   platform.GetDistribution(),
-			K8sVersion:       platform.GetVersion(),
+			UID:            util.GetOperatorID(cfg),
+			CreatedAt:      time.Now(),
+			PardotID:       util.GetPardotID(),
+			Version:        util.GetOperatorVersion(),
+			K8sDistibution: platform.GetDistribution(),
+			K8sVersion:     platform.GetVersion(),
+			Trigger:        phoneHomeTrigger,
 		}
 	}
 
@@ -112,7 +111,7 @@ func main() {
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
 		mgr.GetScheme(),
-		metrics,
+		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Hazelcast")
 		os.Exit(1)
@@ -122,7 +121,7 @@ func main() {
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Management Center"),
 		mgr.GetScheme(),
-		metrics,
+		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ManagementCenter")
 		os.Exit(1)
@@ -161,7 +160,7 @@ func main() {
 	}
 
 	if util.IsPhoneHomeEnabled() {
-		phonehome.Start(metrics)
+		phonehome.Start(mgr.GetClient(), metrics)
 	}
 
 	setupLog.Info("starting manager")

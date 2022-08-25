@@ -257,6 +257,10 @@ spec:
                 required:
                 - baseDir
                 type: object
+              properties:
+                additionalProperties:
+                  type: string
+                type: object
               repository:
                 default: docker.io/hazelcast/hazelcast
                 description: Repository to pull the Hazelcast Platform image from.
@@ -1106,6 +1110,9 @@ spec:
                     - bucketURI
                     - secret
                     type: object
+                  clientEnabled:
+                    description: When true, allows user code deployment from clients.
+                    type: boolean
                   configMaps:
                     description: Files in the ConfigMaps will be put under CLASSPATH.
                     items:
@@ -1113,7 +1120,7 @@ spec:
                     type: array
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading
-                      the user codes.
+                      the user code.
                     type: string
                 type: object
               version:
@@ -1205,6 +1212,7 @@ spec:
                 - Running
                 - Failed
                 - Pending
+                - Terminating
                 type: string
               restore:
                 description: Status of restore process of the Hazelcast cluster

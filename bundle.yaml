@@ -255,6 +255,10 @@ spec:
                 required:
                 - baseDir
                 type: object
+              properties:
+                additionalProperties:
+                  type: string
+                type: object
               repository:
                 default: docker.io/hazelcast/hazelcast
                 description: Repository to pull the Hazelcast Platform image from.
@@ -1104,6 +1108,9 @@ spec:
                     - bucketURI
                     - secret
                     type: object
+                  clientEnabled:
+                    description: When true, allows user code deployment from clients.
+                    type: boolean
                   configMaps:
                     description: Files in the ConfigMaps will be put under CLASSPATH.
                     items:
@@ -1111,7 +1118,7 @@ spec:
                     type: array
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading
-                      the user codes.
+                      the user code.
                     type: string
                 type: object
               version:
@@ -1203,6 +1210,7 @@ spec:
                 - Running
                 - Failed
                 - Pending
+                - Terminating
                 type: string
               restore:
                 description: Status of restore process of the Hazelcast cluster
@@ -2296,6 +2304,7 @@ spec:
                 - Running
                 - Failed
                 - Pending
+                - Terminating
                 type: string
             type: object
         type: object
@@ -2403,6 +2412,14 @@ spec:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource. It cannot be updated after map config is created successfully.
                 minLength: 1
+                type: string
+              inMemoryFormat:
+                default: BINARY
+                description: InMemoryFormat specifies in which format data will be
+                  stored in your map
+                enum:
+                - BINARY
+                - OBJECT
                 type: string
               indexes:
                 description: Indexes to be created for the map data. You can learn
@@ -2516,11 +2533,23 @@ spec:
             properties:
               memberStatuses:
                 additionalProperties:
+                  enum:
+                  - Success
+                  - Failed
+                  - Pending
+                  - Persisting
+                  - Terminating
                   type: string
                 type: object
               message:
                 type: string
               state:
+                enum:
+                - Success
+                - Failed
+                - Pending
+                - Persisting
+                - Terminating
                 type: string
             type: object
         required:

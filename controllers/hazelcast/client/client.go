@@ -62,6 +62,7 @@ func (cl *Client) AreAllMembersAccessible() bool {
 }
 
 type Status struct {
+	sync.Mutex
 	MemberMap               map[hztypes.UUID]*MemberData
 	ClusterHotRestartStatus ClusterHotRestartStatus
 }
@@ -196,15 +197,18 @@ func (c *Client) shutdown(ctx context.Context) {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.Client == nil {
-		return
-	}
-	if err := c.Client.Shutdown(ctx); err != nil {
-		c.Log.Error(err, "Problem occurred while shutting down the client connection")
-	}
 	if c.statusTicker != nil {
 		c.statusTicker.stop()
 	}
+
+	if c.Client == nil {
+		return
+	}
+
+	if err := c.Client.Shutdown(ctx); err != nil {
+		c.Log.Error(err, "Problem occurred while shutting down the client connection")
+	}
+
 }
 
 func (c *Client) triggerReconcile() {
@@ -250,10 +254,10 @@ func (c *Client) UpdateMembers(ctx context.Context) {
 		}
 	}
 
-	c.Lock()
+	c.Status.Lock()
 	c.Status.MemberMap = activeMembers
 	c.Status.ClusterHotRestartStatus = *newClusterHotRestartStatus
-	c.Unlock()
+	c.Status.Unlock()
 }
 
 func fetchTimedMemberState(ctx context.Context, client *hazelcast.Client, uuid hztypes.UUID) (string, error) {
