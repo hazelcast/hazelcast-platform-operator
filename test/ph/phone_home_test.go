@@ -78,6 +78,8 @@ var _ = Describe("Hazelcast", func() {
 				hzCreationTime := time.Now().UTC().Truncate(time.Hour)
 				evaluateReadyMembers(hzLookupKey, 3)
 				assertAnnotationExists(cfg)
+				time.Sleep(35 * time.Second)
+
 				bigQueryTable := getBigQueryTable()
 				Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
 				Expect(bigQueryTable.PingTime.Truncate(time.Hour)).Should(BeTemporally("~", hzCreationTime), "Ping time should be near to current date")
@@ -123,6 +125,8 @@ var _ = Describe("Hazelcast", func() {
 			CreateMC(mc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
 			assertAnnotationExists(mc)
+			time.Sleep(35 * time.Second)
+
 			bigQueryTable := getBigQueryTable()
 			Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
 			Expect(bigQueryTable.PingTime.Truncate(time.Hour)).Should(BeTemporally("~", mcCreationTime), "Ping time should be near to current date")
