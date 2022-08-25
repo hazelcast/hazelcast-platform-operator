@@ -27,14 +27,17 @@ import (
 type WanReplicationReconciler struct {
 	client.Client
 	logr.Logger
-	Scheme *runtime.Scheme
+	Scheme           *runtime.Scheme
+	phoneHomeTrigger chan struct{}
 }
 
-func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme) *WanReplicationReconciler {
+func NewWanReplicationReconciler(
+	client client.Client, log logr.Logger, scheme *runtime.Scheme, pht chan struct{}) *WanReplicationReconciler {
 	return &WanReplicationReconciler{
-		Client: client,
-		Logger: log,
-		Scheme: scheme,
+		Client:           client,
+		Logger:           log,
+		Scheme:           scheme,
+		phoneHomeTrigger: pht,
 	}
 }
 
@@ -117,6 +120,9 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if !util.IsSuccessfullyApplied(wan) {
+		if util.IsPhoneHomeEnabled() {
+			go func() { r.phoneHomeTrigger <- struct{}{} }()
+		}
 		if err := r.Update(ctx, insertLastSuccessfullyAppliedSpec(wan)); err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		}
