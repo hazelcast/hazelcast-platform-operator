@@ -3,9 +3,10 @@ kind: Hazelcast
 metadata:
   name: hazelcast
 spec:
-  customClass:
-    secret: br-secret-gcp
-    bucketURI: "gs://operator-custom-class/executorService"
+  userCodeDeployment:
+    bucketConfig:
+      secret: br-secret-gcp
+      bucketURI: "gs://operator-custom-class/executorService"
   executorServices:
     - name: service1
   durableExecutorServices:

@@ -70,20 +70,22 @@ func PhoneHome(cl client.Client, m *Metrics) {
 }
 
 type PhoneHomeData struct {
-	OperatorID                    types.UID        `json:"oid"`
-	PardotID                      string           `json:"p"`
-	Version                       string           `json:"v"`
-	Uptime                        int64            `json:"u"` // In milliseconds
-	K8sDistibution                string           `json:"kd"`
-	K8sVersion                    string           `json:"kv"`
-	CreatedClusterCount           int              `json:"ccc"`
-	CreatedEnterpriseClusterCount int              `json:"cecc"`
-	CreatedMCcount                int              `json:"cmcc"`
-	CreatedMemberCount            int              `json:"cmc"`
-	ExposeExternally              ExposeExternally `json:"xe"`
-	Map                           Map              `json:"m"`
-	WanReplicationCount           int              `json:"wrc"`
-	BackupAndRestore              BackupAndRestore `json:"br"`
+	OperatorID                    types.UID          `json:"oid"`
+	PardotID                      string             `json:"p"`
+	Version                       string             `json:"v"`
+	Uptime                        int64              `json:"u"` // In milliseconds
+	K8sDistibution                string             `json:"kd"`
+	K8sVersion                    string             `json:"kv"`
+	CreatedClusterCount           int                `json:"ccc"`
+	CreatedEnterpriseClusterCount int                `json:"cecc"`
+	CreatedMCcount                int                `json:"cmcc"`
+	CreatedMemberCount            int                `json:"cmc"`
+	ExposeExternally              ExposeExternally   `json:"xe"`
+	Map                           Map                `json:"m"`
+	WanReplicationCount           int                `json:"wrc"`
+	BackupAndRestore              BackupAndRestore   `json:"br"`
+	UserCodeDeployment            UserCodeDeployment `json:"ucd"`
+	ExecutorServiceCount          int                `json:"esc"`
 }
 
 type ExposeExternally struct {
@@ -113,6 +115,12 @@ type BackupAndRestore struct {
 	AzureBlobStorage    int `json:"abs"`
 }
 
+type UserCodeDeployment struct {
+	ClientEnabled int `json:"ce"`
+	FromBucket    int `json:"fb"`
+	FromConfigMap int `json:"fcm"`
+}
+
 func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:     m.UID,
@@ -140,6 +148,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client) {
 	createdEnterpriseClusterCount := 0
 	createdClusterCount := 0
 	createdMemberCount := 0
+	executorServiceCount := 0
 
 	hzl := &hazelcastv1alpha1.HazelcastList{}
 	err := cl.List(context.Background(), hzl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
@@ -156,11 +165,14 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client) {
 
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
+		phm.UserCodeDeployment.addUsageMetrics(hz.Spec.UserCodeDeployment)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
+		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 	}
 	phm.CreatedClusterCount = createdClusterCount
 	phm.CreatedEnterpriseClusterCount = createdEnterpriseClusterCount
 	phm.CreatedMemberCount = createdMemberCount
+	phm.ExecutorServiceCount = executorServiceCount
 }
 
 func (xe *ExposeExternally) addUsageMetrics(e *hazelcastv1alpha1.ExposeExternallyConfiguration) {
@@ -207,6 +219,18 @@ func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersis
 	}
 	if p.IsRestoreEnabled() {
 		br.RestoreEnabledCount += 1
+	}
+}
+
+func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeDeploymentConfig) {
+	if hucd.ClientEnabled {
+		ucd.ClientEnabled++
+	}
+	if hucd.IsBucketEnabled() {
+		ucd.FromBucket++
+	}
+	if hucd.IsConfigMapEnabled() {
+		ucd.FromConfigMap++
 	}
 }
 
