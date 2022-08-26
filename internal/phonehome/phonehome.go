@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -82,6 +83,7 @@ type PhoneHomeData struct {
 	ExposeExternally              ExposeExternally `json:"xe"`
 	Map                           Map              `json:"m"`
 	WanReplicationCount           int              `json:"wrc"`
+	BackupAndRestore              BackupAndRestore `json:"br"`
 }
 
 type ExposeExternally struct {
@@ -100,6 +102,17 @@ type Map struct {
 	MapStoreCount    int `json:"msc"`
 }
 
+type BackupAndRestore struct {
+	LocalBackupCount    int `json:"lb"`
+	ExternalBackupCount int `json:"eb"`
+	PvcCount            int `json:"pvc"`
+	HostPathCount       int `json:"hpc"`
+	RestoreEnabledCount int `json:"re"`
+	GoogleStorage       int `json:"gs"`
+	S3                  int `json:"s3"`
+	AzureBlobStorage    int `json:"abs"`
+}
+
 func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:     m.UID,
@@ -114,6 +127,7 @@ func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd.fillMCMetrics(cl)
 	phd.fillMapMetrics(cl)
 	phd.fillWanReplicationData(cl)
+	phd.fillHotBackupMetrics(cl)
 	return phd
 }
 
@@ -141,6 +155,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client) {
 		}
 
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
+		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 	}
 	phm.CreatedClusterCount = createdClusterCount
@@ -173,6 +188,25 @@ func (xe *ExposeExternally) addUsageMetrics(e *hazelcastv1alpha1.ExposeExternall
 		xe.MemberNodePortNodeName += 1
 	default:
 		xe.MemberNodePortExternalIP += 1
+	}
+}
+
+func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersistenceConfiguration) {
+	if !p.IsEnabled() {
+		return
+	}
+	if p.BackupType == hazelcastv1alpha1.External {
+		br.ExternalBackupCount += 1
+	} else {
+		br.LocalBackupCount += 1
+	}
+	if p.HostPath != "" {
+		br.HostPathCount += 1
+	} else if !p.Pvc.IsEmpty() {
+		br.PvcCount += 1
+	}
+	if p.IsRestoreEnabled() {
+		br.RestoreEnabledCount += 1
 	}
 }
 
@@ -227,4 +261,22 @@ func (phm *PhoneHomeData) fillWanReplicationData(cl client.Client) {
 		return
 	}
 	phm.WanReplicationCount = len(wrl.Items)
+}
+
+func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {
+	hbl := &hazelcastv1alpha1.HotBackupList{}
+	err := cl.List(context.Background(), hbl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	if err != nil {
+		return //TODO maybe add retry
+	}
+	for _, hb := range hbl.Items {
+		switch {
+		case strings.HasPrefix(hb.Spec.BucketURI, "s3"):
+			phm.BackupAndRestore.S3 += 1
+		case strings.HasPrefix(hb.Spec.BucketURI, "gs"):
+			phm.BackupAndRestore.GoogleStorage += 1
+		case strings.HasPrefix(hb.Spec.BucketURI, "azblob"):
+			phm.BackupAndRestore.AzureBlobStorage += 1
+		}
+	}
 }

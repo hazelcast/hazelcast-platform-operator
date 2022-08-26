@@ -27,20 +27,22 @@ import (
 
 type HotBackupReconciler struct {
 	client.Client
-	Log       logr.Logger
-	scheduled sync.Map
-	cron      *cron.Cron
-	cancelMap map[types.NamespacedName]context.CancelFunc
-	backup    map[types.NamespacedName]struct{}
+	Log              logr.Logger
+	scheduled        sync.Map
+	cron             *cron.Cron
+	cancelMap        map[types.NamespacedName]context.CancelFunc
+	backup           map[types.NamespacedName]struct{}
+	phoneHomeTrigger chan struct{}
 }
 
-func NewHotBackupReconciler(c client.Client, log logr.Logger) *HotBackupReconciler {
+func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}) *HotBackupReconciler {
 	return &HotBackupReconciler{
-		Client:    c,
-		Log:       log,
-		cron:      cron.New(),
-		cancelMap: make(map[types.NamespacedName]context.CancelFunc),
-		backup:    make(map[types.NamespacedName]struct{}),
+		Client:           c,
+		Log:              log,
+		cron:             cron.New(),
+		cancelMap:        make(map[types.NamespacedName]context.CancelFunc),
+		backup:           make(map[types.NamespacedName]struct{}),
+		phoneHomeTrigger: pht,
 	}
 }
 
