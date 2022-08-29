@@ -74,7 +74,7 @@ jobs:
     if: always() &&  needs.publish-snapshot-image.result != 'success' 
     runs-on: ubuntu-latest
     steps:
-      - uses: 8398a7/action-slack@547417cbfcd5c7deaa7e6e2b75685c686f80bec5
+      - uses: 8398a7/action-slack@22048831299719d772f51719ca7384e34b4cc61d
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
