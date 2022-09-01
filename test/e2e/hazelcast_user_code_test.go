@@ -113,7 +113,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 	})
 
-	FIt("should add executor services both initially and dynamically", Label("fast"), func() {
+	It("should add executor services both initially and dynamically", Label("fast"), func() {
 		setLabelAndCRName("hcc-1")
 
 		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
