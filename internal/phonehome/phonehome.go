@@ -223,6 +223,9 @@ func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersis
 }
 
 func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeDeploymentConfig) {
+	if hucd == nil {
+		return
+	}
 	if hucd.ClientEnabled {
 		ucd.ClientEnabled++
 	}
