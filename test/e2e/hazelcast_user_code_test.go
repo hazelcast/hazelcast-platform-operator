@@ -113,7 +113,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 	})
 
-	It("should add executor services both initially and dynamically", Label("fast"), func() {
+	FIt("should add executor services both initially and dynamically", Label("fast"), func() {
 		setLabelAndCRName("hcc-1")
 
 		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
@@ -167,11 +167,11 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		})
 
 		By("checking if all the executor service configs are created correctly", func() {
-			Eventually(func() int {
+			Eventually(func() []int {
 				memberConfigXML = getMemberConfig(context.Background(), cl)
 				actualES = getExecutorServiceConfigFromMemberConfig(memberConfigXML)
-				return len(actualES.Durable)
-			}, 90*Second, interval).Should(Equal(2))
+				return []int{len(actualES.Basic), len(actualES.Durable), len(actualES.Scheduled)}
+			}, 90*Second, interval).Should(Equal([]int{3, 2, 2}))
 		})
 
 		assertExecutorServices(sampleExecutorServices, actualES)
