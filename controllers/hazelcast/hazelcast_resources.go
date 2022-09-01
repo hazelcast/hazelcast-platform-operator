@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net"
+	"path"
 	"strconv"
 	"strings"
 
@@ -970,10 +971,30 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			SuccessThreshold:    1,
 			FailureThreshold:    10,
 		},
-		VolumeMounts: []v1.VolumeMount{{
-			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
-		}},
+		Env: []v1.EnvVar{
+			{
+				Name:  "BACKUP_CA",
+				Value: path.Join(n.MTLSCertPath, "ca.crt"),
+			},
+			{
+				Name:  "BACKUP_CERT",
+				Value: path.Join(n.MTLSCertPath, "tls.crt"),
+			},
+			{
+				Name:  "BACKUP_KEY",
+				Value: path.Join(n.MTLSCertPath, "tls.key"),
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{
+			{
+				Name:      n.PersistenceVolumeName,
+				MountPath: h.Spec.Persistence.BaseDir,
+			},
+			{
+				Name:      n.MTLSCertSecretName,
+				MountPath: n.MTLSCertPath,
+			},
+		},
 	}
 }
 
@@ -1066,6 +1087,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 			},
 		},
 		userCodeAgentVolume(h),
+		tlsVolume(h),
 	}
 	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.UseHostPath() {
 		vols = append(vols, hostPathVolume(h))
@@ -1092,6 +1114,17 @@ func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 			HostPath: &v1.HostPathVolumeSource{
 				Path: h.Spec.Persistence.HostPath,
 				Type: &[]v1.HostPathType{v1.HostPathDirectoryOrCreate}[0],
+			},
+		},
+	}
+}
+
+func tlsVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
+	return v1.Volume{
+		Name: n.MTLSCertSecretName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: n.MTLSCertSecretName,
 			},
 		},
 	}

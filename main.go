@@ -5,11 +5,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -17,6 +19,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -92,6 +95,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	mtlsClient := mtls.NewClient(mgr.GetClient(), types.NamespacedName{
+		Name: n.MTLSCertSecretName, Namespace: namespace,
+	})
+	if err := mgr.Add(mtlsClient); err != nil {
+		setupLog.Error(err, "unable to create mtls client")
+		os.Exit(1)
+	}
+
 	var metrics *phonehome.Metrics
 	var phoneHomeTrigger chan struct{}
 	if util.IsPhoneHomeEnabled() {
@@ -131,6 +142,7 @@ func main() {
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("HotBackup"),
 		phoneHomeTrigger,
+		mtlsClient,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HotBackup")
 		os.Exit(1)

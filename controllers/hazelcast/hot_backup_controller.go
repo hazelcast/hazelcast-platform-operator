@@ -20,6 +20,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/backup"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/upload"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -33,9 +34,10 @@ type HotBackupReconciler struct {
 	cancelMap        map[types.NamespacedName]context.CancelFunc
 	backup           map[types.NamespacedName]struct{}
 	phoneHomeTrigger chan struct{}
+	mtlsClient       *mtls.Client
 }
 
-func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}) *HotBackupReconciler {
+func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client) *HotBackupReconciler {
 	return &HotBackupReconciler{
 		Client:           c,
 		Log:              log,
@@ -43,6 +45,7 @@ func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{})
 		cancelMap:        make(map[types.NamespacedName]context.CancelFunc),
 		backup:           make(map[types.NamespacedName]struct{}),
 		phoneHomeTrigger: pht,
+		mtlsClient:       mtlsClient,
 	}
 }
 
@@ -301,6 +304,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 			logger.Info("Start and wait for member backup upload")
 			u, err := upload.NewUpload(&upload.Config{
 				MemberAddress: m.Address,
+				MTLSClient:    r.mtlsClient,
 				BucketURI:     hb.Spec.BucketURI,
 				BackupPath:    hz.Spec.Persistence.BaseDir,
 				HazelcastName: hb.Spec.HazelcastResourceName,
