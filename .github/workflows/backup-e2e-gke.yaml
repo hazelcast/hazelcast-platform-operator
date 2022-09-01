@@ -143,6 +143,9 @@ jobs:
         run: |
           kubectl create secret generic hazelcast-license-key \
             --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+          
+          kubectl create secret generic br-secret-gcp \
+            --namespace ${{ env.NAMESPACE }} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
 
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
