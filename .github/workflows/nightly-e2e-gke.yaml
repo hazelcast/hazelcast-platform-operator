@@ -33,7 +33,7 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-2 \
-            --num-nodes=2
+            --num-nodes=3
           sleep 30
 
   new-relic-setup:

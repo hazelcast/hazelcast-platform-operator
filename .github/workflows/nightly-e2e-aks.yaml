@@ -28,7 +28,7 @@ jobs:
             CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
             echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
             az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" \
-              --node-count 2 --generate-ssh-keys
+              --node-count 3 --generate-ssh-keys
 
   new-relic-setup:
     name: Setup New Relic agent
