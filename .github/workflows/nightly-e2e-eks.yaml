@@ -34,11 +34,16 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
           echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
           eksctl create cluster --name "${CLUSTER_NAME}" \
-            --zones ${AWS_REGION}a --zones ${AWS_REGION}c \
-            --with-oidc --without-nodegroup
+            --zones ${AWS_REGION}a \
+            --zones ${AWS_REGION}c \
+            --with-oidc \
+            --without-nodegroup
+
           eksctl create nodegroup --cluster "${CLUSTER_NAME}" \
-            --name node-group-1 --node-type t3.medium \
-            --nodes 3 --nodes-min 2 --nodes-max 4 --managed
+            --name node-group-1 \
+            --node-type t3.medium \
+            --nodes 3 \
+            --managed
 
   new-relic-setup:
     name: Setup New Relic agent
