@@ -179,6 +179,19 @@ spec:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string
+              loggingLevel:
+                default: INFO
+                description: LoggingLevel controlls log verbosity for Hazelcast.
+                enum:
+                - "OFF"
+                - FATAL
+                - ERROR
+                - WARN
+                - INFO
+                - DEBUG
+                - TRACE
+                - ALL
+                type: string
               persistence:
                 description: Persistence configuration
                 properties:

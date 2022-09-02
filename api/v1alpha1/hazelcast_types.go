@@ -24,6 +24,21 @@ const (
 	Terminating Phase = "Terminating"
 )
 
+// LoggingLevel controlls log verbosity for Hazelcast.
+// +kubebuilder:validation:Enum=OFF;FATAL;ERROR;WARN;INFO;DEBUG;TRACE;ALL
+type LoggingLevel string
+
+const (
+	LoggingLevelOff   LoggingLevel = "OFF"
+	LoggingLevelFatal LoggingLevel = "FATAL"
+	LoggingLevelError LoggingLevel = "ERROR"
+	LoggingLevelWarn  LoggingLevel = "WARN"
+	LoggingLevelInfo  LoggingLevel = "INFO"
+	LoggingLevelDebug LoggingLevel = "DEBUG"
+	LoggingLevelTrace LoggingLevel = "TRACE"
+	LoggingLevelAll   LoggingLevel = "ALL"
+)
+
 // HazelcastSpec defines the desired state of Hazelcast
 type HazelcastSpec struct {
 	// Number of Hazelcast members in the cluster.
@@ -100,6 +115,10 @@ type HazelcastSpec struct {
 
 	// +optional
 	Properties map[string]string `json:"properties,omitempty"`
+
+	// +optional
+	// +kubebuilder:default:="INFO"
+	LoggingLevel LoggingLevel `json:"loggingLevel,omitempty"`
 }
 
 type ExecutorServiceConfiguration struct {
