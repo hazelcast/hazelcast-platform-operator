@@ -37,42 +37,15 @@ jobs:
           sleep 30
 
   new-relic-setup:
-    name: Setup New Relic agent
-    needs: [create-gke-cluster]
-    env:
-      NR_CLUSTER_NAME: gke-operator
-      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v0.8.0"
-        with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
-
-      - name: Connect to the GKE cluster
-        run: |
-          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
-            --zone ${{ env.GKE_ZONE }} \
-            --project ${{ env.GCP_PROJECT_ID }}
-
-      - name: Install New Relic repo
-        run: |
-          helm repo add newrelic https://helm-charts.newrelic.com
-
-      - name: Install New Relic agent
-        run: |
-          kubectl create namespace newrelic
-          helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
-            --set "global.cluster=gke-operator" \
-            --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ env.CLUSTER_NAME }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[2].name=GITHUB_RUN_NUMBER,newrelic-logging.fluentBit.additionalEnvVariables[2].value=\"${{ github.run_number }}\"" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
-            newrelic/nri-bundle
+    needs: [ create-gke-cluster ]
+    uses: ./.github/workflows/newrelic-gke.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      nr_cluster_name: gke-operator
+      gh_run_id: ${{ github.run_id }}
+      gh_run_number: ${{ github.run_number }}
+      gh_sha: ${{ github.sha }}
 
   get-image:
     name: Get Image
