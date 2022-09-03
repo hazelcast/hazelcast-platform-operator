@@ -9,10 +9,10 @@ on:
         type: string
         required: true
       gh_run_id:
-        type: number
+        type: string
         required: true
       gh_run_number:
-        type: number
+        type: string
         required: true
       gh_sha:
         type: string
