@@ -247,7 +247,7 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 	done 
 
 	$(KUBECTL) delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=1m
-	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=4m
+	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=8m
 	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 2m
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
