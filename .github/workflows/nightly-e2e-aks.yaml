@@ -64,6 +64,7 @@ jobs:
             --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
             --set "newrelic-logging.fluentBit.additionalEnvVariables[2].name=GITHUB_RUN_NUMBER,newrelic-logging.fluentBit.additionalEnvVariables[2].value=\"${{ github.run_number }}\"" \
             --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
+            --set "newrelic-logging.fluentBit.additionalEnvVariables[4].name=LOG_PARSER,newrelic-logging.fluentBit.additionalEnvVariables[4].value=cri" \
             newrelic/nri-bundle
 
   get-image:
