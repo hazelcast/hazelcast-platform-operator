@@ -52,7 +52,7 @@ const (
 
 	ThrowException FullBehaviorSetting = "THROW_EXCEPTION"
 
-	ThrowExceptionOnlyIfReplicationActive = "THROW_EXCEPTION_ONLY_IF_REPLICATION_ACTIVE"
+	ThrowExceptionOnlyIfReplicationActive FullBehaviorSetting = "THROW_EXCEPTION_ONLY_IF_REPLICATION_ACTIVE"
 )
 
 type BatchSetting struct {

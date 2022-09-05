@@ -384,8 +384,4 @@ bundle-ocp-validate: ocp-olm-catalog-validator
 
 api-ref-doc: 
 	@go build -o bin/docgen  ./apidocgen/main.go 
-	@./bin/docgen ./api/v1alpha1/hazelcast_types.go \
-				  ./api/v1alpha1/managementcenter_types.go \
-				  ./api/v1alpha1/hotbackup_types.go \
-				  ./api/v1alpha1/map_types.go
-
+	@./bin/docgen ./api/v1alpha1/*_types.go
