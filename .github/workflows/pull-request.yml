@@ -117,7 +117,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v0.8.0"
+        uses: "google-github-actions/auth@v0.8.1"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -190,7 +190,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v0.8.0"
+        uses: "google-github-actions/auth@v0.8.1"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -255,7 +255,7 @@ jobs:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v0.8.0"
+        uses: "google-github-actions/auth@v0.8.1"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
