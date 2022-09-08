@@ -7,7 +7,7 @@ on:
         type: string
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  CLEANUP_TIMEOUT: 5
+  CLEANUP_TIMEOUT: 10
   GITHUB_PAGES_URL: https://${{ github.repository_owner }}.github.io/hazelcast-platform-operator
   NEW_RELIC_BASE_URL: https://one.eu.newrelic.com/launcher/logger.log-launcher
   NEW_RELIC_SHORT_URL_GEN: https://urly.service.newrelic.com
