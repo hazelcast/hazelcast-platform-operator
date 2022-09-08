@@ -74,12 +74,13 @@ jobs:
       - name: Update Test Files
         run: |-
           cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/data/test-cases
-
+          BEGIN_TIME=$(date +%s000 -d "- 3 hours")
+          END_TIME=$(date +%s000 -d "+ 1 hours")
           for i in $(ls); do
           CR_ID=$(jq -r '.testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")' $i)
           LAUNCHER=$(echo "{\"isEntitled\":true,\"query\":\"pod_name:\\\"$CR_ID*\\\" OR message:\\\"*$CR_ID*\\\"\",\"eventTypes\":[\"Log\"]}" | base64 -w0)
           PANE=$(echo "{\"nerdletId\":\"logger.log-tailer\",\"accountId\":${NEW_RELIC_ACCOUNT_ID}}" | base64 -w0)
-          LINK=$(echo $NEW_RELIC_BASE_URL\?launcher\="$LAUNCHER"\&pane\="$PANE"\&platform%5BtimeRange%5D%5Bduration%5D\=86400000)
+          LINK=$(echo $NEW_RELIC_BASE_URL\?launcher\="$LAUNCHER"\&pane\="$PANE"\&platform%5BtimeRange%5D%5Bbegin_time%5D\="$BEGIN_TIME"\&platform%5BtimeRange%5D%5Bend_time%5D\="$END_TIME")
           SHORT_LINK=$(curl -s -X POST \
                       $NEW_RELIC_SHORT_URL_GEN \
                       -H "Content-Type: application/json" \
