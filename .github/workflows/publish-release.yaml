@@ -51,8 +51,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Tools
-        uses: ./.github/actions/operator-tests
+      - name: Cache Golang dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Set Release Version
         id: set-outputs
@@ -120,13 +125,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Preflight and Get Certification Project ID
+      - name: Setup Preflight
         id: setup-tools
-        uses: ./.github/actions/operator-tests
+        uses: redhat-actions/openshift-tools-installer@v1
         with:
-          PFLT_PYXIS_API_TOKEN: $PFLT_PYXIS_API_TOKEN
-          PREFLIGHT_VERSION: $PREFLIGHT_VERSION
-          DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          preflight: "latest"
+          source: github
 
       - name: Test and Submit Container Results to Red Hat
         run: |
@@ -159,10 +163,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Setup Tools
-        id: setup
-        uses: ./.github/actions/operator-tests
 
       - name: Build Red Hat Bundle
         run: |
@@ -244,9 +244,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Tools
-        id: setup
-        uses: ./.github/actions/operator-tests
+      - name: Cache Golang dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Build Bundle
         run: |

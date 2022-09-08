@@ -34,11 +34,10 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup Preflight and Get Certification Project ID
-        uses: ./.github/actions/operator-tests
+        uses: redhat-actions/openshift-tools-installer@v1
         with:
-          PFLT_PYXIS_API_TOKEN: $PFLT_PYXIS_API_TOKEN
-          PREFLIGHT_VERSION: $PREFLIGHT_VERSION
-          DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          preflight: "latest"
+          source: github
 
       - name: Set Environment Variables And Job Outputs
         id: setup-envs
@@ -145,11 +144,13 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup Preflight and OPM Tools
-        uses: ./.github/actions/operator-tests
+        uses: redhat-actions/openshift-tools-installer@v1
         with:
-          PREFLIGHT_VERSION: $PREFLIGHT_VERSION
-          DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
-          OPM_INSTALL: true
+          preflight: "latest"
+          source: github
+      - uses: redhat-actions/openshift-tools-installer@v1
+        with:
+          opm: "latest"
 
       - name: Set Environment Variables And Job Outputs
         id: build-bundle-outputs
@@ -212,11 +213,13 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup Preflight and Operator SDK
-        uses: ./.github/actions/operator-tests
+        uses: redhat-actions/openshift-tools-installer@v1
         with:
-          PREFLIGHT_VERSION: $PREFLIGHT_VERSION
-          DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
-          OPERATOR_SDK_INSTALL: true
+          preflight: "latest"
+          source: github
+      - uses: redhat-actions/openshift-tools-installer@v1
+        with:
+          operator-sdk: "latest"
 
       - name: Login to Docker Hub Registry
         run: |
