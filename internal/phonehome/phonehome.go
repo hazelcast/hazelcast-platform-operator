@@ -86,7 +86,7 @@ type PhoneHomeData struct {
 	BackupAndRestore              BackupAndRestore   `json:"br"`
 	UserCodeDeployment            UserCodeDeployment `json:"ucd"`
 	ExecutorServiceCount          int                `json:"esc"`
-	CronHotBackups                int                `json:"chb"`
+	CronHotBackupCount            int                `json:"chbc"`
 }
 
 type ExposeExternally struct {
@@ -317,5 +317,5 @@ func (phm *PhoneHomeData) fillCronHotBackupMetrics(cl client.Client) {
 	if err != nil || chbl.Items == nil {
 		return
 	}
-	phm.CronHotBackups = len(chbl.Items)
+	phm.CronHotBackupCount = len(chbl.Items)
 }
