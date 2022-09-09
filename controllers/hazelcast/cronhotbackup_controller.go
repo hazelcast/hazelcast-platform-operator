@@ -72,7 +72,7 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return
 	}
 
-	//Check if the CronHotBackup CR is marked to be deleted
+	// Check if the CronHotBackup CR is marked to be deleted
 	if chb.GetDeletionTimestamp() != nil {
 		err = r.executeFinalizer(ctx, chb)
 		if err != nil {
@@ -82,7 +82,7 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return
 	}
 
-	// If the cronHotBackup is not successfully applied yet
+	// If the CronHotBackup is not successfully applied yet
 	if !util.IsSuccessfullyApplied(chb) {
 		err = r.addSchedule(ctx, chb)
 		if err != nil {
@@ -105,11 +105,11 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return
 	}
 
-	// If cronHotBackup is not already applied
 	applied, err := r.isAlreadyApplied(chb)
 	if err != nil {
 		return
 	}
+	// If CronHotBackup spec is updated
 	if !applied {
 		err = r.addSchedule(ctx, chb)
 		if err != nil {
@@ -201,7 +201,7 @@ func (r *CronHotBackupReconciler) addSchedule(ctx context.Context, chb *hazelcas
 	chbKey := types.NamespacedName{Name: chbCopy.Name, Namespace: chbCopy.Namespace}
 
 	entry, err := r.cron.AddFunc(chb.Spec.Schedule, func() {
-		cerr := r.createHotBackup(ctx, chbCopy) //nolint:errcheck
+		cerr := r.createHotBackup(ctx, chbCopy)
 		if cerr != nil {
 			r.Log.Error(cerr, "Error creating HotBackup")
 		}
@@ -222,20 +222,20 @@ func (r *CronHotBackupReconciler) addSchedule(ctx context.Context, chb *hazelcas
 }
 
 func (r *CronHotBackupReconciler) createHotBackup(ctx context.Context, chb hazelcastv1alpha1.CronHotBackup) error {
-	hb := &hazelcastv1alpha1.HotBackup{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: chb.Spec.HotBackupTemplate.Annotations,
-			Labels:      chb.Spec.HotBackupTemplate.Labels,
-		},
-		Spec: chb.Spec.HotBackupTemplate.Spec,
-	}
 	hbName, err := r.generateBackupName(chb)
 	if err != nil {
 		return err
 	}
 
-	hb.Name = hbName
-	hb.Namespace = chb.Namespace
+	hb := &hazelcastv1alpha1.HotBackup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        hbName,
+			Namespace:   chb.Namespace,
+			Annotations: chb.Spec.HotBackupTemplate.Annotations,
+			Labels:      chb.Spec.HotBackupTemplate.Labels,
+		},
+		Spec: chb.Spec.HotBackupTemplate.Spec,
+	}
 
 	err = controllerutil.SetControllerReference(&chb, hb, r.Scheme)
 	if err != nil {
@@ -260,7 +260,6 @@ func (r *CronHotBackupReconciler) cleanupResources(ctx context.Context, chb haze
 	nsMatcher := client.InNamespace(chb.Namespace)
 
 	hbl := &hazelcastv1alpha1.HotBackupList{}
-
 	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
 		return fmt.Errorf("Could not get CronHotBackup dependent HotBackup resources %w", err)
 	}
@@ -287,24 +286,19 @@ func (r *CronHotBackupReconciler) cleanupResources(ctx context.Context, chb haze
 	return nil
 }
 
-func deleteHotBackupHistory(ctx context.Context, cl client.Client, limit int, backups []hazelcastv1alpha1.HotBackup) error {
-	fmt.Println("Cleaning up ")
+// Best effort deletion of the HotBackup resources
+func deleteHotBackupHistory(ctx context.Context, cl client.Client, limit int, backups []hazelcastv1alpha1.HotBackup) {
 	diff := len(backups) - limit
 	if diff <= 0 {
-		return nil
+		return
 	}
 
 	sort.Slice(backups, func(a, b int) bool {
-		return backups[a].CreationTimestamp.Unix() < backups[b].CreationTimestamp.Unix()
+		return backups[a].CreationTimestamp.Before(&backups[b].CreationTimestamp)
 	})
-	for i, hb := range backups {
-		fmt.Printf("hb at %d is %+v\n", i, hb.CreationTimestamp)
-	}
 	for _, hb := range backups[:diff] {
-		util.DeleteObject(ctx, cl, &hb)
+		util.DeleteObject(ctx, cl, &hb) //nolint:errcheck
 	}
-
-	return nil
 }
 
 func (r *CronHotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Context, name types.NamespacedName) error {

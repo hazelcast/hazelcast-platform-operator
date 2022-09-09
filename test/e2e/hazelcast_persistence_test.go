@@ -276,7 +276,10 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		By("waiting cron hot backup two crete two backups")
 		Eventually(func() int {
 			hbl := &hazelcastcomv1alpha1.HotBackupList{}
-			k8sClient.List(context.Background(), hbl, client.InNamespace(chb.Namespace), client.MatchingLabels(labels))
+			err := k8sClient.List(context.Background(), hbl, client.InNamespace(chb.Namespace), client.MatchingLabels(labels))
+			if err != nil {
+				return 0
+			}
 			return len(hbl.Items)
 		}, 11*Second, 1*Second).Should(Equal(2))
 
