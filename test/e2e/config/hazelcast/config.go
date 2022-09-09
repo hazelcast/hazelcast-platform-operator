@@ -311,6 +311,25 @@ var (
 		}
 	}
 
+	CronHotBackup = func(lk types.NamespacedName, schedule string, hbSpec *hazelcastv1alpha1.HotBackupSpec, lbls map[string]string) *hazelcastv1alpha1.CronHotBackup {
+		return &hazelcastv1alpha1.CronHotBackup{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.CronHotBackupSpec{
+				Schedule: schedule,
+				HotBackupTemplate: hazelcastv1alpha1.HotBackupTemplateSpec{
+					ObjectMeta: v1.ObjectMeta{
+						Labels: lbls,
+					},
+					Spec: *hbSpec,
+				},
+			},
+		}
+	}
+
 	Faulty = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
