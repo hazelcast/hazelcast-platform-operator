@@ -79,7 +79,11 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 }
 
 func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	err := r.deleteDependentHotBackups(ctx, h, logger)
+	err := r.deleteDependentCronHotBackups(ctx, h, logger)
+	if err != nil {
+		return err
+	}
+	err = r.deleteDependentHotBackups(ctx, h, logger)
 	if err != nil {
 		return err
 	}
@@ -87,6 +91,42 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 	if err != nil {
 		return err
 	}
+	return nil
+}
+func (r *HazelcastReconciler) deleteDependentCronHotBackups(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	chbl := &hazelcastv1alpha1.CronHotBackupList{}
+
+	if err := r.Client.List(ctx, chbl, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Could not get Hazelcast dependent CronHotBackup resources %w", err)
+	}
+
+	if len(chbl.Items) == 0 {
+		return nil
+	}
+
+	g, groupCtx := errgroup.WithContext(ctx)
+	for i := 0; i < len(chbl.Items); i++ {
+		i := i
+		g.Go(func() error {
+			return util.DeleteObject(groupCtx, r.Client, &chbl.Items[i])
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("Error deleting CronHotBackup resources %w", err)
+	}
+
+	if err := r.Client.List(ctx, chbl, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Hazelcast dependent CronHotBackup resources are not deleted yet %w", err)
+	}
+
+	if len(chbl.Items) != 0 {
+		return fmt.Errorf("Hazelcast dependent CronHotBackup resources are not deleted yet.")
+	}
+
 	return nil
 }
 

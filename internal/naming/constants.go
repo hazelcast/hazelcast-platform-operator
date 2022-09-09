@@ -102,6 +102,12 @@ const (
 	DefaultMapMaxSize            = int32(0)
 )
 
+// CronHotBackup Config default values
+const (
+	DefaultSuccessfulHotBackupsHistoryLimit = int32(5)
+	DefaultFailedHotBackupsHistoryLimit     = int32(3)
+)
+
 // Operator Values
 const (
 	PhoneHomeEnabledEnv     = "PHONE_HOME_ENABLED"

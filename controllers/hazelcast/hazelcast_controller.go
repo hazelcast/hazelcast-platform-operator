@@ -285,6 +285,12 @@ func clientConnectionMessage(req ctrl.Request) string {
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.CronHotBackup{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.CronHotBackup)
+		return []string{m.Spec.HotBackupTemplate.Spec.HazelcastResourceName}
+	}); err != nil {
+		return err
+	}
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.Map{}, "hazelcastResourceName", func(rawObj client.Object) []string {
 		m := rawObj.(*hazelcastv1alpha1.Map)
 		return []string{m.Spec.HazelcastResourceName}
