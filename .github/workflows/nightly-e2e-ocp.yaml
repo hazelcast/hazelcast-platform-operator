@@ -6,6 +6,7 @@ on:
 
 env:
   NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
+  RESTART_OCP_NODE_TIMEOUT: 15
 
 jobs:
   ocp-e2e-tests:
@@ -47,9 +48,14 @@ jobs:
           make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
           make docker-push IMG=$IMG
 
+      - name: Restart Non-Ready Nodes
+        run: |
+          source .github/scripts/utils.sh
+          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          wait_for_node_restarted $RESTART_OCP_NODE_TIMEOUT
+
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           oc new-project $NAMESPACE
 
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
