@@ -80,6 +80,14 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
+	if !util.IsApplied(wan) {
+		if err := r.Update(ctx, insertLastAppliedSpec(wan)); err != nil {
+			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+		} else {
+			return updateWanStatus(ctx, r.Client, wan, wanPendingStatus())
+		}
+	}
+
 	HZClientMap, err := r.getMapsGroupByHazelcastName(ctx, wan)
 	if err != nil {
 		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
@@ -154,7 +162,6 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 			// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
 			if wan.Status.WanReplicationMapsStatus[mapWanKey].PublisherId == "" {
 				log.Info("Applying WAN configuration for ", "mapKey", mapWanKey)
-				// TODO: ayni publisherID apply edildiğinde hata donuyor mu donuyorsa ne hatasi cek et.
 				if publisherId, err := r.applyWanReplication(ctx, cli, wan, m.MapName(), mapWanKey); err != nil {
 					mapWanStatus[mapWanKey] = wanFailedStatus().withMessage(err.Error())
 				} else {
