@@ -186,7 +186,7 @@ jobs:
           path: allure-results/wan/
 
   report-generation:
-    needs: wan-gke-tests
+    needs: ["create-gke-cluster", "wan-gke-tests"]
     if: always()
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit

@@ -198,7 +198,7 @@ jobs:
           path: allure-results/eks/
 
   report-generation:
-    needs: eks-e2e-tests
+    needs: ["prepare-env", "eks-e2e-tests"]
     if: always()
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit

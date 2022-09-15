@@ -139,7 +139,7 @@ jobs:
           path: allure-results/backup/
 
   report-generation:
-    needs: gke-e2e-backup-tests
+    needs: ["create-gke-cluster","gke-e2e-backup-tests"]
     if: always()
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
