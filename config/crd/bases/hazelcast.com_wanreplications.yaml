@@ -87,11 +87,6 @@ spec:
                 description: Endpoints is the target cluster endpoints.
                 minLength: 1
                 type: string
-              mapResourceName:
-                description: MapResourceName is the name of Map custom resource which
-                  WAN replication will be applied to.
-                minLength: 1
-                type: string
               queue:
                 description: Queue is the configuration for WAN events queue.
                 properties:
@@ -110,6 +105,29 @@ spec:
                     - THROW_EXCEPTION_ONLY_IF_REPLICATION_ACTIVE
                     type: string
                 type: object
+              resources:
+                description: Resources is the list of custom resources which WAN replication
+                  will be applied to.
+                items:
+                  properties:
+                    name:
+                      description: ResourceName is the name of custom resource which
+                        WAN replication will be applied to.
+                      minLength: 1
+                      type: string
+                    type:
+                      description: ResourceType is the type of custom resource which
+                        WAN replication will be applied to.
+                      enum:
+                      - MAP
+                      - HZ
+                      type: string
+                  required:
+                  - name
+                  - type
+                  type: object
+                minItems: 1
+                type: array
               targetClusterName:
                 description: ClusterName is the clusterName field of the target Hazelcast
                   resource.
@@ -117,7 +135,7 @@ spec:
                 type: string
             required:
             - endpoints
-            - mapResourceName
+            - resources
             - targetClusterName
             type: object
           status:
@@ -126,12 +144,24 @@ spec:
               message:
                 description: Message is the field to show detail information or error
                 type: string
-              publisherId:
-                description: PublisherId is the ID used for WAN publisher ID
-                type: string
               status:
                 description: Status is the status of WAN replication
                 type: string
+              wanReplicationMapsStatus:
+                additionalProperties:
+                  properties:
+                    message:
+                      description: Message is the field to show detail information
+                        or error
+                      type: string
+                    publisherId:
+                      description: PublisherId is the ID used for WAN publisher ID
+                      type: string
+                    status:
+                      description: Status is the status of WAN replication
+                      type: string
+                  type: object
+                type: object
             type: object
         type: object
     served: true

@@ -46,7 +46,6 @@ func (o wanOptionsBuilder) withMessage(msg string) wanOptionsBuilder {
 
 func updateWanStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, options wanOptionsBuilder) (ctrl.Result, error) {
 	wan.Status.Status = options.status
-	wan.Status.PublisherId = options.publisherId
 	wan.Status.Message = options.message
 
 	if err := c.Status().Update(ctx, wan); err != nil {
@@ -57,4 +56,36 @@ func updateWanStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func putWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, options map[string]wanOptionsBuilder) error {
+	if wan.Status.WanReplicationMapsStatus == nil {
+		wan.Status.WanReplicationMapsStatus = make(map[string]hazelcastv1alpha1.WanReplicationMapStatus)
+	}
+
+	for mapWanKey, builder := range options {
+		wan.Status.WanReplicationMapsStatus[mapWanKey] = hazelcastv1alpha1.WanReplicationMapStatus{
+			PublisherId: builder.publisherId,
+			Message:     builder.message,
+			Status:      builder.status,
+		}
+	}
+
+	if err := c.Status().Update(ctx, wan); err != nil {
+		if errors.IsConflict(err) {
+			return nil
+		}
+		return err
+	}
+
+	return nil
+}
+
+func isWanSuccessful(wan *hazelcastv1alpha1.WanReplication) bool {
+	for _, mapStatus := range wan.Status.WanReplicationMapsStatus {
+		if mapStatus.Status != hazelcastv1alpha1.WanStatusSuccess {
+			return false
+		}
+	}
+	return true
 }

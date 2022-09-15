@@ -6,9 +6,9 @@ import (
 
 // WanReplicationSpec defines the desired state of WanReplication
 type WanReplicationSpec struct {
-	// MapResourceName is the name of Map custom resource which WAN replication will be applied to.
-	// +kubebuilder:validation:MinLength:=1
-	MapResourceName string `json:"mapResourceName"`
+	// Resources is the list of custom resources which WAN replication will be applied to.
+	// +kubebuilder:validation:MinItems:=1
+	Resources []ResourceSpec `json:"resources"`
 
 	// ClusterName is the clusterName field of the target Hazelcast resource.
 	// +kubebuilder:validation:MinLength:=1
@@ -30,6 +30,24 @@ type WanReplicationSpec struct {
 	// +optional
 	Acknowledgement AcknowledgementSetting `json:"acknowledgement,omitempty"`
 }
+
+type ResourceSpec struct {
+	// ResourceName is the name of custom resource which WAN replication will be applied to.
+	// +kubebuilder:validation:MinLength:=1
+	Name string `json:"name"`
+
+	// ResourceType is the type of custom resource which WAN replication will be applied to.
+	// +kubebuilder:validation:Enum=MAP;HZ
+	Type ResourceType `json:"type"`
+}
+
+type ResourceType string
+
+const (
+	ResourceTypeMap ResourceType = "MAP"
+
+	ResourceTypeHZ ResourceType = "HZ"
+)
 
 // QueueSetting defines the configuration for Hazelcast WAN queue
 type QueueSetting struct {
@@ -101,6 +119,16 @@ const (
 
 // WanReplicationStatus defines the observed state of WanReplication
 type WanReplicationStatus struct {
+	// Status is the status of WAN replication
+	Status WanStatus `json:"status,omitempty"`
+
+	// Message is the field to show detail information or error
+	Message string `json:"message,omitempty"`
+
+	WanReplicationMapsStatus map[string]WanReplicationMapStatus `json:"wanReplicationMapsStatus,omitempty"`
+}
+
+type WanReplicationMapStatus struct {
 	// PublisherId is the ID used for WAN publisher ID
 	PublisherId string `json:"publisherId,omitempty"`
 

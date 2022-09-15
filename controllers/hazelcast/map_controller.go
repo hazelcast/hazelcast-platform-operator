@@ -11,7 +11,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
-	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -189,51 +188,11 @@ func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alph
 	if !controllerutil.ContainsFinalizer(m, n.Finalizer) {
 		return nil
 	}
-	if err := r.deleteDependentCRs(ctx, m, logger); err != nil {
-		return fmt.Errorf("Could not delete all dependent CRs: %w", err)
-	}
 	controllerutil.RemoveFinalizer(m, n.Finalizer)
 	err := r.Update(ctx, m)
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
-	return nil
-}
-
-func (r *MapReconciler) deleteDependentCRs(ctx context.Context, m *hazelcastv1alpha1.Map, logger logr.Logger) error {
-	fieldMatcher := client.MatchingFields{"mapResourceName": m.Name}
-	nsMatcher := client.InNamespace(m.Namespace)
-
-	wrl := &hazelcastv1alpha1.WanReplicationList{}
-
-	if err := r.Client.List(ctx, wrl, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Could not get Map dependent WanReplication resources %w", err)
-	}
-
-	if len(wrl.Items) == 0 {
-		return nil
-	}
-
-	g, groupCtx := errgroup.WithContext(ctx)
-	for i := 0; i < len(wrl.Items); i++ {
-		index := i
-		g.Go(func() error {
-			return util.DeleteObject(groupCtx, r.Client, &wrl.Items[index])
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return fmt.Errorf("Error deleting WanReplication resources %w", err)
-	}
-
-	if err := r.Client.List(ctx, wrl, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Map dependent WanReplication resources are not deleted yet %w", err)
-	}
-
-	if len(wrl.Items) != 0 {
-		return fmt.Errorf("Map dependent WanReplication resources are not deleted yet.")
-	}
-
 	return nil
 }
 
@@ -465,12 +424,6 @@ func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, h *haz
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MapReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.WanReplication{}, "mapResourceName", func(rawObj client.Object) []string {
-		wr := rawObj.(*hazelcastv1alpha1.WanReplication)
-		return []string{wr.Spec.MapResourceName}
-	}); err != nil {
-		return err
-	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Map{}).
 		Complete(r)
