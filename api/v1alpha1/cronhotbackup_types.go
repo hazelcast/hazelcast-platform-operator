@@ -34,6 +34,11 @@ type CronHotBackupSpec struct {
 	// +kubebuilder:default:=3
 	// +optional
 	FailedHotBackupsHistoryLimit *int32 `json:"failedHotBackupsHistoryLimit,omitempty"`
+
+	// When true, CronHotBackup will stop creating HotBackup CRs until it is disabled
+	// +kubebuilder:default:=false
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 type HotBackupTemplateSpec struct {
@@ -54,6 +59,7 @@ type CronHotBackupStatus struct{}
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:shortName=chb
 // CronHotBackup is the Schema for the cronhotbackups API
+// +kubebuilder:printcolumn:name="SUSPENDED",type="boolean",JSONPath=".spec.suspend",description="Suspention status of the CronHotBackup"
 type CronHotBackup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -16,7 +16,12 @@ spec:
     singular: cronhotbackup
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Suspention status of the CronHotBackup
+      jsonPath: .spec.suspend
+      name: SUSPENDED
+      type: boolean
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: CronHotBackup is the Schema for the cronhotbackups API
@@ -92,6 +97,11 @@ spec:
                   This is a pointer to distinguish between explicit zero and not specified.
                 format: int32
                 type: integer
+              suspend:
+                default: false
+                description: When true, CronHotBackup will stop creating HotBackup
+                  CRs until it is disabled
+                type: boolean
             required:
             - hotBackupTemplate
             - schedule

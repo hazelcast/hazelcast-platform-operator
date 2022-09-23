@@ -82,9 +82,14 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return
 	}
 
+	err = r.cleanupResources(ctx, *chb)
+	if err != nil {
+		logger.Error(err, "Error cleaning up HotBackup resources")
+	}
+
 	// If the CronHotBackup is not successfully applied yet
 	if !util.IsSuccessfullyApplied(chb) {
-		err = r.addSchedule(ctx, chb)
+		err = r.updateSchedule(ctx, chb)
 		if err != nil {
 			return
 		}
@@ -97,7 +102,7 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// If operator does not have a cron job for the CronHotBackup resource, might be caused by a restart
 	if _, ok := r.scheduled.Load(req.NamespacedName); !ok {
-		err = r.addSchedule(ctx, chb)
+		err = r.updateSchedule(ctx, chb)
 		if err != nil {
 			return
 		}
@@ -111,7 +116,7 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	// If CronHotBackup spec is updated
 	if !applied {
-		err = r.addSchedule(ctx, chb)
+		err = r.updateSchedule(ctx, chb)
 		if err != nil {
 			return
 		}
@@ -196,18 +201,21 @@ func (r *CronHotBackupReconciler) deleteDependentHotBackups(ctx context.Context,
 	return nil
 }
 
-func (r *CronHotBackupReconciler) addSchedule(ctx context.Context, chb *hazelcastv1alpha1.CronHotBackup) error {
+func (r *CronHotBackupReconciler) updateSchedule(ctx context.Context, chb *hazelcastv1alpha1.CronHotBackup) error {
 	chbCopy := *chb.DeepCopy()
 	chbKey := types.NamespacedName{Name: chbCopy.Name, Namespace: chbCopy.Namespace}
+
+	if chb.Spec.Suspend {
+		if val, loaded := r.scheduled.LoadAndDelete(chbKey); loaded {
+			r.cron.Remove(val.(cron.EntryID))
+		}
+		return nil
+	}
 
 	entry, err := r.cron.AddFunc(chb.Spec.Schedule, func() {
 		cerr := r.createHotBackup(ctx, chbCopy)
 		if cerr != nil {
 			r.Log.Error(cerr, "Error creating HotBackup")
-		}
-		cerr = r.cleanupResources(ctx, chbCopy)
-		if cerr != nil {
-			r.Log.Error(cerr, "Error cleaning up HotBackup resources")
 		}
 	})
 	if err != nil {
@@ -353,5 +361,6 @@ func (r *CronHotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.CronHotBackup{}).
+		Owns(&hazelcastv1alpha1.HotBackup{}).
 		Complete(r)
 }
