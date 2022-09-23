@@ -156,6 +156,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = hazelcast.NewMultiMapReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("MultiMap"),
+		mgr.GetScheme(),
+		phoneHomeTrigger,
+	).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "MultiMap")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

@@ -451,14 +451,17 @@ func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, h *haz
 		return false, fmt.Errorf("persisted ConfigMap is not formatted correctly")
 	}
 
-	if mcfg, ok := hzConfig.Hazelcast.Map[m.MapName()]; !ok {
-		currentMcfg, err := createMapConfig(ctx, r.Client, h, m)
-		if err != nil {
-			return false, err
-		}
-		if !reflect.DeepEqual(mcfg, currentMcfg) { // TODO replace DeepEqual with custom implementation
-			return false, nil
-		}
+	mcfg, ok := hzConfig.Hazelcast.Map[m.MapName()]
+	if !ok {
+		return false, nil
+	}
+
+	currentMcfg, err := createMapConfig(ctx, r.Client, h, m)
+	if err != nil {
+		return false, err
+	}
+	if !reflect.DeepEqual(mcfg, currentMcfg) { // TODO replace DeepEqual with custom implementation
+		return false, nil
 	}
 	return true, nil
 }

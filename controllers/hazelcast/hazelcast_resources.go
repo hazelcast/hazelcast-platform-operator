@@ -514,22 +514,27 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 
 func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
 	mapList := &hazelcastv1alpha1.MapList{}
-	err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": h.Name})
-	if err != nil {
+	if err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": h.Name}); err != nil {
 		return nil, err
 	}
+	multiMapList := &hazelcastv1alpha1.MultiMapList{}
+	if err := c.List(ctx, multiMapList, client.MatchingFields{"hazelcastResourceName": h.Name}); err != nil {
+		return nil, err
+	}
+
 	ml := filterPersistedMaps(mapList.Items)
+	mml := filterPersistedMultiMaps(multiMapList.Items)
 	p := filterProperties(h.Spec.Properties)
 
 	cfg := hazelcastConfigMapStruct(h)
 
 	cfg.Properties = p
 
-	err = fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml)
-	if err != nil {
+	if err := fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml); err != nil {
 		return nil, err
 	}
 
+	fillHazelcastConfigWithMultiMaps(&cfg, mml)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
@@ -555,6 +560,29 @@ func filterPersistedMaps(ml []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
 				}
 				mp.Spec = *ms
 				l = append(l, mp)
+			}
+		default:
+		}
+	}
+	return l
+}
+
+func filterPersistedMultiMaps(mml []hazelcastv1alpha1.MultiMap) []hazelcastv1alpha1.MultiMap {
+	l := make([]hazelcastv1alpha1.MultiMap, 0)
+
+	for _, mmp := range mml {
+		switch mmp.Status.State {
+		case hazelcastv1alpha1.MultiMapPersisting, hazelcastv1alpha1.MultiMapSuccess:
+			l = append(l, mmp)
+		case hazelcastv1alpha1.MultiMapFailed, hazelcastv1alpha1.MultiMapPending:
+			if spec, ok := mmp.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
+				mms := &hazelcastv1alpha1.MultiMapSpec{}
+				err := json.Unmarshal([]byte(spec), mms)
+				if err != nil {
+					continue
+				}
+				mmp.Spec = *mms
+				l = append(l, mmp)
 			}
 		default:
 		}
@@ -655,6 +683,16 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 	return nil
 }
 
+func fillHazelcastConfigWithMultiMaps(cfg *config.Hazelcast, mml []hazelcastv1alpha1.MultiMap) {
+	if len(mml) != 0 {
+		cfg.MultiMap = map[string]config.MultiMap{}
+		for _, mm := range mml {
+			mmcfg := createMultiMapConfig(&mm)
+			cfg.MultiMap[mm.MultiMapName()] = mmcfg
+		}
+	}
+}
+
 func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
 	if len(h.Spec.ExecutorServices) != 0 {
 		cfg.ExecutorService = map[string]config.ExecutorService{}
@@ -749,18 +787,6 @@ func getMapStoreProperties(ctx context.Context, c client.Client, sn, ns string) 
 	return props, nil
 }
 
-func createExecutorServiceConfig(es *hazelcastv1alpha1.ExecutorServiceConfiguration) config.ExecutorService {
-	return config.ExecutorService{PoolSize: es.PoolSize, QueueCapacity: es.QueueCapacity}
-}
-
-func createDurableExecutorServiceConfig(des *hazelcastv1alpha1.DurableExecutorServiceConfiguration) config.DurableExecutorService {
-	return config.DurableExecutorService{PoolSize: des.PoolSize, Durability: des.Durability, Capacity: des.Capacity}
-}
-
-func createScheduledExecutorServiceConfig(ses *hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) config.ScheduledExecutorService {
-	return config.ScheduledExecutorService{PoolSize: ses.PoolSize, Durability: ses.Durability, Capacity: ses.Capacity, CapacityPolicy: ses.CapacityPolicy}
-}
-
 func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
 	ics := make([]config.MapIndex, len(idx))
 	for i, index := range idx {
@@ -774,6 +800,33 @@ func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
 	}
 
 	return ics
+}
+
+func createExecutorServiceConfig(es *hazelcastv1alpha1.ExecutorServiceConfiguration) config.ExecutorService {
+	return config.ExecutorService{PoolSize: es.PoolSize, QueueCapacity: es.QueueCapacity}
+}
+
+func createDurableExecutorServiceConfig(des *hazelcastv1alpha1.DurableExecutorServiceConfiguration) config.DurableExecutorService {
+	return config.DurableExecutorService{PoolSize: des.PoolSize, Durability: des.Durability, Capacity: des.Capacity}
+}
+
+func createScheduledExecutorServiceConfig(ses *hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) config.ScheduledExecutorService {
+	return config.ScheduledExecutorService{PoolSize: ses.PoolSize, Durability: ses.Durability, Capacity: ses.Capacity, CapacityPolicy: ses.CapacityPolicy}
+}
+
+func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
+	mms := mm.Spec
+	return config.MultiMap{
+		BackupCount:       *mms.BackupCount,
+		AsyncBackupCount:  n.DefaultMultiMapAsyncBackupCount,
+		Binary:            mms.Binary,
+		CollectionType:    string(mms.CollectionType),
+		StatisticsEnabled: n.DefaultMultiMapStatisticsEnabled,
+		MergePolicy: config.MergePolicy{
+			ClassName: n.DefaultMultiMapMergePolicy,
+			BatchSize: n.DefaultMultiMapMergeBatchSize,
+		},
+	}
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {

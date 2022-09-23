@@ -1017,4 +1017,37 @@ var _ = Describe("Hazelcast controller", func() {
 
 		Delete(fetchedCR)
 	})
+
+	Context("MultiMap CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				mm := &hazelcastv1alpha1.MultiMap{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create MultiMap CR")
+				Expect(k8sClient.Create(context.Background(), mm)).ShouldNot(Succeed())
+
+			})
+		})
+		When("Using default configuration", func() {
+			It("should create MultiMap CR with default configurations", Label("fast"), func() {
+				mm := &hazelcastv1alpha1.MultiMap{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.MultiMapSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+				}
+				By("creating MultiMap CR successfully")
+				Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
+				mms := mm.Spec
+
+				By("checking the CR values with default ones")
+				Expect(mms.Name).To(Equal(""))
+				Expect(*mms.BackupCount).To(Equal(n.DefaultMultiMapBackupCount))
+				Expect(mms.Binary).To(Equal(n.DefaultMultiMapBinary))
+				Expect(string(mms.CollectionType)).To(Equal(n.DefaultMultiMapCollectionType))
+				Expect(mms.HazelcastResourceName).To(Equal("hazelcast"))
+			})
+		})
+	})
 })

@@ -630,3 +630,32 @@ func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *haz
 	})
 	return hbCheck
 }
+
+func assertMultiMapStatus(mm *hazelcastcomv1alpha1.MultiMap, st hazelcastcomv1alpha1.MultiMapConfigState) *hazelcastcomv1alpha1.MultiMap {
+	checkMultiMap := &hazelcastcomv1alpha1.MultiMap{}
+	By("waiting for MultiMap CR status", func() {
+		Eventually(func() hazelcastcomv1alpha1.MultiMapConfigState {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      mm.Name,
+				Namespace: mm.Namespace,
+			}, checkMultiMap)
+			if err != nil {
+				return ""
+			}
+			return checkMultiMap.Status.State
+		}, 20*Second, interval).Should(Equal(st))
+	})
+	return checkMultiMap
+}
+
+func getMultiMapConfigFromMemberConfig(memberConfigXML string, multiMapName string) *codecTypes.MultiMapConfig {
+	var multiMaps codecTypes.MultiMapConfigs
+	err := xml.Unmarshal([]byte(memberConfigXML), &multiMaps)
+	Expect(err).To(BeNil())
+	for _, mm := range multiMaps.MultiMaps {
+		if mm.Name == multiMapName {
+			return &mm
+		}
+	}
+	return nil
+}

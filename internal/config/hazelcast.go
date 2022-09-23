@@ -15,6 +15,7 @@ type Hazelcast struct {
 	ScheduledExecutorService map[string]ScheduledExecutorService `yaml:"scheduled-executor-service,omitempty"`
 	UserCodeDeployment       UserCodeDeployment                  `yaml:"user-code-deployment,omitempty"`
 	Properties               map[string]string                   `yaml:"properties,omitempty"`
+	MultiMap                 map[string]MultiMap                 `yaml:"multimap,omitempty"`
 }
 
 type Jet struct {
@@ -144,6 +145,20 @@ type UserCodeDeployment struct {
 	BlacklistPrefixes string `yaml:"blacklist-prefixes,omitempty"`
 	WhitelistPrefixes string `yaml:"whitelist-prefixes,omitempty"`
 	ProviderFilter    string `yaml:"provider-filter,omitempty"`
+}
+
+type MultiMap struct {
+	BackupCount       int32       `yaml:"backup-count"`
+	AsyncBackupCount  int32       `yaml:"async-backup-count"`
+	Binary            bool        `yaml:"binary"`
+	CollectionType    string      `yaml:"value-collection-type"`
+	StatisticsEnabled bool        `yaml:"statistics-enabled"`
+	MergePolicy       MergePolicy `yaml:"merge-policy"`
+}
+
+type MergePolicy struct {
+	ClassName string `yaml:"class-name"`
+	BatchSize int32  `yaml:"batch-size"`
 }
 
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
