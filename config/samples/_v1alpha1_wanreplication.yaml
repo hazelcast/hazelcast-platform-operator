@@ -5,9 +5,9 @@ metadata:
 spec:
   resources:
     - name: map-sample
-      type: MAP
+      kind: Map
     - name: hz-sample
-      type: HZ
+      kind: Hazelcast
   targetClusterName: dev
   endpoints: "35.192.33.252"
 

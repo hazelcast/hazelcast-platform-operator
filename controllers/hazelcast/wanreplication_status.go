@@ -34,6 +34,12 @@ func wanSuccessStatus() wanOptionsBuilder {
 	}
 }
 
+func wanTerminatingStatus() wanOptionsBuilder {
+	return wanOptionsBuilder{
+		status: hazelcastv1alpha1.WanStatusTerminating,
+	}
+}
+
 func (o wanOptionsBuilder) withPublisherId(id string) wanOptionsBuilder {
 	o.publisherId = id
 	return o

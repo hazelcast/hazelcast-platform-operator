@@ -36,17 +36,17 @@ type ResourceSpec struct {
 	// +kubebuilder:validation:MinLength:=1
 	Name string `json:"name"`
 
-	// ResourceType is the type of custom resource which WAN replication will be applied to.
-	// +kubebuilder:validation:Enum=MAP;HZ
-	Type ResourceType `json:"type"`
+	// ResourceKind is the type of custom resource which WAN replication will be applied to.
+	// +kubebuilder:validation:Enum=Map;Hazelcast
+	Kind ResourceKind `json:"kind"`
 }
 
-type ResourceType string
+type ResourceKind string
 
 const (
-	ResourceTypeMap ResourceType = "MAP"
+	ResourceKindMap ResourceKind = "Map"
 
-	ResourceTypeHZ ResourceType = "HZ"
+	ResourceKindHZ ResourceKind = "Hazelcast"
 )
 
 // QueueSetting defines the configuration for Hazelcast WAN queue
@@ -112,9 +112,10 @@ const (
 type WanStatus string
 
 const (
-	WanStatusFailed  WanStatus = "Failed"
-	WanStatusPending WanStatus = "Pending"
-	WanStatusSuccess WanStatus = "Success"
+	WanStatusFailed      WanStatus = "Failed"
+	WanStatusPending     WanStatus = "Pending"
+	WanStatusSuccess     WanStatus = "Success"
+	WanStatusTerminating WanStatus = "Terminating"
 )
 
 // WanReplicationStatus defines the observed state of WanReplication

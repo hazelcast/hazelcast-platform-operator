@@ -110,21 +110,21 @@ spec:
                   will be applied to.
                 items:
                   properties:
+                    kind:
+                      description: ResourceKind is the type of custom resource which
+                        WAN replication will be applied to.
+                      enum:
+                      - Map
+                      - Hazelcast
+                      type: string
                     name:
                       description: ResourceName is the name of custom resource which
                         WAN replication will be applied to.
                       minLength: 1
                       type: string
-                    type:
-                      description: ResourceType is the type of custom resource which
-                        WAN replication will be applied to.
-                      enum:
-                      - MAP
-                      - HZ
-                      type: string
                   required:
+                  - kind
                   - name
-                  - type
                   type: object
                 minItems: 1
                 type: array

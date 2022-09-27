@@ -364,7 +364,7 @@ var (
 				Endpoints:         endpoints,
 				Resources: []hazelcastv1alpha1.ResourceSpec{{
 					Name: mapName,
-					Type: hazelcastv1alpha1.ResourceTypeMap,
+					Kind: hazelcastv1alpha1.ResourceKindMap,
 				}},
 			},
 		}

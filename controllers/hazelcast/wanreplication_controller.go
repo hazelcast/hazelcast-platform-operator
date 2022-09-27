@@ -69,7 +69,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
 			logger.Info("Deleting WAN configuration")
 			if err := r.stopWanReplication(ctx, wan); err != nil {
-				return ctrl.Result{}, err
+				return updateWanStatus(ctx, r.Client, wan, wanTerminatingStatus().withMessage(err.Error()))
 			}
 			logger.Info("Deleting WAN configuration finalizer")
 			controllerutil.RemoveFinalizer(wan, n.Finalizer)
@@ -131,17 +131,18 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	if !util.IsSuccessfullyApplied(wan) {
-		if util.IsPhoneHomeEnabled() {
-			go func() { r.phoneHomeTrigger <- struct{}{} }()
-		}
-		if err := r.Update(ctx, insertLastSuccessfullyAppliedSpec(wan)); err != nil {
-			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
-		}
-	}
-
 	if !isWanSuccessful(wan) {
 		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage("WAN replication is not successfully applied to some maps"))
+	}
+
+	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(wan) {
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
+	}
+
+	err = r.updateLastSuccessfulConfiguration(ctx, wan)
+	if err != nil {
+		logger.Info("Could not save the current successful spec as annotation to the custom resource")
+		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 	}
 
 	return updateWanStatus(ctx, r.Client, wan, wanSuccessStatus())
@@ -181,8 +182,8 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication) (map[string][]hazelcastcomv1alpha1.Map, error) {
 	HZClientMap := make(map[string][]hazelcastcomv1alpha1.Map)
 	for _, resource := range wan.Spec.Resources {
-		switch resource.Type {
-		case hazelcastcomv1alpha1.ResourceTypeMap:
+		switch resource.Kind {
+		case hazelcastcomv1alpha1.ResourceKindMap:
 			m, err := r.getWanMap(ctx, types.NamespacedName{Name: resource.Name, Namespace: wan.Namespace}, true)
 			if err != nil {
 				return nil, err
@@ -192,7 +193,8 @@ func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Conte
 				HZClientMap[m.Spec.HazelcastResourceName] = []hazelcastcomv1alpha1.Map{*m}
 			}
 			HZClientMap[m.Spec.HazelcastResourceName] = append(mapList, *m)
-		case hazelcastcomv1alpha1.ResourceTypeHZ:
+		case hazelcastcomv1alpha1.ResourceKindHZ:
+			fmt.Println(resource.Name)
 			maps, err := r.getAllMapsInHazelcast(ctx, resource.Name, wan.Namespace)
 			if err != nil {
 				return nil, err
@@ -208,7 +210,7 @@ func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Conte
 }
 
 func (r *WanReplicationReconciler) getAllMapsInHazelcast(ctx context.Context, hazelcastResourceName string, wanNamespace string) ([]hazelcastcomv1alpha1.Map, error) {
-	fieldMatcher := client.MatchingFields{"HazelcastResourceName": hazelcastResourceName}
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": hazelcastResourceName}
 	nsMatcher := client.InNamespace(wanNamespace)
 
 	wrl := &hazelcastcomv1alpha1.MapList{}
@@ -310,6 +312,7 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 			if err := changeWanState(ctx, cli, req); err != nil {
 				return err
 			}
+			delete(wan.Status.WanReplicationMapsStatus, mapWanKey)
 		}
 	}
 	return nil
@@ -454,13 +457,23 @@ func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication) *hazelcastc
 	return wan
 }
 
-func insertLastSuccessfullyAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication) *hazelcastcomv1alpha1.WanReplication {
-	b, _ := json.Marshal(wan.Spec)
-	if wan.Annotations == nil {
-		wan.Annotations = make(map[string]string)
+func (r *WanReplicationReconciler) updateLastSuccessfulConfiguration(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication) error {
+	ms, err := json.Marshal(wan.Spec)
+	if err != nil {
+		return err
 	}
-	wan.Annotations[n.LastSuccessfulSpecAnnotation] = string(b)
-	return wan
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, wan, func() error {
+		if wan.ObjectMeta.Annotations == nil {
+			wan.ObjectMeta.Annotations = map[string]string{}
+		}
+		wan.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(ms)
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		r.Logger.Info("Operation result", "WanReplication Annotation", wan.Name, "result", opResult)
+	}
+	return err
 }
 
 type LogKey string
