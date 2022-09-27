@@ -377,13 +377,29 @@ func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
 }
 
 func getFirstWorkerNodeName() string {
+	nodes := &corev1.NodeList{}
 	labelMatcher := client.MatchingLabels{}
+	err := k8sClient.List(context.Background(), nodes)
+	if err != nil {
+		panic(err)
+	}
+	for _, node := range nodes.Items {
+		if node.Name == "kind-worker" {
+			node.Labels["node-role.kubernetes.io/worker"] = ""
+			err := k8sClient.Update(context.Background(), &node)
+			if err != nil {
+				panic(err)
+			}
+			labelMatcher = client.MatchingLabels{
+				"node-role.kubernetes.io/worker": "",
+			}
+		}
+	}
 	if platform.GetPlatform().Type == platform.OpenShift {
 		labelMatcher = client.MatchingLabels{
 			"node-role.kubernetes.io/worker": "",
 		}
 	}
-	nodes := &corev1.NodeList{}
 	Expect(k8sClient.List(context.Background(), nodes, labelMatcher)).Should(Succeed())
 loop1:
 	for _, node := range nodes.Items {
