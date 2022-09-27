@@ -45,9 +45,10 @@ jobs:
       - name: Create environment.properties
         run: |-
           echo "GKE=$GITHUB_PAGES_URL/gke" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "OCP=$GITHUB_PAGES_URL/ocp" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "EKS=$GITHUB_PAGES_URL/eks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "AKS=$GITHUB_PAGES_URL/aks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "OCP=$GITHUB_PAGES_URL/ocp" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "KIND=$GITHUB_PAGES_URL/kind" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "BACKUP=$GITHUB_PAGES_URL/backup" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "PHONE_HOME=$GITHUB_PAGES_URL/ph" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "WAN=$GITHUB_PAGES_URL/wan" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
