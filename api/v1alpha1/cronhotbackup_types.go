@@ -48,8 +48,7 @@ type HotBackupTemplateSpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Specification of the desired behavior of the hot backup.
-	// +optional
-	Spec HotBackupSpec `json:"spec,omitempty"`
+	Spec HotBackupSpec `json:"spec"`
 }
 
 // CronHotBackupStatus defines the observed state of CronHotBackup

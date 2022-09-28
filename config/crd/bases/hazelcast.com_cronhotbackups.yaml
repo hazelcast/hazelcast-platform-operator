@@ -76,6 +76,8 @@ spec:
                     required:
                     - hazelcastResourceName
                     type: object
+                required:
+                - spec
                 type: object
               schedule:
                 description: "Schedule contains a crontab-like expression that defines
