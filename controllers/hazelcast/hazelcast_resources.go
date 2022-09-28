@@ -788,6 +788,9 @@ func getMapStoreProperties(ctx context.Context, c client.Client, sn, ns string) 
 }
 
 func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
+	if idx == nil {
+		return nil
+	}
 	ics := make([]config.MapIndex, len(idx))
 	for i, index := range idx {
 		ics[i].Type = string(index.Type)

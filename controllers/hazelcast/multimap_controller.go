@@ -125,9 +125,11 @@ func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			withMessage(err.Error()))
 	}
 
-	requeue, err := updateMultiMapStatus(ctx, r.Client, mm, mmPendingStatus(0).withMessage("Applying new multiMap configuration."))
-	if err != nil {
-		return requeue, err
+	if mm.Status.State != hazelcastv1alpha1.MultiMapPersisting {
+		requeue, err := updateMultiMapStatus(ctx, r.Client, mm, mmPendingStatus(0).withMessage("Applying new multiMap configuration."))
+		if err != nil {
+			return requeue, err
+		}
 	}
 
 	ms, err := r.ReconcileMultiMapConfig(ctx, mm, cl)
@@ -138,7 +140,7 @@ func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			withMemberStatuses(ms))
 	}
 
-	requeue, err = updateMultiMapStatus(ctx, r.Client, mm, mmPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
+	requeue, err := updateMultiMapStatus(ctx, r.Client, mm, mmPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
 	if err != nil {
 		return requeue, err
 	}

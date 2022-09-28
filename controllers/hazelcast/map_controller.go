@@ -133,9 +133,11 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			withMessage(err.Error()))
 	}
 
-	requeue, err := updateMapStatus(ctx, r.Client, m, pendingStatus(0).withMessage("Applying new map configuration."))
-	if err != nil {
-		return requeue, err
+	if m.Status.State != hazelcastv1alpha1.MapPersisting {
+		requeue, err := updateMapStatus(ctx, r.Client, m, pendingStatus(0).withMessage("Applying new map configuration."))
+		if err != nil {
+			return requeue, err
+		}
 	}
 
 	ms, err := r.ReconcileMapConfig(ctx, m, h, cl, createdBefore)
@@ -146,7 +148,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			withMemberStatuses(ms))
 	}
 
-	requeue, err = updateMapStatus(ctx, r.Client, m, persistingStatus(1*time.Second).withMessage("Persisting the applied map config."))
+	requeue, err := updateMapStatus(ctx, r.Client, m, persistingStatus(1*time.Second).withMessage("Persisting the applied map config."))
 	if err != nil {
 		return requeue, err
 	}
