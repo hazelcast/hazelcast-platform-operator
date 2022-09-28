@@ -93,6 +93,7 @@ var _ = BeforeSuite(func() {
 		k8sManager.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Hot Backup"),
 		nil,
+		nil,
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
