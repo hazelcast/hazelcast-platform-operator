@@ -6,7 +6,7 @@ import (
 
 // WanReplicationSpec defines the desired state of WanReplication
 type WanReplicationSpec struct {
-	// Resources is the list of custom resources which WAN replication will be applied to.
+	// Resources is the list of custom resources to which WAN replication applies.
 	// +kubebuilder:validation:MinItems:=1
 	Resources []ResourceSpec `json:"resources"`
 
@@ -32,12 +32,13 @@ type WanReplicationSpec struct {
 }
 
 type ResourceSpec struct {
-	// ResourceName is the name of custom resource which WAN replication will be applied to.
+	// Name is the name of custom resource to which WAN replication applies.
 	// +kubebuilder:validation:MinLength:=1
 	Name string `json:"name"`
 
-	// ResourceKind is the type of custom resource which WAN replication will be applied to.
+	// Kind is the kind of custom resource to which WAN replication applies.
 	// +kubebuilder:validation:Enum=Map;Hazelcast
+	// +kubebuilder:default:=Map
 	Kind ResourceKind `json:"kind"`
 }
 
