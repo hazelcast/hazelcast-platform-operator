@@ -384,7 +384,7 @@ func getFirstWorkerNodeName() string {
 		panic(err)
 	}
 	for _, node := range nodes.Items {
-		if node.Name == "kind-worker" {
+		if strings.Contains(node.Name, "worker") {
 			node.Labels["node-role.kubernetes.io/worker"] = ""
 			err := k8sClient.Update(context.Background(), &node)
 			if err != nil {
