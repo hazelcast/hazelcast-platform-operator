@@ -33,7 +33,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3.2.0
         if: ${{ !cancelled() }}
         with:
-          args: --timeout 2m --build-tags hazelcastinternal
+          args: --timeout 3m --build-tags hazelcastinternal
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
