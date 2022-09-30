@@ -201,6 +201,9 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+ifneq (,$(findstring kind,$(NAMESPACE)))
+	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path update_image_pull_policy.yaml
+endif
 ifneq (,$(NAME_PREFIX))
 	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
 endif
