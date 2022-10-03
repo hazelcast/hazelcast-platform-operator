@@ -140,12 +140,13 @@ jobs:
 
       - name: Deploy Report to Github Pages
         if: always()
-        uses: peaceiris/actions-gh-pages@v3.7.3
+        uses: JamesIves/github-pages-deploy-action@v4.4.0
         with:
-          publish_branch: test-report-pages
-          publish_dir: allure-history
-          personal_token: ${{ secrets.GITHUB_TOKEN }}
-          commit_message: deploy report with run number ${{ github.run_number }} and commit
+          branch: test-report-pages
+          folder: allure-history
+          token: ${{ secrets.GITHUB_TOKEN }}
+          force: false
+          commit-message: deploy report with run number ${{ github.run_number }} and commit
 
       - name: Cleanup Page Publish Runs
         if: always()
