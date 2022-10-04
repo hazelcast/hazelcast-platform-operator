@@ -3207,7 +3207,7 @@ spec:
             fieldRef:
               fieldPath: metadata.name
         image: hazelcast/hazelcast-platform-operator:5.4
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
             path: /healthz
