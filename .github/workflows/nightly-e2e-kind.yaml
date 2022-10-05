@@ -125,6 +125,7 @@ jobs:
             echo "IMG=${IMG}" >> $GITHUB_ENV
           else
             IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
+            docker pull $IMG
             kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
             echo "IMG=${IMG}" >> $GITHUB_ENV
           fi
