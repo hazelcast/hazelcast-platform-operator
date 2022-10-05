@@ -13,7 +13,7 @@ type UploadService struct {
 	client *Client
 }
 
-func NewUploadService(address string) (*UploadService, error) {
+func NewUploadService(address string, httpClient *http.Client) (*UploadService, error) {
 	baseURL, err := url.Parse(address)
 	if err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ func NewUploadService(address string) (*UploadService, error) {
 	return &UploadService{
 		client: &Client{
 			BaseURL: baseURL,
-			client:  &http.Client{},
+			client:  httpClient,
 		},
 	}, nil
 }

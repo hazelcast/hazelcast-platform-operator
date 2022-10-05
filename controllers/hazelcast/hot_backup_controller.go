@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/go-logr/logr"
-	"github.com/robfig/cron/v3"
 	"golang.org/x/sync/errgroup"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -20,6 +18,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/backup"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/upload"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -28,21 +27,20 @@ import (
 type HotBackupReconciler struct {
 	client.Client
 	Log              logr.Logger
-	scheduled        sync.Map
-	cron             *cron.Cron
 	cancelMap        map[types.NamespacedName]context.CancelFunc
 	backup           map[types.NamespacedName]struct{}
 	phoneHomeTrigger chan struct{}
+	mtlsClient       *mtls.Client
 }
 
-func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}) *HotBackupReconciler {
+func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client) *HotBackupReconciler {
 	return &HotBackupReconciler{
 		Client:           c,
 		Log:              log,
-		cron:             cron.New(),
 		cancelMap:        make(map[types.NamespacedName]context.CancelFunc),
 		backup:           make(map[types.NamespacedName]struct{}),
 		phoneHomeTrigger: pht,
+		mtlsClient:       mtlsClient,
 	}
 }
 
@@ -125,18 +123,13 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	logger.Info("Ready to start backup")
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 	r.cancelMap[req.NamespacedName] = cancelFunc
-	if hb.Spec.Schedule != "" {
-		logger.Info("Adding backup to schedule")
-		r.scheduleBackup(cancelCtx, hb.Spec.Schedule, req.NamespacedName, hazelcastName, logger)
-	} else {
-		result, err = r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupPending))
-		if err != nil {
-			return result, err
-		}
-		r.removeSchedule(req.NamespacedName, logger)
-		r.lockBackup(req.NamespacedName)
-		go r.startBackup(cancelCtx, req.NamespacedName, hazelcastName, logger) //nolint:errcheck
+
+	result, err = r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupPending))
+	if err != nil {
+		return result, err
 	}
+	r.lockBackup(req.NamespacedName)
+	go r.startBackup(cancelCtx, req.NamespacedName, hazelcastName, logger) //nolint:errcheck
 
 	return
 }
@@ -152,9 +145,11 @@ func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 		if err != nil {
 			return err
 		}
-		if hb.ObjectMeta.Annotations != nil {
-			hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
+		if hb.ObjectMeta.Annotations == nil {
+			hb.ObjectMeta.Annotations = make(map[string]string)
 		}
+		hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
+
 		return r.Client.Update(ctx, hb)
 	})
 }
@@ -184,20 +179,12 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 		delete(r.cancelMap, key)
 	}
 	r.unlockBackup(key)
-	r.removeSchedule(key, logger)
 	controllerutil.RemoveFinalizer(hb, n.Finalizer)
 	err := r.Update(ctx, hb)
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
 	return nil
-}
-
-func (r *HotBackupReconciler) removeSchedule(key types.NamespacedName, logger logr.Logger) {
-	if jobId, ok := r.scheduled.LoadAndDelete(key); ok {
-		logger.V(util.DebugLevel).Info("Removing cron Job.", "EntryId", jobId)
-		r.cron.Remove(jobId.(cron.EntryID))
-	}
 }
 
 func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.NamespacedName, options hotBackupOptionsBuilder) (ctrl.Result, error) {
@@ -216,20 +203,6 @@ func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.Names
 		return ctrl.Result{}, options.err
 	}
 	return ctrl.Result{}, err
-}
-
-func (r *HotBackupReconciler) scheduleBackup(ctx context.Context, schedule string, backupName types.NamespacedName, hazelcastName types.NamespacedName, logger logr.Logger) {
-	entry, err := r.cron.AddFunc(schedule, func() {
-		r.startBackup(ctx, backupName, hazelcastName, logger) //nolint:errcheck
-	})
-	if err != nil {
-		logger.Error(err, "Error creating new Schedule Hot Restart.")
-	}
-	if old, loaded := r.scheduled.LoadOrStore(backupName, entry); loaded {
-		r.cron.Remove(old.(cron.EntryID))
-		r.scheduled.Store(backupName, entry)
-	}
-	r.cron.Start()
 }
 
 func (r *HotBackupReconciler) checkBackup(name types.NamespacedName) bool {
@@ -301,6 +274,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 			logger.Info("Start and wait for member backup upload")
 			u, err := upload.NewUpload(&upload.Config{
 				MemberAddress: m.Address,
+				MTLSClient:    r.mtlsClient,
 				BucketURI:     hb.Spec.BucketURI,
 				BackupPath:    hz.Spec.Persistence.BaseDir,
 				HazelcastName: hb.Spec.HazelcastResourceName,

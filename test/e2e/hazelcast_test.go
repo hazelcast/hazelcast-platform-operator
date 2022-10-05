@@ -119,7 +119,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 	Describe("Hazelcast CR dependent CRs", func() {
 		When("Hazelcast CR is deleted", func() {
-			It("dependent Map, WanReplication and HotBackup CRs should be deleted", Label("fast"), func() {
+			It("dependent Map, and HotBackup CRs should be deleted", Label("fast"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -136,15 +136,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				Expect(k8sClient.Create(context.Background(), hb)).Should(Succeed())
 				assertHotBackupSuccess(hb, 1*Minute)
 
-				wr := hazelcastconfig.DefaultWanReplication(wanLookupKey, m.Name, "target", "endpoints", labels)
-				Expect(k8sClient.Create(context.Background(), wr)).Should(Succeed())
-
 				DeleteAllOf(hz, &hazelcastcomv1alpha1.HazelcastList{}, hz.Namespace, labels)
 
-				err := k8sClient.Get(context.Background(), wanLookupKey, wr)
-				Expect(errors.IsNotFound(err)).To(BeTrue())
-
-				err = k8sClient.Get(context.Background(), mapLookupKey, m)
+				err := k8sClient.Get(context.Background(), mapLookupKey, m)
 				Expect(errors.IsNotFound(err)).To(BeTrue())
 
 				err = k8sClient.Get(context.Background(), hbLookupKey, hb)

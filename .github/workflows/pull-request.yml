@@ -33,7 +33,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3.2.0
         if: ${{ !cancelled() }}
         with:
-          args: --timeout 2m --build-tags hazelcastinternal
+          args: --timeout 3m --build-tags hazelcastinternal
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
@@ -117,7 +117,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v0.8.0"
+        uses: "google-github-actions/auth@v0.8.1"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -131,7 +131,7 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-2 \
-            --num-nodes=2
+            --num-nodes=3
           sleep 30
 
   get-image:
@@ -190,7 +190,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v0.8.0"
+        uses: "google-github-actions/auth@v0.8.1"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -255,7 +255,7 @@ jobs:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v0.8.0"
+        uses: "google-github-actions/auth@v0.8.1"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 

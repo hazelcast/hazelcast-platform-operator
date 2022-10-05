@@ -81,6 +81,30 @@ var _ = BeforeSuite(func() {
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = hazelcast.NewMapReconciler(
+		k8sManager.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Map"),
+		k8sManager.GetScheme(),
+		nil,
+	).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = hazelcast.NewHotBackupReconciler(
+		k8sManager.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Hot Backup"),
+		nil,
+		nil,
+	).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = hazelcast.NewCronHotBackupReconciler(
+		k8sManager.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Cron Hot Backup"),
+		k8sManager.GetScheme(),
+		nil,
+	).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		err = k8sManager.Start(ctrl.SetupSignalHandler())
 		Expect(err).ToNot(HaveOccurred())

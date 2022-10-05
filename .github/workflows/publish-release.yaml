@@ -5,36 +5,12 @@ on:
       RELEASE_VERSION:
         required: true
         type: string
-      PREFLIGHT_VERSION:
-        description: "preflight tool version"
-        required: true
-        type: string
-    secrets:
-      PFLT_PYXIS_API_TOKEN:
-        description: "An API Key can be created in Red Hat Partner Connect at the following URL: https://connect.redhat.com/account/api-keys"
-        required: true
-      DOCKERHUB_USERNAME:
-        description: "Docker Hub registry username"
-        required: true
-      DOCKERHUB_PASSWORD:
-        description: "Docker Hub registry password"
-        required: true
-      PROJECT_ID:
-        description: "Project ID w/o osp prefix"
-        required: true
-      JFROG_TOKEN:
-        required: true
-      DEVOPS_GITHUB_TOKEN:
-        required: true
-      SLACK_WEBHOOK_URL:
-        required: true
 
 env:
   OPERATOR_NAME: "hazelcast-platform-operator"
   RELEASE_VERSION: ${{ inputs.RELEASE_VERSION }}
   PROJECT_ID: ${{ secrets.PROJECT_ID }}
-  PFLT_PYXIS_API_TOKEN: ${{ secrets.PFLT_PYXIS_API_TOKEN }}
-  PREFLIGHT_VERSION: ${{ inputs.PREFLIGHT_VERSION }}
+  PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
   PUBLISH_TIMEOUT_IN_MINS: "60"
   GRADE_CHECK_TIMEOUT_IN_MINS: "10"
 
@@ -384,7 +360,7 @@ jobs:
     if: needs.operatorhub_release.result != 'success' && needs.redhat_certified_operator_release.result != 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: 8398a7/action-slack@22048831299719d772f51719ca7384e34b4cc61d
+      - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure

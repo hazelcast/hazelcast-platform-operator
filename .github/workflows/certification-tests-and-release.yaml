@@ -13,7 +13,6 @@ on:
 
 env:
   PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
-  PREFLIGHT_VERSION: latest
   NAMESPACE: oc-test-operator-${{ github.run_id }}
   PARDOT_ID: redhat
 
@@ -28,7 +27,6 @@ jobs:
       RELEASE_VERSION: ${{ steps.setup-envs.outputs.RELEASE_VERSION }}
       CONTAINER_IMAGE: ${{ steps.setup-envs.outputs.CONTAINER_IMAGE }}
       CONTAINER_IMAGE_DIGEST: ${{ steps.push-operator-image.outputs.CONTAINER_IMAGE_DIGEST }}
-      PREFLIGHT_VERSION: ${{ steps.setup-envs.outputs.PREFLIGHT_VERSION }}
     steps:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v3
@@ -56,7 +54,6 @@ jobs:
               CONTAINER_IMAGE=ttl.sh/$CONTAINER_REPOSITORY:1h
               echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}" >> $GITHUB_ENV
               echo "::set-output name=CONTAINER_IMAGE::${CONTAINER_IMAGE}"
-              echo "::set-output name=PREFLIGHT_VERSION::${PREFLIGHT_VERSION}"
 
       - name: Validate version
         run: |
@@ -217,6 +214,7 @@ jobs:
         with:
           preflight: "latest"
           source: github
+
       - uses: redhat-actions/openshift-tools-installer@v1
         with:
           operator-sdk: "latest"
@@ -255,15 +253,8 @@ jobs:
     uses: ./.github/workflows/publish-release.yaml
     with:
       RELEASE_VERSION: ${{ needs.test_container.outputs.RELEASE_VERSION }}
-      PREFLIGHT_VERSION: ${{ needs.test_container.outputs.PREFLIGHT_VERSION }}
-    secrets:
-      PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-      PROJECT_ID: ${{ secrets.PROJECT_ID }}
-      JFROG_TOKEN: ${{ secrets.JFROG_TOKEN }}
-      DEVOPS_GITHUB_TOKEN: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    secrets: inherit
+
 
   clean_up_artifacts:
     if: always()

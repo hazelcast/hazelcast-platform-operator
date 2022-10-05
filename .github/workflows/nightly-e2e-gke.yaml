@@ -19,7 +19,7 @@ jobs:
       GCP_NETWORK: operator-test-network
     steps:
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.8.0'
+        uses: 'google-github-actions/auth@v0.8.1'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -96,7 +96,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v0.8.0"
+        uses: "google-github-actions/auth@v0.8.1"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -160,7 +160,7 @@ jobs:
           path: allure-results/gke/
 
   report-generation:
-    needs: gke-e2e-tests
+    needs: ["gke-e2e-tests","create-gke-cluster"]
     if: always()
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
@@ -176,7 +176,7 @@ jobs:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v0.8.0"
+        uses: "google-github-actions/auth@v0.8.1"
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -191,7 +191,7 @@ jobs:
     if: always() && ( needs.gke-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
-      - uses: 8398a7/action-slack@22048831299719d772f51719ca7384e34b4cc61d
+      - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure

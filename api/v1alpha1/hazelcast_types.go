@@ -97,7 +97,7 @@ type HazelcastSpec struct {
 
 	// B&R Agent configurations
 	// +optional
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.6"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.7"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
 
 	// User Codes to Download into CLASSPATH
@@ -240,7 +240,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.6"
+	// +kubebuilder:default:="0.1.7"
 	// +optional
 	Version string `json:"version,omitempty"`
 }

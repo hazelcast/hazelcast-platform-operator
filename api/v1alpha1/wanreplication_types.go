@@ -6,9 +6,9 @@ import (
 
 // WanReplicationSpec defines the desired state of WanReplication
 type WanReplicationSpec struct {
-	// MapResourceName is the name of Map custom resource which WAN replication will be applied to.
-	// +kubebuilder:validation:MinLength:=1
-	MapResourceName string `json:"mapResourceName"`
+	// Resources is the list of custom resources to which WAN replication applies.
+	// +kubebuilder:validation:MinItems:=1
+	Resources []ResourceSpec `json:"resources"`
 
 	// ClusterName is the clusterName field of the target Hazelcast resource.
 	// +kubebuilder:validation:MinLength:=1
@@ -30,6 +30,25 @@ type WanReplicationSpec struct {
 	// +optional
 	Acknowledgement AcknowledgementSetting `json:"acknowledgement,omitempty"`
 }
+
+type ResourceSpec struct {
+	// Name is the name of custom resource to which WAN replication applies.
+	// +kubebuilder:validation:MinLength:=1
+	Name string `json:"name"`
+
+	// Kind is the kind of custom resource to which WAN replication applies.
+	// +kubebuilder:validation:Enum=Map;Hazelcast
+	// +kubebuilder:default:=Map
+	Kind ResourceKind `json:"kind"`
+}
+
+type ResourceKind string
+
+const (
+	ResourceKindMap ResourceKind = "Map"
+
+	ResourceKindHZ ResourceKind = "Hazelcast"
+)
 
 // QueueSetting defines the configuration for Hazelcast WAN queue
 type QueueSetting struct {
@@ -94,13 +113,24 @@ const (
 type WanStatus string
 
 const (
-	WanStatusFailed  WanStatus = "Failed"
-	WanStatusPending WanStatus = "Pending"
-	WanStatusSuccess WanStatus = "Success"
+	WanStatusFailed      WanStatus = "Failed"
+	WanStatusPending     WanStatus = "Pending"
+	WanStatusSuccess     WanStatus = "Success"
+	WanStatusTerminating WanStatus = "Terminating"
 )
 
 // WanReplicationStatus defines the observed state of WanReplication
 type WanReplicationStatus struct {
+	// Status is the status of WAN replication
+	Status WanStatus `json:"status,omitempty"`
+
+	// Message is the field to show detail information or error
+	Message string `json:"message,omitempty"`
+
+	WanReplicationMapsStatus map[string]WanReplicationMapStatus `json:"wanReplicationMapsStatus,omitempty"`
+}
+
+type WanReplicationMapStatus struct {
 	// PublisherId is the ID used for WAN publisher ID
 	PublisherId string `json:"publisherId,omitempty"`
 

@@ -41,6 +41,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if skipCleanup() {
 			return
 		}
+		DeleteAllOf(&hazelcastcomv1alpha1.CronHotBackup{}, &hazelcastcomv1alpha1.CronHotBackupList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, &hazelcastcomv1alpha1.HotBackupList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
@@ -260,6 +261,36 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Entry("using GCP bucket", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp"),
 		Entry("using Azure bucket", Label("slow"), "azblob://operator-e2e-external-backup", "br-secret-az"),
 	)
+
+	It("should trigger multiple HotBackups with CronHotBackup", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hp-6")
+
+		By("creating cron hot backup")
+		hbSpec := &hazelcastcomv1alpha1.HotBackupSpec{}
+		chb := hazelcastconfig.CronHotBackup(hzLookupKey, "*/5 * * * * *", hbSpec, labels)
+		Expect(k8sClient.Create(context.Background(), chb)).Should(Succeed())
+
+		By("waiting cron hot backup two crete two backups")
+		Eventually(func() int {
+			hbl := &hazelcastcomv1alpha1.HotBackupList{}
+			err := k8sClient.List(context.Background(), hbl, client.InNamespace(chb.Namespace), client.MatchingLabels(labels))
+			if err != nil {
+				return 0
+			}
+			return len(hbl.Items)
+		}, 11*Second, 1*Second).Should(Equal(2))
+
+		By("deleting the cron hot backup")
+		DeleteAllOf(&hazelcastcomv1alpha1.CronHotBackup{}, &hazelcastcomv1alpha1.CronHotBackupList{}, hzNamespace, labels)
+
+		By("seeing hot backup CRs are also deleted")
+		hbl := &hazelcastcomv1alpha1.HotBackupList{}
+		Expect(k8sClient.List(context.Background(), hbl, client.InNamespace(chb.Namespace), client.MatchingLabels(labels))).Should(Succeed())
+		Expect(len(hbl.Items)).To(Equal(0))
+	})
 })
 
 func unixMilli(msec int64) Time {

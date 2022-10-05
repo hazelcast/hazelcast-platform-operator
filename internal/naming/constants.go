@@ -56,6 +56,9 @@ const (
 	BucketSecret          = "br-secret"
 	UserCodeDownloadAgent = "ucd-agent"
 
+	MTLSCertSecretName = "hazelcast-mtls-cert"
+	MTLSCertPath       = "/var/run/secrets/hazelcast"
+
 	UserCodeBucketPath    = "/opt/hazelcast/userCode/bucket"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 )
@@ -108,6 +111,12 @@ const (
 	DefaultMultiMapStatisticsEnabled = true
 	DefaultMultiMapMergePolicy       = "com.hazelcast.spi.merge.PutIfAbsentMergePolicy"
 	DefaultMultiMapMergeBatchSize    = int32(100)
+)
+
+// CronHotBackup Config default values
+const (
+	DefaultSuccessfulHotBackupsHistoryLimit = int32(5)
+	DefaultFailedHotBackupsHistoryLimit     = int32(3)
 )
 
 // Operator Values

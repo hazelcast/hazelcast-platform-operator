@@ -1,4 +1,7 @@
 # Hazelcast Platform Operator #
+[![Nightly E2E tests on GKE](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-gke.yaml/badge.svg?event=schedule)](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-gke.yaml) [![Nightly E2E tests on AWS](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-eks.yaml/badge.svg?event=schedule)](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-eks.yaml) [![Nightly E2E tests on Azure](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-aks.yaml/badge.svg?event=schedule)](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-aks.yaml)
+
+[![Nightly E2E tests on OCP](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-ocp.yaml/badge.svg?event=schedule)](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-ocp.yaml) [![Nightly E2E tests on Kind](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-kind.yaml/badge.svg?event=schedule)](https://github.com/hazelcast/hazelcast-platform-operator/actions/workflows/nightly-e2e-kind.yaml)
 
 <img align="right" src="https://hazelcast.com/brand-assets/files/hazelcast-stacked-flat-sm.png">
 

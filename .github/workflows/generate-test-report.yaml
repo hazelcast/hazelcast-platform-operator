@@ -45,9 +45,10 @@ jobs:
       - name: Create environment.properties
         run: |-
           echo "GKE=$GITHUB_PAGES_URL/gke" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "OCP=$GITHUB_PAGES_URL/ocp" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "EKS=$GITHUB_PAGES_URL/eks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "AKS=$GITHUB_PAGES_URL/aks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "OCP=$GITHUB_PAGES_URL/ocp" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "KIND=$GITHUB_PAGES_URL/kind" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "BACKUP=$GITHUB_PAGES_URL/backup" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "PHONE_HOME=$GITHUB_PAGES_URL/ph" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "WAN=$GITHUB_PAGES_URL/wan" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
@@ -133,14 +134,19 @@ jobs:
           sed -i "s/Allure Report/Hazelcast Operator Test Report/g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/index.html
           mv -f test-report-pages/styles.css allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
 
+      - name: Update The 'test-report-pages' Branch
+        run: |
+          git fetch origin test-report-pages
+
       - name: Deploy Report to Github Pages
         if: always()
-        uses: peaceiris/actions-gh-pages@v3
+        uses: JamesIves/github-pages-deploy-action@v4.4.0
         with:
-          publish_branch: test-report-pages
-          publish_dir: allure-history
-          personal_token: ${{ secrets.GITHUB_TOKEN }}
-          commit_message: deploy report with run number ${{ github.run_number }} and commit
+          branch: test-report-pages
+          folder: allure-history
+          token: ${{ secrets.GITHUB_TOKEN }}
+          force: false
+          commit-message: deploy report with run number ${{ github.run_number }} and commit
 
       - name: Cleanup Page Publish Runs
         if: always()
