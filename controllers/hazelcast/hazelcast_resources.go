@@ -86,6 +86,11 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 	if err != nil {
 		return err
 	}
+
+	err = r.deleteDependentMultiMaps(ctx, h, logger)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -158,6 +163,43 @@ func (r *HazelcastReconciler) deleteDependentMaps(ctx context.Context, h *hazelc
 
 	if len(ml.Items) != 0 {
 		return fmt.Errorf("Hazelcast dependent Map resources are not deleted yet.")
+	}
+
+	return nil
+}
+
+func (r *HazelcastReconciler) deleteDependentMultiMaps(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	ml := &hazelcastv1alpha1.MultiMapList{}
+
+	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Could not get Hazelcast dependent MultiMap resources %w", err)
+	}
+
+	if len(ml.Items) == 0 {
+		return nil
+	}
+
+	g, groupCtx := errgroup.WithContext(ctx)
+	for i := 0; i < len(ml.Items); i++ {
+		i := i
+		g.Go(func() error {
+			return util.DeleteObject(groupCtx, r.Client, &ml.Items[i])
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("Error deleting MultiMap resources %w", err)
+	}
+
+	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Hazelcast dependent MultiMap resources are not deleted yet %w", err)
+	}
+
+	if len(ml.Items) != 0 {
+		return fmt.Errorf("Hazelcast dependent MultiMap resources are not deleted yet.")
 	}
 
 	return nil
