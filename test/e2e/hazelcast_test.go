@@ -119,7 +119,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 	Describe("Hazelcast CR dependent CRs", func() {
 		When("Hazelcast CR is deleted", func() {
-			It("dependent Map, and HotBackup CRs should be deleted", Label("fast"), func() {
+			It("dependent Map, MultiMap and HotBackup CRs should be deleted", Label("fast"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -131,6 +131,10 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				m := hazelcastconfig.DefaultMap(mapLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 				assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+				mm := hazelcastconfig.DefaultMultiMap(mmLookupKey, hz.Name, labels)
+				Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
+				assertMultiMapStatus(mm, hazelcastcomv1alpha1.MultiMapSuccess)
 
 				hb := hazelcastconfig.HotBackup(hbLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), hb)).Should(Succeed())

@@ -91,7 +91,6 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 	if err != nil {
 		return err
 	}
-
 	err = r.deleteDependentMultiMaps(ctx, h, logger)
 	if err != nil {
 		return err
