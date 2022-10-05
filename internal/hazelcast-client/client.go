@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
-
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
@@ -18,7 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/config"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 type Client struct {
@@ -122,7 +121,7 @@ func CreateClient(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, channel c
 	if _, ok := Clients.Load(ns); ok {
 		return
 	}
-	config := config.BuildConfig(h)
+	config := BuildConfig(h)
 	c := newHazelcastClient(l, ns, channel)
 	c.start(ctx, config)
 	Clients.Store(ns, c)
@@ -331,4 +330,34 @@ func (c ClusterHotRestartStatus) RestoreState() hazelcastv1alpha1.RestoreState {
 	default:
 		return hazelcastv1alpha1.RestoreUnknown
 	}
+}
+
+func (cl *Client) ChangeClusterState(ctx context.Context, newState codecTypes.ClusterState) error {
+	ci := hazelcast.NewClientInternal(cl.Client)
+	req := codec.EncodeMCChangeClusterStateRequest(newState)
+	_, err := ci.InvokeOnRandomTarget(ctx, req, nil)
+	if err != nil {
+		return fmt.Errorf("invoking: %w", err)
+	}
+	return nil
+}
+
+func (cl *Client) TriggerHotRestartBackup(ctx context.Context) error {
+	ci := hazelcast.NewClientInternal(cl.Client)
+	req := codec.EncodeMCTriggerHotRestartBackupRequest()
+	_, err := ci.InvokeOnRandomTarget(ctx, req, nil)
+	if err != nil {
+		return fmt.Errorf("invoking: %w", err)
+	}
+	return nil
+}
+
+func (cl *Client) InterruptHotRestartBackup(ctx context.Context) error {
+	ci := hazelcast.NewClientInternal(cl.Client)
+	req := codec.EncodeMCInterruptHotRestartBackupRequest()
+	_, err := ci.InvokeOnRandomTarget(ctx, req, nil)
+	if err != nil {
+		return fmt.Errorf("invoking: %w", err)
+	}
+	return nil
 }

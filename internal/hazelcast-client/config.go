@@ -1,9 +1,7 @@
-//go:build localrun || unittest
-// +build localrun unittest
+//go:build !localrun && !unittest
+// +build !localrun,!unittest
 
-// This file is used  for running operator locally and connect to the cluster that uses ExposeExternally feature
-
-package config
+package client
 
 import (
 	"fmt"
@@ -12,9 +10,8 @@ import (
 	"github.com/hazelcast/hazelcast-go-client/logger"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
-
-const localUrl = "127.0.0.1:8000"
 
 func BuildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	config := hazelcast.Config{
@@ -25,7 +22,6 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	cc := &config.Cluster
 	cc.Name = h.Spec.ClusterName
 	cc.Network.SetAddresses(HazelcastUrl(h))
-	cc.Unisocket = true
 	return config
 }
 
@@ -33,6 +29,6 @@ func RestUrl(h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("http://%s", HazelcastUrl(h))
 }
 
-func HazelcastUrl(_ *hazelcastv1alpha1.Hazelcast) string {
-	return localUrl
+func HazelcastUrl(h *hazelcastv1alpha1.Hazelcast) string {
+	return fmt.Sprintf("%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort)
 }

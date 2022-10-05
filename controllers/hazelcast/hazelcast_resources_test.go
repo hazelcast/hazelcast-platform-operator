@@ -9,7 +9,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 )
 
 func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {

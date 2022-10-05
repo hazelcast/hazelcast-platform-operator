@@ -18,8 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
-	hzconfig "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/config"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 )
 
 func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T) {
@@ -47,7 +46,7 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 		},
 	}
 
-	ts, err := fakeHttpServer(hzconfig.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
+	ts, err := fakeHttpServer(hzclient.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
 		if request.RequestURI == hotBackup {
 			writer.WriteHeader(500)
 			_, _ = writer.Write([]byte("{\"status\":\"failed\"}"))
@@ -108,7 +107,7 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 	var restCallWg sync.WaitGroup
 	restCallWg.Add(1)
 	var hotBackupTriggers int32
-	ts, err := fakeHttpServer(hzconfig.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
+	ts, err := fakeHttpServer(hzclient.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
 		if request.RequestURI == hotBackup {
 			t.Log(request.Method, request.URL)
 			atomic.AddInt32(&hotBackupTriggers, 1)
@@ -196,7 +195,7 @@ func TestHotBackupReconciler_shouldCancelContextIfHazelcastCRIsDeleted(t *testin
 			HazelcastResourceName: "hazelcast",
 		},
 	}
-	ts, err := fakeHttpServer(hzconfig.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
+	ts, err := fakeHttpServer(hzclient.HazelcastUrl(h), func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(200)
 		_, _ = writer.Write([]byte("{\"status\":\"success\"}"))
 	})

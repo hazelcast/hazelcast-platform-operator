@@ -6,32 +6,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/util/retry"
 
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	hzclient "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/client"
-	hzconfig "github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/config"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
-// backupBackoff is based on retry.DefaultBackoff
-var backupBackoff = wait.Backoff{
-	Steps:    8,
-	Duration: 10 * time.Millisecond,
-	Factor:   2.0,
-	Jitter:   0.1,
-}
-
 type ClusterBackup struct {
-	client  *hzclient.Client
-	service *rest.HazelcastService
-
-	clusterName string
-	members     map[hztypes.UUID]*hzclient.MemberData
-
+	client     *hzclient.Client
+	members    map[hztypes.UUID]*hzclient.MemberData
 	cancelOnce sync.Once
 }
 
@@ -56,44 +41,29 @@ func NewClusterBackup(h *hazelcastv1alpha1.Hazelcast) (*ClusterBackup, error) {
 		return nil, errBackupClientNoMembers
 	}
 
-	s, err := rest.NewHazelcastService(hzconfig.RestUrl(h))
-	if err != nil {
-		return nil, err
-	}
-
 	return &ClusterBackup{
-		client:      c,
-		service:     s,
-		members:     c.Status.MemberMap,
-		clusterName: h.Spec.ClusterName,
+		client:  c,
+		members: c.Status.MemberMap,
 	}, nil
 }
 
 func (b *ClusterBackup) Start(ctx context.Context) error {
 	// switch cluster to passive for the time of hot backup
-	err := retryOnError(retry.DefaultRetry, func() error {
-		_, _, err := b.service.ChangeState(ctx, b.clusterName, "PASSIVE")
-		return err
-	})
+	err := b.client.ChangeClusterState(ctx, codecTypes.ClusterStatePassive)
 	if err != nil {
 		return err
 	}
-	// activate cluster after backup, silently ignore state change status
-	defer retryOnError(retry.DefaultRetry, func() error { //nolint:errcheck
-		_, _, err := b.service.ChangeState(ctx, b.clusterName, "ACTIVE")
-		return err
-	})
 
-	return retryOnError(backupBackoff, func() error {
-		_, err := b.service.HotBackup(ctx, b.clusterName)
-		return err
-	})
+	// activate cluster after backup, silently ignore state change status
+	defer b.client.ChangeClusterState(ctx, codecTypes.ClusterStateActive) //nolint:errcheck
+
+	return b.client.TriggerHotRestartBackup(ctx)
 }
 
 func (b *ClusterBackup) Cancel(ctx context.Context) error {
 	var err error
 	b.cancelOnce.Do(func() {
-		_, err = b.service.HotBackupInterrupt(ctx, b.clusterName)
+		err = b.client.InterruptHotRestartBackup(ctx)
 	})
 	return err
 }
@@ -157,23 +127,5 @@ func (mb *MemberBackup) Wait(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-	}
-}
-
-func retryOnError(backoff wait.Backoff, fn func() error) error {
-	return retry.OnError(backoff, isHazelcastError, fn)
-}
-
-func isHazelcastError(err error) bool {
-	switch err.(type) {
-	// normal response but with failed status
-	case *rest.HazelcastError:
-		return true
-	// hot backup sometimes fails with generic 500
-	case *rest.ErrorResponse:
-		return true
-	// all other errors including connection errors should fail
-	default:
-		return false
 	}
 }

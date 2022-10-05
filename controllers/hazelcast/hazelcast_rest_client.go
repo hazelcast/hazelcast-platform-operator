@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/config"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 )
 
 // Section contains the REST API endpoints.
@@ -43,7 +43,7 @@ type stateResponse struct {
 
 func NewRestClient(h *v1alpha1.Hazelcast) *RestClient {
 	return &RestClient{
-		url:         config.RestUrl(h),
+		url:         hzclient.RestUrl(h),
 		clusterName: h.Spec.ClusterName,
 	}
 }

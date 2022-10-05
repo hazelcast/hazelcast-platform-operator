@@ -98,3 +98,13 @@ const (
 	CacheDeserializedValuesIndexOnly CacheDeserializedValues = "INDEX_ONLY"
 	CacheDeserializedValuesAlways    CacheDeserializedValues = "ALWAYS"
 )
+
+type ClusterState int32
+
+const (
+	ClusterStateActive ClusterState = iota
+	ClusterStateNoMigration
+	ClusterStateFrozen
+	ClusterStatePassive
+	ClusterStateInTransition
+)
