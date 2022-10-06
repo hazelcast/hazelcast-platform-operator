@@ -76,15 +76,15 @@ func assertExists(name types.NamespacedName, obj client.Object) {
 }
 
 func cleanUpHostPath(namespace, hostPath, hzDir string) {
-	By(fmt.Sprintf("cleanup hostpath '%s' and directory '%s' for namespace '%s'", namespace, hzDir, hostPath), func() {
-		name := "cleanup-hostpath"
+	By(fmt.Sprintf("cleanup hostpath '%s' and directory '%s' for namespace '%s'", hostPath, hzDir, namespace), func() {
 		lb := map[string]string{
 			"cleanup": "hazelcast-hostPath",
 		}
 		ds := &appsv1.DaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
+				GenerateName: "hostpath-",
+				Namespace:    namespace,
+				Labels:       lb,
 			},
 			Spec: appsv1.DaemonSetSpec{
 				Selector: &metav1.LabelSelector{
@@ -96,8 +96,9 @@ func cleanUpHostPath(namespace, hostPath, hzDir string) {
 					},
 					Spec: v1.PodSpec{
 						Containers: []v1.Container{{
-							Name:    "cleanup",
-							Image:   "ubuntu",
+							Name:  "cleanup",
+							Image: "busybox",
+
 							Command: []string{"sh"},
 							Args:    []string{"-c", fmt.Sprintf("rm -rf /host/%s || echo 'Could not delete'; echo 'done'; sleep 120", hzDir)},
 							SecurityContext: &v1.SecurityContext{
@@ -151,7 +152,7 @@ func cleanUpHostPath(namespace, hostPath, hzDir string) {
 			test.EventuallyInLogs(scanner, 40*Second, logInterval).
 				Should(ContainSubstring("done"))
 		}
-		Expect(k8sClient.Delete(context.Background(), ds)).Should(Succeed())
+		DeleteAllOf(ds, nil, namespace, lb)
 	})
 }
 
@@ -273,5 +274,5 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 		len := items.Len()
 		return len
 
-	}, 2*Minute, interval).Should(Equal(int(0)))
+	}, 10*Minute, interval).Should(Equal(int(0)))
 }
