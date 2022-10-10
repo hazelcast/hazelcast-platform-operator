@@ -355,7 +355,7 @@ func defaultWanReplicationRefCodec(hz *hazelcastv1alpha1.Hazelcast, m *hazelcast
 }
 
 func defaultWanReplicationRefName(m *hazelcastv1alpha1.Map) string {
-	return m.GetName() + "-default"
+	return m.MapName() + "-default"
 }
 
 func copyIndexes(idx []hazelcastv1alpha1.IndexConfig) []codecTypes.IndexConfig {

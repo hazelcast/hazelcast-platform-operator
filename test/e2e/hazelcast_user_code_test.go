@@ -87,7 +87,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()
-		mp, err := cl.GetMap(context.Background(), m.GetName())
+		mp, err := cl.GetMap(context.Background(), m.MapName())
 		Expect(err).To(BeNil())
 
 		entries := make([]hzTypes.Entry, entryCount)
@@ -107,7 +107,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		for k, v := range secretData {
 			Expect(line).To(ContainSubstring(k + "=" + v))
 		}
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.GetName())))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
 
