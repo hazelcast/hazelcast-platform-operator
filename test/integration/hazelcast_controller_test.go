@@ -1088,7 +1088,7 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 		When("Giving labels and annotations to HotBackup Template", func() {
-			FIt("should HotBackup with those labels", Label("fast"), func() {
+			It("should HotBackup with those labels", Label("fast"), func() {
 				ans := map[string]string{
 					"annotation1": "val",
 					"annotation2": "val2",
@@ -1134,6 +1134,36 @@ var _ = Describe("Hazelcast controller", func() {
 				// Foreground deletion does not work in integration tests, should delete CronHotBackup without waiting
 				DeleteWithoutWaiting(chb)
 				Expect(k8sClient.DeleteAllOf(context.Background(), &hazelcastv1alpha1.HotBackup{}, client.InNamespace(namespace))).Should(Succeed())
+			})
+		})
+	})
+	Context("Topic CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				t := &hazelcastv1alpha1.Topic{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create Topic CR")
+				Expect(k8sClient.Create(context.Background(), t)).ShouldNot(Succeed())
+			})
+		})
+		When("Using default configuration", func() {
+			It("should create Topic CR with default configurations", Label("fast"), func() {
+				t := &hazelcastv1alpha1.Topic{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.TopicSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+				}
+				By("creating Topic CR successfully")
+				Expect(k8sClient.Create(context.Background(), t)).Should(Succeed())
+				ts := t.Spec
+
+				By("checking the CR values with default ones")
+				Expect(ts.Name).To(Equal(""))
+				Expect(ts.GlobalOrderingEnabled).To(Equal(n.DefaultTopicGlobalOrderingEnabled))
+				Expect(ts.MultiThreadingEnabled).To(Equal(n.DefaultTopicMultiThreadingEnabled))
+				Expect(ts.HazelcastResourceName).To(Equal("hazelcast"))
 			})
 		})
 	})

@@ -675,3 +675,31 @@ func getMultiMapConfigFromMemberConfig(memberConfigXML string, multiMapName stri
 	}
 	return nil
 }
+func assertTopicStatus(t *hazelcastcomv1alpha1.Topic, st hazelcastcomv1alpha1.TopicConfigState) *hazelcastcomv1alpha1.Topic {
+	checkTopic := &hazelcastcomv1alpha1.Topic{}
+	By("waiting for Topic CR status", func() {
+		Eventually(func() hazelcastcomv1alpha1.TopicConfigState {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      t.Name,
+				Namespace: t.Namespace,
+			}, checkTopic)
+			if err != nil {
+				return ""
+			}
+			return checkTopic.Status.State
+		}, 20*Second, interval).Should(Equal(st))
+	})
+	return checkTopic
+}
+
+func getTopicConfigFromMemberConfig(memberConfigXML string, topicName string) *codecTypes.TopicConfig {
+	var topics codecTypes.TopicConfigs
+	err := xml.Unmarshal([]byte(memberConfigXML), &topics)
+	Expect(err).To(BeNil())
+	for _, t := range topics.Topics {
+		if t.Name == topicName {
+			return &t
+		}
+	}
+	return nil
+}

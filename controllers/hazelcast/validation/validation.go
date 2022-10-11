@@ -12,7 +12,7 @@ var BlackListProperties = map[string]struct{}{
 	"": {},
 }
 
-func ValidateSpec(h *hazelcastv1alpha1.Hazelcast) error {
+func ValidateHazelcastSpec(h *hazelcastv1alpha1.Hazelcast) error {
 	if err := validateExposeExternally(h); err != nil {
 		return err
 	}
@@ -57,6 +57,13 @@ func validatePersistence(h *hazelcastv1alpha1.Hazelcast) error {
 	// if hostPath and PVC are both empty or set
 	if (p.HostPath == "") == p.Pvc.IsEmpty() {
 		return errors.New("when persistence is set either of \"hostPath\" or \"pvc\" fields must be set.")
+	}
+	return nil
+}
+
+func ValidateTopicSpec(t *hazelcastv1alpha1.Topic) error {
+	if t.Spec.GlobalOrderingEnabled && t.Spec.MultiThreadingEnabled {
+		return errors.New("multi threading can not be enabled when global ordering is used.")
 	}
 	return nil
 }

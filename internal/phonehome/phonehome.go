@@ -88,6 +88,7 @@ type PhoneHomeData struct {
 	ExecutorServiceCount          int                `json:"esc"`
 	MultiMapCount                 int                `json:"mmc"`
 	CronHotBackupCount            int                `json:"chbc"`
+	TopicCount                    int                `json:"tc"`
 }
 
 type ExposeExternally struct {
@@ -140,7 +141,7 @@ func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd.fillHotBackupMetrics(cl)
 	phd.fillMultiMapData(cl)
 	phd.fillCronHotBackupMetrics(cl)
-
+	phd.fillTopicMetrics(cl)
 	return phd
 }
 
@@ -329,4 +330,13 @@ func (phm *PhoneHomeData) fillCronHotBackupMetrics(cl client.Client) {
 		return
 	}
 	phm.CronHotBackupCount = len(chbl.Items)
+}
+
+func (phm *PhoneHomeData) fillTopicMetrics(cl client.Client) {
+	mml := &hazelcastv1alpha1.TopicList{}
+	err := cl.List(context.Background(), mml, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	if err != nil || mml.Items == nil {
+		return
+	}
+	phm.TopicCount = len(mml.Items)
 }

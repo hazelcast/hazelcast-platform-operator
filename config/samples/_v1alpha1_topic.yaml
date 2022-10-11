@@ -1,0 +1,7 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Topic
+metadata:
+  name: topic-sample2
+spec:
+  hazelcastResourceName: hazelcast
+  globalOrderingEnabled: true

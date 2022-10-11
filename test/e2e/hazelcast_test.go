@@ -140,12 +140,19 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				Expect(k8sClient.Create(context.Background(), hb)).Should(Succeed())
 				assertHotBackupSuccess(hb, 1*Minute)
 
+				topic := hazelcastconfig.DefaultTopic(topicLookupKey, hz.Name, labels)
+				Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
+				assertTopicStatus(topic, hazelcastcomv1alpha1.TopicSuccess)
+
 				DeleteAllOf(hz, &hazelcastcomv1alpha1.HazelcastList{}, hz.Namespace, labels)
 
 				err := k8sClient.Get(context.Background(), mapLookupKey, m)
 				Expect(errors.IsNotFound(err)).To(BeTrue())
 
 				err = k8sClient.Get(context.Background(), hbLookupKey, hb)
+				Expect(errors.IsNotFound(err)).To(BeTrue())
+
+				err = k8sClient.Get(context.Background(), topicLookupKey, topic)
 				Expect(errors.IsNotFound(err)).To(BeTrue())
 			})
 		})

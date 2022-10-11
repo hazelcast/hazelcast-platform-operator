@@ -401,8 +401,32 @@ var (
 		}
 	}
 
+	DefaultTopic = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastv1alpha1.Topic {
+		return &hazelcastv1alpha1.Topic{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.TopicSpec{
+				HazelcastResourceName: hzName,
+			},
+		}
+	}
+
 	MultiMap = func(mms hazelcastv1alpha1.MultiMapSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.MultiMap {
 		return &hazelcastv1alpha1.MultiMap{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: mms,
+		}
+	}
+
+	Topic = func(mms hazelcastv1alpha1.TopicSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.Topic {
+		return &hazelcastv1alpha1.Topic{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
 				Namespace: lk.Namespace,

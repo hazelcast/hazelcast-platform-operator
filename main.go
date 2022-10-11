@@ -185,6 +185,15 @@ func main() {
 		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MultiMap")
+	}
+
+	if err = hazelcast.NewTopicReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Topic"),
+		mgr.GetScheme(),
+		phoneHomeTrigger,
+	).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Topic")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

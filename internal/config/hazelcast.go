@@ -16,6 +16,7 @@ type Hazelcast struct {
 	UserCodeDeployment       UserCodeDeployment                  `yaml:"user-code-deployment,omitempty"`
 	Properties               map[string]string                   `yaml:"properties,omitempty"`
 	MultiMap                 map[string]MultiMap                 `yaml:"multimap,omitempty"`
+	Topic                    map[string]Topic                    `yaml:"topic,omitempty"`
 }
 
 type Jet struct {
@@ -136,6 +137,13 @@ type MapStoreConfig struct {
 	ClassName         string            `yaml:"class-name"`
 	Properties        map[string]string `yaml:"properties"`
 	InitialLoadMode   string            `yaml:"initial-mode"`
+}
+
+type Topic struct {
+	GlobalOrderingEnabled bool     `yaml:"global-ordering-enabled"`
+	MultiThreadingEnabled bool     `yaml:"multi-threading-enabled"`
+	StatisticsEnabled     bool     `yaml:"statistics-enabled"`
+	MessageListeners      []string `yaml:"message-listeners,omitempty"`
 }
 
 type UserCodeDeployment struct {

@@ -2,19 +2,21 @@ package e2e
 
 import (
 	"fmt"
+	"math/rand"
+
 	. "github.com/onsi/ginkgo/v2"
 	"k8s.io/apimachinery/pkg/types"
-	"math/rand"
 )
 
 var (
-	labels       = map[string]string{}
-	hzLookupKey  = types.NamespacedName{}
-	mapLookupKey = types.NamespacedName{}
-	wanLookupKey = types.NamespacedName{}
-	mcLookupKey  = types.NamespacedName{}
-	hbLookupKey  = types.NamespacedName{}
-	mmLookupKey  = types.NamespacedName{}
+	labels         = map[string]string{}
+	hzLookupKey    = types.NamespacedName{}
+	mapLookupKey   = types.NamespacedName{}
+	wanLookupKey   = types.NamespacedName{}
+	mcLookupKey    = types.NamespacedName{}
+	hbLookupKey    = types.NamespacedName{}
+	mmLookupKey    = types.NamespacedName{}
+	topicLookupKey = types.NamespacedName{}
 )
 
 var (
@@ -30,6 +32,7 @@ func setCRNamespace(ns string) {
 	hbLookupKey.Namespace = ns
 	mcLookupKey.Namespace = ns
 	wanLookupKey.Namespace = ns
+	topicLookupKey.Namespace = ns
 	hzSrcLookupKey.Namespace = ns
 	hzTrgLookupKey.Namespace = ns
 	sourceLookupKey.Namespace = sourceNamespace
@@ -46,6 +49,7 @@ func setLabelAndCRName(n string) {
 	mapLookupKey.Name = n
 	hbLookupKey.Name = n
 	mcLookupKey.Name = n
+	topicLookupKey.Name = n
 	hzSrcLookupKey.Name = "src-" + n
 	hzTrgLookupKey.Name = "trg-" + n
 	sourceLookupKey.Name = "src-" + n

@@ -32,7 +32,6 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
-
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -92,6 +91,10 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 		return err
 	}
 	err = r.deleteDependentMultiMaps(ctx, h, logger)
+	if err != nil {
+		return err
+	}
+	err = r.deleteDependentTopics(ctx, h, logger)
 	if err != nil {
 		return err
 	}
@@ -240,6 +243,43 @@ func (r *HazelcastReconciler) deleteDependentMultiMaps(ctx context.Context, h *h
 
 	if len(ml.Items) != 0 {
 		return fmt.Errorf("Hazelcast dependent MultiMap resources are not deleted yet.")
+	}
+
+	return nil
+}
+
+func (r *HazelcastReconciler) deleteDependentTopics(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	tl := &hazelcastv1alpha1.TopicList{}
+
+	if err := r.Client.List(ctx, tl, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Could not get Hazelcast dependent Topic resources %w", err)
+	}
+
+	if len(tl.Items) == 0 {
+		return nil
+	}
+
+	g, groupCtx := errgroup.WithContext(ctx)
+	for i := 0; i < len(tl.Items); i++ {
+		i := i
+		g.Go(func() error {
+			return util.DeleteObject(groupCtx, r.Client, &tl.Items[i])
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("Error deleting Topic resources %w", err)
+	}
+
+	if err := r.Client.List(ctx, tl, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("Hazelcast dependent Topic resources are not deleted yet %w", err)
+	}
+
+	if len(tl.Items) != 0 {
+		return fmt.Errorf("Hazelcast dependent Topic resources are not deleted yet.")
 	}
 
 	return nil
@@ -603,9 +643,14 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	if err := c.List(ctx, multiMapList, client.MatchingFields{"hazelcastResourceName": h.Name}); err != nil {
 		return nil, err
 	}
+	topicList := &hazelcastv1alpha1.TopicList{}
+	if err := c.List(ctx, topicList, client.MatchingFields{"hazelcastResourceName": h.Name}); err != nil {
+		return nil, err
+	}
 
 	ml := filterPersistedMaps(mapList.Items)
 	mml := filterPersistedMultiMaps(multiMapList.Items)
+	tl := filterPersistedTopics(topicList.Items)
 	p := filterProperties(h.Spec.Properties)
 
 	cfg := hazelcastConfigMapStruct(h)
@@ -617,6 +662,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	}
 
 	fillHazelcastConfigWithMultiMaps(&cfg, mml)
+	fillHazelcastConfigWithTopics(&cfg, tl)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
@@ -665,6 +711,29 @@ func filterPersistedMultiMaps(mml []hazelcastv1alpha1.MultiMap) []hazelcastv1alp
 				}
 				mmp.Spec = *mms
 				l = append(l, mmp)
+			}
+		default:
+		}
+	}
+	return l
+}
+
+func filterPersistedTopics(ml []hazelcastv1alpha1.Topic) []hazelcastv1alpha1.Topic {
+	l := make([]hazelcastv1alpha1.Topic, 0)
+
+	for _, topic := range ml {
+		switch topic.Status.State {
+		case hazelcastv1alpha1.TopicPersisting, hazelcastv1alpha1.TopicSuccess:
+			l = append(l, topic)
+		case hazelcastv1alpha1.TopicFailed, hazelcastv1alpha1.TopicPending:
+			if spec, ok := topic.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
+				ts := &hazelcastv1alpha1.TopicSpec{}
+				err := json.Unmarshal([]byte(spec), ts)
+				if err != nil {
+					continue
+				}
+				topic.Spec = *ts
+				l = append(l, topic)
 			}
 		default:
 		}
@@ -775,6 +844,16 @@ func fillHazelcastConfigWithMultiMaps(cfg *config.Hazelcast, mml []hazelcastv1al
 	}
 }
 
+func fillHazelcastConfigWithTopics(cfg *config.Hazelcast, tl []hazelcastv1alpha1.Topic) {
+	if len(tl) != 0 {
+		cfg.Topic = map[string]config.Topic{}
+		for _, t := range tl {
+			tcfg := createTopicConfig(&t)
+			cfg.Topic[t.TopicName()] = tcfg
+		}
+	}
+}
+
 func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
 	if len(h.Spec.ExecutorServices) != 0 {
 		cfg.ExecutorService = map[string]config.ExecutorService{}
@@ -840,6 +919,15 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 
 	}
 	return mc, nil
+}
+
+func createTopicConfig(t *hazelcastv1alpha1.Topic) config.Topic {
+	ts := t.Spec
+	return config.Topic{
+		GlobalOrderingEnabled: ts.GlobalOrderingEnabled,
+		MultiThreadingEnabled: ts.MultiThreadingEnabled,
+		StatisticsEnabled:     n.DefaultTopicStatisticsEnabled,
+	}
 }
 
 func wanReplicationRef(ref codecTypes.WanReplicationRef) map[string]config.WanReplicationReference {

@@ -96,7 +96,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	err = validation.ValidateSpec(h)
+	err = validation.ValidateHazelcastSpec(h)
 	if err != nil {
 		return update(ctx, r.Client, h,
 			failedPhase(err).
@@ -306,6 +306,12 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.MultiMap{}, "hazelcastResourceName", func(rawObj client.Object) []string {
 		m := rawObj.(*hazelcastv1alpha1.MultiMap)
 		return []string{m.Spec.HazelcastResourceName}
+	}); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.Topic{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		t := rawObj.(*hazelcastv1alpha1.Topic)
+		return []string{t.Spec.HazelcastResourceName}
 	}); err != nil {
 		return err
 	}

@@ -53,6 +53,12 @@ resources:
   controller: true
   domain: hazelcast.com
   kind: CronHotBackup
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: hazelcast.com
+  kind: Topic
   path: github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

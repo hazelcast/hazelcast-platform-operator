@@ -119,6 +119,13 @@ const (
 	DefaultFailedHotBackupsHistoryLimit     = int32(3)
 )
 
+// Topic Config default values
+const (
+	DefaultTopicGlobalOrderingEnabled = false
+	DefaultTopicMultiThreadingEnabled = false
+	DefaultTopicStatisticsEnabled     = true
+)
+
 // Operator Values
 const (
 	PhoneHomeEnabledEnv     = "PHONE_HOME_ENABLED"
