@@ -7,7 +7,7 @@ on:
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
-  NUMBER_OF_NODES: 2
+  NUMBER_OF_NODES: 3
   GCP_NETWORK: operator-test-network
   NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
 
