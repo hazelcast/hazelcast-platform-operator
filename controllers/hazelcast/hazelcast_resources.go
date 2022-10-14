@@ -690,10 +690,6 @@ func fillHazelcastConfigWithTopics(cfg *config.Hazelcast, tl []client.Object) {
 	}
 }
 
-		}
-	}
-}
-
 func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
 	if len(h.Spec.ExecutorServices) != 0 {
 		cfg.ExecutorService = map[string]config.ExecutorService{}

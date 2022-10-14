@@ -975,7 +975,7 @@ func (in *MultiMapStatus) DeepCopyInto(out *MultiMapStatus) {
 	*out = *in
 	if in.MemberStatuses != nil {
 		in, out := &in.MemberStatuses, &out.MemberStatuses
-		*out = make(map[string]MultiMapConfigState, len(*in))
+		*out = make(map[string]DataStructureConfigState, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -1242,7 +1242,7 @@ func (in *TopicStatus) DeepCopyInto(out *TopicStatus) {
 	*out = *in
 	if in.MemberStatuses != nil {
 		in, out := &in.MemberStatuses, &out.MemberStatuses
-		*out = make(map[string]TopicConfigState, len(*in))
+		*out = make(map[string]DataStructureConfigState, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
