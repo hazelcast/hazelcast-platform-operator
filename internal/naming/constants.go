@@ -113,6 +113,15 @@ const (
 	DefaultMultiMapMergeBatchSize    = int32(100)
 )
 
+// ReplicatedMap Config default values
+const (
+	DefaultReplicatedMapInMemoryFormat    = "OBJECT"
+	DefaultReplicatedMapAsyncFillup       = true
+	DefaultReplicatedMapStatisticsEnabled = true
+	DefaultReplicatedMapMergePolicy       = "com.hazelcast.spi.merge.PutIfAbsentMergePolicy"
+	DefaultReplicatedMapMergeBatchSize    = int32(100)
+)
+
 // CronHotBackup Config default values
 const (
 	DefaultSuccessfulHotBackupsHistoryLimit = int32(5)

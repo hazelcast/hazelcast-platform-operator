@@ -414,6 +414,19 @@ var (
 		}
 	}
 
+	DefaultReplicatedMap = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastv1alpha1.ReplicatedMap {
+		return &hazelcastv1alpha1.ReplicatedMap{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.ReplicatedMapSpec{
+				HazelcastResourceName: hzName,
+			},
+		}
+	}
+
 	MultiMap = func(mms hazelcastv1alpha1.MultiMapSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.MultiMap {
 		return &hazelcastv1alpha1.MultiMap{
 			ObjectMeta: v1.ObjectMeta{
@@ -433,6 +446,17 @@ var (
 				Labels:    lbls,
 			},
 			Spec: mms,
+		}
+	}
+
+	ReplicatedMap = func(rms hazelcastv1alpha1.ReplicatedMapSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.ReplicatedMap {
+		return &hazelcastv1alpha1.ReplicatedMap{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: rms,
 		}
 	}
 )

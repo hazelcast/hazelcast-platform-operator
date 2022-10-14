@@ -85,6 +85,7 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 		"Map":           &hazelcastv1alpha1.MapList{},
 		"MultiMap":      &hazelcastv1alpha1.MultiMapList{},
 		"Topic":         &hazelcastv1alpha1.TopicList{},
+		"ReplicatedMap": &hazelcastv1alpha1.ReplicatedMapList{},
 	}
 	for crKind, crList := range dependentCRs {
 		if err := r.deleteDependentCR(ctx, h, crKind, crList, logger); err != nil {
@@ -500,6 +501,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	dataStructures := []client.ObjectList{
 		&hazelcastv1alpha1.MultiMapList{},
 		&hazelcastv1alpha1.TopicList{},
+		&hazelcastv1alpha1.ReplicatedMapList{},
 	}
 	for _, ds := range dataStructures {
 		filteredDSList, err := filterPersistedDS(ctx, c, h.Name, ds)
@@ -514,6 +516,8 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 			fillHazelcastConfigWithMultiMaps(&cfg, filteredDSList)
 		case "Topic":
 			fillHazelcastConfigWithTopics(&cfg, filteredDSList)
+		case "ReplicatedMap":
+			fillHazelcastConfigWithReplicatedMaps(&cfg, filteredDSList)
 		}
 	}
 
@@ -690,6 +694,17 @@ func fillHazelcastConfigWithTopics(cfg *config.Hazelcast, tl []client.Object) {
 	}
 }
 
+func fillHazelcastConfigWithReplicatedMaps(cfg *config.Hazelcast, rml []client.Object) {
+	if len(rml) != 0 {
+		cfg.ReplicatedMap = map[string]config.ReplicatedMap{}
+		for _, rm := range rml {
+			rm := rm.(*hazelcastv1alpha1.ReplicatedMap)
+			rmcfg := createReplicatedMapConfig(rm)
+			cfg.ReplicatedMap[rm.GetDSName()] = rmcfg
+		}
+	}
+}
+
 func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
 	if len(h.Spec.ExecutorServices) != 0 {
 		cfg.ExecutorService = map[string]config.ExecutorService{}
@@ -835,6 +850,19 @@ func createTopicConfig(t *hazelcastv1alpha1.Topic) config.Topic {
 		GlobalOrderingEnabled: ts.GlobalOrderingEnabled,
 		MultiThreadingEnabled: ts.MultiThreadingEnabled,
 		StatisticsEnabled:     n.DefaultTopicStatisticsEnabled,
+	}
+}
+
+func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.ReplicatedMap {
+	rms := rm.Spec
+	return config.ReplicatedMap{
+		InMemoryFormat:    string(rms.InMemoryFormat),
+		AsyncFillup:       rms.AsyncFillup,
+		StatisticsEnabled: n.DefaultReplicatedMapStatisticsEnabled,
+		MergePolicy: config.MergePolicy{
+			ClassName: n.DefaultReplicatedMapMergePolicy,
+			BatchSize: n.DefaultReplicatedMapMergeBatchSize,
+		},
 	}
 }
 

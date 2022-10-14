@@ -17,6 +17,7 @@ var (
 	hbLookupKey    = types.NamespacedName{}
 	mmLookupKey    = types.NamespacedName{}
 	topicLookupKey = types.NamespacedName{}
+	rmLookupKey    = types.NamespacedName{}
 )
 
 var (
@@ -33,11 +34,12 @@ func setCRNamespace(ns string) {
 	mcLookupKey.Namespace = ns
 	wanLookupKey.Namespace = ns
 	topicLookupKey.Namespace = ns
+	mmLookupKey.Namespace = ns
+	rmLookupKey.Namespace = ns
 	hzSrcLookupKey.Namespace = ns
 	hzTrgLookupKey.Namespace = ns
 	sourceLookupKey.Namespace = sourceNamespace
 	targetLookupKey.Namespace = targetNamespace
-	mmLookupKey.Namespace = ns
 }
 
 func setLabelAndCRName(n string) {
@@ -50,11 +52,12 @@ func setLabelAndCRName(n string) {
 	hbLookupKey.Name = n
 	mcLookupKey.Name = n
 	topicLookupKey.Name = n
+	mmLookupKey.Name = n
+	rmLookupKey.Name = n
 	hzSrcLookupKey.Name = "src-" + n
 	hzTrgLookupKey.Name = "trg-" + n
 	sourceLookupKey.Name = "src-" + n
 	targetLookupKey.Name = "trg-" + n
-	mmLookupKey.Name = n
 	AddReportEntry("CR_ID:" + n)
 }
 

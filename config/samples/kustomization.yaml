@@ -7,4 +7,5 @@ resources:
 - _v1alpha1_multimap.yaml
 - _v1alpha1_cronhotbackup.yaml
 - _v1alpha1_topic.yaml
+- _v1alpha1_replicatedmap.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

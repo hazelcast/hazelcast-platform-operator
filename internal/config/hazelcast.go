@@ -17,6 +17,7 @@ type Hazelcast struct {
 	Properties               map[string]string                   `yaml:"properties,omitempty"`
 	MultiMap                 map[string]MultiMap                 `yaml:"multimap,omitempty"`
 	Topic                    map[string]Topic                    `yaml:"topic,omitempty"`
+	ReplicatedMap            map[string]ReplicatedMap            `yaml:"replicatedmap,omitempty"`
 }
 
 type Jet struct {
@@ -167,6 +168,13 @@ type MultiMap struct {
 type MergePolicy struct {
 	ClassName string `yaml:"class-name"`
 	BatchSize int32  `yaml:"batch-size"`
+}
+
+type ReplicatedMap struct {
+	InMemoryFormat    string      `yaml:"in-memory-format"`
+	AsyncFillup       bool        `yaml:"async-fillup"`
+	StatisticsEnabled bool        `yaml:"statistics-enabled"`
+	MergePolicy       MergePolicy `yaml:"merge-policy"`
 }
 
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {

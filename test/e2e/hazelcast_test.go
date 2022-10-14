@@ -136,6 +136,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
 				assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{})
 
+				rm := hazelcastconfig.DefaultReplicatedMap(rmLookupKey, hz.Name, labels)
+				Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
+				assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{})
 
 				hb := hazelcastconfig.HotBackup(hbLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), hb)).Should(Succeed())

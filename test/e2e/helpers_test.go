@@ -685,3 +685,15 @@ func getTopicConfigFromMemberConfig(memberConfigXML string, topicName string) *c
 	}
 	return nil
 }
+
+func getReplicatedMapConfigFromMemberConfig(memberConfigXML string, replicatedMapName string) *codecTypes.ReplicatedMapConfig {
+	var replicatedMaps codecTypes.ReplicatedMapConfigs
+	err := xml.Unmarshal([]byte(memberConfigXML), &replicatedMaps)
+	Expect(err).To(BeNil())
+	for _, rm := range replicatedMaps.ReplicatedMaps {
+		if rm.Name == replicatedMapName {
+			return &rm
+		}
+	}
+	return nil
+}

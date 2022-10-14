@@ -87,6 +87,7 @@ type PhoneHomeData struct {
 	UserCodeDeployment            UserCodeDeployment `json:"ucd"`
 	ExecutorServiceCount          int                `json:"esc"`
 	MultiMapCount                 int                `json:"mmc"`
+	ReplicatedMapCount            int                `json:"rmc"`
 	CronHotBackupCount            int                `json:"chbc"`
 	TopicCount                    int                `json:"tc"`
 }
@@ -137,9 +138,10 @@ func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd.fillHazelcastMetrics(cl)
 	phd.fillMCMetrics(cl)
 	phd.fillMapMetrics(cl)
-	phd.fillWanReplicationData(cl)
+	phd.fillWanReplicationMetrics(cl)
 	phd.fillHotBackupMetrics(cl)
-	phd.fillMultiMapData(cl)
+	phd.fillMultiMapMetrics(cl)
+	phd.fillReplicatedMapMetrics(cl)
 	phd.fillCronHotBackupMetrics(cl)
 	phd.fillTopicMetrics(cl)
 	return phd
@@ -287,7 +289,7 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 	phm.Map.MapStoreCount = mapStoreMapCount
 }
 
-func (phm *PhoneHomeData) fillWanReplicationData(cl client.Client) {
+func (phm *PhoneHomeData) fillWanReplicationMetrics(cl client.Client) {
 	wrl := &hazelcastv1alpha1.WanReplicationList{}
 	err := cl.List(context.Background(), wrl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
 	if err != nil || wrl.Items == nil {
@@ -314,7 +316,7 @@ func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {
 	}
 }
 
-func (phm *PhoneHomeData) fillMultiMapData(cl client.Client) {
+func (phm *PhoneHomeData) fillMultiMapMetrics(cl client.Client) {
 	mml := &hazelcastv1alpha1.MultiMapList{}
 	err := cl.List(context.Background(), mml, client.InNamespace(os.Getenv(n.NamespaceEnv)))
 	if err != nil || mml.Items == nil {
@@ -339,4 +341,13 @@ func (phm *PhoneHomeData) fillTopicMetrics(cl client.Client) {
 		return
 	}
 	phm.TopicCount = len(mml.Items)
+}
+
+func (phm *PhoneHomeData) fillReplicatedMapMetrics(cl client.Client) {
+	rml := &hazelcastv1alpha1.ReplicatedMapList{}
+	err := cl.List(context.Background(), rml, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	if err != nil || rml.Items == nil {
+		return
+	}
+	phm.ReplicatedMapCount = len(rml.Items)
 }
