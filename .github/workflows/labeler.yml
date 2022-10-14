@@ -1,0 +1,43 @@
+# auto-labeler "full" schema
+
+# enable auto-labeler on issues, prs, or both.
+enable:
+  prs: true
+# comments object allows you to specify a different message for issues and prs
+
+comments:
+# Labels is an object where:
+# - keys are labels
+# - values are objects of { include: [ pattern ], exclude: [ pattern ] }
+#    - pattern must be a valid regex, and is applied globally to
+#      title + description of issues and/or prs (see enabled config above)
+#    - 'include' patterns will associate a label if any of these patterns match
+#    - 'exclude' patterns will ignore this label if any of these patterns match
+labels:
+  'fix':
+    include:
+      - '\bfix[s]?\b'
+    exclude: []
+  'feature':
+    include:
+      - '\bfeat\b'
+    exclude: []
+  'docs':
+    include:
+      - '\bdocs\b'
+    exclude: []
+  'test':
+    include:
+      - '\btest\b'
+    exclude: []
+  'chore':
+    include:
+      - '\bchore\b'
+    exclude: []
+  'ci':
+    include:
+      - '\bci\b'
+      - '\bworkflow\b'
+    exclude: []
+        
+    
