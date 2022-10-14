@@ -13,7 +13,7 @@ func TestExposeExternallyConfigurationIsEnabled(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "Empty configuration",
+			name: "Empty configuration.",
 			conf: ExposeExternallyConfiguration{},
 			want: false,
 		},
