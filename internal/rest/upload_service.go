@@ -31,11 +31,11 @@ type Upload struct {
 }
 
 type UploadOptions struct {
-	BucketURL        string `json:"bucket_url"`
-	BackupFolderPath string `json:"backup_folder_path"`
-	HazelcastCRName  string `json:"hz_cr_name"`
-	SecretName       string `json:"secret_name"`
-	MemberUUID       string `json:"member_uuid"`
+	BucketURL       string `json:"bucket_url"`
+	BackupBaseDir   string `json:"backup_base_dir"`
+	HazelcastCRName string `json:"hz_cr_name"`
+	SecretName      string `json:"secret_name"`
+	MemberID        int    `json:"member_id"`
 }
 
 func (s *UploadService) Upload(ctx context.Context, opts *UploadOptions) (*Upload, *http.Response, error) {
@@ -56,7 +56,9 @@ func (s *UploadService) Upload(ctx context.Context, opts *UploadOptions) (*Uploa
 }
 
 type UploadStatus struct {
-	Status string `json:"status,omitempty"`
+	Status    string `json:"status,omitempty"`
+	Message   string `json:"message,omitempty"`
+	BackupKey string `json:"backup_key,omitempty"`
 }
 
 func (s *UploadService) Status(ctx context.Context, uploadID uuid.UUID) (*UploadStatus, *http.Response, error) {

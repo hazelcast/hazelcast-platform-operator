@@ -3,6 +3,7 @@ package upload
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"time"
 
@@ -27,10 +28,11 @@ type Upload struct {
 type Config struct {
 	MemberAddress string
 	BucketURI     string
-	BackupPath    string
+	BackupBaseDir string
 	HazelcastName string
 	SecretName    string
 	MTLSClient    *mtls.Client
+	MemberID      int
 }
 
 func NewUpload(config *Config) (*Upload, error) {
@@ -53,10 +55,11 @@ func (u *Upload) Start(ctx context.Context) error {
 		return errUploadAlreadyStarted
 	}
 	upload, _, err := u.service.Upload(ctx, &rest.UploadOptions{
-		BucketURL:        u.config.BucketURI,
-		BackupFolderPath: u.config.BackupPath,
-		HazelcastCRName:  u.config.HazelcastName,
-		SecretName:       u.config.SecretName,
+		BucketURL:       u.config.BucketURI,
+		BackupBaseDir:   u.config.BackupBaseDir,
+		HazelcastCRName: u.config.HazelcastName,
+		SecretName:      u.config.SecretName,
+		MemberID:        u.config.MemberID,
 	})
 	if err != nil {
 		return err
@@ -66,27 +69,27 @@ func (u *Upload) Start(ctx context.Context) error {
 	return nil
 }
 
-func (u *Upload) Wait(ctx context.Context) error {
+func (u *Upload) Wait(ctx context.Context) (string, error) {
 	if u.uploadID == nil {
-		return errUploadNotStarted
+		return "", errUploadNotStarted
 	}
 	for {
 		status, _, err := u.service.Status(ctx, *u.uploadID)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		switch status.Status {
 		case "CANCELED":
-			return errUploadCanceled
+			return "", fmt.Errorf("Upload canceled: %s", status.Message)
 		case "FAILURE":
-			return errUploadFailed
+			return "", fmt.Errorf("Upload failed: %s", status.Message)
 		case "SUCCESS":
-			return nil
+			return status.BackupKey, nil
 		case "IN_PROGRESS":
 			// expected, check status again (no return)
 		default:
-			return errors.New("Upload unknown status: " + status.Status)
+			return "", errors.New("Upload unknown status: " + status.Status)
 		}
 
 		// wait for timer or context to cancel
@@ -94,7 +97,7 @@ func (u *Upload) Wait(ctx context.Context) error {
 		case <-time.After(1 * time.Second):
 			continue
 		case <-ctx.Done():
-			return ctx.Err()
+			return "", ctx.Err()
 		}
 	}
 }

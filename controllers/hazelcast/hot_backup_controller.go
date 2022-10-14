@@ -244,6 +244,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	if err := b.Start(ctx); err != nil {
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
+	backupUUIDs := make([]string, len(b.Members()))
 
 	// for each member monitor and upload backup if needed
 	g, groupCtx := errgroup.WithContext(ctx)
@@ -276,9 +277,10 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				MemberAddress: m.Address,
 				MTLSClient:    r.mtlsClient,
 				BucketURI:     hb.Spec.BucketURI,
-				BackupPath:    hz.Spec.Persistence.BaseDir,
+				BackupBaseDir: hz.Spec.Persistence.BaseDir,
 				HazelcastName: hb.Spec.HazelcastResourceName,
 				SecretName:    hb.Spec.Secret,
+				MemberID:      i,
 			})
 			if err != nil {
 				return err
@@ -289,7 +291,8 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				return err
 			}
 
-			if err := u.Wait(groupCtx); err != nil {
+			bk, err := u.Wait(groupCtx)
+			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					// notify agent so we can cleanup if needed
 					logger.Info("Cancel upload")
@@ -298,6 +301,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				return err
 			}
 
+			backupUUIDs[i] = bk
 			// member success
 			return nil
 		})
