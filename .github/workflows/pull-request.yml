@@ -22,6 +22,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  labeler:
+    name: Add label to PR
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check Labels
+      id: labeler
+      uses: jimschubert/labeler-action@v2
+      with:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        
   linter:
     name: Run linters
     runs-on: ubuntu-latest
