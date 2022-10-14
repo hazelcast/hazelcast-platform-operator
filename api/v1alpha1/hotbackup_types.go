@@ -1,6 +1,9 @@
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
 type HotBackupState string
 
@@ -66,6 +69,14 @@ type HotBackupList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HotBackup `json:"items"`
+}
+
+func (hbl *HotBackupList) GetItems() []client.Object {
+	l := make([]client.Object, 0, len(hbl.Items))
+	for _, item := range hbl.Items {
+		l = append(l, client.Object(&item))
+	}
+	return l
 }
 
 func init() {

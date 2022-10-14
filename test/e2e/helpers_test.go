@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"io"
 	"log"
 	"math"
@@ -647,21 +648,18 @@ func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *haz
 	return hbCheck
 }
 
-func assertMultiMapStatus(mm *hazelcastcomv1alpha1.MultiMap, st hazelcastcomv1alpha1.MultiMapConfigState) *hazelcastcomv1alpha1.MultiMap {
-	checkMultiMap := &hazelcastcomv1alpha1.MultiMap{}
-	By("waiting for MultiMap CR status", func() {
-		Eventually(func() hazelcastcomv1alpha1.MultiMapConfigState {
-			err := k8sClient.Get(context.Background(), types.NamespacedName{
-				Name:      mm.Name,
-				Namespace: mm.Namespace,
-			}, checkMultiMap)
+func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1alpha1.DataStructureConfigState, obj client.Object) client.Object {
+	temp := fmt.Sprintf("waiting for %v CR status", obj.(hazelcast.Type).GetKind())
+	By(temp, func() {
+		Eventually(func() hazelcastcomv1alpha1.DataStructureConfigState {
+			err := k8sClient.Get(context.Background(), lk, obj)
 			if err != nil {
 				return ""
 			}
-			return checkMultiMap.Status.State
+			return obj.(hazelcast.DataStructure).GetStatus()
 		}, 20*Second, interval).Should(Equal(st))
 	})
-	return checkMultiMap
+	return obj
 }
 
 func getMultiMapConfigFromMemberConfig(memberConfigXML string, multiMapName string) *codecTypes.MultiMapConfig {
@@ -674,22 +672,6 @@ func getMultiMapConfigFromMemberConfig(memberConfigXML string, multiMapName stri
 		}
 	}
 	return nil
-}
-func assertTopicStatus(t *hazelcastcomv1alpha1.Topic, st hazelcastcomv1alpha1.TopicConfigState) *hazelcastcomv1alpha1.Topic {
-	checkTopic := &hazelcastcomv1alpha1.Topic{}
-	By("waiting for Topic CR status", func() {
-		Eventually(func() hazelcastcomv1alpha1.TopicConfigState {
-			err := k8sClient.Get(context.Background(), types.NamespacedName{
-				Name:      t.Name,
-				Namespace: t.Namespace,
-			}, checkTopic)
-			if err != nil {
-				return ""
-			}
-			return checkTopic.Status.State
-		}, 20*Second, interval).Should(Equal(st))
-	})
-	return checkTopic
 }
 
 func getTopicConfigFromMemberConfig(memberConfigXML string, topicName string) *codecTypes.TopicConfig {

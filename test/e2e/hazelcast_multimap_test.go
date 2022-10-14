@@ -52,7 +52,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 
 		mm := hazelcastconfig.DefaultMultiMap(mmLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
-		assertMultiMapStatus(mm, hazelcastcomv1alpha1.MultiMapSuccess)
+		assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{})
 	})
 
 	It("should create MultiMap Config with correct default values", Label("fast"), func() {
@@ -67,7 +67,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 		By("creating the default multiMap config")
 		mm := hazelcastconfig.DefaultMultiMap(mmLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
-		mm = assertMultiMapStatus(mm, hazelcastcomv1alpha1.MultiMapSuccess)
+		mm = assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{}).(*hazelcastcomv1alpha1.MultiMap)
 
 		By("checking if the multiMap config is created correctly")
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
@@ -77,7 +77,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 		}()
 
 		memberConfigXML := getMemberConfig(context.Background(), cl)
-		multiMapConfig := getMultiMapConfigFromMemberConfig(memberConfigXML, mm.MultiMapName())
+		multiMapConfig := getMultiMapConfigFromMemberConfig(memberConfigXML, mm.GetDSName())
 		Expect(multiMapConfig).NotTo(BeNil())
 
 		Expect(multiMapConfig.BackupCount).Should(Equal(n.DefaultMultiMapBackupCount))
@@ -93,19 +93,18 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 		By("creating the multiMap config")
 		mms := hazelcastcomv1alpha1.MultiMapSpec{
 			HazelcastResourceName: hzLookupKey.Name,
-			Name:                  "multi-map-sample",
 			BackupCount:           pointer.Int32Ptr(3),
 			Binary:                true,
 			CollectionType:        hazelcastcomv1alpha1.CollectionTypeList,
 		}
 		mm := hazelcastconfig.MultiMap(mms, mmLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
-		mm = assertMultiMapStatus(mm, hazelcastcomv1alpha1.MultiMapSuccess)
+		mm = assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{}).(*hazelcastcomv1alpha1.MultiMap)
 
 		By("failing to update multiMap config")
 		mm.Spec.BackupCount = pointer.Int32Ptr(5)
 		mm.Spec.Binary = false
 		Expect(k8sClient.Update(context.Background(), mm)).Should(Succeed())
-		assertMultiMapStatus(mm, hazelcastcomv1alpha1.MultiMapFailed)
+		assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.MultiMap{})
 	})
 })

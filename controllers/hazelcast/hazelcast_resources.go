@@ -78,208 +78,54 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 }
 
 func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	err := r.deleteDependentCronHotBackups(ctx, h, logger)
-	if err != nil {
-		return err
+
+	dependentCRs := map[string]client.ObjectList{
+		"CronHotBackup": &hazelcastv1alpha1.CronHotBackupList{},
+		"HotBackup":     &hazelcastv1alpha1.HotBackupList{},
+		"Map":           &hazelcastv1alpha1.MapList{},
+		"MultiMap":      &hazelcastv1alpha1.MultiMapList{},
+		"Topic":         &hazelcastv1alpha1.TopicList{},
 	}
-	err = r.deleteDependentHotBackups(ctx, h, logger)
-	if err != nil {
-		return err
-	}
-	err = r.deleteDependentMaps(ctx, h, logger)
-	if err != nil {
-		return err
-	}
-	err = r.deleteDependentMultiMaps(ctx, h, logger)
-	if err != nil {
-		return err
-	}
-	err = r.deleteDependentTopics(ctx, h, logger)
-	if err != nil {
-		return err
+	for crKind, crList := range dependentCRs {
+		if err := r.deleteDependentCR(ctx, h, crKind, crList, logger); err != nil {
+			return err
+		}
 	}
 	return nil
 }
-func (r *HazelcastReconciler) deleteDependentCronHotBackups(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+
+func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, crKind string, objList client.ObjectList, logger logr.Logger) error {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
 
-	chbl := &hazelcastv1alpha1.CronHotBackupList{}
-
-	if err := r.Client.List(ctx, chbl, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Could not get Hazelcast dependent CronHotBackup resources %w", err)
+	if err := r.Client.List(ctx, objList, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("could not get Hazelcast dependent %v resources %w", crKind, err)
 	}
 
-	if len(chbl.Items) == 0 {
+	dsItems := objList.(CRLister).GetItems()
+	if len(dsItems) == 0 {
 		return nil
 	}
 
 	g, groupCtx := errgroup.WithContext(ctx)
-	for i := 0; i < len(chbl.Items); i++ {
+	for i := 0; i < len(dsItems); i++ {
 		i := i
 		g.Go(func() error {
-			return util.DeleteObject(groupCtx, r.Client, &chbl.Items[i])
+			return util.DeleteObject(groupCtx, r.Client, dsItems[i])
 		})
 	}
 
 	if err := g.Wait(); err != nil {
-		return fmt.Errorf("Error deleting CronHotBackup resources %w", err)
+		return fmt.Errorf("error deleting %v resources %w", crKind, err)
 	}
 
-	if err := r.Client.List(ctx, chbl, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Hazelcast dependent CronHotBackup resources are not deleted yet %w", err)
+	if err := r.Client.List(ctx, objList, fieldMatcher, nsMatcher); err != nil {
+		return fmt.Errorf("hazelcast dependent %v resources are not deleted yet %w", crKind, err)
 	}
 
-	if len(chbl.Items) != 0 {
-		return fmt.Errorf("Hazelcast dependent CronHotBackup resources are not deleted yet.")
-	}
-
-	return nil
-}
-
-func (r *HazelcastReconciler) deleteDependentHotBackups(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
-	nsMatcher := client.InNamespace(h.Namespace)
-
-	hbl := &hazelcastv1alpha1.HotBackupList{}
-
-	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Could not get Hazelcast dependent HotBackup resources %w", err)
-	}
-
-	if len(hbl.Items) == 0 {
-		return nil
-	}
-
-	g, groupCtx := errgroup.WithContext(ctx)
-	for i := 0; i < len(hbl.Items); i++ {
-		i := i
-		g.Go(func() error {
-			return util.DeleteObject(groupCtx, r.Client, &hbl.Items[i])
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return fmt.Errorf("Error deleting HotBackup resources %w", err)
-	}
-
-	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Hazelcast dependent HotBackup resources are not deleted yet %w", err)
-	}
-
-	if len(hbl.Items) != 0 {
-		return fmt.Errorf("Hazelcast dependent HotBackup resources are not deleted yet.")
-	}
-
-	return nil
-}
-
-func (r *HazelcastReconciler) deleteDependentMaps(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
-	nsMatcher := client.InNamespace(h.Namespace)
-
-	ml := &hazelcastv1alpha1.MapList{}
-
-	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Could not get Hazelcast dependent Map resources %w", err)
-	}
-
-	if len(ml.Items) == 0 {
-		return nil
-	}
-
-	g, groupCtx := errgroup.WithContext(ctx)
-	for i := 0; i < len(ml.Items); i++ {
-		i := i
-		g.Go(func() error {
-			return util.DeleteObject(groupCtx, r.Client, &ml.Items[i])
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return fmt.Errorf("Error deleting Map resources %w", err)
-	}
-
-	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Hazelcast dependent Map resources are not deleted yet %w", err)
-	}
-
-	if len(ml.Items) != 0 {
-		return fmt.Errorf("Hazelcast dependent Map resources are not deleted yet.")
-	}
-
-	return nil
-}
-
-func (r *HazelcastReconciler) deleteDependentMultiMaps(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
-	nsMatcher := client.InNamespace(h.Namespace)
-
-	ml := &hazelcastv1alpha1.MultiMapList{}
-
-	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Could not get Hazelcast dependent MultiMap resources %w", err)
-	}
-
-	if len(ml.Items) == 0 {
-		return nil
-	}
-
-	g, groupCtx := errgroup.WithContext(ctx)
-	for i := 0; i < len(ml.Items); i++ {
-		i := i
-		g.Go(func() error {
-			return util.DeleteObject(groupCtx, r.Client, &ml.Items[i])
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return fmt.Errorf("Error deleting MultiMap resources %w", err)
-	}
-
-	if err := r.Client.List(ctx, ml, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Hazelcast dependent MultiMap resources are not deleted yet %w", err)
-	}
-
-	if len(ml.Items) != 0 {
-		return fmt.Errorf("Hazelcast dependent MultiMap resources are not deleted yet.")
-	}
-
-	return nil
-}
-
-func (r *HazelcastReconciler) deleteDependentTopics(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
-	nsMatcher := client.InNamespace(h.Namespace)
-
-	tl := &hazelcastv1alpha1.TopicList{}
-
-	if err := r.Client.List(ctx, tl, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Could not get Hazelcast dependent Topic resources %w", err)
-	}
-
-	if len(tl.Items) == 0 {
-		return nil
-	}
-
-	g, groupCtx := errgroup.WithContext(ctx)
-	for i := 0; i < len(tl.Items); i++ {
-		i := i
-		g.Go(func() error {
-			return util.DeleteObject(groupCtx, r.Client, &tl.Items[i])
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return fmt.Errorf("Error deleting Topic resources %w", err)
-	}
-
-	if err := r.Client.List(ctx, tl, fieldMatcher, nsMatcher); err != nil {
-		return fmt.Errorf("Hazelcast dependent Topic resources are not deleted yet %w", err)
-	}
-
-	if len(tl.Items) != 0 {
-		return fmt.Errorf("Hazelcast dependent Topic resources are not deleted yet.")
+	dsItems = objList.(CRLister).GetItems()
+	if len(dsItems) != 0 {
+		return fmt.Errorf("hazelcast dependent %v resources are not deleted yet", crKind)
 	}
 
 	return nil
@@ -635,110 +481,47 @@ func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelca
 }
 
 func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
+	cfg := hazelcastConfigMapStruct(h)
+
+	fillHazelcastConfigWithProperties(&cfg, h)
+	fillHazelcastConfigWithExecutorServices(&cfg, h)
+
 	mapList := &hazelcastv1alpha1.MapList{}
 	if err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": h.Name}); err != nil {
 		return nil, err
 	}
-	multiMapList := &hazelcastv1alpha1.MultiMapList{}
-	if err := c.List(ctx, multiMapList, client.MatchingFields{"hazelcastResourceName": h.Name}); err != nil {
-		return nil, err
-	}
-	topicList := &hazelcastv1alpha1.TopicList{}
-	if err := c.List(ctx, topicList, client.MatchingFields{"hazelcastResourceName": h.Name}); err != nil {
-		return nil, err
-	}
 
 	ml := filterPersistedMaps(mapList.Items)
-	mml := filterPersistedMultiMaps(multiMapList.Items)
-	tl := filterPersistedTopics(topicList.Items)
-	p := filterProperties(h.Spec.Properties)
-
-	cfg := hazelcastConfigMapStruct(h)
-
-	cfg.Properties = p
 
 	if err := fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml); err != nil {
 		return nil, err
 	}
 
-	fillHazelcastConfigWithMultiMaps(&cfg, mml)
-	fillHazelcastConfigWithTopics(&cfg, tl)
-	fillHazelcastConfigWithExecutorServices(&cfg, h)
+	dataStructures := []client.ObjectList{
+		&hazelcastv1alpha1.MultiMapList{},
+		&hazelcastv1alpha1.TopicList{},
+	}
+	for _, ds := range dataStructures {
+		filteredDSList, err := filterPersistedDS(ctx, c, h.Name, ds)
+		if err != nil {
+			return nil, err
+		}
+		if len(filteredDSList) == 0 {
+			continue
+		}
+		switch filteredDSList[0].(Type).GetKind() {
+		case "MultiMap":
+			fillHazelcastConfigWithMultiMaps(&cfg, filteredDSList)
+		case "Topic":
+			fillHazelcastConfigWithTopics(&cfg, filteredDSList)
+		}
+	}
 
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 	if err != nil {
 		return nil, err
 	}
 	return map[string]string{"hazelcast.yaml": string(yml)}, nil
-}
-
-func filterPersistedMaps(ml []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
-	l := make([]hazelcastv1alpha1.Map, 0)
-
-	for _, mp := range ml {
-		switch mp.Status.State {
-		case hazelcastv1alpha1.MapPersisting, hazelcastv1alpha1.MapSuccess:
-			l = append(l, mp)
-		case hazelcastv1alpha1.MapFailed, hazelcastv1alpha1.MapPending:
-			if spec, ok := mp.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
-				ms := &hazelcastv1alpha1.MapSpec{}
-				err := json.Unmarshal([]byte(spec), ms)
-				if err != nil {
-					continue
-				}
-				mp.Spec = *ms
-				l = append(l, mp)
-			}
-		default:
-		}
-	}
-	return l
-}
-
-func filterPersistedMultiMaps(mml []hazelcastv1alpha1.MultiMap) []hazelcastv1alpha1.MultiMap {
-	l := make([]hazelcastv1alpha1.MultiMap, 0)
-
-	for _, mmp := range mml {
-		switch mmp.Status.State {
-		case hazelcastv1alpha1.MultiMapPersisting, hazelcastv1alpha1.MultiMapSuccess:
-			l = append(l, mmp)
-		case hazelcastv1alpha1.MultiMapFailed, hazelcastv1alpha1.MultiMapPending:
-			if spec, ok := mmp.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
-				mms := &hazelcastv1alpha1.MultiMapSpec{}
-				err := json.Unmarshal([]byte(spec), mms)
-				if err != nil {
-					continue
-				}
-				mmp.Spec = *mms
-				l = append(l, mmp)
-			}
-		default:
-		}
-	}
-	return l
-}
-
-func filterPersistedTopics(ml []hazelcastv1alpha1.Topic) []hazelcastv1alpha1.Topic {
-	l := make([]hazelcastv1alpha1.Topic, 0)
-
-	for _, topic := range ml {
-		switch topic.Status.State {
-		case hazelcastv1alpha1.TopicPersisting, hazelcastv1alpha1.TopicSuccess:
-			l = append(l, topic)
-		case hazelcastv1alpha1.TopicFailed, hazelcastv1alpha1.TopicPending:
-			if spec, ok := topic.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
-				ts := &hazelcastv1alpha1.TopicSpec{}
-				err := json.Unmarshal([]byte(spec), ts)
-				if err != nil {
-					continue
-				}
-				topic.Spec = *ts
-				l = append(l, topic)
-			}
-		default:
-		}
-	}
-	return l
 }
 
 func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
@@ -820,6 +603,57 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 	return "FULL_RECOVERY_ONLY"
 }
 
+func filterProperties(p map[string]string) map[string]string {
+	filteredProperties := map[string]string{}
+	for propertyKey, value := range p {
+		if _, ok := validation.BlackListProperties[propertyKey]; !ok {
+			filteredProperties[propertyKey] = value
+		}
+	}
+	return filteredProperties
+}
+
+func filterPersistedMaps(ml []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
+	l := make([]hazelcastv1alpha1.Map, 0)
+
+	for _, mp := range ml {
+		switch mp.Status.State {
+		case hazelcastv1alpha1.MapPersisting, hazelcastv1alpha1.MapSuccess:
+			l = append(l, mp)
+		case hazelcastv1alpha1.MapFailed, hazelcastv1alpha1.MapPending:
+			if spec, ok := mp.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
+				ms := &hazelcastv1alpha1.MapSpec{}
+				err := json.Unmarshal([]byte(spec), ms)
+				if err != nil {
+					continue
+				}
+				mp.Spec = *ms
+				l = append(l, mp)
+			}
+		default:
+		}
+	}
+	return l
+}
+
+func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName string, objList client.ObjectList) ([]client.Object, error) {
+	if err := c.List(ctx, objList, client.MatchingFields{"hazelcastResourceName": hzResourceName}); err != nil {
+		return nil, err
+	}
+	l := make([]client.Object, 0)
+	for _, obj := range objList.(CRLister).GetItems() {
+		if isDSPersisted(obj) {
+			l = append(l, obj)
+		}
+	}
+	return l, nil
+}
+
+func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
+	p := filterProperties(h.Spec.Properties)
+	cfg.Properties = p
+}
+
 func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
 	if len(ml) != 0 {
 		cfg.Map = map[string]config.Map{}
@@ -834,22 +668,28 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 	return nil
 }
 
-func fillHazelcastConfigWithMultiMaps(cfg *config.Hazelcast, mml []hazelcastv1alpha1.MultiMap) {
+func fillHazelcastConfigWithMultiMaps(cfg *config.Hazelcast, mml []client.Object) {
 	if len(mml) != 0 {
 		cfg.MultiMap = map[string]config.MultiMap{}
 		for _, mm := range mml {
-			mmcfg := createMultiMapConfig(&mm)
-			cfg.MultiMap[mm.MultiMapName()] = mmcfg
+			mm := mm.(*hazelcastv1alpha1.MultiMap)
+			mmcfg := createMultiMapConfig(mm)
+			cfg.MultiMap[mm.GetDSName()] = mmcfg
 		}
 	}
 }
 
-func fillHazelcastConfigWithTopics(cfg *config.Hazelcast, tl []hazelcastv1alpha1.Topic) {
+func fillHazelcastConfigWithTopics(cfg *config.Hazelcast, tl []client.Object) {
 	if len(tl) != 0 {
 		cfg.Topic = map[string]config.Topic{}
 		for _, t := range tl {
-			tcfg := createTopicConfig(&t)
-			cfg.Topic[t.TopicName()] = tcfg
+			t := t.(*hazelcastv1alpha1.Topic)
+			tcfg := createTopicConfig(t)
+			cfg.Topic[t.GetDSName()] = tcfg
+		}
+	}
+}
+
 		}
 	}
 }
@@ -921,15 +761,6 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 	return mc, nil
 }
 
-func createTopicConfig(t *hazelcastv1alpha1.Topic) config.Topic {
-	ts := t.Spec
-	return config.Topic{
-		GlobalOrderingEnabled: ts.GlobalOrderingEnabled,
-		MultiThreadingEnabled: ts.MultiThreadingEnabled,
-		StatisticsEnabled:     n.DefaultTopicStatisticsEnabled,
-	}
-}
-
 func wanReplicationRef(ref codecTypes.WanReplicationRef) map[string]config.WanReplicationReference {
 	return map[string]config.WanReplicationReference{
 		ref.Name: {
@@ -999,6 +830,15 @@ func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
 			ClassName: n.DefaultMultiMapMergePolicy,
 			BatchSize: n.DefaultMultiMapMergeBatchSize,
 		},
+	}
+}
+
+func createTopicConfig(t *hazelcastv1alpha1.Topic) config.Topic {
+	ts := t.Spec
+	return config.Topic{
+		GlobalOrderingEnabled: ts.GlobalOrderingEnabled,
+		MultiThreadingEnabled: ts.MultiThreadingEnabled,
+		StatisticsEnabled:     n.DefaultTopicStatisticsEnabled,
 	}
 }
 
@@ -1710,14 +1550,4 @@ func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorS
 	esInput.Capacity = es.Capacity
 	esInput.CapacityPolicy = es.CapacityPolicy
 	esInput.Durability = es.Durability
-}
-
-func filterProperties(p map[string]string) map[string]string {
-	filteredProperties := map[string]string{}
-	for propertyKey, value := range p {
-		if _, ok := validation.BlackListProperties[propertyKey]; !ok {
-			filteredProperties[propertyKey] = value
-		}
-	}
-	return filteredProperties
 }

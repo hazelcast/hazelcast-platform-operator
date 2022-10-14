@@ -1,7 +1,10 @@
 package v1alpha1
 
 import (
+	"encoding/json"
+	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // TopicSpec defines the desired state of Topic
@@ -30,22 +33,10 @@ type TopicSpec struct {
 
 // TopicStatus defines the observed state of Topic
 type TopicStatus struct {
-	State          TopicConfigState            `json:"state,omitempty"`
-	Message        string                      `json:"message,omitempty"`
-	MemberStatuses map[string]TopicConfigState `json:"memberStatuses,omitempty"`
+	State          DataStructureConfigState            `json:"state,omitempty"`
+	Message        string                              `json:"message,omitempty"`
+	MemberStatuses map[string]DataStructureConfigState `json:"memberStatuses,omitempty"`
 }
-
-// +kubebuilder:validation:Enum=Success;Failed;Pending;Persisting;Terminating
-type TopicConfigState string
-
-const (
-	TopicFailed  TopicConfigState = "Failed"
-	TopicSuccess TopicConfigState = "Success"
-	TopicPending TopicConfigState = "Pending"
-	// Topic config is added into all members but waiting for Topic to be persisten into ConfigTopic
-	TopicPersisting  TopicConfigState = "Persisting"
-	TopicTerminating TopicConfigState = "Terminating"
-)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
@@ -61,11 +52,48 @@ type Topic struct {
 	Status TopicStatus `json:"status,omitempty"`
 }
 
-func (mm *Topic) TopicName() string {
+func (mm *Topic) GetDSName() string {
 	if mm.Spec.Name != "" {
 		return mm.Spec.Name
 	}
 	return mm.Name
+}
+
+func (mm *Topic) GetKind() string {
+	return mm.Kind
+}
+
+func (mm *Topic) GetHZResourceName() string {
+	return mm.Spec.HazelcastResourceName
+}
+
+func (mm *Topic) GetStatus() DataStructureConfigState {
+	return mm.Status.State
+}
+
+func (mm *Topic) GetMemberStatuses() map[string]DataStructureConfigState {
+	return mm.Status.MemberStatuses
+}
+
+func (mm *Topic) SetStatus(status DataStructureConfigState, msg string, memberStatues map[string]DataStructureConfigState) {
+	mm.Status.State = status
+	mm.Status.Message = msg
+	mm.Status.MemberStatuses = memberStatues
+}
+
+func (mm *Topic) GetSpec() (string, error) {
+	mms, err := json.Marshal(mm.Spec)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling %v as JSON: %w", mm.Kind, err)
+	}
+	return string(mms), nil
+}
+
+func (mm *Topic) SetSpec(spec string) error {
+	if err := json.Unmarshal([]byte(spec), &mm.Spec); err != nil {
+		return err
+	}
+	return nil
 }
 
 //+kubebuilder:object:root=true
@@ -75,6 +103,14 @@ type TopicList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Topic `json:"items"`
+}
+
+func (tl *TopicList) GetItems() []client.Object {
+	l := make([]client.Object, 0, len(tl.Items))
+	for _, item := range tl.Items {
+		l = append(l, &item)
+	}
+	return l
 }
 
 func init() {

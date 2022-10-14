@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // CronHotBackupSpec defines the desired state of CronHotBackup
@@ -74,6 +75,14 @@ type CronHotBackupList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []CronHotBackup `json:"items"`
+}
+
+func (chbl *CronHotBackupList) GetItems() []client.Object {
+	l := make([]client.Object, 0, len(chbl.Items))
+	for _, item := range chbl.Items {
+		l = append(l, client.Object(&item))
+	}
+	return l
 }
 
 func init() {

@@ -1,7 +1,10 @@
 package v1alpha1
 
 import (
+	"encoding/json"
+	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // MultiMapSpec defines the desired state of MultiMap
@@ -43,21 +46,21 @@ const (
 
 // MultiMapStatus defines the observed state of MultiMap
 type MultiMapStatus struct {
-	State          MultiMapConfigState            `json:"state,omitempty"`
-	Message        string                         `json:"message,omitempty"`
-	MemberStatuses map[string]MultiMapConfigState `json:"memberStatuses,omitempty"`
+	State          DataStructureConfigState            `json:"state,omitempty"`
+	Message        string                              `json:"message,omitempty"`
+	MemberStatuses map[string]DataStructureConfigState `json:"memberStatuses,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=Success;Failed;Pending;Persisting;Terminating
-type MultiMapConfigState string
+type DataStructureConfigState string
 
 const (
-	MultiMapFailed  MultiMapConfigState = "Failed"
-	MultiMapSuccess MultiMapConfigState = "Success"
-	MultiMapPending MultiMapConfigState = "Pending"
-	// MultiMap config is added into all members but waiting for multiMap to be persisten into ConfigMap
-	MultiMapPersisting  MultiMapConfigState = "Persisting"
-	MultiMapTerminating MultiMapConfigState = "Terminating"
+	DataStructureFailed  DataStructureConfigState = "Failed"
+	DataStructureSuccess DataStructureConfigState = "Success"
+	DataStructurePending DataStructureConfigState = "Pending"
+	// The config is added into all members but waiting for the config to be persisten into ConfigMap
+	DataStructurePersisting  DataStructureConfigState = "Persisting"
+	DataStructureTerminating DataStructureConfigState = "Terminating"
 )
 
 //+kubebuilder:object:root=true
@@ -75,11 +78,48 @@ type MultiMap struct {
 	Status MultiMapStatus `json:"status,omitempty"`
 }
 
-func (mm *MultiMap) MultiMapName() string {
+func (mm *MultiMap) GetDSName() string {
 	if mm.Spec.Name != "" {
 		return mm.Spec.Name
 	}
 	return mm.Name
+}
+
+func (mm *MultiMap) GetKind() string {
+	return mm.Kind
+}
+
+func (mm *MultiMap) GetHZResourceName() string {
+	return mm.Spec.HazelcastResourceName
+}
+
+func (mm *MultiMap) GetStatus() DataStructureConfigState {
+	return mm.Status.State
+}
+
+func (mm *MultiMap) GetMemberStatuses() map[string]DataStructureConfigState {
+	return mm.Status.MemberStatuses
+}
+
+func (mm *MultiMap) SetStatus(status DataStructureConfigState, msg string, memberStatues map[string]DataStructureConfigState) {
+	mm.Status.State = status
+	mm.Status.Message = msg
+	mm.Status.MemberStatuses = memberStatues
+}
+
+func (mm *MultiMap) GetSpec() (string, error) {
+	mms, err := json.Marshal(mm.Spec)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling %v as JSON: %w", mm.Kind, err)
+	}
+	return string(mms), nil
+}
+
+func (mm *MultiMap) SetSpec(spec string) error {
+	if err := json.Unmarshal([]byte(spec), &mm.Spec); err != nil {
+		return err
+	}
+	return nil
 }
 
 //+kubebuilder:object:root=true
@@ -89,6 +129,14 @@ type MultiMapList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []MultiMap `json:"items"`
+}
+
+func (mml *MultiMapList) GetItems() []client.Object {
+	l := make([]client.Object, 0, len(mml.Items))
+	for _, item := range mml.Items {
+		l = append(l, &item)
+	}
+	return l
 }
 
 func init() {

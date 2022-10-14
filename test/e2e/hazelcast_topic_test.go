@@ -52,7 +52,7 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 
 		topic := hazelcastconfig.DefaultTopic(topicLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-		assertTopicStatus(topic, hazelcastcomv1alpha1.TopicSuccess)
+		assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{})
 	})
 
 	It("should create Topic Config with correct default values", Label("fast"), func() {
@@ -67,7 +67,7 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		By("creating the default topic config")
 		topic := hazelcastconfig.DefaultTopic(topicLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-		topic = assertTopicStatus(topic, hazelcastcomv1alpha1.TopicSuccess)
+		topic = assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{}).(*hazelcastcomv1alpha1.Topic)
 
 		By("checking if the topic config is created correctly")
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
@@ -77,7 +77,7 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		}()
 
 		memberConfigXML := getMemberConfig(context.Background(), cl)
-		topicConfig := getTopicConfigFromMemberConfig(memberConfigXML, topic.TopicName())
+		topicConfig := getTopicConfigFromMemberConfig(memberConfigXML, topic.GetDSName())
 		Expect(topicConfig).NotTo(BeNil())
 
 		Expect(topicConfig.GlobalOrderingEnabled).Should(Equal(n.DefaultTopicGlobalOrderingEnabled))
@@ -98,12 +98,12 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		}
 		topic := hazelcastconfig.Topic(topics, topicLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-		topic = assertTopicStatus(topic, hazelcastcomv1alpha1.TopicSuccess)
+		topic = assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{}).(*hazelcastcomv1alpha1.Topic)
 
 		By("failing to update topic config")
 		topic.Spec.GlobalOrderingEnabled = false
 		topic.Spec.MultiThreadingEnabled = true
 		Expect(k8sClient.Update(context.Background(), topic)).Should(Succeed())
-		assertTopicStatus(topic, hazelcastcomv1alpha1.TopicFailed)
+		assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Topic{})
 	})
 })

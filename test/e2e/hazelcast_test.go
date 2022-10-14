@@ -119,7 +119,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 	Describe("Hazelcast CR dependent CRs", func() {
 		When("Hazelcast CR is deleted", func() {
-			It("dependent Map, MultiMap and HotBackup CRs should be deleted", Label("fast"), func() {
+			It("dependent Data Structures and HotBackup CRs should be deleted", Label("fast"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -134,7 +134,8 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 				mm := hazelcastconfig.DefaultMultiMap(mmLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
-				assertMultiMapStatus(mm, hazelcastcomv1alpha1.MultiMapSuccess)
+				assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{})
+
 
 				hb := hazelcastconfig.HotBackup(hbLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), hb)).Should(Succeed())
@@ -142,7 +143,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 				topic := hazelcastconfig.DefaultTopic(topicLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-				assertTopicStatus(topic, hazelcastcomv1alpha1.TopicSuccess)
+				assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{})
 
 				DeleteAllOf(hz, &hazelcastcomv1alpha1.HazelcastList{}, hz.Namespace, labels)
 

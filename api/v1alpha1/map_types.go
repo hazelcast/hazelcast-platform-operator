@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // MapSpec defines the desired state of Hazelcast Map Config
@@ -287,6 +288,14 @@ type MapList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Map `json:"items"`
+}
+
+func (ml *MapList) GetItems() []client.Object {
+	l := make([]client.Object, 0, len(ml.Items))
+	for _, item := range ml.Items {
+		l = append(l, client.Object(&item))
+	}
+	return l
 }
 
 func init() {

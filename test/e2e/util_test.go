@@ -255,10 +255,11 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 	)).Should(Succeed())
 
 	// do not wait if objList is nil
-	objListVal := reflect.ValueOf(objList)
-	if !objListVal.IsValid() {
+	if objList == nil {
 		return
 	}
+
+	objListVal := reflect.ValueOf(objList)
 
 	Eventually(func() int {
 		err := k8sClient.List(context.Background(), objList,
