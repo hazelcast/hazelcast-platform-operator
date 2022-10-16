@@ -242,14 +242,16 @@ func SwitchContext(context string) {
 		}
 	})
 }
-func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool, mapName string, mapSize int) {
-	By(fmt.Sprintf("filling the '%s' map with '%d' entries using '%s' lookup name and '%s' namespace", mapName, mapSize, lk.Name, lk.Namespace), func() {
+func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool, mapName string, entryCount int) {
+	By(fmt.Sprintf("filling the '%s' map with '%d' entries using '%s' lookup name and '%s' namespace", mapName, entryCount, lk.Name, lk.Namespace), func() {
 		var m *hzClient.Map
 		clientHz := GetHzClient(ctx, lk, unisocket)
 		m, err := clientHz.GetMap(ctx, mapName)
 		Expect(err).ToNot(HaveOccurred())
-		entries := make([]hzclienttypes.Entry, 0, mapSize)
-		for i := 0; i < mapSize; i++ {
+		initMapSize, err := m.Size(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		entries := make([]hzclienttypes.Entry, 0, entryCount)
+		for i := initMapSize; i < initMapSize+entryCount; i++ {
 			entries = append(entries, hzclienttypes.NewEntry(strconv.Itoa(i), strconv.Itoa(i)))
 		}
 		err = m.PutAll(ctx, entries...)
@@ -259,8 +261,11 @@ func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool
 	})
 }
 
-func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int) {
+func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int, timeout Duration) {
 	By(fmt.Sprintf("waiting the '%s' map to be of size '%d' using lookup name '%s'", mapName, mapSize, lk.Name), func() {
+		if timeout == 0 {
+			timeout = 10 * Minute
+		}
 		var hzMap *hzClient.Map
 		clientHz := GetHzClient(ctx, lk, true)
 		defer func() {
@@ -270,7 +275,7 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 		hzMap, _ = clientHz.GetMap(ctx, mapName)
 		Eventually(func() (int, error) {
 			return hzMap.Size(ctx)
-		}, 30*Minute, 10*Second).Should(Equal(mapSize))
+		}, timeout, 10*Second).Should(Equal(mapSize))
 	})
 }
 

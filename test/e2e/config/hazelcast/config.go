@@ -189,7 +189,7 @@ var (
 		return hz
 	}
 
-	ExternalBackup = func(lk types.NamespacedName, ee bool, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
+	HazelcastPersistencePVC = func(lk types.NamespacedName, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -198,12 +198,11 @@ var (
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{1}[0],
-				Repository:       repo(ee),
+				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				LicenseKeySecret: licenseKey(true),
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart",
-					BackupType:                "External",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -214,7 +213,7 @@ var (
 		}
 	}
 
-	ExternalRestore = func(lk types.NamespacedName, ee bool, labels map[string]string, bucketURI, secretName string) *hazelcastv1alpha1.Hazelcast {
+	HazelcastRestore = func(lk types.NamespacedName, restore *hazelcastv1alpha1.RestoreConfiguration, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -223,9 +222,9 @@ var (
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{1}[0],
-				Repository:       repo(ee),
+				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				LicenseKeySecret: licenseKey(true),
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
@@ -233,10 +232,7 @@ var (
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					},
-					Restore: &hazelcastv1alpha1.RestoreConfiguration{
-						BucketURI: bucketURI,
-						Secret:    secretName,
-					},
+					Restore: restore,
 				},
 			},
 		}

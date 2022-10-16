@@ -102,6 +102,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		FillTheMapData(context.Background(), hzSrcLookupKey, true, m.Name, mapSize)
 
 		By("checking the size of the map in the target cluster")
-		WaitForMapSize(context.Background(), hzTrgLookupKey, m.Name, mapSize)
+		WaitForMapSize(context.Background(), hzTrgLookupKey, m.Name, mapSize, 1*Minute)
 	})
 })

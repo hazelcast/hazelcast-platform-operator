@@ -96,7 +96,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 		Expect(logs.Close()).Should(Succeed())
 
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100)
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 30*Minute)
 	})
 
 	It("should successfully start after one member restart", Label("slow"), func() {
@@ -136,7 +136,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 		Expect(logs.Close()).Should(Succeed())
 
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100)
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 30*Minute)
 	})
 
 	It("should restore 9 GB data after planned shutdown", Label("slow"), func() {
@@ -219,7 +219,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(logs.Close()).Should(Succeed())
 		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
-		WaitForMapSize(context.Background(), hzLookupKey, dm.Name, expectedMapSize)
+		WaitForMapSize(context.Background(), hzLookupKey, dm.Name, expectedMapSize, 30*Minute)
 	})
 
 	It("Should successfully restore 9 Gb data from external backup using GCP bucket", Label("slow"), func() {
@@ -235,7 +235,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		expectedMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
 
 		By("creating cluster with external backup enabled")
-		hazelcast := hazelcastconfig.ExternalBackup(hzLookupKey, true, labels)
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
 		hazelcast.Spec.ClusterSize = &[]int32{3}[0]
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -277,7 +277,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			unixMilli(timestamp).UTC().Format("2006-01-02-15-04-05"))
 
 		By("creating cluster from external backup")
-		hazelcast = hazelcastconfig.ExternalRestore(hzLookupKey, true, labels, bucketURI, secretName)
+		hazelcast = hazelcastconfig.HazelcastRestore(hzLookupKey,
+			&hazelcastcomv1alpha1.RestoreConfiguration{
+				BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{BucketURI: bucketURI, Secret: secretName}}, labels)
 		hazelcast.Spec.ClusterSize = &[]int32{3}[0]
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -299,7 +301,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Found existing hot-restart directory"))
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Local Hot Restart procedure completed with success."))
 
-		WaitForMapSize(context.Background(), hzLookupKey, dm.Name, expectedMapSize)
+		WaitForMapSize(context.Background(), hzLookupKey, dm.Name, expectedMapSize, 30*Minute)
 	})
 
 	It("should interrupt external backup process when the hotbackup is deleted", Label("slow"), func() {
@@ -313,7 +315,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		mapSizeInGb := 1
 
 		By("creating cluster with external backup enabled")
-		hazelcast := hazelcastconfig.ExternalBackup(hzLookupKey, true, labels)
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
 		hazelcast.Spec.ClusterSize = &[]int32{3}[0]
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,

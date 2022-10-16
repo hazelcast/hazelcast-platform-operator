@@ -111,7 +111,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		FillTheMapWithHugeData(context.Background(), m.Name, mapSizeInGb, hazelcastSource)
 
 		By("checking the target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize)
+		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
 	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Label("slow"), func() {
@@ -229,10 +229,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		FillTheMapWithHugeData(context.Background(), mapSrc2.Spec.Name, mapSizeInGb, hazelcastSource)
 
 		By("checking the first target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize)
+		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 30*Minute)
 
 		By("checking the second target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize)
+		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 30*Minute)
 
 		By("filling the first target Map")
 		FillTheMapWithHugeData(context.Background(), mapTrg1.Spec.Name, mapSizeInGb, hazelcastTarget)
@@ -241,10 +241,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		FillTheMapWithHugeData(context.Background(), mapTrg2.Spec.Name, mapSizeInGb, hazelcastTarget)
 
 		By("checking the first source Map size")
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg1.Spec.Name, expectedSrcMapSize)
+		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg1.Spec.Name, expectedSrcMapSize, 30*Minute)
 
 		By("checking the second source Map size")
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize)
+		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize, 30*Minute)
 	})
 
 	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Label("slow"), func() {
@@ -317,7 +317,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		By("checking the target Map size")
 		SwitchContext(context2)
 		setupEnv()
-		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize)
+		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
 	It("should send 6 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Label("slow"), func() {
@@ -452,10 +452,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		By("checking the first target Map size")
 		SwitchContext(context2)
 		setupEnv()
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize)
+		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 30*Minute)
 
 		By("checking the second target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize)
+		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 30*Minute)
 
 		By("filling the first target Map")
 		FillTheMapWithHugeData(context.Background(), mapTrg1.Spec.Name, mapSizeInGb, hazelcastTarget)
@@ -466,9 +466,9 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		By("checking the first source Map size")
 		SwitchContext(context1)
 		setupEnv()
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg1.Spec.Name, expectedSrcMapSize)
+		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg1.Spec.Name, expectedSrcMapSize, 30*Minute)
 
 		By("checking the second source Map size")
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize)
+		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize, 30*Minute)
 	})
 })

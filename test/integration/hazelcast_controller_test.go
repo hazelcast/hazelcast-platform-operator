@@ -805,7 +805,6 @@ var _ = Describe("Hazelcast controller", func() {
 			It("should be deployed as a sidecar container", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BackupType:                hazelcastv1alpha1.External,
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
