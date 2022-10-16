@@ -215,11 +215,6 @@ func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersis
 	if !p.IsEnabled() {
 		return
 	}
-	if p.BackupType == hazelcastv1alpha1.External {
-		br.ExternalBackupCount += 1
-	} else {
-		br.LocalBackupCount += 1
-	}
 	if p.HostPath != "" {
 		br.HostPathCount += 1
 	} else if !p.Pvc.IsEmpty() {
@@ -313,7 +308,14 @@ func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {
 		case strings.HasPrefix(hb.Spec.BucketURI, "azblob"):
 			phm.BackupAndRestore.AzureBlobStorage += 1
 		}
+
+		if hb.Spec.IsExternal() {
+			phm.BackupAndRestore.ExternalBackupCount += 1
+		} else {
+			phm.BackupAndRestore.LocalBackupCount += 1
+		}
 	}
+
 }
 
 func (phm *PhoneHomeData) fillMultiMapMetrics(cl client.Client) {

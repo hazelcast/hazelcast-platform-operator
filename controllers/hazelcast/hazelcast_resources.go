@@ -998,9 +998,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		} else {
 			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 		}
-		if h.Spec.Persistence.IsExternal() {
-			sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
-		}
+		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -1038,10 +1036,12 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Containers[0].Resources = v1.ResourceRequirements{}
 		}
 
-		sts.Spec.Template.Spec.InitContainers = initContainers(h)
+		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client)
+		if err != nil {
+			return err
+		}
 		sts.Spec.Template.Spec.Volumes = volumes(h)
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts(h)
-
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -1089,7 +1089,7 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},
-			InitialDelaySeconds: 10,
+			InitialDelaySeconds: 0,
 			TimeoutSeconds:      10,
 			PeriodSeconds:       10,
 			SuccessThreshold:    1,
@@ -1103,7 +1103,7 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},
-			InitialDelaySeconds: 10,
+			InitialDelaySeconds: 0,
 			TimeoutSeconds:      10,
 			PeriodSeconds:       10,
 			SuccessThreshold:    1,
@@ -1136,18 +1136,48 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
-func initContainers(h *hazelcastv1alpha1.Hazelcast) []corev1.Container {
+func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
 	var containers []corev1.Container
-	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.IsRestoreEnabled() {
-		containers = append(containers, restoreAgentContainer(h))
+	if h.Spec.Persistence.IsRestoreEnabled() {
+		if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
+			cont, err := getRestoreFromHotBackupResource(ctx, cl, h,
+				types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName})
+			if err != nil {
+				return nil, err
+			}
+			containers = append(containers, cont)
+
+		} else {
+			containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
+				h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
+		}
 	}
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
 		containers = append(containers, ucdAgentContainer(h))
 	}
-	return containers
+	return containers, nil
 }
 
-func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func getRestoreFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
+	hb := &hazelcastv1alpha1.HotBackup{}
+	err := cl.Get(ctx, key, hb)
+	if err != nil {
+		return corev1.Container{}, err
+	}
+
+	var cont corev1.Container
+	if hb.Spec.IsExternal() {
+		bucketURI := hb.Status.GetBucketURI()
+		cont = restoreAgentContainer(h, hb.Spec.Secret, bucketURI)
+	} else {
+		backupFolder := hb.Status.GetBackupFolder()
+		cont = restoreLocalAgentContainer(h, backupFolder)
+	}
+
+	return cont, nil
+}
+
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
 	return v1.Container{
 		Name:  n.RestoreAgent,
 		Image: h.AgentDockerImage(),
@@ -1155,11 +1185,11 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_SECRET_NAME",
-				Value: h.Spec.Persistence.Restore.Secret,
+				Value: secretName,
 			},
 			{
 				Name:  "RESTORE_BUCKET",
-				Value: h.Spec.Persistence.Restore.BucketURI,
+				Value: bucket,
 			},
 			{
 				Name:  "RESTORE_DESTINATION",
@@ -1167,6 +1197,40 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			},
 			{
 				Name: "RESTORE_HOSTNAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.name",
+					},
+				},
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		}},
+	}
+}
+
+func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
+	return v1.Container{
+		Name:  n.RestoreLocalAgent,
+		Image: h.AgentDockerImage(),
+		Args:  []string{"restore_local"},
+		Env: []v1.EnvVar{
+			{
+				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
+				Value: backupFolder,
+			},
+			{
+				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
+				Value: h.Spec.Persistence.BaseDir,
+			},
+			{
+				Name:  "RESTORE_ID",
+				Value: string(h.Spec.Persistence.Restore.Hash()),
+			},
+			{
+				Name: "RESTORE_LOCAL_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
 						FieldPath: "metadata.name",
@@ -1262,7 +1326,8 @@ func tlsVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 		Name: n.MTLSCertSecretName,
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
-				SecretName: n.MTLSCertSecretName,
+				SecretName:  n.MTLSCertSecretName,
+				DefaultMode: &[]int32{420}[0],
 			},
 		},
 	}

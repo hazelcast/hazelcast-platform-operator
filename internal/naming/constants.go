@@ -53,6 +53,7 @@ const (
 	BackupAgent           = "backup-agent"
 	BackupAgentPortName   = "backup-agent-port"
 	RestoreAgent          = "restore-agent"
+	RestoreLocalAgent     = "restore-local-agent"
 	BucketSecret          = "br-secret"
 	UserCodeDownloadAgent = "ucd-agent"
 

@@ -10,7 +10,6 @@ spec:
   agent:
     repository: hazelcast/platform-operator-agent
   persistence:
-    backupType: "External"
     baseDir: "/data/hot-restart/"
     clusterDataRecoveryPolicy: "FullRecoveryOnly"
     pvc:

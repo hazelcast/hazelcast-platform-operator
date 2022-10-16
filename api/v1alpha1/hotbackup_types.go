@@ -1,6 +1,9 @@
 package v1alpha1
 
 import (
+	"net/url"
+	"path"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -28,8 +31,42 @@ func (s HotBackupState) IsRunning() bool {
 
 // HotBackupStatus defines the observed state of HotBackup
 type HotBackupStatus struct {
-	State   HotBackupState `json:"state"`
-	Message string         `json:"message,omitempty"`
+	State       HotBackupState `json:"state"`
+	Message     string         `json:"message"`
+	BackupUUIDs []string       `json:"backupUUIDs,omitempty"`
+}
+
+func (hbs *HotBackupStatus) GetBucketURI() string {
+	if len(hbs.BackupUUIDs) == 0 {
+		return ""
+	}
+	u, err := url.ParseRequestURI(hbs.BackupUUIDs[0])
+	if err != nil {
+		return ""
+	}
+
+	values := u.Query()
+	prefix := path.Dir(values.Get("prefix"))
+
+	// if prefix ends with no /, add it
+	if prefix[len(prefix)-1] != '/' {
+		prefix += "/"
+	}
+
+	values.Set("prefix", prefix)
+	u.RawQuery, err = url.QueryUnescape(values.Encode())
+	if err != nil {
+		return ""
+	}
+
+	return u.String()
+}
+
+func (hbs *HotBackupStatus) GetBackupFolder() string {
+	if len(hbs.BackupUUIDs) == 0 {
+		return ""
+	}
+	return path.Dir(hbs.BackupUUIDs[0])
 }
 
 // HotBackupSpec defines the Spec of HotBackup
@@ -44,6 +81,10 @@ type HotBackupSpec struct {
 	// Name of the secret with credentials for cloud providers.
 	// +optional
 	Secret string `json:"secret"`
+}
+
+func (hbs *HotBackupSpec) IsExternal() bool {
+	return hbs.BucketURI != "" && hbs.Secret != ""
 }
 
 //+kubebuilder:object:root=true

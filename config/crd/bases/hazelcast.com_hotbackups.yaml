@@ -64,11 +64,16 @@ spec:
           status:
             description: HotBackupStatus defines the observed state of HotBackup
             properties:
+              backupUUIDs:
+                items:
+                  type: string
+                type: array
               message:
                 type: string
               state:
                 type: string
             required:
+            - message
             - state
             type: object
         required:

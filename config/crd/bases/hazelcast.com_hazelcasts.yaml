@@ -60,16 +60,16 @@ spec:
             properties:
               agent:
                 default:
-                  repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.7
+                  repository: docker.io/mtypey/platform-operator-agent
+                  version: restore-hb-cr
                 description: B&R Agent configurations
                 properties:
                   repository:
-                    default: docker.io/hazelcast/platform-operator-agent
+                    default: docker.io/mtypey/platform-operator-agent
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.7
+                    default: restore-hb-cr
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -202,14 +202,6 @@ spec:
                     description: AutoForceStart enables the detection of constantly
                       failing cluster and trigger the Force Start action.
                     type: boolean
-                  backupType:
-                    default: Local
-                    description: BackupType represents the storage options for the
-                      HotBackup
-                    enum:
-                    - External
-                    - Local
-                    type: string
                   baseDir:
                     description: Persistence base directory.
                     type: string
@@ -253,19 +245,30 @@ spec:
                     type: object
                   restore:
                     description: Restore configuration
+                    maxProperties: 1
+                    minProperties: 1
                     properties:
-                      bucketURI:
-                        description: Full path to blob storage bucket.
-                        minLength: 6
+                      bucketConfig:
+                        description: Bucket Configuration from which the backup will
+                          be downloaded.
+                        properties:
+                          bucketURI:
+                            description: Full path to blob storage bucket.
+                            minLength: 6
+                            type: string
+                          secret:
+                            description: Name of the secret with credentials for cloud
+                              providers.
+                            minLength: 1
+                            type: string
+                        required:
+                        - bucketURI
+                        - secret
+                        type: object
+                      hotBackupResourceName:
+                        description: Name of the HotBackup resource from which backup
+                          will be fetched.
                         type: string
-                      secret:
-                        description: Name of the secret with credentials for cloud
-                          providers.
-                        minLength: 1
-                        type: string
-                    required:
-                    - bucketURI
-                    - secret
                     type: object
                 required:
                 - baseDir

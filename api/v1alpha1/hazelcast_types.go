@@ -1,8 +1,10 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -97,7 +99,7 @@ type HazelcastSpec struct {
 
 	// B&R Agent configurations
 	// +optional
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.7"}
+	// +kubebuilder:default:={repository: "docker.io/mtypey/platform-operator-agent", version: "restore-hb-cr"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
 
 	// User Codes to Download into CLASSPATH
@@ -235,18 +237,15 @@ type UserCodeDeploymentConfig struct {
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
+	// +kubebuilder:default:="docker.io/mtypey/platform-operator-agent"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.7"
+	// +kubebuilder:default:="restore-hb-cr"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
-
-// RestoreConfiguration contains the configuration for Restore operation
-type RestoreConfiguration BucketConfiguration
 
 // BackupType represents the storage options for the HotBackup
 // +kubebuilder:validation:Enum=External;Local
@@ -293,9 +292,24 @@ type HazelcastPersistenceConfiguration struct {
 	// +optional
 	// +kubebuilder:default:={}
 	Restore *RestoreConfiguration `json:"restore,omitempty"`
+}
 
-	// +kubebuilder:default:="Local"
-	BackupType BackupType `json:"backupType,omitempty"`
+// RestoreConfiguration contains the configuration for Restore operation
+// +kubebuilder:validation:MinProperties=1
+// +kubebuilder:validation:MaxProperties=1
+type RestoreConfiguration struct {
+	// Bucket Configuration from which the backup will be downloaded.
+	// +optional
+	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
+
+	// Name of the HotBackup resource from which backup will be fetched.
+	// +optional
+	HotBackupResourceName string `json:"hotBackupResourceName,omitempty"`
+}
+
+func (rc RestoreConfiguration) Hash() string {
+	str, _ := json.Marshal(rc)
+	return strconv.Itoa(int(FNV32a(string(str))))
 }
 
 type PersistencePvcConfiguration struct {
@@ -485,14 +499,14 @@ func (p *HazelcastPersistenceConfiguration) UseHostPath() bool {
 	return p.HostPath != ""
 }
 
-// IsExternal returns true if BackupType is External
-func (p *HazelcastPersistenceConfiguration) IsExternal() bool {
-	return p != nil && (p.BackupType == External)
+// IsRestoreEnabled returns true if Restore configuration is specified
+func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
+	return p.IsEnabled() && p.Restore != nil && !(*p.Restore == (RestoreConfiguration{}))
 }
 
-// IsRestoreEnabled returns true if Restore Agent configuration is specified
-func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
-	return p != nil && p.Restore != nil && !(*p.Restore == (RestoreConfiguration{}))
+// RestoreFromHotBackupResourceName returns true if Restore is done from a HotBackup resource
+func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() bool {
+	return p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != ""
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

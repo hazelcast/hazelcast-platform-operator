@@ -18,6 +18,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/backup"
+	localbackup "github.com/hazelcast/hazelcast-platform-operator/internal/local_backup"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/upload"
@@ -129,7 +130,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return result, err
 	}
 	r.lockBackup(req.NamespacedName)
-	go r.startBackup(cancelCtx, req.NamespacedName, hazelcastName, logger) //nolint:errcheck
+	go r.startBackup(cancelCtx, req.NamespacedName, hb.Spec.IsExternal(), hazelcastName, logger) //nolint:errcheck
 
 	return
 }
@@ -187,7 +188,7 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 	return nil
 }
 
-func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.NamespacedName, options hotBackupOptionsBuilder) (ctrl.Result, error) {
+func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.NamespacedName, options *hotBackupOptionsBuilder) (ctrl.Result, error) {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Always fetch the new version of the resource
 		hb := &hazelcastv1alpha1.HotBackup{}
@@ -196,6 +197,7 @@ func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.Names
 		}
 		hb.Status.State = options.status
 		hb.Status.Message = options.message
+		hb.Status.BackupUUIDs = options.backupUUIDs
 		return r.Status().Update(ctx, hb)
 	})
 
@@ -218,7 +220,7 @@ func (r *HotBackupReconciler) unlockBackup(name types.NamespacedName) {
 	delete(r.backup, name)
 }
 
-func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.NamespacedName, hazelcastName types.NamespacedName, logger logr.Logger) (ctrl.Result, error) {
+func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.NamespacedName, isExternal bool, hazelcastName types.NamespacedName, logger logr.Logger) (ctrl.Result, error) {
 	logger.Info("Starting backup")
 	defer logger.Info("Finished backup")
 
@@ -244,26 +246,50 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	if err := b.Start(ctx); err != nil {
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
-	backupUUIDs := make([]string, len(b.Members()))
 
 	// for each member monitor and upload backup if needed
 	g, groupCtx := errgroup.WithContext(ctx)
 	for _, m := range b.Members() {
 		m := m
 		g.Go(func() error {
-			logger := logger.WithValues("uuid", m.UUID)
-
-			logger.Info("Member status monitor started")
-			defer logger.Info("Member status monitor finished")
-
-			logger.Info("Wait for member backup to finish")
 			if err := m.Wait(groupCtx); err != nil {
 				// cancel cluster backup
 				return b.Cancel(ctx)
 			}
+			return nil
+		})
+	}
 
-			// skip upload for local backup
-			if !hz.Spec.Persistence.IsExternal() {
+	logger.Info("Waiting for member backups to finish")
+	// Wait for all local backups to finish
+	if err := g.Wait(); err != nil {
+		logger.Error(err, "One or more members failed, returning first error")
+		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+	}
+
+	backupUUIDs := make([]string, len(b.Members()))
+	// for each member monitor and upload backup if needed
+	g, groupCtx = errgroup.WithContext(ctx)
+	for i, m := range b.Members() {
+		m := m
+		i := i
+		g.Go(func() error {
+			// if local backup
+			if !isExternal {
+				b, err := localbackup.NewLocalBackup(&localbackup.Config{
+					MemberAddress: m.Address,
+					MTLSClient:    r.mtlsClient,
+					BackupBaseDir: hz.Spec.Persistence.BaseDir,
+					MemberID:      i,
+				})
+				if err != nil {
+					return err
+				}
+				bf, err := b.GetLatestLocalBackup(ctx)
+				if err != nil {
+					return err
+				}
+				backupUUIDs[i] = bf
 				return nil
 			}
 
@@ -272,7 +298,6 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				return err
 			}
 
-			logger.Info("Start and wait for member backup upload")
 			u, err := upload.NewUpload(&upload.Config{
 				MemberAddress: m.Address,
 				MTLSClient:    r.mtlsClient,
@@ -295,7 +320,6 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					// notify agent so we can cleanup if needed
-					logger.Info("Cancel upload")
 					return u.Cancel(ctx)
 				}
 				return err
@@ -314,7 +338,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	}
 
 	logger.Info("All members finished with no errors")
-	return r.updateStatus(ctx, backupName, hbWithStatus(hazelcastv1alpha1.HotBackupSuccess))
+	return r.updateStatus(ctx, backupName, hbWithStatus(hazelcastv1alpha1.HotBackupSuccess).withBackupUUIDs(backupUUIDs))
 }
 
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
