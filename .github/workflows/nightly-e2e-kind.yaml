@@ -41,7 +41,7 @@ jobs:
           EOT
 
       - name: Create Kind Cluster
-        uses: helm/kind-action@v1.3.0
+        uses: helm/kind-action@v1.4.0
         with:
           config: ./kind-config.yaml
           cluster_name: ${{ env.CLUSTER_NAME }}
