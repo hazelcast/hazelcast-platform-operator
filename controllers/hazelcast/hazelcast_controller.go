@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/mutate"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -94,6 +95,15 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
+	}
+
+	if mutated := mutate.MutateHazelcastSpec(h); mutated {
+		err = r.Client.Update(ctx, h)
+		if err != nil {
+			return update(ctx, r.Client, h,
+				failedPhase(err).
+					withMessage(fmt.Sprintf("error mutating new Spec: %s", err)))
+		}
 	}
 
 	err = validation.ValidateHazelcastSpec(h)

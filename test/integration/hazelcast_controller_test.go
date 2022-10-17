@@ -1167,4 +1167,21 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
+
+	Context("Hazelcast CR mutation", func() {
+		When("License key with OS repo is given", func() {
+			It("should use EE repo", Label("fast"), func() {
+				h := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.HazelcastSpec{
+						LicenseKeySecret: "secret-name",
+						Repository:       n.HazelcastRepo,
+					},
+				}
+				Expect(k8sClient.Create(context.Background(), h)).Should(Succeed())
+				h = EnsureStatus(h)
+				Expect(h.Spec.Repository).Should(Equal(n.HazelcastEERepo))
+			})
+		})
+	})
 })
