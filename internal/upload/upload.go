@@ -15,8 +15,6 @@ import (
 var (
 	errUploadNotStarted     = errors.New("Upload not started")
 	errUploadAlreadyStarted = errors.New("Upload already started")
-	errUploadCanceled       = errors.New("Upload canceled")
-	errUploadFailed         = errors.New("Upload failed")
 )
 
 type Upload struct {
