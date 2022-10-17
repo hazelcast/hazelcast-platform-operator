@@ -140,7 +140,7 @@ jobs:
 
       - name: Deploy Report to Github Pages
         if: always()
-        uses: JamesIves/github-pages-deploy-action@v4.4.0
+        uses: JamesIves/github-pages-deploy-action@v4.4.1
         with:
           branch: test-report-pages
           folder: allure-history
