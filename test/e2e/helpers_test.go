@@ -359,7 +359,9 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
 		Name:      h.Name + "-0",
 		Namespace: h.Namespace,
-	}, &corev1.PodLogOptions{})
+	}, &corev1.PodLogOptions{
+		Container: "hazelcast",
+	})
 	defer logs.Close()
 	scanner := bufio.NewScanner(logs)
 	for scanner.Scan() {
