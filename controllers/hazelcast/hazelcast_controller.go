@@ -97,7 +97,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	if mutated := mutate.MutateHazelcastSpec(h); mutated {
+	if mutated := mutate.HazelcastSpec(h); mutated {
 		err = r.Client.Update(ctx, h)
 		if err != nil {
 			return update(ctx, r.Client, h,

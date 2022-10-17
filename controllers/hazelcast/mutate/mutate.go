@@ -5,7 +5,7 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-func MutateHazelcastSpec(h *hazelcastv1alpha1.Hazelcast) (mutated bool) {
+func HazelcastSpec(h *hazelcastv1alpha1.Hazelcast) (mutated bool) {
 	if h.Spec.LicenseKeySecret != "" && h.Spec.Repository == n.HazelcastRepo {
 		h.Spec.Repository = n.HazelcastEERepo
 		mutated = true
