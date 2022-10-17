@@ -391,12 +391,11 @@ func addBatchPublisherConfig(
 		request.queueFullBehavior,
 	)
 
-	for _, member := range cliInt.OrderedMembers() {
-		_, err := cliInt.InvokeOnMember(ctx, req, member.UUID, nil)
-		if err != nil {
-			return err
-		}
+	_, err := cliInt.InvokeOnRandomTarget(ctx, req, nil)
+	if err != nil {
+		return err
 	}
+
 	return nil
 }
 
