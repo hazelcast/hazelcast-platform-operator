@@ -263,7 +263,7 @@ jobs:
     name: Clean The Bundle Artifact and Test Image
     steps:
       - name: Delete Bundle Artifact
-        uses: geekyeggo/delete-artifact@v1
+        uses: geekyeggo/delete-artifact@v2
         with:
           name: |
             bundle-artifacts
