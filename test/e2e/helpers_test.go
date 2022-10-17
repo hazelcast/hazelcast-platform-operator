@@ -266,13 +266,13 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 		if timeout == 0 {
 			timeout = 10 * Minute
 		}
-		var hzMap *hzClient.Map
 		clientHz := GetHzClient(ctx, lk, true)
 		defer func() {
 			err := clientHz.Shutdown(ctx)
 			Expect(err).To(BeNil())
 		}()
-		hzMap, _ = clientHz.GetMap(ctx, mapName)
+		hzMap, err := clientHz.GetMap(ctx, mapName)
+		Expect(err).To(BeNil())
 		Eventually(func() (int, error) {
 			return hzMap.Size(ctx)
 		}, timeout, 10*Second).Should(Equal(mapSize))
