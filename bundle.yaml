@@ -3256,15 +3256,18 @@ metadata:
 rules:
 - apiGroups:
   - ""
+  - apps
   resources:
   - endpoints
   - nodes
   - pods
   - secrets
   - services
+  - statefulsets
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - hazelcast.com
   resources:
@@ -3477,6 +3480,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DEVELOPER_MODE_ENABLED
+          value: "true"
         image: hazelcast/hazelcast-platform-operator:5.4
         imagePullPolicy: IfNotPresent
         livenessProbe:

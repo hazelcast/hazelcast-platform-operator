@@ -326,9 +326,9 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
-				APIGroups: []string{""},
-				Resources: []string{"endpoints", "pods", "nodes", "services", "secrets"},
-				Verbs:     []string{"get", "list"},
+				APIGroups: []string{"", "apps"},
+				Resources: []string{"endpoints", "pods", "nodes", "services", "secrets", "statefulsets"},
+				Verbs:     []string{"get", "list", "watch"},
 			},
 		},
 	}
