@@ -1,0 +1,90 @@
+commitish: 'main'
+categories:
+  - title: 'New Features'
+    labels:
+      - 'feature'
+  - title: 'Changes'
+    labels:
+      - 'enhancement'
+      - 'refactor'
+  - title: 'Fixed Issues'
+    labels:
+      - 'fix'
+include-labels:
+  - 'feature'
+  - 'enhancement'
+  - 'fix'
+  - 'refactor'
+replacers:
+  - search: '/\[(.*?)\]/g'
+    replace: ''
+  - search: '^Add'
+    replace: 'Added'
+  - search: 'feat:'
+    replace: ''
+  - search: 'fix:'
+    replace: ''
+  - search: 'refactor:'
+    replace: ''
+  - search: 'enhancement:'
+    replace: ''
+autolabeler:
+  - label: 'feature'
+    branch:
+      - '/feat\/.+/'
+    title:
+      - '/feature/i'
+      - '/feat/i'
+      - '/implement/i'
+      - '/support/i'
+    body:
+      - '/feature/i'
+      - '/implement/i'
+      - '/support/i'
+  - label: 'enhancement'
+    branch:
+      - '/enhancement\/.+/'
+    title:
+      - '/enhancement/i'
+      - '/improve/i'
+      - '/upgrade/i'
+      - '/update/i'
+    body:
+      - '/improve/i'
+      - '/upgrade/i'
+      - '/update/i'
+  - label: 'refactor'
+    branch:
+      - '/refactor\/.+/'
+    title:
+      - '/refactor/i'
+    body:
+      - '/refactor/i'
+  - label: 'fix'
+    branch:
+      - '/fix\/.+/'
+    title:
+      - '/fix/i'
+      - '/bug/i'
+      - '/issue/i'
+      - '/error/i'
+    body:
+      - '/fix/i'
+      - '/bug/i'
+      - '/issue/i'
+      - '/error/i'
+  - label: 'ci'
+    files:
+      - '.github/workflows/*'
+  - label: 'test'
+    files:
+      - 'test/*'
+  - label: 'documentation'
+    files:
+      - '*.md'
+change-template: '- $TITLE (#$NUMBER)'
+template: |
+  # Release notes
+  In this release, we introduced the {REPLACE THIS}. We also introduced {REPLACE THIS}.
+  $CHANGES
+
