@@ -384,6 +384,17 @@ func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
 	})
 }
 
+func evaluateNonReadyMembers(lookupKey types.NamespacedName) {
+	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
+		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		Eventually(func() string {
+			err := k8sClient.Get(context.Background(), lookupKey, hz)
+			Expect(err).ToNot(HaveOccurred())
+			return hz.Status.Cluster.ReadyMembers
+		}, 6*Minute, 500*Millisecond).Should(Equal("N/A"))
+	})
+}
+
 func getFirstWorkerNodeName() string {
 	nodes := &corev1.NodeList{}
 	labelMatcher := client.MatchingLabels{}

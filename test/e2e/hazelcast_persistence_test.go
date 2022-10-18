@@ -336,12 +336,13 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			}
 			return h
 		})
+		evaluateNonReadyMembers(hzLookupKey)
 		evaluateReadyMembers(hzLookupKey, 1)
 
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 1*Minute)
 
 	},
-		Entry("using GCP bucket", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp"),
+		FEntry("using GCP bucket", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp"),
 		Entry("using local backup", Label("slow"), "", ""),
 	)
 })
