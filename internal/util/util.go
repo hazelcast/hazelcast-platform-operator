@@ -30,6 +30,14 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 		// Inside createOrUpdate() there's is a race condition between Get() and Create(), so this error is expected from time to time.
 		return opResult, nil
 	}
+	if kerrors.IsInvalid(err) {
+		// try hard replace
+		err := c.Delete(ctx, obj)
+		if err != nil {
+			return opResult, err
+		}
+		return controllerutil.CreateOrUpdate(ctx, c, obj, f)
+	}
 	return opResult, err
 }
 

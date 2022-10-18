@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"k8s.io/utils/pointer"
-
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"golang.org/x/sync/errgroup"
@@ -24,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -333,6 +332,11 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		})
 	}
 
+	if serviceType(h) == corev1.ServiceTypeClusterIP {
+		// We want to use headless to be compatible with Hazelcast helm chart
+		service.Spec.ClusterIP = "None"
+	}
+
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
@@ -344,7 +348,6 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 			// dirty hack to prevent the error when changing the service type
 			service.Spec.Ports[0].NodePort = 0
 		}
-
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -466,10 +469,11 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func hazelcastPort() []v1.ServicePort {
 	return []corev1.ServicePort{
 		{
-			Name:       n.HazelcastPortName,
-			Protocol:   corev1.ProtocolTCP,
-			Port:       n.DefaultHzPort,
-			TargetPort: intstr.FromString(n.Hazelcast),
+			Name:        n.HazelcastPortName,
+			Protocol:    corev1.ProtocolTCP,
+			Port:        n.DefaultHzPort,
+			TargetPort:  intstr.FromString(n.Hazelcast),
+			AppProtocol: pointer.String("tcp"),
 		},
 	}
 }
