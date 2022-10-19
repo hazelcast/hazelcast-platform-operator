@@ -8,14 +8,12 @@ metadata:
 rules:
 - apiGroups:
   - ""
-  - apps
   resources:
   - endpoints
   - nodes
   - pods
   - secrets
   - services
-  - statefulsets
   verbs:
   - get
   - list
