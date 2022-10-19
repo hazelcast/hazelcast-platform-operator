@@ -327,7 +327,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"endpoints", "pods", "nodes", "services", "secrets"},
+				Resources: []string{"endpoints", "pods", "nodes", "services"},
 				Verbs:     []string{"get", "list"},
 			},
 		},
@@ -347,6 +347,37 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "ClusterRole", h.ClusterScopedName(), "result", opResult)
+	}
+	return err
+}
+
+func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      h.Name,
+			Namespace: h.Namespace,
+			Labels:    labels(h),
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"secrets"},
+				Verbs:     []string{"get"},
+			},
+		},
+	}
+
+	err := controllerutil.SetControllerReference(h, role, r.Scheme)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on Role: %w", err)
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Role", h.Name, "result", opResult)
 	}
 	return err
 }
@@ -397,6 +428,42 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "ClusterRoleBinding", csName, "result", opResult)
+	}
+	return err
+}
+
+func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	rb := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      h.Name,
+			Namespace: h.Namespace,
+			Labels:    labels(h),
+		},
+	}
+
+	err := controllerutil.SetControllerReference(h, rb, r.Scheme)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on RoleBinding: %w", err)
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, rb, func() error {
+		rb.Subjects = []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      h.Name,
+				Namespace: h.Namespace,
+			},
+		}
+		rb.RoleRef = rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     h.Name,
+		}
+
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "RoleBinding", h.Name, "result", opResult)
 	}
 	return err
 }

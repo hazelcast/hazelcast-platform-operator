@@ -57,11 +57,11 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=system
 // ClusterRole inherited from Hazelcast ClusterRole
-//+kubebuilder:rbac:groups="",resources=endpoints;secrets;pods;nodes;services,verbs=get;list
+//+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
 // Role related to Reconcile()
 //+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;watch;get,namespace=system
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;watch;get;list,namespace=system
 // ClusterRole related to Reconcile()
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 
@@ -103,12 +103,22 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
 	}
 
+	err = r.reconcileRole(ctx, h, logger)
+	if err != nil {
+		return update(ctx, r.Client, h, failedPhase(err))
+	}
+
 	err = r.reconcileClusterRole(ctx, h, logger)
 	if err != nil {
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
 	err = r.reconcileServiceAccount(ctx, h, logger)
+	if err != nil {
+		return update(ctx, r.Client, h, failedPhase(err))
+	}
+
+	err = r.reconcileRoleBinding(ctx, h, logger)
 	if err != nil {
 		return update(ctx, r.Client, h, failedPhase(err))
 	}

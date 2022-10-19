@@ -3137,6 +3137,7 @@ rules:
   verbs:
   - create
   - get
+  - list
   - watch
 - apiGroups:
   - apps
@@ -3260,7 +3261,6 @@ rules:
   - endpoints
   - nodes
   - pods
-  - secrets
   - services
   verbs:
   - get
