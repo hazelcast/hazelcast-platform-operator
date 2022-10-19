@@ -140,10 +140,6 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
 				assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{})
 
-				hb := hazelcastconfig.HotBackup(hbLookupKey, hz.Name, labels)
-				Expect(k8sClient.Create(context.Background(), hb)).Should(Succeed())
-				assertHotBackupSuccess(hb, 1*Minute)
-
 				topic := hazelcastconfig.DefaultTopic(topicLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
 				assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{})
@@ -151,9 +147,6 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				DeleteAllOf(hz, &hazelcastcomv1alpha1.HazelcastList{}, hz.Namespace, labels)
 
 				err := k8sClient.Get(context.Background(), mapLookupKey, m)
-				Expect(errors.IsNotFound(err)).To(BeTrue())
-
-				err = k8sClient.Get(context.Background(), hbLookupKey, hb)
 				Expect(errors.IsNotFound(err)).To(BeTrue())
 
 				err = k8sClient.Get(context.Background(), topicLookupKey, topic)

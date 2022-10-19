@@ -80,8 +80,6 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 
 	dependentCRs := map[string]client.ObjectList{
-		"CronHotBackup": &hazelcastv1alpha1.CronHotBackupList{},
-		"HotBackup":     &hazelcastv1alpha1.HotBackupList{},
 		"Map":           &hazelcastv1alpha1.MapList{},
 		"MultiMap":      &hazelcastv1alpha1.MultiMapList{},
 		"Topic":         &hazelcastv1alpha1.TopicList{},
