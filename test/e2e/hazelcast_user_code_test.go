@@ -177,7 +177,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
-	FIt("should add entry listeners", Label("fast"), func() {
+	It("should add entry listeners", Label("fast"), func() {
 		setLabelAndCRName("hel-1")
 
 		entryListeners := []hazelcastcomv1alpha1.EntryListenerConfiguration{
