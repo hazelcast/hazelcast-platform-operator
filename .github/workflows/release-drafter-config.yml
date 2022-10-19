@@ -6,7 +6,6 @@ categories:
   - title: 'Changes'
     labels:
       - 'enhancement'
-      - 'refactor'
   - title: 'Fixed Issues'
     labels:
       - 'fix'
@@ -14,7 +13,6 @@ include-labels:
   - 'feature'
   - 'enhancement'
   - 'fix'
-  - 'refactor'
 replacers:
   - search: '/\[(.*?)\]/g'
     replace: ''
@@ -23,8 +21,6 @@ replacers:
   - search: 'feat:'
     replace: ''
   - search: 'fix:'
-    replace: ''
-  - search: 'refactor:'
     replace: ''
   - search: 'enhancement:'
     replace: ''
@@ -39,10 +35,6 @@ autolabeler:
       - '/feat/i'
       - '/implement/i'
       - '/support/i'
-    body:
-      - '/feature/i'
-      - '/implement/i'
-      - '/support/i'
   - label: 'enhancement'
     branch:
       - '/enhancement\/.+/'
@@ -51,26 +43,10 @@ autolabeler:
       - '/improve/i'
       - '/upgrade/i'
       - '/update/i'
-    body:
-      - '/improve/i'
-      - '/upgrade/i'
-      - '/update/i'
-  - label: 'refactor'
-    branch:
-      - '/refactor\/.+/'
-    title:
-      - '/refactor/i'
-    body:
-      - '/refactor/i'
   - label: 'fix'
     branch:
       - '/fix\/.+/'
     title:
-      - '/fix/i'
-      - '/bug/i'
-      - '/issue/i'
-      - '/error/i'
-    body:
       - '/fix/i'
       - '/bug/i'
       - '/issue/i'
