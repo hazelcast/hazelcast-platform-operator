@@ -28,6 +28,8 @@ replacers:
     replace: ''
   - search: 'enhancement:'
     replace: ''
+  - search: '/(##[\s\S]Description)\s+\w.*\s+(##[\s\S]User)\s+\w.*\s+/g'
+    replace: '   - '
 autolabeler:
   - label: 'feature'
     branch:
@@ -82,7 +84,7 @@ autolabeler:
   - label: 'documentation'
     files:
       - '*.md'
-change-template: '- $TITLE (#$NUMBER)'
+change-template: '- $TITLE (#$NUMBER)$BODY'
 template: |
   # Release notes
   In this release, we introduced the {REPLACE THIS}. We also introduced {REPLACE THIS}.
