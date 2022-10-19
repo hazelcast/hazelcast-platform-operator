@@ -52,6 +52,33 @@ spec:
                   map config is created successfully.
                 format: int32
                 type: integer
+              entryListeners:
+                description: EntryListeners contains the configuration for the map-level
+                  or entry-based events listeners provided by the Hazelcast’s eventing
+                  framework. You can learn more at https://docs.hazelcast.com/imdg/latest/events/object-events.
+                items:
+                  properties:
+                    className:
+                      description: ClassName is the fully qualified name of the class
+                        that implements any of the Listener interface.
+                      minLength: 1
+                      type: string
+                    includeValues:
+                      default: true
+                      description: IncludeValues is an optional attribute that indicates
+                        whether the event will contain the map value.
+                      type: boolean
+                    local:
+                      default: false
+                      description: Local is an optional attribute that indicates whether
+                        the map on the local member can be listened to.
+                      type: boolean
+                  required:
+                  - className
+                  - includeValues
+                  - local
+                  type: object
+                type: array
               eviction:
                 default:
                   maxSize: 0

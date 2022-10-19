@@ -177,4 +177,57 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
+	FIt("should add entry listeners", Label("fast"), func() {
+		setLabelAndCRName("hel-1")
+
+		entryListeners := []hazelcastcomv1alpha1.EntryListenerConfiguration{
+			{
+				ClassName: "org.example.SampleEntryListener",
+			},
+		}
+
+		hazelcast := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/mapStore", labels)
+		CreateHazelcastCR(hazelcast)
+
+		By("creating map with Map with entry listener")
+		ms := hazelcastcomv1alpha1.MapSpec{
+			HazelcastResourceName: hzLookupKey.Name,
+			EntryListeners:        entryListeners,
+		}
+		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		t := Now()
+
+		By("port-forwarding to Hazelcast master pod")
+		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+
+		By("filling the map with entries")
+		entryCount := 5
+		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+		defer func() {
+			Expect(cl.Shutdown(context.Background())).Should(Succeed())
+		}()
+		mp, err := cl.GetMap(context.Background(), m.MapName())
+		Expect(err).To(BeNil())
+
+		entries := make([]hzTypes.Entry, entryCount)
+		for i := 0; i < entryCount; i++ {
+			entries[i] = hzTypes.NewEntry(strconv.Itoa(i), "val")
+		}
+		err = mp.PutAll(context.Background(), entries...)
+		Expect(err).To(BeNil())
+		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
+
+		By("checking the logs")
+		logs := InitLogs(t, hzLookupKey)
+		defer logs.Close()
+		scanner := bufio.NewScanner(logs)
+		for _, e := range entries {
+			test.EventuallyInLogs(scanner, 10*Second, logInterval).
+				Should(ContainSubstring(fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value)))
+		}
+	})
+
 })

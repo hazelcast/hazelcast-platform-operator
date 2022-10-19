@@ -80,6 +80,13 @@ type Map struct {
 	HotRestart              MapHotRestart                      `yaml:"hot-restart,omitempty"`
 	WanReplicationReference map[string]WanReplicationReference `yaml:"wan-replication-ref,omitempty"`
 	MapStoreConfig          MapStoreConfig                     `yaml:"map-store,omitempty"`
+	EntryListeners          []EntryListener                    `yaml:"entry-listeners,omitempty"`
+}
+
+type EntryListener struct {
+	ClassName    string `yaml:"class-name"`
+	IncludeValue bool   `yaml:"include-value"`
+	Local        bool   `yaml:"local"`
 }
 
 type MapEviction struct {
