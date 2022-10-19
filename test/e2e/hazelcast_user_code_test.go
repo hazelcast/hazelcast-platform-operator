@@ -177,22 +177,19 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
-	It("should add entry listeners", Label("fast"), func() {
+	FIt("should add entry listeners", Label("fast"), func() {
 		setLabelAndCRName("hel-1")
 
-		entryListeners := []hazelcastcomv1alpha1.EntryListenerConfiguration{
-			{
-				ClassName: "org.example.SampleEntryListener",
-			},
-		}
-
-		hazelcast := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/mapStore", labels)
-		CreateHazelcastCR(hazelcast)
+		CreateHazelcastCR(hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels))
 
 		By("creating map with Map with entry listener")
 		ms := hazelcastcomv1alpha1.MapSpec{
 			HazelcastResourceName: hzLookupKey.Name,
-			EntryListeners:        entryListeners,
+			EntryListeners: []hazelcastcomv1alpha1.EntryListenerConfiguration{
+				{
+					ClassName: "org.example.SampleEntryListener",
+				},
+			},
 		}
 		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
@@ -200,12 +197,12 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		t := Now()
 
 		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		stopChan := portForwardPod(hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels).Name+"-0", hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/mapStore", labels).Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
 
 		By("filling the map with entries")
 		entryCount := 5
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+		cl := createHazelcastClient(context.Background(), hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels), localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()

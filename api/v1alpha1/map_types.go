@@ -68,7 +68,7 @@ type MapSpec struct {
 	// provided by the Hazelcast’s eventing framework.
 	// You can learn more at https://docs.hazelcast.com/imdg/latest/events/object-events.
 	// +optional
-	EntryListeners []EntryListenerConfiguration `json:"entryListeners"`
+	EntryListeners []EntryListenerConfiguration `json:"entryListeners,omitempty"`
 }
 
 type EntryListenerConfiguration struct {

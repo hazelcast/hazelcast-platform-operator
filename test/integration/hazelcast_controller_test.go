@@ -753,6 +753,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(ms.Indexes).To(BeNil())
 				Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
 				Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
+				Expect(ms.EntryListeners).To(BeNil())
 				Delete(m)
 			})
 		})
