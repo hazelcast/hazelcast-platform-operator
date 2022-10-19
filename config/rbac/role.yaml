@@ -17,7 +17,6 @@ rules:
   verbs:
   - get
   - list
-  - watch
 - apiGroups:
   - hazelcast.com
   resources:
