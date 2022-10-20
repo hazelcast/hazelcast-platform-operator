@@ -256,6 +256,9 @@ func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool
 		}
 		err = m.PutAll(ctx, entries...)
 		Expect(err).ToNot(HaveOccurred())
+		mapSize, err := m.Size(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mapSize).To(Equal(initMapSize + entryCount))
 		err = clientHz.Shutdown(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -381,17 +384,6 @@ func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
 			Expect(err).ToNot(HaveOccurred())
 			return hz.Status.Cluster.ReadyMembers
 		}, 6*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
-	})
-}
-
-func evaluateNonReadyMembers(lookupKey types.NamespacedName) {
-	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
-		hz := &hazelcastcomv1alpha1.Hazelcast{}
-		Eventually(func() string {
-			err := k8sClient.Get(context.Background(), lookupKey, hz)
-			Expect(err).ToNot(HaveOccurred())
-			return hz.Status.Cluster.ReadyMembers
-		}, 6*Minute, 500*Millisecond).Should(Equal("N/A"))
 	})
 }
 

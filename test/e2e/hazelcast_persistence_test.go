@@ -327,23 +327,23 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
 
 		FillTheMapData(context.Background(), hzLookupKey, true, m.Name, 200)
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 300, 1*Minute)
+
+		RemoveHazelcastCR(hazelcast)
 
 		By("creating cluster from backup")
-		UpdateHazelcastCR(hazelcast, func(h *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
-			h.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
-				HotBackupResourceName: hotBackup.Name,
-			}
-			return h
-		})
-		evaluateNonReadyMembers(hzLookupKey)
+		hazelcast = hazelcastconfig.HazelcastRestore(hzLookupKey, &hazelcastcomv1alpha1.RestoreConfiguration{
+			HotBackupResourceName: hotBackup.Name,
+		}, labels)
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
+		}
+		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 1)
-
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 1*Minute)
 
 	},
-		FEntry("using GCP bucket", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp"),
-		Entry("using local backup", Label("slow"), "", ""),
+		Entry("using GCP bucket", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp"),
+		Entry("using local backup", Label("slow"), Label("focus"), "", ""),
 	)
 })
 

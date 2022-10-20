@@ -54,7 +54,7 @@ func setLabelAndCRName(n string) {
 	wanLookupKey.Name = n
 	mapLookupKey.Name = n
 	hbLookupKey.Name = n
-	mcLookupKey.Name = n
+	mcLookupKey.Name = "mc-" + n
 	mmLookupKey.Name = n
 	topicLookupKey.Name = n
 	mmLookupKey.Name = n
