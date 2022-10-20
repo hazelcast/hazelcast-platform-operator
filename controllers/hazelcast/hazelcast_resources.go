@@ -402,25 +402,13 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 }
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	var service *corev1.Service
-	if h.Spec.Persistence.IsExternal() {
-		service = &corev1.Service{
-			ObjectMeta: metadata(h),
-			Spec: corev1.ServiceSpec{
-				Selector: labels(h),
-				Ports:    hazelcastAndAgentPort(),
-			},
-		}
-	} else {
-		service = &corev1.Service{
-			ObjectMeta: metadata(h),
-			Spec: corev1.ServiceSpec{
-				Selector: labels(h),
-				Ports:    hazelcastPort(),
-			},
-		}
+	service := &corev1.Service{
+		ObjectMeta: metadata(h),
+		Spec: corev1.ServiceSpec{
+			Selector: labels(h),
+			Ports:    hazelcastPort(),
+		},
 	}
-
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
@@ -558,23 +546,6 @@ func hazelcastPort() []v1.ServicePort {
 			Protocol:   corev1.ProtocolTCP,
 			Port:       n.DefaultHzPort,
 			TargetPort: intstr.FromString(n.Hazelcast),
-		},
-	}
-}
-
-func hazelcastAndAgentPort() []v1.ServicePort {
-	return []corev1.ServicePort{
-		{
-			Name:       n.HazelcastPortName,
-			Protocol:   corev1.ProtocolTCP,
-			Port:       n.DefaultHzPort,
-			TargetPort: intstr.FromString(n.Hazelcast),
-		},
-		{
-			Name:       n.BackupAgentPortName,
-			Protocol:   corev1.ProtocolTCP,
-			Port:       n.DefaultAgentPort,
-			TargetPort: intstr.FromString(n.BackupAgent),
 		},
 	}
 }
