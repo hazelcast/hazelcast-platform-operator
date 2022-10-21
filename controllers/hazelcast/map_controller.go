@@ -330,7 +330,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 			props = map[string]string{"no_empty_props_allowed": ""}
 		}
 		mapInput.MapStoreConfig.Enabled = true
-		mapInput.MapStoreConfig.ClassName = string(ms.MapStore.ClassName)
+		mapInput.MapStoreConfig.ClassName = ms.MapStore.ClassName
 		mapInput.MapStoreConfig.WriteCoalescing = true
 		if ms.MapStore.WriteCoealescing != nil {
 			mapInput.MapStoreConfig.WriteCoalescing = *ms.MapStore.WriteCoealescing
@@ -339,6 +339,18 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 		mapInput.MapStoreConfig.WriteBatchSize = ms.MapStore.WriteBatchSize
 		mapInput.MapStoreConfig.Properties = props
 		mapInput.MapStoreConfig.InitialLoadMode = string(ms.MapStore.InitialMode)
+	}
+	if len(m.Spec.EntryListeners) != 0 {
+		lch := make([]codecTypes.ListenerConfigHolder, 0, len(m.Spec.EntryListeners))
+		for _, el := range m.Spec.EntryListeners {
+			lch = append(lch, codecTypes.ListenerConfigHolder{
+				ClassName:    el.ClassName,
+				IncludeValue: el.GetIncludedValue(),
+				Local:        el.GetLocal(),
+				ListenerType: 2, //For EntryListenerConfig
+			})
+		}
+		mapInput.ListenerConfigs = lch
 	}
 	return nil
 }

@@ -5,5 +5,5 @@ metadata:
 spec:
   userCodeDeployment:
     bucketConfig:
-      secret: cc-secret
-      bucketURI: "gs://userCodeDeployment"
+      secret: br-secret-gcp
+      bucketURI: "gs://operator-user-code/entryListener"

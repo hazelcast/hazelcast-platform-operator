@@ -920,7 +920,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 	}
 
 	if len(ms.EntryListeners) != 0 {
-		mc.EntryListeners = make([]config.EntryListener, len(ms.EntryListeners))
+		mc.EntryListeners = make([]config.EntryListener, 0, len(ms.EntryListeners))
 		for _, el := range ms.EntryListeners {
 			mc.EntryListeners = append(mc.EntryListeners, config.EntryListener{
 				ClassName:    el.ClassName,

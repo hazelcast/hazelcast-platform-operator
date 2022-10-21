@@ -180,7 +180,8 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 	FIt("should add entry listeners", Label("fast"), func() {
 		setLabelAndCRName("hel-1")
 
-		CreateHazelcastCR(hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels))
+		h := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)
+		CreateHazelcastCR(h)
 
 		By("creating map with Map with entry listener")
 		ms := hazelcastcomv1alpha1.MapSpec{
