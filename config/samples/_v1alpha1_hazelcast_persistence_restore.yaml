@@ -17,5 +17,6 @@ spec:
       requestStorage: 8Gi
       storageClassName: "standard"
     restore:
-      secret: br-secret-az
-      bucketURI: "azblob://backup?prefix=hazelcast/2022-06-02-21-57-49/"
+      bucketConfig:
+        secret: br-secret-az
+        bucketURI: "azblob://backup?prefix=hazelcast/2022-06-02-21-57-49/"
