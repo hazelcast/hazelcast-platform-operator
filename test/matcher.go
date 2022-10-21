@@ -63,7 +63,6 @@ func EventuallyInLogs(logs *bufio.Scanner, intervals ...interface{}) AsyncAssert
 	return Eventually(func() string {
 		if logs.Scan() {
 			text := logs.Text()
-			println(text)
 			return text
 		}
 		return ""
