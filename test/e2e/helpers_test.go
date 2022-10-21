@@ -584,7 +584,7 @@ func printDebugState() {
 	GinkgoWriter.Printf("Started aftereach function for hzLookupkey : '%s'\n", hzLookupKey)
 
 	GinkgoWriter.Println("kubectl get all:")
-	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter", "-o=wide")
+	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter,node,pvc", "-o=wide")
 	byt, err := cmd.Output()
 	Expect(err).To(BeNil())
 	GinkgoWriter.Println(string(byt))
