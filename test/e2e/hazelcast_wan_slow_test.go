@@ -40,11 +40,16 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 	})
 
 	AfterEach(func() {
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if skipCleanup() {
+			return
+		}
 		for _, ns := range []string{sourceLookupKey.Namespace, targetLookupKey.Namespace} {
 			DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, &hazelcastcomv1alpha1.WanReplicationList{}, ns, labels)
 			DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, ns, labels)
 			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, ns, labels)
 		}
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	It("should send 3 GB data by each cluster in active-passive mode in the different namespaces", Label("slow"), func() {
