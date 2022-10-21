@@ -232,7 +232,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 1)
+		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
 
 		By("triggering backup")
 		t := Now()
@@ -252,12 +252,14 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 		By("creating cluster from external backup")
 		hazelcast = hazelcastconfig.HazelcastRestore(hzLookupKey,
-			&hazelcastcomv1alpha1.RestoreConfiguration{BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
-				BucketURI: bucketURI,
-				Secret:    secretName,
-			}}, labels)
+			&hazelcastcomv1alpha1.RestoreConfiguration{
+				BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
+					BucketURI: bucketURI,
+					Secret:    secretName,
+				},
+			}, labels)
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 1)
+		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
 
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
@@ -305,14 +307,16 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hp-7")
+		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
+		hazelcast.Spec.ClusterSize = &clusterSize
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
 		}
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 1)
+		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
 
 		By("creating the map config")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
@@ -334,11 +338,12 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hazelcast = hazelcastconfig.HazelcastRestore(hzLookupKey, &hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}, labels)
+		hazelcast.Spec.ClusterSize = &clusterSize
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
 		}
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 1)
+		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 1*Minute)
 
 	},
