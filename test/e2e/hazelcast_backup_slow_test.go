@@ -373,4 +373,69 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Uploading"))
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("DELETE"))
 	})
+
+	FIt("Should successfully restore multiple times from HotBackupResourceName", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hp-7")
+		clusterSize := int32(3)
+
+		By("creating cluster with external backup enabled")
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
+		hazelcast.Spec.ClusterSize = &clusterSize
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
+		}
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
+
+		By("creating the map config")
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+		m.Spec.PersistenceEnabled = true
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		FillTheMapData(context.Background(), hzLookupKey, true, m.Name, 100)
+
+		By("triggering first backup as external")
+		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, "", "")
+		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+		hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
+		FillTheMapData(context.Background(), hzLookupKey, true, m.Name, 100)
+
+		By("triggering second backup as local")
+		hbLookupKey2 := types.NamespacedName{Name: hbLookupKey.Name + "2", Namespace: hbLookupKey.Namespace}
+		hotBackup2 := hazelcastconfig.HotBackupAgent(hbLookupKey2, hazelcast.Name, labels, "gs://operator-e2e-external-backup", "br-secret-gcp")
+		Expect(k8sClient.Create(context.Background(), hotBackup2)).Should(Succeed())
+		hotBackup2 = assertHotBackupSuccess(hotBackup2, 1*Minute)
+		FillTheMapData(context.Background(), hzLookupKey, true, m.Name, 100)
+
+		RemoveHazelcastCR(hazelcast)
+
+		By("creating cluster from from first backup")
+		hazelcast = hazelcastconfig.HazelcastRestore(hzLookupKey, &hazelcastcomv1alpha1.RestoreConfiguration{
+			HotBackupResourceName: hotBackup.Name,
+		}, labels)
+		hazelcast.Spec.ClusterSize = &clusterSize
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
+		}
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 1*Minute)
+
+		RemoveHazelcastCR(hazelcast)
+
+		By("creating cluster from from second backup")
+		hazelcast = hazelcastconfig.HazelcastRestore(hzLookupKey, &hazelcastcomv1alpha1.RestoreConfiguration{
+			HotBackupResourceName: hotBackup2.Name,
+		}, labels)
+		hazelcast.Spec.ClusterSize = &clusterSize
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
+		}
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 200, 1*Minute)
+	})
 })
