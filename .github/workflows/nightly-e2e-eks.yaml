@@ -45,6 +45,8 @@ jobs:
             --nodes 3 \
             --managed
 
+          eksctl create addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}"
+
   new-relic-setup:
     name: Setup New Relic agent
     needs: "prepare-env"
