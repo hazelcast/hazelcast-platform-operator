@@ -77,11 +77,11 @@ type EntryListenerConfiguration struct {
 	ClassName string `json:"className"`
 
 	// IncludeValues is an optional attribute that indicates whether the event will contain the map value.
-	// +kubebuilder:default:=true
+	// +optional
 	IncludeValues *bool `json:"includeValues"`
 
 	// Local is an optional attribute that indicates whether the map on the local member can be listened to.
-	// +kubebuilder:default:=false
+	// +optional
 	Local *bool `json:"local"`
 }
 
