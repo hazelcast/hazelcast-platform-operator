@@ -77,12 +77,16 @@ type EntryListenerConfiguration struct {
 	ClassName string `json:"className"`
 
 	// IncludeValues is an optional attribute that indicates whether the event will contain the map value.
+	// Defaults to true.
+	// +kubebuilder:default:=true
 	// +optional
-	IncludeValues *bool `json:"includeValues"`
+	IncludeValues *bool `json:"includeValues,omitempty"`
 
 	// Local is an optional attribute that indicates whether the map on the local member can be listened to.
+	// Defaults to false.
+	// +kubebuilder:default:=false
 	// +optional
-	Local *bool `json:"local"`
+	Local bool `json:"local,omitempty"`
 }
 
 func (e *EntryListenerConfiguration) GetIncludedValue() bool {
@@ -90,13 +94,6 @@ func (e *EntryListenerConfiguration) GetIncludedValue() bool {
 		return true
 	}
 	return *e.IncludeValues
-}
-
-func (e *EntryListenerConfiguration) GetLocal() bool {
-	if e.Local == nil {
-		return false
-	}
-	return *e.Local
 }
 
 type EvictionConfig struct {

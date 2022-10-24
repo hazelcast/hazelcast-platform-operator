@@ -2508,12 +2508,16 @@ spec:
                       minLength: 1
                       type: string
                     includeValues:
+                      default: true
                       description: IncludeValues is an optional attribute that indicates
-                        whether the event will contain the map value.
+                        whether the event will contain the map value. Defaults to
+                        true.
                       type: boolean
                     local:
+                      default: false
                       description: Local is an optional attribute that indicates whether
-                        the map on the local member can be listened to.
+                        the map on the local member can be listened to. Defaults to
+                        false.
                       type: boolean
                   required:
                   - className

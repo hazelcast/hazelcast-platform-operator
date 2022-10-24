@@ -346,7 +346,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 			lch = append(lch, codecTypes.ListenerConfigHolder{
 				ClassName:    el.ClassName,
 				IncludeValue: el.GetIncludedValue(),
-				Local:        el.GetLocal(),
+				Local:        el.Local,
 				ListenerType: 2, //For EntryListenerConfig
 			})
 		}
