@@ -925,7 +925,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			mc.EntryListeners = append(mc.EntryListeners, config.EntryListener{
 				ClassName:    el.ClassName,
 				IncludeValue: el.GetIncludedValue(),
-				Local:        el.GetLocal(),
+				Local:        el.Local,
 			})
 		}
 	}
