@@ -134,6 +134,17 @@ jobs:
             --num-nodes=3
           sleep 30
 
+  new-relic-setup:
+    needs: [ create-gke-cluster ]
+    uses: ./.github/workflows/newrelic-gke.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      nr_cluster_name: gke-operator-pull
+      gh_run_id: ${{ github.run_id }}
+      gh_run_number: ${{ github.run_number }}
+      gh_sha: ${{ github.sha }}
+
   get-image:
     name: Get Image
     runs-on: ubuntu-latest
