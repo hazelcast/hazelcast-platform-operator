@@ -1194,6 +1194,10 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 				Value: h.Spec.Persistence.BaseDir,
 			},
 			{
+				Name:  "RESTORE_ID",
+				Value: string(h.Spec.Persistence.Restore.Hash()),
+			},
+			{
 				Name: "RESTORE_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
@@ -1224,7 +1228,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 				Value: h.Spec.Persistence.BaseDir,
 			},
 			{
-				Name:  "RESTORE_ID",
+				Name:  "RESTORE_LOCAL_ID",
 				Value: string(h.Spec.Persistence.Restore.Hash()),
 			},
 			{
