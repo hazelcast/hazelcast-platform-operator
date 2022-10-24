@@ -374,7 +374,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("DELETE"))
 	})
 
-	FIt("Should successfully restore multiple times from HotBackupResourceName", Label("slow"), func() {
+	It("Should successfully restore multiple times from HotBackupResourceName", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
