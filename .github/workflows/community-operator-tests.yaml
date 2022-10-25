@@ -11,6 +11,7 @@ env:
   SCRIPT_URL: https://raw.githubusercontent.com/redhat-openshift-ecosystem/community-operators-pipeline/ci/latest/ci/scripts/opp.sh
   OPP_DEBUG: 1
   OPP_PRODUCTION_TYPE: k8s
+  OPP_RELEASE_INDEX_NAME: "catalog_tmp"
   PARDOT_ID: redhat
 
 jobs:
