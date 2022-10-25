@@ -177,7 +177,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
-	It("should add entry listeners", Label("fast"), func() {
+	FIt("should add entry listeners", Label("fast"), func() {
 		setLabelAndCRName("hel-1")
 
 		h := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)
