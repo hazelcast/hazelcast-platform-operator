@@ -75,8 +75,11 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
 
-		By("creating a new Hazelcast cluster")
+		By("deleting Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
+		deletePVCs(hzLookupKey)
+
+		By("creating a new Hazelcast cluster")
 		t := Now()
 		hazelcast = hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
@@ -183,7 +186,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			return hb.Status.State
 		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
 
+		By("deleting Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
+		deletePVCs(hzLookupKey)
 
 		By("creating new Hazelcast cluster from the existing backup")
 		baseDir += "/hot-backup/backup-" + seq
@@ -263,7 +268,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertHotBackupSuccess(hotBackup, 20*Minute)
 		seq := GetBackupSequence(t, hzLookupKey)
 
+		By("deleting Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
+		deletePVCs(hzLookupKey)
 
 		timestamp, _ := strconv.ParseInt(seq, 10, 64)
 		bucketURI += fmt.Sprintf("?prefix=%s/%s/", hzLookupKey.Name,

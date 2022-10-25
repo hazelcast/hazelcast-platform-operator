@@ -241,6 +241,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 		seq := GetBackupSequence(t, hzLookupKey)
 		RemoveHazelcastCR(hazelcast)
+		deletePVCs(hzLookupKey)
 
 		timestamp, _ := strconv.ParseInt(seq, 10, 64)
 		bucketURI += fmt.Sprintf("?prefix=%s/%s/", hzLookupKey.Name,
