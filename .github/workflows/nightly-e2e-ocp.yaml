@@ -7,6 +7,9 @@ on:
 env:
   NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
   RESTART_OCP_NODE_TIMEOUT: 15
+  OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
+  OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
+  OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
 
 jobs:
   ocp-e2e-tests:
@@ -21,9 +24,6 @@ jobs:
         shell: bash
     env:
       IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
-      OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
-      OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
-      OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
       HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
       NAMESPACE: oc-e2e-test-operator-nightly-${{ matrix.edition }}-${{ github.run_id }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
@@ -103,6 +103,19 @@ jobs:
         with:
           name: test-report
           path: allure-results/ocp/
+
+  cleanup-unused-images:
+    name: Remove Unused Images From The Local Store
+    runs-on: ubuntu-latest
+    needs: ocp-e2e-tests
+    if: always()
+    steps:
+      - name: Image Prune
+        run: |
+          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          for NODE in $(oc get nodes --no-headers -o name); do
+          oc debug ${NODE} -- chroot /host sh -c "sleep 5; podman image prune -a -f"
+          done
 
   report-generation:
     needs: ocp-e2e-tests

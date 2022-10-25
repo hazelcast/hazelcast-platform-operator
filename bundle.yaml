@@ -1262,7 +1262,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.1.3
+                default: 5.1.4
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
@@ -3246,6 +3246,7 @@ rules:
   verbs:
   - create
   - get
+  - list
   - watch
 - apiGroups:
   - apps
@@ -3369,7 +3370,6 @@ rules:
   - endpoints
   - nodes
   - pods
-  - secrets
   - services
   verbs:
   - get

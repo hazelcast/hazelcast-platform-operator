@@ -140,7 +140,7 @@ jobs:
 
       - name: Deploy Report to Github Pages
         if: always()
-        uses: JamesIves/github-pages-deploy-action@v4.4.0
+        uses: JamesIves/github-pages-deploy-action@v4.4.1
         with:
           branch: test-report-pages
           folder: allure-history
@@ -155,6 +155,6 @@ jobs:
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${GITHUB_RUN_NUMBER} $CLEANUP_TIMEOUT
 
       - name: Delete Test Artifact
-        uses: geekyeggo/delete-artifact@v1
+        uses: geekyeggo/delete-artifact@v2
         with:
           name: test-report

@@ -34,8 +34,13 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 	})
 
 	AfterEach(func() {
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if skipCleanup() {
+			return
+		}
 		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, nil, hzNamespace, labels)
 		deletePVCs(mcLookupKey)
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	create := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -312,6 +313,15 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 			if err := changeWanState(ctx, cli, req); err != nil {
 				return err
 			}
+
+			qreq := &clearWanQueueRequest{
+				name:        hazelcastWanReplicationName(m.MapName()),
+				publisherId: publisherId,
+			}
+
+			if err := clearWanQueue(ctx, cli, qreq); err != nil {
+				return err
+			}
 			delete(wan.Status.WanReplicationMapsStatus, mapWanKey)
 		}
 	}
@@ -391,12 +401,11 @@ func addBatchPublisherConfig(
 		request.queueFullBehavior,
 	)
 
-	for _, member := range cliInt.OrderedMembers() {
-		_, err := cliInt.InvokeOnMember(ctx, req, member.UUID, nil)
-		if err != nil {
-			return err
-		}
+	_, err := cliInt.InvokeOnRandomTarget(ctx, req, nil)
+	if err != nil {
+		return err
 	}
+
 	return nil
 }
 
@@ -413,6 +422,28 @@ func changeWanState(ctx context.Context, client *hazelcast.Client, request *chan
 		request.name,
 		request.publisherId,
 		request.state,
+	)
+
+	for _, member := range cliInt.OrderedMembers() {
+		_, err := cliInt.InvokeOnMember(ctx, req, member.UUID, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type clearWanQueueRequest struct {
+	name        string
+	publisherId string
+}
+
+func clearWanQueue(ctx context.Context, client *hazelcast.Client, request *clearWanQueueRequest) error {
+	cliInt := hazelcast.NewClientInternal(client)
+
+	req := codec.EncodeMCClearWanQueuesRequest(
+		request.name,
+		request.publisherId,
 	)
 
 	for _, member := range cliInt.OrderedMembers() {
