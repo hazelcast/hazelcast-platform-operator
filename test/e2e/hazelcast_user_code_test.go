@@ -222,10 +222,13 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
-		for _, e := range entries {
-			test.EventuallyInLogs(scanner, 10*Second, logInterval).
-				Should(ContainSubstring(fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value)))
+		var logEl []interface{}
+		for i, e := range entries {
+			logEl[i] = fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value)
 		}
+		test.EventuallyInLogsUnordered(scanner, 10*Second, logInterval).
+			Should(ContainElements(logEl...))
+
 	})
 
 })
