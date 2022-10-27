@@ -166,7 +166,7 @@ jobs:
   gke-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-latest
-    needs: [create-gke-cluster, get-image]
+    needs: [create-gke-cluster, get-image, new-relic-setup]
     if: (!cancelled() && needs.create-gke-cluster.result == 'success')
     strategy:
       fail-fast: false
