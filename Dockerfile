@@ -20,6 +20,9 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -tags hazelcas
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6
 
+RUN microdnf upgrade -y && \
+    microdnf clean all
+
 ARG version="5.4"
 ARG pardotID="dockerhub"
 ENV OPERATOR_VERSION=${version}
