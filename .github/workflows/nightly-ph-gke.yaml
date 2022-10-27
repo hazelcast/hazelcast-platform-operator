@@ -28,7 +28,7 @@ jobs:
         id: set-cluster-name
         run: |-
           CLUSTER_NAME="operator-ph-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --zone=${{ env.GKE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
@@ -65,12 +65,12 @@ jobs:
             IMG=ttl.sh/$(uuidgen):2h
             make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
             make docker-push IMG=$IMG
-            echo "::set-output name=IMG::${IMG}"
-            echo "::set-output name=VERSION::${{github.sha}}"
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+            echo "VERSION=${{github.sha}}" >> $GITHUB_OUTPUT
           else
             IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
-            echo "::set-output name=IMG::${IMG}"
-            echo "::set-output name=VERSION::latest-snapshot"
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+            echo "VERSION=latest-snapshot" >> $GITHUB_OUTPUT
           fi
 
   gke-ph-tests:

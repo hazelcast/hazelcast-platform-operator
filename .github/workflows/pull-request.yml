@@ -98,9 +98,9 @@ jobs:
         id: decide-ref
         run: |
           if [[ "${{github.event_name}}" == "pull_request" ]]; then
-            echo "::set-output name=ref::${{github.ref}}"
+            echo "ref=${{github.ref}}" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=ref::refs/pull/${{ github.event.pull_request.number }}/merge"
+            echo "ref=refs/pull/${{ github.event.pull_request.number }}/merge" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout
@@ -125,7 +125,7 @@ jobs:
         id: set-cluster-name
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --zone=${{ env.GKE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
@@ -158,7 +158,7 @@ jobs:
         id: build-img
         run: |
             IMG=ttl.sh/$(uuidgen):2h
-            echo "::set-output name=IMG::${IMG}"
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
 
             make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
             make docker-push IMG=$IMG
@@ -182,9 +182,9 @@ jobs:
         id: decide-ref
         run: |
           if [[ "${{github.event_name}}" == "pull_request" ]]; then
-            echo "::set-output name=ref::${{github.ref}}"
+            echo "ref=${{github.ref}}" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=ref::refs/pull/${{ github.event.pull_request.number }}/merge"
+            echo "ref=refs/pull/${{ github.event.pull_request.number }}/merge" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout

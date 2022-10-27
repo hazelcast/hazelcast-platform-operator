@@ -29,12 +29,12 @@ jobs:
 
           MAJOR_MINOR_VERSION=$(echo ${RELEASE_VERSION} | sed 's|\([0-9]*\.[0-9]*\)\.[0-9]*|\1|')
           echo "MAJOR_MINOR_VERSION=${MAJOR_MINOR_VERSION}" >> $GITHUB_ENV
-          echo "::set-output name=MAJOR_MINOR_VERSION::${MAJOR_MINOR_VERSION}"
+          echo "MAJOR_MINOR_VERSION=${MAJOR_MINOR_VERSION}" >> $GITHUB_OUTPUT
 
           if [[ ${MAJOR_MINOR_VERSION} == ${RELEASE_VERSION} ]] ;then
-            echo "::set-output name=OPERATOR_DOCS_BRANCH::main"
+            echo "OPERATOR_DOCS_BRANCH=main" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=OPERATOR_DOCS_BRANCH::v/$MAJOR_MINOR_VERSION"
+            echo "OPERATOR_DOCS_BRANCH=v/$MAJOR_MINOR_VERSION" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout to Operator docs repo
@@ -128,9 +128,9 @@ jobs:
             let line_number-=1
             json_object="    {\n      \"url\": \"https://docs.hazelcast.com/operator/(?P<version>.*?)/\",\n      \"tags\": [\n        \"operator-${MAJOR_MINOR_VERSION}\"\n      ],\n      \"variables\": {\n        \"version\": [\n          \"${MAJOR_MINOR_VERSION}\"\n        ]\n      },\n      \"selectors_key\": \"operator\"\n    },"
             awk -i inplace -v json="$json_object" -v line="$line_number" 'NR==line{print json}1' search-config.json
-            echo '::set-output name=HZ_DOCS_CHANGED::true'
+            echo "HZ_DOCS_CHANGED=true" >> $GITHUB_OUTPUT
           else
-            echo '::set-output name=HZ_DOCS_CHANGED::false'
+            echo "HZ_DOCS_CHANGED=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Commit and push changes

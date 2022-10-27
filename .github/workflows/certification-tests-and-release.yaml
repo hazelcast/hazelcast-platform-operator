@@ -42,18 +42,18 @@ jobs:
         run: |
           if [[ ${{ github.event_name == 'schedule' }} == true ]]; then
               echo "RELEASE_VERSION=7.8.0" >> $GITHUB_ENV
-              echo "::set-output name=RELEASE_VERSION::7.8.0"
+              echo "RELEASE_VERSION=7.8.0" >> $GITHUB_OUTPUT
           elif [[ ${{ github.event_name == 'workflow_dispatch' }} == true ]]; then
               echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_ENV
-              echo "::set-output name=RELEASE_VERSION::${{ github.event.inputs.RELEASE_VERSION }}"
+              echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_OUTPUT
           elif [[ ${{ github.event_name == 'push' }} == true ]]; then
               echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV
-              echo "::set-output name=RELEASE_VERSION::${GITHUB_REF:11}"
+              echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_OUTPUT
           fi
               CONTAINER_REPOSITORY=$(uuidgen)
               CONTAINER_IMAGE=ttl.sh/$CONTAINER_REPOSITORY:1h
               echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}" >> $GITHUB_ENV
-              echo "::set-output name=CONTAINER_IMAGE::${CONTAINER_IMAGE}"
+              echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}" >> $GITHUB_OUTPUT
 
       - name: Validate version
         run: |
@@ -71,7 +71,7 @@ jobs:
           echo "Pushing the operator image to ttl.sh repository"
           make docker-push IMG=$CONTAINER_IMAGE
           CONTAINER_IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${CONTAINER_IMAGE} | cut -d'@' -f2)
-          echo "::set-output name=CONTAINER_IMAGE_DIGEST::${CONTAINER_IMAGE_DIGEST}"
+          echo "CONTAINER_IMAGE_DIGEST=${CONTAINER_IMAGE_DIGEST}" >> $GITHUB_OUTPUT
 
       - name: Initiating a Container Scan
         run: |
@@ -160,9 +160,9 @@ jobs:
           echo "BUNDLE_REPOSITORY=${BUNDLE_REPOSITORY}" >> $GITHUB_ENV
           echo "BUNDLE_IMAGE=${BUNDLE_IMAGE}" >> $GITHUB_ENV
           echo "PFLT_INDEXIMAGE=${PFLT_INDEXIMAGE}" >> $GITHUB_ENV
-          echo "::set-output name=BUNDLE_VERSION::${BUNDLE_VERSION}"
-          echo "::set-output name=BUNDLE_IMAGE::${BUNDLE_IMAGE}"
-          echo "::set-output name=PFLT_INDEXIMAGE::${PFLT_INDEXIMAGE}"
+          echo "BUNDLE_VERSION=${BUNDLE_VERSION}" >> $GITHUB_OUTPUT
+          echo "BUNDLE_IMAGE=${BUNDLE_IMAGE}" >> $GITHUB_OUTPUT
+          echo "PFLT_INDEXIMAGE=${PFLT_INDEXIMAGE}" >> $GITHUB_OUTPUT
 
       - name: Build Bundle
         run: |
@@ -186,7 +186,7 @@ jobs:
           docker build -f bundle.Dockerfile -t ${BUNDLE_IMAGE} .
           docker push ${BUNDLE_IMAGE}
           BUNDLE_IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${BUNDLE_IMAGE} | cut -d'@' -f2)
-          echo "::set-output name=BUNDLE_IMAGE_DIGEST::${BUNDLE_IMAGE_DIGEST}"
+          echo "BUNDLE_IMAGE_DIGEST=${BUNDLE_IMAGE_DIGEST}" >> $GITHUB_OUTPUT
 
       - name: Create Bundle Index
         run: |
@@ -229,7 +229,7 @@ jobs:
         run: |
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           oc new-project ${NAMESPACE}
-          echo ::set-output name=exit_code::$?
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Initiating an Operator Bundle Scan
         run: |

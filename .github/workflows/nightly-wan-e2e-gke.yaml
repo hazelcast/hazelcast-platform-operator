@@ -26,12 +26,12 @@ jobs:
         run: |
           if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
             IMG=ttl.sh/$(uuidgen):2h
-            echo "::set-output name=IMG::${IMG}"
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
             make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
             make docker-push IMG=$IMG
           else
             IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
-            echo "::set-output name=IMG::${IMG}"
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
           fi
 
   create-gke-cluster:

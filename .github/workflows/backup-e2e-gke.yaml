@@ -27,7 +27,7 @@ jobs:
         id: set-cluster-name
         run: |-
           CLUSTER_NAME="operator-e2e-backup-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --zone=${{ env.GKE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
@@ -61,12 +61,12 @@ jobs:
         run: |
           if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
             IMG=ttl.sh/$(uuidgen):2h
-            echo "::set-output name=IMG::${IMG}"
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
             make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
             make docker-push IMG=$IMG
           else
             IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
-            echo "::set-output name=IMG::${IMG}"
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
           fi
 
   gke-e2e-backup-tests:
