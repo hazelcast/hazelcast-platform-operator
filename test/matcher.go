@@ -73,8 +73,7 @@ func EventuallyInLogsUnordered(logs *bufio.Scanner, intervals ...interface{}) As
 	l := make([]string, 0)
 	return Eventually(func() []string {
 		if logs.Scan() {
-			text := logs.Text()
-			l = append(l, text)
+			l = append(l, logs.Text())
 		}
 		return l
 	}, intervals...)
