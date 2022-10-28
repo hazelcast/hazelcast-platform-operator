@@ -12,4 +12,3 @@ patches:
 - path: remove_security_context.yaml
   target:
     kind: Deployment
-
