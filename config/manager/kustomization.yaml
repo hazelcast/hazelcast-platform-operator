@@ -1,15 +1,15 @@
 resources:
-  - manager.yaml
+- manager.yaml
 generatorOptions:
   disableNameSuffixHash: true
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-  - name: controller
-    newName: hazelcast/hazelcast-platform-operator
-    newTag: "5.4"
+- name: controller
+  newName: hazelcast/hazelcast-platform-operator
+  newTag: "5.4"
 patches:
-  - path: remove_security_context.yaml
-    target:
-      kind: Deployment
+- path: remove_security_context.yaml
+  target:
+    kind: Deployment
 
