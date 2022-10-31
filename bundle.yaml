@@ -1262,7 +1262,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.2.0
+                default: 5.3.0-SNAPSHOT-slim
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
