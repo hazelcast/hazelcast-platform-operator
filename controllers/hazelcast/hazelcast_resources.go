@@ -959,7 +959,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 						ReadinessProbe: &v1.Probe{
 							Handler: v1.Handler{
 								HTTPGet: &v1.HTTPGetAction{
-									Path:   "/hazelcast/health/node-state",
+									Path:   "/hazelcast/ready",
 									Port:   intstr.FromInt(n.DefaultHzPort),
 									Scheme: corev1.URISchemeHTTP,
 								},

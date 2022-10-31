@@ -74,7 +74,7 @@ const (
 	// HazelcastRepo image repository for Hazelcast
 	HazelcastRepo = "docker.io/hazelcast/hazelcast"
 	// HazelcastEERepo image repository for Hazelcast EE
-	HazelcastEERepo = "docker.io/hasancelik/hazelcast-enterprise"
+	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
 	HazelcastVersion = "5.3.0-SNAPSHOT-slim"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
