@@ -230,6 +230,7 @@ jobs:
       - name: Delete EKS cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          eksctl delete addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}"
           eksctl delete nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1
           eksctl delete cluster "${CLUSTER_NAME}" --wait
 
