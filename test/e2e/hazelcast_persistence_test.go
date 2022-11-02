@@ -348,7 +348,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 	},
 		Entry("using GCP bucket", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp"),
-		Entry("using local backup", Label("slow"), Label("focus"), "", ""),
+		Entry("using local backup", Label("slow"), "", ""),
 	)
 })
 
