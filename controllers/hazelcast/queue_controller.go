@@ -2,16 +2,18 @@ package hazelcast
 
 import (
 	"context"
+	"time"
+
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
-	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 // QueueReconciler reconciles a Queue object
@@ -91,9 +93,12 @@ func (r *QueueReconciler) ReconcileQueueConfig(
 
 func fillQueueConfigInput(queueInput *codecTypes.QueueConfigInput, q *hazelcastv1alpha1.Queue) {
 	queueInput.Name = q.GetDSName()
-
 	qs := q.Spec
 	queueInput.BackupCount = *qs.BackupCount
+	queueInput.AsyncBackupCount = *qs.AsyncBackupCount
+	queueInput.EmptyQueueTtl = *qs.EmptyQueueTtlSeconds
+	queueInput.MaxSize = *qs.MaxSize
+	queueInput.PriorityComparatorClassName = qs.PriorityComparatorClassName
 }
 
 // SetupWithManager sets up the controller with the Manager.

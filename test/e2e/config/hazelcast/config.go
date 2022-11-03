@@ -442,6 +442,19 @@ var (
 		}
 	}
 
+	DefaultQueue = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastv1alpha1.Queue {
+		return &hazelcastv1alpha1.Queue{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.QueueSpec{
+				HazelcastResourceName: hzName,
+			},
+		}
+	}
+
 	MultiMap = func(mms hazelcastv1alpha1.MultiMapSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.MultiMap {
 		return &hazelcastv1alpha1.MultiMap{
 			ObjectMeta: v1.ObjectMeta{
@@ -472,6 +485,17 @@ var (
 				Labels:    lbls,
 			},
 			Spec: rms,
+		}
+	}
+
+	Queue = func(qs hazelcastv1alpha1.QueueSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.Queue {
+		return &hazelcastv1alpha1.Queue{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: qs,
 		}
 	}
 )

@@ -16,6 +16,7 @@ var (
 	mcLookupKey    = types.NamespacedName{}
 	hbLookupKey    = types.NamespacedName{}
 	mmLookupKey    = types.NamespacedName{}
+	qLookupKey     = types.NamespacedName{}
 	topicLookupKey = types.NamespacedName{}
 	rmLookupKey    = types.NamespacedName{}
 )

@@ -697,3 +697,15 @@ func getReplicatedMapConfigFromMemberConfig(memberConfigXML string, replicatedMa
 	}
 	return nil
 }
+
+func getQueueConfigFromMemberConfig(memberConfigXML string, queueName string) *codecTypes.QueueConfigInput {
+	var queues codecTypes.QueueConfigs
+	err := xml.Unmarshal([]byte(memberConfigXML), &queues)
+	Expect(err).To(BeNil())
+	for _, q := range queues.Queues {
+		if q.Name == queueName {
+			return &q
+		}
+	}
+	return nil
+}

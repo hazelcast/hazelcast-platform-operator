@@ -18,6 +18,7 @@ type Hazelcast struct {
 	MultiMap                 map[string]MultiMap                 `yaml:"multimap,omitempty"`
 	Topic                    map[string]Topic                    `yaml:"topic,omitempty"`
 	ReplicatedMap            map[string]ReplicatedMap            `yaml:"replicatedmap,omitempty"`
+	Queue                    map[string]Queue                    `yaml:"queue,omitempty"`
 }
 
 type Jet struct {
@@ -170,6 +171,16 @@ type MultiMap struct {
 	CollectionType    string      `yaml:"value-collection-type"`
 	StatisticsEnabled bool        `yaml:"statistics-enabled"`
 	MergePolicy       MergePolicy `yaml:"merge-policy"`
+}
+
+type Queue struct {
+	BackupCount             int32       `yaml:"backup-count"`
+	AsyncBackupCount        int32       `yaml:"async-backup-count"`
+	EmptyQueueTtl           int32       `yaml:"empty-queue-ttl"`
+	MaxSize                 int32       `yaml:"max-size"`
+	StatisticsEnabled       bool        `yaml:"statistics-enabled"`
+	MergePolicy             MergePolicy `yaml:"merge-policy"`
+	PriorityComparatorClass string      `yaml:"priority-comparator-class-name"`
 }
 
 type MergePolicy struct {
