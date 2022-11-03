@@ -293,11 +293,6 @@ func clientConnectionMessage(cs *hzclient.ClientManager, req ctrl.Request) strin
 		return "Operator failed to create connection to cluster, some features might be unavailable."
 	}
 
-	if c.GetError() != nil {
-		// TODO: retry mechanism
-		return fmt.Sprintf("Operator failed to connect to the cluster. Some features might be unavailable. %s", c.GetError().Error())
-	}
-
 	if !c.IsClientConnected() {
 		return "Operator could not connect to the cluster. Some features might be unavailable."
 	}
