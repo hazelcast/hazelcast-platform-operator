@@ -5,7 +5,6 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -18,15 +17,18 @@ type ClientManager struct {
 	Clients sync.Map
 }
 
-func (cs *ClientManager) CreateClient(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, l logr.Logger) ClientI {
+func (cs *ClientManager) CreateClient(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (ClientI, error) {
 	ns := types.NamespacedName{Namespace: h.Namespace, Name: h.Name}
 	client, err := cs.GetClient(ns)
 	if err == nil {
-		return client
+		return client, nil
 	}
-	c := NewClient(ctx, BuildConfig(h), l)
+	c, err := NewClient(ctx, BuildConfig(h))
+	if err == nil {
+		return client, nil
+	}
 	cs.Clients.Store(ns, c)
-	return c
+	return c, nil
 }
 
 func (cs *ClientManager) GetClient(ns types.NamespacedName) (client ClientI, err error) {
@@ -38,6 +40,6 @@ func (cs *ClientManager) GetClient(ns types.NamespacedName) (client ClientI, err
 
 func (cs *ClientManager) DeleteClient(ctx context.Context, ns types.NamespacedName) {
 	if c, ok := cs.Clients.LoadAndDelete(ns); ok {
-		c.(ClientI).Shutdown(ctx)
+		c.(ClientI).Shutdown(ctx) //nolint:errcheck
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 )
 
 func TestHotBackupReconciler_shouldSetStatusToFailedIfHazelcastCRNotFound(t *testing.T) {

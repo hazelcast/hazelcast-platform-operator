@@ -205,7 +205,10 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	cl := r.clientManager.CreateClient(ctx, h, r.Log)
+	cl, err := r.clientManager.CreateClient(ctx, h)
+	if err != nil {
+		return r.update(ctx, h, failedPhase(err).withMessage(err.Error()))
+	}
 	r.statusServiceManager.CreateStatusService(cl, r.Log, req.NamespacedName, r.triggerReconcileChan)
 
 	if newExecutorServices != nil {
