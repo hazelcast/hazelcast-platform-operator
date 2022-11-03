@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"io"
 	"log"
 	"math"
@@ -17,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	. "time"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -657,7 +658,7 @@ func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1alpha1.
 				return ""
 			}
 			return obj.(hazelcast.DataStructure).GetStatus()
-		}, 20*Second, interval).Should(Equal(st))
+		}, 1*Minute, interval).Should(Equal(st))
 	})
 	return obj
 }
