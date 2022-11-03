@@ -5,9 +5,12 @@ package client
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hazelcast/hazelcast-go-client"
+	"github.com/hazelcast/hazelcast-go-client/cluster"
 	"github.com/hazelcast/hazelcast-go-client/logger"
+	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -17,6 +20,17 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	config := hazelcast.Config{
 		Logger: logger.Config{
 			Level: logger.OffLevel,
+		},
+		Cluster: cluster.Config{
+			ConnectionStrategy: cluster.ConnectionStrategyConfig{
+				Timeout:       hztypes.Duration(0),
+				ReconnectMode: cluster.ReconnectModeOn,
+				Retry: cluster.ConnectionRetryConfig{
+					InitialBackoff: hztypes.Duration(1 * time.Second),
+					MaxBackoff:     hztypes.Duration(10 * time.Second),
+					Jitter:         0.25,
+				},
+			},
 		},
 	}
 	cc := &config.Cluster

@@ -17,7 +17,10 @@
 package codec
 
 import (
+	"encoding/json"
+
 	proto "github.com/hazelcast/hazelcast-go-client"
+	types "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 const (
@@ -47,4 +50,13 @@ func DecodeMCGetTimedMemberStateResponse(clientMessage *proto.ClientMessage) str
 	frameIterator.Next()
 
 	return DecodeNullableForString(frameIterator)
+}
+
+func DecodeTimedMemberStateJsonString(jsonString string) (*types.TimedMemberStateWrapper, error) {
+	state := &types.TimedMemberStateWrapper{}
+	err := json.Unmarshal([]byte(jsonString), state)
+	if err != nil {
+		return nil, err
+	}
+	return state, nil
 }

@@ -6,12 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -24,52 +22,47 @@ var backupBackoff = wait.Backoff{
 }
 
 type ClusterBackup struct {
-	client     *hzclient.Client
-	members    map[hztypes.UUID]*hzclient.MemberData
-	cancelOnce sync.Once
+	statusService *hzclient.StatusService
+	backupService *hzclient.BackupService
+	members       map[hztypes.UUID]*hzclient.MemberData
+	cancelOnce    sync.Once
 }
 
 var (
-	errBackupClientNotFound  = errors.New("client not found for hot backup CR")
 	errBackupClientNoMembers = errors.New("client couldnt connect to members")
 )
 
-func NewClusterBackup(h *hazelcastv1alpha1.Hazelcast) (*ClusterBackup, error) {
-	c, ok := hzclient.GetClient(types.NamespacedName{Namespace: h.Namespace, Name: h.Name})
-	if !ok {
-		return nil, errBackupClientNotFound
-	}
+func NewClusterBackup(ss *hzclient.StatusService, bs *hzclient.BackupService) (*ClusterBackup, error) {
+	ss.UpdateMembers(context.TODO())
 
-	c.UpdateMembers(context.TODO())
-
-	if c.Status == nil {
+	if ss.Status == nil {
 		return nil, errBackupClientNoMembers
 	}
 
-	if c.Status.MemberMap == nil {
+	if ss.Status.MemberMap == nil {
 		return nil, errBackupClientNoMembers
 	}
 
 	return &ClusterBackup{
-		client:  c,
-		members: c.Status.MemberMap,
+		statusService: ss,
+		backupService: bs,
 	}, nil
 }
 
 func (b *ClusterBackup) Start(ctx context.Context) error {
 	// switch cluster to passive for the time of hot backup
 	err := retryOnError(backupBackoff,
-		func() error { return b.client.ChangeClusterState(ctx, codecTypes.ClusterStatePassive) })
+		func() error { return b.backupService.ChangeClusterState(ctx, codecTypes.ClusterStatePassive) })
 	if err != nil {
 		return err
 	}
 
 	// activate cluster after backup, silently ignore state change status
 	defer retryOnError(backupBackoff, //nolint:errcheck
-		func() error { return b.client.ChangeClusterState(ctx, codecTypes.ClusterStateActive) })
+		func() error { return b.backupService.ChangeClusterState(ctx, codecTypes.ClusterStateActive) })
 
 	return retryOnError(backupBackoff,
-		func() error { return b.client.TriggerHotRestartBackup(ctx) })
+		func() error { return b.backupService.TriggerHotRestartBackup(ctx) })
 }
 
 func retryOnError(backoff wait.Backoff, fn func() error) error {
@@ -79,7 +72,7 @@ func retryOnError(backoff wait.Backoff, fn func() error) error {
 func (b *ClusterBackup) Cancel(ctx context.Context) error {
 	var err error
 	b.cancelOnce.Do(func() {
-		err = b.client.InterruptHotRestartBackup(ctx)
+		err = b.backupService.InterruptHotRestartBackup(ctx)
 	})
 	return err
 }
@@ -88,16 +81,16 @@ func (b *ClusterBackup) Members() []*MemberBackup {
 	var mb []*MemberBackup
 	for uuid, m := range b.members {
 		mb = append(mb, &MemberBackup{
-			client:  b.client,
-			Address: m.Address,
-			UUID:    uuid,
+			statusService: b.statusService,
+			Address:       m.Address,
+			UUID:          uuid,
 		})
 	}
 	return mb
 }
 
 type MemberBackup struct {
-	client *hzclient.Client
+	statusService *hzclient.StatusService
 
 	UUID    hztypes.UUID
 	Address string
@@ -112,8 +105,8 @@ var (
 func (mb *MemberBackup) Wait(ctx context.Context) error {
 	var n int
 	for {
-		state := mb.client.GetTimedMemberState(ctx, mb.UUID)
-		if state == nil {
+		state, err := mb.statusService.GetTimedMemberState(ctx, mb.UUID)
+		if err != nil {
 			return errMemberBackupStateFailed
 		}
 
