@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -31,6 +30,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -56,12 +56,15 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
 		return fmt.Errorf("ClusterRoleBinding could not be removed: %w", err)
 	}
+	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
+	r.statusServiceManager.DeleteStatusService(ctx, lk)
+	r.clientManager.DeleteClient(ctx, lk)
+
 	controllerutil.RemoveFinalizer(h, n.Finalizer)
 	err := r.Update(ctx, h)
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
-	hzclient.ShutdownClient(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 	return nil
 }
 
@@ -1649,16 +1652,15 @@ func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Haz
 	return map[string]interface{}{"es": newExecutorServices, "des": newDurableExecutorServices, "ses": newScheduledExecutorServices}, nil
 }
 
-func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *hazelcast.Client, newExecutorServices map[string]interface{}) {
-	ci := hazelcast.NewClientInternal(client)
+func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client hzclient.ClientI, newExecutorServices map[string]interface{}) {
 	var req *proto.ClientMessage
 	for _, es := range newExecutorServices["es"].([]hazelcastv1alpha1.ExecutorServiceConfiguration) {
 		esInput := codecTypes.DefaultAddExecutorServiceInput()
 		fillAddExecutorServiceInput(esInput, es)
 		req = codec.EncodeDynamicConfigAddExecutorConfigRequest(esInput)
 
-		for _, member := range ci.OrderedMembers() {
-			_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+		for _, member := range client.OrderedMembers() {
+			_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
 			if err != nil {
 				continue
 			}
@@ -1669,8 +1671,8 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *h
 		fillAddDurableExecutorServiceInput(esInput, des)
 		req = codec.EncodeDynamicConfigAddDurableExecutorConfigRequest(esInput)
 
-		for _, member := range ci.OrderedMembers() {
-			_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+		for _, member := range client.OrderedMembers() {
+			_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
 			if err != nil {
 				continue
 			}
@@ -1681,8 +1683,8 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *h
 		fillAddScheduledExecutorServiceInput(esInput, ses)
 		req = codec.EncodeDynamicConfigAddScheduledExecutorConfigRequest(esInput)
 
-		for _, member := range ci.OrderedMembers() {
-			_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+		for _, member := range client.OrderedMembers() {
+			_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
 			if err != nil {
 				continue
 			}

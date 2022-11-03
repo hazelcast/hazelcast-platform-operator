@@ -13,6 +13,7 @@ import (
 )
 
 func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
+
 	h := &hazelcastv1alpha1.Hazelcast{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "hazelcast",
@@ -20,7 +21,7 @@ func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
 		},
 	}
 	r := reconcilerWithCR(h)
-	hzclient.Clients.Store(types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &hzclient.Client{})
+	r.clientManager.Clients.Store(types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &hzclient.StatusService{})
 
 	err := r.executeFinalizer(context.Background(), h, ctrl.Log)
 	if err != nil {

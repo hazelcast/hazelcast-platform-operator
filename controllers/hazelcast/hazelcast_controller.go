@@ -37,15 +37,19 @@ type HazelcastReconciler struct {
 	Scheme               *runtime.Scheme
 	triggerReconcileChan chan event.GenericEvent
 	phoneHomeTrigger     chan struct{}
+	clientManager        *hzclient.ClientManager
+	statusServiceManager *hzclient.StatusServiceManager
 }
 
-func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *HazelcastReconciler {
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientManager, ssm *hzclient.StatusServiceManager) *HazelcastReconciler {
 	return &HazelcastReconciler{
 		Client:               c,
 		Log:                  log,
 		Scheme:               s,
 		triggerReconcileChan: make(chan event.GenericEvent),
 		phoneHomeTrigger:     pht,
+		clientManager:        cs,
+		statusServiceManager: ssm,
 	}
 }
 
@@ -76,22 +80,22 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			logger.Info("Hazelcast resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	// Add finalizer for Hazelcast CR to cleanup ClusterRole
 	err = util.AddFinalizer(ctx, r.Client, h, logger)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	// Check if the Hazelcast CR is marked to be deleted
 	if h.GetDeletionTimestamp() != nil {
 		// Execute finalizer's pre-delete function to cleanup ClusterRole
-		update(ctx, r.Client, h, terminatingPhase(nil)) //nolint:errcheck
+		r.update(ctx, h, terminatingPhase(nil)) //nolint:errcheck
 		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
-			return update(ctx, r.Client, h, terminatingPhase(err).withMessage(err.Error()))
+			return r.update(ctx, h, terminatingPhase(err).withMessage(err.Error()))
 		}
 		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
@@ -100,7 +104,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if mutated := mutate.HazelcastSpec(h); mutated {
 		err = r.Client.Update(ctx, h)
 		if err != nil {
-			return update(ctx, r.Client, h,
+			return r.update(ctx, h,
 				failedPhase(err).
 					withMessage(fmt.Sprintf("error mutating new Spec: %s", err)))
 		}
@@ -108,54 +112,54 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	err = validation.ValidateHazelcastSpec(h)
 	if err != nil {
-		return update(ctx, r.Client, h,
+		return r.update(ctx, h,
 			failedPhase(err).
 				withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
 	}
 
 	err = r.reconcileRole(ctx, h, logger)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	err = r.reconcileClusterRole(ctx, h, logger)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	err = r.reconcileServiceAccount(ctx, h, logger)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	err = r.reconcileRoleBinding(ctx, h, logger)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	err = r.reconcileClusterRoleBinding(ctx, h, logger)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	err = r.reconcileService(ctx, h, logger)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	err = r.reconcileServicePerPod(ctx, h, logger)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	err = r.reconcileUnusedServicePerPod(ctx, h)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	if !r.isServicePerPodReady(ctx, h) {
 		logger.Info("Service per pod is not ready, waiting.")
-		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+		return r.update(ctx, h, pendingPhase(retryAfter))
 	}
 
 	s, createdBefore := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
@@ -164,13 +168,13 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if createdBefore {
 		newExecutorServices, err = r.detectNewExecutorServices(h, s)
 		if err != nil {
-			return update(ctx, r.Client, h, failedPhase(err))
+			return r.update(ctx, h, failedPhase(err))
 		}
 	}
 
 	err = r.reconcileConfigMap(ctx, h, logger)
 	if err != nil {
-		return update(ctx, r.Client, h, failedPhase(err))
+		return r.update(ctx, h, failedPhase(err))
 	}
 
 	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {
@@ -178,36 +182,37 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, nil
 		} else {
-			return update(ctx, r.Client, h, failedPhase(err))
+			return r.update(ctx, h, failedPhase(err))
 		}
 	}
 
 	if err = r.checkHotRestart(ctx, h, logger); err != nil {
 		logger.Error(err, "Cluster HotRestart did not finish successfully")
-		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+		return r.update(ctx, h, pendingPhase(retryAfter))
 	}
 
 	if err = r.ensureClusterActive(ctx, h); err != nil {
 		logger.Error(err, "Cluster activation attempt after hot restore failed")
-		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+		return r.update(ctx, h, pendingPhase(retryAfter))
 	}
 
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, *h.Spec.ClusterSize); !ok {
 		if err == nil {
-			return update(ctx, r.Client, h, pendingPhase(retryAfter))
+			return r.update(ctx, h, pendingPhase(retryAfter))
 		} else {
-			return update(ctx, r.Client, h, failedPhase(err).withMessage(err.Error()))
+			return r.update(ctx, h, failedPhase(err).withMessage(err.Error()))
 		}
 	}
 
-	hzclient.CreateClient(ctx, h, r.triggerReconcileChan, r.Log)
+	cl := r.clientManager.CreateClient(ctx, h, r.Log)
+	r.statusServiceManager.CreateStatusService(cl, r.Log, req.NamespacedName, r.triggerReconcileChan)
 
 	if newExecutorServices != nil {
-		hzClient, ok := hzclient.GetClient(req.NamespacedName)
-		if !(ok && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
-			return update(ctx, r.Client, h, pendingPhase(retryAfter))
+		hzClient, err := r.clientManager.GetClient(req.NamespacedName)
+		if !(err == nil && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
+			return r.update(ctx, h, pendingPhase(retryAfter))
 		}
-		r.addExecutorServices(ctx, hzClient.Client, newExecutorServices)
+		r.addExecutorServices(ctx, hzClient, newExecutorServices)
 	}
 
 	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(h) {
@@ -220,14 +225,14 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	externalAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
-	return update(ctx, r.Client, h, r.runningPhaseWithStatus(req).
+	return r.update(ctx, h, r.runningPhaseWithStatus(req).
 		withExternalAddresses(externalAddrs).
-		withMessage(clientConnectionMessage(req)))
+		withMessage(clientConnectionMessage(r.clientManager, req)))
 }
 
 func (r *HazelcastReconciler) runningPhaseWithStatus(req ctrl.Request) optionsBuilder {
-	if hzClient, ok := hzclient.GetClient(req.NamespacedName); ok {
-		return runningPhase().withStatus(hzClient.Status)
+	if ss, err := r.statusServiceManager.GetStatusService(req.NamespacedName); err == nil {
+		return runningPhase().withStatus(ss.Status)
 	}
 	return runningPhase()
 }
@@ -282,15 +287,15 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 	}
 }
 
-func clientConnectionMessage(req ctrl.Request) string {
-	c, ok := hzclient.GetClient(req.NamespacedName)
-	if !ok {
+func clientConnectionMessage(cs *hzclient.ClientManager, req ctrl.Request) string {
+	c, err := cs.GetClient(req.NamespacedName)
+	if err != nil {
 		return "Operator failed to create connection to cluster, some features might be unavailable."
 	}
 
-	if c.Error != nil {
+	if c.GetError() != nil {
 		// TODO: retry mechanism
-		return fmt.Sprintf("Operator failed to connect to the cluster. Some features might be unavailable. %s", c.Error.Error())
+		return fmt.Sprintf("Operator failed to connect to the cluster. Some features might be unavailable. %s", c.GetError().Error())
 	}
 
 	if !c.IsClientConnected() {

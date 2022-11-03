@@ -18,6 +18,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/backup"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	localbackup "github.com/hazelcast/hazelcast-platform-operator/internal/local_backup"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -27,21 +28,25 @@ import (
 
 type HotBackupReconciler struct {
 	client.Client
-	Log              logr.Logger
-	cancelMap        map[types.NamespacedName]context.CancelFunc
-	backup           map[types.NamespacedName]struct{}
-	phoneHomeTrigger chan struct{}
-	mtlsClient       *mtls.Client
+	Log                  logr.Logger
+	cancelMap            map[types.NamespacedName]context.CancelFunc
+	backup               map[types.NamespacedName]struct{}
+	phoneHomeTrigger     chan struct{}
+	mtlsClient           *mtls.Client
+	clientManager        *hzclient.ClientManager
+	statusServiceManager *hzclient.StatusServiceManager
 }
 
-func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client) *HotBackupReconciler {
+func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client, cs *hzclient.ClientManager, ssm *hzclient.StatusServiceManager) *HotBackupReconciler {
 	return &HotBackupReconciler{
-		Client:           c,
-		Log:              log,
-		cancelMap:        make(map[types.NamespacedName]context.CancelFunc),
-		backup:           make(map[types.NamespacedName]struct{}),
-		phoneHomeTrigger: pht,
-		mtlsClient:       mtlsClient,
+		Client:               c,
+		Log:                  log,
+		cancelMap:            make(map[types.NamespacedName]context.CancelFunc),
+		backup:               make(map[types.NamespacedName]struct{}),
+		phoneHomeTrigger:     pht,
+		mtlsClient:           mtlsClient,
+		clientManager:        cs,
+		statusServiceManager: ssm,
 	}
 }
 
@@ -226,7 +231,20 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
 
-	b, err := backup.NewClusterBackup(hz)
+	client, err := r.clientManager.GetClient(hazelcastName)
+	if err != nil {
+		logger.Error(err, "Get Hazelcast Client failed")
+		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+	}
+
+	statusService, err := r.statusServiceManager.GetStatusService(hazelcastName)
+	if err != nil {
+		logger.Error(err, "Get Hazelcast Status Service failed")
+		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+	}
+
+	backupService := hzclient.NewBackupService(client)
+	b, err := backup.NewClusterBackup(statusService, backupService)
 	if err != nil {
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}

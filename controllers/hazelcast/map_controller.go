@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -35,14 +34,16 @@ type MapReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
+	clientService    *hzclient.ClientManager
 }
 
-func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *MapReconciler {
+func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientManager) *MapReconciler {
 	return &MapReconciler{
 		Client:           c,
 		Log:              log,
 		Scheme:           s,
 		phoneHomeTrigger: pht,
+		clientService:    cs,
 	}
 }
 
@@ -122,7 +123,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	cl, err := GetHazelcastClient(m)
+	cl, err := GetHazelcastClient(r.clientService, m)
 	if err != nil {
 		if errors.IsInternalError(err) {
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).
@@ -228,26 +229,25 @@ func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelc
 	return nil
 }
 
-func GetHazelcastClient(m *hazelcastv1alpha1.Map) (*hazelcast.Client, error) {
-	hzcl, ok := hzclient.GetClient(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
-	if !ok {
+func GetHazelcastClient(cs *hzclient.ClientManager, m *hazelcastv1alpha1.Map) (hzclient.ClientI, error) {
+	hzcl, err := cs.GetClient(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
+	if err != nil {
 		return nil, errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", m.Spec.HazelcastResourceName))
 	}
-	if hzcl.Client == nil || !hzcl.Client.Running() {
+	if !hzcl.Running() {
 		return nil, fmt.Errorf("trying to connect to the cluster %s", m.Spec.HazelcastResourceName)
 	}
 
-	return hzcl.Client, nil
+	return hzcl, nil
 }
 
 func (r *MapReconciler) ReconcileMapConfig(
 	ctx context.Context,
 	m *hazelcastv1alpha1.Map,
 	hz *hazelcastv1alpha1.Hazelcast,
-	cl *hazelcast.Client,
+	cl hzclient.ClientI,
 	createdBefore bool,
 ) (map[string]hazelcastv1alpha1.MapConfigState, error) {
-	ci := hazelcast.NewClientInternal(cl)
 	var req *proto.ClientMessage
 	if createdBefore {
 		req = codec.EncodeMCUpdateMapConfigRequest(
@@ -270,12 +270,12 @@ func (r *MapReconciler) ReconcileMapConfig(
 
 	memberStatuses := map[string]hazelcastv1alpha1.MapConfigState{}
 	var failedMembers strings.Builder
-	for _, member := range ci.OrderedMembers() {
+	for _, member := range cl.OrderedMembers() {
 		if status, ok := m.Status.MemberStatuses[member.UUID.String()]; ok && status == hazelcastv1alpha1.MapSuccess {
 			memberStatuses[member.UUID.String()] = hazelcastv1alpha1.MapSuccess
 			continue
 		}
-		_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+		_, err := cl.InvokeOnMember(ctx, req, member.UUID, nil)
 		if err != nil {
 			memberStatuses[member.UUID.String()] = hazelcastv1alpha1.MapFailed
 			failedMembers.WriteString(member.UUID.String() + ", ")
