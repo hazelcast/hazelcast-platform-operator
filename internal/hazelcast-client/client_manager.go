@@ -25,7 +25,6 @@ func (cs *ClientManager) CreateClient(ctx context.Context, h *hazelcastv1alpha1.
 		return client
 	}
 	c := NewClient(ctx, BuildConfig(h), l)
-
 	cs.Clients.Store(ns, c)
 	return c
 }

@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
@@ -21,14 +20,11 @@ type ClientI interface {
 	InvokeOnMember(ctx context.Context, req *proto.ClientMessage, uuid hztypes.UUID, opts *proto.InvokeOptions) (*proto.ClientMessage, error)
 	InvokeOnRandomTarget(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error)
 
-	GetError() error
 	Shutdown(ctx context.Context)
 }
 
 type Client struct {
-	sync.Mutex
 	client *hazelcast.Client
-	err    error
 	log    logr.Logger
 }
 
@@ -36,20 +32,15 @@ func NewClient(ctx context.Context, config hazelcast.Config, log logr.Logger) *C
 	c := &Client{
 		log: log,
 	}
-	go func(ctx context.Context) {
-		createHzClient(ctx, c, config)
-	}(ctx)
+	createHzClient(ctx, c, config)
 	return c
 }
 
 func createHzClient(ctx context.Context, c *Client, config hazelcast.Config) {
 	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
-	c.Lock()
-	defer c.Unlock()
 	if err != nil {
 		// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
 		c.log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
-		c.err = err
 	} else {
 		c.client = hzClient
 	}
@@ -115,14 +106,7 @@ func (cl *Client) Running() bool {
 	return cl.client != nil && cl.client.Running()
 }
 
-func (cl *Client) GetError() error {
-	return cl.err
-}
-
 func (c *Client) Shutdown(ctx context.Context) {
-	c.Lock()
-	defer c.Unlock()
-
 	if c.client == nil {
 		return
 	}
