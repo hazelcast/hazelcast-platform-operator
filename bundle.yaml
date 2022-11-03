@@ -2889,6 +2889,7 @@ spec:
                 format: int32
                 type: integer
               emptyQueueTTLSeconds:
+                default: -1
                 description: Time in seconds after which the Queue will be destroyed
                   if it stays empty or unused. If the values is not provided the Queue
                   will never be destroyed.

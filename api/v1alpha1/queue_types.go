@@ -36,6 +36,7 @@ type QueueSpec struct {
 
 	// Time in seconds after which the Queue will be destroyed if it stays empty or unused.
 	// If the values is not provided the Queue will never be destroyed.
+	// +kubebuilder:default:=-1
 	// +optional
 	EmptyQueueTtlSeconds *int32 `json:"emptyQueueTTLSeconds,omitempty"`
 
