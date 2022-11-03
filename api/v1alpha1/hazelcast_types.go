@@ -99,7 +99,7 @@ type HazelcastSpec struct {
 
 	// B&R Agent configurations
 	// +optional
-	// +kubebuilder:default:={repository: "docker.io/mtypey/platform-operator-agent", version: "restore-hb-cr"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "latest-snapshot"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
 
 	// User Codes to Download into CLASSPATH
@@ -237,12 +237,12 @@ type UserCodeDeploymentConfig struct {
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/mtypey/platform-operator-agent"
+	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="restore-hb-cr"
+	// +kubebuilder:default:="latest-snapshot"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
