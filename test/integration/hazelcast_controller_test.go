@@ -1216,4 +1216,38 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
+
+	Context("Queue CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Queue{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create Queue CR")
+				Expect(k8sClient.Create(context.Background(), q)).ShouldNot(Succeed())
+			})
+		})
+		When("Using default configuration", func() {
+			It("should create Queue CR with default configurations", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Queue{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.QueueSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+				}
+				By("creating Queue CR successfully")
+				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
+				qs := q.Spec
+
+				By("checking the CR values with default ones")
+				Expect(qs.Name).To(Equal(""))
+				Expect(qs.BackupCount).To(Equal(n.DefaultQueueBackupCount))
+				Expect(qs.AsyncBackupCount).To(Equal(n.DefaultQueueAsyncBackupCount))
+				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
+				Expect(qs.EmptyQueueTtlSeconds).To(Equal(n.DefaultQueueEmptyQueueTtl))
+				Expect(qs.MaxSize).To(Equal(n.DefaultMapMaxSize))
+				Expect(qs.PriorityComparatorClassName).To(Equal(""))
+			})
+		})
+	})
 })

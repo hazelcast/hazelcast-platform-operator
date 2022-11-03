@@ -2,3 +2,5 @@ apiVersion: hazelcast.com/v1alpha1
 kind: Queue
 metadata:
   name: queue-sample
+spec:
+  hazelcastResourceName: hazelcast
