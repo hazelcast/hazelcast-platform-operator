@@ -43,18 +43,6 @@ const (
 	hzLicenseKey = "HZ_LICENSEKEY"
 )
 
-func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(h, n.Finalizer) && h.GetDeletionTimestamp() == nil {
-		controllerutil.AddFinalizer(h, n.Finalizer)
-		err := r.Update(ctx, h)
-		if err != nil {
-			return err
-		}
-		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
-	}
-	return nil
-}
-
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil

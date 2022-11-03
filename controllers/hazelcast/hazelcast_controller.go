@@ -80,7 +80,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Add finalizer for Hazelcast CR to cleanup ClusterRole
-	err = r.addFinalizer(ctx, h, logger)
+	err = util.AddFinalizer(ctx, r.Client, h, logger)
 	if err != nil {
 		return update(ctx, r.Client, h, failedPhase(err))
 	}

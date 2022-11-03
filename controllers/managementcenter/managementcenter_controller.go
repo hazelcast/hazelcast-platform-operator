@@ -60,7 +60,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return update(ctx, r.Status(), mc, failedPhase(err))
 	}
 
-	err = r.addFinalizer(ctx, mc, logger)
+	err = util.AddFinalizer(ctx, r.Client, mc, logger)
 	if err != nil {
 		return update(ctx, r.Client, mc, failedPhase(err))
 	}

@@ -64,6 +64,18 @@ func CheckIfRunning(ctx context.Context, cl client.Client, namespacedName types.
 	return false, nil
 }
 
+func AddFinalizer(ctx context.Context, c client.Client, object client.Object, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(object, n.Finalizer) && object.GetDeletionTimestamp() == nil {
+		controllerutil.AddFinalizer(object, n.Finalizer)
+		err := c.Update(ctx, object)
+		if err != nil {
+			return err
+		}
+		logger.V(DebugLevel).Info("Finalizer added into custom resource successfully")
+	}
+	return nil
+}
+
 func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
 	allUpdated := expectedReplicas == sts.Status.UpdatedReplicas
 	allReady := expectedReplicas == sts.Status.ReadyReplicas

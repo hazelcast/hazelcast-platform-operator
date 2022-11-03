@@ -65,7 +65,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, fmt.Errorf("failed to get Map: %w", err)
 	}
 
-	err = r.addFinalizer(ctx, m, logger)
+	err = util.AddFinalizer(ctx, r.Client, m, logger)
 	if err != nil {
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
@@ -172,18 +172,6 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	return updateMapStatus(ctx, r.Client, m, successStatus().
 		withMemberStatuses(nil))
-}
-
-func (r *MapReconciler) addFinalizer(ctx context.Context, m *hazelcastv1alpha1.Map, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(m, n.Finalizer) && m.GetDeletionTimestamp() == nil {
-		controllerutil.AddFinalizer(m, n.Finalizer)
-		err := r.Update(ctx, m)
-		if err != nil {
-			return err
-		}
-		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
-	}
-	return nil
 }
 
 func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alpha1.Map, logger logr.Logger) error {

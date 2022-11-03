@@ -67,7 +67,7 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return
 	}
 
-	err = r.addFinalizer(ctx, chb)
+	err = util.AddFinalizer(ctx, r.Client, chb, logger)
 	if err != nil {
 		return
 	}
@@ -125,18 +125,6 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	return
-}
-
-func (r *CronHotBackupReconciler) addFinalizer(ctx context.Context, chb *hazelcastv1alpha1.CronHotBackup) error {
-	if !controllerutil.ContainsFinalizer(chb, n.Finalizer) && chb.GetDeletionTimestamp() == nil {
-		controllerutil.AddFinalizer(chb, n.Finalizer)
-		err := r.Update(ctx, chb)
-		if err != nil {
-			return err
-		}
-		r.Log.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
-	}
-	return nil
 }
 
 func (r *CronHotBackupReconciler) executeFinalizer(ctx context.Context, chb *hazelcastv1alpha1.CronHotBackup) error {

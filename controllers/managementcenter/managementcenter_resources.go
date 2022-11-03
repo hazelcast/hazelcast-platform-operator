@@ -29,18 +29,6 @@ const (
 	javaOpts  = "JAVA_OPTS"
 )
 
-func (r *ManagementCenterReconciler) addFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) && mc.GetDeletionTimestamp() == nil {
-		controllerutil.AddFinalizer(mc, n.Finalizer)
-		err := r.Update(ctx, mc)
-		if err != nil {
-			return fmt.Errorf("failed to add finalizer into custom resource: %w", err)
-		}
-		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
-	}
-	return nil
-}
-
 func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter) error {
 	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
 		return nil

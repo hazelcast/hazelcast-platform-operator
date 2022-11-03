@@ -67,7 +67,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return r.updateStatus(ctx, req.NamespacedName, failedHbStatus(err))
 	}
 
-	err = r.addFinalizer(ctx, hb, logger)
+	err = util.AddFinalizer(ctx, r.Client, hb, logger)
 	if err != nil {
 		return r.updateStatus(ctx, req.NamespacedName, failedHbStatus(err))
 	}
@@ -152,18 +152,6 @@ func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 
 		return r.Client.Update(ctx, hb)
 	})
-}
-
-func (r *HotBackupReconciler) addFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(hb, n.Finalizer) && hb.GetDeletionTimestamp() == nil {
-		controllerutil.AddFinalizer(hb, n.Finalizer)
-		err := r.Update(ctx, hb)
-		if err != nil {
-			return err
-		}
-		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
-	}
-	return nil
 }
 
 func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {

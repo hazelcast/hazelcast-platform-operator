@@ -64,7 +64,7 @@ func initialSetupDS(ctx context.Context, c client.Client, nn client.ObjectKey, o
 	}
 	objKind := obj.(Type).GetKind()
 
-	if err := addFinalizer(ctx, obj, updateFunc, logger); err != nil {
+	if err := util.AddFinalizer(ctx, c, obj, logger); err != nil {
 		result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(err).withMessage(err.Error()))
 		return nil, result, err
 	}
@@ -108,24 +108,12 @@ func getCR(ctx context.Context, c client.Client, obj client.Object, nn client.Ob
 	return nil
 }
 
-func addFinalizer(ctx context.Context, obj client.Object, updateFunc Update, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(obj, n.Finalizer) && obj.GetDeletionTimestamp() == nil {
-		controllerutil.AddFinalizer(obj, n.Finalizer)
-		err := updateFunc(ctx, obj)
-		if err != nil {
-			return err
-		}
-		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
-	}
-	return nil
-}
-
 func startDelete(ctx context.Context, c client.Client, obj client.Object, updateFunc Update, logger logr.Logger) error {
 	updateDSStatus(ctx, c, obj, dsTerminatingStatus(nil)) //nolint:errcheck
 	if err := executeFinalizer(ctx, obj, updateFunc); err != nil {
 		return err
 	}
-	logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+	logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 	return nil
 }
 
