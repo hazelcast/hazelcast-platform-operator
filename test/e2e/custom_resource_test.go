@@ -38,6 +38,7 @@ func setCRNamespace(ns string) {
 	wanLookupKey.Namespace = ns
 	topicLookupKey.Namespace = ns
 	mmLookupKey.Namespace = ns
+	qLookupKey.Namespace = ns
 	rmLookupKey.Namespace = ns
 	hzSrcLookupKey.Namespace = ns
 	hzTrgLookupKey.Namespace = ns
