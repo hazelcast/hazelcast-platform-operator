@@ -86,7 +86,6 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 	})
 
 	It("should fail to update Queue Config", Label("fast"), func() {
-		Skip("")
 		setLabelAndCRName("hq-3")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
