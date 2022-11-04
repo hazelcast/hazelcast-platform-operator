@@ -59,7 +59,7 @@ func setLabelAndCRName(n string) {
 	mcLookupKey.Name = n
 	mmLookupKey.Name = n
 	topicLookupKey.Name = n
-	mmLookupKey.Name = n
+	qLookupKey.Name = n
 	rmLookupKey.Name = n
 	hzSrcLookupKey.Name = "src-" + n
 	hzTrgLookupKey.Name = "trg-" + n
