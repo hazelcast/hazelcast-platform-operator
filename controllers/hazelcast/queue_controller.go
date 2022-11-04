@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -62,17 +63,34 @@ func (r *QueueReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return requeue, err
 	}
 
-	//persisted, err := r.validateMultiMapConfigPersistence(ctx, q)
+	persisted, err := r.validateQueueConfigPersistence(ctx, q)
 	if err != nil {
 		return updateDSStatus(ctx, r.Client, q, dsFailedStatus(err).withMessage(err.Error()))
 	}
 
-	//if !persisted {
-	if true {
+	if !persisted {
 		return updateDSStatus(ctx, r.Client, q, dsPersistingStatus(1*time.Second).withMessage("Waiting for MultiMap Config to be persisted."))
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, q, logger)
+}
+
+func (r *QueueReconciler) validateQueueConfigPersistence(ctx context.Context, q *hazelcastv1alpha1.Queue) (bool, error) {
+	hzConfig, err := getHazelcastConfigMap(ctx, r.Client, q)
+	if err != nil {
+		return false, err
+	}
+
+	qcfg, ok := hzConfig.Hazelcast.Queue[q.GetDSName()]
+	if !ok {
+		return false, nil
+	}
+	currentQCfg := createQueueConfig(q)
+
+	if !reflect.DeepEqual(qcfg, currentQCfg) {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (r *QueueReconciler) ReconcileQueueConfig(
