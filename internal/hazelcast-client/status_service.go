@@ -19,7 +19,7 @@ import (
 )
 
 type StatusService struct {
-	client ClientI
+	client Client
 	sync.Mutex
 	cancel               context.CancelFunc
 	NamespacedName       types.NamespacedName
@@ -29,7 +29,7 @@ type StatusService struct {
 	statusTicker         *StatusTicker
 }
 
-func newMemberStatusService(cl ClientI, l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *StatusService {
+func newMemberStatusService(cl Client, l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *StatusService {
 	return &StatusService{
 		client:               cl,
 		NamespacedName:       n,
@@ -146,11 +146,11 @@ func (ss *StatusService) GetTimedMemberState(ctx context.Context, uuid hztypes.U
 	return fetchTimedMemberState(ctx, ss.client, uuid)
 }
 
-func fetchTimedMemberState(ctx context.Context, client ClientI, uuid hztypes.UUID) (*codecTypes.TimedMemberStateWrapper, error) {
+func fetchTimedMemberState(ctx context.Context, client Client, uuid hztypes.UUID) (*codecTypes.TimedMemberStateWrapper, error) {
 	req := codec.EncodeMCGetTimedMemberStateRequest()
 	resp, err := client.InvokeOnMember(ctx, req, uuid, nil)
 	if err != nil {
-		return nil, fmt.Errorf("invoking: %w", err)
+		return nil, err
 	}
 	jsonState := codec.DecodeMCGetTimedMemberStateResponse(resp)
 	state, err := codec.DecodeTimedMemberStateJsonString(jsonState)

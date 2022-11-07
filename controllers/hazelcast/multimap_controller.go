@@ -82,7 +82,7 @@ func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 func (r *MultiMapReconciler) ReconcileMultiMapConfig(
 	ctx context.Context,
 	mm *hazelcastv1alpha1.MultiMap,
-	cl hzclient.ClientI,
+	cl hzclient.Client,
 	logger logr.Logger,
 ) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
 	var req *proto.ClientMessage

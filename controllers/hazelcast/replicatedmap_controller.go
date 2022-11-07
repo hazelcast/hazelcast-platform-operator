@@ -82,7 +82,7 @@ func (r *ReplicatedMapReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *ReplicatedMapReconciler) ReconcileReplicatedMapConfig(
 	ctx context.Context,
 	rm *hazelcastv1alpha1.ReplicatedMap,
-	cl hzclient.ClientI,
+	cl hzclient.Client,
 	logger logr.Logger,
 ) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
 	var req *proto.ClientMessage

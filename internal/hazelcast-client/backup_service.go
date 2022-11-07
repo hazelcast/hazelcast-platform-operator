@@ -2,17 +2,16 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 type BackupService struct {
-	Client ClientI
+	Client Client
 }
 
-func NewBackupService(cl ClientI) *BackupService {
+func NewBackupService(cl Client) *BackupService {
 	return &BackupService{
 		Client: cl,
 	}
@@ -22,7 +21,7 @@ func (bs *BackupService) ChangeClusterState(ctx context.Context, newState codecT
 	req := codec.EncodeMCChangeClusterStateRequest(newState)
 	_, err := bs.Client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
-		return fmt.Errorf("invoking: %w", err)
+		return err
 	}
 	return nil
 }
@@ -31,7 +30,7 @@ func (bs *BackupService) TriggerHotRestartBackup(ctx context.Context) error {
 	req := codec.EncodeMCTriggerHotRestartBackupRequest()
 	_, err := bs.Client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
-		return fmt.Errorf("invoking: %w", err)
+		return err
 	}
 	return nil
 }
@@ -40,7 +39,7 @@ func (bs *BackupService) InterruptHotRestartBackup(ctx context.Context) error {
 	req := codec.EncodeMCInterruptHotRestartBackupRequest()
 	_, err := bs.Client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
-		return fmt.Errorf("invoking: %w", err)
+		return err
 	}
 	return nil
 }

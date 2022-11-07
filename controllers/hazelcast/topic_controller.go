@@ -82,7 +82,7 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 func (r *TopicReconciler) ReconcileTopicConfig(
 	ctx context.Context,
 	t *hazelcastv1alpha1.Topic,
-	cl hzclient.ClientI,
+	cl hzclient.Client,
 	logger logr.Logger,
 ) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
 	var req *proto.ClientMessage
