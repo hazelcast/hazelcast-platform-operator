@@ -204,15 +204,15 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	cl, err := r.clientManager.CreateClient(ctx, h)
+	cl, err := r.clientManager.Create(ctx, h)
 	if err != nil {
 		return r.update(ctx, h, failedPhase(err).withMessage(err.Error()))
 	}
-	r.statusServiceManager.CreateStatusService(cl, r.Log, req.NamespacedName, r.triggerReconcileChan)
+	r.statusServiceManager.Create(cl, r.Log, req.NamespacedName, r.triggerReconcileChan)
 
 	if newExecutorServices != nil {
-		hzClient, err := r.clientManager.GetClient(req.NamespacedName)
-		if !(err == nil && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
+		hzClient, err := r.clientManager.Get(req.NamespacedName)
+		if !(err == nil && hzClient.AreAllMembersAccessible()) {
 			return r.update(ctx, h, pendingPhase(retryAfter))
 		}
 		r.addExecutorServices(ctx, hzClient, newExecutorServices)
@@ -234,7 +234,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 func (r *HazelcastReconciler) runningPhaseWithStatus(req ctrl.Request) optionsBuilder {
-	if ss, err := r.statusServiceManager.GetStatusService(req.NamespacedName); err == nil {
+	if ss, err := r.statusServiceManager.Get(req.NamespacedName); err == nil {
 		return runningPhase().withStatus(ss.Status)
 	}
 	return runningPhase()
@@ -291,13 +291,9 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 }
 
 func clientConnectionMessage(cs *hzclient.ClientManager, req ctrl.Request) string {
-	c, err := cs.GetClient(req.NamespacedName)
+	c, err := cs.Get(req.NamespacedName)
 	if err != nil {
 		return "Operator failed to create connection to cluster, some features might be unavailable."
-	}
-
-	if !c.IsClientConnected() {
-		return "Operator could not connect to the cluster. Some features might be unavailable."
 	}
 
 	if !c.AreAllMembersAccessible() {

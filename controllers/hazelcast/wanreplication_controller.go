@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -402,7 +403,7 @@ func addBatchPublisherConfig(
 		request.queueFullBehavior,
 	)
 
-	_, err := client.InvokeOnRandomTarget(ctx, req, nil)
+	_, err := client.InvokeOnMember(ctx, req, hztypes.UUID{}, nil)
 	if err != nil {
 		return err
 	}
