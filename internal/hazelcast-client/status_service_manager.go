@@ -18,7 +18,7 @@ var (
 	errNoStatusService = errors.New("Status Service is not created yet")
 )
 
-func (ssm *StatusServiceManager) CreateStatusService(cl ClientI, l logr.Logger, ns types.NamespacedName, channel chan event.GenericEvent) *StatusService {
+func (ssm *StatusServiceManager) CreateStatusService(cl Client, l logr.Logger, ns types.NamespacedName, channel chan event.GenericEvent) *StatusService {
 	ss, err := ssm.GetStatusService(ns)
 	if err == nil {
 		return ss

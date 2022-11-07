@@ -260,7 +260,7 @@ func (r *WanReplicationReconciler) getWanMap(ctx context.Context, lk types.Names
 
 }
 
-func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, client hzclient.ClientI, wan *hazelcastcomv1alpha1.WanReplication, mapName, mapWanKey string) (string, error) {
+func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, client hzclient.Client, wan *hazelcastcomv1alpha1.WanReplication, mapName, mapWanKey string) (string, error) {
 	publisherId := wan.Name + "-" + mapWanKey
 
 	req := &addBatchPublisherRequest{
@@ -385,7 +385,7 @@ type addBatchPublisherRequest struct {
 
 func addBatchPublisherConfig(
 	ctx context.Context,
-	client hzclient.ClientI,
+	client hzclient.Client,
 	request *addBatchPublisherRequest,
 ) error {
 
@@ -416,7 +416,7 @@ type changeWanStateRequest struct {
 	state       codecTypes.WanReplicationState
 }
 
-func changeWanState(ctx context.Context, client hzclient.ClientI, request *changeWanStateRequest) error {
+func changeWanState(ctx context.Context, client hzclient.Client, request *changeWanStateRequest) error {
 	req := codec.EncodeMCChangeWanReplicationStateRequest(
 		request.name,
 		request.publisherId,
@@ -437,7 +437,7 @@ type clearWanQueueRequest struct {
 	publisherId string
 }
 
-func clearWanQueue(ctx context.Context, client hzclient.ClientI, request *clearWanQueueRequest) error {
+func clearWanQueue(ctx context.Context, client hzclient.Client, request *clearWanQueueRequest) error {
 	req := codec.EncodeMCClearWanQueuesRequest(
 		request.name,
 		request.publisherId,

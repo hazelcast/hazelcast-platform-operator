@@ -1652,7 +1652,7 @@ func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Haz
 	return map[string]interface{}{"es": newExecutorServices, "des": newDurableExecutorServices, "ses": newScheduledExecutorServices}, nil
 }
 
-func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client hzclient.ClientI, newExecutorServices map[string]interface{}) {
+func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client hzclient.Client, newExecutorServices map[string]interface{}) {
 	var req *proto.ClientMessage
 	for _, es := range newExecutorServices["es"].([]hazelcastv1alpha1.ExecutorServiceConfiguration) {
 		esInput := codecTypes.DefaultAddExecutorServiceInput()

@@ -10,7 +10,7 @@ import (
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 )
 
-type ClientI interface {
+type Client interface {
 	Running() bool
 	IsClientConnected() bool
 	AreAllMembersAccessible() bool
@@ -22,12 +22,12 @@ type ClientI interface {
 	Shutdown(ctx context.Context) error
 }
 
-type Client struct {
+type HazelcastClient struct {
 	client *hazelcast.Client
 }
 
-func NewClient(ctx context.Context, config hazelcast.Config) (*Client, error) {
-	c := &Client{}
+func NewClient(ctx context.Context, config hazelcast.Config) (*HazelcastClient, error) {
+	c := &HazelcastClient{}
 	hzcl, err := createHzClient(ctx, config)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func createHzClient(ctx context.Context, config hazelcast.Config) (*hazelcast.Cl
 	}
 	return hzClient, nil
 }
-func (cl *Client) OrderedMembers() []cluster.MemberInfo {
+func (cl *HazelcastClient) OrderedMembers() []cluster.MemberInfo {
 	if cl.client == nil {
 		return nil
 	}
@@ -53,7 +53,7 @@ func (cl *Client) OrderedMembers() []cluster.MemberInfo {
 	return icl.OrderedMembers()
 }
 
-func (cl *Client) IsClientConnected() bool {
+func (cl *HazelcastClient) IsClientConnected() bool {
 	if cl.client == nil {
 		return false
 	}
@@ -67,7 +67,7 @@ func (cl *Client) IsClientConnected() bool {
 	return false
 }
 
-func (cl *Client) AreAllMembersAccessible() bool {
+func (cl *HazelcastClient) AreAllMembersAccessible() bool {
 	if cl.client == nil {
 		return false
 	}
@@ -81,7 +81,7 @@ func (cl *Client) AreAllMembersAccessible() bool {
 	return true
 }
 
-func (cl *Client) InvokeOnMember(ctx context.Context, req *proto.ClientMessage, uuid hztypes.UUID, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
+func (cl *HazelcastClient) InvokeOnMember(ctx context.Context, req *proto.ClientMessage, uuid hztypes.UUID, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
 	if cl.client == nil {
 		return nil, fmt.Errorf("Hazelcast client is nil")
 	}
@@ -91,7 +91,7 @@ func (cl *Client) InvokeOnMember(ctx context.Context, req *proto.ClientMessage, 
 	return ci.InvokeOnMember(ctx, req, uuid, opts)
 }
 
-func (cl *Client) InvokeOnRandomTarget(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
+func (cl *HazelcastClient) InvokeOnRandomTarget(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
 	if cl.client == nil {
 		return nil, fmt.Errorf("Hazelcast client is nil")
 	}
@@ -101,11 +101,11 @@ func (cl *Client) InvokeOnRandomTarget(ctx context.Context, req *proto.ClientMes
 	return ci.InvokeOnRandomTarget(ctx, req, opts)
 }
 
-func (cl *Client) Running() bool {
+func (cl *HazelcastClient) Running() bool {
 	return cl.client != nil && cl.client.Running()
 }
 
-func (c *Client) Shutdown(ctx context.Context) error {
+func (c *HazelcastClient) Shutdown(ctx context.Context) error {
 	if c.client == nil {
 		return nil
 	}

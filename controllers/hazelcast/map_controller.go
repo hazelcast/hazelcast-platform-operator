@@ -229,7 +229,7 @@ func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelc
 	return nil
 }
 
-func GetHazelcastClient(cs *hzclient.ClientManager, m *hazelcastv1alpha1.Map) (hzclient.ClientI, error) {
+func GetHazelcastClient(cs *hzclient.ClientManager, m *hazelcastv1alpha1.Map) (hzclient.Client, error) {
 	hzcl, err := cs.GetClient(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
 	if err != nil {
 		return nil, errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", m.Spec.HazelcastResourceName))
@@ -245,7 +245,7 @@ func (r *MapReconciler) ReconcileMapConfig(
 	ctx context.Context,
 	m *hazelcastv1alpha1.Map,
 	hz *hazelcastv1alpha1.Hazelcast,
-	cl hzclient.ClientI,
+	cl hzclient.Client,
 	createdBefore bool,
 ) (map[string]hazelcastv1alpha1.MapConfigState, error) {
 	var req *proto.ClientMessage
