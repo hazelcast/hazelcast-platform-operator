@@ -53,7 +53,7 @@ resources:
   controller: true
   domain: hazelcast.com
   kind: CronHotBackup
-  version: ""
+  version: v1alpha1
 - api:
     crdVersion: v1
     namespaced: true
