@@ -898,7 +898,7 @@ func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
 	mms := mm.Spec
 	return config.MultiMap{
 		BackupCount:       *mms.BackupCount,
-		AsyncBackupCount:  n.DefaultMultiMapAsyncBackupCount,
+		AsyncBackupCount:  *mms.AsyncBackupCount,
 		Binary:            mms.Binary,
 		CollectionType:    string(mms.CollectionType),
 		StatisticsEnabled: n.DefaultMultiMapStatisticsEnabled,

@@ -95,6 +95,7 @@ const (
 // Map Config default values
 const (
 	DefaultMapBackupCount        = int32(1)
+	DefaultMapAsyncBackupCount   = int32(0)
 	DefaultMapTimeToLiveSeconds  = int32(0)
 	DefaultMapMaxIdleSeconds     = int32(0)
 	DefaultMapPersistenceEnabled = false
