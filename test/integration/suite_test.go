@@ -67,8 +67,8 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	cs := &hzclient.ClientManager{}
-	ssm := &hzclient.StatusServiceManager{}
+	cs := &hzclient.ClientRegistry{}
+	ssm := &hzclient.StatusServiceRegistry{}
 
 	err = hazelcast.NewHazelcastReconciler(
 		k8sManager.GetClient(),

@@ -19,8 +19,8 @@ import (
 )
 
 type StatusService struct {
-	client Client
 	sync.Mutex
+	client               Client
 	cancel               context.CancelFunc
 	NamespacedName       types.NamespacedName
 	Log                  logr.Logger

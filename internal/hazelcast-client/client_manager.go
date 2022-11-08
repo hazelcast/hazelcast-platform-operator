@@ -13,13 +13,13 @@ var (
 	errNoClient = errors.New("Client is not created yet")
 )
 
-type ClientManager struct {
+type ClientRegistry struct {
 	Clients sync.Map
 }
 
-func (cs *ClientManager) CreateClient(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error) {
+func (cs *ClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error) {
 	ns := types.NamespacedName{Namespace: h.Namespace, Name: h.Name}
-	client, err := cs.GetClient(ns)
+	client, err := cs.Get(ns)
 	if err == nil {
 		return client, nil
 	}
@@ -31,14 +31,14 @@ func (cs *ClientManager) CreateClient(ctx context.Context, h *hazelcastv1alpha1.
 	return c, nil
 }
 
-func (cs *ClientManager) GetClient(ns types.NamespacedName) (client Client, err error) {
+func (cs *ClientRegistry) Get(ns types.NamespacedName) (client Client, err error) {
 	if v, ok := cs.Clients.Load(ns); ok {
 		return v.(Client), nil
 	}
 	return nil, errNoClient
 }
 
-func (cs *ClientManager) DeleteClient(ctx context.Context, ns types.NamespacedName) {
+func (cs *ClientRegistry) Delete(ctx context.Context, ns types.NamespacedName) {
 	if c, ok := cs.Clients.LoadAndDelete(ns); ok {
 		c.(Client).Shutdown(ctx) //nolint:errcheck
 	}

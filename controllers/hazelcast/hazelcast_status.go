@@ -132,7 +132,7 @@ func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.H
 	h.Status.Phase = options.phase
 	h.Status.Cluster.ReadyMembers = "N/A"
 
-	cl, err := r.clientManager.GetClient(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+	cl, err := r.clientManager.Get(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 
 	if err == nil && cl.IsClientConnected() {
 		h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
