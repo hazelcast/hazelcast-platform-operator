@@ -15,7 +15,7 @@ type ClientRegistry interface {
 }
 
 type HazelcastClientRegistry struct {
-	Clients sync.Map
+	clients sync.Map
 }
 
 func (cr *HazelcastClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error) {
@@ -28,19 +28,19 @@ func (cr *HazelcastClientRegistry) Create(ctx context.Context, h *hazelcastv1alp
 	if err != nil {
 		return nil, err
 	}
-	cr.Clients.Store(ns, c)
+	cr.clients.Store(ns, c)
 	return c, nil
 }
 
 func (cr *HazelcastClientRegistry) Get(ns types.NamespacedName) (Client, bool) {
-	if v, ok := cr.Clients.Load(ns); ok {
+	if v, ok := cr.clients.Load(ns); ok {
 		return v.(Client), true
 	}
 	return nil, false
 }
 
 func (cr *HazelcastClientRegistry) Delete(ctx context.Context, ns types.NamespacedName) {
-	if c, ok := cr.Clients.LoadAndDelete(ns); ok {
+	if c, ok := cr.clients.LoadAndDelete(ns); ok {
 		c.(Client).Shutdown(ctx) //nolint:errcheck
 	}
 }

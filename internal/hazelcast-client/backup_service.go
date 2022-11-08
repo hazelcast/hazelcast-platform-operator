@@ -14,18 +14,18 @@ type BackupService interface {
 }
 
 type HzBackupService struct {
-	Client Client
+	client Client
 }
 
 func NewBackupService(cl Client) *HzBackupService {
 	return &HzBackupService{
-		Client: cl,
+		client: cl,
 	}
 }
 
 func (bs *HzBackupService) ChangeClusterState(ctx context.Context, newState codecTypes.ClusterState) error {
 	req := codec.EncodeMCChangeClusterStateRequest(newState)
-	_, err := bs.Client.InvokeOnRandomTarget(ctx, req, nil)
+	_, err := bs.client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
 		return err
 	}
@@ -34,7 +34,7 @@ func (bs *HzBackupService) ChangeClusterState(ctx context.Context, newState code
 
 func (bs *HzBackupService) TriggerHotRestartBackup(ctx context.Context) error {
 	req := codec.EncodeMCTriggerHotRestartBackupRequest()
-	_, err := bs.Client.InvokeOnRandomTarget(ctx, req, nil)
+	_, err := bs.client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func (bs *HzBackupService) TriggerHotRestartBackup(ctx context.Context) error {
 
 func (bs *HzBackupService) InterruptHotRestartBackup(ctx context.Context) error {
 	req := codec.EncodeMCInterruptHotRestartBackupRequest()
-	_, err := bs.Client.InvokeOnRandomTarget(ctx, req, nil)
+	_, err := bs.client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
 		return err
 	}
