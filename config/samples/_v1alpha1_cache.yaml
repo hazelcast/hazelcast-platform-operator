@@ -3,4 +3,4 @@ kind: Cache
 metadata:
   name: cache-sample
 spec:
-  # TODO(user): Add fields here
+  hazelcastResourceName: hazelcast
