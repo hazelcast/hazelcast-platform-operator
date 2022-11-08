@@ -158,6 +158,14 @@ jobs:
           name: test-report
           path: allure-results/kind/
 
+      - name: Foresight Analyze Test Results
+        if: always()
+        uses: runforesight/foresight-test-kit-action@v1
+        with:
+          api_key: ${{ secrets.FORESIGHT_API_KEY }}
+          test_framework: JUNIT
+          test_path: allure-results/kind/
+
   report-generation:
     needs: ["kind-e2e-tests"]
     if: always()
