@@ -12,8 +12,8 @@ import (
 )
 
 type ClusterBackup struct {
-	statusService *hzclient.StatusService
-	backupService *hzclient.BackupService
+	statusService hzclient.StatusService
+	backupService hzclient.BackupService
 	members       map[hztypes.UUID]*hzclient.MemberData
 	cancelOnce    sync.Once
 }
@@ -22,14 +22,15 @@ var (
 	errBackupClientNoMembers = errors.New("client couldnt connect to members")
 )
 
-func NewClusterBackup(ss *hzclient.StatusService, bs *hzclient.BackupService) (*ClusterBackup, error) {
+func NewClusterBackup(ss hzclient.StatusService, bs hzclient.BackupService) (*ClusterBackup, error) {
 	ss.UpdateMembers(context.TODO())
 
-	if ss.Status == nil {
+	status := ss.GetStatus()
+	if status == nil {
 		return nil, errBackupClientNoMembers
 	}
 
-	if ss.Status.MemberMap == nil {
+	if status.MemberMap == nil {
 		return nil, errBackupClientNoMembers
 	}
 
@@ -73,7 +74,7 @@ func (b *ClusterBackup) Members() []*MemberBackup {
 }
 
 type MemberBackup struct {
-	statusService *hzclient.StatusService
+	statusService hzclient.StatusService
 
 	UUID    hztypes.UUID
 	Address string

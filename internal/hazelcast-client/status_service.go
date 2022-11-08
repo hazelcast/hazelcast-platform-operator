@@ -18,29 +18,15 @@ import (
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
-type StatusService struct {
-	sync.Mutex
-	client               Client
-	cancel               context.CancelFunc
-	NamespacedName       types.NamespacedName
-	Log                  logr.Logger
-	Status               *Status
-	triggerReconcileChan chan event.GenericEvent
-	statusTicker         *StatusTicker
-}
-
-func newMemberStatusService(cl Client, l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *StatusService {
-	return &StatusService{
-		client:               cl,
-		NamespacedName:       n,
-		Log:                  l,
-		Status:               &Status{MemberMap: make(map[hztypes.UUID]*MemberData)},
-		triggerReconcileChan: channel,
-	}
+type StatusService interface {
+	Start()
+	UpdateMembers(ctx context.Context)
+	GetStatus() *Status
+	GetTimedMemberState(ctx context.Context, uuid hztypes.UUID) (*codecTypes.TimedMemberStateWrapper, error)
+	Stop()
 }
 
 type Status struct {
-	sync.Mutex
 	MemberMap               map[hztypes.UUID]*MemberData
 	ClusterHotRestartStatus codecTypes.ClusterHotRestartStatus
 }
@@ -76,6 +62,18 @@ func (m MemberData) String() string {
 	return fmt.Sprintf("%s:%s", m.Address, m.UUID)
 }
 
+type HzStatusService struct {
+	sync.Mutex
+	client               Client
+	cancel               context.CancelFunc
+	NamespacedName       types.NamespacedName
+	Log                  logr.Logger
+	Status               *Status
+	StatusLock           sync.Mutex
+	triggerReconcileChan chan event.GenericEvent
+	statusTicker         *StatusTicker
+}
+
 type StatusTicker struct {
 	ticker *time.Ticker
 	done   chan bool
@@ -86,7 +84,17 @@ func (s *StatusTicker) stop() {
 	s.done <- true
 }
 
-func (ss *StatusService) Start() {
+func newStatusService(n types.NamespacedName, cl Client, l logr.Logger, channel chan event.GenericEvent) *HzStatusService {
+	return &HzStatusService{
+		client:               cl,
+		NamespacedName:       n,
+		Log:                  l,
+		Status:               &Status{MemberMap: make(map[hztypes.UUID]*MemberData)},
+		triggerReconcileChan: channel,
+	}
+}
+
+func (ss *HzStatusService) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ss.cancel = cancel
 
@@ -108,7 +116,7 @@ func (ss *StatusService) Start() {
 	}(ctx, ss.statusTicker)
 }
 
-func (ss *StatusService) triggerReconcile() {
+func (ss *HzStatusService) triggerReconcile() {
 	ss.triggerReconcileChan <- event.GenericEvent{
 		Object: &hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
 			Namespace: ss.NamespacedName.Namespace,
@@ -116,7 +124,11 @@ func (ss *StatusService) triggerReconcile() {
 		}}}
 }
 
-func (ss *StatusService) UpdateMembers(ctx context.Context) {
+func (ss *HzStatusService) GetStatus() *Status {
+	return ss.Status
+}
+
+func (ss *HzStatusService) UpdateMembers(ctx context.Context) {
 	if ss.client == nil {
 		return
 	}
@@ -136,13 +148,13 @@ func (ss *StatusService) UpdateMembers(ctx context.Context) {
 		newClusterHotRestartStatus = &state.TimedMemberState.MemberState.ClusterHotRestartStatus
 	}
 
-	ss.Status.Lock()
+	ss.StatusLock.Lock()
 	ss.Status.MemberMap = activeMembers
 	ss.Status.ClusterHotRestartStatus = *newClusterHotRestartStatus
-	ss.Status.Unlock()
+	ss.StatusLock.Unlock()
 }
 
-func (ss *StatusService) GetTimedMemberState(ctx context.Context, uuid hztypes.UUID) (*codecTypes.TimedMemberStateWrapper, error) {
+func (ss *HzStatusService) GetTimedMemberState(ctx context.Context, uuid hztypes.UUID) (*codecTypes.TimedMemberStateWrapper, error) {
 	return fetchTimedMemberState(ctx, ss.client, uuid)
 }
 
@@ -160,7 +172,7 @@ func fetchTimedMemberState(ctx context.Context, client Client, uuid hztypes.UUID
 	return state, nil
 }
 
-func (ss *StatusService) Stop(ctx context.Context) {
+func (ss *HzStatusService) Stop() {
 	ss.Lock()
 	defer ss.Unlock()
 

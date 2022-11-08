@@ -57,8 +57,8 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 		return fmt.Errorf("ClusterRoleBinding could not be removed: %w", err)
 	}
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
-	r.statusServiceManager.Delete(ctx, lk)
-	r.clientManager.Delete(ctx, lk)
+	r.statusServiceRegistry.Delete(lk)
+	r.clientRegistry.Delete(ctx, lk)
 
 	controllerutil.RemoveFinalizer(h, n.Finalizer)
 	err := r.Update(ctx, h)

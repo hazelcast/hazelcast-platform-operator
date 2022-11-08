@@ -34,10 +34,10 @@ type MapReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientRegistry   *hzclient.ClientRegistry
+	clientRegistry   hzclient.ClientRegistry
 }
 
-func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientRegistry) *MapReconciler {
+func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry) *MapReconciler {
 	return &MapReconciler{
 		Client:           c,
 		Log:              log,
@@ -229,9 +229,9 @@ func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelc
 	return nil
 }
 
-func GetHazelcastClient(cs *hzclient.ClientRegistry, m *hazelcastv1alpha1.Map) (hzclient.Client, error) {
-	hzcl, err := cs.Get(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
-	if err != nil {
+func GetHazelcastClient(cs hzclient.ClientRegistry, m *hazelcastv1alpha1.Map) (hzclient.Client, error) {
+	hzcl, ok := cs.Get(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
+	if !ok {
 		return nil, errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", m.Spec.HazelcastResourceName))
 	}
 	if !hzcl.Running() {
