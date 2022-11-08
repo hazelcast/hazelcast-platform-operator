@@ -74,6 +74,7 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 		"MultiMap":      &hazelcastv1alpha1.MultiMapList{},
 		"Topic":         &hazelcastv1alpha1.TopicList{},
 		"ReplicatedMap": &hazelcastv1alpha1.ReplicatedMapList{},
+		"Queue":         &hazelcastv1alpha1.QueueList{},
 	}
 	for crKind, crList := range dependentCRs {
 		if err := r.deleteDependentCR(ctx, h, crKind, crList, logger); err != nil {
