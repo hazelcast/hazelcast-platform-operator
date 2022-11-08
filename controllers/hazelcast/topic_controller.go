@@ -25,10 +25,10 @@ type TopicReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientService    *hzclient.ClientManager
+	clientService    *hzclient.ClientRegistry
 }
 
-func NewTopicReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientManager) *TopicReconciler {
+func NewTopicReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientRegistry) *TopicReconciler {
 	return &TopicReconciler{
 		Client:           c,
 		Log:              log,

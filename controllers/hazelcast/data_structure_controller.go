@@ -63,7 +63,7 @@ func initialSetupDS(ctx context.Context,
 	nn client.ObjectKey,
 	obj client.Object,
 	updateFunc Update,
-	cs *hzclient.ClientManager,
+	cs *hzclient.ClientRegistry,
 	logger logr.Logger) (hzclient.Client, ctrl.Result, error) {
 	if err := getCR(ctx, c, obj, nn, logger); err != nil {
 		return nil, ctrl.Result{}, err
@@ -156,7 +156,7 @@ func handleCreatedBefore(ctx context.Context, c client.Client, obj client.Object
 	return true, ctrl.Result{}, nil
 }
 
-func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hzResourceName string, cs *hzclient.ClientManager) (hzclient.Client, ctrl.Result, error) {
+func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hzResourceName string, cs *hzclient.ClientRegistry) (hzclient.Client, ctrl.Result, error) {
 	h := &hazelcastv1alpha1.Hazelcast{}
 	hzLookup := types.NamespacedName{Namespace: ns, Name: hzResourceName}
 	err := c.Get(ctx, hzLookup, h)
@@ -171,7 +171,7 @@ func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hz
 		return nil, result, err
 	}
 
-	hzcl, err := cs.GetClient(hzLookup)
+	hzcl, err := cs.Get(hzLookup)
 	if err != nil {
 		err = errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", hzResourceName))
 		result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(err).withMessage(err.Error()))
