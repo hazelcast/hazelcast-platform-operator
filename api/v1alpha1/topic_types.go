@@ -33,9 +33,7 @@ type TopicSpec struct {
 
 // TopicStatus defines the observed state of Topic
 type TopicStatus struct {
-	State          DataStructureConfigState            `json:"state,omitempty"`
-	Message        string                              `json:"message,omitempty"`
-	MemberStatuses map[string]DataStructureConfigState `json:"memberStatuses,omitempty"`
+	DataStructureStatus `json:",inline"`
 }
 
 //+kubebuilder:object:root=true

@@ -6,32 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: multimaps.hazelcast.com
+  name: caches.hazelcast.com
 spec:
   group: hazelcast.com
   names:
-    kind: MultiMap
-    listKind: MultiMapList
-    plural: multimaps
-    shortNames:
-    - mmap
-    singular: multimap
+    kind: Cache
+    listKind: CacheList
+    plural: caches
+    singular: cache
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - description: Current state of the MultiMap Config
-      jsonPath: .status.state
-      name: Status
-      type: string
-    - description: Message for the current MultiMap Config
-      jsonPath: .status.message
-      name: Message
-      priority: 1
-      type: string
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: MultiMap is the Schema for the multimaps API
+        description: Cache is the Schema for the caches API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -46,7 +34,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: MultiMapSpec defines the desired state of MultiMap
+            description: CacheSpec defines the desired state of Cache It cannot be
+              updated after the Cache is created
             properties:
               asyncBackupCount:
                 default: 0
@@ -58,33 +47,27 @@ spec:
                 description: Number of synchronous backups.
                 format: int32
                 type: integer
-              binary:
-                default: false
-                description: 'Specifies in which format data will be stored in your
-                  multiMap. false: OBJECT true: BINARY'
-                type: boolean
-              collectionType:
-                default: SET
-                description: Type of the value collection
-                enum:
-                - SET
-                - LIST
-                type: string
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource.
                 minLength: 1
+                type: string
+              keyType:
+                description: Class name of the key type
                 type: string
               name:
                 description: Name of the data structure config to be created. If empty,
                   CR name will be used. It cannot be updated after the config is created
                   successfully.
                 type: string
+              valueType:
+                description: Class name of the value type
+                type: string
             required:
             - hazelcastResourceName
             type: object
           status:
-            description: MultiMapStatus defines the observed state of MultiMap
+            description: CacheStatus defines the observed state of Cache
             properties:
               memberStatuses:
                 additionalProperties:

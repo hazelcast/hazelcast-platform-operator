@@ -735,7 +735,9 @@ var _ = Describe("Hazelcast controller", func() {
 				m := &hazelcastv1alpha1.Map{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.MapSpec{
-						HazelcastResourceName: "hazelcast",
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
 					},
 				}
 				By("creating Map CR successfully")
@@ -1039,7 +1041,9 @@ var _ = Describe("Hazelcast controller", func() {
 				mm := &hazelcastv1alpha1.MultiMap{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.MultiMapSpec{
-						HazelcastResourceName: "hazelcast",
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
 					},
 				}
 				By("creating MultiMap CR successfully")
@@ -1231,7 +1235,9 @@ var _ = Describe("Hazelcast controller", func() {
 				q := &hazelcastv1alpha1.Queue{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.QueueSpec{
-						HazelcastResourceName: "hazelcast",
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
 					},
 				}
 				By("creating Queue CR successfully")
@@ -1246,6 +1252,41 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(*qs.EmptyQueueTtlSeconds).To(Equal(n.DefaultQueueEmptyQueueTtl))
 				Expect(*qs.MaxSize).To(Equal(n.DefaultMapMaxSize))
 				Expect(qs.PriorityComparatorClassName).To(Equal(""))
+			})
+		})
+	})
+
+	Context("Cache CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Cache{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create Cache CR")
+				Expect(k8sClient.Create(context.Background(), q)).ShouldNot(Succeed())
+			})
+		})
+		When("Using default configuration", func() {
+			It("should create Cache CR with default configurations", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Cache{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.CacheSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+					},
+				}
+				By("creating Cache CR successfully")
+				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
+				qs := q.Spec
+
+				By("checking the CR values with default ones")
+				Expect(qs.Name).To(Equal(""))
+				Expect(*qs.BackupCount).To(Equal(n.DefaultCacheBackupCount))
+				Expect(*qs.AsyncBackupCount).To(Equal(n.DefaultCacheAsyncBackupCount))
+				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
+				Expect(qs.KeyType).To(Equal(""))
+				Expect(qs.ValueType).To(Equal(""))
 			})
 		})
 	})

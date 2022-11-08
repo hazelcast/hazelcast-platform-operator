@@ -9,14 +9,7 @@ import (
 
 // MultiMapSpec defines the desired state of MultiMap
 type MultiMapSpec struct {
-	// Name of the multiMap config to be created. If empty, CR name will be used.
-	// +optional
-	Name string `json:"name,omitempty"`
-
-	// Count of synchronous backups.
-	// +kubebuilder:default:=1
-	// +optional
-	BackupCount *int32 `json:"backupCount,omitempty"`
+	DataStructureSpec `json:",inline"`
 
 	// Specifies in which format data will be stored in your multiMap.
 	// false: OBJECT true: BINARY
@@ -28,10 +21,6 @@ type MultiMapSpec struct {
 	// +kubebuilder:default:=SET
 	// +optional
 	CollectionType CollectionType `json:"collectionType,omitempty"`
-
-	// HazelcastResourceName defines the name of the Hazelcast resource.
-	// +kubebuilder:validation:MinLength:=1
-	HazelcastResourceName string `json:"hazelcastResourceName"`
 }
 
 // CollectionType represents the value collection options for storing the data in the multiMap.
@@ -46,22 +35,8 @@ const (
 
 // MultiMapStatus defines the observed state of MultiMap
 type MultiMapStatus struct {
-	State          DataStructureConfigState            `json:"state,omitempty"`
-	Message        string                              `json:"message,omitempty"`
-	MemberStatuses map[string]DataStructureConfigState `json:"memberStatuses,omitempty"`
+	DataStructureStatus `json:",inline"`
 }
-
-// +kubebuilder:validation:Enum=Success;Failed;Pending;Persisting;Terminating
-type DataStructureConfigState string
-
-const (
-	DataStructureFailed  DataStructureConfigState = "Failed"
-	DataStructureSuccess DataStructureConfigState = "Success"
-	DataStructurePending DataStructureConfigState = "Pending"
-	// The config is added into all members but waiting for the config to be persisten into ConfigMap
-	DataStructurePersisting  DataStructureConfigState = "Persisting"
-	DataStructureTerminating DataStructureConfigState = "Terminating"
-)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status

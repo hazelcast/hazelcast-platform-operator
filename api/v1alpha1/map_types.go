@@ -7,16 +7,7 @@ import (
 
 // MapSpec defines the desired state of Hazelcast Map Config
 type MapSpec struct {
-	// Name of the map config to be created. If empty, CR name will be used.
-	// It cannot be updated after map config is created successfully.
-	// +optional
-	Name string `json:"name,omitempty"`
-
-	// Count of synchronous backups.
-	// It cannot be updated after map config is created successfully.
-	// +kubebuilder:default:=1
-	// +optional
-	BackupCount *int32 `json:"backupCount,omitempty"`
+	DataStructureSpec `json:",inline"`
 
 	// Maximum time in seconds for each entry to stay in the map.
 	// If it is not 0, entries that are older than this time and not updated for this time are evicted automatically.
@@ -49,11 +40,6 @@ type MapSpec struct {
 	// +kubebuilder:default:=false
 	// +optional
 	PersistenceEnabled bool `json:"persistenceEnabled"`
-
-	// HazelcastResourceName defines the name of the Hazelcast resource.
-	// It cannot be updated after map config is created successfully.
-	// +kubebuilder:validation:MinLength:=1
-	HazelcastResourceName string `json:"hazelcastResourceName"`
 
 	// Configuration options when you want to load/store the map entries
 	// from/to a persistent data store such as a relational database

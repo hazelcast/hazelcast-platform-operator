@@ -350,7 +350,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.MapSpec{
-				HazelcastResourceName: hzName,
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
 			},
 		}
 	}
@@ -407,7 +409,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.MultiMapSpec{
-				HazelcastResourceName: hzName,
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
 			},
 		}
 	}
@@ -446,7 +450,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.QueueSpec{
-				HazelcastResourceName: hzName,
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
 			},
 		}
 	}

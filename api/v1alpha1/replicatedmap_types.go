@@ -30,9 +30,7 @@ type ReplicatedMapSpec struct {
 
 // ReplicatedMapStatus defines the observed state of ReplicatedMap
 type ReplicatedMapStatus struct {
-	State          DataStructureConfigState            `json:"state,omitempty"`
-	Message        string                              `json:"message,omitempty"`
-	MemberStatuses map[string]DataStructureConfigState `json:"memberStatuses,omitempty"`
+	DataStructureStatus `json:",inline"`
 }
 
 //+kubebuilder:object:root=true

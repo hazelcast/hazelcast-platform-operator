@@ -125,6 +125,19 @@ const (
 	DefaultQueueMergeBatchSize    = int32(100)
 )
 
+// Cache Config default values
+const (
+	DefaultCacheBackupCount                       = int32(1)
+	DefaultCacheAsyncBackupCount                  = int32(0)
+	DefaultCacheStatisticsEnabled                 = false
+	DefaultCacheManagementEnabled                 = false
+	DefaultCacheMergePolicy                       = "com.hazelcast.spi.merge.PutIfAbsentMergePolicy"
+	DefaultCacheMergeBatchSize                    = int32(100)
+	DefaultCacheReadThrough                       = false
+	DefaultCacheWriteThrough                      = false
+	DefaultCacheDisablePerEntryInvalidationEvents = false
+)
+
 // ReplicatedMap Config default values
 const (
 	DefaultReplicatedMapInMemoryFormat    = "OBJECT"

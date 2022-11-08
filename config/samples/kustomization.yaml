@@ -9,4 +9,5 @@ resources:
 - _v1alpha1_topic.yaml
 - _v1alpha1_replicatedmap.yaml
 - _v1alpha1_queue.yaml
+- _v1alpha1_cache.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

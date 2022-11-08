@@ -12,8 +12,8 @@ type MultiMapConfig struct {
 	Name              string `xml:"name,attr"`
 	CollectionType    string `xml:"value-collection-type"`
 	BackupCount       int32  `xml:"backup-count"`
-	AsyncBackupCount  int32
-	Binary            bool `xml:"binary"`
+	AsyncBackupCount  int32  `xml:"async-backup-count"`
+	Binary            bool   `xml:"binary"`
 	MergePolicy       string
 	MergeBatchSize    int32
 	StatisticsEnabled bool

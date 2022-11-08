@@ -98,6 +98,7 @@ func fillMultiMapConfigInput(multiMapInput *codecTypes.MultiMapConfig, mm *hazel
 
 	mms := mm.Spec
 	multiMapInput.BackupCount = *mms.BackupCount
+	multiMapInput.AsyncBackupCount = *mms.AsyncBackupCount
 	multiMapInput.Binary = mms.Binary
 	multiMapInput.CollectionType = string(mms.CollectionType)
 }

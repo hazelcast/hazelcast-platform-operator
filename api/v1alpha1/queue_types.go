@@ -10,24 +10,7 @@ import (
 // QueueSpec defines the desired state of Queue
 // It cannot be updated after the Queue is created
 type QueueSpec struct {
-
-	// Name of the queue config to be created. If empty, CR name will be used.
-	// +optional
-	Name string `json:"name,omitempty"`
-
-	// HazelcastResourceName defines the name of the Hazelcast resource.
-	// +kubebuilder:validation:MinLength:=1
-	HazelcastResourceName string `json:"hazelcastResourceName"`
-
-	// Number of synchronous backups.
-	// +kubebuilder:default:=1
-	// +optional
-	BackupCount *int32 `json:"backupCount,omitempty"`
-
-	// Number of asynchronous backups.
-	// +kubebuilder:default:=0
-	// +optional
-	AsyncBackupCount *int32 `json:"asyncBackupCount,omitempty"`
+	DataStructureSpec `json:",inline"`
 
 	// Max size of the queue.
 	// +kubebuilder:default:=0
@@ -49,9 +32,7 @@ type QueueSpec struct {
 
 // QueueStatus defines the observed state of Queue
 type QueueStatus struct {
-	State          DataStructureConfigState            `json:"state,omitempty"`
-	Message        string                              `json:"message,omitempty"`
-	MemberStatuses map[string]DataStructureConfigState `json:"memberStatuses,omitempty"`
+	DataStructureStatus `json:",inline"`
 }
 
 //+kubebuilder:object:root=true
