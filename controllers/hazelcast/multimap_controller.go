@@ -25,7 +25,7 @@ type MultiMapReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientService    *hzclient.ClientRegistry
+	clientRegistry   *hzclient.ClientRegistry
 }
 
 func NewMultiMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientRegistry) *MultiMapReconciler {
@@ -34,7 +34,7 @@ func NewMultiMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, 
 		Log:              log,
 		Scheme:           s,
 		phoneHomeTrigger: pht,
-		clientService:    cs,
+		clientRegistry:   cs,
 	}
 }
 
@@ -46,7 +46,7 @@ func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	logger := r.Log.WithValues("hazelcast-multimap", req.NamespacedName)
 	mm := &hazelcastv1alpha1.MultiMap{}
 
-	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, mm, r.Update, r.clientService, logger)
+	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, mm, r.Update, r.clientRegistry, logger)
 	if cl == nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil

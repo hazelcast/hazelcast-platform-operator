@@ -25,7 +25,7 @@ type ReplicatedMapReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientService    *hzclient.ClientRegistry
+	clientRegistry   *hzclient.ClientRegistry
 }
 
 func NewReplicatedMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientRegistry) *ReplicatedMapReconciler {
@@ -34,7 +34,7 @@ func NewReplicatedMapReconciler(c client.Client, log logr.Logger, s *runtime.Sch
 		Log:              log,
 		Scheme:           s,
 		phoneHomeTrigger: pht,
-		clientService:    cs,
+		clientRegistry:   cs,
 	}
 }
 
@@ -46,7 +46,7 @@ func (r *ReplicatedMapReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger := r.Log.WithValues("hazelcast-replicatedmap", req.NamespacedName)
 	rm := &hazelcastv1alpha1.ReplicatedMap{}
 
-	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, rm, r.Update, r.clientService, logger)
+	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, rm, r.Update, r.clientRegistry, logger)
 	if cl == nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
