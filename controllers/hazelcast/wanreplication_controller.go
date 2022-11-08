@@ -27,7 +27,7 @@ type WanReplicationReconciler struct {
 	logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientService    *hzclient.ClientRegistry
+	clientRegistry   *hzclient.ClientRegistry
 }
 
 func NewWanReplicationReconciler(
@@ -37,7 +37,7 @@ func NewWanReplicationReconciler(
 		Logger:           log,
 		Scheme:           scheme,
 		phoneHomeTrigger: pht,
-		clientService:    cs,
+		clientRegistry:   cs,
 	}
 }
 
@@ -122,7 +122,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		}
 
-		err = stopWanRepForRemovedResources(ctx, wan, HZClientMap, r.clientService)
+		err = stopWanRepForRemovedResources(ctx, wan, HZClientMap, r.clientRegistry)
 		if err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		}
@@ -156,7 +156,7 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 
 	mapWanStatus := make(map[string]wanOptionsBuilder)
 	for hzResourceName, maps := range HZClientMap {
-		cl, err := GetHazelcastClient(r.clientService, &maps[0])
+		cl, err := GetHazelcastClient(r.clientRegistry, &maps[0])
 		if err != nil {
 			return err
 		}
@@ -293,7 +293,7 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 
 	for hzResourceName, maps := range HZClientMap {
 
-		cli, err := GetHazelcastClient(r.clientService, &maps[0])
+		cli, err := GetHazelcastClient(r.clientRegistry, &maps[0])
 		if err != nil {
 			return err
 		}

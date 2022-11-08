@@ -25,7 +25,7 @@ type TopicReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientService    *hzclient.ClientRegistry
+	clientRegistry   *hzclient.ClientRegistry
 }
 
 func NewTopicReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientRegistry) *TopicReconciler {
@@ -34,7 +34,7 @@ func NewTopicReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht
 		Log:              log,
 		Scheme:           s,
 		phoneHomeTrigger: pht,
-		clientService:    cs,
+		clientRegistry:   cs,
 	}
 }
 
@@ -46,7 +46,7 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	logger := r.Log.WithValues("hazelcast-topic", req.NamespacedName)
 	t := &hazelcastv1alpha1.Topic{}
 
-	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, t, r.Update, r.clientService, logger)
+	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, t, r.Update, r.clientRegistry, logger)
 	if cl == nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil

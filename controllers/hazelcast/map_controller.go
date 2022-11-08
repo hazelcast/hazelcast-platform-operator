@@ -34,7 +34,7 @@ type MapReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientService    *hzclient.ClientRegistry
+	clientRegistry   *hzclient.ClientRegistry
 }
 
 func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientRegistry) *MapReconciler {
@@ -43,7 +43,7 @@ func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht c
 		Log:              log,
 		Scheme:           s,
 		phoneHomeTrigger: pht,
-		clientService:    cs,
+		clientRegistry:   cs,
 	}
 }
 
@@ -123,7 +123,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	cl, err := GetHazelcastClient(r.clientService, m)
+	cl, err := GetHazelcastClient(r.clientRegistry, m)
 	if err != nil {
 		if errors.IsInternalError(err) {
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).
