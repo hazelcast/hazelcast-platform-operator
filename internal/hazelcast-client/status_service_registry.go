@@ -24,7 +24,7 @@ func (ssr *HzStatusServiceRegistry) Create(ns types.NamespacedName, cl Client, l
 		return ss
 	}
 
-	ss = newStatusService(ns, cl, l, channel)
+	ss = NewStatusService(ns, cl, l, channel)
 	ssr.statusServices.Store(ns, ss)
 	ss.Start()
 	return ss

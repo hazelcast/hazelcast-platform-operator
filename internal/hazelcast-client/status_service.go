@@ -66,10 +66,10 @@ type HzStatusService struct {
 	sync.Mutex
 	client               Client
 	cancel               context.CancelFunc
-	NamespacedName       types.NamespacedName
-	Log                  logr.Logger
-	Status               *Status
-	StatusLock           sync.Mutex
+	namespacedName       types.NamespacedName
+	log                  logr.Logger
+	status               *Status
+	statusLock           sync.Mutex
 	triggerReconcileChan chan event.GenericEvent
 	statusTicker         *StatusTicker
 }
@@ -84,12 +84,12 @@ func (s *StatusTicker) stop() {
 	s.done <- true
 }
 
-func newStatusService(n types.NamespacedName, cl Client, l logr.Logger, channel chan event.GenericEvent) *HzStatusService {
+func NewStatusService(n types.NamespacedName, cl Client, l logr.Logger, channel chan event.GenericEvent) *HzStatusService {
 	return &HzStatusService{
 		client:               cl,
-		NamespacedName:       n,
-		Log:                  l,
-		Status:               &Status{MemberMap: make(map[hztypes.UUID]*MemberData)},
+		namespacedName:       n,
+		log:                  l,
+		status:               &Status{MemberMap: make(map[hztypes.UUID]*MemberData)},
 		triggerReconcileChan: channel,
 	}
 }
@@ -119,20 +119,20 @@ func (ss *HzStatusService) Start() {
 func (ss *HzStatusService) triggerReconcile() {
 	ss.triggerReconcileChan <- event.GenericEvent{
 		Object: &hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
-			Namespace: ss.NamespacedName.Namespace,
-			Name:      ss.NamespacedName.Name,
+			Namespace: ss.namespacedName.Namespace,
+			Name:      ss.namespacedName.Name,
 		}}}
 }
 
 func (ss *HzStatusService) GetStatus() *Status {
-	return ss.Status
+	return ss.status
 }
 
 func (ss *HzStatusService) UpdateMembers(ctx context.Context) {
 	if ss.client == nil {
 		return
 	}
-	ss.Log.V(2).Info("Updating Hazelcast status", "CR", ss.NamespacedName)
+	ss.log.V(2).Info("Updating Hazelcast status", "CR", ss.namespacedName)
 
 	activeMemberList := ss.client.OrderedMembers()
 	activeMembers := make(map[hztypes.UUID]*MemberData, len(activeMemberList))
@@ -142,16 +142,16 @@ func (ss *HzStatusService) UpdateMembers(ctx context.Context) {
 		activeMembers[memberInfo.UUID] = newMemberData(memberInfo)
 		state, err := fetchTimedMemberState(ctx, ss.client, memberInfo.UUID)
 		if err != nil {
-			ss.Log.V(2).Info("Error fetching timed member state", "CR", ss.NamespacedName, "error:", err)
+			ss.log.V(2).Info("Error fetching timed member state", "CR", ss.namespacedName, "error:", err)
 		}
 		activeMembers[memberInfo.UUID].enrichMemberData(state.TimedMemberState)
 		newClusterHotRestartStatus = &state.TimedMemberState.MemberState.ClusterHotRestartStatus
 	}
 
-	ss.StatusLock.Lock()
-	ss.Status.MemberMap = activeMembers
-	ss.Status.ClusterHotRestartStatus = *newClusterHotRestartStatus
-	ss.StatusLock.Unlock()
+	ss.statusLock.Lock()
+	ss.status.MemberMap = activeMembers
+	ss.status.ClusterHotRestartStatus = *newClusterHotRestartStatus
+	ss.statusLock.Unlock()
 }
 
 func (ss *HzStatusService) GetTimedMemberState(ctx context.Context, uuid hztypes.UUID) (*codecTypes.TimedMemberStateWrapper, error) {
