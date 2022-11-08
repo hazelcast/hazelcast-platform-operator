@@ -38,6 +38,10 @@ type Cache struct {
 	Status CacheStatus `json:"status,omitempty"`
 }
 
+func (c *Cache) GetKind() string {
+	return c.Kind
+}
+
 func (c *Cache) GetDSName() string {
 	if c.Spec.Name != "" {
 		return c.Spec.Name
