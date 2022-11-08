@@ -11,10 +11,22 @@ spec:
     kind: Cache
     listKind: CacheList
     plural: caches
+    shortNames:
+    - ch
     singular: cache
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the Queue Config
+      jsonPath: .status.state
+      name: Status
+      type: string
+    - description: Message for the current Queue Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Cache is the Schema for the caches API
@@ -2965,6 +2977,8 @@ spec:
     kind: Queue
     listKind: QueueList
     plural: queues
+    shortNames:
+    - q
     singular: queue
   scope: Namespaced
   versions:
