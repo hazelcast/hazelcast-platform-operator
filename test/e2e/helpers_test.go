@@ -720,3 +720,15 @@ func getQueueConfigFromMemberConfig(memberConfigXML string, queueName string) *c
 	}
 	return nil
 }
+
+func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *codecTypes.CacheConfigInput {
+	var caches codecTypes.CacheConfigs
+	err := xml.Unmarshal([]byte(memberConfigXML), &caches)
+	Expect(err).To(BeNil())
+	for _, c := range caches.Caches {
+		if c.Name == cacheName {
+			return &c
+		}
+	}
+	return nil
+}
