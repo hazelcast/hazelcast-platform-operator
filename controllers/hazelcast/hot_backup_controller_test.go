@@ -54,8 +54,8 @@ func hotBackupReconcilerWithCRs(initObjs ...client.Object) *HotBackupReconciler 
 		ctrl.Log.WithName("test").WithName("Hazelcast"),
 		nil,
 		nil,
-		&hzclient.ClientRegistry{},
-		&hzclient.StatusServiceRegistry{},
+		&hzclient.HazelcastClientRegistry{},
+		&hzclient.HzStatusServiceRegistry{},
 	)
 
 }

@@ -119,8 +119,8 @@ func main() {
 		}
 	}
 
-	cr := &hzclient.ClientRegistry{}
-	ssm := &hzclient.StatusServiceRegistry{}
+	cr := &hzclient.HazelcastClientRegistry{}
+	ssm := &hzclient.HzStatusServiceRegistry{}
 
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),

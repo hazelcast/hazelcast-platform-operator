@@ -7,17 +7,23 @@ import (
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
-type BackupService struct {
+type BackupService interface {
+	ChangeClusterState(ctx context.Context, newState codecTypes.ClusterState) error
+	TriggerHotRestartBackup(ctx context.Context) error
+	InterruptHotRestartBackup(ctx context.Context) error
+}
+
+type HzBackupService struct {
 	Client Client
 }
 
-func NewBackupService(cl Client) *BackupService {
-	return &BackupService{
+func NewBackupService(cl Client) *HzBackupService {
+	return &HzBackupService{
 		Client: cl,
 	}
 }
 
-func (bs *BackupService) ChangeClusterState(ctx context.Context, newState codecTypes.ClusterState) error {
+func (bs *HzBackupService) ChangeClusterState(ctx context.Context, newState codecTypes.ClusterState) error {
 	req := codec.EncodeMCChangeClusterStateRequest(newState)
 	_, err := bs.Client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
@@ -26,7 +32,7 @@ func (bs *BackupService) ChangeClusterState(ctx context.Context, newState codecT
 	return nil
 }
 
-func (bs *BackupService) TriggerHotRestartBackup(ctx context.Context) error {
+func (bs *HzBackupService) TriggerHotRestartBackup(ctx context.Context) error {
 	req := codec.EncodeMCTriggerHotRestartBackupRequest()
 	_, err := bs.Client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
@@ -35,7 +41,7 @@ func (bs *BackupService) TriggerHotRestartBackup(ctx context.Context) error {
 	return nil
 }
 
-func (bs *BackupService) InterruptHotRestartBackup(ctx context.Context) error {
+func (bs *HzBackupService) InterruptHotRestartBackup(ctx context.Context) error {
 	req := codec.EncodeMCInterruptHotRestartBackupRequest()
 	_, err := bs.Client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {

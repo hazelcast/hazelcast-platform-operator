@@ -33,23 +33,23 @@ const retryAfter = 10 * time.Second
 // HazelcastReconciler reconciles a Hazelcast object
 type HazelcastReconciler struct {
 	client.Client
-	Log                  logr.Logger
-	Scheme               *runtime.Scheme
-	triggerReconcileChan chan event.GenericEvent
-	phoneHomeTrigger     chan struct{}
-	clientManager        *hzclient.ClientRegistry
-	statusServiceManager *hzclient.StatusServiceRegistry
+	Log                   logr.Logger
+	Scheme                *runtime.Scheme
+	triggerReconcileChan  chan event.GenericEvent
+	phoneHomeTrigger      chan struct{}
+	clientRegistry        hzclient.ClientRegistry
+	statusServiceRegistry hzclient.StatusServiceRegistry
 }
 
-func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs *hzclient.ClientRegistry, ssm *hzclient.StatusServiceRegistry) *HazelcastReconciler {
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *HazelcastReconciler {
 	return &HazelcastReconciler{
-		Client:               c,
-		Log:                  log,
-		Scheme:               s,
-		triggerReconcileChan: make(chan event.GenericEvent),
-		phoneHomeTrigger:     pht,
-		clientManager:        cs,
-		statusServiceManager: ssm,
+		Client:                c,
+		Log:                   log,
+		Scheme:                s,
+		triggerReconcileChan:  make(chan event.GenericEvent),
+		phoneHomeTrigger:      pht,
+		clientRegistry:        cs,
+		statusServiceRegistry: ssm,
 	}
 }
 
@@ -205,15 +205,15 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	cl, err := r.clientManager.Create(ctx, h)
+	cl, err := r.clientRegistry.Create(ctx, h)
 	if err != nil {
 		return r.update(ctx, h, failedPhase(err).withMessage(err.Error()))
 	}
-	r.statusServiceManager.Create(cl, r.Log, req.NamespacedName, r.triggerReconcileChan)
+	r.statusServiceRegistry.Create(req.NamespacedName, cl, r.Log, r.triggerReconcileChan)
 
 	if newExecutorServices != nil {
-		hzClient, err := r.clientManager.Get(req.NamespacedName)
-		if !(err == nil && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
+		hzClient, ok := r.clientRegistry.Get(req.NamespacedName)
+		if !(ok && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
 			return r.update(ctx, h, pendingPhase(retryAfter))
 		}
 		r.addExecutorServices(ctx, hzClient, newExecutorServices)
@@ -231,12 +231,12 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	externalAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
 	return r.update(ctx, h, r.runningPhaseWithStatus(req).
 		withExternalAddresses(externalAddrs).
-		withMessage(clientConnectionMessage(r.clientManager, req)))
+		withMessage(clientConnectionMessage(r.clientRegistry, req)))
 }
 
 func (r *HazelcastReconciler) runningPhaseWithStatus(req ctrl.Request) optionsBuilder {
-	if ss, err := r.statusServiceManager.Get(req.NamespacedName); err == nil {
-		return runningPhase().withStatus(ss.Status)
+	if ss, ok := r.statusServiceRegistry.Get(req.NamespacedName); ok {
+		return runningPhase().withStatus(ss.GetStatus())
 	}
 	return runningPhase()
 }
@@ -291,9 +291,9 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 	}
 }
 
-func clientConnectionMessage(cs *hzclient.ClientRegistry, req ctrl.Request) string {
-	c, err := cs.Get(req.NamespacedName)
-	if err != nil {
+func clientConnectionMessage(cs hzclient.ClientRegistry, req ctrl.Request) string {
+	c, ok := cs.Get(req.NamespacedName)
+	if !ok {
 		return "Operator failed to create connection to cluster, some features might be unavailable."
 	}
 
