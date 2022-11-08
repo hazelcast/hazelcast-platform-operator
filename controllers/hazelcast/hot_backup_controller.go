@@ -231,13 +231,13 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
 
-	client, err := r.clientManager.Get(hazelcastName)
+	client, err := r.clientManager.GetClient(hazelcastName)
 	if err != nil {
 		logger.Error(err, "Get Hazelcast Client failed")
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
 
-	statusService, err := r.statusServiceManager.Get(hazelcastName)
+	statusService, err := r.statusServiceManager.GetStatusService(hazelcastName)
 	if err != nil {
 		logger.Error(err, "Get Hazelcast Status Service failed")
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))

@@ -17,28 +17,28 @@ type ClientManager struct {
 	Clients sync.Map
 }
 
-func (cs *ClientManager) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error) {
+func (cs *ClientManager) CreateClient(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error) {
 	ns := types.NamespacedName{Namespace: h.Namespace, Name: h.Name}
-	client, err := cs.Get(ns)
+	client, err := cs.GetClient(ns)
 	if err == nil {
 		return client, nil
 	}
 	c, err := NewClient(ctx, BuildConfig(h))
-	if err != nil {
-		return nil, err
+	if err == nil {
+		return client, nil
 	}
 	cs.Clients.Store(ns, c)
 	return c, nil
 }
 
-func (cs *ClientManager) Get(ns types.NamespacedName) (client Client, err error) {
+func (cs *ClientManager) GetClient(ns types.NamespacedName) (client Client, err error) {
 	if v, ok := cs.Clients.Load(ns); ok {
 		return v.(Client), nil
 	}
 	return nil, errNoClient
 }
 
-func (cs *ClientManager) Delete(ctx context.Context, ns types.NamespacedName) {
+func (cs *ClientManager) DeleteClient(ctx context.Context, ns types.NamespacedName) {
 	if c, ok := cs.Clients.LoadAndDelete(ns); ok {
 		c.(Client).Shutdown(ctx) //nolint:errcheck
 	}
