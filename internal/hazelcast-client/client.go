@@ -11,9 +11,14 @@ import (
 )
 
 type Client interface {
+	Running() bool
+	IsClientConnected() bool
 	AreAllMembersAccessible() bool
+
 	OrderedMembers() []cluster.MemberInfo
 	InvokeOnMember(ctx context.Context, req *proto.ClientMessage, uuid hztypes.UUID, opts *proto.InvokeOptions) (*proto.ClientMessage, error)
+	InvokeOnRandomTarget(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error)
+
 	Shutdown(ctx context.Context) error
 }
 
@@ -48,6 +53,20 @@ func (cl *HazelcastClient) OrderedMembers() []cluster.MemberInfo {
 	return icl.OrderedMembers()
 }
 
+func (cl *HazelcastClient) IsClientConnected() bool {
+	if cl.client == nil {
+		return false
+	}
+
+	icl := hazelcast.NewClientInternal(cl.client)
+	for _, mem := range icl.OrderedMembers() {
+		if icl.ConnectedToMember(mem.UUID) {
+			return true
+		}
+	}
+	return false
+}
+
 func (cl *HazelcastClient) AreAllMembersAccessible() bool {
 	if cl.client == nil {
 		return false
@@ -66,14 +85,24 @@ func (cl *HazelcastClient) InvokeOnMember(ctx context.Context, req *proto.Client
 	if cl.client == nil {
 		return nil, fmt.Errorf("Hazelcast client is nil")
 	}
+	client := cl.client
 
-	ci := hazelcast.NewClientInternal(cl.client)
-
-	if uuid.Default() {
-		return ci.InvokeOnRandomTarget(ctx, req, opts)
-	}
-
+	ci := hazelcast.NewClientInternal(client)
 	return ci.InvokeOnMember(ctx, req, uuid, opts)
+}
+
+func (cl *HazelcastClient) InvokeOnRandomTarget(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
+	if cl.client == nil {
+		return nil, fmt.Errorf("Hazelcast client is nil")
+	}
+	client := cl.client
+
+	ci := hazelcast.NewClientInternal(client)
+	return ci.InvokeOnRandomTarget(ctx, req, opts)
+}
+
+func (cl *HazelcastClient) Running() bool {
+	return cl.client != nil && cl.client.Running()
 }
 
 func (c *HazelcastClient) Shutdown(ctx context.Context) error {

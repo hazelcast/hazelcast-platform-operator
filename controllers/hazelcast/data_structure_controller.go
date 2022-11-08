@@ -171,12 +171,18 @@ func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hz
 		return nil, result, err
 	}
 
-	hzcl, err := cs.Get(hzLookup)
+	hzcl, err := cs.GetClient(hzLookup)
 	if err != nil {
 		err = errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", hzResourceName))
 		result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(err).withMessage(err.Error()))
 		return nil, result, err
 	}
+	if !hzcl.Running() {
+		err = fmt.Errorf("trying to connect to the cluster %s", hzResourceName)
+		result, err := updateDSStatus(ctx, c, obj, dsPendingStatus(retryAfterForDataStructures).withMessage(err.Error()))
+		return nil, result, err
+	}
+
 	return hzcl, ctrl.Result{}, nil
 }
 

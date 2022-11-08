@@ -8,6 +8,7 @@ import (
 
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -131,7 +132,9 @@ func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.H
 	h.Status.Phase = options.phase
 	h.Status.Cluster.ReadyMembers = "N/A"
 
-	if options.readyMembers != nil {
+	cl, err := r.clientManager.GetClient(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+
+	if err == nil && cl.IsClientConnected() {
 		h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
 	}
 
