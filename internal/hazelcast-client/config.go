@@ -23,11 +23,11 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 		},
 		Cluster: cluster.Config{
 			ConnectionStrategy: cluster.ConnectionStrategyConfig{
-				Timeout:       hztypes.Duration(0),
+				Timeout:       hztypes.Duration(3 * time.Second),
 				ReconnectMode: cluster.ReconnectModeOn,
 				Retry: cluster.ConnectionRetryConfig{
-					InitialBackoff: hztypes.Duration(1 * time.Second),
-					MaxBackoff:     hztypes.Duration(10 * time.Second),
+					InitialBackoff: hztypes.Duration(200 * time.Millisecond),
+					MaxBackoff:     hztypes.Duration(1 * time.Second),
 					Jitter:         0.25,
 				},
 			},
