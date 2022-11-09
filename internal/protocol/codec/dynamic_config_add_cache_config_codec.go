@@ -64,7 +64,7 @@ func EncodeDynamicConfigAddCacheConfigRequest(c *types.CacheConfigInput) *proto.
 	EncodeNullableForString(clientMessage, c.CacheWriterFactory)
 	EncodeNullableForString(clientMessage, c.CacheLoader)
 	EncodeNullableForString(clientMessage, c.CacheWriter)
-	EncodeString(clientMessage, c.InMemoryFormat)
+	EncodeString(clientMessage, string(c.InMemoryFormat))
 	EncodeNullableForString(clientMessage, c.SplitBrainProtectionName)
 	EncodeNullableForString(clientMessage, c.MergePolicy)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.PartitionLostListenerConfigs)
