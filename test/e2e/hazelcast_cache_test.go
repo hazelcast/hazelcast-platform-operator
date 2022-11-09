@@ -2,9 +2,10 @@ package e2e
 
 import (
 	"context"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"strconv"
 	. "time"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -94,7 +95,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		cs := hazelcastcomv1alpha1.CacheSpec{
 			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
 				HazelcastResourceName: hzLookupKey.Name,
-				BackupCount:           pointer.Int32Ptr(3),
+				BackupCount:           pointer.Int32(3),
 			},
 		}
 		q := hazelcastconfig.Cache(cs, chLookupKey, labels)
@@ -102,8 +103,8 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		q = assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Cache{}).(*hazelcastcomv1alpha1.Cache)
 
 		By("failing to update cache config")
-		q.Spec.BackupCount = pointer.Int32Ptr(5)
-		q.Spec.AsyncBackupCount = pointer.Int32Ptr(20)
+		q.Spec.BackupCount = pointer.Int32(5)
+		q.Spec.AsyncBackupCount = pointer.Int32(20)
 		Expect(k8sClient.Update(context.Background(), q)).Should(Succeed())
 		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Cache{})
 	})

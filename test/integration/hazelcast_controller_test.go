@@ -217,8 +217,8 @@ var _ = Describe("Hazelcast controller", func() {
 				APIVersion:         "hazelcast.com/v1alpha1",
 				UID:                fetchedCR.UID,
 				Name:               fetchedCR.Name,
-				Controller:         pointer.BoolPtr(true),
-				BlockOwnerDeletion: pointer.BoolPtr(true),
+				Controller:         pointer.Bool(true),
+				BlockOwnerDeletion: pointer.Bool(true),
 			}
 
 			fetchedClusterRole := &rbacv1.ClusterRole{}
@@ -899,7 +899,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Statefulset Updates", func() {
 		firstSpec := hazelcastv1alpha1.HazelcastSpec{
-			ClusterSize:      pointer.Int32Ptr(2),
+			ClusterSize:      pointer.Int32(2),
 			Repository:       "hazelcast/hazelcast-enterprise",
 			Version:          "5.2",
 			ImagePullPolicy:  corev1.PullAlways,
@@ -910,7 +910,7 @@ var _ = Describe("Hazelcast controller", func() {
 			Resources:        nil,
 		}
 		secondSpec := hazelcastv1alpha1.HazelcastSpec{
-			ClusterSize:     pointer.Int32Ptr(3),
+			ClusterSize:     pointer.Int32(3),
 			Repository:      "hazelcast/hazelcast",
 			Version:         "5.3",
 			ImagePullPolicy: corev1.PullIfNotPresent,
@@ -1034,7 +1034,7 @@ var _ = Describe("Hazelcast controller", func() {
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: cm,
 								},
-								DefaultMode: pointer.Int32Ptr(420),
+								DefaultMode: pointer.Int32(420),
 							},
 						},
 					})

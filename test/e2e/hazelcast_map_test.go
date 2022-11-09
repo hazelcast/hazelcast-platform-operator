@@ -106,7 +106,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		CreateHazelcastCR(hazelcast)
 
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		m.Spec.BackupCount = pointer.Int32Ptr(3)
+		m.Spec.BackupCount = pointer.Int32(3)
 		m.Spec.Indexes = []hazelcastcomv1alpha1.IndexConfig{
 			{
 				Name:               "index-1",
@@ -169,11 +169,11 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("updating the map config")
-		m.Spec.TimeToLiveSeconds = pointer.Int32Ptr(150)
-		m.Spec.MaxIdleSeconds = pointer.Int32Ptr(100)
+		m.Spec.TimeToLiveSeconds = pointer.Int32(150)
+		m.Spec.MaxIdleSeconds = pointer.Int32(100)
 		m.Spec.Eviction = &hazelcastcomv1alpha1.EvictionConfig{
 			EvictionPolicy: hazelcastcomv1alpha1.EvictionPolicyLFU,
-			MaxSize:        pointer.Int32Ptr(500),
+			MaxSize:        pointer.Int32(500),
 			MaxSizePolicy:  hazelcastcomv1alpha1.MaxSizePolicyFreeHeapSize,
 		}
 		Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
@@ -203,7 +203,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("failing to update map config")
-		m.Spec.BackupCount = pointer.Int32Ptr(3)
+		m.Spec.BackupCount = pointer.Int32(3)
 		Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
 	})

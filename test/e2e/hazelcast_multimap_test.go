@@ -2,9 +2,10 @@ package e2e
 
 import (
 	"context"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"strconv"
 	. "time"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -94,7 +95,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 		mms := hazelcastcomv1alpha1.MultiMapSpec{
 			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
 				HazelcastResourceName: hzLookupKey.Name,
-				BackupCount:           pointer.Int32Ptr(3),
+				BackupCount:           pointer.Int32(3),
 			},
 			Binary:         true,
 			CollectionType: hazelcastcomv1alpha1.CollectionTypeList,
@@ -104,7 +105,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 		mm = assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{}).(*hazelcastcomv1alpha1.MultiMap)
 
 		By("failing to update multiMap config")
-		mm.Spec.BackupCount = pointer.Int32Ptr(5)
+		mm.Spec.BackupCount = pointer.Int32(5)
 		mm.Spec.Binary = false
 		Expect(k8sClient.Update(context.Background(), mm)).Should(Succeed())
 		assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.MultiMap{})

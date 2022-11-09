@@ -211,7 +211,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 						}},
 						VolumeMounts: []corev1.VolumeMount{},
 						LivenessProbe: &v1.Probe{
-							Handler: v1.Handler{
+							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/health",
 									Port:   intstr.FromInt(8081),
@@ -225,7 +225,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 							FailureThreshold:    10,
 						},
 						ReadinessProbe: &v1.Probe{
-							Handler: v1.Handler{
+							ProbeHandler: v1.ProbeHandler{
 								TCPSocket: &v1.TCPSocketAction{
 									Port: intstr.FromInt(8080),
 								},

@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
-	"k8s.io/utils/pointer"
 	"net"
 	"path"
 	"strconv"
 	"strings"
+
+	"k8s.io/utils/pointer"
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
@@ -610,7 +611,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	if h.Spec.JetEngineConfiguration.IsConfigured() {
 		cfg.Jet = config.Jet{
 			Enabled:               h.Spec.JetEngineConfiguration.Enabled,
-			ResourceUploadEnabled: pointer.BoolPtr(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
+			ResourceUploadEnabled: pointer.Bool(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
 		}
 	}
 
@@ -1029,7 +1030,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							Protocol:      v1.ProtocolTCP,
 						}},
 						LivenessProbe: &v1.Probe{
-							Handler: v1.Handler{
+							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(n.DefaultHzPort),
@@ -1043,7 +1044,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							FailureThreshold:    10,
 						},
 						ReadinessProbe: &v1.Probe{
-							Handler: v1.Handler{
+							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(n.DefaultHzPort),
@@ -1168,7 +1169,7 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		}},
 		Args: []string{"backup"},
 		LivenessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
 					Path:   "/health",
 					Port:   intstr.FromInt(8080),
@@ -1182,7 +1183,7 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			FailureThreshold:    10,
 		},
 		ReadinessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
 					Path:   "/health",
 					Port:   intstr.FromInt(8080),
