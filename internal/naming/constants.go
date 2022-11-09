@@ -136,6 +136,7 @@ const (
 	DefaultCacheMergeBatchSize                    = int32(100)
 	DefaultCacheReadThrough                       = false
 	DefaultCacheWriteThrough                      = false
+	DefaultCacheInMemoryFormat                    = "BINARY"
 	DefaultCacheDisablePerEntryInvalidationEvents = false
 )
 
