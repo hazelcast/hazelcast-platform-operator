@@ -117,7 +117,7 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 	cacheInput.EventJournalConfig = codecTypes.EventJournalConfig{
 		IsDefined:         false,
 		Enabled:           false,
-		Capacity:          0,
+		Capacity:          1,
 		TimeToLiveSeconds: 1,
 	}
 	//default values
