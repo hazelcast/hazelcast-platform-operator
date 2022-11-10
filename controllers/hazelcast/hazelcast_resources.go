@@ -167,13 +167,20 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 	}
 
+	if h.Spec.Persistence.IsEnabled() {
+		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
+			APIGroups: []string{"apps"},
+			Resources: []string{"statefulsets"},
+			Verbs:     []string{"watch"},
+		})
+	}
+
 	if platform.GetType() == platform.OpenShift {
 		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{"security.openshift.io"},
 			Resources: []string{"securitycontextconstraints"},
 			Verbs:     []string{"use"},
-		},
-		)
+		})
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
