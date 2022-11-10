@@ -716,7 +716,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Delete(hz)
 			})
 
-			FIt("should add RBAC PolicyRule for watch statefulsets", Label("fast"), func() {
+			It("should add RBAC PolicyRule for watch statefulsets", Label("fast"), func() {
 				s := test.HazelcastSpec(defaultSpecValues, ee)
 				s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
