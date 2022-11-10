@@ -3414,12 +3414,6 @@ rules:
   resources:
   - statefulsets
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - hazelcast.com
