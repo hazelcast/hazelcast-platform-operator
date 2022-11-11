@@ -7,12 +7,21 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
+
+var backupBackoff = wait.Backoff{
+	Steps:    8,
+	Duration: 10 * time.Millisecond,
+	Factor:   2.0,
+	Jitter:   0.1,
+}
 
 type ClusterBackup struct {
 	client     *hzclient.Client
@@ -49,15 +58,22 @@ func NewClusterBackup(h *hazelcastv1alpha1.Hazelcast) (*ClusterBackup, error) {
 
 func (b *ClusterBackup) Start(ctx context.Context) error {
 	// switch cluster to passive for the time of hot backup
-	err := b.client.ChangeClusterState(ctx, codecTypes.ClusterStatePassive)
+	err := retryOnError(backupBackoff,
+		func() error { return b.client.ChangeClusterState(ctx, codecTypes.ClusterStatePassive) })
 	if err != nil {
 		return err
 	}
 
 	// activate cluster after backup, silently ignore state change status
-	defer b.client.ChangeClusterState(ctx, codecTypes.ClusterStateActive) //nolint:errcheck
+	defer retryOnError(backupBackoff, //nolint:errcheck
+		func() error { return b.client.ChangeClusterState(ctx, codecTypes.ClusterStateActive) })
 
-	return b.client.TriggerHotRestartBackup(ctx)
+	return retryOnError(backupBackoff,
+		func() error { return b.client.TriggerHotRestartBackup(ctx) })
+}
+
+func retryOnError(backoff wait.Backoff, fn func() error) error {
+	return retry.OnError(backoff, func(error) bool { return true }, fn)
 }
 
 func (b *ClusterBackup) Cancel(ctx context.Context) error {
