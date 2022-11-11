@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 	"strings"
 	"time"
 
@@ -77,12 +78,19 @@ func (o optionsBuilder) withExternalAddresses(addrs string) optionsBuilder {
 	return o
 }
 
-func statusMembers(m map[hztypes.UUID]*hzclient.MemberData) []hazelcastv1alpha1.HazelcastMemberStatus {
+func statusMembers(m map[hztypes.UUID]*hzclient.MemberData, memberPods []corev1.Pod) []hazelcastv1alpha1.HazelcastMemberStatus {
 	members := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(m))
 	for uid, member := range m {
 		a := member.Address
 		ip := a[:strings.IndexByte(a, ':')]
+		podName := ""
+		for _, pod := range memberPods {
+			if pod.Status.PodIP == ip {
+				podName = pod.Name
+			}
+		}
 		members = append(members, hazelcastv1alpha1.HazelcastMemberStatus{
+			PodName:         podName,
 			Uid:             uid.String(),
 			Ip:              ip,
 			Version:         member.Version,
@@ -143,10 +151,10 @@ func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.H
 	if ok && cl.IsClientConnected() {
 		h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
 	}
-
 	h.Status.Message = options.message
 	h.Status.ExternalAddresses = options.externalAddresses
-	h.Status.Members = addExistingMembers(statusMembers(options.readyMembers), h.Status.Members)
+	memberPods := getMemberPods(ctx, c, h)
+	h.Status.Members = addExistingMembers(statusMembers(options.readyMembers, memberPods), h.Status.Members)
 	if options.err != nil {
 		if pErr, isPodErr := util.AsPodErrors(options.err); isPodErr {
 			for _, podError := range pErr {
@@ -175,4 +183,18 @@ func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.H
 		return ctrl.Result{Requeue: true, RequeueAfter: options.retryAfter}, nil
 	}
 	return ctrl.Result{}, nil
+}
+
+func getMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) []corev1.Pod {
+	podList := &corev1.PodList{}
+	opts := []client.ListOption{
+		client.InNamespace(h.Namespace),
+		client.MatchingLabels{"app.kubernetes.io/instance": h.Name},
+		client.MatchingLabels{"app.kubernetes.io/managed-by": "hazelcast-platform-operator"},
+	}
+	err := c.List(ctx, podList, opts...)
+	if err != nil {
+		return make([]corev1.Pod, 0)
+	}
+	return podList.Items
 }
