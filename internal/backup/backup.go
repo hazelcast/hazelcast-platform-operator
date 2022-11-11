@@ -37,6 +37,7 @@ func NewClusterBackup(ss hzclient.StatusService, bs hzclient.BackupService) (*Cl
 	return &ClusterBackup{
 		statusService: ss,
 		backupService: bs,
+		members:       status.MemberMap,
 	}, nil
 }
 
