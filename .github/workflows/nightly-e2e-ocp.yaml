@@ -41,7 +41,7 @@ jobs:
             oc adm policy add-scc-to-user privileged system:serviceaccount:newrelic:default
 
           helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
-            --set "global.cluster=ocp-operator" \
+            --set "global.cluster=${{ env.NR_CLUSTER_NAME }}" \
             --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
             --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ env.CLUSTER_NAME }}" \
             --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
