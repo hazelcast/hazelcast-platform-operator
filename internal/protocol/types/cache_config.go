@@ -3,7 +3,7 @@ package types
 import n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 type CacheConfigs struct {
-	Caches []CacheConfigInput `xml:"queue"`
+	Caches []CacheConfigInput `xml:"cache"`
 }
 
 type CacheConfigInput struct {
