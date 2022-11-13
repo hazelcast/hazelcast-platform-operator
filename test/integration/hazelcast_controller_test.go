@@ -715,6 +715,39 @@ var _ = Describe("Hazelcast controller", func() {
 				)
 				Delete(hz)
 			})
+
+			It("should add RBAC PolicyRule for watch statefulsets", Label("fast"), func() {
+				s := test.HazelcastSpec(defaultSpecValues, ee)
+				s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+						StorageClassName: &[]string{"standard"}[0],
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       s,
+				}
+
+				Create(hz)
+				EnsureStatus(hz)
+
+				By("checking ClusterRole", func() {
+					rbac := &rbacv1.ClusterRole{}
+					Expect(k8sClient.Get(
+						context.Background(), client.ObjectKey{Name: hz.ClusterScopedName()}, rbac)).
+						Should(Succeed())
+
+					Expect(rbac.Rules).Should(ContainElement(rbacv1.PolicyRule{
+						APIGroups: []string{"apps"},
+						Resources: []string{"statefulsets"},
+						Verbs:     []string{"watch"},
+					}))
+				})
+			})
 		})
 	})
 

@@ -1265,7 +1265,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.1.4
+                default: 5.2.0
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
@@ -2418,7 +2418,7 @@ spec:
                     type: array
                 type: object
               version:
-                default: 5.1.4
+                default: 5.2.0
                 description: Version of Management Center.
                 type: string
             type: object
@@ -3531,6 +3531,12 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - watch
 - apiGroups:
   - hazelcast.com
   resources:

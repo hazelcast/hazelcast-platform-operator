@@ -17,6 +17,12 @@ rules:
   - get
   - list
 - apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - watch
+- apiGroups:
   - hazelcast.com
   resources:
   - cronhotbackups
