@@ -134,7 +134,7 @@ func (r *CacheReconciler) validateCacheConfigPersistence(ctx context.Context, c 
 		return false, err
 	}
 
-	ccfg, ok := hzConfig.Hazelcast.Queue[c.GetDSName()]
+	ccfg, ok := hzConfig.Hazelcast.Cache[c.GetDSName()]
 	if !ok {
 		return false, nil
 	}
