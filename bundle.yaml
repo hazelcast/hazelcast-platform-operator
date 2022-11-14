@@ -1265,7 +1265,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.2.0
+                default: 5.2.1
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
