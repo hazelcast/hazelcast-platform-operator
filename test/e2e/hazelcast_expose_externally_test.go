@@ -3,8 +3,10 @@ package e2e
 import (
 	"context"
 	"fmt"
+	hzCluster "github.com/hazelcast/hazelcast-go-client/cluster"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -110,36 +112,27 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
 		members := getHazelcastMembers(ctx, hazelcast)
-		fmt.Printf("members len: %v\n", len(members))
-		fmt.Printf("members: %v\n", members)
 		clientMembers := GetHzClientMembers(ctx, hzLookupKey, false)
-		fmt.Printf("clientMembers: %v\n", clientMembers)
-
 	memberLoop:
 		for _, member := range members {
 			for _, clientMember := range clientMembers {
 				if member.Uid == clientMember.UUID.String() {
-					fmt.Printf("matched member: %v\n", member)
-					//Expect(member.Ip).Should(Equal(clientMember.Address.String()))
-					//Expect(clientMember.AddressMap).Should(HaveLen(2))
+					Expect(member.Ip).Should(Equal(ipOfClientMemberAddress(clientMember.Address)))
 					service := getServiceOfMember(ctx, member)
-					node := getNodeOfMember(ctx, member)
-					fmt.Printf("service: %v", service)
-					fmt.Printf("node: %v", node)
-					endpoints := combineNodeAddressesWithServicePods(node.Status.Addresses, service.Spec.Ports)
-					fmt.Printf("endpoints: %v\n", endpoints)
-					Expect(endpoints).Should(HaveLen(1))
+					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
+					Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
+					Expect(clientMember.AddressMap).Should(HaveLen(2))
 					for endpointQualifier, cliMemberAddress := range clientMember.AddressMap {
 						if endpointQualifier.Identifier == "public" {
-							Expect(cliMemberAddress.String()).Should(Equal(endpoints[0]))
+							Expect(ipOfClientMemberAddress(cliMemberAddress)).Should(Equal(service.Status.LoadBalancer.Ingress[0].IP))
 						} else {
-							Expect(cliMemberAddress.String()).Should(Equal(member.Ip))
+							Expect(ipOfClientMemberAddress(cliMemberAddress)).Should(Equal(member.Ip))
 						}
 					}
 					continue memberLoop
 				}
 			}
-			Fail("member UUID and client member UUID is not matched")
+			Fail(fmt.Sprintf("member Uid '%s' is not matched with client members UUIDs", member.Uid))
 		}
 		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
 		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
@@ -181,4 +174,8 @@ func combineNodeAddressesWithServicePods(nodeAddresses []corev1.NodeAddress, ser
 		}
 	}
 	return endpoints
+}
+
+func ipOfClientMemberAddress(addr hzCluster.Address) string {
+	return string(addr[:strings.IndexByte(string(addr), ':')])
 }
