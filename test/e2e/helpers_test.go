@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	hzCluster "github.com/hazelcast/hazelcast-go-client/cluster"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"io"
 	"log"
@@ -212,6 +213,12 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 	return clientWithConfig
 }
 
+func GetHzClientMembers(ctx context.Context, lk types.NamespacedName, unisocket bool) []hzCluster.MemberInfo {
+	clientHz := GetHzClient(ctx, lk, unisocket)
+	clientHzInternal := hzClient.NewClientInternal(clientHz)
+	return clientHzInternal.OrderedMembers()
+}
+
 func getClientSet() *kubernetes.Clientset {
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
 	restConfig, err := kubeConfig.ClientConfig()
@@ -274,7 +281,8 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 	})
 }
 
-/**
+/*
+*
 1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
 */
 func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
