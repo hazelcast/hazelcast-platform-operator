@@ -275,9 +275,11 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 			err := clientHz.Shutdown(ctx)
 			Expect(err).To(BeNil())
 		}()
-		hzMap, err := clientHz.GetMap(ctx, mapName)
-		Expect(err).To(BeNil())
 		Eventually(func() (int, error) {
+			hzMap, err := clientHz.GetMap(ctx, mapName)
+			if err != nil {
+				return -1, err
+			}
 			return hzMap.Size(ctx)
 		}, timeout, 10*Second).Should(Equal(mapSize))
 	})
