@@ -53,7 +53,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
-        uses: 'google-github-actions/auth@v0.8.3'
+        uses: 'google-github-actions/auth@v1.0.0'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -102,7 +102,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
-        uses: 'google-github-actions/auth@v0.8.3'
+        uses: 'google-github-actions/auth@v1.0.0'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -144,7 +144,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.8.3'
+        uses: 'google-github-actions/auth@v1.0.0'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -211,7 +211,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Authenticate To GCP
-        uses: 'google-github-actions/auth@v0.8.3'
+        uses: 'google-github-actions/auth@v1.0.0'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
@@ -240,7 +240,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Authenticate To GCP
-        uses: 'google-github-actions/auth@v0.8.3'
+        uses: 'google-github-actions/auth@v1.0.0'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
