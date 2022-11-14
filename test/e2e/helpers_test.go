@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	hzCluster "github.com/hazelcast/hazelcast-go-client/cluster"
 	"io"
 	"log"
 	"math"
@@ -211,6 +212,12 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 		clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
 	})
 	return clientWithConfig
+}
+
+func GetHzClientMembers(ctx context.Context, lk types.NamespacedName, unisocket bool) []hzCluster.MemberInfo {
+	clientHz := GetHzClient(ctx, lk, unisocket)
+	clientHzInternal := hzClient.NewClientInternal(clientHz)
+	return clientHzInternal.OrderedMembers()
 }
 
 func getClientSet() *kubernetes.Clientset {
