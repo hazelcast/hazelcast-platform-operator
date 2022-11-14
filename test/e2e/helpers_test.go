@@ -167,7 +167,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 				Name:      hazelcast.Name,
 				Namespace: hazelcast.Namespace,
 			}, h)
-		}, 1*Minute, interval).ShouldNot(Succeed())
+		}, 2*Minute, interval).ShouldNot(Succeed())
 	})
 }
 func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
