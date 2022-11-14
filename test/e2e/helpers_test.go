@@ -167,7 +167,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 				Name:      hazelcast.Name,
 				Namespace: hazelcast.Namespace,
 			}, h)
-		}, 1*Minute, interval).ShouldNot(Succeed())
+		}, 4*Minute, interval).ShouldNot(Succeed())
 	})
 }
 func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
@@ -283,7 +283,8 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 	})
 }
 
-/**
+/*
+*
 1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
 */
 func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
