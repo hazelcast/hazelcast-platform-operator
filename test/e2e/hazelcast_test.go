@@ -107,13 +107,15 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			err := k8sClient.Get(context.Background(), hzLookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
-			for _, member := range hz.Status.Members {
-				Expect(member.PodName).ShouldNot(Equal(""))
-				pod := &corev1.Pod{}
-				err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: hz.Namespace, Name: member.PodName}, pod)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(member.Ip).Should(Equal(pod.Status.PodIP))
-			}
+			By("checking hazelcast members pod name", func() {
+				for _, member := range hz.Status.Members {
+					Expect(member.PodName).Should(ContainSubstring(hz.Name))
+					pod := &corev1.Pod{}
+					err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: hz.Namespace, Name: member.PodName}, pod)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(member.Ip).Should(Equal(pod.Status.PodIP))
+				}
+			})
 		})
 	})
 
