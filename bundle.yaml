@@ -3674,6 +3674,15 @@ rules:
   - get
   - list
 - apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - apps
   resources:
   - statefulsets
@@ -3935,6 +3944,26 @@ subjects:
   name: hazelcast-platform-controller-manager
   namespace: default
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/created-by: hazelcast-platform-operator
+    app.kubernetes.io/instance: webhook-service
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: service
+    app.kubernetes.io/part-of: hazelcast-platform-operator
+  name: hazelcast-platform-webhook-service
+  namespace: default
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    control-plane: controller-manager
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -3979,6 +4008,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz
@@ -3994,5 +4027,198 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - emptyDir: {}
+        name: cert
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: hazelcast-platform-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-cronhotbackup
+  failurePolicy: Ignore
+  name: vcronhotbackup.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cronhotbackups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-hazelcast
+  failurePolicy: Ignore
+  name: vhazelcast.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - hazelcasts
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-hotbackup
+  failurePolicy: Ignore
+  name: vhotbackup.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - hotbackups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-managementcenter
+  failurePolicy: Ignore
+  name: vmanagementcenter.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - managementcenters
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-map
+  failurePolicy: Ignore
+  name: vmap.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - maps
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-multimap
+  failurePolicy: Ignore
+  name: vmultimap.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - multimaps
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-queue
+  failurePolicy: Ignore
+  name: vqueue.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - queues
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-topic
+  failurePolicy: Ignore
+  name: vtopic.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - topics
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-wanreplication
+  failurePolicy: Ignore
+  name: vwanreplication.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - wanreplications
+  sideEffects: None

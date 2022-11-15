@@ -200,6 +200,12 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
 
+webhook-install: manifests kustomize
+	$(KUSTOMIZE) build config/webhook | $(KUBECTL) apply -f -
+
+webhook-uninstall: manifests kustomize
+	$(KUSTOMIZE) build config/webhook | $(KUBECTL) delete -f -
+
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 ifneq (,$(NAME_PREFIX))
 	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)

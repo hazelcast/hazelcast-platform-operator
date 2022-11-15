@@ -15,10 +15,20 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: CronHotBackup is the Schema for the cronhotbackups API
+      displayName: Cron Hot Backup
+      kind: CronHotBackup
+      name: cronhotbackups.hazelcast.com
+      version: v1alpha1
     - description: Hazelcast is the Schema for the hazelcasts API
       displayName: Hazelcast
       kind: Hazelcast
       name: hazelcasts.hazelcast.com
+      version: v1alpha1
+    - description: HotBackup is the Schema for the hot backup API
+      displayName: Hot Backup
+      kind: HotBackup
+      name: hotbackups.hazelcast.com
       version: v1alpha1
     - description: ManagementCenter is the Schema for the managementcenters API
       displayName: Management Center
@@ -29,6 +39,31 @@ spec:
       displayName: Map
       kind: Map
       name: maps.hazelcast.com
+      version: v1alpha1
+    - description: MultiMap is the Schema for the multimaps API
+      displayName: Multi Map
+      kind: MultiMap
+      name: multimaps.hazelcast.com
+      version: v1alpha1
+    - description: Queue is the Schema for the queues API
+      displayName: Queue
+      kind: Queue
+      name: queues.hazelcast.com
+      version: v1alpha1
+    - description: ReplicatedMap is the Schema for the replicatedmaps API
+      displayName: Replicated Map
+      kind: ReplicatedMap
+      name: replicatedmaps.hazelcast.com
+      version: v1alpha1
+    - description: Topic is the Schema for the topics API
+      displayName: Topic
+      kind: Topic
+      name: topics.hazelcast.com
+      version: v1alpha1
+    - description: WanReplication is the Schema for the wanreplications API
+      displayName: Wan Replication
+      kind: WanReplication
+      name: wanreplications.hazelcast.com
       version: v1alpha1
   description: |
     # Hazelcast Platform Operator #

@@ -42,7 +42,7 @@ func EncodeWanReplicationRef(clientMessage *proto.ClientMessage, wanReplicationR
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableForWanReplicationRef(clientMessage *proto.ClientMessage, wanReplicationRef types.WanReplicationRef) {
 	// types.WanReplicationRef{} is not comparable with ==
 	if reflect.DeepEqual(types.WanReplicationRef{}, wanReplicationRef) {

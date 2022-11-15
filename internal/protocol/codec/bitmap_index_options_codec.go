@@ -38,7 +38,7 @@ func EncodeBitmapIndexOptions(clientMessage *proto.ClientMessage, bitmapIndexOpt
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableForBitmapIndexOptions(message *proto.ClientMessage, options types.BitmapIndexOptions) {
 	if options == (types.BitmapIndexOptions{}) {
 		message.AddFrame(proto.NullFrame.Copy())
@@ -62,7 +62,7 @@ func DecodeBitmapIndexOptions(frameIterator *proto.ForwardFrameIterator) types.B
 	}
 }
 
-//manual
+// manual
 func DecodeNullableForBitmapIndexOptions(frameIterator *proto.ForwardFrameIterator) types.BitmapIndexOptions {
 	if NextFrameIsNullFrame(frameIterator) {
 		return types.BitmapIndexOptions{}

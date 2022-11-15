@@ -72,7 +72,7 @@ func Test_deploymentName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.podName, func(t *testing.T) {
-			if got := deploymentName(tt.podName); got != tt.deploymentName {
+			if got := DeploymentName(tt.podName); got != tt.deploymentName {
 				t.Errorf("deploymentName() = %v, podName %v", got, tt.podName)
 			}
 		})

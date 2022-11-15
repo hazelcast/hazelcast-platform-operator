@@ -134,11 +134,11 @@ type ManagementCenterStatus struct {
 //+kubebuilder:subresource:status
 
 // ManagementCenter is the Schema for the managementcenters API
-//+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Management Center deployment"
-//+kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Management Center deployment"
-//+kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current ManagementCenter Config"
-//+kubebuilder:resource:shortName=mc
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Management Center deployment"
+// +kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Management Center deployment"
+// +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current ManagementCenter Config"
+// +kubebuilder:resource:shortName=mc
 type ManagementCenter struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

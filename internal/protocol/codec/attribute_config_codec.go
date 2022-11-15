@@ -31,7 +31,7 @@ func EncodeAttributeConfig(clientMessage *proto.ClientMessage, attributeConfig t
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeListMultiFrameAttributeConfig(message *proto.ClientMessage, values []types.AttributeConfig) {
 	message.AddFrame(proto.BeginFrame.Copy())
 	for i := 0; i < len(values); i++ {
@@ -40,7 +40,7 @@ func EncodeListMultiFrameAttributeConfig(message *proto.ClientMessage, values []
 	message.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableListMultiFrameForAttributeConfig(message *proto.ClientMessage, values []types.AttributeConfig) {
 	if values == nil {
 		message.AddFrame(proto.NullFrame.Copy())
