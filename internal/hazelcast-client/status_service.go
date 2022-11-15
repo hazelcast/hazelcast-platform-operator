@@ -27,7 +27,7 @@ type StatusService interface {
 }
 
 type Status struct {
-	MemberMap               map[hztypes.UUID]*MemberData
+	MemberDataMap           map[hztypes.UUID]*MemberData
 	ClusterHotRestartStatus codecTypes.ClusterHotRestartStatus
 }
 
@@ -89,7 +89,7 @@ func NewStatusService(n types.NamespacedName, cl Client, l logr.Logger, channel 
 		client:               cl,
 		namespacedName:       n,
 		log:                  l,
-		status:               &Status{MemberMap: make(map[hztypes.UUID]*MemberData)},
+		status:               &Status{MemberDataMap: make(map[hztypes.UUID]*MemberData)},
 		triggerReconcileChan: channel,
 	}
 }
@@ -149,7 +149,7 @@ func (ss *HzStatusService) UpdateMembers(ctx context.Context) {
 	}
 
 	ss.statusLock.Lock()
-	ss.status.MemberMap = activeMembers
+	ss.status.MemberDataMap = activeMembers
 	ss.status.ClusterHotRestartStatus = *newClusterHotRestartStatus
 	ss.statusLock.Unlock()
 }

@@ -55,7 +55,7 @@ func terminatingPhase(err error) optionsBuilder {
 }
 
 func (o optionsBuilder) withStatus(s *hzclient.Status) optionsBuilder {
-	o.readyMembers = s.MemberMap
+	o.readyMembers = s.MemberDataMap
 	o.restoreState = s.ClusterHotRestartStatus
 	return o
 }

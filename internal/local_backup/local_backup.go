@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
 )
@@ -26,7 +27,7 @@ func NewLocalBackup(config *Config) (*LocalBackup, error) {
 	if err != nil {
 		return nil, err
 	}
-	s, err := rest.NewLocalBackupService("https://"+host+":8443", &config.MTLSClient.Client)
+	s, err := rest.NewLocalBackupService(hzclient.AgentUrl(host), &config.MTLSClient.Client)
 	if err != nil {
 		return nil, err
 	}

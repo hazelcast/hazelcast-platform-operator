@@ -16,6 +16,10 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
+const (
+	AgentPort = 8443
+)
+
 func BuildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	config := hazelcast.Config{
 		Logger: logger.Config{
@@ -45,4 +49,8 @@ func RestUrl(h *hazelcastv1alpha1.Hazelcast) string {
 
 func HazelcastUrl(h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort)
+}
+
+func AgentUrl(host string) string {
+	return fmt.Sprintf("https://%s:%d", host, AgentPort)
 }
