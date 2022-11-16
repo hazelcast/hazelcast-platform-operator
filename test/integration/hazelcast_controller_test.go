@@ -744,7 +744,7 @@ var _ = Describe("Hazelcast controller", func() {
 					Expect(rbac.Rules).Should(ContainElement(rbacv1.PolicyRule{
 						APIGroups: []string{"apps"},
 						Resources: []string{"statefulsets"},
-						Verbs:     []string{"watch"},
+						Verbs:     []string{"watch", "list"},
 					}))
 				})
 			})
