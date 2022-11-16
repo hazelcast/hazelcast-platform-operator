@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
+	"k8s.io/utils/pointer"
 	"net"
 	"path"
 	"strconv"
@@ -558,9 +559,6 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 
 func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	cfg := config.Hazelcast{
-		Jet: config.Jet{
-			Enabled: &[]bool{true}[0],
-		},
 		Network: config.Network{
 			Join: config.Join{
 				Kubernetes: config.Kubernetes{
@@ -583,6 +581,13 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				},
 			},
 		},
+	}
+
+	if h.Spec.JetEngineConfiguration.IsConfigured() {
+		cfg.Jet = config.Jet{
+			Enabled:               h.Spec.JetEngineConfiguration.Enabled,
+			ResourceUploadEnabled: pointer.BoolPtr(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
+		}
 	}
 
 	if h.Spec.UserCodeDeployment != nil {

@@ -22,7 +22,8 @@ type Hazelcast struct {
 }
 
 type Jet struct {
-	Enabled *bool `yaml:"enabled,omitempty"`
+	Enabled               *bool `yaml:"enabled,omitempty"`
+	ResourceUploadEnabled *bool `yaml:"resource-upload-enabled,omitempty"`
 }
 
 type Network struct {
@@ -207,6 +208,7 @@ func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
 				},
 			},
 		},
+		Jet:                hz.Jet,
 		UserCodeDeployment: hz.UserCodeDeployment,
 		Properties:         hz.Properties,
 	}

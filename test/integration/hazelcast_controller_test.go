@@ -663,6 +663,34 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
+	Context("Jet Engine configuration", func() {
+		When("Jet is not configured", func() {
+			It("should be enabled by default", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				_ = EnsureStatus(hz)
+
+				Eventually(func() bool {
+					cfg := getConfigMap(hz)
+					a := &config.HazelcastWrapper{}
+
+					if err := yaml.Unmarshal([]byte(cfg.Data["hazelcast.yaml"]), a); err != nil {
+						return false
+					}
+
+					return *a.Hazelcast.Jet.Enabled
+				}, timeout, interval).Should(BeTrue())
+
+				Delete(hz)
+			})
+		})
+	})
+
 	Context("Hot Restart Persistence configuration", func() {
 		When("Persistence is configured", func() {
 			It("should create volumeClaimTemplates", Label("fast"), func() {
