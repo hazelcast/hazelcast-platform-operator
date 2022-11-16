@@ -70,70 +70,67 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
+
 		members := getHazelcastMembers(ctx, hazelcast)
-		fmt.Printf("members len: %v\n", len(members))
-		fmt.Printf("members: %v\n", members)
 		clientMembers := GetHzClientMembers(ctx, hzLookupKey, false)
-		fmt.Printf("clientMembers: %v\n", clientMembers)
+
+		By("matching HZ members with client members and comparing their public IPs")
 
 	memberLoop:
 		for _, member := range members {
 			for _, clientMember := range clientMembers {
 				if member.Uid == clientMember.UUID.String() {
-					fmt.Printf("matched member: %v\n", member)
-					//Expect(member.Ip).Should(Equal(clientMember.Address.String()))
-					//Expect(clientMember.AddressMap).Should(HaveLen(2))
 					service := getServiceOfMember(ctx, member)
+					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 					node := getNodeOfMember(ctx, member)
-					fmt.Printf("service: %v", service)
-					fmt.Printf("node: %v", node)
-					endpoints := combineNodeAddressesWithServicePods(node.Status.Addresses, service.Spec.Ports)
-					fmt.Printf("endpoints: %v\n", endpoints)
-					Expect(endpoints).Should(HaveLen(1))
-					for endpointQualifier, cliMemberAddress := range clientMember.AddressMap {
-						if endpointQualifier.Identifier == "public" {
-							Expect(cliMemberAddress.String()).Should(Equal(endpoints[0]))
-						} else {
-							Expect(cliMemberAddress.String()).Should(Equal(member.Ip))
-						}
-					}
-					continue memberLoop
-				}
-			}
-			Fail("member UUID and client member UUID is not matched")
-		}
-		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
-		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
-	})
-
-	FIt("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("slow"), func() {
-		setLabelAndCRName("hee-3")
-		hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
-		members := getHazelcastMembers(ctx, hazelcast)
-		clientMembers := GetHzClientMembers(ctx, hzLookupKey, false)
-	memberLoop:
-		for _, member := range members {
-			for _, clientMember := range clientMembers {
-				if member.Uid == clientMember.UUID.String() {
-					Expect(member.Ip).Should(Equal(ipOfClientMemberAddress(clientMember.Address)))
-					service := getServiceOfMember(ctx, member)
-					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
-					Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
-					Expect(clientMember.AddressMap).Should(HaveLen(2))
-					for endpointQualifier, cliMemberAddress := range clientMember.AddressMap {
-						if endpointQualifier.Identifier == "public" {
-							Expect(ipOfClientMemberAddress(cliMemberAddress)).Should(Equal(service.Status.LoadBalancer.Ingress[0].IP))
-						} else {
-							Expect(ipOfClientMemberAddress(cliMemberAddress)).Should(Equal(member.Ip))
-						}
-					}
+					Expect(service.Spec.Ports).Should(HaveLen(1))
+					nodePort := service.Spec.Ports[0].NodePort
+					externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
+					Expect(externalAddresses).Should(HaveLen(1))
+					externalAddress := fmt.Sprintf("%s:%d", externalAddresses[0], nodePort)
+					clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
+					Expect(clientPublicAddresses).Should(HaveLen(1))
+					clientPublicAddress := clientPublicAddresses[0]
+					Expect(externalAddress).Should(Equal(clientPublicAddress))
 					continue memberLoop
 				}
 			}
 			Fail(fmt.Sprintf("member Uid '%s' is not matched with client members UUIDs", member.Uid))
 		}
+
+		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
+		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+	})
+
+	It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("slow"), func() {
+		setLabelAndCRName("hee-3")
+		hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey, 3)
+
+		members := getHazelcastMembers(ctx, hazelcast)
+		clientMembers := GetHzClientMembers(ctx, hzLookupKey, false)
+
+		By("matching HZ members with client members and comparing their public IPs")
+
+	memberLoop:
+		for _, member := range members {
+			for _, clientMember := range clientMembers {
+				if member.Uid == clientMember.UUID.String() {
+					service := getServiceOfMember(ctx, member)
+					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
+					Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
+					serviceExternalIP := service.Status.LoadBalancer.Ingress[0].IP
+					clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
+					Expect(clientPublicAddresses).Should(HaveLen(1))
+					clientPublicIp := clientPublicAddresses[0][:strings.IndexByte(clientPublicAddresses[0], ':')]
+					Expect(serviceExternalIP).Should(Equal(clientPublicIp))
+					continue memberLoop
+				}
+			}
+			Fail(fmt.Sprintf("member Uid '%s' is not matched with client members UUIDs", member.Uid))
+		}
+
 		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
 		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
 	})
@@ -148,7 +145,6 @@ func getHazelcastMembers(ctx context.Context, hazelcast *hazelcastcomv1alpha1.Ha
 
 func getServiceOfMember(ctx context.Context, member hazelcastcomv1alpha1.HazelcastMemberStatus) *corev1.Service {
 	service := &corev1.Service{}
-	fmt.Printf("getting service of member, name: %s\n", member.PodName)
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: member.PodName}, service)
 	Expect(err).Should(BeNil())
 	return service
@@ -156,26 +152,30 @@ func getServiceOfMember(ctx context.Context, member hazelcastcomv1alpha1.Hazelca
 
 func getNodeOfMember(ctx context.Context, member hazelcastcomv1alpha1.HazelcastMemberStatus) *corev1.Node {
 	pod := &corev1.Pod{}
-	fmt.Printf("getting pod of member, name: %s\n", member.PodName)
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: member.PodName}, pod)
 	Expect(err).Should(BeNil())
 	node := &corev1.Node{}
-	fmt.Printf("getting pod of pod, name: %s\n", member.PodName)
 	err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Spec.NodeName}, node)
 	Expect(err).Should(BeNil())
 	return node
 }
 
-func combineNodeAddressesWithServicePods(nodeAddresses []corev1.NodeAddress, servicePorts []corev1.ServicePort) []string {
-	endpoints := make([]string, len(nodeAddresses))
-	for _, nodeAddress := range nodeAddresses {
-		for _, servicePort := range servicePorts {
-			endpoints = append(endpoints, fmt.Sprintf("%s:%d", nodeAddress.Address, servicePort.NodePort))
+func filterNodeAddressesByExternalIP(nodeAddresses []corev1.NodeAddress) []string {
+	addresses := make([]string, 0)
+	for _, addr := range nodeAddresses {
+		if addr.Type == corev1.NodeExternalIP {
+			addresses = append(addresses, addr.Address)
 		}
 	}
-	return endpoints
+	return addresses
 }
 
-func ipOfClientMemberAddress(addr hzCluster.Address) string {
-	return string(addr[:strings.IndexByte(string(addr), ':')])
+func filterClientMemberAddressesByPublicIdentifier(member hzCluster.MemberInfo) []string {
+	addresses := make([]string, 0)
+	for eq, addr := range member.AddressMap {
+		if eq.Identifier == "public" {
+			addresses = append(addresses, addr.String())
+		}
+	}
+	return addresses
 }

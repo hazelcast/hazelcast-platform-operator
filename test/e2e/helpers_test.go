@@ -215,7 +215,11 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 }
 
 func GetHzClientMembers(ctx context.Context, lk types.NamespacedName, unisocket bool) []hzCluster.MemberInfo {
-	clientHz := GetHzClient(ctx, lk, unisocket)
+	var clientHz *hzClient.Client
+	Eventually(func() *hzClient.Client {
+		clientHz = GetHzClient(ctx, lk, unisocket)
+		return clientHz
+	}, 3*Minute, interval).Should(Not(BeNil()))
 	clientHzInternal := hzClient.NewClientInternal(clientHz)
 	return clientHzInternal.OrderedMembers()
 }
