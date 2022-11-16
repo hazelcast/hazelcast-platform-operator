@@ -208,17 +208,16 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 		c.Cluster.Unisocket = unisocket
 		c.Cluster.Name = clusterName
 		c.Cluster.Discovery.UsePublicIP = true
-		clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
+		Eventually(func() *hzClient.Client {
+			clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
+			return clientWithConfig
+		}, 3*Minute, interval).Should(Not(BeNil()))
 	})
 	return clientWithConfig
 }
 
 func GetHzClientMembers(ctx context.Context, lk types.NamespacedName, unisocket bool) []hzCluster.MemberInfo {
-	var clientHz *hzClient.Client
-	Eventually(func() *hzClient.Client {
-		clientHz = GetHzClient(ctx, lk, unisocket)
-		return clientHz
-	}, 3*Minute, interval).Should(Not(BeNil()))
+	clientHz := GetHzClient(ctx, lk, unisocket)
 	clientHzInternal := hzClient.NewClientInternal(clientHz)
 	return clientHzInternal.OrderedMembers()
 }
