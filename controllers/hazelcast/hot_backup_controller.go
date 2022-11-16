@@ -130,8 +130,12 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return result, err
 	}
 	r.lockBackup(req.NamespacedName)
-	go r.startBackup(cancelCtx, req.NamespacedName, hb.Spec.IsExternal(), hazelcastName, logger) //nolint:errcheck
-
+	go func() {
+		_, err := r.startBackup(cancelCtx, req.NamespacedName, hb.Spec.IsExternal(), hazelcastName, logger)
+		if err != nil {
+			logger.Error(err, "Error taking backup")
+		}
+	}()
 	return
 }
 
@@ -242,7 +246,11 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		g.Go(func() error {
 			if err := m.Wait(groupCtx); err != nil {
 				// cancel cluster backup
-				return b.Cancel(ctx)
+				cancelErr := b.Cancel(ctx)
+				if cancelErr != nil {
+					return cancelErr
+				}
+				return fmt.Errorf("Backup error for member %s: %w", m.UUID, err)
 			}
 			return nil
 		})
@@ -308,7 +316,11 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					// notify agent so we can cleanup if needed
-					return u.Cancel(ctx)
+					cancelErr := u.Cancel(ctx)
+					if cancelErr != nil {
+						return cancelErr
+					}
+					return fmt.Errorf("Upload error for member %s: %w", m.UUID, err)
 				}
 				return err
 			}
