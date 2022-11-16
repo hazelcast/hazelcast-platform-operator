@@ -47,6 +47,13 @@ func runningPhase() optionsBuilder {
 	}
 }
 
+func (r *HazelcastReconciler) runningPhaseWithStatus(req ctrl.Request) optionsBuilder {
+	if ss, ok := r.statusServiceRegistry.Get(req.NamespacedName); ok {
+		return runningPhase().withStatus(ss.GetStatus())
+	}
+	return runningPhase()
+}
+
 func terminatingPhase(err error) optionsBuilder {
 	return optionsBuilder{
 		phase: hazelcastv1alpha1.Terminating,

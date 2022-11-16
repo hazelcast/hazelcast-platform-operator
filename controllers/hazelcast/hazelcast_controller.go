@@ -234,13 +234,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		withMessage(clientConnectionMessage(r.clientRegistry, req)))
 }
 
-func (r *HazelcastReconciler) runningPhaseWithStatus(req ctrl.Request) optionsBuilder {
-	if ss, ok := r.statusServiceRegistry.Get(req.NamespacedName); ok {
-		return runningPhase().withStatus(ss.GetStatus())
-	}
-	return runningPhase()
-}
-
 func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
 	p, ok := pod.(*corev1.Pod)
 	if !ok {
