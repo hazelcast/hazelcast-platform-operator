@@ -58,10 +58,11 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		setLabelAndCRName("hee-1")
 		hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
-		//todo: test env nodes has public ip address
-		//clientInternal := GetHzClientMembers(ctx, hzLookupKey, true)
+		evaluateReadyMembers(hzLookupKey, 3)
+
 		FillTheMapData(ctx, hzLookupKey, true, "map", 100)
 		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+
 		assertExternalAddressesNotEmpty()
 	})
 
@@ -100,6 +101,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 
 		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
 		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+
+		assertExternalAddressesNotEmpty()
 	})
 
 	It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", Label("slow"), func() {
@@ -133,6 +136,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 
 		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
 		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+
+		assertExternalAddressesNotEmpty()
 	})
 })
 
