@@ -61,7 +61,7 @@ func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 			HazelcastResourceName: nn.Name,
 		},
 	}
-	fakeHzClient, fakeHzStatusService := defaultFakeClientAndService()
+	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
 	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(200)
 		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
@@ -113,13 +113,68 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 			HazelcastResourceName: nn.Name,
 		},
 	}
-	fakeHzClient, fakeHzStatusService := defaultFakeClientAndService()
+	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
 	fakeHzClient.tInvokeOnRandomTarget = func(ctx context.Context, req *hazelcast.ClientMessage, opts *hazelcast.InvokeOptions) (*hazelcast.ClientMessage, error) {
 		if req.Type() == codec.MCTriggerHotRestartBackupCodecRequestMessageType {
 			return nil, fmt.Errorf("Backup trigger request failed")
 		}
 		return nil, nil
 	}
+
+	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(200)
+		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
+	})
+	Expect(err).Should(BeNil())
+	defer ts.Close()
+
+	sr := &fakeHzStatusServiceRegistry{}
+	cr := &fakeHzClientRegistry{}
+
+	sr.Set(nn, &fakeHzStatusService)
+	cr.Set(nn, &fakeHzClient)
+
+	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
+	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	Expect(err).Should(BeNil())
+
+	Eventually(func() hazelcastv1alpha1.HotBackupState {
+		_ = r.Client.Get(context.TODO(), nn, hb)
+		return hb.Status.State
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+}
+
+func TestHotBackupReconciler_shouldSetStatusToFailedWhenTimedMemberStateFails(t *testing.T) {
+	RegisterFailHandler(fail(t))
+	nn := types.NamespacedName{
+		Name:      "hazelcast",
+		Namespace: "default",
+	}
+	h := &hazelcastv1alpha1.Hazelcast{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+		Spec: hazelcastv1alpha1.HazelcastSpec{
+			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				BaseDir: "basedir",
+			},
+		},
+		Status: hazelcastv1alpha1.HazelcastStatus{
+			Phase: hazelcastv1alpha1.Running,
+		},
+	}
+	hb := &hazelcastv1alpha1.HotBackup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+		Spec: hazelcastv1alpha1.HotBackupSpec{
+			HazelcastResourceName: nn.Name,
+		},
+	}
+	fakeHzClient, fakeHzStatusService, mm := defaultFakeClientAndService()
+	fakeHzStatusService.timedMemberStateMap[mm[0].UUID].TimedMemberState.MemberState.HotRestartState.BackupTaskState = "FAILURE"
 
 	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(200)
@@ -178,7 +233,7 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 	restCallWg.Add(1)
 	var hotBackupTriggers int32
 
-	fakeHzClient, fakeHzStatusService := defaultFakeClientAndService()
+	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
 	fakeHzClient.tInvokeOnRandomTarget = func(ctx context.Context, req *hazelcast.ClientMessage, opts *hazelcast.InvokeOptions) (*hazelcast.ClientMessage, error) {
 		if req.Type() == codec.MCTriggerHotRestartBackupCodecRequestMessageType {
 			atomic.AddInt32(&hotBackupTriggers, 1)
@@ -253,7 +308,7 @@ func TestHotBackupReconciler_shouldCancelContextIfHazelcastCRIsDeleted(t *testin
 		},
 	}
 
-	fakeHzClient, fakeHzStatusService := defaultFakeClientAndService()
+	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
 	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(200)
 		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
@@ -329,7 +384,7 @@ func hotBackupReconcilerWithCRs(clientReg hzclient.ClientRegistry, serviceReg hz
 
 }
 
-func defaultFakeClientAndService() (fakeHzClient, fakeHzStatusService) {
+func defaultFakeClientAndService() (fakeHzClient, fakeHzStatusService, []cluster.MemberInfo) {
 	defaultMemberAddress := cluster.Address(defaultMemberIP + ":5701")
 	mm := []cluster.MemberInfo{
 		{
@@ -375,5 +430,5 @@ func defaultFakeClientAndService() (fakeHzClient, fakeHzStatusService) {
 			},
 		},
 	}
-	return fakeHzClient, fakeHzStatusService
+	return fakeHzClient, fakeHzStatusService, mm
 }
