@@ -3536,6 +3536,7 @@ rules:
   resources:
   - statefulsets
   verbs:
+  - list
   - watch
 - apiGroups:
   - hazelcast.com
