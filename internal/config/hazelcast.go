@@ -43,7 +43,6 @@ type Persistence struct {
 	DataLoadTimeoutSec        int32  `yaml:"data-load-timeout-seconds"`
 	ClusterDataRecoveryPolicy string `yaml:"cluster-data-recovery-policy"`
 	AutoRemoveStaleData       *bool  `yaml:"auto-remove-stale-data"`
-	AutoClusterState          *bool  `yaml:"auto.cluster.state"`
 }
 
 type Kubernetes struct {

@@ -621,7 +621,6 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			DataLoadTimeoutSec:        900,
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
 			AutoRemoveStaleData:       &[]bool{h.Spec.Persistence.AutoRemoveStaleData()}[0],
-			AutoClusterState:          &[]bool{false}[0],
 		}
 		if h.Spec.Persistence.DataRecoveryTimeout != 0 {
 			cfg.Persistence.ValidationTimeoutSec = h.Spec.Persistence.DataRecoveryTimeout
@@ -691,6 +690,7 @@ func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName stri
 
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
 	p := filterProperties(h.Spec.Properties)
+	p["hazelcast.persistence.auto.cluster.state"] = "false"
 	cfg.Properties = p
 }
 
