@@ -147,7 +147,7 @@ func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast
 	}
 	h.Status.Message = options.message
 	h.Status.ExternalAddresses = options.externalAddresses
-	memberPods := getMemberPods(ctx, c, h)
+	memberPods := getHzMemberPods(ctx, c, h)
 	h.Status.Members = addExistingMembers(statusMembers(options.readyMembers, memberPods), h.Status.Members)
 	if options.err != nil {
 		if pErr, isPodErr := util.AsPodErrors(options.err); isPodErr {
@@ -179,14 +179,14 @@ func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast
 	return ctrl.Result{}, nil
 }
 
-func getMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) []corev1.Pod {
+func getHzMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) []corev1.Pod {
 	podList := &corev1.PodList{}
-	opts := []client.ListOption{
-		client.InNamespace(h.Namespace),
-		client.MatchingLabels{"app.kubernetes.io/instance": h.Name},
-		client.MatchingLabels{"app.kubernetes.io/managed-by": "hazelcast-platform-operator"},
+	namespace := client.InNamespace(h.Namespace)
+	matchingLabels := client.MatchingLabels{}
+	for k, v := range labels(h) {
+		matchingLabels[k] = v
 	}
-	err := c.List(ctx, podList, opts...)
+	err := c.List(ctx, podList, namespace, matchingLabels)
 	if err != nil {
 		return make([]corev1.Pod, 0)
 	}
