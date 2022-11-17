@@ -72,7 +72,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	if m.GetDeletionTimestamp() != nil {
 		updateMapStatus(ctx, r.Client, m, terminatingStatus(nil)) //nolint:errcheck
-		err = r.executeFinalizer(ctx, m, logger)
+		err = r.executeFinalizer(ctx, m)
 		if err != nil {
 			return updateMapStatus(ctx, r.Client, m, terminatingStatus(err).withMessage(err.Error()))
 		}
@@ -91,7 +91,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 
-	err = ValidatePersistence(m.Spec.PersistenceEnabled, h)
+	err = util.ValidatePersistence(m.Spec.PersistenceEnabled, h)
 	if err != nil {
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
@@ -174,7 +174,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		withMemberStatuses(nil))
 }
 
-func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alpha1.Map, logger logr.Logger) error {
+func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alpha1.Map) error {
 	if !controllerutil.ContainsFinalizer(m, n.Finalizer) {
 		return nil
 	}
@@ -183,29 +183,6 @@ func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alph
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
-	return nil
-}
-
-func ValidatePersistence(pe bool, h *hazelcastv1alpha1.Hazelcast) error {
-	if !pe {
-		return nil
-	}
-	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-
-	if !ok {
-		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
-	}
-
-	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
-	err := json.Unmarshal([]byte(s), lastSpec)
-	if err != nil {
-		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
-	}
-
-	if !lastSpec.Persistence.IsEnabled() {
-		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
-	}
-
 	return nil
 }
 

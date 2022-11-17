@@ -72,6 +72,10 @@ spec:
                   CR name will be used. It cannot be updated after the config is created
                   successfully.
                 type: string
+              persistenceEnabled:
+                default: false
+                description: When enabled, cache data will be persisted.
+                type: boolean
               valueType:
                 description: Class name of the value type
                 type: string

@@ -265,6 +265,28 @@ func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool
 	})
 }
 
+func FillCacheData(ctx context.Context, lk types.NamespacedName, unisocket bool, cacheName string, entryCount int) {
+	By(fmt.Sprintf("filling the '%s' cache with '%d' entries using '%s' lookup name and '%s' namespace", cacheName, entryCount, lk.Name, lk.Namespace), func() {
+		var m *hzClient.Map
+		clientHz := GetHzClient(ctx, lk, unisocket)
+		m, err := clientHz.GetMap(ctx, cacheName)
+		Expect(err).ToNot(HaveOccurred())
+		initMapSize, err := m.Size(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		entries := make([]hzclienttypes.Entry, 0, entryCount)
+		for i := initMapSize; i < initMapSize+entryCount; i++ {
+			entries = append(entries, hzclienttypes.NewEntry(strconv.Itoa(i), strconv.Itoa(i)))
+		}
+		err = m.PutAll(ctx, entries...)
+		Expect(err).ToNot(HaveOccurred())
+		mapSize, err := m.Size(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mapSize).To(Equal(initMapSize + entryCount))
+		err = clientHz.Shutdown(ctx)
+		Expect(err).ToNot(HaveOccurred())
+	})
+}
+
 func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int, timeout Duration) {
 	By(fmt.Sprintf("waiting the '%s' map to be of size '%d' using lookup name '%s'", mapName, mapSize, lk.Name), func() {
 		if timeout == 0 {
