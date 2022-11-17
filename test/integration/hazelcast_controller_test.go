@@ -485,6 +485,7 @@ var _ = Describe("Hazelcast controller", func() {
 				"hazelcast.slow.operation.detector.threshold.millis":           "4000",
 				"hazelcast.slow.operation.detector.stacktrace.logging.enabled": "true",
 				"hazelcast.query.optimizer.type":                               "NONE",
+				"hazelcast.persistence.auto.cluster.state":                     "false",
 			}
 			spec.Properties = sampleProperties
 			hz := &hazelcastv1alpha1.Hazelcast{
