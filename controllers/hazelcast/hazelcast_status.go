@@ -190,5 +190,6 @@ func getHzMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	if err != nil {
 		return make([]corev1.Pod, 0)
 	}
+	fmt.Printf("getHzMemberPods: podList items len: %v", len(podList.Items))
 	return podList.Items
 }
