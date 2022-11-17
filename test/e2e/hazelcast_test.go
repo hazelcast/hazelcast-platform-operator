@@ -100,7 +100,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			))
 		})
 
-		FIt("should have correct pod name", Label("fast"), func() {
+		It("should have correct pod name", Label("fast"), func() {
 			setLabelAndCRName("h-5")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
