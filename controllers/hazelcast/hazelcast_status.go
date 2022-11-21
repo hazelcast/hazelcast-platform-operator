@@ -188,17 +188,22 @@ func getHzMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	}
 	err := c.List(ctx, podList, namespace, matchingLabels)
 	if err != nil {
-		fmt.Println("pod list error")
-		fmt.Println(err.Error())
-		fmt.Println("error print done")
+		printTraceLog("pod list error")
+		printTraceLog(err.Error())
 		return make([]corev1.Pod, 0)
 	}
-	fmt.Printf("pod list items len: %d\n", len(podList.Items))
-	fmt.Println("pod list")
-	for _, item := range podList.Items {
-		fmt.Printf("%+v\n", item)
-		fmt.Println("item print done")
+	printTraceLog("pod list is taken")
+	printTraceLog(fmt.Sprintf("pod list items len: %d", len(podList.Items)))
+	for i, item := range podList.Items {
+		printTraceLog(fmt.Sprintf("pod list item %v", i))
+		printTraceLog(fmt.Sprintf("%+v", item))
 	}
-	fmt.Println("pod list print done")
 	return podList.Items
+}
+
+func printTraceLog(s string) {
+	lines := strings.Split(s, "\n")
+	for _, line := range lines {
+		fmt.Printf("~~~~%s\n", line)
+	}
 }
