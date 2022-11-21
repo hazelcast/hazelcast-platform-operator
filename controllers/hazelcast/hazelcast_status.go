@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
 
@@ -153,7 +154,7 @@ func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.H
 	}
 	h.Status.Message = options.message
 	h.Status.ExternalAddresses = options.externalAddresses
-	memberPods := getHzMemberPods(ctx, c, h)
+	memberPods := getHzMemberPods(ctx, r.Client, h)
 	h.Status.Members = addExistingMembers(statusMembers(options.readyMembers, memberPods), h.Status.Members)
 	if options.err != nil {
 		if pErr, isPodErr := util.AsPodErrors(options.err); isPodErr {
