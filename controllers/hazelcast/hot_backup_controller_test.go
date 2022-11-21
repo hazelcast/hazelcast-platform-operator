@@ -34,40 +34,10 @@ var (
 
 func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 	RegisterFailHandler(fail(t))
-	nn := types.NamespacedName{
-		Name:      "hazelcast",
-		Namespace: "default",
-	}
-	h := &hazelcastv1alpha1.Hazelcast{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HazelcastSpec{
-			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "basedir",
-			},
-		},
-		Status: hazelcastv1alpha1.HazelcastStatus{
-			Phase: hazelcastv1alpha1.Running,
-		},
-	}
-	hb := &hazelcastv1alpha1.HotBackup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HotBackupSpec{
-			HazelcastResourceName: nn.Name,
-		},
-	}
+	nn, h, hb := defaultCRs()
 	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
-	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
-	})
-	Expect(err).Should(BeNil())
-	defer ts.Close()
+
+	defer defaultFakeHttpServer()()
 
 	cr := &fakeHzClientRegistry{}
 	sr := &fakeHzStatusServiceRegistry{}
@@ -75,7 +45,7 @@ func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 	sr.Set(nn, &fakeHzStatusService)
 
 	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
-	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
 	Eventually(func() hazelcastv1alpha1.HotBackupState {
@@ -86,33 +56,8 @@ func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 
 func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T) {
 	RegisterFailHandler(fail(t))
-	nn := types.NamespacedName{
-		Name:      "hazelcast",
-		Namespace: "default",
-	}
-	h := &hazelcastv1alpha1.Hazelcast{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HazelcastSpec{
-			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "basedir",
-			},
-		},
-		Status: hazelcastv1alpha1.HazelcastStatus{
-			Phase: hazelcastv1alpha1.Running,
-		},
-	}
-	hb := &hazelcastv1alpha1.HotBackup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HotBackupSpec{
-			HazelcastResourceName: nn.Name,
-		},
-	}
+	nn, h, hb := defaultCRs()
+
 	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
 	fakeHzClient.tInvokeOnRandomTarget = func(ctx context.Context, req *hazelcast.ClientMessage, opts *hazelcast.InvokeOptions) (*hazelcast.ClientMessage, error) {
 		if req.Type() == codec.MCTriggerHotRestartBackupCodecRequestMessageType {
@@ -121,12 +66,7 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 		return nil, nil
 	}
 
-	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
-	})
-	Expect(err).Should(BeNil())
-	defer ts.Close()
+	defer defaultFakeHttpServer()()
 
 	sr := &fakeHzStatusServiceRegistry{}
 	cr := &fakeHzClientRegistry{}
@@ -135,7 +75,7 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 	cr.Set(nn, &fakeHzClient)
 
 	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
-	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
 	Eventually(func() hazelcastv1alpha1.HotBackupState {
@@ -146,42 +86,12 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 
 func TestHotBackupReconciler_shouldSetStatusToFailedWhenTimedMemberStateFails(t *testing.T) {
 	RegisterFailHandler(fail(t))
-	nn := types.NamespacedName{
-		Name:      "hazelcast",
-		Namespace: "default",
-	}
-	h := &hazelcastv1alpha1.Hazelcast{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HazelcastSpec{
-			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "basedir",
-			},
-		},
-		Status: hazelcastv1alpha1.HazelcastStatus{
-			Phase: hazelcastv1alpha1.Running,
-		},
-	}
-	hb := &hazelcastv1alpha1.HotBackup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HotBackupSpec{
-			HazelcastResourceName: nn.Name,
-		},
-	}
+	nn, h, hb := defaultCRs()
+
 	fakeHzClient, fakeHzStatusService, mm := defaultFakeClientAndService()
 	fakeHzStatusService.timedMemberStateMap[mm[0].UUID].TimedMemberState.MemberState.HotRestartState.BackupTaskState = "FAILURE"
 
-	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
-	})
-	Expect(err).Should(BeNil())
-	defer ts.Close()
+	defer defaultFakeHttpServer()()
 
 	sr := &fakeHzStatusServiceRegistry{}
 	cr := &fakeHzClientRegistry{}
@@ -190,7 +100,7 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenTimedMemberStateFails(t 
 	cr.Set(nn, &fakeHzClient)
 
 	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
-	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
 	Eventually(func() hazelcastv1alpha1.HotBackupState {
@@ -201,33 +111,7 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenTimedMemberStateFails(t 
 
 func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 	RegisterFailHandler(fail(t))
-	nn := types.NamespacedName{
-		Name:      "hazelcast",
-		Namespace: "default",
-	}
-	h := &hazelcastv1alpha1.Hazelcast{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HazelcastSpec{
-			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "basedir",
-			},
-		},
-		Status: hazelcastv1alpha1.HazelcastStatus{
-			Phase: hazelcastv1alpha1.Running,
-		},
-	}
-	hb := &hazelcastv1alpha1.HotBackup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HotBackupSpec{
-			HazelcastResourceName: nn.Name,
-		},
-	}
+	nn, h, hb := defaultCRs()
 
 	var restCallWg sync.WaitGroup
 	restCallWg.Add(1)
@@ -242,12 +126,7 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 		return nil, nil
 	}
 
-	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
-	})
-	Expect(err).Should(BeNil())
-	defer ts.Close()
+	defer defaultFakeHttpServer()()
 
 	sr := &fakeHzStatusServiceRegistry{}
 	cr := &fakeHzClientRegistry{}
@@ -280,41 +159,10 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 
 func TestHotBackupReconciler_shouldCancelContextIfHazelcastCRIsDeleted(t *testing.T) {
 	RegisterFailHandler(fail(t))
-	nn := types.NamespacedName{
-		Name:      "hazelcast",
-		Namespace: "default",
-	}
-	h := &hazelcastv1alpha1.Hazelcast{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HazelcastSpec{
-			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "basedir",
-			},
-		},
-		Status: hazelcastv1alpha1.HazelcastStatus{
-			Phase: hazelcastv1alpha1.Running,
-		},
-	}
-	hb := &hazelcastv1alpha1.HotBackup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nn.Name,
-			Namespace: nn.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HotBackupSpec{
-			HazelcastResourceName: nn.Name,
-		},
-	}
+	nn, h, hb := defaultCRs()
 
 	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
-	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
-	})
-	Expect(err).Should(BeNil())
-	defer ts.Close()
+	defer defaultFakeHttpServer()()
 
 	cr := &fakeHzClientRegistry{}
 	sr := &fakeHzStatusServiceRegistry{}
@@ -322,7 +170,7 @@ func TestHotBackupReconciler_shouldCancelContextIfHazelcastCRIsDeleted(t *testin
 	sr.Set(nn, &fakeHzStatusService)
 
 	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
-	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
 	Expect(r.Client.Get(context.TODO(), nn, hb)).Should(Succeed())
@@ -341,27 +189,15 @@ func TestHotBackupReconciler_shouldCancelContextIfHazelcastCRIsDeleted(t *testin
 
 func TestHotBackupReconciler_shouldSetStatusToFailedIfHazelcastCRNotFound(t *testing.T) {
 	RegisterFailHandler(Fail)
-	n := types.NamespacedName{
-		Name:      "hazelcast",
-		Namespace: "default",
-	}
-	hb := &hazelcastv1alpha1.HotBackup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.Name,
-			Namespace: n.Namespace,
-		},
-		Spec: hazelcastv1alpha1.HotBackupSpec{
-			HazelcastResourceName: "hazelcast",
-		},
-	}
+	nn, _, hb := defaultCRs()
 
 	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, hb)
-	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: n})
+	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	if err == nil {
 		t.Errorf("Error executing Reconcile to return error but returned nil")
 	}
 
-	_ = r.Client.Get(context.TODO(), n, hb)
+	_ = r.Client.Get(context.TODO(), nn, hb)
 	Expect(hb.Status.State).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
 	Expect(hb.Status.Message).Should(Not(BeEmpty()))
 }
@@ -431,4 +267,44 @@ func defaultFakeClientAndService() (fakeHzClient, fakeHzStatusService, []cluster
 		},
 	}
 	return fakeHzClient, fakeHzStatusService, mm
+}
+
+func defaultCRs() (types.NamespacedName, *hazelcastv1alpha1.Hazelcast, *hazelcastv1alpha1.HotBackup) {
+	nn := types.NamespacedName{
+		Name:      "hazelcast",
+		Namespace: "default",
+	}
+	h := &hazelcastv1alpha1.Hazelcast{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+		Spec: hazelcastv1alpha1.HazelcastSpec{
+			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				BaseDir: "basedir",
+			},
+		},
+		Status: hazelcastv1alpha1.HazelcastStatus{
+			Phase: hazelcastv1alpha1.Running,
+		},
+	}
+	hb := &hazelcastv1alpha1.HotBackup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+		Spec: hazelcastv1alpha1.HotBackupSpec{
+			HazelcastResourceName: nn.Name,
+		},
+	}
+	return nn, h, hb
+}
+
+func defaultFakeHttpServer() func() {
+	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(200)
+		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
+	})
+	Expect(err).Should(BeNil())
+	return ts.Close
 }
