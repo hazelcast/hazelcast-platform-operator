@@ -105,6 +105,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey, 3)
+
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			err := k8sClient.Get(context.Background(), hzLookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
