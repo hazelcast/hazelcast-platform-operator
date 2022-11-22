@@ -13,6 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 
+	hzClient "github.com/hazelcast/hazelcast-go-client"
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -73,7 +74,9 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		evaluateReadyMembers(hzLookupKey, 3)
 
 		members := getHazelcastMembers(ctx, hazelcast)
-		clientMembers := GetHzClientMembers(ctx, hzLookupKey, false)
+		clientHz := GetHzClient(ctx, hzLookupKey, false)
+		defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
+		clientMembers := hzClient.NewClientInternal(clientHz).OrderedMembers()
 
 		By("matching HZ members with client members and comparing their public IPs")
 
@@ -112,7 +115,9 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		evaluateReadyMembers(hzLookupKey, 3)
 
 		members := getHazelcastMembers(ctx, hazelcast)
-		clientMembers := GetHzClientMembers(ctx, hzLookupKey, false)
+		clientHz := GetHzClient(ctx, hzLookupKey, false)
+		defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
+		clientMembers := hzClient.NewClientInternal(clientHz).OrderedMembers()
 
 		By("matching HZ members with client members and comparing their public IPs")
 
