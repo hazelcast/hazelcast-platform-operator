@@ -3,17 +3,17 @@ package e2e
 import (
 	"context"
 	"fmt"
-	hzCluster "github.com/hazelcast/hazelcast-go-client/cluster"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	. "time"
 
+	hzClient "github.com/hazelcast/hazelcast-go-client"
+	hzCluster "github.com/hazelcast/hazelcast-go-client/cluster"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hzClient "github.com/hazelcast/hazelcast-go-client"
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -88,9 +88,9 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 				}
 				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
+				nodePort := service.Spec.Ports[0].NodePort
 				node := getNodeOfMember(ctx, hzLookupKey.Namespace, member)
 				Expect(service.Spec.Ports).Should(HaveLen(1))
-				nodePort := service.Spec.Ports[0].NodePort
 				externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
 				Expect(externalAddresses).Should(HaveLen(1))
 				externalAddress := fmt.Sprintf("%s:%d", externalAddresses[0], nodePort)
@@ -131,7 +131,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
 				Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
-				serviceExternalIP := service.Status.LoadBalancer.Ingress[0].IP
+				serviceExternalIP := getLoadBalancerIngressPublicIP(ctx, service.Status.LoadBalancer.Ingress[0])
 				clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
 				Expect(clientPublicAddresses).Should(HaveLen(1))
 				clientPublicIp := clientPublicAddresses[0][:strings.IndexByte(clientPublicAddresses[0], ':')]
@@ -190,4 +190,16 @@ func filterClientMemberAddressesByPublicIdentifier(member hzCluster.MemberInfo) 
 		}
 	}
 	return addresses
+}
+
+func getLoadBalancerIngressPublicIP(ctx context.Context, lbi corev1.LoadBalancerIngress) string {
+	publicIP := lbi.IP
+	if publicIP == "" {
+		It("Lookup for hostname of load balancer ingress")
+		Eventually(func() (err error) {
+			publicIP, err = DnsLookup(ctx, lbi.Hostname)
+			return
+		}, 3*Minute, interval).Should(BeNil())
+	}
+	return publicIP
 }

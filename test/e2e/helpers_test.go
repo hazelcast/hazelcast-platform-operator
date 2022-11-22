@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -724,4 +725,24 @@ func getQueueConfigFromMemberConfig(memberConfigXML string, queueName string) *c
 		}
 	}
 	return nil
+}
+
+func DnsLookup(ctx context.Context, host string) (string, error) {
+	r := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{
+				Timeout: 10 * Second,
+			}
+			return d.DialContext(ctx, network, address)
+		},
+	}
+	IPs, err := r.LookupHost(ctx, host)
+	if err != nil {
+		return "", err
+	}
+	if len(IPs) == 0 {
+		return "", fmt.Errorf("host '%s' cannot be resolved", host)
+	}
+	return IPs[0], nil
 }
