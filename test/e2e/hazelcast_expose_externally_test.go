@@ -84,9 +84,9 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		for _, member := range members {
 			for _, clientMember := range clientMembers {
 				if member.Uid == clientMember.UUID.String() {
-					service := getServiceOfMember(ctx, member)
+					service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
-					node := getNodeOfMember(ctx, member)
+					node := getNodeOfMember(ctx, hzLookupKey.Namespace, member)
 					Expect(service.Spec.Ports).Should(HaveLen(1))
 					nodePort := service.Spec.Ports[0].NodePort
 					externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
@@ -125,7 +125,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		for _, member := range members {
 			for _, clientMember := range clientMembers {
 				if member.Uid == clientMember.UUID.String() {
-					service := getServiceOfMember(ctx, member)
+					service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
 					Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
 					serviceExternalIP := service.Status.LoadBalancer.Ingress[0].IP
@@ -153,16 +153,16 @@ func getHazelcastMembers(ctx context.Context, hazelcast *hazelcastcomv1alpha1.Ha
 	return hz.Status.Members
 }
 
-func getServiceOfMember(ctx context.Context, member hazelcastcomv1alpha1.HazelcastMemberStatus) *corev1.Service {
+func getServiceOfMember(ctx context.Context, namespace string, member hazelcastcomv1alpha1.HazelcastMemberStatus) *corev1.Service {
 	service := &corev1.Service{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: member.PodName}, service)
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: member.PodName}, service)
 	Expect(err).Should(BeNil())
 	return service
 }
 
-func getNodeOfMember(ctx context.Context, member hazelcastcomv1alpha1.HazelcastMemberStatus) *corev1.Node {
+func getNodeOfMember(ctx context.Context, namespace string, member hazelcastcomv1alpha1.HazelcastMemberStatus) *corev1.Node {
 	pod := &corev1.Pod{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: member.PodName}, pod)
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: member.PodName}, pod)
 	Expect(err).Should(BeNil())
 	node := &corev1.Node{}
 	err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Spec.NodeName}, node)
