@@ -102,6 +102,11 @@ type HazelcastSpec struct {
 	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.8"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
 
+	// Jet Engine configuration
+	// +optional
+	// +kubebuilder:default:={enabled: true}
+	JetEngineConfiguration *JetEngineConfiguration `json:"jet,omitempty"`
+
 	// User Codes to Download into CLASSPATH
 	// +optional
 	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
@@ -121,6 +126,17 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:="INFO"
 	LoggingLevel LoggingLevel `json:"loggingLevel,omitempty"`
+}
+
+type JetEngineConfiguration struct {
+	// When false, disables Jet Engine.
+	// +kubebuilder:default:=true
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// When true, enables resource uploading for Jet jobs.
+	// +optional
+	// +kubebuilder:default:=false
+	ResourceUploadEnabled bool `json:"resourceUploadEnabled"`
 }
 
 type ExecutorServiceConfiguration struct {
@@ -507,6 +523,11 @@ func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
 // RestoreFromHotBackupResourceName returns true if Restore is done from a HotBackup resource
 func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() bool {
 	return p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != ""
+}
+
+// Returns true if Jet section is configured.
+func (j *JetEngineConfiguration) IsConfigured() bool {
+	return j != nil
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
