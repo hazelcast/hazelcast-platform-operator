@@ -321,6 +321,16 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 			Ports:    hazelcastPort(),
 		},
 	}
+
+	if h.ExternalAddressEnabled() && !h.Spec.ExposeExternally.IsSmart() {
+		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
+			Name:       "hazelcast-port-ex",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       5702,
+			TargetPort: intstr.FromInt(5702),
+		})
+	}
+
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
