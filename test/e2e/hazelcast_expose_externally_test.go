@@ -83,21 +83,22 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	memberLoop:
 		for _, member := range members {
 			for _, clientMember := range clientMembers {
-				if member.Uid == clientMember.UUID.String() {
-					service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
-					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
-					node := getNodeOfMember(ctx, hzLookupKey.Namespace, member)
-					Expect(service.Spec.Ports).Should(HaveLen(1))
-					nodePort := service.Spec.Ports[0].NodePort
-					externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
-					Expect(externalAddresses).Should(HaveLen(1))
-					externalAddress := fmt.Sprintf("%s:%d", externalAddresses[0], nodePort)
-					clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
-					Expect(clientPublicAddresses).Should(HaveLen(1))
-					clientPublicAddress := clientPublicAddresses[0]
-					Expect(externalAddress).Should(Equal(clientPublicAddress))
-					continue memberLoop
+				if member.Uid != clientMember.UUID.String() {
+					continue
 				}
+				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
+				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
+				node := getNodeOfMember(ctx, hzLookupKey.Namespace, member)
+				Expect(service.Spec.Ports).Should(HaveLen(1))
+				nodePort := service.Spec.Ports[0].NodePort
+				externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
+				Expect(externalAddresses).Should(HaveLen(1))
+				externalAddress := fmt.Sprintf("%s:%d", externalAddresses[0], nodePort)
+				clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
+				Expect(clientPublicAddresses).Should(HaveLen(1))
+				clientPublicAddress := clientPublicAddresses[0]
+				Expect(externalAddress).Should(Equal(clientPublicAddress))
+				continue memberLoop
 			}
 			Fail(fmt.Sprintf("member Uid '%s' is not matched with client members UUIDs", member.Uid))
 		}
@@ -124,17 +125,18 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	memberLoop:
 		for _, member := range members {
 			for _, clientMember := range clientMembers {
-				if member.Uid == clientMember.UUID.String() {
-					service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
-					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
-					Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
-					serviceExternalIP := service.Status.LoadBalancer.Ingress[0].IP
-					clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
-					Expect(clientPublicAddresses).Should(HaveLen(1))
-					clientPublicIp := clientPublicAddresses[0][:strings.IndexByte(clientPublicAddresses[0], ':')]
-					Expect(serviceExternalIP).Should(Equal(clientPublicIp))
-					continue memberLoop
+				if member.Uid != clientMember.UUID.String() {
+					continue
 				}
+				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
+				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
+				Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
+				serviceExternalIP := service.Status.LoadBalancer.Ingress[0].IP
+				clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
+				Expect(clientPublicAddresses).Should(HaveLen(1))
+				clientPublicIp := clientPublicAddresses[0][:strings.IndexByte(clientPublicAddresses[0], ':')]
+				Expect(serviceExternalIP).Should(Equal(clientPublicIp))
+				continue memberLoop
 			}
 			Fail(fmt.Sprintf("member Uid '%s' is not matched with client members UUIDs", member.Uid))
 		}
