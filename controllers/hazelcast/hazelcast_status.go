@@ -81,15 +81,14 @@ func (o optionsBuilder) withExternalAddresses(addrs string) optionsBuilder {
 
 func statusMembers(m map[hztypes.UUID]*hzclient.MemberData, memberPods []corev1.Pod) []hazelcastv1alpha1.HazelcastMemberStatus {
 	members := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(m))
+	memberPodIpNameMap := make(map[string]string)
+	for _, pod := range memberPods {
+		memberPodIpNameMap[pod.Status.PodIP] = pod.Name
+	}
 	for uid, member := range m {
 		a := member.Address
 		ip := a[:strings.IndexByte(a, ':')]
-		podName := ""
-		for _, pod := range memberPods {
-			if pod.Status.PodIP == ip {
-				podName = pod.Name
-			}
-		}
+		podName := memberPodIpNameMap[ip]
 		members = append(members, hazelcastv1alpha1.HazelcastMemberStatus{
 			PodName:         podName,
 			Uid:             uid.String(),
