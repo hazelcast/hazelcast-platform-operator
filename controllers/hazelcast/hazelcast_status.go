@@ -189,10 +189,7 @@ func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.H
 func getHzMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) []corev1.Pod {
 	podList := &corev1.PodList{}
 	namespace := client.InNamespace(h.Namespace)
-	matchingLabels := client.MatchingLabels{}
-	for k, v := range labels(h) {
-		matchingLabels[k] = v
-	}
+	matchingLabels := client.MatchingLabels(labels(h))
 	err := c.List(ctx, podList, namespace, matchingLabels)
 	if err != nil {
 		return make([]corev1.Pod, 0)
