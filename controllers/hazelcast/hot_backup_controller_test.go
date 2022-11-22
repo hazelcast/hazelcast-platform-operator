@@ -157,7 +157,7 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 	Expect(hotBackupTriggers).Should(Equal(int32(1)))
 }
 
-func TestHotBackupReconciler_shouldCancelContextIfHazelcastCRIsDeleted(t *testing.T) {
+func TestHotBackupReconciler_shouldCancelContextIfHotbackupCRIsDeleted(t *testing.T) {
 	RegisterFailHandler(fail(t))
 	nn, h, hb := defaultCRs()
 
