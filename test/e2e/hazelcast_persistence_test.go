@@ -84,39 +84,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		assertHotBackupSuccess(hotBackup, 1*Minute)
 	})
 
-	It("should trigger ForceStart when restart from HotBackup failed", Label("slow"), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
-		setLabelAndCRName("hp-2")
-		clusterSize := int32(3)
-
-		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey)
-
-		By("creating HotBackup CR")
-		t := Now()
-		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
-		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
-		assertHotBackupSuccess(hotBackup, 1*Minute)
-
-		seq := GetBackupSequence(t, hzLookupKey)
-		RemoveHazelcastCR(hazelcast)
-
-		By("creating new Hazelcast cluster from existing backup with 2 members")
-		baseDir := "/data/hot-restart/hot-backup/backup-" + seq
-
-		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.BaseDir = baseDir
-		hazelcast.Spec.ClusterSize = &[]int32{2}[0]
-		hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
-		hazelcast.Spec.Persistence.AutoForceStart = true
-		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey)
-		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
-	})
-
 	It("should trigger multiple HotBackups with CronHotBackup", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")

@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
@@ -703,9 +704,7 @@ func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName stri
 }
 
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
-	p := filterProperties(h.Spec.Properties)
-	p["hazelcast.persistence.auto.cluster.state"] = "false"
-	cfg.Properties = p
+	cfg.Properties = filterProperties(h.Spec.Properties)
 }
 
 func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
@@ -1090,6 +1089,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
 		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
 		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
+
+		if semver.Compare(fmt.Sprintf("v%s", h.Spec.Version), "v5.2.0") == 1 {
+			sts.Spec.Template.Spec.Containers[0].ReadinessProbe.ProbeHandler.HTTPGet.Path = "/hazelcast/health/ready"
+		}
 
 		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client)
 		if err != nil {
