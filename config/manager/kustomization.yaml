@@ -7,7 +7,7 @@ kind: Kustomization
 images:
 - name: controller
   newName: hazelcast/hazelcast-platform-operator
-  newTag: "5.4"
+  newTag: latest-snapshot
 patches:
 - path: remove_security_context.yaml
   target:
