@@ -44,8 +44,7 @@ spec:
     ## Documentation
 
     1. [Get started](https://docs.hazelcast.com/operator/latest/get-started) with the Operator.
-    2. [Connect to the cluster from outside Kubernetes](https://guides.hazelcast.org/hazelcast-platform-operator-expose-externally/main)
-      from the outside.
+    2. [Connect to the cluster from outside Kubernetes](https://guides.hazelcast.org/hazelcast-platform-operator-expose-externally)
 
     ## Features
 
