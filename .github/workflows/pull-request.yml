@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    timeout-minutes: 10
     steps:
       - name: Decide which ref to checkout
         id: decide-ref
@@ -77,6 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    timeout-minutes: 10
     steps:
       - name: Decide which ref to checkout
         id: decide-ref
@@ -161,6 +163,16 @@ jobs:
   build-image:
     name: Build image
     runs-on: ubuntu-latest
+    if: >-
+      ( !cancelled()
+      && ((github.event_name == 'pull_request_target'
+            && github.event.action == 'labeled'
+            && github.event.label.name == 'safe-to-test'
+            && github.event.pull_request.head.repo.full_name != github.repository)
+          ||
+          (github.event_name == 'pull_request'
+            && github.event.pull_request.head.repo.full_name == github.repository))
+      && needs.unit-tests.result == 'success')
     outputs:
       IMG: ${{ steps.build-img.outputs.IMG }}
     steps:
