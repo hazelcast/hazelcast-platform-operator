@@ -88,10 +88,14 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 				}
 				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
+				Expect(service.Spec.Ports).Should(HaveLen(1))
 				nodePort := service.Spec.Ports[0].NodePort
 				node := getNodeOfMember(ctx, hzLookupKey.Namespace, member)
-				Expect(service.Spec.Ports).Should(HaveLen(1))
 				externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
+				// skip member IP check if the node has no external IP
+				if len(externalAddresses) == 0 {
+					continue memberLoop
+				}
 				Expect(externalAddresses).Should(HaveLen(1))
 				externalAddress := fmt.Sprintf("%s:%d", externalAddresses[0], nodePort)
 				clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
@@ -195,7 +199,7 @@ func filterClientMemberAddressesByPublicIdentifier(member hzCluster.MemberInfo) 
 func getLoadBalancerIngressPublicIP(ctx context.Context, lbi corev1.LoadBalancerIngress) string {
 	publicIP := lbi.IP
 	if publicIP == "" {
-		It("Lookup for hostname of load balancer ingress")
+		By("Looking up for hostname of load balancer ingress")
 		Eventually(func() (err error) {
 			publicIP, err = DnsLookup(ctx, lbi.Hostname)
 			return
