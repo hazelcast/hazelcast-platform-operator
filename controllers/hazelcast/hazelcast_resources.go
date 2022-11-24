@@ -1181,27 +1181,34 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 
 func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
 	var containers []corev1.Container
-	if h.Spec.Persistence.IsRestoreEnabled() {
-		if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
-			cont, err := getRestoreFromHotBackupResource(ctx, cl, h,
-				types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName})
-			if err != nil {
-				return nil, err
-			}
-			containers = append(containers, cont)
 
-		} else {
-			containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
-				h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
-		}
-	}
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
 		containers = append(containers, ucdAgentContainer(h))
 	}
+
+	if !h.Spec.Persistence.IsRestoreEnabled() {
+		return containers, nil
+	}
+
+	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
+		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
+			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName})
+		if err != nil {
+			return nil, err
+		}
+		containers = append(containers, cont)
+
+		return containers, nil
+	}
+
+	// restoring from bucket config
+	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
+		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
+
 	return containers, nil
 }
 
-func getRestoreFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
+func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := cl.Get(ctx, key, hb)
 	if err != nil {
@@ -1221,10 +1228,16 @@ func getRestoreFromHotBackupResource(ctx context.Context, cl client.Client, h *h
 }
 
 func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
+	commandName := "restore_pvc"
+
+	if h.Spec.Persistence.UseHostPath() {
+		commandName = "restore_hostpath"
+	}
+
 	return v1.Container{
 		Name:  n.RestoreAgent,
 		Image: h.AgentDockerImage(),
-		Args:  []string{"restore"},
+		Args:  []string{commandName},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_SECRET_NAME",
@@ -1259,10 +1272,16 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 }
 
 func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
+	commandName := "restore_pvc_local"
+
+	if h.Spec.Persistence.UseHostPath() {
+		commandName = "restore_hostpath_local"
+	}
+
 	return v1.Container{
 		Name:  n.RestoreLocalAgent,
 		Image: h.AgentDockerImage(),
-		Args:  []string{"restore_local"},
+		Args:  []string{commandName},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
