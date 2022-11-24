@@ -106,7 +106,7 @@ jobs:
         run: make GO_TEST_FLAGS="-ee=true" test-it
 
   create-gke-cluster:
-    name: Create GKE cluster and push image
+    name: Create GKE cluster
     runs-on: ubuntu-latest
     needs: ['unit-tests']
     if: >-
@@ -143,6 +143,7 @@ jobs:
           sleep 30
 
   new-relic-setup:
+    name: Setup New Relic
     needs: [ create-gke-cluster ]
     uses: ./.github/workflows/newrelic-gke.yaml
     secrets: inherit
@@ -154,7 +155,7 @@ jobs:
       gh_sha: ${{ github.sha }}
 
   build-image:
-    name: Build Image
+    name: Build image
     runs-on: ubuntu-latest
     outputs:
       IMG: ${{ steps.build-img.outputs.IMG }}
