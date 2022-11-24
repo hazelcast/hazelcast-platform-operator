@@ -20,10 +20,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	errors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -128,7 +128,7 @@ func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcas
 func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	clusterRole := &rbacv1.ClusterRole{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, clusterRole)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && kerrors.IsNotFound(err) {
 		logger.V(util.DebugLevel).Info("ClusterRole is not created yet. Or it is already removed.")
 		return nil
 	}
@@ -144,7 +144,7 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	crb := &rbacv1.ClusterRoleBinding{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, crb)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && kerrors.IsNotFound(err) {
 		logger.V(util.DebugLevel).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
 		return nil
 	}
@@ -412,7 +412,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 	sts := &appsv1.StatefulSet{}
 	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			// Not found, StatefulSet is not created yet, no need to delete any services
 			return nil
 		}
@@ -428,7 +428,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 		s := &v1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if kerrors.IsNotFound(err) {
 				// Not found, no need to remove the service
 				continue
 			}
@@ -436,7 +436,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 		}
 		err = r.Client.Delete(ctx, s)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if kerrors.IsNotFound(err) {
 				// Not found, no need to remove the service
 				continue
 			}
@@ -1494,7 +1494,7 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 	return nil
 }
 
-func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hzclient.Client, h *hazelcastv1alpha1.Hazelcast) error {
 	// make sure restore is active
 	if !h.Spec.Persistence.IsRestoreEnabled() {
 		return nil
@@ -1515,20 +1515,20 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelc
 
 	// check if all cluster members are in passive state
 	for _, member := range h.Status.Members {
-		if ClusterState(member.State) != Passive {
+		if member.State != "Passive" {
 			return nil
 		}
 	}
 
-	rest := NewRestClient(h)
-	state, err := rest.GetState(ctx)
+	svc := hzclient.NewClusterStateService(client)
+	state, err := svc.GetClusterState(ctx)
 	if err != nil {
 		return err
 	}
-	if state != "passive" {
+	if state == codecTypes.ClusterStateActive {
 		return nil
 	}
-	return rest.ChangeState(ctx, Active)
+	return svc.ChangeClusterState(ctx, codecTypes.ClusterStateActive)
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
