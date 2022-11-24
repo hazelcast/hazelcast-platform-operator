@@ -25,6 +25,8 @@ jobs:
   linter:
     name: Run linters
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Decide which ref to checkout
         id: decide-ref
@@ -73,6 +75,8 @@ jobs:
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Decide which ref to checkout
         id: decide-ref
