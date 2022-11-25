@@ -69,7 +69,7 @@ jobs:
         with:
           tag: v${{ inputs.RELEASE_VERSION }}
           name: ${{ inputs.RELEASE_VERSION }}
-          config-name: workflows/release-drafter-config.yml
+          config-name: release-drafter-config.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
