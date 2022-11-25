@@ -1,4 +1,5 @@
 name: Pull Request
+
 on:
   pull_request_target:
     types:
@@ -13,6 +14,9 @@ on:
     paths-ignore:
       - "**.md"
 
+permissions:
+  contents: read
+
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
@@ -25,8 +29,6 @@ jobs:
   linter:
     name: Run linters
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     timeout-minutes: 10
     steps:
       - name: Decide which ref to checkout
@@ -76,8 +78,6 @@ jobs:
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     timeout-minutes: 10
     steps:
       - name: Decide which ref to checkout
