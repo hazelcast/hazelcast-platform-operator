@@ -119,10 +119,10 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		scanner := bufio.NewScanner(logs)
 		test.EventuallyInLogs(scanner, 15*Second, logInterval).
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
-		test.EventuallyInLogs(scanner, 15*Second, logInterval).
-			Should(ContainSubstring("Starting new hot backup with sequence"))
-		test.EventuallyInLogs(scanner, 15*Second, logInterval).
-			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
+		test.EventuallyInLogsUnordered(scanner, 15*Second, logInterval).
+			Should(ContainElements(
+				"Starting new hot backup with sequence",
+				"ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
 		Expect(logs.Close()).Should(Succeed())
 
 		assertHotBackupSuccess(hotBackup, 1*Minute)
