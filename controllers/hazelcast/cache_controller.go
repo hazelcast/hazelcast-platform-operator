@@ -2,18 +2,19 @@ package hazelcast
 
 import (
 	"context"
-	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-go-client"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
-	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"reflect"
 	"time"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/go-logr/logr"
+	"github.com/hazelcast/hazelcast-go-client"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 // CacheReconciler reconciles a Cache object

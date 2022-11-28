@@ -300,6 +300,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 
 	ms := m.Spec
 	mapInput.BackupCount = *ms.BackupCount
+	mapInput.AsyncBackupCount = *ms.AsyncBackupCount
 	mapInput.TimeToLiveSeconds = *ms.TimeToLiveSeconds
 	mapInput.MaxIdleSeconds = *ms.MaxIdleSeconds
 	if ms.Eviction != nil {
