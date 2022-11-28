@@ -2,9 +2,10 @@ package e2e
 
 import (
 	"context"
+	. "time"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -85,7 +86,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			memberStateT := func(status hazelcastcomv1alpha1.HazelcastMemberStatus) string {
-				return status.State
+				return string(status.State)
 			}
 			masterT := func(status hazelcastcomv1alpha1.HazelcastMemberStatus) bool {
 				return status.Master

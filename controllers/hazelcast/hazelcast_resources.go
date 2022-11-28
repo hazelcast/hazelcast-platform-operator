@@ -1515,7 +1515,7 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 
 	// check if all cluster members are in passive state
 	for _, member := range h.Status.Members {
-		if member.State != "Passive" {
+		if member.State != hazelcastv1alpha1.NodeStatePassive {
 			return nil
 		}
 	}

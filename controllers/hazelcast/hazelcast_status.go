@@ -3,10 +3,11 @@ package hazelcast
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -98,7 +99,7 @@ func statusMembers(m map[hztypes.UUID]*hzclient.MemberData, memberPods []corev1.
 			Master:          member.Master,
 			Lite:            member.LiteMember,
 			OwnedPartitions: member.Partitions,
-			State:           member.MemberState,
+			State:           hazelcastv1alpha1.NodeState(member.MemberState),
 		})
 	}
 	return members
