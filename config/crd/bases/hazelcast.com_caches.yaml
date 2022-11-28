@@ -19,11 +19,11 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Current state of the Queue Config
+    - description: Current state of the Cache Config
       jsonPath: .status.state
       name: Status
       type: string
-    - description: Message for the current Queue Config
+    - description: Message for the current Cache Config
       jsonPath: .status.message
       name: Message
       priority: 1
