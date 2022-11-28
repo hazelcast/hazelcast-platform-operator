@@ -48,7 +48,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	logger := r.Log.WithValues("hazelcast-cache", req.NamespacedName)
 
 	c := &hazelcastv1alpha1.Cache{}
-	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, q, r.Update, r.clientRegistry, logger)
+	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, c, r.Update, r.clientRegistry, logger)
 	if cl == nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
