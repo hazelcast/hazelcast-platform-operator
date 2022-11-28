@@ -69,6 +69,13 @@ func EncodeCacheConfigHolder(clientMessage *proto.ClientMessage, cacheConfigHold
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
+func DecodeNullableForCacheConfigHolder(frameIterator *proto.ForwardFrameIterator) types.CacheConfigHolder {
+	if NextFrameIsNullFrame(frameIterator) {
+		return types.CacheConfigHolder{}
+	}
+	return DecodeCacheConfigHolder(frameIterator)
+}
+
 func DecodeCacheConfigHolder(frameIterator *proto.ForwardFrameIterator) types.CacheConfigHolder {
 	// begin frame
 	frameIterator.Next()

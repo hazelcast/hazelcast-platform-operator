@@ -70,6 +70,10 @@ spec:
                   CR name will be used. It cannot be updated after the config is created
                   successfully.
                 type: string
+              persistenceEnabled:
+                default: false
+                description: When enabled, cache data will be persisted.
+                type: boolean
               valueType:
                 description: Class name of the value type
                 type: string
@@ -1379,7 +1383,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.1.4
+                default: 5.2.1
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
@@ -2532,7 +2536,7 @@ spec:
                     type: array
                 type: object
               version:
-                default: 5.1.4
+                default: 5.2.1
                 description: Version of Management Center.
                 type: string
             type: object
@@ -3949,6 +3953,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DEVELOPER_MODE_ENABLED
+          value: "true"
         image: hazelcast/hazelcast-platform-operator:5.4
         imagePullPolicy: IfNotPresent
         livenessProbe:
@@ -3973,5 +3979,7 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
+      securityContext:
+        runAsNonRoot: true
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10

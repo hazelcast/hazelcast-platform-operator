@@ -539,7 +539,8 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		if len(filteredDSList) == 0 {
 			continue
 		}
-		switch filteredDSList[0].(Type).GetKind() {
+		kind := filteredDSList[0].(Type).GetKind()
+		switch kind {
 		case "MultiMap":
 			fillHazelcastConfigWithMultiMaps(&cfg, filteredDSList)
 		case "Topic":
@@ -741,9 +742,9 @@ func fillHazelcastConfigWithCaches(cfg *config.Hazelcast, cl []client.Object) {
 	if len(cl) != 0 {
 		cfg.Cache = map[string]config.Cache{}
 		for _, c := range cl {
-			c := c.(*hazelcastv1alpha1.Cache)
-			ccfg := createCacheConfig(c)
-			cfg.Cache[c.GetDSName()] = ccfg
+			ch := c.(*hazelcastv1alpha1.Cache)
+			ccfg := createCacheConfig(ch)
+			cfg.Cache[ch.GetDSName()] = ccfg
 		}
 	}
 }

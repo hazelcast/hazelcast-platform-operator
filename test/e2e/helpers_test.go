@@ -305,7 +305,8 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 	})
 }
 
-/**
+/*
+*
 1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
 */
 func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
@@ -576,6 +577,32 @@ func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcas
 		}, 20*Second, interval).Should(Equal(st))
 	})
 	return checkHz
+}
+
+func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, caches ...string) *config.HazelcastWrapper {
+	cm := &corev1.ConfigMap{}
+	returnConfig := &config.HazelcastWrapper{}
+	Eventually(func() []string {
+		hzConfig := &config.HazelcastWrapper{}
+		err := k8sClient.Get(context.Background(), types.NamespacedName{
+			Name:      hazelcast.Name,
+			Namespace: hazelcast.Namespace,
+		}, cm)
+		if err != nil {
+			return nil
+		}
+		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		if err != nil {
+			return nil
+		}
+		keys := make([]string, 0, len(hzConfig.Hazelcast.Cache))
+		for k := range hzConfig.Hazelcast.Cache {
+			keys = append(keys, k)
+		}
+		returnConfig = hzConfig
+		return keys
+	}, 20*Second, interval).Should(ConsistOf(caches))
+	return returnConfig
 }
 
 func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps ...string) *config.HazelcastWrapper {

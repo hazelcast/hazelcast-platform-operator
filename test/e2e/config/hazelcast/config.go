@@ -24,6 +24,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 			},
 		}
 	}
@@ -40,6 +41,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 			},
 		}
 	}
@@ -56,6 +58,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -77,6 +80,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -98,6 +102,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeNodePort,
@@ -118,6 +123,7 @@ var (
 				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				LicenseKeySecret: licenseKey(ee),
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
@@ -147,6 +153,7 @@ var (
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   baseDir,
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
@@ -201,6 +208,7 @@ var (
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
@@ -225,6 +233,7 @@ var (
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
@@ -268,6 +277,7 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
+				LoggingLevel:              hazelcastv1alpha1.LoggingLevelDebug,
 				ClusterSize:               &[]int32{1}[0],
 				Repository:                repo(ee),
 				Version:                   naming.HazelcastVersion,
@@ -338,6 +348,7 @@ var (
 				Repository:       repo(ee),
 				Version:          "not-exists",
 				LicenseKeySecret: licenseKey(ee),
+				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 			},
 		}
 	}

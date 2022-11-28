@@ -17,8 +17,8 @@
 package codec
 
 import (
-    iserialization "github.com/hazelcast/hazelcast-go-client"
-    proto "github.com/hazelcast/hazelcast-go-client"
+	iserialization "github.com/hazelcast/hazelcast-go-client"
+	proto "github.com/hazelcast/hazelcast-go-client"
 )
 
 const (

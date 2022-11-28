@@ -101,8 +101,8 @@ type CacheList struct {
 
 func (cl *CacheList) GetItems() []client.Object {
 	l := make([]client.Object, 0, len(cl.Items))
-	for _, item := range cl.Items {
-		l = append(l, &item)
+	for i := range cl.Items {
+		l = append(l, &cl.Items[i])
 	}
 	return l
 }
