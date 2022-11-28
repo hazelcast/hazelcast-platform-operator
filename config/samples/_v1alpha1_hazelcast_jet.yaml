@@ -5,9 +5,8 @@ metadata:
 spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
-  version: '5.2.1'
+  jet:
+    enabled: true
+    resourceUploadEnabled: false
+  version: '5.1.4'
   licenseKeySecret: hazelcast-license-key
-  exposeExternally:
-    type: Smart
-    discoveryServiceType: LoadBalancer
-    memberAccess: NodePortExternalIP

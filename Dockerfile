@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.17 as builder
+FROM golang:1.19 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -23,7 +23,7 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6
 RUN microdnf upgrade -y && \
     microdnf clean all
 
-ARG version="5.4"
+ARG version="latest-snapshot"
 ARG pardotID="dockerhub"
 ENV OPERATOR_VERSION=${version}
 ENV PARDOT_ID=${pardotID}

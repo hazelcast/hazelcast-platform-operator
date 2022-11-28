@@ -77,7 +77,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("deleting Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
-		deletePVCs(hzLookupKey)
 
 		By("creating a new Hazelcast cluster")
 		t := Now()
@@ -188,7 +187,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("deleting Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
-		deletePVCs(hzLookupKey)
 
 		By("creating new Hazelcast cluster from the existing backup")
 		baseDir += "/hot-backup/backup-" + seq

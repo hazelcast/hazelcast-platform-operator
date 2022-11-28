@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-go-client"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -15,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -27,15 +27,17 @@ type WanReplicationReconciler struct {
 	logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
+	clientRegistry   hzclient.ClientRegistry
 }
 
 func NewWanReplicationReconciler(
-	client client.Client, log logr.Logger, scheme *runtime.Scheme, pht chan struct{}) *WanReplicationReconciler {
+	client client.Client, log logr.Logger, scheme *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry) *WanReplicationReconciler {
 	return &WanReplicationReconciler{
 		Client:           client,
 		Logger:           log,
 		Scheme:           scheme,
 		phoneHomeTrigger: pht,
+		clientRegistry:   cs,
 	}
 }
 
@@ -120,7 +122,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		}
 
-		err = stopWanRepForRemovedResources(ctx, wan, HZClientMap)
+		err = stopWanRepForRemovedResources(ctx, wan, HZClientMap, r.clientRegistry)
 		if err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
 		}
@@ -154,7 +156,7 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 
 	mapWanStatus := make(map[string]wanOptionsBuilder)
 	for hzResourceName, maps := range HZClientMap {
-		cli, err := GetHazelcastClient(&maps[0])
+		cl, err := GetHazelcastClient(r.clientRegistry, &maps[0])
 		if err != nil {
 			return err
 		}
@@ -164,7 +166,7 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 			// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
 			if wan.Status.WanReplicationMapsStatus[mapWanKey].PublisherId == "" {
 				log.Info("Applying WAN configuration for ", "mapKey", mapWanKey)
-				if publisherId, err := r.applyWanReplication(ctx, cli, wan, m.MapName(), mapWanKey); err != nil {
+				if publisherId, err := r.applyWanReplication(ctx, cl, wan, m.MapName(), mapWanKey); err != nil {
 					mapWanStatus[mapWanKey] = wanFailedStatus().withMessage(err.Error())
 				} else {
 					mapWanStatus[mapWanKey] = wanSuccessStatus().withPublisherId(publisherId)
@@ -258,7 +260,7 @@ func (r *WanReplicationReconciler) getWanMap(ctx context.Context, lk types.Names
 
 }
 
-func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, client *hazelcast.Client, wan *hazelcastcomv1alpha1.WanReplication, mapName, mapWanKey string) (string, error) {
+func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, client hzclient.Client, wan *hazelcastcomv1alpha1.WanReplication, mapName, mapWanKey string) (string, error) {
 	publisherId := wan.Name + "-" + mapWanKey
 
 	req := &addBatchPublisherRequest{
@@ -291,7 +293,7 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 
 	for hzResourceName, maps := range HZClientMap {
 
-		cli, err := GetHazelcastClient(&maps[0])
+		cli, err := GetHazelcastClient(r.clientRegistry, &maps[0])
 		if err != nil {
 			return err
 		}
@@ -328,8 +330,7 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 	return nil
 }
 
-func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication, HZClientMap map[string][]hazelcastcomv1alpha1.Map) error {
-
+func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication, HZClientMap map[string][]hazelcastcomv1alpha1.Map, cs hzclient.ClientRegistry) error {
 	tempMapSet := make(map[string]hazelcastcomv1alpha1.Map)
 	for hzName, maps := range HZClientMap {
 		for _, m := range maps {
@@ -348,7 +349,7 @@ func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastcomv1alpha
 			state:       codecTypes.WanReplicationStateStopped,
 		}
 
-		cli, err := GetHazelcastClient(&m)
+		cli, err := GetHazelcastClient(cs, &m)
 		if err != nil {
 			return err
 		}
@@ -383,10 +384,9 @@ type addBatchPublisherRequest struct {
 
 func addBatchPublisherConfig(
 	ctx context.Context,
-	client *hazelcast.Client,
+	client hzclient.Client,
 	request *addBatchPublisherRequest,
 ) error {
-	cliInt := hazelcast.NewClientInternal(client)
 
 	req := codec.EncodeMCAddWanBatchPublisherConfigRequest(
 		request.name,
@@ -401,7 +401,7 @@ func addBatchPublisherConfig(
 		request.queueFullBehavior,
 	)
 
-	_, err := cliInt.InvokeOnRandomTarget(ctx, req, nil)
+	_, err := client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
 		return err
 	}
@@ -415,17 +415,15 @@ type changeWanStateRequest struct {
 	state       codecTypes.WanReplicationState
 }
 
-func changeWanState(ctx context.Context, client *hazelcast.Client, request *changeWanStateRequest) error {
-	cliInt := hazelcast.NewClientInternal(client)
-
+func changeWanState(ctx context.Context, client hzclient.Client, request *changeWanStateRequest) error {
 	req := codec.EncodeMCChangeWanReplicationStateRequest(
 		request.name,
 		request.publisherId,
 		request.state,
 	)
 
-	for _, member := range cliInt.OrderedMembers() {
-		_, err := cliInt.InvokeOnMember(ctx, req, member.UUID, nil)
+	for _, member := range client.OrderedMembers() {
+		_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
 		if err != nil {
 			return err
 		}
@@ -438,16 +436,14 @@ type clearWanQueueRequest struct {
 	publisherId string
 }
 
-func clearWanQueue(ctx context.Context, client *hazelcast.Client, request *clearWanQueueRequest) error {
-	cliInt := hazelcast.NewClientInternal(client)
-
+func clearWanQueue(ctx context.Context, client hzclient.Client, request *clearWanQueueRequest) error {
 	req := codec.EncodeMCClearWanQueuesRequest(
 		request.name,
 		request.publisherId,
 	)
 
-	for _, member := range cliInt.OrderedMembers() {
-		_, err := cliInt.InvokeOnMember(ctx, req, member.UUID, nil)
+	for _, member := range client.OrderedMembers() {
+		_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
 		if err != nil {
 			return err
 		}

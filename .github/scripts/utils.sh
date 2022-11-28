@@ -64,47 +64,6 @@ wait_for_container_scan()
     done
 }
 
-publish_the_image()
-{
-    local PROJECT_ID=$1
-    local VERSION=$2
-    local RHEL_API_KEY=$3
-
-    local IS_PUBLISHED=$(get_image published "${PROJECT_ID}" "${VERSION}" "${RHEL_API_KEY}" | jq -r '.total')
-    if [[ $IS_PUBLISHED == "1" ]]; then
-        echo "Image is already published, exiting"
-        return 0
-    fi
-
-    local IMAGE=$(get_image not_published "${PROJECT_ID}" "${VERSION}" "${RHEL_API_KEY}")
-    local IMAGE_EXISTS=$(echo $IMAGE | jq -r '.total')
-    if [[ $IMAGE_EXISTS == "1" ]]; then
-        local SCAN_STATUS=$(echo $IMAGE | jq -r '.data[0].scan_status')
-        if [[ $SCAN_STATUS != "passed" ]]; then
-            echo "Image you are trying to publish did not pass the certification test, its status is \"${SCAN_STATUS}\""
-            return 1
-        fi
-    else
-        echo "Image you are trying to publish does not exist."
-        return 1
-    fi
-
-    local IMAGE_ID=$(echo "$IMAGE" | jq -r '.data[0]._id')
-
-    # Publish the image
-    echo "Publishing the image..."
-    RESPONSE=$( \
-        curl --silent \
-            --request POST \
-            --header "X-API-KEY: ${RHEL_API_KEY}" \
-            --header 'Cache-Control: no-cache' \
-            --header 'Content-Type: application/json' \
-            --data "{\"image_id\":\"${IMAGE_ID}\" , \"tag\" : \"${VERSION}\" }" \
-            "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/requests/tags")
-
-    echo "Created a tag request, please check if the image is published."
-}
-
 wait_for_container_publish()
 {
     local PROJECT_ID=$1
@@ -112,7 +71,7 @@ wait_for_container_publish()
     local RHEL_API_KEY=$3
     local TIMEOUT_IN_MINS=$4
 
-    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS / 2 ))
+    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 6 ))
     # Wait until the image is published
     for i in `seq 1 ${NOF_RETRIES}`; do
         local IS_PUBLISHED=$(get_image published "${PROJECT_ID}" "${VERSION}" "${RHEL_API_KEY}" | jq -r '.total')
@@ -128,7 +87,7 @@ wait_for_container_publish()
             echo "Timeout! Publish could not be finished"
             return 42
         fi
-        sleep 120
+        sleep 10
     done
 }
 

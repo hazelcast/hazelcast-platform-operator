@@ -16,7 +16,9 @@ import (
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+
 	. "github.com/hazelcast/hazelcast-platform-operator/test"
 	//+kubebuilder:scaffold:imports
 )
@@ -65,11 +67,16 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	cs := &hzclient.HazelcastClientRegistry{}
+	ssm := &hzclient.HzStatusServiceRegistry{}
+
 	err = hazelcast.NewHazelcastReconciler(
 		k8sManager.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
 		k8sManager.GetScheme(),
 		nil,
+		cs,
+		ssm,
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -86,6 +93,7 @@ var _ = BeforeSuite(func() {
 		ctrl.Log.WithName("controllers").WithName("Map"),
 		k8sManager.GetScheme(),
 		nil,
+		cs,
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -94,6 +102,8 @@ var _ = BeforeSuite(func() {
 		ctrl.Log.WithName("controllers").WithName("Hot Backup"),
 		nil,
 		nil,
+		cs,
+		ssm,
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

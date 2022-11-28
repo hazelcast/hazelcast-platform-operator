@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -25,14 +25,16 @@ type ReplicatedMapReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
+	clientRegistry   hzclient.ClientRegistry
 }
 
-func NewReplicatedMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *ReplicatedMapReconciler {
+func NewReplicatedMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry) *ReplicatedMapReconciler {
 	return &ReplicatedMapReconciler{
 		Client:           c,
 		Log:              log,
 		Scheme:           s,
 		phoneHomeTrigger: pht,
+		clientRegistry:   cs,
 	}
 }
 
@@ -44,7 +46,7 @@ func (r *ReplicatedMapReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger := r.Log.WithValues("hazelcast-replicatedmap", req.NamespacedName)
 	rm := &hazelcastv1alpha1.ReplicatedMap{}
 
-	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, rm, r.Update, logger)
+	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, rm, r.Update, r.clientRegistry, logger)
 	if cl == nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -80,7 +82,7 @@ func (r *ReplicatedMapReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *ReplicatedMapReconciler) ReconcileReplicatedMapConfig(
 	ctx context.Context,
 	rm *hazelcastv1alpha1.ReplicatedMap,
-	cl *hazelcast.Client,
+	cl hzclient.Client,
 	logger logr.Logger,
 ) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
 	var req *proto.ClientMessage

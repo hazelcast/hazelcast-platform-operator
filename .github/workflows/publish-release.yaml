@@ -123,7 +123,6 @@ jobs:
         run: |
           source .github/scripts/utils.sh
           checking_image_grade "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$GRADE_CHECK_TIMEOUT_IN_MINS"
-          publish_the_image "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN"
           wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$PUBLISH_TIMEOUT_IN_MINS"
 
   redhat_certified_operator_release:
@@ -146,7 +145,7 @@ jobs:
           make bundle IMG=${IMAGE_NAME_DIGEST} VERSION=${RELEASE_VERSION}
           cat >> ./bundle/metadata/annotations.yaml <<EOF
             # OpenShift annotations.
-            com.redhat.openshift.versions: "v4.6"
+            com.redhat.openshift.versions: v4.8
             operators.operatorframework.io.bundle.channel.default.v1: alpha
           EOF
 
@@ -233,7 +232,7 @@ jobs:
           make bundle IMG=${IMAGE_NAME} VERSION=${RELEASE_VERSION}
           cat >> ./bundle/metadata/annotations.yaml <<EOF
             # OpenShift annotations.
-            com.redhat.openshift.versions: "v4.6"
+            com.redhat.openshift.versions: v4.8
           EOF
 
       - name: Checkout to devOpsHelm/${{ env.REPO_NAME }}

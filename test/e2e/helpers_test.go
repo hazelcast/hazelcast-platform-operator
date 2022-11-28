@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -167,7 +168,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 				Name:      hazelcast.Name,
 				Namespace: hazelcast.Namespace,
 			}, h)
-		}, 1*Minute, interval).ShouldNot(Succeed())
+		}, 2*Minute, interval).ShouldNot(Succeed())
 	})
 }
 func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
@@ -208,7 +209,10 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 		c.Cluster.Unisocket = unisocket
 		c.Cluster.Name = clusterName
 		c.Cluster.Discovery.UsePublicIP = true
-		clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
+		Eventually(func() *hzClient.Client {
+			clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
+			return clientWithConfig
+		}, 3*Minute, interval).Should(Not(BeNil()))
 	})
 	return clientWithConfig
 }
@@ -297,9 +301,11 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 			err := clientHz.Shutdown(ctx)
 			Expect(err).To(BeNil())
 		}()
-		hzMap, err := clientHz.GetMap(ctx, mapName)
-		Expect(err).To(BeNil())
 		Eventually(func() (int, error) {
+			hzMap, err := clientHz.GetMap(ctx, mapName)
+			if err != nil {
+				return -1, err
+			}
 			return hzMap.Size(ctx)
 		}, timeout, 10*Second).Should(Equal(mapSize))
 	})
@@ -768,6 +774,26 @@ func getQueueConfigFromMemberConfig(memberConfigXML string, queueName string) *c
 		}
 	}
 	return nil
+}
+
+func DnsLookup(ctx context.Context, host string) (string, error) {
+	r := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{
+				Timeout: 10 * Second,
+			}
+			return d.DialContext(ctx, network, address)
+		},
+	}
+	IPs, err := r.LookupHost(ctx, host)
+	if err != nil {
+		return "", err
+	}
+	if len(IPs) == 0 {
+		return "", fmt.Errorf("host '%s' cannot be resolved", host)
+	}
+	return IPs[0], nil
 }
 
 func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *codecTypes.CacheConfigInput {

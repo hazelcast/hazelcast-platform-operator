@@ -18,6 +18,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/backup"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	localbackup "github.com/hazelcast/hazelcast-platform-operator/internal/local_backup"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -27,21 +28,25 @@ import (
 
 type HotBackupReconciler struct {
 	client.Client
-	Log              logr.Logger
-	cancelMap        map[types.NamespacedName]context.CancelFunc
-	backup           map[types.NamespacedName]struct{}
-	phoneHomeTrigger chan struct{}
-	mtlsClient       *mtls.Client
+	Log                   logr.Logger
+	cancelMap             map[types.NamespacedName]context.CancelFunc
+	backup                map[types.NamespacedName]struct{}
+	phoneHomeTrigger      chan struct{}
+	mtlsClient            *mtls.Client
+	clientRegistry        hzclient.ClientRegistry
+	statusServiceRegistry hzclient.StatusServiceRegistry
 }
 
-func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client) *HotBackupReconciler {
+func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *HotBackupReconciler {
 	return &HotBackupReconciler{
-		Client:           c,
-		Log:              log,
-		cancelMap:        make(map[types.NamespacedName]context.CancelFunc),
-		backup:           make(map[types.NamespacedName]struct{}),
-		phoneHomeTrigger: pht,
-		mtlsClient:       mtlsClient,
+		Client:                c,
+		Log:                   log,
+		cancelMap:             make(map[types.NamespacedName]context.CancelFunc),
+		backup:                make(map[types.NamespacedName]struct{}),
+		phoneHomeTrigger:      pht,
+		mtlsClient:            mtlsClient,
+		clientRegistry:        cs,
+		statusServiceRegistry: ssm,
 	}
 }
 
@@ -130,8 +135,12 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return result, err
 	}
 	r.lockBackup(req.NamespacedName)
-	go r.startBackup(cancelCtx, req.NamespacedName, hb.Spec.IsExternal(), hazelcastName, logger) //nolint:errcheck
-
+	go func() {
+		_, err := r.startBackup(cancelCtx, req.NamespacedName, hb.Spec.IsExternal(), hazelcastName, logger)
+		if err != nil {
+			logger.Error(err, "Error taking backup")
+		}
+	}()
 	return
 }
 
@@ -226,7 +235,20 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
 
-	b, err := backup.NewClusterBackup(hz)
+	client, ok := r.clientRegistry.Get(hazelcastName)
+	if !ok {
+		logger.Error(err, "Get Hazelcast Client failed")
+		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+	}
+
+	statusService, ok := r.statusServiceRegistry.Get(hazelcastName)
+	if !ok {
+		logger.Error(err, "Get Hazelcast Status Service failed")
+		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+	}
+
+	backupService := hzclient.NewBackupService(client)
+	b, err := backup.NewClusterBackup(statusService, backupService)
 	if err != nil {
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
@@ -242,7 +264,11 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		g.Go(func() error {
 			if err := m.Wait(groupCtx); err != nil {
 				// cancel cluster backup
-				return b.Cancel(ctx)
+				cancelErr := b.Cancel(ctx)
+				if cancelErr != nil {
+					return cancelErr
+				}
+				return fmt.Errorf("Backup error for member %s: %w", m.UUID, err)
 			}
 			return nil
 		})
@@ -308,7 +334,11 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					// notify agent so we can cleanup if needed
-					return u.Cancel(ctx)
+					cancelErr := u.Cancel(ctx)
+					if cancelErr != nil {
+						return cancelErr
+					}
+					return fmt.Errorf("Upload error for member %s: %w", m.UUID, err)
 				}
 				return err
 			}

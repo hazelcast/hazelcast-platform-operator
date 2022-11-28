@@ -2,6 +2,8 @@ package e2e
 
 import (
 	"context"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -53,7 +55,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 	})
 
 	Describe("Hazelcast cluster name", func() {
-		It("should create a Hazelcust cluster with Cluster name: development", Label("fast"), func() {
+		It("should create a Hazelcast cluster with Cluster name: development", Label("fast"), func() {
 			setLabelAndCRName("h-2")
 			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -97,6 +99,25 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				ContainElement(WithTransform(masterT, Equal(true))),
 			))
 		})
+
+		It("should have correct pod name", Label("fast"), func() {
+			setLabelAndCRName("h-5")
+			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			CreateHazelcastCR(hazelcast)
+			evaluateReadyMembers(hzLookupKey, 3)
+
+			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			err := k8sClient.Get(context.Background(), hzLookupKey, hz)
+			Expect(err).ToNot(HaveOccurred())
+			By("checking hazelcast members pod name")
+			for _, member := range hz.Status.Members {
+				Expect(member.PodName).Should(ContainSubstring(hz.Name))
+				pod := &corev1.Pod{}
+				err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: hz.Namespace, Name: member.PodName}, pod)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(member.Ip).Should(Equal(pod.Status.PodIP))
+			}
+		})
 	})
 
 	Describe("External API errors", func() {
@@ -111,7 +132,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		}
 
 		It("should be reflected to Hazelcast CR status", Label("fast"), func() {
-			setLabelAndCRName("h-5")
+			setLabelAndCRName("h-6")
 			CreateHazelcastCRWithoutCheck(hazelcastconfig.Faulty(hzLookupKey, ee, labels))
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
@@ -123,7 +144,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-				setLabelAndCRName("h-6")
+				setLabelAndCRName("h-7")
 				hz := hazelcastconfig.PersistenceEnabled(hzLookupKey, "/data/hot-backup", labels)
 				CreateHazelcastCR(hz)
 				evaluateReadyMembers(hzLookupKey, 3)

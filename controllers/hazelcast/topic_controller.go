@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -25,14 +25,16 @@ type TopicReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
+	clientRegistry   hzclient.ClientRegistry
 }
 
-func NewTopicReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *TopicReconciler {
+func NewTopicReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry) *TopicReconciler {
 	return &TopicReconciler{
 		Client:           c,
 		Log:              log,
 		Scheme:           s,
 		phoneHomeTrigger: pht,
+		clientRegistry:   cs,
 	}
 }
 
@@ -44,7 +46,7 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	logger := r.Log.WithValues("hazelcast-topic", req.NamespacedName)
 	t := &hazelcastv1alpha1.Topic{}
 
-	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, t, r.Update, logger)
+	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, t, r.Update, r.clientRegistry, logger)
 	if cl == nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -80,7 +82,7 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 func (r *TopicReconciler) ReconcileTopicConfig(
 	ctx context.Context,
 	t *hazelcastv1alpha1.Topic,
-	cl *hazelcast.Client,
+	cl hzclient.Client,
 	logger logr.Logger,
 ) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
 	var req *proto.ClientMessage
