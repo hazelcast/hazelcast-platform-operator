@@ -48,9 +48,14 @@ spec:
           spec:
             description: MultiMapSpec defines the desired state of MultiMap
             properties:
+              asyncBackupCount:
+                default: 0
+                description: Number of asynchronous backups.
+                format: int32
+                type: integer
               backupCount:
                 default: 1
-                description: Count of synchronous backups.
+                description: Number of synchronous backups.
                 format: int32
                 type: integer
               binary:
@@ -71,8 +76,9 @@ spec:
                 minLength: 1
                 type: string
               name:
-                description: Name of the multiMap config to be created. If empty,
-                  CR name will be used.
+                description: Name of the data structure config to be created. If empty,
+                  CR name will be used. It cannot be updated after the config is created
+                  successfully.
                 type: string
             required:
             - hazelcastResourceName

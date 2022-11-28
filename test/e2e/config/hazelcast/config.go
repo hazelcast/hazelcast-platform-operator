@@ -350,7 +350,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.MapSpec{
-				HazelcastResourceName: hzName,
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
 			},
 		}
 	}
@@ -407,7 +409,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.MultiMapSpec{
-				HazelcastResourceName: hzName,
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
 			},
 		}
 	}
@@ -446,7 +450,24 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.QueueSpec{
-				HazelcastResourceName: hzName,
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
+			},
+		}
+	}
+
+	DefaultCache = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastv1alpha1.Cache {
+		return &hazelcastv1alpha1.Cache{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.CacheSpec{
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
 			},
 		}
 	}
@@ -492,6 +513,17 @@ var (
 				Labels:    lbls,
 			},
 			Spec: qs,
+		}
+	}
+
+	Cache = func(cs hazelcastv1alpha1.CacheSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.Cache {
+		return &hazelcastv1alpha1.Cache{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: cs,
 		}
 	}
 )

@@ -42,7 +42,7 @@ func EncodeNearCachePreloaderConfig(clientMessage *proto.ClientMessage, nearCach
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableForNearCachePreloaderConfig(clientMessage *proto.ClientMessage, nearCachePreloaderConfig types.NearCachePreloaderConfig) {
 	if nearCachePreloaderConfig == (types.NearCachePreloaderConfig{}) {
 		clientMessage.AddFrame(proto.NullFrame.Copy())
@@ -70,7 +70,7 @@ func DecodeNearCachePreloaderConfig(frameIterator *proto.ForwardFrameIterator) t
 	}
 }
 
-//manual
+// manual
 func DecodeNullableForNearCachePreloaderConfig(frameIterator *proto.ForwardFrameIterator) types.NearCachePreloaderConfig {
 	if NextFrameIsNullFrame(frameIterator) {
 		return types.NearCachePreloaderConfig{}

@@ -4,6 +4,120 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
+  name: caches.hazelcast.com
+spec:
+  group: hazelcast.com
+  names:
+    kind: Cache
+    listKind: CacheList
+    plural: caches
+    shortNames:
+    - ch
+    singular: cache
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Current state of the Cache Config
+      jsonPath: .status.state
+      name: Status
+      type: string
+    - description: Message for the current Cache Config
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Cache is the Schema for the caches API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CacheSpec defines the desired state of Cache It cannot be
+              updated after the Cache is created
+            properties:
+              asyncBackupCount:
+                default: 0
+                description: Number of asynchronous backups.
+                format: int32
+                type: integer
+              backupCount:
+                default: 1
+                description: Number of synchronous backups.
+                format: int32
+                type: integer
+              hazelcastResourceName:
+                description: HazelcastResourceName defines the name of the Hazelcast
+                  resource.
+                minLength: 1
+                type: string
+              keyType:
+                description: Class name of the key type
+                type: string
+              name:
+                description: Name of the data structure config to be created. If empty,
+                  CR name will be used. It cannot be updated after the config is created
+                  successfully.
+                type: string
+              valueType:
+                description: Class name of the value type
+                type: string
+            required:
+            - hazelcastResourceName
+            type: object
+          status:
+            description: CacheStatus defines the observed state of Cache
+            properties:
+              memberStatuses:
+                additionalProperties:
+                  enum:
+                  - Success
+                  - Failed
+                  - Pending
+                  - Persisting
+                  - Terminating
+                  type: string
+                type: object
+              message:
+                type: string
+              state:
+                enum:
+                - Success
+                - Failed
+                - Pending
+                - Persisting
+                - Terminating
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
   name: cronhotbackups.hazelcast.com
 spec:
   group: hazelcast.com
@@ -185,8 +299,8 @@ spec:
             properties:
               agent:
                 default:
-                  repository: docker.io/kutluhanhazelcast/platform-operator-agent
-                  version: 0.1.8
+                  repository: docker.io/hazelcast/platform-operator-agent
+                  version: 0.1.10
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -194,7 +308,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.8
+                    default: 0.1.10
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -2512,10 +2626,14 @@ spec:
           spec:
             description: MapSpec defines the desired state of Hazelcast Map Config
             properties:
+              asyncBackupCount:
+                default: 0
+                description: Number of asynchronous backups.
+                format: int32
+                type: integer
               backupCount:
                 default: 1
-                description: Count of synchronous backups. It cannot be updated after
-                  map config is created successfully.
+                description: Number of synchronous backups.
                 format: int32
                 type: integer
               entryListeners:
@@ -2584,7 +2702,7 @@ spec:
                 type: object
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
-                  resource. It cannot be updated after map config is created successfully.
+                  resource.
                 minLength: 1
                 type: string
               inMemoryFormat:
@@ -2684,8 +2802,9 @@ spec:
                 format: int32
                 type: integer
               name:
-                description: Name of the map config to be created. If empty, CR name
-                  will be used. It cannot be updated after map config is created successfully.
+                description: Name of the data structure config to be created. If empty,
+                  CR name will be used. It cannot be updated after the config is created
+                  successfully.
                 type: string
               persistenceEnabled:
                 default: false
@@ -2788,9 +2907,14 @@ spec:
           spec:
             description: MultiMapSpec defines the desired state of MultiMap
             properties:
+              asyncBackupCount:
+                default: 0
+                description: Number of asynchronous backups.
+                format: int32
+                type: integer
               backupCount:
                 default: 1
-                description: Count of synchronous backups.
+                description: Number of synchronous backups.
                 format: int32
                 type: integer
               binary:
@@ -2811,8 +2935,9 @@ spec:
                 minLength: 1
                 type: string
               name:
-                description: Name of the multiMap config to be created. If empty,
-                  CR name will be used.
+                description: Name of the data structure config to be created. If empty,
+                  CR name will be used. It cannot be updated after the config is created
+                  successfully.
                 type: string
             required:
             - hazelcastResourceName
@@ -2866,6 +2991,8 @@ spec:
     kind: Queue
     listKind: QueueList
     plural: queues
+    shortNames:
+    - q
     singular: queue
   scope: Namespaced
   versions:
@@ -2928,8 +3055,9 @@ spec:
                 format: int32
                 type: integer
               name:
-                description: Name of the queue config to be created. If empty, CR
-                  name will be used.
+                description: Name of the data structure config to be created. If empty,
+                  CR name will be used. It cannot be updated after the config is created
+                  successfully.
                 type: string
               priorityComparatorClassName:
                 description: The name of the comparator class. If the class name is
@@ -3546,12 +3674,47 @@ rules:
   - get
   - list
 - apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - apps
   resources:
   - statefulsets
   verbs:
   - list
   - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - caches
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - caches/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - caches/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - hazelcast.com
   resources:
@@ -3781,6 +3944,26 @@ subjects:
   name: hazelcast-platform-controller-manager
   namespace: default
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/created-by: hazelcast-platform-operator
+    app.kubernetes.io/instance: webhook-service
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: service
+    app.kubernetes.io/part-of: hazelcast-platform-operator
+  name: hazelcast-platform-webhook-service
+  namespace: default
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    control-plane: controller-manager
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -3825,6 +4008,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz
@@ -3840,5 +4027,198 @@ spec:
             memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - emptyDir: {}
+        name: cert
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: hazelcast-platform-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-cronhotbackup
+  failurePolicy: Ignore
+  name: vcronhotbackup.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cronhotbackups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-hazelcast
+  failurePolicy: Ignore
+  name: vhazelcast.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - hazelcasts
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-hotbackup
+  failurePolicy: Ignore
+  name: vhotbackup.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - hotbackups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-managementcenter
+  failurePolicy: Ignore
+  name: vmanagementcenter.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - managementcenters
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-map
+  failurePolicy: Ignore
+  name: vmap.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - maps
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-multimap
+  failurePolicy: Ignore
+  name: vmultimap.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - multimaps
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-queue
+  failurePolicy: Ignore
+  name: vqueue.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - queues
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-topic
+  failurePolicy: Ignore
+  name: vtopic.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - topics
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: hazelcast-platform-webhook-service
+      namespace: default
+      path: /validate-hazelcast-com-v1alpha1-wanreplication
+  failurePolicy: Ignore
+  name: vwanreplication.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - wanreplications
+  sideEffects: None

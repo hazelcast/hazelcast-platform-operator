@@ -51,7 +51,7 @@ func EncodeMapStoreConfigHolder(clientMessage *proto.ClientMessage, mapStoreConf
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableForMapStoreConfigHolder(clientMessage *proto.ClientMessage, mapStoreConfigHolder types.MapStoreConfigHolder) {
 	// types.MapStoreConfigHolder{} is not comparable with ==
 	if reflect.DeepEqual(types.MapStoreConfigHolder{}, mapStoreConfigHolder) {

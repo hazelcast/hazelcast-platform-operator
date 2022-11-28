@@ -19,6 +19,7 @@ type Hazelcast struct {
 	Topic                    map[string]Topic                    `yaml:"topic,omitempty"`
 	ReplicatedMap            map[string]ReplicatedMap            `yaml:"replicatedmap,omitempty"`
 	Queue                    map[string]Queue                    `yaml:"queue,omitempty"`
+	Cache                    map[string]Cache                    `yaml:"cache,omitempty"`
 }
 
 type Jet struct {
@@ -182,6 +183,23 @@ type Queue struct {
 	StatisticsEnabled       bool        `yaml:"statistics-enabled"`
 	MergePolicy             MergePolicy `yaml:"merge-policy"`
 	PriorityComparatorClass string      `yaml:"priority-comparator-class-name"`
+}
+
+type Cache struct {
+	BackupCount       int32       `yaml:"backup-count"`
+	AsyncBackupCount  int32       `yaml:"async-backup-count"`
+	StatisticsEnabled bool        `yaml:"statistics-enabled"`
+	ManagementEnabled bool        `yaml:"management-enabled"`
+	ReadThrough       bool        `yaml:"read-through"`
+	WriteThrough      bool        `yaml:"write-through"`
+	MergePolicy       MergePolicy `yaml:"merge-policy"`
+	KeyType           ClassType   `yaml:"key-type,omitempty"`
+	ValueType         ClassType   `yaml:"value-type,omitempty"`
+	InMemoryFormat    string      `yaml:"in-memory-format"`
+}
+
+type ClassType struct {
+	ClassName string `yaml:"class-name"`
 }
 
 type MergePolicy struct {

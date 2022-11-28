@@ -289,7 +289,8 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 	})
 }
 
-/**
+/*
+*
 1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
 */
 func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
@@ -602,7 +603,7 @@ func printDebugState() {
 	GinkgoWriter.Printf("Started aftereach function for hzLookupkey : '%s'\n", hzLookupKey)
 
 	GinkgoWriter.Println("kubectl get all:")
-	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter,node,pvc", "-o=wide")
+	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter,node,pvc,topic,queue,cache,multimap,replicatedmap,validatingwebhookconfigurations", "-o=wide")
 	byt, err := cmd.Output()
 	Expect(err).To(BeNil())
 	GinkgoWriter.Println(string(byt))
@@ -745,4 +746,16 @@ func DnsLookup(ctx context.Context, host string) (string, error) {
 		return "", fmt.Errorf("host '%s' cannot be resolved", host)
 	}
 	return IPs[0], nil
+}
+
+func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *codecTypes.CacheConfigInput {
+	var caches codecTypes.CacheConfigs
+	err := xml.Unmarshal([]byte(memberConfigXML), &caches)
+	Expect(err).To(BeNil())
+	for _, c := range caches.Caches {
+		if c.Name == cacheName {
+			return &c
+		}
+	}
+	return nil
 }

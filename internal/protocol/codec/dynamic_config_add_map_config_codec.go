@@ -18,8 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
-
-	types "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 const (
@@ -61,24 +60,24 @@ func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.C
 	clientMessage.SetPartitionId(-1)
 
 	EncodeString(clientMessage, c.Name)
-	EncodeNullableForEvictionConfigHolder(clientMessage, c.EvictionConfig) //changed function signature
+	EncodeNullableForEvictionConfigHolder(clientMessage, c.EvictionConfig)
 	EncodeString(clientMessage, string(c.CacheDeserializedValues))
 	EncodeString(clientMessage, c.MergePolicy)
 	EncodeString(clientMessage, string(c.InMemoryFormat))
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.ListenerConfigs)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.PartitionLostListenerConfigs)
 	EncodeNullableForString(clientMessage, c.SplitBrainProtectionName)
-	EncodeNullableForMapStoreConfigHolder(clientMessage, c.MapStoreConfig)   //changed function signature
-	EncodeNullableForNearCacheConfigHolder(clientMessage, c.NearCacheConfig) //changed function signature
-	EncodeNullableForWanReplicationRef(clientMessage, c.WanReplicationRef)   //changed function signature
+	EncodeNullableForMapStoreConfigHolder(clientMessage, c.MapStoreConfig)
+	EncodeNullableForNearCacheConfigHolder(clientMessage, c.NearCacheConfig)
+	EncodeNullableForWanReplicationRef(clientMessage, c.WanReplicationRef)
 	EncodeNullableListMultiFrameForIndexConfig(clientMessage, c.IndexConfigs)
 	EncodeNullableListMultiFrameForAttributeConfig(clientMessage, c.AttributeConfigs)
 	EncodeNullableListMultiFrameForQueryCacheConfigHolder(clientMessage, c.QueryCacheConfigs)
 	EncodeNullableForString(clientMessage, c.PartitioningStrategyClassName)
 	EncodeNullable(clientMessage, c.PartitioningStrategyImplementation, EncodeData)
-	EncodeNullableForHotRestartConfig(clientMessage, c.HotRestartConfig)     //changed function signature
-	EncodeNullableForEventJournalConfig(clientMessage, c.EventJournalConfig) //changed function signature
-	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)     //changed function signature
+	EncodeNullableForHotRestartConfig(clientMessage, c.HotRestartConfig)
+	EncodeNullableForEventJournalConfig(clientMessage, c.EventJournalConfig)
+	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)
 
 	return clientMessage
 }

@@ -13,6 +13,8 @@ spec:
     kind: Queue
     listKind: QueueList
     plural: queues
+    shortNames:
+    - q
     singular: queue
   scope: Namespaced
   versions:
@@ -75,8 +77,9 @@ spec:
                 format: int32
                 type: integer
               name:
-                description: Name of the queue config to be created. If empty, CR
-                  name will be used.
+                description: Name of the data structure config to be created. If empty,
+                  CR name will be used. It cannot be updated after the config is created
+                  successfully.
                 type: string
               priorityComparatorClassName:
                 description: The name of the comparator class. If the class name is

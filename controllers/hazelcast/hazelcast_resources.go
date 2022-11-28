@@ -48,7 +48,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
 	}
-	if err := r.deleteDependentCRs(ctx, h, logger); err != nil {
+	if err := r.deleteDependentCRs(ctx, h); err != nil {
 		return fmt.Errorf("Could not delete all dependent CRs: %w", err)
 	}
 	if err := r.removeClusterRole(ctx, h, logger); err != nil {
@@ -69,7 +69,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	return nil
 }
 
-func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
 
 	dependentCRs := map[string]client.ObjectList{
 		"Map":           &hazelcastv1alpha1.MapList{},
@@ -77,16 +77,17 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 		"Topic":         &hazelcastv1alpha1.TopicList{},
 		"ReplicatedMap": &hazelcastv1alpha1.ReplicatedMapList{},
 		"Queue":         &hazelcastv1alpha1.QueueList{},
+		"Cache":         &hazelcastv1alpha1.CacheList{},
 	}
 	for crKind, crList := range dependentCRs {
-		if err := r.deleteDependentCR(ctx, h, crKind, crList, logger); err != nil {
+		if err := r.deleteDependentCR(ctx, h, crKind, crList); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, crKind string, objList client.ObjectList, logger logr.Logger) error {
+func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, crKind string, objList client.ObjectList) error {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
 
@@ -549,6 +550,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		&hazelcastv1alpha1.TopicList{},
 		&hazelcastv1alpha1.ReplicatedMapList{},
 		&hazelcastv1alpha1.QueueList{},
+		&hazelcastv1alpha1.CacheList{},
 	}
 	for _, ds := range dataStructures {
 		filteredDSList, err := filterPersistedDS(ctx, c, h.Name, ds)
@@ -567,6 +569,8 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 			fillHazelcastConfigWithReplicatedMaps(&cfg, filteredDSList)
 		case "Queue":
 			fillHazelcastConfigWithQueues(&cfg, filteredDSList)
+		case "Cache":
+			fillHazelcastConfigWithCaches(&cfg, filteredDSList)
 		}
 	}
 
@@ -759,6 +763,17 @@ func fillHazelcastConfigWithQueues(cfg *config.Hazelcast, ql []client.Object) {
 	}
 }
 
+func fillHazelcastConfigWithCaches(cfg *config.Hazelcast, cl []client.Object) {
+	if len(cl) != 0 {
+		cfg.Cache = map[string]config.Cache{}
+		for _, c := range cl {
+			c := c.(*hazelcastv1alpha1.Cache)
+			ccfg := createCacheConfig(c)
+			cfg.Cache[c.GetDSName()] = ccfg
+		}
+	}
+}
+
 func fillHazelcastConfigWithReplicatedMaps(cfg *config.Hazelcast, rml []client.Object) {
 	if len(rml) != 0 {
 		cfg.ReplicatedMap = map[string]config.ReplicatedMap{}
@@ -797,7 +812,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 	ms := m.Spec
 	mc := config.Map{
 		BackupCount:       *ms.BackupCount,
-		AsyncBackupCount:  int32(0),
+		AsyncBackupCount:  *ms.AsyncBackupCount,
 		TimeToLiveSeconds: *ms.TimeToLiveSeconds,
 		ReadBackupData:    false,
 		Eviction: config.MapEviction{
@@ -909,7 +924,7 @@ func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
 	mms := mm.Spec
 	return config.MultiMap{
 		BackupCount:       *mms.BackupCount,
-		AsyncBackupCount:  n.DefaultMultiMapAsyncBackupCount,
+		AsyncBackupCount:  *mms.AsyncBackupCount,
 		Binary:            mms.Binary,
 		CollectionType:    string(mms.CollectionType),
 		StatisticsEnabled: n.DefaultMultiMapStatisticsEnabled,
@@ -934,6 +949,34 @@ func createQueueConfig(q *hazelcastv1alpha1.Queue) config.Queue {
 			BatchSize: n.DefaultQueueMergeBatchSize,
 		},
 	}
+}
+
+func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
+	cs := c.Spec
+	cache := config.Cache{
+		BackupCount:       *cs.BackupCount,
+		AsyncBackupCount:  *cs.AsyncBackupCount,
+		StatisticsEnabled: n.DefaultCacheStatisticsEnabled,
+		ManagementEnabled: n.DefaultCacheManagementEnabled,
+		ReadThrough:       n.DefaultCacheReadThrough,
+		WriteThrough:      n.DefaultCacheWriteThrough,
+		InMemoryFormat:    n.DefaultCacheInMemoryFormat,
+		MergePolicy: config.MergePolicy{
+			ClassName: n.DefaultCacheMergePolicy,
+			BatchSize: n.DefaultCacheMergeBatchSize,
+		},
+	}
+	if cs.KeyType != "" {
+		cache.KeyType = config.ClassType{
+			ClassName: cs.KeyType,
+		}
+	}
+	if cs.ValueType != "" {
+		cache.ValueType = config.ClassType{
+			ClassName: cs.ValueType,
+		}
+	}
+	return cache
 }
 
 func createTopicConfig(t *hazelcastv1alpha1.Topic) config.Topic {

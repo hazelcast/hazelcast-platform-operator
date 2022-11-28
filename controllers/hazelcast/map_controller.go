@@ -212,16 +212,19 @@ func ValidatePersistence(pe bool, h *hazelcastv1alpha1.Hazelcast) error {
 
 func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelcastv1alpha1.MapSpec) error {
 	if current.Name != last.Name {
-		return fmt.Errorf("name cannot be updated.")
+		return fmt.Errorf("name cannot be updated")
 	}
 	if *current.BackupCount != *last.BackupCount {
-		return fmt.Errorf("backupCount cannot be updated.")
+		return fmt.Errorf("backupCount cannot be updated")
+	}
+	if *current.AsyncBackupCount != *last.AsyncBackupCount {
+		return fmt.Errorf("asyncBackupCount cannot be updated")
 	}
 	if !util.IndexConfigSliceEquals(current.Indexes, last.Indexes) {
-		return fmt.Errorf("indexes cannot be updated.")
+		return fmt.Errorf("indexes cannot be updated")
 	}
 	if current.PersistenceEnabled != last.PersistenceEnabled {
-		return fmt.Errorf("persistenceEnabled cannot be updated.")
+		return fmt.Errorf("persistenceEnabled cannot be updated")
 	}
 	if current.HazelcastResourceName != last.HazelcastResourceName {
 		return fmt.Errorf("hazelcastResourceName cannot be updated")
@@ -297,6 +300,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 
 	ms := m.Spec
 	mapInput.BackupCount = *ms.BackupCount
+	mapInput.AsyncBackupCount = *ms.AsyncBackupCount
 	mapInput.TimeToLiveSeconds = *ms.TimeToLiveSeconds
 	mapInput.MaxIdleSeconds = *ms.MaxIdleSeconds
 	if ms.Eviction != nil {

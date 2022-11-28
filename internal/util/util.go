@@ -197,7 +197,7 @@ func getOperatorDeploymentUID(c *rest.Config) (types.UID, error) {
 	}
 
 	var d *appsv1.Deployment
-	d, err = client.AppsV1().Deployments(ns).Get(context.TODO(), deploymentName(podName), metav1.GetOptions{})
+	d, err = client.AppsV1().Deployments(ns).Get(context.TODO(), DeploymentName(podName), metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -205,7 +205,7 @@ func getOperatorDeploymentUID(c *rest.Config) (types.UID, error) {
 	return d.UID, nil
 }
 
-func deploymentName(podName string) string {
+func DeploymentName(podName string) string {
 	s := strings.Split(podName, "-")
 	return strings.Join(s[:len(s)-2], "-")
 }

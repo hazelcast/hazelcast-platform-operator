@@ -1,0 +1,188 @@
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-cronhotbackup
+  failurePolicy: Ignore
+  name: vcronhotbackup.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cronhotbackups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-hazelcast
+  failurePolicy: Ignore
+  name: vhazelcast.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - hazelcasts
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-hotbackup
+  failurePolicy: Ignore
+  name: vhotbackup.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - hotbackups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-managementcenter
+  failurePolicy: Ignore
+  name: vmanagementcenter.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - managementcenters
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-map
+  failurePolicy: Ignore
+  name: vmap.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - maps
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-multimap
+  failurePolicy: Ignore
+  name: vmultimap.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - multimaps
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-queue
+  failurePolicy: Ignore
+  name: vqueue.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - queues
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-topic
+  failurePolicy: Ignore
+  name: vtopic.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - topics
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-wanreplication
+  failurePolicy: Ignore
+  name: vwanreplication.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - wanreplications
+  sideEffects: None

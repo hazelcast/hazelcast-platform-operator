@@ -1,0 +1,6 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Cache
+metadata:
+  name: cache-sample
+spec:
+  hazelcastResourceName: hazelcast

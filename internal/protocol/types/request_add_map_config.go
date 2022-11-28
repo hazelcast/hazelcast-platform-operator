@@ -57,7 +57,7 @@ type AddMapConfigInput struct {
 func DefaultAddMapConfigInput() *AddMapConfigInput {
 	return &AddMapConfigInput{
 		BackupCount:       n.DefaultMapBackupCount,
-		AsyncBackupCount:  int32(0),
+		AsyncBackupCount:  n.DefaultMapAsyncBackupCount,
 		TimeToLiveSeconds: n.DefaultMapTimeToLiveSeconds,
 		MaxIdleSeconds:    n.DefaultMapMaxIdleSeconds,
 		// workaround for protocol definition and implementation discrepancy in core side

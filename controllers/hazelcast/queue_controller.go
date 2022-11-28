@@ -72,7 +72,7 @@ func (r *QueueReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	if !persisted {
-		return updateDSStatus(ctx, r.Client, q, dsPersistingStatus(1*time.Second).withMessage("Waiting for MultiMap Config to be persisted."))
+		return updateDSStatus(ctx, r.Client, q, dsPersistingStatus(1*time.Second).withMessage("Waiting for Queue Config to be persisted."))
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, q, logger)

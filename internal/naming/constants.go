@@ -95,6 +95,7 @@ const (
 // Map Config default values
 const (
 	DefaultMapBackupCount        = int32(1)
+	DefaultMapAsyncBackupCount   = int32(0)
 	DefaultMapTimeToLiveSeconds  = int32(0)
 	DefaultMapMaxIdleSeconds     = int32(0)
 	DefaultMapPersistenceEnabled = false
@@ -123,6 +124,20 @@ const (
 	DefaultQueueStatisticsEnabled = true
 	DefaultQueueMergePolicy       = "com.hazelcast.spi.merge.PutIfAbsentMergePolicy"
 	DefaultQueueMergeBatchSize    = int32(100)
+)
+
+// Cache Config default values
+const (
+	DefaultCacheBackupCount                       = int32(1)
+	DefaultCacheAsyncBackupCount                  = int32(0)
+	DefaultCacheStatisticsEnabled                 = false
+	DefaultCacheManagementEnabled                 = false
+	DefaultCacheMergePolicy                       = "com.hazelcast.spi.merge.PutIfAbsentMergePolicy"
+	DefaultCacheMergeBatchSize                    = int32(100)
+	DefaultCacheReadThrough                       = false
+	DefaultCacheWriteThrough                      = false
+	DefaultCacheInMemoryFormat                    = "BINARY"
+	DefaultCacheDisablePerEntryInvalidationEvents = false
 )
 
 // ReplicatedMap Config default values

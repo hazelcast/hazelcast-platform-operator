@@ -70,7 +70,9 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("creating map with MapStore")
 		ms := hazelcastcomv1alpha1.MapSpec{
-			HazelcastResourceName: hzLookupKey.Name,
+			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
+				HazelcastResourceName: hzLookupKey.Name,
+			},
 			MapStore: &hazelcastcomv1alpha1.MapStoreConfig{
 				ClassName:            msClassName,
 				PropertiesSecretName: propSecretName,
@@ -185,7 +187,9 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("creating map with Map with entry listener")
 		ms := hazelcastcomv1alpha1.MapSpec{
-			HazelcastResourceName: hzLookupKey.Name,
+			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
+				HazelcastResourceName: hzLookupKey.Name,
+			},
 			EntryListeners: []hazelcastcomv1alpha1.EntryListenerConfiguration{
 				{
 					ClassName: "org.example.SampleEntryListener",

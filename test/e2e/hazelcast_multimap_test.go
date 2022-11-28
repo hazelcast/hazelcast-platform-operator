@@ -92,10 +92,12 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 
 		By("creating the multiMap config")
 		mms := hazelcastcomv1alpha1.MultiMapSpec{
-			HazelcastResourceName: hzLookupKey.Name,
-			BackupCount:           pointer.Int32Ptr(3),
-			Binary:                true,
-			CollectionType:        hazelcastcomv1alpha1.CollectionTypeList,
+			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
+				HazelcastResourceName: hzLookupKey.Name,
+				BackupCount:           pointer.Int32Ptr(3),
+			},
+			Binary:         true,
+			CollectionType: hazelcastcomv1alpha1.CollectionTypeList,
 		}
 		mm := hazelcastconfig.MultiMap(mms, mmLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
