@@ -235,6 +235,7 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("Cache"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
+		cr,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cache")
 		os.Exit(1)

@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -23,14 +24,16 @@ type CacheReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
+	clientRegistry   hzclient.ClientRegistry
 }
 
-func NewCacheReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}) *CacheReconciler {
+func NewCacheReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cr *hzclient.HazelcastClientRegistry) *CacheReconciler {
 	return &CacheReconciler{
 		Client:           c,
 		Log:              log,
 		Scheme:           s,
 		phoneHomeTrigger: pht,
+		clientRegistry:   cr,
 	}
 }
 
@@ -42,7 +45,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	logger := r.Log.WithValues("hazelcast-cache", req.NamespacedName)
 
 	q := &hazelcastv1alpha1.Cache{}
-	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, q, r.Update, logger)
+	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, q, r.Update, r.clientRegistry, logger)
 	if cl == nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -78,7 +81,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 func (r *CacheReconciler) ReconcileCacheConfig(
 	ctx context.Context,
 	c *hazelcastv1alpha1.Cache,
-	cl *hazelcast.Client,
+	cl hzclient.Client,
 	logger logr.Logger,
 ) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
 	var req *hazelcast.ClientMessage
