@@ -34,8 +34,8 @@ type CacheStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the Queue Config"
-// +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Queue Config"
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the Cache Config"
+// +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Cache Config"
 // +kubebuilder:resource:shortName=ch
 
 // Cache is the Schema for the caches API
