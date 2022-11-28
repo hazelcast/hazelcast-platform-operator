@@ -1180,7 +1180,7 @@ var _ = Describe("Hazelcast controller", func() {
 				time.Sleep(2 * time.Second)
 				hbl := &hazelcastv1alpha1.HotBackupList{}
 				Eventually(func() string {
-					err := k8sClient.List(context.Background(), hbl, client.InNamespace(namespace))
+					err := k8sClient.List(context.Background(), hbl, client.InNamespace(namespace), client.MatchingLabels(labels))
 					if err != nil {
 						return ""
 					}
