@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
-	"k8s.io/utils/pointer"
 	"net"
 	"path"
 	"strconv"
 	"strings"
+
+	"k8s.io/utils/pointer"
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
@@ -560,8 +561,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		if len(filteredDSList) == 0 {
 			continue
 		}
-		kind := filteredDSList[0].(Type).GetKind()
-		switch kind {
+		switch filteredDSList[0].(Type).GetKind() {
 		case "MultiMap":
 			fillHazelcastConfigWithMultiMaps(&cfg, filteredDSList)
 		case "Topic":
