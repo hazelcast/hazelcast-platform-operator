@@ -3,10 +3,12 @@ package e2e
 import (
 	"context"
 	"fmt"
-	hz "github.com/hazelcast/hazelcast-go-client"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	"strconv"
 	. "time"
+
+	hz "github.com/hazelcast/hazelcast-go-client"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
@@ -42,11 +44,11 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, &hazelcastcomv1alpha1.HotBackupList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Cache{}, &hazelcastcomv1alpha1.CacheList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1alpha1.HotBackup{}, &hazelcastv1alpha1.HotBackupList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -59,7 +61,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		m.Spec.PersistenceEnabled = true
 
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureFailed, m)
+		assertDataStructureStatus(chLookupKey, hazelcastv1alpha1.DataStructureFailed, m)
 		Expect(m.Status.Message).To(Equal(fmt.Sprintf("persistence is not enabled for the Hazelcast resource %s", hazelcast.Name)))
 	})
 
@@ -81,39 +83,15 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		cache := hazelcastconfig.DefaultCache(mapLookupKey, hazelcast.Name, labels)
 		cache.Spec.PersistenceEnabled = true
 		Expect(k8sClient.Create(context.Background(), cache)).Should(Succeed())
-		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, cache)
+		assertDataStructureStatus(chLookupKey, hazelcastv1alpha1.DataStructureSuccess, cache)
 
 		By("filling the cache with entries")
 		entryCount := 100
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
 		cli := hz.NewClientInternal(cl)
-		for _, mi := range cli.OrderedMembers() {
-			configRequest := codec.EncodeCacheGetConfigRequest("/hz/"+cache.GetDSName(), cache.GetDSName())
-			_, _ = cli.InvokeOnMember(context.Background(), configRequest, mi.UUID, nil)
-		}
+		fillCacheData(entryCount, cli, cache)
 
-		for i := 0; i < entryCount; i++ {
-			key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
-			Expect(err).To(BeNil())
-			value, err := cli.EncodeData(fmt.Sprintf("myvalue%d", i))
-			Expect(err).To(BeNil())
-			cpr := codec.EncodeCachePutRequest("/hz/"+cache.GetDSName(), key, value, nil, false, 0)
-			_, err = cli.InvokeOnKey(context.Background(), cpr, key, nil)
-			Expect(err).To(BeNil())
-		}
-
-		for i := 0; i < entryCount; i++ {
-			key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
-			Expect(err).To(BeNil())
-			value := fmt.Sprintf("myvalue%d", i)
-			getRequest := codec.EncodeCacheGetRequest("/hz/"+cache.GetDSName(), key, nil)
-			resp, err := cli.InvokeOnKey(context.Background(), getRequest, key, nil)
-			pairs := codec.DecodeCacheGetResponse(resp)
-			Expect(err).To(BeNil())
-			data, err := cli.DecodeData(pairs)
-			Expect(err).To(BeNil())
-			Expect(fmt.Sprintf("%v", data)).Should(Equal(value))
-		}
+		validateCacheEntries(entryCount, cli, cache)
 		closeChannel(stopChan)
 
 		By("creating HotBackup CR")
@@ -131,7 +109,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 		evaluateReadyMembers(hzLookupKey, 3)
-		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
+		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
 
 		By("port-forwarding to restarted Hazelcast master pod")
 		stopChan = portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
@@ -145,18 +123,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		}()
 		cli = hz.NewClientInternal(cl)
 
-		for i := 0; i < entryCount; i++ {
-			key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
-			Expect(err).To(BeNil())
-			value := fmt.Sprintf("myvalue%d", i)
-			getRequest := codec.EncodeCacheGetRequest("/hz/"+cache.GetDSName(), key, nil)
-			resp, err := cli.InvokeOnKey(context.Background(), getRequest, key, nil)
-			pairs := codec.DecodeCacheGetResponse(resp)
-			Expect(err).To(BeNil())
-			data, err := cli.DecodeData(pairs)
-			Expect(err).To(BeNil())
-			Expect(fmt.Sprintf("%v", data)).Should(Equal(value))
-		}
+		validateCacheEntries(entryCount, cli, cache)
 	})
 
 	It("should persist the cache successfully created configs into the configmap", Label("fast"), func() {
@@ -179,10 +146,10 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 			}
 			Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
 			if cache == "cachefail" {
-				assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastcomv1alpha1.DataStructureFailed, c)
+				assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureFailed, c)
 				continue
 			}
-			assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastcomv1alpha1.DataStructureSuccess, c)
+			assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureSuccess, c)
 		}
 
 		By("checking if the caches are in the ConfigMap", func() {
@@ -191,7 +158,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		By("deleting cache2")
 		Expect(k8sClient.Delete(context.Background(),
-			&hazelcastcomv1alpha1.Cache{ObjectMeta: v1.ObjectMeta{Name: "cache2", Namespace: hazelcast.Namespace}})).Should(Succeed())
+			&hazelcastv1alpha1.Cache{ObjectMeta: v1.ObjectMeta{Name: "cache2", Namespace: hazelcast.Namespace}})).Should(Succeed())
 
 		By("checking if cache2 is not persisted in the configmap", func() {
 			assertCacheConfigsPersisted(hazelcast, "cache1", "cache3")
@@ -205,7 +172,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		c := hazelcastconfig.DefaultCache(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
-		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastcomv1alpha1.DataStructureSuccess, c)
+		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureSuccess, c)
 
 		By("checking if the map config is persisted")
 		hzConfig := assertCacheConfigsPersisted(hazelcast, c.Name)
@@ -214,7 +181,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		By("failing to update the map config")
 		c.Spec.BackupCount = pointer.Int32Ptr(4)
 		Expect(k8sClient.Update(context.Background(), c)).Should(Succeed())
-		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastcomv1alpha1.DataStructureFailed, c)
+		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureFailed, c)
 
 		By("checking if the same map config is still there")
 		// Should wait for Hazelcast reconciler to get triggered, we do not have a waiting mechanism for that.
@@ -224,3 +191,35 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		Expect(newCcfg).To(Equal(ccfg))
 	})
 })
+
+func validateCacheEntries(entryCount int, cli *hz.ClientInternal, cache *hazelcastv1alpha1.Cache) {
+	for i := 0; i < entryCount; i++ {
+		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
+		Expect(err).To(BeNil())
+		value := fmt.Sprintf("myvalue%d", i)
+		getRequest := codec.EncodeCacheGetRequest("/hz/"+cache.GetDSName(), key, nil)
+		resp, err := cli.InvokeOnKey(context.Background(), getRequest, key, nil)
+		pairs := codec.DecodeCacheGetResponse(resp)
+		Expect(err).To(BeNil())
+		data, err := cli.DecodeData(pairs)
+		Expect(err).To(BeNil())
+		Expect(fmt.Sprintf("%v", data)).Should(Equal(value))
+	}
+}
+
+func fillCacheData(entryCount int, cli *hz.ClientInternal, cache *hazelcastv1alpha1.Cache) {
+	for _, mi := range cli.OrderedMembers() {
+		configRequest := codec.EncodeCacheGetConfigRequest("/hz/"+cache.GetDSName(), cache.GetDSName())
+		_, _ = cli.InvokeOnMember(context.Background(), configRequest, mi.UUID, nil)
+	}
+
+	for i := 0; i < entryCount; i++ {
+		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
+		Expect(err).To(BeNil())
+		value, err := cli.EncodeData(fmt.Sprintf("myvalue%d", i))
+		Expect(err).To(BeNil())
+		cpr := codec.EncodeCachePutRequest("/hz/"+cache.GetDSName(), key, value, nil, false, 0)
+		_, err = cli.InvokeOnKey(context.Background(), cpr, key, nil)
+		Expect(err).To(BeNil())
+	}
+}
