@@ -485,6 +485,7 @@ var _ = Describe("Hazelcast controller", func() {
 				"hazelcast.slow.operation.detector.threshold.millis":           "4000",
 				"hazelcast.slow.operation.detector.stacktrace.logging.enabled": "true",
 				"hazelcast.query.optimizer.type":                               "NONE",
+				"hazelcast.persistence.auto.cluster.state":                     "false",
 			}
 			spec.Properties = sampleProperties
 			hz := &hazelcastv1alpha1.Hazelcast{
@@ -663,6 +664,34 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
+	Context("Jet Engine configuration", func() {
+		When("Jet is not configured", func() {
+			It("should be enabled by default", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				_ = EnsureStatus(hz)
+
+				Eventually(func() bool {
+					cfg := getConfigMap(hz)
+					a := &config.HazelcastWrapper{}
+
+					if err := yaml.Unmarshal([]byte(cfg.Data["hazelcast.yaml"]), a); err != nil {
+						return false
+					}
+
+					return *a.Hazelcast.Jet.Enabled
+				}, timeout, interval).Should(BeTrue())
+
+				Delete(hz)
+			})
+		})
+	})
+
 	Context("Hot Restart Persistence configuration", func() {
 		When("Persistence is configured", func() {
 			It("should create volumeClaimTemplates", Label("fast"), func() {
@@ -714,6 +743,39 @@ var _ = Describe("Hazelcast controller", func() {
 					))),
 				)
 				Delete(hz)
+			})
+
+			It("should add RBAC PolicyRule for watch statefulsets", Label("fast"), func() {
+				s := test.HazelcastSpec(defaultSpecValues, ee)
+				s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+						StorageClassName: &[]string{"standard"}[0],
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       s,
+				}
+
+				Create(hz)
+				EnsureStatus(hz)
+
+				By("checking ClusterRole", func() {
+					rbac := &rbacv1.ClusterRole{}
+					Expect(k8sClient.Get(
+						context.Background(), client.ObjectKey{Name: hz.ClusterScopedName()}, rbac)).
+						Should(Succeed())
+
+					Expect(rbac.Rules).Should(ContainElement(rbacv1.PolicyRule{
+						APIGroups: []string{"apps"},
+						Resources: []string{"statefulsets"},
+						Verbs:     []string{"watch", "list"},
+					}))
+				})
 			})
 		})
 	})

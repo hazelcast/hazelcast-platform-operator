@@ -20,9 +20,10 @@ Here is a short video to deploy a simple Hazelcast Platform cluster and Manageme
 
 ## Documentation
 
-1. [Get started](https://docs.hazelcast.com/operator/latest/get-started) with the Operator.
+1. [Get started](https://docs.hazelcast.com/operator/latest/get-started) with the Operator
 2. [Connect the cluster from outside Kubernetes](https://docs.hazelcast.com/tutorials/hazelcast-platform-operator-expose-externally)
-   from the outside.
+3. [Restore a Cluster from Cloud Storage with Hazelcast Platform Operator](https://docs.hazelcast.com/tutorials/hazelcast-platform-operator-external-backup-restore)
+4. [Replicate Data between Two Hazelcast Clusters with Hazelcast Platform Operator](https://docs.hazelcast.com/tutorials/hazelcast-platform-operator-wan-replication)
 
 ## Features
 
@@ -33,6 +34,12 @@ Hazelcast Platform Operator supports the features below:
 * Scale up and down Hazelcast clusters
 * Expose Hazelcast cluster to external
   clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/latest/clients/java#java-client-operation-modes))
+* Backup Hazelcast persistence data to cloud storage with the possibility of scheduling it and restoring the data accordingly
+* WAN Replication feature when you need to synchronize multiple Hazelcast clusters, which are connected by WANs
+* User Code Deployment feature, which allows you to deploy custom and domain classes from cloud storages to Hazelcast members
+* ExecutorService and EntryProcessor support
+* Support several data structures like Map, Topic, MultiMap, and ReplicatedMap, which can be created dynamically via specific Custom Resources
+* MapStore support for Map CR
 
 For Hazelcast Platform Enterprise, you can request a trial license key from [here](https://trialrequest.hazelcast.com).
 

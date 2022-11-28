@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
+	"k8s.io/utils/pointer"
 	"net"
 	"path"
 	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -31,6 +31,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -56,12 +57,15 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
 		return fmt.Errorf("ClusterRoleBinding could not be removed: %w", err)
 	}
+	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
+	r.statusServiceRegistry.Delete(lk)
+	r.clientRegistry.Delete(ctx, lk)
+
 	controllerutil.RemoveFinalizer(h, n.Finalizer)
 	err := r.Update(ctx, h)
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
-	hzclient.ShutdownClient(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 	return nil
 }
 
@@ -168,13 +172,20 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 	}
 
+	if h.Spec.Persistence.IsEnabled() {
+		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
+			APIGroups: []string{"apps"},
+			Resources: []string{"statefulsets"},
+			Verbs:     []string{"watch", "list"},
+		})
+	}
+
 	if platform.GetType() == platform.OpenShift {
 		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{"security.openshift.io"},
 			Resources: []string{"securitycontextconstraints"},
 			Verbs:     []string{"use"},
-		},
-		)
+		})
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
@@ -311,6 +322,16 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 			Ports:    hazelcastPort(),
 		},
 	}
+
+	if h.ExternalAddressEnabled() && !h.Spec.ExposeExternally.IsSmart() {
+		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
+			Name:       "hazelcast-port-ex",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       5702,
+			TargetPort: intstr.FromInt(5702),
+		})
+	}
+
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
@@ -562,9 +583,6 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 
 func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	cfg := config.Hazelcast{
-		Jet: config.Jet{
-			Enabled: &[]bool{true}[0],
-		},
 		Network: config.Network{
 			Join: config.Join{
 				Kubernetes: config.Kubernetes{
@@ -587,6 +605,13 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				},
 			},
 		},
+	}
+
+	if h.Spec.JetEngineConfiguration.IsConfigured() {
+		cfg.Jet = config.Jet{
+			Enabled:               h.Spec.JetEngineConfiguration.Enabled,
+			ResourceUploadEnabled: pointer.BoolPtr(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
+		}
 	}
 
 	if h.Spec.UserCodeDeployment != nil {
@@ -687,6 +712,7 @@ func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName stri
 
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
 	p := filterProperties(h.Spec.Properties)
+	p["hazelcast.persistence.auto.cluster.state"] = "false"
 	cfg.Properties = p
 }
 
@@ -1447,8 +1473,8 @@ func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.Volu
 	return vms
 }
 
-// checkHotRestart checks if the persistence feature and AutoForceStart is enabled, pods are failing,
-// and the cluster is in the PASSIVE mode and performs the Force Start action.
+// checkHotRestart checks if the persistence feature and AutoForceStart is enabled, and pods are failing
+// to perform the Force Start action.
 func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !h.Spec.Persistence.IsEnabled() || !h.Spec.Persistence.AutoForceStart {
 		return nil
@@ -1458,17 +1484,7 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 		if !member.Ready && member.Reason == "CrashLoopBackOff" {
 			logger.Info("Member is crashing with CrashLoopBackOff.",
 				"RestartCounts", member.RestartCount, "Message", member.Message)
-			rest := NewRestClient(h)
-			state, err := rest.GetState(ctx)
-			if err != nil {
-				return err
-			}
-			if state != "passive" {
-				logger.Info("Force Start can only be triggered on the cluster in PASSIVE state.",
-					"State", state)
-				return nil
-			}
-			err = rest.ForceStart(ctx)
+			err := NewRestClient(h).ForceStart(ctx)
 			if err != nil {
 				return err
 			}
@@ -1692,16 +1708,15 @@ func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Haz
 	return map[string]interface{}{"es": newExecutorServices, "des": newDurableExecutorServices, "ses": newScheduledExecutorServices}, nil
 }
 
-func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *hazelcast.Client, newExecutorServices map[string]interface{}) {
-	ci := hazelcast.NewClientInternal(client)
+func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client hzclient.Client, newExecutorServices map[string]interface{}) {
 	var req *proto.ClientMessage
 	for _, es := range newExecutorServices["es"].([]hazelcastv1alpha1.ExecutorServiceConfiguration) {
 		esInput := codecTypes.DefaultAddExecutorServiceInput()
 		fillAddExecutorServiceInput(esInput, es)
 		req = codec.EncodeDynamicConfigAddExecutorConfigRequest(esInput)
 
-		for _, member := range ci.OrderedMembers() {
-			_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+		for _, member := range client.OrderedMembers() {
+			_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
 			if err != nil {
 				continue
 			}
@@ -1712,8 +1727,8 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *h
 		fillAddDurableExecutorServiceInput(esInput, des)
 		req = codec.EncodeDynamicConfigAddDurableExecutorConfigRequest(esInput)
 
-		for _, member := range ci.OrderedMembers() {
-			_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+		for _, member := range client.OrderedMembers() {
+			_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
 			if err != nil {
 				continue
 			}
@@ -1724,8 +1739,8 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *h
 		fillAddScheduledExecutorServiceInput(esInput, ses)
 		req = codec.EncodeDynamicConfigAddScheduledExecutorConfigRequest(esInput)
 
-		for _, member := range ci.OrderedMembers() {
-			_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+		for _, member := range client.OrderedMembers() {
+			_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
 			if err != nil {
 				continue
 			}

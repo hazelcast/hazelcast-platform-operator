@@ -6,6 +6,9 @@ on:
         description: "Version in the form of X.Y[.Z]"
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   create_release:
     name: Create release
@@ -54,6 +57,21 @@ jobs:
           TAG_VERSION=v${RELEASE_VERSION}
           git tag ${TAG_VERSION}
           git push origin ${TAG_VERSION}
+
+  update_draft_release:
+    needs: create_release
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v5
+        with:
+          tag: v${{ inputs.RELEASE_VERSION }}
+          name: ${{ inputs.RELEASE_VERSION }}
+          config-name: release-drafter-config.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   slack_notify:
     name: Slack Notify

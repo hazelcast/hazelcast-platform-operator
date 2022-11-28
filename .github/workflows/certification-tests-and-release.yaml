@@ -170,7 +170,7 @@ jobs:
           make bundle IMG=${IMAGE_NAME_DIGEST} VERSION=${RELEASE_VERSION}
           cat >> ./bundle/metadata/annotations.yaml <<EOF
             # OpenShift annotations.
-            com.redhat.openshift.versions: "v4.6"
+            com.redhat.openshift.versions: v4.8
             operators.operatorframework.io.bundle.channel.default.v1: alpha
           EOF
 

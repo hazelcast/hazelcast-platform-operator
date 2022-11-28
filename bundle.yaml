@@ -300,7 +300,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.8
+                  version: 0.1.10
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -308,7 +308,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.8
+                    default: 0.1.10
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -416,6 +416,20 @@ spec:
                       type: string
                   type: object
                 type: array
+              jet:
+                default:
+                  enabled: true
+                description: Jet Engine configuration
+                properties:
+                  enabled:
+                    default: true
+                    description: When false, disables Jet Engine.
+                    type: boolean
+                  resourceUploadEnabled:
+                    default: false
+                    description: When true, enables resource uploading for Jet jobs.
+                    type: boolean
+                type: object
               licenseKeySecret:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
@@ -1379,7 +1393,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.1.4
+                default: 5.2.1
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
@@ -2532,7 +2546,7 @@ spec:
                     type: array
                 type: object
               version:
-                default: 5.1.4
+                default: 5.2.0
                 description: Version of Management Center.
                 type: string
             type: object
@@ -3660,6 +3674,13 @@ rules:
   - get
   - list
 - apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - hazelcast.com
   resources:
   - caches
@@ -3949,7 +3970,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: hazelcast/hazelcast-platform-operator:5.4
+        image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:

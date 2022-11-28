@@ -58,7 +58,13 @@ func isDSPersisted(obj client.Object) bool {
 	return false
 }
 
-func initialSetupDS(ctx context.Context, c client.Client, nn client.ObjectKey, obj client.Object, updateFunc Update, logger logr.Logger) (*hazelcast.Client, ctrl.Result, error) {
+func initialSetupDS(ctx context.Context,
+	c client.Client,
+	nn client.ObjectKey,
+	obj client.Object,
+	updateFunc Update,
+	cs hzclient.ClientRegistry,
+	logger logr.Logger) (hzclient.Client, ctrl.Result, error) {
 	if err := getCR(ctx, c, obj, nn, logger); err != nil {
 		return nil, ctrl.Result{}, err
 	}
@@ -82,7 +88,7 @@ func initialSetupDS(ctx context.Context, c client.Client, nn client.ObjectKey, o
 		return nil, res, err
 	}
 
-	cl, res, err := getHZClient(ctx, c, obj, nn.Namespace, obj.(DataStructure).GetHZResourceName())
+	cl, res, err := getHZClient(ctx, c, obj, nn.Namespace, obj.(DataStructure).GetHZResourceName(), cs)
 	if cl == nil {
 		return nil, res, err
 	}
@@ -150,7 +156,7 @@ func handleCreatedBefore(ctx context.Context, c client.Client, obj client.Object
 	return true, ctrl.Result{}, nil
 }
 
-func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hzResourceName string) (*hazelcast.Client, ctrl.Result, error) {
+func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hzResourceName string, cs hzclient.ClientRegistry) (hzclient.Client, ctrl.Result, error) {
 	h := &hazelcastv1alpha1.Hazelcast{}
 	hzLookup := types.NamespacedName{Namespace: ns, Name: hzResourceName}
 	err := c.Get(ctx, hzLookup, h)
@@ -165,19 +171,19 @@ func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hz
 		return nil, result, err
 	}
 
-	hzcl, ok := hzclient.GetClient(hzLookup)
+	hzcl, ok := cs.Get(hzLookup)
 	if !ok {
 		err = errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", hzResourceName))
 		result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(err).withMessage(err.Error()))
 		return nil, result, err
 	}
-	if hzcl.Client == nil || !hzcl.Client.Running() {
+	if !hzcl.Running() {
 		err = fmt.Errorf("trying to connect to the cluster %s", hzResourceName)
 		result, err := updateDSStatus(ctx, c, obj, dsPendingStatus(retryAfterForDataStructures).withMessage(err.Error()))
 		return nil, result, err
 	}
 
-	return hzcl.Client, ctrl.Result{}, nil
+	return hzcl, ctrl.Result{}, nil
 }
 
 func finalSetupDS(ctx context.Context, c client.Client, ph chan struct{}, obj client.Object, logger logr.Logger) (ctrl.Result, error) {
@@ -213,17 +219,20 @@ func updateLastSuccessfulConfigurationDS(ctx context.Context, c client.Client, o
 	return err
 }
 
-func sendCodecRequest(ctx context.Context, cl *hazelcast.Client, obj client.Object, req *hazelcast.ClientMessage, logger logr.Logger) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
-	ci := hazelcast.NewClientInternal(cl)
-
+func sendCodecRequest(
+	ctx context.Context,
+	cl hzclient.Client,
+	obj client.Object,
+	req *hazelcast.ClientMessage,
+	logger logr.Logger) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
 	memberStatuses := map[string]hazelcastv1alpha1.DataStructureConfigState{}
 	var failedMembers strings.Builder
-	for _, member := range ci.OrderedMembers() {
+	for _, member := range cl.OrderedMembers() {
 		if status, ok := obj.(DataStructure).GetMemberStatuses()[member.UUID.String()]; ok && status == hazelcastv1alpha1.DataStructureSuccess {
 			memberStatuses[member.UUID.String()] = hazelcastv1alpha1.DataStructureSuccess
 			continue
 		}
-		_, err := ci.InvokeOnMember(ctx, req, member.UUID, nil)
+		_, err := cl.InvokeOnMember(ctx, req, member.UUID, nil)
 		if err != nil {
 			memberStatuses[member.UUID.String()] = hazelcastv1alpha1.DataStructureFailed
 			failedMembers.WriteString(member.UUID.String() + ", ")

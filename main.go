@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -118,11 +119,16 @@ func main() {
 		}
 	}
 
+	cr := &hzclient.HazelcastClientRegistry{}
+	ssm := &hzclient.HzStatusServiceRegistry{}
+
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
+		cr,
+		ssm,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Hazelcast")
 		os.Exit(1)
@@ -143,6 +149,8 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("HotBackup"),
 		phoneHomeTrigger,
 		mtlsClient,
+		cr,
+		ssm,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HotBackup")
 		os.Exit(1)
@@ -153,6 +161,7 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("Map"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
+		cr,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Map")
 		os.Exit(1)
@@ -163,6 +172,7 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("WanReplication"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
+		cr,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controllers", "WanReplication")
 		os.Exit(1)
@@ -183,6 +193,7 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("MultiMap"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
+		cr,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MultiMap")
 	}
@@ -192,6 +203,7 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("Topic"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
+		cr,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Topic")
 		os.Exit(1)
@@ -202,6 +214,7 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("ReplicatedMap"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
+		cr,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ReplicatedMap")
 		os.Exit(1)
@@ -212,6 +225,7 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("Queue"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
+		cr,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Queue")
 		os.Exit(1)

@@ -17,6 +17,13 @@ rules:
   - get
   - list
 - apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - hazelcast.com
   resources:
   - caches

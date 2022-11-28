@@ -1,0 +1,68 @@
+commitish: 'main'
+categories:
+  - title: 'New Features'
+    labels:
+      - 'feature'
+  - title: 'Changes'
+    labels:
+      - 'enhancement'
+  - title: 'Fixed Issues'
+    labels:
+      - 'fix'
+include-labels:
+  - 'feature'
+  - 'enhancement'
+  - 'fix'
+replacers:
+  - search: '/\[(.*?)\]/g'
+    replace: ''
+  - search: '^Add'
+    replace: 'Added'
+  - search: 'feat:'
+    replace: ''
+  - search: 'fix:'
+    replace: ''
+  - search: 'enhancement:'
+    replace: ''
+  - search: '/(##[\s\S]Description)\s+\w.*\s+(##[\s\S]User)\s+\w.*\s+/g'
+    replace: '   - '
+autolabeler:
+  - label: 'feature'
+    branch:
+      - '/feat\/.+/'
+    title:
+      - '/feature/i'
+      - '/feat/i'
+      - '/implement/i'
+      - '/support/i'
+  - label: 'enhancement'
+    branch:
+      - '/enhancement\/.+/'
+    title:
+      - '/enhancement/i'
+      - '/improve/i'
+      - '/upgrade/i'
+      - '/update/i'
+  - label: 'fix'
+    branch:
+      - '/fix\/.+/'
+    title:
+      - '/fix/i'
+      - '/bug/i'
+      - '/issue/i'
+      - '/error/i'
+  - label: 'ci'
+    files:
+      - '.github/workflows/*'
+  - label: 'test'
+    files:
+      - 'test/*'
+  - label: 'documentation'
+    files:
+      - '*.md'
+change-template: '- $TITLE (#$NUMBER)$BODY'
+template: |
+  # Release notes
+  In this release, we introduced the {REPLACE THIS}. We also introduced {REPLACE THIS}.
+  $CHANGES
+
