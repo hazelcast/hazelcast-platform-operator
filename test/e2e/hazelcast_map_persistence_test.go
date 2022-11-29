@@ -13,7 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
@@ -40,11 +41,11 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, &hazelcastcomv1alpha1.HotBackupList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1alpha1.HotBackup{}, &hazelcastv1alpha1.HotBackupList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1alpha1.Map{}, &hazelcastv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -56,7 +57,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
+		m = assertMapStatus(m, hazelcastv1alpha1.MapFailed)
 		Expect(m.Status.Message).To(Equal(fmt.Sprintf("persistence is not enabled for the Hazelcast resource %s", hazelcast.Name)))
 	})
 
@@ -74,30 +75,34 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		By("creating the map config")
 		m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 
 		By("filling the map with entries")
-		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
+		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
 
 		By("creating HotBackup CR")
-		t := Now()
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		assertHotBackupSuccess(hotBackup, 1*Minute)
 
-		seq := GetBackupSequence(t, hzLookupKey)
+		By("filling the map with entries after backup")
+		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
+
 		RemoveHazelcastCR(hazelcast)
 
 		By("creating new Hazelcast cluster from existing backup")
-		baseDir += "/hot-backup/backup-" + seq
 		hazelcast = hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
+		hazelcast.Spec.Persistence.Restore = &hazelcastv1alpha1.RestoreConfiguration{
+			HotBackupResourceName: hotBackup.Name,
+		}
 
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 		evaluateReadyMembers(hzLookupKey)
-		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
-		By("checking the map entries")
-		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 100, 1*Minute)
+		By("checking the cluster state and map size")
+		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
+		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
+		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
 	})
 
 	It("should persist the map successfully created configs into the configmap", Label("fast"), func() {
@@ -114,17 +119,17 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		By("creating the map configs")
 		for i, mapp := range maps {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapp, Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
-			m.Spec.Eviction = &hazelcastcomv1alpha1.EvictionConfig{MaxSize: pointer.Int32(int32(i) * 100)}
+			m.Spec.Eviction = &hazelcastv1alpha1.EvictionConfig{MaxSize: pointer.Int32(int32(i) * 100)}
 			m.Spec.HazelcastResourceName = hazelcast.Name
 			if mapp == "mapfail" {
 				m.Spec.HazelcastResourceName = "failedHz"
 			}
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 			if mapp == "mapfail" {
-				assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
+				assertMapStatus(m, hazelcastv1alpha1.MapFailed)
 				continue
 			}
-			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 		}
 
 		By("checking if the maps are in the map config", func() {
@@ -138,7 +143,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		By("deleting map2")
 		Expect(k8sClient.Delete(context.Background(),
-			&hazelcastcomv1alpha1.Map{ObjectMeta: v1.ObjectMeta{Name: "map2", Namespace: hazelcast.Namespace}})).Should(Succeed())
+			&hazelcastv1alpha1.Map{ObjectMeta: v1.ObjectMeta{Name: "map2", Namespace: hazelcast.Namespace}})).Should(Succeed())
 
 		By("checking if map2 is not persisted in the configmap", func() {
 			_ = assertMapConfigsPersisted(hazelcast, "map1", "map3")
@@ -151,29 +156,29 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		CreateHazelcastCR(hazelcast)
 
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		m.Spec.Indexes = []hazelcastcomv1alpha1.IndexConfig{
+		m.Spec.Indexes = []hazelcastv1alpha1.IndexConfig{
 			{
 				Name:       "index-1",
-				Type:       hazelcastcomv1alpha1.IndexTypeHash,
+				Type:       hazelcastv1alpha1.IndexTypeHash,
 				Attributes: []string{"attribute1", "attribute2"},
-				BitmapIndexOptions: &hazelcastcomv1alpha1.BitmapIndexOptionsConfig{
+				BitmapIndexOptions: &hazelcastv1alpha1.BitmapIndexOptionsConfig{
 					UniqueKey:           "key",
-					UniqueKeyTransition: hazelcastcomv1alpha1.UniqueKeyTransitionRAW,
+					UniqueKeyTransition: hazelcastv1alpha1.UniqueKeyTransitionRAW,
 				},
 			},
 		}
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 
 		By("checking if the map is in the configmap")
 		hzConfig := assertMapConfigsPersisted(hazelcast, m.Name)
 
 		By("checking if the indexes are persisted")
 		Expect(hzConfig.Hazelcast.Map[m.Name].Indexes[0].Name).Should(Equal("index-1"))
-		Expect(hzConfig.Hazelcast.Map[m.Name].Indexes[0].Type).Should(Equal(string(hazelcastcomv1alpha1.IndexTypeHash)))
+		Expect(hzConfig.Hazelcast.Map[m.Name].Indexes[0].Type).Should(Equal(string(hazelcastv1alpha1.IndexTypeHash)))
 		Expect(hzConfig.Hazelcast.Map[m.Name].Indexes[0].Attributes).Should(ConsistOf("attribute1", "attribute2"))
 		Expect(hzConfig.Hazelcast.Map[m.Name].Indexes[0].BitmapIndexOptions.UniqueKey).Should(Equal("key"))
-		Expect(hzConfig.Hazelcast.Map[m.Name].Indexes[0].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(string(hazelcastcomv1alpha1.UniqueKeyTransitionRAW)))
+		Expect(hzConfig.Hazelcast.Map[m.Name].Indexes[0].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(string(hazelcastv1alpha1.UniqueKeyTransitionRAW)))
 	})
 
 	It("should continue persisting last applied Map Config in case of failure", Label("fast"), func() {
@@ -183,7 +188,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		m = assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 
 		By("checking if the map config is persisted")
 		hzConfig := assertMapConfigsPersisted(hazelcast, m.Name)
@@ -192,7 +197,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		By("failing to update the map config")
 		m.Spec.BackupCount = pointer.Int32(4)
 		Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
+		assertMapStatus(m, hazelcastv1alpha1.MapFailed)
 
 		By("checking if the same map config is still there")
 		// Should wait for Hazelcast reconciler to get triggered, we do not have a waiting mechanism for that.
