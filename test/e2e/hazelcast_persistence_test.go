@@ -155,7 +155,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
 
 	},
-		Entry("with PVC configuration", Label("slow")),
+		FEntry("with PVC configuration", Label("slow")),
 		Entry("with HostPath configuration single node", Label("slow"), "/tmp/hazelcast/singleNode", "dummyNodeName"),
 		Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
 	)
