@@ -17,7 +17,7 @@ jobs:
     env:
       NAMESPACE: istio-test-operator-${{ matrix.edition }}
       NAME_PREFIX: istio-${{ matrix.edition }}-${{ github.run_id }}-
-      CLUSTER_NAME: istio
+      CLUSTER_NAME: kind
     steps:
       - name: Checkout
         uses: actions/checkout@v3
