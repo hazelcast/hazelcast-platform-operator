@@ -74,8 +74,10 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
 		test.EventuallyInLogsUnordered(scanner, 15*Second, logInterval).
 			Should(ContainElements(
-				"Starting new hot backup with sequence",
-				"ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"))
+				ContainSubstring("Starting new hot backup with sequence"),
+				ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"),
+				MatchRegexp(`(.*) Backup of hot restart store (.*?) finished in [0-9]* ms`)))
+
 		Expect(logs.Close()).Should(Succeed())
 
 		assertHotBackupSuccess(hotBackup, 1*Minute)
@@ -155,7 +157,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
 
 	},
-		FEntry("with PVC configuration", Label("slow")),
+		Entry("with PVC configuration", Label("slow")),
 		Entry("with HostPath configuration single node", Label("slow"), "/tmp/hazelcast/singleNode", "dummyNodeName"),
 		Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
 	)

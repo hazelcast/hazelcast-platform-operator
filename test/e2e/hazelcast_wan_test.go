@@ -53,7 +53,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	FIt("should send data to another cluster", Label("slow"), func() {
+	It("should send data to another cluster", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
