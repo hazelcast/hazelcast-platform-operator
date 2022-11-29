@@ -1,10 +1,9 @@
-name: Nightly slow tests on Kind with Istio
+name: Istio E2E tests on Kind
 
 on:
-  pull_request:
-#  workflow_dispatch:
-#  schedule:
-#    - cron: "0 0 */3 * *"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 */3 * *"
 
 jobs:
   istio-e2e-tests:
