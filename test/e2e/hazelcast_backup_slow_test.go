@@ -21,6 +21,8 @@ import (
 )
 
 var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
+	localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
+
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -73,7 +75,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
+		FillTheMapData(ctx, hzLookupKey, true, m.MapName(), 100)
 
 		By("deleting Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
@@ -95,7 +97,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 		Expect(logs.Close()).Should(Succeed())
 
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 30*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), 100, 30*Minute)
 	})
 
 	It("should successfully start after one member restart", Label("slow"), func() {
@@ -124,7 +126,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
+		FillTheMapData(ctx, hzLookupKey, true, m.MapName(), 100)
 
 		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
 		evaluateReadyMembers(hzLookupKey, 3)
@@ -135,7 +137,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 		Expect(logs.Close()).Should(Succeed())
 
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 30*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), 100, 30*Minute)
 	})
 
 	It("should restore 9 GB data after planned shutdown", Label("slow"), func() {
@@ -168,7 +170,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		assertMapStatus(dm, hazelcastcomv1alpha1.MapSuccess)
 
-		FillTheMapWithHugeData(ctx, dm.Name, initialMapSizeInGb, hazelcast)
+		FillTheMapWithHugeData(ctx, dm.MapName(), initialMapSizeInGb, hazelcast)
 
 		By("creating HotBackup CR")
 		t := Now()
@@ -217,7 +219,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(logs.Close()).Should(Succeed())
 		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
-		WaitForMapSize(context.Background(), hzLookupKey, dm.Name, expectedMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
 	It("Should successfully restore 9 Gb data from external backup using GCP bucket", Label("slow"), func() {
@@ -256,7 +258,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(dm, hazelcastcomv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapWithHugeData(ctx, dm.Name, mapSizeInGb, hazelcast)
+		FillTheMapWithHugeData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
 
 		By("triggering the backup")
 		t := Now()
@@ -299,7 +301,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Found existing hot-restart directory"))
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Local Hot Restart procedure completed with success."))
 
-		WaitForMapSize(context.Background(), hzLookupKey, dm.Name, expectedMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
 	It("should interrupt external backup process when the hotbackup is deleted", Label("slow"), func() {
@@ -335,7 +337,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapWithHugeData(ctx, m.Name, mapSizeInGb, hazelcast)
+		FillTheMapWithHugeData(ctx, m.MapName(), mapSizeInGb, hazelcast)
 
 		t := Now()
 
@@ -382,9 +384,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
 		hazelcast.Spec.ClusterSize = &clusterSize
-		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
-		}
+
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
 
@@ -393,20 +393,20 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		m.Spec.PersistenceEnabled = true
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		FillTheMapData(context.Background(), hzLookupKey, true, m.Name, 100)
+		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
 
 		By("triggering first backup as external")
 		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, "", "")
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
-		FillTheMapData(context.Background(), hzLookupKey, true, m.Name, 100)
+		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
 
 		By("triggering second backup as local")
 		hbLookupKey2 := types.NamespacedName{Name: hbLookupKey.Name + "2", Namespace: hbLookupKey.Namespace}
 		hotBackup2 := hazelcastconfig.HotBackupAgent(hbLookupKey2, hazelcast.Name, labels, "gs://operator-e2e-external-backup", "br-secret-gcp")
 		Expect(k8sClient.Create(context.Background(), hotBackup2)).Should(Succeed())
 		hotBackup2 = assertHotBackupSuccess(hotBackup2, 1*Minute)
-		FillTheMapData(context.Background(), hzLookupKey, true, m.Name, 100)
+		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
 
 		RemoveHazelcastCR(hazelcast)
 
@@ -420,7 +420,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 1*Minute)
+		WaitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 100, 1*Minute)
 
 		RemoveHazelcastCR(hazelcast)
 
@@ -434,6 +434,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 200, 1*Minute)
+		WaitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 200, 1*Minute)
 	})
 })

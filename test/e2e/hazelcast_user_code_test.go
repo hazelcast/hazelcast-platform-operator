@@ -20,7 +20,7 @@ import (
 )
 
 var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func() {
-	localPort := strconv.Itoa(8200 + GinkgoParallelProcess())
+	localPort := strconv.Itoa(8800 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
 		if !useExistingCluster() {
@@ -85,7 +85,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("filling the map with entries")
 		entryCount := 5
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()
@@ -153,7 +153,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		defer closeChannel(stopChan)
 
 		By("checking if the initially added executor service configs are created correctly")
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()
@@ -213,7 +213,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("filling the map with entries")
 		entryCount := 5
-		cl := createHazelcastClient(context.Background(), hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels), localPort)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels), localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()

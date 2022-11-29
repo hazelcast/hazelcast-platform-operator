@@ -21,6 +21,7 @@ import (
 )
 
 var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_persistence"), func() {
+	localPort := strconv.Itoa(8400 + GinkgoParallelProcess())
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -312,9 +313,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
 		hazelcast.Spec.ClusterSize = &clusterSize
-		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
-		}
+
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
 
@@ -323,15 +322,14 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		m.Spec.PersistenceEnabled = true
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		FillTheMapData(context.Background(), hzLookupKey, true, m.Name, 100)
+		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.GetName(), 100)
 
 		By("triggering backup")
 		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
 
-		FillTheMapData(context.Background(), hzLookupKey, true, m.Name, 200)
-
+		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
 		RemoveHazelcastCR(hazelcast)
 
 		By("creating cluster from backup")
@@ -339,12 +337,10 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			HotBackupResourceName: hotBackup.Name,
 		}, labels)
 		hazelcast.Spec.ClusterSize = &clusterSize
-		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
-		}
+
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 1*Minute)
+		WaitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 100, 1*Minute)
 
 	},
 		Entry("using GCP bucket", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp"),

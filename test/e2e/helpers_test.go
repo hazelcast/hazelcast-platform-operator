@@ -18,19 +18,15 @@ import (
 	"strings"
 	. "time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	hzClient "github.com/hazelcast/hazelcast-go-client"
+	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -40,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -526,15 +523,20 @@ func portForwardPod(sName, sNamespace, port string) chan struct{} {
 	return stopChan
 }
 
-func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
+func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
 	clientWithConfig := &hzClient.Client{}
 	By(fmt.Sprintf("creating Hazelcast client using address '%s'", "localhost:"+localPort), func() {
 		c := hzClient.Config{}
 		cc := &c.Cluster
+		cc.Unisocket = true
 		cc.Name = h.Spec.ClusterName
 		cc.Network.SetAddresses("localhost:" + localPort)
-		clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
+		Eventually(func() (err error) {
+			clientWithConfig, err = hzClient.StartNewClientWithConfig(ctx, c)
+			return err
+		}, 3*Minute, interval).Should(BeNil())
 	})
+
 	return clientWithConfig
 }
 

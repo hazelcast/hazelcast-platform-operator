@@ -13,11 +13,12 @@ import (
 	"k8s.io/utils/pointer"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
-	localPort := strconv.Itoa(8100 + GinkgoParallelProcess())
+	localPort := strconv.Itoa(8000 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
 		if !useExistingCluster() {
@@ -61,23 +62,13 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
-		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-
 		By("creating the default cache config")
 		c := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
 		c = assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Cache{}).(*hazelcastcomv1alpha1.Cache)
 
 		By("checking if the cache config is created correctly")
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
-		defer func() {
-			err := cl.Shutdown(context.Background())
-			Expect(err).To(BeNil())
-		}()
-
-		memberConfigXML := getMemberConfig(context.Background(), cl)
+		memberConfigXML := MemberConfigPortForward(context.Background(), hazelcast, localPort)
 		cacheConfig := getCacheConfigFromMemberConfig(memberConfigXML, c.GetDSName())
 		Expect(cacheConfig).NotTo(BeNil())
 

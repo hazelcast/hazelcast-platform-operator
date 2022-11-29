@@ -6,7 +6,6 @@ import (
 	"strconv"
 	. "time"
 
-	hzTypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -19,7 +18,7 @@ import (
 )
 
 var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence"), func() {
-	localPort := strconv.Itoa(8000 + GinkgoParallelProcess())
+	localPort := strconv.Itoa(8100 + GinkgoParallelProcess())
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -73,9 +72,6 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
 
-		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-
 		By("creating the map config")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		m.Spec.PersistenceEnabled = true
@@ -83,29 +79,12 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("filling the map with entries")
-		entryCount := 100
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
-		mp, err := cl.GetMap(context.Background(), m.Name)
-		Expect(err).To(BeNil())
-
-		entries := make([]hzTypes.Entry, entryCount)
-		for i := 0; i < entryCount; i++ {
-			entries[i] = hzTypes.NewEntry(i, "val")
-		}
-		err = mp.PutAll(context.Background(), entries...)
-		Expect(err).To(BeNil())
-		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
-
-		By("shutting down the connection to cluster")
-		err = cl.Shutdown(context.Background())
-		Expect(err).To(BeNil())
-		closeChannel(stopChan)
+		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
 
 		By("creating HotBackup CR")
 		t := Now()
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
-
 		assertHotBackupSuccess(hotBackup, 1*Minute)
 
 		seq := GetBackupSequence(t, hzLookupKey)
@@ -119,19 +98,8 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		evaluateReadyMembers(hzLookupKey, 3)
 		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
-		By("port-forwarding to restarted Hazelcast master pod")
-		stopChan = portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-
 		By("checking the map entries")
-		cl = createHazelcastClient(context.Background(), hazelcast, localPort)
-		defer func() {
-			err := cl.Shutdown(context.Background())
-			Expect(err).To(BeNil())
-		}()
-		mp, err = cl.GetMap(context.Background(), m.Name)
-		Expect(err).To(BeNil())
-		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
+		WaitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 100, 1*Minute)
 	})
 
 	It("should persist the map successfully created configs into the configmap", Label("fast"), func() {
