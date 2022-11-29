@@ -87,7 +87,7 @@ func memberConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazel
 
 func mapConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string) codecTypes.MapConfig {
 	cfg := codecTypes.MapConfig{}
-	By(fmt.Sprintf("Getting the member config with lookup name '%s'", hz.Name), func() {
+	By(fmt.Sprintf("Getting the map config with lookup name '%s'", hz.Name), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
 
@@ -112,7 +112,7 @@ func assertClusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1
 
 func clusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string) codecTypes.ClusterState {
 	state := codecTypes.ClusterState(-1)
-	By(fmt.Sprintf("Getting the member config with lookup name '%s'", hz.Name), func() {
+	By(fmt.Sprintf("Getting the cluster state with lookup name '%s'", hz.Name), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
 
