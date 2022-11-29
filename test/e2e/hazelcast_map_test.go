@@ -77,7 +77,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("checking if the map config is created correctly")
-		mapConfig := MapConfigPortForward(context.Background(), hazelcast, localPort, m.MapName())
+		mapConfig := mapConfigPortForward(context.Background(), hazelcast, localPort, m.MapName())
 		Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastcomv1alpha1.EncodeInMemoryFormat[m.Spec.InMemoryFormat]))
 		Expect(mapConfig.BackupCount).Should(Equal(n.DefaultMapBackupCount))
 		Expect(mapConfig.AsyncBackupCount).Should(Equal(int32(0)))

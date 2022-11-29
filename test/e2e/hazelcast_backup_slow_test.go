@@ -67,11 +67,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config")
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		m.Spec.PersistenceEnabled = true
+		m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
@@ -89,7 +88,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
@@ -118,18 +117,17 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config")
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		m.Spec.PersistenceEnabled = true
+		m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		FillTheMapData(ctx, hzLookupKey, true, m.MapName(), 100)
 
 		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
@@ -165,8 +163,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the map config")
-		dm := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		dm.Spec.PersistenceEnabled = true
+		dm := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		assertMapStatus(dm, hazelcastcomv1alpha1.MapSuccess)
 
@@ -205,7 +202,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(initialMapSizeInGb) + "Gi")}[0]
 
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
@@ -249,11 +246,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")}[0]
 
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config")
-		dm := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		dm.Spec.PersistenceEnabled = true
+		dm := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		assertMapStatus(dm, hazelcastcomv1alpha1.MapSuccess)
 
@@ -293,7 +289,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")}[0]
 
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
@@ -328,11 +324,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(mapSizeInGb) + "Gi")}[0]
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config")
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		m.Spec.PersistenceEnabled = true
+		m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
@@ -386,27 +381,26 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		hazelcast.Spec.ClusterSize = &clusterSize
 
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
+		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config")
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		m.Spec.PersistenceEnabled = true
+		m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
+		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
 
 		By("triggering first backup as external")
 		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, "", "")
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
-		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
+		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
 
 		By("triggering second backup as local")
 		hbLookupKey2 := types.NamespacedName{Name: hbLookupKey.Name + "2", Namespace: hbLookupKey.Namespace}
 		hotBackup2 := hazelcastconfig.HotBackupAgent(hbLookupKey2, hazelcast.Name, labels, "gs://operator-e2e-external-backup", "br-secret-gcp")
 		Expect(k8sClient.Create(context.Background(), hotBackup2)).Should(Succeed())
 		hotBackup2 = assertHotBackupSuccess(hotBackup2, 1*Minute)
-		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
+		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
 
 		RemoveHazelcastCR(hazelcast)
 
@@ -419,8 +413,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
 		}
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
-		WaitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 100, 1*Minute)
+		evaluateReadyMembers(hzLookupKey)
 
 		RemoveHazelcastCR(hazelcast)
 
@@ -433,7 +426,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			Type: hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
 		}
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, int(*hazelcast.Spec.ClusterSize))
-		WaitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 200, 1*Minute)
+		evaluateReadyMembers(hzLookupKey)
 	})
 })

@@ -68,7 +68,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		c = assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Cache{}).(*hazelcastcomv1alpha1.Cache)
 
 		By("checking if the cache config is created correctly")
-		memberConfigXML := MemberConfigPortForward(context.Background(), hazelcast, localPort)
+		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		cacheConfig := getCacheConfigFromMemberConfig(memberConfigXML, c.GetDSName())
 		Expect(cacheConfig).NotTo(BeNil())
 

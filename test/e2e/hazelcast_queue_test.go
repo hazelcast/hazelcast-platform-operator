@@ -67,7 +67,7 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 		Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
 		q = assertDataStructureStatus(qLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Queue{}).(*hazelcastcomv1alpha1.Queue)
 
-		memberConfigXML := MemberConfigPortForward(context.Background(), hazelcast, localPort)
+		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		queueConfig := getQueueConfigFromMemberConfig(memberConfigXML, q.GetDSName())
 		Expect(queueConfig).NotTo(BeNil())
 

@@ -64,7 +64,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
 		rm = assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{}).(*hazelcastcomv1alpha1.ReplicatedMap)
 
-		memberConfigXML := MemberConfigPortForward(context.Background(), hazelcast, localPort)
+		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		replicatedMapConfig := getReplicatedMapConfigFromMemberConfig(memberConfigXML, rm.GetDSName())
 		Expect(replicatedMapConfig).NotTo(BeNil())
 

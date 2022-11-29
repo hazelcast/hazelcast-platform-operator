@@ -357,6 +357,21 @@ var (
 		}
 	}
 
+	PersistedMap = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastv1alpha1.Map {
+		return &hazelcastv1alpha1.Map{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.MapSpec{
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
+				PersistenceEnabled: true,
+			},
+		}
+	}
 	Map = func(ms hazelcastv1alpha1.MapSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.Map {
 		return &hazelcastv1alpha1.Map{
 			ObjectMeta: v1.ObjectMeta{

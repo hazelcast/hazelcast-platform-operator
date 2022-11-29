@@ -64,7 +64,7 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
 		topic = assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{}).(*hazelcastcomv1alpha1.Topic)
 
-		memberConfigXML := MemberConfigPortForward(context.Background(), hazelcast, localPort)
+		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		topicConfig := getTopicConfigFromMemberConfig(memberConfigXML, topic.GetDSName())
 		Expect(topicConfig).NotTo(BeNil())
 

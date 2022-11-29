@@ -6,15 +6,17 @@ import (
 	"strconv"
 	. "time"
 
+	hzClient "github.com/hazelcast/hazelcast-go-client"
 	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
-func FillTheMapDataPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string, entryCount int) {
+func fillTheMapDataPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string, entryCount int) {
 	By(fmt.Sprintf("filling the '%s' map with '%d' entries using '%s' lookup name and '%s' namespace", mapName, entryCount, hz.Name, hz.Namespace), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
@@ -41,7 +43,7 @@ func FillTheMapDataPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Haz
 	})
 }
 
-func WaitForMapSizePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string, mapSize int, timeout Duration) {
+func waitForMapSizePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string, mapSize int, timeout Duration) {
 	By(fmt.Sprintf("waiting the '%s' map to be of size '%d' using lookup name '%s'", mapName, mapSize, hz.Name), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
@@ -66,7 +68,7 @@ func WaitForMapSizePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Haz
 	})
 }
 
-func MemberConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string) string {
+func memberConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string) string {
 	cfg := ""
 	By(fmt.Sprintf("Getting the member config with lookup name '%s'", hz.Name), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
@@ -78,12 +80,12 @@ func MemberConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazel
 			Expect(err).To(BeNil())
 		}()
 
-		cfg = getMemberConfig(context.Background(), cl)
+		cfg = getMemberConfig(ctx, cl)
 	})
 	return cfg
 }
 
-func MapConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string) codecTypes.MapConfig {
+func mapConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string) codecTypes.MapConfig {
 	cfg := codecTypes.MapConfig{}
 	By(fmt.Sprintf("Getting the member config with lookup name '%s'", hz.Name), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
@@ -95,7 +97,37 @@ func MapConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcas
 			Expect(err).To(BeNil())
 		}()
 
-		cfg = getMapConfig(context.Background(), cl, mapName)
+		cfg = getMapConfig(ctx, cl, mapName)
 	})
 	return cfg
+}
+
+func assertClusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string, state codecTypes.ClusterState) {
+	By("waiting for Cluster state", func() {
+		Eventually(func() codecTypes.ClusterState {
+			return clusterStatePortForward(ctx, hz, localPort)
+		}, 30*Second, interval).Should(Equal(state))
+	})
+}
+
+func clusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string) codecTypes.ClusterState {
+	state := codecTypes.ClusterState(-1)
+	By(fmt.Sprintf("Getting the member config with lookup name '%s'", hz.Name), func() {
+		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+
+		cl := newHazelcastClientPortForward(ctx, hz, localPort)
+		defer func() {
+			err := cl.Shutdown(ctx)
+			Expect(err).To(BeNil())
+		}()
+
+		req := codec.EncodeMCGetClusterMetadataRequest()
+		ci := hzClient.NewClientInternal(cl)
+		resp, err := ci.InvokeOnRandomTarget(ctx, req, nil)
+		Expect(err).To(BeNil())
+		metadata := codec.DecodeMCGetClusterMetadataResponse(resp)
+		state = metadata.CurrentState
+	})
+	return state
 }

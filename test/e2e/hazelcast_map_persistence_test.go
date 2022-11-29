@@ -53,8 +53,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		m.Spec.PersistenceEnabled = true
+		m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
@@ -70,16 +69,15 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config")
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		m.Spec.PersistenceEnabled = true
+		m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("filling the map with entries")
-		FillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
+		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 100)
 
 		By("creating HotBackup CR")
 		t := Now()
@@ -95,11 +93,11 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		hazelcast = hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
 
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
 		By("checking the map entries")
-		WaitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 100, 1*Minute)
+		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 100, 1*Minute)
 	})
 
 	It("should persist the map successfully created configs into the configmap", Label("fast"), func() {
@@ -111,7 +109,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map configs")
 		for i, mapp := range maps {

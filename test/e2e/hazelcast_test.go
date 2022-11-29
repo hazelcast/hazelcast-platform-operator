@@ -69,12 +69,12 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			setLabelAndCRName("h-3")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
-			evaluateReadyMembers(hzLookupKey, 3)
+			evaluateReadyMembers(hzLookupKey)
 			assertMemberLogs(hazelcast, "Members {size:3, ver:3}")
 
 			By("removing pods so that cluster gets recreated", func() {
 				deletePods(hzLookupKey)
-				evaluateReadyMembers(hzLookupKey, 3)
+				evaluateReadyMembers(hzLookupKey)
 			})
 		})
 
@@ -82,7 +82,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			setLabelAndCRName("h-4")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
-			evaluateReadyMembers(hzLookupKey, 3)
+			evaluateReadyMembers(hzLookupKey)
 
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			memberStateT := func(status hazelcastcomv1alpha1.HazelcastMemberStatus) string {
@@ -105,7 +105,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			setLabelAndCRName("h-5")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
-			evaluateReadyMembers(hzLookupKey, 3)
+			evaluateReadyMembers(hzLookupKey)
 
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			err := k8sClient.Get(context.Background(), hzLookupKey, hz)
@@ -148,7 +148,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				setLabelAndCRName("h-7")
 				hz := hazelcastconfig.PersistenceEnabled(hzLookupKey, "/data/hot-backup", labels)
 				CreateHazelcastCR(hz)
-				evaluateReadyMembers(hzLookupKey, 3)
+				evaluateReadyMembers(hzLookupKey)
 
 				m := hazelcastconfig.DefaultMap(mapLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())

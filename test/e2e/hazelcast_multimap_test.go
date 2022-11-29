@@ -67,7 +67,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 		Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
 		mm = assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{}).(*hazelcastcomv1alpha1.MultiMap)
 
-		memberConfigXML := MemberConfigPortForward(context.Background(), hazelcast, localPort)
+		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		multiMapConfig := getMultiMapConfigFromMemberConfig(memberConfigXML, mm.GetDSName())
 		Expect(multiMapConfig).NotTo(BeNil())
 
