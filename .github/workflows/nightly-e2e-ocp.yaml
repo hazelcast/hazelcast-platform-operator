@@ -70,6 +70,10 @@ jobs:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v3
 
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.19.0"
+
       - name: Cache Golang dependencies
         uses: actions/cache@v3
         with:
@@ -87,11 +91,11 @@ jobs:
           make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
           make docker-push IMG=$IMG
 
-      - name: Restart Non-Ready Nodes
+      - name: Restart Non-Ready Machines
         run: |
           source .github/scripts/utils.sh
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
-          wait_for_node_restarted $RESTART_OCP_NODE_TIMEOUT
+          wait_for_machine_restarted $RESTART_OCP_NODE_TIMEOUT
 
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |

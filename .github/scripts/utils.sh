@@ -158,29 +158,36 @@ cleanup_page_publish_runs()
             sleep 20
     done
 }
-# This function will restart all nodes that are not in ready status and wait until it will be ready
-wait_for_node_restarted()
+# This function will restart all machines that are not in ready status and wait until it will be ready
+wait_for_machine_restarted()
 {
    local TIMEOUT_IN_MINS=$1
    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
-   NON_READY_NODES=$(oc get nodes -o json | jq -r 'del(.items[].status.conditions[] | select(.type | select(contains("Ready")|not))) | .items[]| select(.status.conditions[].status | select(contains("Unknown"))).metadata.name'| wc -l)
-   if [[ ${NON_READY_NODES} -ne 0 ]]; then
-      for NODE in ${NON_READY_NODES}; do
-         echo "Restarting node $NODE..."
-         nohup oc debug node/${NODE} -T -- chroot /host sh -c "systemctl reboot" &
-         sleep 20
+   NUMBER_MACHINES_WITHOUT_REPLICAS=$(oc get machinesets -n openshift-machine-api -o json | jq -r "[del(.items[] | select(.status.readyReplicas!= null)).items[]]|length")
+   MACHINES_WITHOUT_REPLICA=$(oc get machinesets -n openshift-machine-api -o json | jq -r "[del(.items[] | select(.status.readyReplicas!= null)).items[]]|.[].metadata.name")
+   if [[ ${NUMBER_MACHINES_WITHOUT_REPLICAS} -ne 0 ]]; then
+      for MACHINE in ${MACHINES_WITHOUT_REPLICA}; do
+         echo "* Scaling machine $MACHINE..."
+         oc scale --replicas=0 machineset ${MACHINE} -n openshift-machine-api
+         sleep 10
+         oc scale --replicas=1 machineset ${MACHINE} -n openshift-machine-api
+         echo "* The machine-set scaled. Waiting..."
       done
    fi
    for i in `seq 1 ${NOF_RETRIES}`; do
-        NON_READY_NODES=$(oc get nodes -o json | jq -r 'del(.items[].status.conditions[] | select(.type | select(contains("Ready")|not))) | .items[]| select(.status.conditions[].status | select(contains("Unknown"))).metadata.name'| wc -l)
-        if [[ ${NON_READY_NODES} -eq 0 ]]; then
-           echo "All nodes are in 'Ready' status."
+        NUMBER_MACHINES_WITHOUT_REPLICAS=$(oc get machinesets -n openshift-machine-api -o json | jq -r "[del(.items[] | select(.status.readyReplicas!= null)).items[]]|length")
+        if [[ ${NUMBER_MACHINES_WITHOUT_REPLICAS} -eq 0 ]]; then
+           echo "* All machine-sets has replicas."
+           NUMBER_NON_READY_MACHINES=$(oc get machinesets -n openshift-machine-api -o json | jq -r "[del(.items[] | select(.status.readyReplicas| select(contains(1)))).items[]]|length")
+           if [[ ${NUMBER_MACHINES_WITHOUT_REPLICAS} -eq 0 ]]; then
+           echo "* All machines are in 'Ready' status."
            return 0
         else
-           echo "The nodes restarted but are not ready yet. Waiting..."
+           echo "* The machines started but are not ready yet. Waiting..."
+        fi
         fi
         if [[ ${i} == ${NOF_RETRIES} ]]; then
-           echo "Timeout! Restarted nodes are still not ready."
+           echo "* Timeout! Machines are still not ready."
            return 42
         fi
         sleep 20
