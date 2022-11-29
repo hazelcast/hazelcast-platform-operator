@@ -1,8 +1,7 @@
 name: Nightly slow tests on Kind with Istio
 
 on:
-  pull_request_target:
-    if: ${{ false }}
+  pull_request:
 #  workflow_dispatch:
 #  schedule:
 #    - cron: "0 9 * * *"
