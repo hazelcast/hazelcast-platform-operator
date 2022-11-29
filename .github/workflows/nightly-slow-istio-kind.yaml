@@ -97,8 +97,7 @@ jobs:
       - name: Install Istio
         run: |
           curl -sL https://raw.githubusercontent.com/istio/istio/release-1.16/release/downloadIstioCtl.sh | sh -
-          cd istio-1.16.0
-          export PATH=$PWD/bin:$PATH
+          export PATH=$HOME/.istioctl/bin:$PATH
           istioctl install --set profile=demo -y
           kubectl label namespace ${{ env.NAMESPACE }} istio-injection=enabled
 
