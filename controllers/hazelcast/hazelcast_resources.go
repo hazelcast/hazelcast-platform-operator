@@ -713,7 +713,7 @@ func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName stri
 
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
 	p := filterProperties(h.Spec.Properties)
-	p["hazelcast.persistence.auto.cluster.state"] = "false"
+	//p["hazelcast.persistence.auto.cluster.state"] = "false"
 	cfg.Properties = p
 }
 
