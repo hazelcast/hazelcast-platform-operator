@@ -4,20 +4,20 @@ on:
   pull_request:
 #  workflow_dispatch:
 #  schedule:
-#    - cron: "0 9 * * *"
+#    - cron: "0 0 */3 * *"
 
 jobs:
-  kind-istio-slow-tests:
-    name: Run slow tests
+  istio-e2e-tests:
+    name: Run e2e tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         edition: [ "os","ee" ]
     env:
-      NAMESPACE: kind-istio-slow-test-operator-${{ matrix.edition }}
+      NAMESPACE: istio-test-operator-${{ matrix.edition }}
       NAME_PREFIX: istio-${{ matrix.edition }}-${{ github.run_id }}-
-      CLUSTER_NAME: kind
+      CLUSTER_NAME: istio
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -56,7 +56,7 @@ jobs:
         run: |
           kubectl create namespace newrelic
           helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
-            --set "global.cluster=kind-operator" \
+            --set "global.cluster=istio-operator" \
             --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
             --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ env.CLUSTER_NAME }}" \
             --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
@@ -98,7 +98,7 @@ jobs:
         run: |
           curl -sL https://raw.githubusercontent.com/istio/istio/release-1.16/release/downloadIstioCtl.sh | sh -
           export PATH=$HOME/.istioctl/bin:$PATH
-          istioctl install --set profile=demo -y
+          istioctl install --set profile=test -y
           kubectl label namespace ${{ env.NAMESPACE }} istio-injection=enabled
 
       - name: Create Secrets
@@ -139,7 +139,7 @@ jobs:
             echo "IMG=${IMG}" >> $GITHUB_ENV
           fi
 
-      - name: Deploy Operator to Kind Cluster
+      - name: Deploy Operator to Istio Cluster
         run: |
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
@@ -153,9 +153,38 @@ jobs:
           ee) GO_TEST_FLAGS=-ee=true;;
           *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=kind
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=istio-kind
 
-          - name: Clean up after Tests
-            if: always()
-            run: |
-              make clean-up-namespace NAMESPACE=${NAMESPACE}
+      - name: Clean up after Tests
+        if: always()
+        run: |
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report
+          path: allure-results/kind/
+
+  report-generation:
+    needs: [ "istio-e2e-tests" ]
+    if: always()
+    uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
+    with:
+      WORKFLOW_ID: kind
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ "istio-e2e-tests" ]
+    if: always() && ( needs.istio-e2e-tests.result != 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
