@@ -390,4 +390,4 @@ bundle-ocp-validate: ocp-olm-catalog-validator
 
 api-ref-doc: 
 	@go build -o bin/docgen  ./apidocgen/main.go 
-	@./bin/docgen ./api/v1alpha1/*_types.go
+	@./bin/docgen ./api/v1alpha1/*.go
