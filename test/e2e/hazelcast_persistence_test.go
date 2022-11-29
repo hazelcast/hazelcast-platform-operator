@@ -158,8 +158,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 	},
 		Entry("with PVC configuration", Label("slow")),
-		Entry("with HostPath configuration single node", Label("slow"), "/tmp/hazelcast/singleNode", "dummyNodeName"),
-		Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
+		//Entry("with HostPath configuration single node", Label("slow"), "/tmp/hazelcast/singleNode", "dummyNodeName"),
+		//Entry("with HostPath configuration multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode"),
 	)
 
 	DescribeTable("Should successfully restore from external backup", func(bucketURI, secretName string) {
