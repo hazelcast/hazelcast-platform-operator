@@ -351,6 +351,9 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName 
 	Eventually(func() bool {
 		pod, err := getClientSet().CoreV1().Pods(lk.Namespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
+		if len(pod.Status.ContainerStatuses) < 1 {
+			return false
+		}
 		return pod.Status.ContainerStatuses[0].Ready
 	}, 5*Minute, interval).Should(Equal(true))
 	return clientPod

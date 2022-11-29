@@ -152,6 +152,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 		evaluateReadyMembers(hzLookupKey)
 
+		By("checking the cluster state and map size")
 		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
@@ -210,6 +211,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
+		By("checking the cluster state and map size")
 		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
@@ -288,6 +290,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
+		By("checking the cluster state and map size")
 		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
