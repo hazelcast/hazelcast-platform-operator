@@ -98,7 +98,7 @@ jobs:
         run: |
           curl -sL https://raw.githubusercontent.com/istio/istio/release-1.16/release/downloadIstioCtl.sh | sh -
           export PATH=$HOME/.istioctl/bin:$PATH
-          istioctl install --set profile=test -y
+          istioctl install --set profile=demo -y
           kubectl label namespace ${{ env.NAMESPACE }} istio-injection=enabled
 
       - name: Create Secrets
