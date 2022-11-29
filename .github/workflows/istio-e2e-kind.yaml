@@ -152,7 +152,7 @@ jobs:
           ee) GO_TEST_FLAGS=-ee=true;;
           *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=istio-kind
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=istio
 
       - name: Clean up after Tests
         if: always()
@@ -164,7 +164,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-report
-          path: allure-results/kind/
+          path: allure-results/istio/
 
   report-generation:
     needs: [ "istio-e2e-tests" ]
@@ -172,7 +172,7 @@ jobs:
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
-      WORKFLOW_ID: kind
+      WORKFLOW_ID: istio
 
   slack_notify:
     name: Slack Notify
