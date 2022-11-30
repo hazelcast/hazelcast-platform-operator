@@ -6,9 +6,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: hazelcast/hazelcast-platform-operator
-  newTag: latest-snapshot
+  newName: sbishyr/hz-opertor-pers
+  newTag: "1.1"
 patches:
 - path: enable_developer_mode.yaml
+  target:
+    kind: Deployment
+- path: disable_phone_home.yaml
   target:
     kind: Deployment
