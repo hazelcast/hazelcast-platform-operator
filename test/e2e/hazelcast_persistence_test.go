@@ -147,7 +147,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 	})
 
 	backupRestore := func(hazelcast *hazelcastv1alpha1.Hazelcast, hotBackup *hazelcastv1alpha1.HotBackup, useBucketConfig bool) {
-		By("creating cluster with external backup enabled")
+		By("creating cluster with backup enabled")
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -249,7 +249,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		backupRestore(hazelcast, hotBackup, false)
 	},
-		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode", true),
-		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode", false),
+		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode", "gs://operator-e2e-external-backup", "br-secret-gcp", true),
+		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode", "gs://operator-e2e-external-backup", "br-secret-gcp", false),
 	)
 })
