@@ -435,18 +435,6 @@ loop1:
 	return ""
 }
 
-func addNodeSelectorForName(hz *hazelcastcomv1alpha1.Hazelcast, n string) *hazelcastcomv1alpha1.Hazelcast {
-	// If hostPath is not enabled, do nothing
-	if hz.Spec.Scheduling == nil {
-		return hz
-	}
-	// If NodeSelector is set with dummy name, put the real node name
-	if hz.Spec.Scheduling.NodeSelector != nil {
-		hz.Spec.Scheduling.NodeSelector = map[string]string{"kubernetes.io/hostname": n}
-	}
-	return hz
-}
-
 func waitForReadyChannel(readyChan chan struct{}, dur Duration) error {
 	timer := NewTimer(dur)
 	for {
