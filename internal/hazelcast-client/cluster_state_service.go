@@ -8,7 +8,7 @@ import (
 )
 
 type ClusterStateService interface {
-	GetClusterState(ctx context.Context) (codecTypes.ClusterState, error)
+	ClusterState(ctx context.Context) (codecTypes.ClusterState, error)
 	ChangeClusterState(ctx context.Context, newState codecTypes.ClusterState) error
 }
 
@@ -22,7 +22,7 @@ func NewClusterStateService(cl Client) *HzClusterStateService {
 	}
 }
 
-func (s *HzClusterStateService) GetClusterState(ctx context.Context) (codecTypes.ClusterState, error) {
+func (s *HzClusterStateService) ClusterState(ctx context.Context) (codecTypes.ClusterState, error) {
 	req := codec.EncodeMCGetClusterMetadataRequest()
 	resp, err := s.client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {

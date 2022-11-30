@@ -1519,7 +1519,7 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 	}
 
 	svc := hzclient.NewClusterStateService(client)
-	state, err := svc.GetClusterState(ctx)
+	state, err := svc.ClusterState(ctx)
 	if err != nil {
 		return err
 	}
