@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: caches.hazelcast.com
 spec:
@@ -105,18 +105,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: cronhotbackups.hazelcast.com
 spec:
@@ -192,19 +186,19 @@ spec:
                 - spec
                 type: object
               schedule:
-                description: "Schedule contains a crontab-like expression that defines
+                description: Schedule contains a crontab-like expression that defines
                   the schedule in which HotBackup will be started. If the Schedule
                   is empty the HotBackup will start only once when applied. --- Several
                   pre-defined schedules in place of a cron expression can be used.
-                  \tEntry                  | Description                                |
-                  Equivalent To \t-----                  | -----------                                |
-                  ------------- \t@yearly (or @annually) | Run once a year, midnight,
-                  Jan. 1st        | 0 0 1 1 * \t@monthly               | Run once
-                  a month, midnight, first of month | 0 0 1 * * \t@weekly                |
-                  Run once a week, midnight between Sat/Sun  | 0 0 * * 0 \t@daily
-                  (or @midnight)  | Run once a day, midnight                   | 0
-                  0 * * * \t@hourly                | Run once an hour, beginning of
-                  hour        | 0 * * * *"
+                  Entry                  | Description                                |
+                  Equivalent To -----                  | -----------                                |
+                  ------------- @yearly (or @annually) | Run once a year, midnight,
+                  Jan. 1st        | 0 0 1 1 * @monthly               | Run once a
+                  month, midnight, first of month | 0 0 1 * * @weekly                |
+                  Run once a week, midnight between Sat/Sun  | 0 0 * * 0 @daily (or
+                  @midnight)  | Run once a day, midnight                   | 0 0 *
+                  * * @hourly                | Run once an hour, beginning of hour        |
+                  0 * * * *
                 minLength: 1
                 type: string
               successfulHotBackupsHistoryLimit:
@@ -232,18 +226,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: hazelcasts.hazelcast.com
 spec:
@@ -415,6 +403,7 @@ spec:
                         TODO: Add other useful fields. apiVersion, kind, uid?'
                       type: string
                   type: object
+                  x-kubernetes-map-type: atomic
                 type: array
               jet:
                 default:
@@ -699,6 +688,7 @@ spec:
                                         type: object
                                       type: array
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 weight:
                                   description: Weight associated with matching the
                                     corresponding nodeSelectorTerm, in the range 1-100.
@@ -804,10 +794,12 @@ spec:
                                         type: object
                                       type: array
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 type: array
                             required:
                             - nodeSelectorTerms
                             type: object
+                            x-kubernetes-map-type: atomic
                         type: object
                       podAffinity:
                         description: Describes pod affinity scheduling rules (e.g.
@@ -888,6 +880,7 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaceSelector:
                                       description: A label query over the set of namespaces
                                         that the term applies to. The term is applied
@@ -945,6 +938,7 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaces:
                                       description: namespaces specifies a static list
                                         of namespace names that the term applies to.
@@ -1049,6 +1043,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -1105,6 +1100,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
                                   description: namespaces specifies a static list
                                     of namespace names that the term applies to. The
@@ -1208,6 +1204,7 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaceSelector:
                                       description: A label query over the set of namespaces
                                         that the term applies to. The term is applied
@@ -1265,6 +1262,7 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaces:
                                       description: namespaces specifies a static list
                                         of namespace names that the term applies to.
@@ -1369,6 +1367,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -1425,6 +1424,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
                                   description: namespaces specifies a static list
                                     of namespace names that the term applies to. The
@@ -1549,6 +1549,7 @@ spec:
                                 contains only "value". The requirements are ANDed.
                               type: object
                           type: object
+                          x-kubernetes-map-type: atomic
                         matchLabelKeys:
                           description: MatchLabelKeys is a set of pod label keys to
                             select the pods over which spreading will be calculated.
@@ -1649,19 +1650,19 @@ spec:
                             a pod if it doesn''t satisfy the spread constraint. -
                             DoNotSchedule (default) tells the scheduler not to schedule
                             it. - ScheduleAnyway tells the scheduler to schedule the
-                            pod in any location,   but giving higher precedence to
-                            topologies that would help reduce the   skew. A constraint
-                            is considered "Unsatisfiable" for an incoming pod if and
-                            only if every possible node assignment for that pod would
-                            violate "MaxSkew" on some topology. For example, in a
-                            3-zone cluster, MaxSkew is set to 1, and pods with the
-                            same labelSelector spread as 3/1/1: | zone1 | zone2 |
-                            zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable
-                            is set to DoNotSchedule, incoming pod can only be scheduled
-                            to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1)
-                            on zone2(zone3) satisfies MaxSkew(1). In other words,
-                            the cluster can still be imbalanced, but scheduler won''t
-                            make it *more* imbalanced. It''s a required field.'
+                            pod in any location, but giving higher precedence to topologies
+                            that would help reduce the skew. A constraint is considered
+                            "Unsatisfiable" for an incoming pod if and only if every
+                            possible node assignment for that pod would violate "MaxSkew"
+                            on some topology. For example, in a 3-zone cluster, MaxSkew
+                            is set to 1, and pods with the same labelSelector spread
+                            as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   |
+                            If WhenUnsatisfiable is set to DoNotSchedule, incoming
+                            pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2)
+                            as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1).
+                            In other words, the cluster can still be imbalanced, but
+                            scheduler won''t make it *more* imbalanced. It''s a required
+                            field.'
                           type: string
                       required:
                       - maxSkew
@@ -1821,18 +1822,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: hotbackups.hazelcast.com
 spec:
@@ -1911,18 +1906,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: managementcenters.hazelcast.com
 spec:
@@ -2021,6 +2010,7 @@ spec:
                         TODO: Add other useful fields. apiVersion, kind, uid?'
                       type: string
                   type: object
+                  x-kubernetes-map-type: atomic
                 type: array
               licenseKeySecret:
                 description: Name of the secret with Hazelcast Enterprise License
@@ -2194,6 +2184,7 @@ spec:
                                         type: object
                                       type: array
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 weight:
                                   description: Weight associated with matching the
                                     corresponding nodeSelectorTerm, in the range 1-100.
@@ -2299,10 +2290,12 @@ spec:
                                         type: object
                                       type: array
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 type: array
                             required:
                             - nodeSelectorTerms
                             type: object
+                            x-kubernetes-map-type: atomic
                         type: object
                       podAffinity:
                         description: Describes pod affinity scheduling rules (e.g.
@@ -2383,6 +2376,7 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaceSelector:
                                       description: A label query over the set of namespaces
                                         that the term applies to. The term is applied
@@ -2440,6 +2434,7 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaces:
                                       description: namespaces specifies a static list
                                         of namespace names that the term applies to.
@@ -2544,6 +2539,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -2600,6 +2596,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
                                   description: namespaces specifies a static list
                                     of namespace names that the term applies to. The
@@ -2703,6 +2700,7 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaceSelector:
                                       description: A label query over the set of namespaces
                                         that the term applies to. The term is applied
@@ -2760,6 +2758,7 @@ spec:
                                             only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaces:
                                       description: namespaces specifies a static list
                                         of namespace names that the term applies to.
@@ -2864,6 +2863,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -2920,6 +2920,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
                                   description: namespaces specifies a static list
                                     of namespace names that the term applies to. The
@@ -3044,6 +3045,7 @@ spec:
                                 contains only "value". The requirements are ANDed.
                               type: object
                           type: object
+                          x-kubernetes-map-type: atomic
                         matchLabelKeys:
                           description: MatchLabelKeys is a set of pod label keys to
                             select the pods over which spreading will be calculated.
@@ -3144,19 +3146,19 @@ spec:
                             a pod if it doesn''t satisfy the spread constraint. -
                             DoNotSchedule (default) tells the scheduler not to schedule
                             it. - ScheduleAnyway tells the scheduler to schedule the
-                            pod in any location,   but giving higher precedence to
-                            topologies that would help reduce the   skew. A constraint
-                            is considered "Unsatisfiable" for an incoming pod if and
-                            only if every possible node assignment for that pod would
-                            violate "MaxSkew" on some topology. For example, in a
-                            3-zone cluster, MaxSkew is set to 1, and pods with the
-                            same labelSelector spread as 3/1/1: | zone1 | zone2 |
-                            zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable
-                            is set to DoNotSchedule, incoming pod can only be scheduled
-                            to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1)
-                            on zone2(zone3) satisfies MaxSkew(1). In other words,
-                            the cluster can still be imbalanced, but scheduler won''t
-                            make it *more* imbalanced. It''s a required field.'
+                            pod in any location, but giving higher precedence to topologies
+                            that would help reduce the skew. A constraint is considered
+                            "Unsatisfiable" for an incoming pod if and only if every
+                            possible node assignment for that pod would violate "MaxSkew"
+                            on some topology. For example, in a 3-zone cluster, MaxSkew
+                            is set to 1, and pods with the same labelSelector spread
+                            as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   |
+                            If WhenUnsatisfiable is set to DoNotSchedule, incoming
+                            pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2)
+                            as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1).
+                            In other words, the cluster can still be imbalanced, but
+                            scheduler won''t make it *more* imbalanced. It''s a required
+                            field.'
                           type: string
                       required:
                       - maxSkew
@@ -3193,18 +3195,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: maps.hazelcast.com
 spec:
@@ -3472,18 +3468,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: multimaps.hazelcast.com
 spec:
@@ -3591,18 +3581,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: queues.hazelcast.com
 spec:
@@ -3716,18 +3700,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: replicatedmaps.hazelcast.com
 spec:
@@ -3825,18 +3803,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: topics.hazelcast.com
 spec:
@@ -3931,18 +3903,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: wanreplications.hazelcast.com
 spec:
@@ -4107,12 +4073,6 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: v1
 kind: ServiceAccount

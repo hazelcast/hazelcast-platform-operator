@@ -159,7 +159,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		evaluateReadyMembers(hzLookupKey, 2)
 	})
 
-	DescribeTable("should successfully restart from HotBackup data", func(params ...interface{}) {
+	FDescribeTable("should successfully restart from HotBackup data", func(params ...interface{}) {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
