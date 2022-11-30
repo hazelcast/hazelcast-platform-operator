@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -108,8 +109,8 @@ type MultiMapList struct {
 
 func (mml *MultiMapList) GetItems() []client.Object {
 	l := make([]client.Object, 0, len(mml.Items))
-	for _, item := range mml.Items {
-		l = append(l, &item)
+	for i := range mml.Items {
+		l = append(l, &mml.Items[i])
 	}
 	return l
 }
