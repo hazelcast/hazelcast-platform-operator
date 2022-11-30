@@ -146,7 +146,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 					Skip("This test will only run in EE configuration")
 				}
 				setLabelAndCRName("h-7")
-				hz := hazelcastconfig.PersistenceEnabled(hzLookupKey, "/data/hot-backup", labels)
+				clusterSize := int32(3)
+
+				hz := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 				CreateHazelcastCR(hz)
 				evaluateReadyMembers(hzLookupKey)
 

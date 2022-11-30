@@ -127,15 +127,7 @@ var (
 		}
 	}
 
-	PersistenceEnabled = func(lk types.NamespacedName, baseDir string, lbls map[string]string, params ...interface{}) *hazelcastv1alpha1.Hazelcast {
-		var hostPath, nodeName string
-		var hok, nok bool
-		if len(params) > 0 {
-			hostPath, hok = params[0].(string)
-		}
-		if len(params) > 1 {
-			nodeName, nok = params[1].(string)
-		}
+	HazelcastPersistenceHostPath = func(lk types.NamespacedName, clusterSize int32, lbls map[string]string, hostPath, nodeName string) *hazelcastv1alpha1.Hazelcast {
 		hz := &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -143,24 +135,20 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
+				ClusterSize:      &[]int32{clusterSize}[0],
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   baseDir,
+					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
-						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
-					},
+					HostPath:                  hostPath,
 				},
 			},
 		}
 
-		if hok {
-			hz.Spec.Persistence.HostPath = hostPath
-			hz.Spec.Persistence.Pvc = hazelcastv1alpha1.PersistencePvcConfiguration{}
+		// multiNode case
+		if nodeName == "" {
 			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 					{
@@ -177,19 +165,19 @@ var (
 					},
 				},
 			}
+			return hz
 		}
 
-		if nok {
-			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
-				NodeSelector: map[string]string{
-					"kubernetes.io/hostname": nodeName,
-				},
-			}
+		// singleNode case
+		hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+			NodeSelector: map[string]string{
+				"kubernetes.io/hostname": nodeName,
+			},
 		}
 		return hz
 	}
 
-	HazelcastPersistencePVC = func(lk types.NamespacedName, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
+	HazelcastPersistencePVC = func(lk types.NamespacedName, clusterSize int32, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -197,7 +185,7 @@ var (
 				Labels:    labels,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{1}[0],
+				ClusterSize:      &[]int32{clusterSize}[0],
 				Repository:       repo(true),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(true),
@@ -213,29 +201,17 @@ var (
 		}
 	}
 
-	HazelcastRestore = func(lk types.NamespacedName, restore *hazelcastv1alpha1.RestoreConfiguration, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
-		return &hazelcastv1alpha1.Hazelcast{
+	HazelcastRestore = func(hz *hazelcastv1alpha1.Hazelcast, restoreConfig *hazelcastv1alpha1.RestoreConfiguration) *hazelcastv1alpha1.Hazelcast {
+		hzRestore := &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      lk.Name,
-				Namespace: lk.Namespace,
-				Labels:    labels,
+				Name:      hz.Name,
+				Namespace: hz.Namespace,
+				Labels:    hz.Labels,
 			},
-			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{1}[0],
-				Repository:       repo(true),
-				Version:          naming.HazelcastVersion,
-				LicenseKeySecret: licenseKey(true),
-				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart",
-					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
-						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
-					},
-					Restore: restore,
-				},
-			},
+			Spec: hz.Spec,
 		}
+		hzRestore.Spec.Persistence.Restore = restoreConfig
+		return hzRestore
 	}
 
 	UserCode = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
@@ -279,7 +255,7 @@ var (
 		}
 	}
 
-	HotBackupAgent = func(lk types.NamespacedName, hzName string, lbls map[string]string, bucketURI, secretName string) *hazelcastv1alpha1.HotBackup {
+	HotBackupBucket = func(lk types.NamespacedName, hzName string, lbls map[string]string, bucketURI, secretName string) *hazelcastv1alpha1.HotBackup {
 		return &hazelcastv1alpha1.HotBackup{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,

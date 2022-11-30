@@ -66,9 +66,9 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hmp-2")
-		baseDir := "/data/hot-restart"
+		clusterSize := int32(3)
 
-		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -91,7 +91,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		RemoveHazelcastCR(hazelcast)
 
 		By("creating new Hazelcast cluster from existing backup")
-		hazelcast = hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
+		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.Persistence.Restore = &hazelcastv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}

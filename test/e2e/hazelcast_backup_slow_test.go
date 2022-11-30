@@ -58,11 +58,11 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		setLabelAndCRName("hbs-1")
 		ctx := context.Background()
-		baseDir := "/data/hot-restart"
+		clusterSize := int32(3)
 
 		t := Now()
 		By("creating Hazelcast cluster")
-		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -100,10 +100,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		var pvcSizeInGb = mapSizeInGb * 2 // Taking backup duplicates the used storage
 		var expectedMapSize = int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
 		ctx := context.Background()
-		baseDir := "/data/hot-restart"
+		clusterSize := int32(3)
 
 		By("creating Hazelcast cluster")
-		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -134,7 +134,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		RemoveHazelcastCR(hazelcast)
 
 		By("creating new Hazelcast cluster from the existing backup")
-		hazelcast = hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
+		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
@@ -169,10 +169,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		var bucketURI = "gs://operator-e2e-external-backup"
 		var secretName = "br-secret-gcp"
 		expectedMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
+		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
-		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
-		hazelcast.Spec.ClusterSize = &[]int32{3}[0]
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -196,7 +196,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		FillTheMapWithHugeData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
 
 		By("triggering the backup")
-		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
+		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		assertHotBackupSuccess(hotBackup, 20*Minute)
 
@@ -208,10 +208,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		deletePVCs(hzLookupKey)
 
 		By("creating cluster from external backup")
-		hazelcast = hazelcastconfig.HazelcastRestore(hzLookupKey,
-			&hazelcastcomv1alpha1.RestoreConfiguration{
-				HotBackupResourceName: hotBackup.Name}, labels)
-		hazelcast.Spec.ClusterSize = &[]int32{3}[0]
+		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+			HotBackupResourceName: hotBackup.Name}
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -241,10 +240,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		secretName := "br-secret-gcp"
 		mapSizeInGb := 1
 		pvcSizeInGb := mapSizeInGb * 2 // Taking backup duplicates the used storage
+		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
-		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
-		hazelcast.Spec.ClusterSize = &[]int32{3}[0]
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -269,7 +268,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		t := Now()
 
 		By("creating HotBackup CR")
-		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
+		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(ctx, hotBackup)).Should(Succeed())
 
 		By("wait for backup to start")
@@ -309,8 +308,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
-		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, labels)
-		hazelcast.Spec.ClusterSize = &clusterSize
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
@@ -322,14 +320,14 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
 
 		By("triggering first backup as external")
-		hotBackup := hazelcastconfig.HotBackupAgent(hbLookupKey, hazelcast.Name, labels, "", "")
+		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, "", "")
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
 		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
 
 		By("triggering second backup as local")
 		hbLookupKey2 := types.NamespacedName{Name: hbLookupKey.Name + "2", Namespace: hbLookupKey.Namespace}
-		hotBackup2 := hazelcastconfig.HotBackupAgent(hbLookupKey2, hazelcast.Name, labels, "gs://operator-e2e-external-backup", "br-secret-gcp")
+		hotBackup2 := hazelcastconfig.HotBackupBucket(hbLookupKey2, hazelcast.Name, labels, "gs://operator-e2e-external-backup", "br-secret-gcp")
 		Expect(k8sClient.Create(context.Background(), hotBackup2)).Should(Succeed())
 		hotBackup2 = assertHotBackupSuccess(hotBackup2, 1*Minute)
 		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
@@ -337,10 +335,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		RemoveHazelcastCR(hazelcast)
 
 		By("creating cluster from from first backup")
-		hazelcast = hazelcastconfig.HazelcastRestore(hzLookupKey, &hazelcastcomv1alpha1.RestoreConfiguration{
+		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
-		}, labels)
-		hazelcast.Spec.ClusterSize = &clusterSize
+		}
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -352,10 +350,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		RemoveHazelcastCR(hazelcast)
 
 		By("creating cluster from from second backup")
-		hazelcast = hazelcastconfig.HazelcastRestore(hzLookupKey, &hazelcastcomv1alpha1.RestoreConfiguration{
+		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup2.Name,
-		}, labels)
-		hazelcast.Spec.ClusterSize = &clusterSize
+		}
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 

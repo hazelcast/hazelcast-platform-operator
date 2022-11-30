@@ -766,3 +766,37 @@ func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *c
 	}
 	return nil
 }
+
+func unixMilli(msec int64) Time {
+	return Unix(msec/1e3, (msec%1e3)*1e6)
+}
+
+func assertCorrectBackupStatus(hotBackup *hazelcastcomv1alpha1.HotBackup, seq string) {
+	if hotBackup.Spec.IsExternal() {
+		timestamp, _ := strconv.ParseInt(seq, 10, 64)
+		bucketURI := hotBackup.Spec.BucketURI + fmt.Sprintf("?prefix=%s/%s/", hzLookupKey.Name,
+			unixMilli(timestamp).UTC().Format("2006-01-02-15-04-05")) // hazelcast/2022-06-02-21-57-49/
+
+		backupBucketURI := hotBackup.Status.GetBucketURI()
+		Expect(bucketURI).Should(Equal(backupBucketURI))
+		return
+	}
+
+	// if local backup
+	backupSeqFolder := hotBackup.Status.GetBackupFolder()
+	Expect("backup-" + seq).Should(Equal(backupSeqFolder))
+}
+
+func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bool) *hazelcastcomv1alpha1.RestoreConfiguration {
+	if useBucketConfig {
+		return &hazelcastcomv1alpha1.RestoreConfiguration{
+			BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
+				BucketURI: hotBackup.Status.GetBucketURI(),
+				Secret:    hotBackup.Spec.Secret,
+			},
+		}
+	}
+	return &hazelcastcomv1alpha1.RestoreConfiguration{
+		HotBackupResourceName: hotBackup.Name,
+	}
+}
