@@ -1057,16 +1057,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							SuccessThreshold:    1,
 							FailureThreshold:    10,
 						},
-						SecurityContext: &v1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							RunAsUser:                &[]int64{65534}[0],
-							Privileged:               &[]bool{false}[0],
-							ReadOnlyRootFilesystem:   &[]bool{!h.Spec.Persistence.IsEnabled()}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
-							Capabilities: &v1.Capabilities{
-								Drop: []v1.Capability{"ALL"},
-							},
-						},
+						SecurityContext: containerSecurityContext(h),
 					}},
 					TerminationGracePeriodSeconds: &[]int64{600}[0],
 				},
@@ -1075,17 +1066,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	if h.Spec.Persistence.IsEnabled() {
-		if h.Spec.Persistence.UseHostPath() {
-			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot = &[]bool{false}[0]
-			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsUser = &[]int64{0}[0]
-			if platform.GetType() == platform.OpenShift {
-				sts.Spec.Template.Spec.Containers[0].SecurityContext.Privileged = &[]bool{true}[0]
-				sts.Spec.Template.Spec.Containers[0].SecurityContext.AllowPrivilegeEscalation = &[]bool{true}[0]
-			}
-		} else {
+		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
+		if !h.Spec.Persistence.UseHostPath() {
 			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 		}
-		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -1220,7 +1204,39 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				MountPath: n.MTLSCertPath,
 			},
 		},
+		SecurityContext: containerSecurityContext(h),
 	}
+}
+
+func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContext {
+	sec := &v1.SecurityContext{
+		RunAsNonRoot:             &[]bool{true}[0],
+		RunAsUser:                &[]int64{65534}[0],
+		Privileged:               &[]bool{false}[0],
+		ReadOnlyRootFilesystem:   &[]bool{!h.Spec.Persistence.IsEnabled()}[0],
+		AllowPrivilegeEscalation: &[]bool{false}[0],
+		Capabilities: &v1.Capabilities{
+			Drop: []v1.Capability{"ALL"},
+		},
+	}
+
+	if !h.Spec.Persistence.IsEnabled() {
+		return sec
+	}
+
+	if !h.Spec.Persistence.UseHostPath() {
+		return sec
+	}
+
+	sec.RunAsNonRoot = &[]bool{false}[0]
+	sec.RunAsUser = &[]int64{0}[0]
+
+	if platform.GetType() == platform.OpenShift {
+		sec.Privileged = &[]bool{true}[0]
+		sec.AllowPrivilegeEscalation = &[]bool{true}[0]
+	}
+
+	return sec
 }
 
 func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
@@ -1299,6 +1315,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
 		}},
+		SecurityContext: containerSecurityContext(h),
 	}
 }
 
@@ -1333,6 +1350,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
 		}},
+		SecurityContext: containerSecurityContext(h),
 	}
 }
 
