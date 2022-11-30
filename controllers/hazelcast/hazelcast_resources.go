@@ -1282,9 +1282,10 @@ func getRestoreFromHotBackupResource(ctx context.Context, cl client.Client, h *h
 
 func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
 	return v1.Container{
-		Name:  n.RestoreAgent,
-		Image: h.AgentDockerImage(),
-		Args:  []string{"restore"},
+		Name:            n.RestoreAgent,
+		Image:           h.AgentDockerImage(),
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Args:            []string{"restore"},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_SECRET_NAME",
@@ -1306,11 +1307,14 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 				Name: "RESTORE_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "metadata.name",
+						APIVersion: "v1",
+						FieldPath:  "metadata.name",
 					},
 				},
 			},
 		},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
@@ -1321,9 +1325,10 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 
 func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
 	return v1.Container{
-		Name:  n.RestoreLocalAgent,
-		Image: h.AgentDockerImage(),
-		Args:  []string{"restore_local"},
+		Name:            n.RestoreLocalAgent,
+		Image:           h.AgentDockerImage(),
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Args:            []string{"restore_local"},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
@@ -1341,11 +1346,14 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 				Name: "RESTORE_LOCAL_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "metadata.name",
+						APIVersion: "v1",
+						FieldPath:  "metadata.name",
 					},
 				},
 			},
 		},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
@@ -1617,7 +1625,7 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 }
 
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ans := map[string]string{}
+	var ans map[string]string
 	if h.Spec.ExposeExternally.IsSmart() {
 		ans[n.ServicePerPodCountAnnotation] = strconv.Itoa(int(*h.Spec.ClusterSize))
 	}
