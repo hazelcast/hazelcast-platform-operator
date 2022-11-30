@@ -12,6 +12,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -237,18 +238,18 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 							FailureThreshold:    10,
 						},
 						SecurityContext: &v1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							RunAsUser:                &[]int64{65534}[0],
-							Privileged:               &[]bool{false}[0],
-							ReadOnlyRootFilesystem:   &[]bool{false}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
+							RunAsNonRoot:             pointer.Bool(true),
+							RunAsUser:                pointer.Int64(65534),
+							Privileged:               pointer.Bool(false),
+							ReadOnlyRootFilesystem:   pointer.Bool(false),
+							AllowPrivilegeEscalation: pointer.Bool(false),
 							Capabilities: &v1.Capabilities{
 								Drop: []v1.Capability{"ALL"},
 							},
 						},
 					}},
 					SecurityContext: &v1.PodSecurityContext{
-						FSGroup: &[]int64{65534}[0],
+						FSGroup: pointer.Int64(65534),
 					},
 				},
 			},

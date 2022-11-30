@@ -587,21 +587,21 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		Network: config.Network{
 			Join: config.Join{
 				Kubernetes: config.Kubernetes{
-					Enabled:     &[]bool{true}[0],
+					Enabled:     pointer.Bool(true),
 					ServiceName: h.Name,
 				},
 			},
 			RestAPI: config.RestAPI{
-				Enabled: &[]bool{true}[0],
+				Enabled: pointer.Bool(true),
 				EndpointGroups: config.EndpointGroups{
 					HealthCheck: config.EndpointGroup{
-						Enabled: &[]bool{true}[0],
+						Enabled: pointer.Bool(true),
 					},
 					ClusterWrite: config.EndpointGroup{
-						Enabled: &[]bool{true}[0],
+						Enabled: pointer.Bool(true),
 					},
 					Persistence: config.EndpointGroup{
-						Enabled: &[]bool{true}[0],
+						Enabled: pointer.Bool(true),
 					},
 				},
 			},
@@ -622,7 +622,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
-		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = &[]bool{true}[0]
+		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
 	}
 
 	if h.Spec.ExposeExternally.IsSmart() {
@@ -636,7 +636,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	if h.Spec.Persistence.IsEnabled() {
 		cfg.Persistence = config.Persistence{
-			Enabled:                   &[]bool{true}[0],
+			Enabled:                   pointer.Bool(true),
 			BaseDir:                   h.Spec.Persistence.BaseDir,
 			BackupDir:                 h.Spec.Persistence.BaseDir + "/hot-backup",
 			Parallelism:               1,
@@ -1018,9 +1018,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 				Spec: v1.PodSpec{
 					ServiceAccountName: h.Name,
 					SecurityContext: &v1.PodSecurityContext{
-						FSGroup:      &[]int64{65534}[0],
-						RunAsNonRoot: &[]bool{true}[0],
-						RunAsUser:    &[]int64{65534}[0],
+						FSGroup:      pointer.Int64(65534),
+						RunAsNonRoot: pointer.Bool(true),
+						RunAsUser:    pointer.Int64(65534),
 					},
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
@@ -1059,7 +1059,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 						},
 						SecurityContext: containerSecurityContext(h),
 					}},
-					TerminationGracePeriodSeconds: &[]int64{600}[0],
+					TerminationGracePeriodSeconds: pointer.Int64(600),
 				},
 			},
 		},
@@ -1210,11 +1210,11 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 
 func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContext {
 	sec := &v1.SecurityContext{
-		RunAsNonRoot:             &[]bool{true}[0],
-		RunAsUser:                &[]int64{65534}[0],
-		Privileged:               &[]bool{false}[0],
-		ReadOnlyRootFilesystem:   &[]bool{!h.Spec.Persistence.IsEnabled()}[0],
-		AllowPrivilegeEscalation: &[]bool{false}[0],
+		RunAsNonRoot:             pointer.Bool(true),
+		RunAsUser:                pointer.Int64(65534),
+		Privileged:               pointer.Bool(false),
+		ReadOnlyRootFilesystem:   pointer.Bool(true),
+		AllowPrivilegeEscalation: pointer.Bool(false),
 		Capabilities: &v1.Capabilities{
 			Drop: []v1.Capability{"ALL"},
 		},
@@ -1224,16 +1224,18 @@ func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContex
 		return sec
 	}
 
+	sec.ReadOnlyRootFilesystem = pointer.Bool(false)
+
 	if !h.Spec.Persistence.UseHostPath() {
 		return sec
 	}
 
-	sec.RunAsNonRoot = &[]bool{false}[0]
-	sec.RunAsUser = &[]int64{0}[0]
+	sec.RunAsNonRoot = pointer.Bool(false)
+	sec.RunAsUser = pointer.Int64(0)
 
 	if platform.GetType() == platform.OpenShift {
-		sec.Privileged = &[]bool{true}[0]
-		sec.AllowPrivilegeEscalation = &[]bool{true}[0]
+		sec.Privileged = pointer.Bool(true)
+		sec.AllowPrivilegeEscalation = pointer.Bool(true)
 	}
 
 	return sec
