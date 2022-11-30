@@ -102,28 +102,6 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 	cacheInput.KeyType = cs.KeyType
 	cacheInput.ValueType = cs.ValueType
 
-	// TODO: Temporary solution for https://github.com/hazelcast/hazelcast/issues/21799
-	cacheInput.DataPersistenceConfig = codecTypes.DataPersistenceConfig{
-		Enabled: false,
-		Fsync:   true,
-	}
-	cacheInput.MerkleTreeConfig = codecTypes.MerkleTreeConfig{
-		IsDefined:  false,
-		Enabled:    false,
-		Depth:      2,
-		EnabledSet: false,
-	}
-	cacheInput.HotRestartConfig = codecTypes.HotRestartConfig{
-		IsDefined: false,
-		Enabled:   false,
-		Fsync:     true,
-	}
-	cacheInput.EventJournalConfig = codecTypes.EventJournalConfig{
-		IsDefined:         false,
-		Enabled:           false,
-		Capacity:          1,
-		TimeToLiveSeconds: 1,
-	}
 	//default values
 	cacheInput.EvictionConfig = codecTypes.EvictionConfigHolder{
 		Size:           10000,
