@@ -1625,11 +1625,13 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 }
 
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	var ans map[string]string
-	if h.Spec.ExposeExternally.IsSmart() {
-		ans[n.ServicePerPodCountAnnotation] = strconv.Itoa(int(*h.Spec.ClusterSize))
+	if !h.Spec.ExposeExternally.IsSmart() {
+		return nil
 	}
-	return ans
+
+	return map[string]string{
+		n.ServicePerPodCountAnnotation: strconv.Itoa(int(*h.Spec.ClusterSize)),
+	}
 }
 
 func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
