@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"k8s.io/utils/pointer"
-
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"golang.org/x/sync/errgroup"
