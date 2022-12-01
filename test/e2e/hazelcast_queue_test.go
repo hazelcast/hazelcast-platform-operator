@@ -2,9 +2,10 @@ package e2e
 
 import (
 	"context"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"strconv"
 	. "time"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -94,18 +95,18 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 		qs := hazelcastcomv1alpha1.QueueSpec{
 			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
 				HazelcastResourceName: hzLookupKey.Name,
-				BackupCount:           pointer.Int32Ptr(3),
+				BackupCount:           pointer.Int32(3),
 			},
-			EmptyQueueTtlSeconds: pointer.Int32Ptr(10),
-			MaxSize:              pointer.Int32Ptr(100),
+			EmptyQueueTtlSeconds: pointer.Int32(10),
+			MaxSize:              pointer.Int32(100),
 		}
 		q := hazelcastconfig.Queue(qs, qLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
 		q = assertDataStructureStatus(qLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Queue{}).(*hazelcastcomv1alpha1.Queue)
 
 		By("failing to update queue config")
-		q.Spec.BackupCount = pointer.Int32Ptr(5)
-		q.Spec.EmptyQueueTtlSeconds = pointer.Int32Ptr(20)
+		q.Spec.BackupCount = pointer.Int32(5)
+		q.Spec.EmptyQueueTtlSeconds = pointer.Int32(20)
 		Expect(k8sClient.Update(context.Background(), q)).Should(Succeed())
 		assertDataStructureStatus(qLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Queue{})
 	})

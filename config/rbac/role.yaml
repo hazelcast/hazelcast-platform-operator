@@ -1,4 +1,3 @@
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -259,7 +258,6 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

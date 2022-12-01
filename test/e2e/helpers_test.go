@@ -285,12 +285,11 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 				return -1, err
 			}
 			return hzMap.Size(ctx)
-		}, timeout, 10*Second).Should(Equal(mapSize))
+		}, timeout, 5*Second).Should(Equal(mapSize))
 	})
 }
 
 /*
-*
 1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
 */
 func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
@@ -632,24 +631,24 @@ func assertExecutorServices(expectedES map[string]interface{}, actualES codecTyp
 }
 
 func assertES(expectedES hazelcastcomv1alpha1.ExecutorServiceConfiguration, actualES codecTypes.ExecutorServiceConfig) {
-	Expect(expectedES.Name).Should(Equal(actualES.Name))
-	Expect(expectedES.PoolSize).Should(Equal(actualES.PoolSize))
-	Expect(expectedES.QueueCapacity).Should(Equal(actualES.QueueCapacity))
+	Expect(expectedES.Name).Should(Equal(actualES.Name), "Name")
+	Expect(expectedES.PoolSize).Should(Equal(actualES.PoolSize), "PoolSize")
+	Expect(expectedES.QueueCapacity).Should(Equal(actualES.QueueCapacity), "QueueCapacity")
 }
 
 func assertDurableES(expectedDES hazelcastcomv1alpha1.DurableExecutorServiceConfiguration, actualDES codecTypes.DurableExecutorServiceConfig) {
-	Expect(expectedDES.Name).Should(Equal(actualDES.Name))
-	Expect(expectedDES.PoolSize).Should(Equal(actualDES.PoolSize))
-	Expect(expectedDES.Capacity).Should(Equal(actualDES.Capacity))
-	Expect(expectedDES.Durability).Should(Equal(actualDES.Durability))
+	Expect(expectedDES.Name).Should(Equal(actualDES.Name), "Name")
+	Expect(expectedDES.PoolSize).Should(Equal(actualDES.PoolSize), "PoolSize")
+	Expect(expectedDES.Capacity).Should(Equal(actualDES.Capacity), "Capacity")
+	Expect(expectedDES.Durability).Should(Equal(actualDES.Durability), "Durability")
 }
 
 func assertScheduledES(expectedSES hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration, actualSES codecTypes.ScheduledExecutorServiceConfig) {
-	Expect(expectedSES.Name).Should(Equal(actualSES.Name))
-	Expect(expectedSES.PoolSize).Should(Equal(actualSES.PoolSize))
-	Expect(expectedSES.Capacity).Should(Equal(actualSES.Capacity))
-	Expect(expectedSES.Durability).Should(Equal(actualSES.Durability))
-	Expect(expectedSES.CapacityPolicy).Should(Equal(actualSES.CapacityPolicy))
+	Expect(expectedSES.Name).Should(Equal(actualSES.Name), "Name")
+	Expect(expectedSES.PoolSize).Should(Equal(actualSES.PoolSize), "PoolSize")
+	Expect(expectedSES.Capacity).Should(Equal(actualSES.Capacity), "Capacity")
+	Expect(expectedSES.Durability).Should(Equal(actualSES.Durability), "Durability")
+	Expect(expectedSES.CapacityPolicy).Should(Equal(actualSES.CapacityPolicy), "CapacityPolicy")
 }
 
 func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *hazelcastcomv1alpha1.HotBackup {

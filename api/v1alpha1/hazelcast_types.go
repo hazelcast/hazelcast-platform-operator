@@ -599,7 +599,7 @@ type HazelcastMemberStatus struct {
 
 	// State represents the observed state of the member.
 	// +optional
-	State string `json:"state,omitempty"`
+	State NodeState `json:"state,omitempty"`
 
 	// Master flag is set to true if the member is master.
 	// +optional
@@ -628,6 +628,15 @@ type HazelcastMemberStatus struct {
 	// RestartCount is the number of times the member has been restarted.
 	RestartCount int32 `json:"restartCount"`
 }
+
+type NodeState string
+
+const (
+	NodeStatePassive  NodeState = "PASSIVE"
+	NodeStateActive   NodeState = "ACTIVE"
+	NodeStateShutDown NodeState = "SHUT_DOWN"
+	NodeStateStarting NodeState = "STARTING"
+)
 
 // HazelcastClusterStatus defines the status of the Hazelcast cluster
 type HazelcastClusterStatus struct {

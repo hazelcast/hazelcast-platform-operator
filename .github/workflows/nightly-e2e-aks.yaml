@@ -108,6 +108,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.19.0"
+
       - name: Cache Golang dependencies
         uses: actions/cache@v3
         with:
@@ -179,7 +183,7 @@ jobs:
 
   report-generation:
     needs: ["prepare-env", "aks-e2e-tests"]
-    if: always()
+    if: always() && needs.aks-e2e-tests.result != 'cancelled'
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:

@@ -27,7 +27,7 @@ const (
 	TimedExpiryPolicyFactoryConfigCodecExpiryPolicyTypeInitialFrameSize = TimedExpiryPolicyFactoryConfigCodecExpiryPolicyTypeFieldOffset + proto.IntSizeInBytes
 )
 
-//manual
+// manual
 func EncodeNullableForEncodeTimedExpiryPolicyFactoryConfig(clientMessage *proto.ClientMessage, timedExpiryPolicyFactoryConfig types.TimedExpiryPolicyFactoryConfig) {
 	// types.EvictionConfigHolder{} is not comparable with ==
 	if reflect.DeepEqual(types.TimedExpiryPolicyFactoryConfig{}, timedExpiryPolicyFactoryConfig) {

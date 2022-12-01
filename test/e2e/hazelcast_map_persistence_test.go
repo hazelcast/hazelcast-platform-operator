@@ -148,7 +148,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		By("creating the map configs")
 		for i, mapp := range maps {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapp, Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
-			m.Spec.Eviction = &hazelcastcomv1alpha1.EvictionConfig{MaxSize: pointer.Int32Ptr(int32(i) * 100)}
+			m.Spec.Eviction = &hazelcastcomv1alpha1.EvictionConfig{MaxSize: pointer.Int32(int32(i) * 100)}
 			m.Spec.HazelcastResourceName = hazelcast.Name
 			if mapp == "mapfail" {
 				m.Spec.HazelcastResourceName = "failedHz"
@@ -224,7 +224,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		mcfg := hzConfig.Hazelcast.Map[m.Name]
 
 		By("failing to update the map config")
-		m.Spec.BackupCount = pointer.Int32Ptr(4)
+		m.Spec.BackupCount = pointer.Int32(4)
 		Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
 

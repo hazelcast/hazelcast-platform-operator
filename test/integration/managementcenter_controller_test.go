@@ -109,8 +109,8 @@ var _ = Describe("ManagementCenter controller", func() {
 				APIVersion:         "hazelcast.com/v1alpha1",
 				UID:                fetchedCR.UID,
 				Name:               fetchedCR.Name,
-				Controller:         pointer.BoolPtr(true),
-				BlockOwnerDeletion: pointer.BoolPtr(true),
+				Controller:         pointer.Bool(true),
+				BlockOwnerDeletion: pointer.Bool(true),
 			}
 
 			fetchedService := &corev1.Service{}

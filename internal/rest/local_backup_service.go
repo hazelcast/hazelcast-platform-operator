@@ -4,6 +4,13 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+
+	agent "github.com/hazelcast/platform-operator-agent"
+)
+
+type (
+	LocalBackups        = agent.BackupResp
+	LocalBackupsOptions = agent.BackupReq
 )
 
 type LocalBackupService struct {
@@ -21,15 +28,6 @@ func NewLocalBackupService(address string, httpClient *http.Client) (*LocalBacku
 			client:  httpClient,
 		},
 	}, nil
-}
-
-type LocalBackups struct {
-	Backups []string `json:"backups"`
-}
-
-type LocalBackupsOptions struct {
-	BackupBaseDir string `json:"backup_base_dir"`
-	MemberID      int    `json:"member_id"`
 }
 
 func (s *LocalBackupService) LocalBackups(ctx context.Context, opts *LocalBackupsOptions) (*LocalBackups, *http.Response, error) {

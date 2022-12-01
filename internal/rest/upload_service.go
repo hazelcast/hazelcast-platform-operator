@@ -7,6 +7,14 @@ import (
 	"net/url"
 
 	"github.com/google/uuid"
+
+	agent "github.com/hazelcast/platform-operator-agent"
+)
+
+type (
+	Upload        = agent.UploadResp
+	UploadOptions = agent.UploadReq
+	UploadStatus  = agent.StatusResp
 )
 
 type UploadService struct {
@@ -26,18 +34,6 @@ func NewUploadService(address string, httpClient *http.Client) (*UploadService, 
 	}, nil
 }
 
-type Upload struct {
-	ID uuid.UUID `json:"ID,omitempty"`
-}
-
-type UploadOptions struct {
-	BucketURL       string `json:"bucket_url"`
-	BackupBaseDir   string `json:"backup_base_dir"`
-	HazelcastCRName string `json:"hz_cr_name"`
-	SecretName      string `json:"secret_name"`
-	MemberID        int    `json:"member_id"`
-}
-
 func (s *UploadService) Upload(ctx context.Context, opts *UploadOptions) (*Upload, *http.Response, error) {
 	u := "upload"
 
@@ -53,12 +49,6 @@ func (s *UploadService) Upload(ctx context.Context, opts *UploadOptions) (*Uploa
 	}
 
 	return upload, resp, nil
-}
-
-type UploadStatus struct {
-	Status    string `json:"status,omitempty"`
-	Message   string `json:"message,omitempty"`
-	BackupKey string `json:"backup_key,omitempty"`
 }
 
 func (s *UploadService) Status(ctx context.Context, uploadID uuid.UUID) (*UploadStatus, *http.Response, error) {
