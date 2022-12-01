@@ -165,7 +165,7 @@ jobs:
 
   report-generation:
     needs: ocp-e2e-tests
-    if: always()
+    if: always() && needs.ocp-e2e-tests.result != 'cancelled'
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:

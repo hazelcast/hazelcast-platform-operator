@@ -14,22 +14,21 @@ type BackupService interface {
 }
 
 type HzBackupService struct {
-	client Client
+	client              Client
+	clusterStateService ClusterStateService
 }
 
 func NewBackupService(cl Client) *HzBackupService {
+	css := NewClusterStateService(cl)
 	return &HzBackupService{
-		client: cl,
+		client:              cl,
+		clusterStateService: css,
 	}
 }
 
 func (bs *HzBackupService) ChangeClusterState(ctx context.Context, newState codecTypes.ClusterState) error {
-	req := codec.EncodeMCChangeClusterStateRequest(newState)
-	_, err := bs.client.InvokeOnRandomTarget(ctx, req, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return bs.clusterStateService.ChangeClusterState(ctx, newState)
+
 }
 
 func (bs *HzBackupService) TriggerHotRestartBackup(ctx context.Context) error {

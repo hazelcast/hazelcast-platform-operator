@@ -74,14 +74,9 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 		StatisticsEnabled:       true,
 		// workaround for protocol definition and implementation discrepancy in core side
 		HotRestartConfig: HotRestartConfig{
-			IsDefined: true,
-			Enabled:   n.DefaultMapPersistenceEnabled,
-			Fsync:     false,
+			Enabled: n.DefaultMapPersistenceEnabled,
+			Fsync:   false,
 		},
-		// workaround for protocol definition and implementation discrepancy in core side
-		EventJournalConfig: EventJournalConfig{IsDefined: true, Enabled: false, Capacity: 1000},
-		// workaround for protocol definition and implementation discrepancy in core side
-		MerkleTreeConfig:     MerkleTreeConfig{IsDefined: true, Enabled: false, Depth: 2},
 		MetadataPolicy:       0,
 		PerEntryStatsEnabled: false,
 	}

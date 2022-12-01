@@ -164,7 +164,7 @@ jobs:
 
   report-generation:
     needs: ["kind-e2e-tests"]
-    if: always()
+    if: always() && needs.kind-e2e-tests.result != 'cancelled'
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:

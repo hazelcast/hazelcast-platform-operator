@@ -285,12 +285,11 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 				return -1, err
 			}
 			return hzMap.Size(ctx)
-		}, timeout, 10*Second).Should(Equal(mapSize))
+		}, timeout, 5*Second).Should(Equal(mapSize))
 	})
 }
 
 /*
-*
 1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
 */
 func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {

@@ -80,10 +80,8 @@ func printAPIDocs(paths []string) {
 func getAllTypes(srcs []string) []*doc.Type {
 	var docForTypes []*doc.Type
 
-	for _, src := range srcs {
-		pkg := astFrom(src)
-		docForTypes = append(docForTypes, pkg.Types...)
-	}
+	pkg := astFrom(srcs)
+	docForTypes = append(docForTypes, pkg.Types...)
 
 	return docForTypes
 }
@@ -91,14 +89,12 @@ func getAllTypes(srcs []string) []*doc.Type {
 func parseStructDocumentation(srcs []string) []StructType {
 	var docForTypes []StructType
 
-	for _, src := range srcs {
-		pkg := astFrom(src)
-		for _, kubType := range pkg.Types {
-			if structType, ok := kubType.Decl.Specs[0].(*ast.TypeSpec).Type.(*ast.StructType); ok {
-				ks := processFields(structType, []Field{})
-				st := StructType{Name: kubType.Name, Doc: fmtRawDoc(kubType.Doc), Fields: ks}
-				docForTypes = append(docForTypes, st)
-			}
+	pkg := astFrom(srcs)
+	for _, kubType := range pkg.Types {
+		if structType, ok := kubType.Decl.Specs[0].(*ast.TypeSpec).Type.(*ast.StructType); ok {
+			ks := processFields(structType, []Field{})
+			st := StructType{Name: kubType.Name, Doc: fmtRawDoc(kubType.Doc), Fields: ks}
+			docForTypes = append(docForTypes, st)
 		}
 	}
 	return docForTypes
@@ -106,53 +102,52 @@ func parseStructDocumentation(srcs []string) []StructType {
 
 func parseStringTypeDocumentation(srcs []string) []StringType {
 	var stTypes []StringType
-	for _, src := range srcs {
-		pkg := astFrom(src)
-		for _, kubType := range pkg.Types {
-			if stringType, ok := kubType.Decl.Specs[0].(*ast.TypeSpec).Type.(*ast.Ident); !ok || stringType.Name != "string" {
-				continue
-			}
-			var cs []Const
-			for _, kubTypeConst := range kubType.Consts {
-
-				for _, consPec := range kubTypeConst.Decl.Specs {
-					cons, ok := consPec.(*ast.ValueSpec)
-					if !ok {
-						continue
-					}
-					// fmt.Printf("Doc for cons.Doc.Text() is %v\n", cons.Doc.Text())
-					bslit, ok := cons.Values[0].(*ast.BasicLit)
-					if !ok {
-						continue
-					}
-					if cons.Type.(*ast.Ident).Name != kubType.Name {
-						panic("Const type must be equal to its generated one.")
-					}
-					// fmt.Printf("Const type is %v, name is %v and val is %v\n", cons.Type.(*ast.Ident).Name, cons.Names[0], bslit.Value)
-					cs = append(cs, Const{Name: cons.Names[0].Name,
-						Doc:   fmtRawDoc(cons.Doc.Text()),
-						Type:  cons.Type.(*ast.Ident).Name,
-						Value: bslit.Value,
-					})
-				}
-			}
-			stTypes = append(stTypes, StringType{Name: kubType.Name, Doc: fmtRawDoc(kubType.Doc), Consts: cs})
+	pkg := astFrom(srcs)
+	for _, kubType := range pkg.Types {
+		if stringType, ok := kubType.Decl.Specs[0].(*ast.TypeSpec).Type.(*ast.Ident); !ok || stringType.Name != "string" {
+			continue
 		}
+		var cs []Const
+		for _, kubTypeConst := range kubType.Consts {
+
+			for _, consPec := range kubTypeConst.Decl.Specs {
+				cons, ok := consPec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				// fmt.Printf("Doc for cons.Doc.Text() is %v\n", cons.Doc.Text())
+				bslit, ok := cons.Values[0].(*ast.BasicLit)
+				if !ok {
+					continue
+				}
+				if cons.Type.(*ast.Ident).Name != kubType.Name {
+					panic("Const type must be equal to its generated one.")
+				}
+				// fmt.Printf("Const type is %v, name is %v and val is %v\n", cons.Type.(*ast.Ident).Name, cons.Names[0], bslit.Value)
+				cs = append(cs, Const{Name: cons.Names[0].Name,
+					Doc:   fmtRawDoc(cons.Doc.Text()),
+					Type:  cons.Type.(*ast.Ident).Name,
+					Value: bslit.Value,
+				})
+			}
+		}
+		stTypes = append(stTypes, StringType{Name: kubType.Name, Doc: fmtRawDoc(kubType.Doc), Consts: cs})
 	}
 	return stTypes
 }
 
-func astFrom(filePath string) *doc.Package {
+func astFrom(filePaths []string) *doc.Package {
 	fset := token.NewFileSet()
 	m := make(map[string]*ast.File)
 
-	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
-	if err != nil {
-		fmt.Println(err)
-		return nil
+	for _, filePath := range filePaths {
+		f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
+		if err != nil {
+			fmt.Println(err)
+			return nil
+		}
+		m[filePath] = f
 	}
-
-	m[filePath] = f
 	apkg, _ := ast.NewPackage(fset, m, nil, nil)
 
 	return doc.New(apkg, "", 0)
@@ -278,8 +273,8 @@ func fieldRequired(field *ast.Field) bool {
 		}
 	}
 
-	doc := field.Doc.Text()
-	for _, line := range strings.Split(doc, "\n") {
+	text := field.Doc.Text()
+	for _, line := range strings.Split(text, "\n") {
 		line = strings.Trim(line, " ")
 		if line == "+optional" {
 			return false
@@ -289,8 +284,8 @@ func fieldRequired(field *ast.Field) bool {
 }
 
 func fieldDefault(field *ast.Field) string {
-	doc := field.Doc.Text()
-	for _, line := range strings.Split(doc, "\n") {
+	text := field.Doc.Text()
+	for _, line := range strings.Split(text, "\n") {
 		line = strings.Trim(line, " ")
 		if strings.HasPrefix(line, "+kubebuilder:default:=") {
 			return strings.Split(line, ":=")[1]

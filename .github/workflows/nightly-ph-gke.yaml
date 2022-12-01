@@ -148,7 +148,7 @@ jobs:
 
   report-generation:
     needs: ["create-gke-cluster", "gke-ph-tests"]
-    if: always()
+    if: always() && needs.gke-ph-tests.result != 'cancelled'
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:

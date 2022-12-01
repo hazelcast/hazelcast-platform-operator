@@ -144,7 +144,7 @@ jobs:
 
   report-generation:
     needs: ["create-gke-cluster","gke-e2e-backup-tests"]
-    if: always()
+    if: always() && needs.gke-e2e-backup-tests.result != 'cancelled'
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:

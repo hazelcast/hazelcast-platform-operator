@@ -42,6 +42,12 @@ jobs:
           name: test-report
           path: allure-results/${{ inputs.WORKFLOW_ID }}
 
+      - name: Removing A First Run Attempt
+        if: always()
+        run: |
+          sleep 10
+          sed -i 's/<system-err>\[BeforeEach\].*Retrying...&#xA;/<system-err>/' ${GITHUB_WORKSPACE}/allure-results/${{ inputs.WORKFLOW_ID }}/test-report-*.xml
+
       - name: Create environment.properties
         run: |-
           echo "GKE=$GITHUB_PAGES_URL/gke" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
@@ -78,26 +84,13 @@ jobs:
           BEGIN_TIME=$(date +%s000 -d "- 3 hours")
           END_TIME=$(date +%s000 -d "+ 1 hours")
           for i in $(ls); do
-          CR_ID=$(jq -r '.testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")' $i)
-          LAUNCHER=$(echo "{\"isEntitled\":true,\"query\":\"pod_name:\\\"$CR_ID*\\\" OR message:\\\"*$CR_ID*\\\"\",\"eventTypes\":[\"Log\"]}" | base64 -w0)
-          PANE=$(echo "{\"nerdletId\":\"logger.log-tailer\",\"accountId\":${NEW_RELIC_ACCOUNT_ID}}" | base64 -w0)
-          LINK=$(echo $NEW_RELIC_BASE_URL\?launcher\="$LAUNCHER"\&pane\="$PANE"\&platform%5BtimeRange%5D%5Bbegin_time%5D\="$BEGIN_TIME"\&platform%5BtimeRange%5D%5Bend_time%5D\="$END_TIME")
-          SHORT_LINK=$(curl -s -X POST \
-                      $NEW_RELIC_SHORT_URL_GEN \
-                      -H "Content-Type: application/json" \
-                      -H "Api-Key: ${{ secrets.NEW_RELIC_API_KEY }}" \
-                      -d '{"url":"'"$LINK"'"}' | jq -r '.url')
-
           cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not))))
-                           |.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID"))}
-                           |del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))
-                           |.extra.tags.tag |= sub("CR_ID:"; "")
                            |.testStage.steps[].name |= sub("&{Text:";"")
                            |.testStage.steps[].name |= sub("}";"")
                            |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
                            |.testStage.steps[].name |= sub(" Duration.*";"")
                            |.testStage.steps[].time.duration |= sub(".*Duration:";"")
-                           |.testStage.steps[].time.duration |= (if contains("ms") then split("ms") | .[0]|tonumber elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
+                           |.testStage.steps[].time.duration |= (if contains("ms") then split("ms") | .[0]|tonumber elif contains("CR_ID") then . elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
                            |.testStage.steps[]+={status: "passed"}
                            |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
                            |to_entries
@@ -114,9 +107,28 @@ jobs:
                            |.url+=.value[]
                            |del(.key)|del(.value)
                            |.+={type: "issue"}]}
-                           |.testStage.steps[-1]+={status: "failed"} else . end)
-                           |.links|= [{"name":"LOGS","url":"'"$SHORT_LINK"'",type: "tms"}] + .' $i) > $i
-          done
+                           |.testStage.steps[-1]+={status: "failed"} else . end)' $i) > $i
+
+           NUMBER_OF_TEST_RUNS=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))] | length' $i)
+           if [[ ${NUMBER_OF_TEST_RUNS} -gt 1 ]]; then
+               START_INDEX_OF_LAST_RETRY=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))][-1].key-1' $i)
+               cat <<< $(jq -e 'del(.testStage.steps[0:'${START_INDEX_OF_LAST_RETRY}'])' $i) > $i
+           fi
+           TEST_STATUS=$(jq -r '.status' $i)
+           if [[ ${TEST_STATUS} != "skipped" ]]; then
+           cat <<< $(jq -e '.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")}|del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))' $i) > $i
+           CR_ID=$(jq -r '.extra.tags.tag' $i)
+           LAUNCHER=$(echo "{\"isEntitled\":true,\"query\":\"pod_name:\\\"$CR_ID*\\\" OR message:\\\"*$CR_ID*\\\"\",\"eventTypes\":[\"Log\"]}" | base64 -w0)
+           PANE=$(echo "{\"nerdletId\":\"logger.log-tailer\",\"accountId\":${NEW_RELIC_ACCOUNT_ID}}" | base64 -w0)
+           LINK=$(echo $NEW_RELIC_BASE_URL\?launcher\="$LAUNCHER"\&pane\="$PANE"\&platform%5BtimeRange%5D%5Bbegin_time%5D\="$BEGIN_TIME"\&platform%5BtimeRange%5D%5Bend_time%5D\="$END_TIME")
+           SHORT_LINK=$(curl -s -X POST \
+                      $NEW_RELIC_SHORT_URL_GEN \
+                      -H "Content-Type: application/json" \
+                      -H "Api-Key: ${{ secrets.NEW_RELIC_API_KEY }}" \
+                      -d '{"url":"'"$LINK"'"}' | jq -r '.url')
+           cat <<< $(jq -e '.links|= [{"name":"LOGS","url":"'"$SHORT_LINK"'",type: "tms"}] + .' $i) > $i
+           fi
+           done
 
       - name: Update environment.properties
         run: |-
