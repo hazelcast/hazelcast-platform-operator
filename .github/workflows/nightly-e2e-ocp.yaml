@@ -6,18 +6,43 @@ on:
 
 env:
   NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
+  AWS_REGION: us-east-1
   RESTART_OCP_NODE_TIMEOUT: 15
   OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
   OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
   OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
 
 jobs:
+  check-and-restart-nodes:
+    name: Check OCP nodes state
+    env:
+      NR_CLUSTER_NAME: ocp-operator
+      CLUSTER_NAME: api-demo-ocp4-hazelcast-com
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Restart Non-Ready Instances
+        run: |
+          source .github/scripts/utils.sh
+          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          wait_for_instance_restarted $RESTART_OCP_NODE_TIMEOUT
+
   new-relic-setup:
     name: Setup New Relic agent
     env:
       NR_CLUSTER_NAME: ocp-operator
       CLUSTER_NAME: api-demo-ocp4-hazelcast-com
     runs-on: ubuntu-latest
+    needs: check-and-restart-nodes
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -91,11 +116,9 @@ jobs:
           make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
           make docker-push IMG=$IMG
 
-      - name: Restart Non-Ready Nodes
-        run: |
-          source .github/scripts/utils.sh
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
-          wait_for_node_restarted $RESTART_OCP_NODE_TIMEOUT
+      - name: Update kubeconfig
+        run: |-
+            oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
 
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
@@ -165,7 +188,7 @@ jobs:
 
   report-generation:
     needs: ocp-e2e-tests
-    if: always() && needs.ocp-e2e-tests.result != 'cancelled'
+    if: always() && (needs.ocp-e2e-tests.result == 'success' || needs.ocp-e2e-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:

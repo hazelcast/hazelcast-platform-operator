@@ -205,7 +205,7 @@ jobs:
 
   report-generation:
     needs: ["prepare-env", "eks-e2e-tests"]
-    if: always() && needs.eks-e2e-tests.result != 'cancelled'
+    if: always() && (needs.eks-e2e-tests.result == 'success' || needs.eks-e2e-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:

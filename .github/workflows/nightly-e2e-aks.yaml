@@ -183,7 +183,7 @@ jobs:
 
   report-generation:
     needs: ["prepare-env", "aks-e2e-tests"]
-    if: always() && needs.aks-e2e-tests.result != 'cancelled'
+    if: always() && (needs.aks-e2e-tests.result == 'success' || needs.aks-e2e-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:

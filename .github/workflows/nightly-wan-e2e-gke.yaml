@@ -191,7 +191,7 @@ jobs:
 
   report-generation:
     needs: ["create-gke-cluster", "wan-gke-tests"]
-    if: always() && needs.wan-gke-tests.result != 'cancelled'
+    if: always() && (needs.wan-gke-tests.result == 'success' || needs.wan-gke-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
