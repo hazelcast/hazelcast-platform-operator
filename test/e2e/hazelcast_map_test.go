@@ -195,7 +195,6 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 
 		By("failing to update map config")
 		m.Spec.BackupCount = pointer.Int32(3)
-		Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
+		Expect(k8sClient.Update(context.Background(), m)).ShouldNot(Succeed())
 	})
 })

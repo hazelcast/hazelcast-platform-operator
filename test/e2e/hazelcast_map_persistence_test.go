@@ -196,8 +196,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		By("failing to update the map config")
 		m.Spec.BackupCount = pointer.Int32(4)
-		Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastv1alpha1.MapFailed)
+		Expect(k8sClient.Update(context.Background(), m)).ShouldNot(Succeed())
 
 		By("checking if the same map config is still there")
 		// Should wait for Hazelcast reconciler to get triggered, we do not have a waiting mechanism for that.
@@ -205,6 +204,5 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		hzConfig = assertMapConfigsPersisted(hazelcast, m.Name)
 		newMcfg := hzConfig.Hazelcast.Map[m.Name]
 		Expect(newMcfg).To(Equal(mcfg))
-
 	})
 })

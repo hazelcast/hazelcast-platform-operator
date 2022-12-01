@@ -117,7 +117,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
 
-		err = ValidateNotUpdatableFields(&m.Spec, lastSpec)
+		err = hazelcastv1alpha1.ValidateNotUpdatableFields(&m.Spec, lastSpec)
 		if err != nil {
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
@@ -187,25 +187,26 @@ func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alph
 	return nil
 }
 
-func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelcastv1alpha1.MapSpec) error {
-	if current.Name != last.Name {
-		return fmt.Errorf("name cannot be updated")
+func ValidatePersistence(pe bool, h *hazelcastv1alpha1.Hazelcast) error {
+	if !pe {
+		return nil
 	}
-	if *current.BackupCount != *last.BackupCount {
-		return fmt.Errorf("backupCount cannot be updated")
+	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+
+	if !ok {
+		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
 	}
-	if *current.AsyncBackupCount != *last.AsyncBackupCount {
-		return fmt.Errorf("asyncBackupCount cannot be updated")
+
+	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
+	err := json.Unmarshal([]byte(s), lastSpec)
+	if err != nil {
+		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
 	}
-	if !util.IndexConfigSliceEquals(current.Indexes, last.Indexes) {
-		return fmt.Errorf("indexes cannot be updated")
+
+	if !lastSpec.Persistence.IsEnabled() {
+		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
 	}
-	if current.PersistenceEnabled != last.PersistenceEnabled {
-		return fmt.Errorf("persistenceEnabled cannot be updated")
-	}
-	if current.HazelcastResourceName != last.HazelcastResourceName {
-		return fmt.Errorf("hazelcastResourceName cannot be updated")
-	}
+
 	return nil
 }
 

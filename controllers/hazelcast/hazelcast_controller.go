@@ -21,7 +21,6 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/mutate"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -111,7 +110,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	err = validation.ValidateHazelcastSpec(h)
+	err = hazelcastv1alpha1.ValidateHazelcastSpec(h)
 	if err != nil {
 		return r.update(ctx, h,
 			failedPhase(err).

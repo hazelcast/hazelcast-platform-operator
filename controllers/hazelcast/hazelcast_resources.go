@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -671,7 +670,7 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 func filterProperties(p map[string]string) map[string]string {
 	filteredProperties := map[string]string{}
 	for propertyKey, value := range p {
-		if _, ok := validation.BlackListProperties[propertyKey]; !ok {
+		if _, ok := hazelcastv1alpha1.BlackListProperties[propertyKey]; !ok {
 			filteredProperties[propertyKey] = value
 		}
 	}

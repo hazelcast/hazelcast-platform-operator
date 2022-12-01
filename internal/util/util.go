@@ -303,49 +303,6 @@ func getLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
 	return ""
 }
 
-func IndexConfigSliceEquals(a, b []hazelcastv1alpha1.IndexConfig) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if !indexConfigEquals(v, b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func indexConfigEquals(a, b hazelcastv1alpha1.IndexConfig) bool {
-	if a.Name != b.Name {
-		return false
-	}
-
-	if a.Type != b.Type {
-		return false
-	}
-
-	if !stringSliceEquals(a.Attributes, b.Attributes) {
-		return false
-	}
-
-	if a.BitmapIndexOptions != b.BitmapIndexOptions {
-		return false
-	}
-	return true
-}
-
-func stringSliceEquals(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func DeleteObject(ctx context.Context, c client.Client, obj client.Object) error {
 	err := c.Delete(ctx, obj, client.PropagationPolicy(metav1.DeletePropagationForeground))
 	if err != nil && !kerrors.IsNotFound(err) {

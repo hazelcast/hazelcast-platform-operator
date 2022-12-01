@@ -1,10 +1,8 @@
-package validation
+package v1alpha1
 
 import (
 	"errors"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
+	"strings"
 )
 
 var BlackListProperties = map[string]struct{}{
@@ -12,7 +10,7 @@ var BlackListProperties = map[string]struct{}{
 	"": {},
 }
 
-func ValidateHazelcastSpec(h *hazelcastv1alpha1.Hazelcast) error {
+func ValidateHazelcastSpec(h *Hazelcast) error {
 	if err := validateExposeExternally(h); err != nil {
 		return err
 	}
@@ -28,27 +26,27 @@ func ValidateHazelcastSpec(h *hazelcastv1alpha1.Hazelcast) error {
 	return nil
 }
 
-func validateExposeExternally(h *hazelcastv1alpha1.Hazelcast) error {
+func validateExposeExternally(h *Hazelcast) error {
 	ee := h.Spec.ExposeExternally
 	if ee == nil {
 		return nil
 	}
 
-	if ee.Type == hazelcastv1alpha1.ExposeExternallyTypeUnisocket && ee.MemberAccess != "" {
+	if ee.Type == ExposeExternallyTypeUnisocket && ee.MemberAccess != "" {
 		return errors.New("when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set")
 	}
 
 	return nil
 }
 
-func validateLicense(h *hazelcastv1alpha1.Hazelcast) error {
-	if util.IsEnterprise(h.Spec.Repository) && len(h.Spec.LicenseKeySecret) == 0 {
+func validateLicense(h *Hazelcast) error {
+	if checkEnterprise(h.Spec.Repository) && len(h.Spec.LicenseKeySecret) == 0 {
 		return errors.New("when Hazelcast Enterprise is deployed, licenseKeySecret must be set")
 	}
 	return nil
 }
 
-func validatePersistence(h *hazelcastv1alpha1.Hazelcast) error {
+func validatePersistence(h *Hazelcast) error {
 	p := h.Spec.Persistence
 	if !p.IsEnabled() {
 		return nil
@@ -61,9 +59,10 @@ func validatePersistence(h *hazelcastv1alpha1.Hazelcast) error {
 	return nil
 }
 
-func ValidateTopicSpec(t *hazelcastv1alpha1.Topic) error {
-	if t.Spec.GlobalOrderingEnabled && t.Spec.MultiThreadingEnabled {
-		return errors.New("multi threading can not be enabled when global ordering is used.")
+func checkEnterprise(repo string) bool {
+	path := strings.Split(repo, "/")
+	if len(path) == 0 {
+		return false
 	}
-	return nil
+	return strings.HasSuffix(path[len(path)-1], "-enterprise")
 }
