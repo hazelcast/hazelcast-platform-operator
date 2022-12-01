@@ -99,7 +99,7 @@ type HazelcastSpec struct {
 
 	// B&R Agent configurations
 	// +optional
-	// +kubebuilder:default:={repository: "docker.io/kutluhanhazelcast/platform-operator-agent", version: "0.1.8"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.11"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -253,7 +253,7 @@ type UserCodeDeploymentConfig struct {
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/kutluhanhazelcast/platform-operator-agent"
+	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
