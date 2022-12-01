@@ -1300,9 +1300,10 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 	}
 
 	return v1.Container{
-		Name:  n.RestoreAgent,
-		Image: h.AgentDockerImage(),
-		Args:  []string{commandName},
+		Name:            n.RestoreAgent,
+		Image:           h.AgentDockerImage(),
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Args:            []string{commandName},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_SECRET_NAME",
@@ -1348,9 +1349,10 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 	}
 
 	return v1.Container{
-		Name:  n.RestoreLocalAgent,
-		Image: h.AgentDockerImage(),
-		Args:  []string{commandName},
+		Name:            n.RestoreLocalAgent,
+		Image:           h.AgentDockerImage(),
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Args:            []string{commandName},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
