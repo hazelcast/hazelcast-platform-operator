@@ -101,6 +101,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.19.0"
+
       - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
         uses: 'google-github-actions/auth@v1.0.0'
         with:
