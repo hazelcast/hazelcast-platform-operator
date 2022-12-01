@@ -64,7 +64,7 @@ jobs:
             --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
             newrelic/nri-bundle
 
-      - name: Install metallb
+      - name: Install MetalLB
         run: |
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=$NAMESPACE
@@ -153,7 +153,7 @@ jobs:
           ee) GO_TEST_FLAGS=-ee=true;;
           *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=istio
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=istio E2E_TEST_LABELS='&& !hz_expose_externally'
 
       - name: Clean up after Tests
         if: always()
