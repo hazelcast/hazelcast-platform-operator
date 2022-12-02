@@ -80,7 +80,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 
 		By("creating the cache config")
-		cache := hazelcastconfig.DefaultCache(mapLookupKey, hazelcast.Name, labels)
+		cache := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
 		cache.Spec.PersistenceEnabled = true
 		Expect(k8sClient.Create(context.Background(), cache)).Should(Succeed())
 		assertDataStructureStatus(chLookupKey, hazelcastv1alpha1.DataStructureSuccess, cache)
@@ -115,7 +115,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		stopChan = portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
 
-		By("checking the map entries")
+		By("checking the cache entries")
 		cl = createHazelcastClient(context.Background(), hazelcast, localPort)
 		defer func() {
 			err := cl.Shutdown(context.Background())
@@ -170,20 +170,20 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
-		c := hazelcastconfig.DefaultCache(mapLookupKey, hazelcast.Name, labels)
+		c := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
 		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureSuccess, c)
 
-		By("checking if the map config is persisted")
+		By("checking if the cache config is persisted")
 		hzConfig := assertCacheConfigsPersisted(hazelcast, c.Name)
 		ccfg := hzConfig.Hazelcast.Cache[c.Name]
 
-		By("failing to update the map config")
+		By("failing to update the cache config")
 		c.Spec.BackupCount = pointer.Int32Ptr(4)
 		Expect(k8sClient.Update(context.Background(), c)).Should(Succeed())
 		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureFailed, c)
 
-		By("checking if the same map config is still there")
+		By("checking if the same cache config is still there")
 		// Should wait for Hazelcast reconciler to get triggered, we do not have a waiting mechanism for that.
 		Sleep(5 * Second)
 		hzConfig = assertCacheConfigsPersisted(hazelcast, c.Name)
