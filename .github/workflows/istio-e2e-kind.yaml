@@ -3,7 +3,7 @@ name: Istio E2E tests on Kind
 on:
   workflow_dispatch:
   schedule:
-      - cron: "0 0 */3 * *"
+    - cron: "0 0 */3 * *"
 
 jobs:
   istio-e2e-tests:
