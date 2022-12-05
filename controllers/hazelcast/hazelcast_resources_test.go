@@ -37,8 +37,8 @@ func Test_hazelcastConfigMapData(t *testing.T) {
 	cacheSpec := hazelcastv1alpha1.CacheSpec{
 		DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 			HazelcastResourceName: meta.Name,
-			BackupCount:           pointer.Int32Ptr(1),
-			AsyncBackupCount:      pointer.Int32Ptr(0),
+			BackupCount:           pointer.Int32(1),
+			AsyncBackupCount:      pointer.Int32(0),
 		},
 	}
 	cacheStatus := hazelcastv1alpha1.CacheStatus{
