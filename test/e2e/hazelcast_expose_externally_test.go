@@ -161,6 +161,18 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 
 		assertExternalAddressesNotEmpty()
 	})
+
+	It("should not try to assume external IP of the discovery service load balancer", Label("slow"), func() {
+		setLabelAndCRName("hee-4")
+		hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		FillTheMapData(ctx, hzLookupKey, true, "map", 100)
+		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+
+		assertExternalAddressesNotEmpty()
+	})
 })
 
 func getHazelcastMembers(ctx context.Context, hazelcast *hazelcastcomv1alpha1.Hazelcast) []hazelcastcomv1alpha1.HazelcastMemberStatus {

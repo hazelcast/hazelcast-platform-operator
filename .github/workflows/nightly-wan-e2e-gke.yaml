@@ -111,10 +111,11 @@ jobs:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
       - name: Connect To The ${{ matrix.cluster }} GKE Cluster
-        run: |-
-          gcloud container clusters get-credentials ${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER} \
-          --zone ${{ env.GKE_ZONE }} \
-          --project ${{ env.GCP_PROJECT_ID }}
+        uses: 'google-github-actions/get-gke-credentials@v1'
+        with:
+          cluster_name: ${{ matrix.cluster }}-wan-cluster-${GITHUB_RUN_NUMBER}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          location: ${{ env.GKE_ZONE }}
 
       - name: Deploy Operator To ${{ matrix.cluster }} GKE Cluster and ${{ matrix.namespace }} namespace
         run: |
