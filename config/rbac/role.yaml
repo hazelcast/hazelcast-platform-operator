@@ -1,4 +1,3 @@
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -16,6 +15,15 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -250,7 +258,6 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

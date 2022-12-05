@@ -55,9 +55,9 @@ type HotBackupTemplateSpec struct {
 // CronHotBackupStatus defines the observed state of CronHotBackup
 type CronHotBackupStatus struct{}
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:shortName=chb
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=chb
 // CronHotBackup is the Schema for the cronhotbackups API
 // +kubebuilder:printcolumn:name="SUSPENDED",type="boolean",JSONPath=".spec.suspend",description="Suspention status of the CronHotBackup"
 type CronHotBackup struct {

@@ -43,7 +43,7 @@ func EncodeListenerConfigHolder(clientMessage *proto.ClientMessage, listenerConf
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeListMultiFrameListenerConfigHolder(message *proto.ClientMessage, values []types.ListenerConfigHolder) {
 	message.AddFrame(proto.BeginFrame.Copy())
 	for i := 0; i < len(values); i++ {
@@ -52,7 +52,7 @@ func EncodeListMultiFrameListenerConfigHolder(message *proto.ClientMessage, valu
 	message.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableListMultiFrameForListenerConfigHolder(message *proto.ClientMessage, values []types.ListenerConfigHolder) {
 	if values == nil {
 		message.AddFrame(proto.NullFrame.Copy())
@@ -82,7 +82,7 @@ func DecodeListenerConfigHolder(frameIterator *proto.ForwardFrameIterator) types
 	}
 }
 
-//manual
+// manual
 func DecodeNullableListMultiFrameForListenerConfigHolder(frameIterator *proto.ForwardFrameIterator) []types.ListenerConfigHolder {
 	if NextFrameIsNullFrame(frameIterator) {
 		return nil

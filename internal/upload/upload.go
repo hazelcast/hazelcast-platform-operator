@@ -10,11 +10,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
+	"github.com/hazelcast/platform-operator-agent/backup"
 )
 
 var (
-	errUploadNotStarted     = errors.New("Upload not started")
-	errUploadAlreadyStarted = errors.New("Upload already started")
+	errUploadNotStarted     = errors.New("upload not started")
+	errUploadAlreadyStarted = errors.New("upload already started")
 )
 
 type Upload struct {
@@ -52,7 +53,7 @@ func (u *Upload) Start(ctx context.Context) error {
 	if u.uploadID != nil {
 		return errUploadAlreadyStarted
 	}
-	upload, _, err := u.service.Upload(ctx, &rest.UploadOptions{
+	upload, _, err := u.service.Upload(ctx, &backup.UploadReq{
 		BucketURL:       u.config.BucketURI,
 		BackupBaseDir:   u.config.BackupBaseDir,
 		HazelcastCRName: u.config.HazelcastName,

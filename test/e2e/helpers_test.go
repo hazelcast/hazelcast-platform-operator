@@ -18,19 +18,15 @@ import (
 	"strings"
 	. "time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	hzClient "github.com/hazelcast/hazelcast-go-client"
+	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -40,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -285,13 +282,13 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 				return -1, err
 			}
 			return hzMap.Size(ctx)
-		}, timeout, 10*Second).Should(Equal(mapSize))
+		}, timeout, 5*Second).Should(Equal(mapSize))
 	})
 }
 
 /*
- * 1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
- */
+1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+*/
 func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
 	By(fmt.Sprintf("filling the map '%s' with '%d' GB data", mapName, sizeInGb), func() {
 		hzAddress := fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzConfig.Name, hzConfig.Namespace, n.DefaultHzPort)
@@ -354,6 +351,9 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName 
 	Eventually(func() bool {
 		pod, err := getClientSet().CoreV1().Pods(lk.Namespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
+		if len(pod.Status.ContainerStatuses) < 1 {
+			return false
+		}
 		return pod.Status.ContainerStatuses[0].Ready
 	}, 5*Minute, interval).Should(Equal(true))
 	return clientPod
@@ -383,9 +383,12 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	Fail(fmt.Sprintf("Failed to find \"%s\" in member logs", expected))
 }
 
-func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
+func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		err := k8sClient.Get(context.Background(), lookupKey, hz)
+		Expect(err).ToNot(HaveOccurred())
+		membersCount := int(*hz.Spec.ClusterSize)
 		Eventually(func() string {
 			err := k8sClient.Get(context.Background(), lookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
@@ -430,18 +433,6 @@ loop1:
 	}
 	Fail("Could not find a reachable working node.")
 	return ""
-}
-
-func addNodeSelectorForName(hz *hazelcastcomv1alpha1.Hazelcast, n string) *hazelcastcomv1alpha1.Hazelcast {
-	// If hostPath is not enabled, do nothing
-	if hz.Spec.Scheduling == nil {
-		return hz
-	}
-	// If NodeSelector is set with dummy name, put the real node name
-	if hz.Spec.Scheduling.NodeSelector != nil {
-		hz.Spec.Scheduling.NodeSelector = map[string]string{"kubernetes.io/hostname": n}
-	}
-	return hz
 }
 
 func waitForReadyChannel(readyChan chan struct{}, dur Duration) error {
@@ -526,15 +517,20 @@ func portForwardPod(sName, sNamespace, port string) chan struct{} {
 	return stopChan
 }
 
-func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
+func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
 	clientWithConfig := &hzClient.Client{}
 	By(fmt.Sprintf("creating Hazelcast client using address '%s'", "localhost:"+localPort), func() {
 		c := hzClient.Config{}
 		cc := &c.Cluster
+		cc.Unisocket = true
 		cc.Name = h.Spec.ClusterName
 		cc.Network.SetAddresses("localhost:" + localPort)
-		clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
+		Eventually(func() (err error) {
+			clientWithConfig, err = hzClient.StartNewClientWithConfig(ctx, c)
+			return err
+		}, 3*Minute, interval).Should(BeNil())
 	})
+
 	return clientWithConfig
 }
 
@@ -628,7 +624,7 @@ func printDebugState() {
 	GinkgoWriter.Printf("Started aftereach function for hzLookupkey : '%s'\n", hzLookupKey)
 
 	GinkgoWriter.Println("kubectl get all:")
-	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter,node,pvc,topic,queue,cache,multimap,replicatedmap", "-o=wide")
+	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter,node,pvc,topic,queue,cache,multimap,replicatedmap,validatingwebhookconfigurations", "-o=wide")
 	byt, err := cmd.Output()
 	Expect(err).To(BeNil())
 	GinkgoWriter.Println(string(byt))
@@ -657,24 +653,24 @@ func assertExecutorServices(expectedES map[string]interface{}, actualES codecTyp
 }
 
 func assertES(expectedES hazelcastcomv1alpha1.ExecutorServiceConfiguration, actualES codecTypes.ExecutorServiceConfig) {
-	Expect(expectedES.Name).Should(Equal(actualES.Name))
-	Expect(expectedES.PoolSize).Should(Equal(actualES.PoolSize))
-	Expect(expectedES.QueueCapacity).Should(Equal(actualES.QueueCapacity))
+	Expect(expectedES.Name).Should(Equal(actualES.Name), "Name")
+	Expect(expectedES.PoolSize).Should(Equal(actualES.PoolSize), "PoolSize")
+	Expect(expectedES.QueueCapacity).Should(Equal(actualES.QueueCapacity), "QueueCapacity")
 }
 
 func assertDurableES(expectedDES hazelcastcomv1alpha1.DurableExecutorServiceConfiguration, actualDES codecTypes.DurableExecutorServiceConfig) {
-	Expect(expectedDES.Name).Should(Equal(actualDES.Name))
-	Expect(expectedDES.PoolSize).Should(Equal(actualDES.PoolSize))
-	Expect(expectedDES.Capacity).Should(Equal(actualDES.Capacity))
-	Expect(expectedDES.Durability).Should(Equal(actualDES.Durability))
+	Expect(expectedDES.Name).Should(Equal(actualDES.Name), "Name")
+	Expect(expectedDES.PoolSize).Should(Equal(actualDES.PoolSize), "PoolSize")
+	Expect(expectedDES.Capacity).Should(Equal(actualDES.Capacity), "Capacity")
+	Expect(expectedDES.Durability).Should(Equal(actualDES.Durability), "Durability")
 }
 
 func assertScheduledES(expectedSES hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration, actualSES codecTypes.ScheduledExecutorServiceConfig) {
-	Expect(expectedSES.Name).Should(Equal(actualSES.Name))
-	Expect(expectedSES.PoolSize).Should(Equal(actualSES.PoolSize))
-	Expect(expectedSES.Capacity).Should(Equal(actualSES.Capacity))
-	Expect(expectedSES.Durability).Should(Equal(actualSES.Durability))
-	Expect(expectedSES.CapacityPolicy).Should(Equal(actualSES.CapacityPolicy))
+	Expect(expectedSES.Name).Should(Equal(actualSES.Name), "Name")
+	Expect(expectedSES.PoolSize).Should(Equal(actualSES.PoolSize), "PoolSize")
+	Expect(expectedSES.Capacity).Should(Equal(actualSES.Capacity), "Capacity")
+	Expect(expectedSES.Durability).Should(Equal(actualSES.Durability), "Durability")
+	Expect(expectedSES.CapacityPolicy).Should(Equal(actualSES.CapacityPolicy), "CapacityPolicy")
 }
 
 func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *hazelcastcomv1alpha1.HotBackup {
@@ -783,4 +779,38 @@ func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *c
 		}
 	}
 	return nil
+}
+
+func unixMilli(msec int64) Time {
+	return Unix(msec/1e3, (msec%1e3)*1e6)
+}
+
+func assertCorrectBackupStatus(hotBackup *hazelcastcomv1alpha1.HotBackup, seq string) {
+	if hotBackup.Spec.IsExternal() {
+		timestamp, _ := strconv.ParseInt(seq, 10, 64)
+		bucketURI := hotBackup.Spec.BucketURI + fmt.Sprintf("?prefix=%s/%s/", hzLookupKey.Name,
+			unixMilli(timestamp).UTC().Format("2006-01-02-15-04-05")) // hazelcast/2022-06-02-21-57-49/
+
+		backupBucketURI := hotBackup.Status.GetBucketURI()
+		Expect(bucketURI).Should(Equal(backupBucketURI))
+		return
+	}
+
+	// if local backup
+	backupSeqFolder := hotBackup.Status.GetBackupFolder()
+	Expect("backup-" + seq).Should(Equal(backupSeqFolder))
+}
+
+func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bool) *hazelcastcomv1alpha1.RestoreConfiguration {
+	if useBucketConfig {
+		return &hazelcastcomv1alpha1.RestoreConfiguration{
+			BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
+				BucketURI: hotBackup.Status.GetBucketURI(),
+				Secret:    hotBackup.Spec.Secret,
+			},
+		}
+	}
+	return &hazelcastcomv1alpha1.RestoreConfiguration{
+		HotBackupResourceName: hotBackup.Name,
+	}
 }

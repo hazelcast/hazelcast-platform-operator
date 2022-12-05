@@ -20,10 +20,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	errors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -128,7 +128,7 @@ func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcas
 func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	clusterRole := &rbacv1.ClusterRole{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, clusterRole)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && kerrors.IsNotFound(err) {
 		logger.V(util.DebugLevel).Info("ClusterRole is not created yet. Or it is already removed.")
 		return nil
 	}
@@ -144,7 +144,7 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	crb := &rbacv1.ClusterRoleBinding{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, crb)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && kerrors.IsNotFound(err) {
 		logger.V(util.DebugLevel).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
 		return nil
 	}
@@ -333,6 +333,11 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		})
 	}
 
+	if serviceType(h) == corev1.ServiceTypeClusterIP {
+		// We want to use headless to be compatible with Hazelcast helm chart
+		service.Spec.ClusterIP = "None"
+	}
+
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
@@ -344,7 +349,6 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 			// dirty hack to prevent the error when changing the service type
 			service.Spec.Ports[0].NodePort = 0
 		}
-
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -412,7 +416,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 	sts := &appsv1.StatefulSet{}
 	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			// Not found, StatefulSet is not created yet, no need to delete any services
 			return nil
 		}
@@ -428,7 +432,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 		s := &v1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if kerrors.IsNotFound(err) {
 				// Not found, no need to remove the service
 				continue
 			}
@@ -436,7 +440,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 		}
 		err = r.Client.Delete(ctx, s)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if kerrors.IsNotFound(err) {
 				// Not found, no need to remove the service
 				continue
 			}
@@ -466,10 +470,11 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func hazelcastPort() []v1.ServicePort {
 	return []corev1.ServicePort{
 		{
-			Name:       n.HazelcastPortName,
-			Protocol:   corev1.ProtocolTCP,
-			Port:       n.DefaultHzPort,
-			TargetPort: intstr.FromString(n.Hazelcast),
+			Name:        n.HazelcastPortName,
+			Protocol:    corev1.ProtocolTCP,
+			Port:        n.DefaultHzPort,
+			TargetPort:  intstr.FromString(n.Hazelcast),
+			AppProtocol: pointer.String("tcp"),
 		},
 	}
 }
@@ -587,21 +592,21 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		Network: config.Network{
 			Join: config.Join{
 				Kubernetes: config.Kubernetes{
-					Enabled:     &[]bool{true}[0],
+					Enabled:     pointer.Bool(true),
 					ServiceName: h.Name,
 				},
 			},
 			RestAPI: config.RestAPI{
-				Enabled: &[]bool{true}[0],
+				Enabled: pointer.Bool(true),
 				EndpointGroups: config.EndpointGroups{
 					HealthCheck: config.EndpointGroup{
-						Enabled: &[]bool{true}[0],
+						Enabled: pointer.Bool(true),
 					},
 					ClusterWrite: config.EndpointGroup{
-						Enabled: &[]bool{true}[0],
+						Enabled: pointer.Bool(true),
 					},
 					Persistence: config.EndpointGroup{
-						Enabled: &[]bool{true}[0],
+						Enabled: pointer.Bool(true),
 					},
 				},
 			},
@@ -611,7 +616,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	if h.Spec.JetEngineConfiguration.IsConfigured() {
 		cfg.Jet = config.Jet{
 			Enabled:               h.Spec.JetEngineConfiguration.Enabled,
-			ResourceUploadEnabled: pointer.BoolPtr(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
+			ResourceUploadEnabled: pointer.Bool(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
 		}
 	}
 
@@ -622,7 +627,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
-		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = &[]bool{true}[0]
+		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
 	}
 
 	if h.Spec.ExposeExternally.IsSmart() {
@@ -636,7 +641,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	if h.Spec.Persistence.IsEnabled() {
 		cfg.Persistence = config.Persistence{
-			Enabled:                   &[]bool{true}[0],
+			Enabled:                   pointer.Bool(true),
 			BaseDir:                   h.Spec.Persistence.BaseDir,
 			BackupDir:                 h.Spec.Persistence.BaseDir + "/hot-backup",
 			Parallelism:               1,
@@ -1023,9 +1028,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 				Spec: v1.PodSpec{
 					ServiceAccountName: h.Name,
 					SecurityContext: &v1.PodSecurityContext{
-						FSGroup:      &[]int64{65534}[0],
-						RunAsNonRoot: &[]bool{true}[0],
-						RunAsUser:    &[]int64{65534}[0],
+						FSGroup:      pointer.Int64(65534),
+						RunAsNonRoot: pointer.Bool(true),
+						RunAsUser:    pointer.Int64(65534),
 					},
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
@@ -1035,7 +1040,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							Protocol:      v1.ProtocolTCP,
 						}},
 						LivenessProbe: &v1.Probe{
-							Handler: v1.Handler{
+							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(n.DefaultHzPort),
@@ -1049,7 +1054,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							FailureThreshold:    10,
 						},
 						ReadinessProbe: &v1.Probe{
-							Handler: v1.Handler{
+							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(n.DefaultHzPort),
@@ -1062,35 +1067,19 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							SuccessThreshold:    1,
 							FailureThreshold:    10,
 						},
-						SecurityContext: &v1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							RunAsUser:                &[]int64{65534}[0],
-							Privileged:               &[]bool{false}[0],
-							ReadOnlyRootFilesystem:   &[]bool{!h.Spec.Persistence.IsEnabled()}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
-							Capabilities: &v1.Capabilities{
-								Drop: []v1.Capability{"ALL"},
-							},
-						},
+						SecurityContext: containerSecurityContext(h),
 					}},
-					TerminationGracePeriodSeconds: &[]int64{600}[0],
+					TerminationGracePeriodSeconds: pointer.Int64(600),
 				},
 			},
 		},
 	}
 
 	if h.Spec.Persistence.IsEnabled() {
-		if h.Spec.Persistence.UseHostPath() {
-			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot = &[]bool{false}[0]
-			sts.Spec.Template.Spec.Containers[0].SecurityContext.RunAsUser = &[]int64{0}[0]
-			if platform.GetType() == platform.OpenShift {
-				sts.Spec.Template.Spec.Containers[0].SecurityContext.Privileged = &[]bool{true}[0]
-				sts.Spec.Template.Spec.Containers[0].SecurityContext.AllowPrivilegeEscalation = &[]bool{true}[0]
-			}
-		} else {
+		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
+		if !h.Spec.Persistence.UseHostPath() {
 			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 		}
-		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -1174,7 +1163,7 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		}},
 		Args: []string{"backup"},
 		LivenessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
 					Path:   "/health",
 					Port:   intstr.FromInt(8080),
@@ -1188,7 +1177,7 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			FailureThreshold:    10,
 		},
 		ReadinessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
 					Path:   "/health",
 					Port:   intstr.FromInt(8080),
@@ -1225,32 +1214,73 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				MountPath: n.MTLSCertPath,
 			},
 		},
+		SecurityContext: containerSecurityContext(h),
 	}
+}
+
+func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContext {
+	sec := &v1.SecurityContext{
+		RunAsNonRoot:             pointer.Bool(true),
+		RunAsUser:                pointer.Int64(65534),
+		Privileged:               pointer.Bool(false),
+		ReadOnlyRootFilesystem:   pointer.Bool(true),
+		AllowPrivilegeEscalation: pointer.Bool(false),
+		Capabilities: &v1.Capabilities{
+			Drop: []v1.Capability{"ALL"},
+		},
+	}
+
+	if !h.Spec.Persistence.IsEnabled() {
+		return sec
+	}
+
+	sec.ReadOnlyRootFilesystem = pointer.Bool(false)
+
+	if !h.Spec.Persistence.UseHostPath() {
+		return sec
+	}
+
+	sec.RunAsNonRoot = pointer.Bool(false)
+	sec.RunAsUser = pointer.Int64(0)
+
+	if platform.GetType() == platform.OpenShift {
+		sec.Privileged = pointer.Bool(true)
+		sec.AllowPrivilegeEscalation = pointer.Bool(true)
+	}
+
+	return sec
 }
 
 func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
 	var containers []corev1.Container
-	if h.Spec.Persistence.IsRestoreEnabled() {
-		if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
-			cont, err := getRestoreFromHotBackupResource(ctx, cl, h,
-				types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName})
-			if err != nil {
-				return nil, err
-			}
-			containers = append(containers, cont)
 
-		} else {
-			containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
-				h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
-		}
-	}
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
 		containers = append(containers, ucdAgentContainer(h))
 	}
+
+	if !h.Spec.Persistence.IsRestoreEnabled() {
+		return containers, nil
+	}
+
+	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
+		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
+			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName})
+		if err != nil {
+			return nil, err
+		}
+		containers = append(containers, cont)
+
+		return containers, nil
+	}
+
+	// restoring from bucket config
+	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
+		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
+
 	return containers, nil
 }
 
-func getRestoreFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
+func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := cl.Get(ctx, key, hb)
 	if err != nil {
@@ -1270,10 +1300,17 @@ func getRestoreFromHotBackupResource(ctx context.Context, cl client.Client, h *h
 }
 
 func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
+	commandName := "restore_pvc"
+
+	if h.Spec.Persistence.UseHostPath() {
+		commandName = "restore_hostpath"
+	}
+
 	return v1.Container{
-		Name:  n.RestoreAgent,
-		Image: h.AgentDockerImage(),
-		Args:  []string{"restore"},
+		Name:            n.RestoreAgent,
+		Image:           h.AgentDockerImage(),
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Args:            []string{commandName},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_SECRET_NAME",
@@ -1295,23 +1332,34 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 				Name: "RESTORE_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "metadata.name",
+						APIVersion: "v1",
+						FieldPath:  "metadata.name",
 					},
 				},
 			},
 		},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
 		}},
+		SecurityContext: containerSecurityContext(h),
 	}
 }
 
 func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
+	commandName := "restore_pvc_local"
+
+	if h.Spec.Persistence.UseHostPath() {
+		commandName = "restore_hostpath_local"
+	}
+
 	return v1.Container{
-		Name:  n.RestoreLocalAgent,
-		Image: h.AgentDockerImage(),
-		Args:  []string{"restore_local"},
+		Name:            n.RestoreLocalAgent,
+		Image:           h.AgentDockerImage(),
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Args:            []string{commandName},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
@@ -1329,15 +1377,19 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 				Name: "RESTORE_LOCAL_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "metadata.name",
+						APIVersion: "v1",
+						FieldPath:  "metadata.name",
 					},
 				},
 			},
 		},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
 		}},
+		SecurityContext: containerSecurityContext(h),
 	}
 }
 
@@ -1499,7 +1551,7 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 	return nil
 }
 
-func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hzclient.Client, h *hazelcastv1alpha1.Hazelcast) error {
 	// make sure restore is active
 	if !h.Spec.Persistence.IsRestoreEnabled() {
 		return nil
@@ -1520,20 +1572,20 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelc
 
 	// check if all cluster members are in passive state
 	for _, member := range h.Status.Members {
-		if ClusterState(member.State) != Passive {
+		if member.State != hazelcastv1alpha1.NodeStatePassive {
 			return nil
 		}
 	}
 
-	rest := NewRestClient(h)
-	state, err := rest.GetState(ctx)
+	svc := hzclient.NewClusterStateService(client)
+	state, err := svc.ClusterState(ctx)
 	if err != nil {
 		return err
 	}
-	if state != "passive" {
+	if state == codecTypes.ClusterStateActive {
 		return nil
 	}
-	return rest.ChangeState(ctx, Active)
+	return svc.ChangeClusterState(ctx, codecTypes.ClusterStateActive)
 }
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
@@ -1604,11 +1656,13 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 }
 
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ans := map[string]string{}
-	if h.Spec.ExposeExternally.IsSmart() {
-		ans[n.ServicePerPodCountAnnotation] = strconv.Itoa(int(*h.Spec.ClusterSize))
+	if !h.Spec.ExposeExternally.IsSmart() {
+		return nil
 	}
-	return ans
+
+	return map[string]string{
+		n.ServicePerPodCountAnnotation: strconv.Itoa(int(*h.Spec.ClusterSize)),
+	}
 }
 
 func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {

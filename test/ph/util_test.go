@@ -220,14 +220,17 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 	}, timeout, interval).Should(Succeed())
 }
 
-func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
+func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		err := k8sClient.Get(context.Background(), lookupKey, hz)
+		Expect(err).ToNot(HaveOccurred())
+		membersCount := int(*hz.Spec.ClusterSize)
 		Eventually(func() string {
 			err := k8sClient.Get(context.Background(), lookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
 			return hz.Status.Cluster.ReadyMembers
-		}, 3*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
+		}, 6*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
 	})
 }
 

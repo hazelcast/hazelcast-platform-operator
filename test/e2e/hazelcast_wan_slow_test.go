@@ -68,7 +68,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
-		evaluateReadyMembers(sourceLookupKey, 3)
+		evaluateReadyMembers(sourceLookupKey)
 		_ = waitForLBAddress(sourceLookupKey)
 
 		By("creating target Hazelcast cluster")
@@ -79,7 +79,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
-		evaluateReadyMembers(targetLookupKey, 3)
+		evaluateReadyMembers(targetLookupKey)
 		targetAddress := waitForLBAddress(targetLookupKey)
 
 		By("creating map for source Hazelcast cluster")
@@ -135,7 +135,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
 		sourceAddress := waitForLBAddress(sourceLookupKey)
-		evaluateReadyMembers(sourceLookupKey, 3)
+		evaluateReadyMembers(sourceLookupKey)
 
 		By("creating target Hazelcast cluster")
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
@@ -146,7 +146,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
 		targetAddress := waitForLBAddress(targetLookupKey)
-		evaluateReadyMembers(targetLookupKey, 3)
+		evaluateReadyMembers(targetLookupKey)
 
 		By("creating first map for source Hazelcast cluster")
 		mapSrc1 := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
@@ -268,7 +268,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
-		evaluateReadyMembers(sourceLookupKey, 3)
+		evaluateReadyMembers(sourceLookupKey)
 		_ = waitForLBAddress(sourceLookupKey)
 
 		By("creating target Hazelcast cluster")
@@ -281,7 +281,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
-		evaluateReadyMembers(targetLookupKey, 3)
+		evaluateReadyMembers(targetLookupKey)
 		targetAddress := waitForLBAddress(targetLookupKey)
 
 		By("Creating map for source Hazelcast cluster")
@@ -343,7 +343,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
-		evaluateReadyMembers(sourceLookupKey, 3)
+		evaluateReadyMembers(sourceLookupKey)
 		sourceAddress := waitForLBAddress(sourceLookupKey)
 
 		By("creating target Hazelcast cluster")
@@ -357,7 +357,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
 		targetAddress := waitForLBAddress(targetLookupKey)
-		evaluateReadyMembers(targetLookupKey, 3)
+		evaluateReadyMembers(targetLookupKey)
 
 		By("creating first map for source Hazelcast cluster")
 		SwitchContext(context1)

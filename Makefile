@@ -45,7 +45,7 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+CRD_OPTIONS ?= "crd"
 
 # If namespace is empty, override it as default
 ifeq (,$(NAMESPACE))
@@ -200,6 +200,12 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
 
+webhook-install: manifests kustomize
+	$(KUSTOMIZE) build config/webhook | $(KUBECTL) apply -f -
+
+webhook-uninstall: manifests kustomize
+	$(KUSTOMIZE) build config/webhook | $(KUBECTL) delete -f -
+
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 ifneq (,$(NAME_PREFIX))
 	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
@@ -252,7 +258,7 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0)
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
@@ -384,4 +390,4 @@ bundle-ocp-validate: ocp-olm-catalog-validator
 
 api-ref-doc: 
 	@go build -o bin/docgen  ./apidocgen/main.go 
-	@./bin/docgen ./api/v1alpha1/*_types.go
+	@./bin/docgen ./api/v1alpha1/*.go

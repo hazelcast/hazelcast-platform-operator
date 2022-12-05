@@ -4,6 +4,10 @@ resources:
 - ../rbac
 - ../manager
 - ../crd
+- ../webhook
+
+patchesStrategicMerge:
+- manager_webhook_patch.yaml
 
 # Adds namespace to all resources.
 namespace: default

@@ -52,7 +52,7 @@ func EncodeNearCacheConfigHolder(clientMessage *proto.ClientMessage, nearCacheCo
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableForNearCacheConfigHolder(clientMessage *proto.ClientMessage, nearCacheConfigHolder types.NearCacheConfigHolder) {
 	// types.NearCacheConfigHolder{} is not comparable with ==
 	if reflect.DeepEqual(types.NearCacheConfigHolder{}, nearCacheConfigHolder) {

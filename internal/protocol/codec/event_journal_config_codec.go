@@ -40,7 +40,7 @@ func EncodeEventJournalConfig(clientMessage *proto.ClientMessage, eventJournalCo
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableForEventJournalConfig(clientMessage *proto.ClientMessage, eventJournalConfig types.EventJournalConfig) {
 	if eventJournalConfig == (types.EventJournalConfig{}) {
 		clientMessage.AddFrame(proto.NullFrame.Copy())

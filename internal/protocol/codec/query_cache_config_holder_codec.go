@@ -53,7 +53,7 @@ func EncodeQueryCacheConfigHolder(clientMessage *proto.ClientMessage, queryCache
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeListMultiFrameQueryCacheConfigHolder(message *proto.ClientMessage, values []types.QueryCacheConfigHolder) {
 	message.AddFrame(proto.BeginFrame.Copy())
 	for i := 0; i < len(values); i++ {
@@ -62,7 +62,7 @@ func EncodeListMultiFrameQueryCacheConfigHolder(message *proto.ClientMessage, va
 	message.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableListMultiFrameForQueryCacheConfigHolder(message *proto.ClientMessage, values []types.QueryCacheConfigHolder) {
 	if values == nil {
 		message.AddFrame(proto.NullFrame.Copy())

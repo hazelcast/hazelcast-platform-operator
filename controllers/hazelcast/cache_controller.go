@@ -124,6 +124,13 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 	cacheInput.KeyType = cs.KeyType
 	cacheInput.ValueType = cs.ValueType
 	cacheInput.HotRestartConfig.Enabled = cs.PersistenceEnabled
+
+	//default values
+	cacheInput.EvictionConfig = codecTypes.EvictionConfigHolder{
+		Size:           10000,
+		MaxSizePolicy:  "ENTRY_COUNT",
+		EvictionPolicy: "LRU",
+	}
 }
 
 func (r *CacheReconciler) validateCacheConfigPersistence(ctx context.Context, c *hazelcastv1alpha1.Cache) (bool, error) {

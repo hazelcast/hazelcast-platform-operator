@@ -158,31 +158,37 @@ cleanup_page_publish_runs()
             sleep 20
     done
 }
-# This function will restart all nodes that are not in ready status and wait until it will be ready
-wait_for_node_restarted()
+# This function will restart all instances that are not in ready status and wait until it will be ready
+wait_for_instance_restarted()
 {
    local TIMEOUT_IN_MINS=$1
    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
-   NON_READY_NODES=$(oc get nodes -o json | jq -r 'del(.items[].status.conditions[] | select(.type | select(contains("Ready")|not))) | .items[]| select(.status.conditions[].status | select(contains("Unknown"))).metadata.name'| wc -l)
-   if [[ ${NON_READY_NODES} -ne 0 ]]; then
-      for NODE in ${NON_READY_NODES}; do
-         echo "Restarting node $NODE..."
-         nohup oc debug node/${NODE} -T -- chroot /host sh -c "systemctl reboot" &
-         sleep 20
+   NUMBER_NON_READY_INSTANCES=$(oc get machine -n openshift-machine-api -o json | jq -r '[.items[] | select(.status.providerStatus.instanceState | select(contains("running")|not))]|length')
+   NON_READY_INSTANCE=$(oc get machines -n openshift-machine-api -o json | jq -r '[.items[] | select(.status.providerStatus.instanceState | select(contains("running")|not))]|.[].status.providerStatus.instanceId')
+   if [[ ${NUMBER_NON_READY_INSTANCES} -ne 0 ]]; then
+      for INSTANCE in ${NON_READY_INSTANCE}; do
+         STOPPING_INSTANCE_STATE=$(aws ec2 stop-instances --instance-ids ${INSTANCE} | jq -r '.StoppingInstances[0].CurrentState.Name')
+         echo "Stop instance $INSTANCE...The current instance state is $STOPPING_INSTANCE_STATE"
+         aws ec2 wait instance-stopped --instance-ids ${INSTANCE}
+         STARTING_INSTANCE_STATE=$(aws ec2 start-instances --instance-ids ${INSTANCE} | jq -r '.StartingInstances[0].CurrentState.Name')
+         aws ec2 wait instance-running --instance-ids ${INSTANCE}
+         echo "Starting instance $INSTANCE...The current instance state is $STARTING_INSTANCE_STATE"
+         for i in `seq 1 ${NOF_RETRIES}`; do
+            NUMBER_NON_READY_INSTANCES=$(oc get machine -n openshift-machine-api -o json | jq -r '[.items[] | select(.status.providerStatus.instanceState | select(contains("running")|not))]|length')
+            if [[ ${NUMBER_NON_READY_INSTANCES} -eq 0 ]]; then
+               echo "All instances are in 'Ready' status."
+               return 0
+            else
+               echo "The instances restarted but are not ready yet. Waiting..."
+            fi
+            if [[ ${i} == ${NOF_RETRIES} ]]; then
+               echo "Timeout! Restarted instances are still not ready."
+               return 42
+            fi
+            sleep 20
+         done
       done
+   else
+      echo "All instances are in 'Ready' status."
    fi
-   for i in `seq 1 ${NOF_RETRIES}`; do
-        NON_READY_NODES=$(oc get nodes -o json | jq -r 'del(.items[].status.conditions[] | select(.type | select(contains("Ready")|not))) | .items[]| select(.status.conditions[].status | select(contains("Unknown"))).metadata.name'| wc -l)
-        if [[ ${NON_READY_NODES} -eq 0 ]]; then
-           echo "All nodes are in 'Ready' status."
-           return 0
-        else
-           echo "The nodes restarted but are not ready yet. Waiting..."
-        fi
-        if [[ ${i} == ${NOF_RETRIES} ]]; then
-           echo "Timeout! Restarted nodes are still not ready."
-           return 42
-        fi
-        sleep 20
-   done
 }

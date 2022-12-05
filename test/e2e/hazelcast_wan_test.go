@@ -68,8 +68,8 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		hazelcastTarget := hazelcastconfig.ExposeExternallyUnisocket(hzTrgLookupKey, ee, labels)
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
-		evaluateReadyMembers(hzSrcLookupKey, 3)
-		evaluateReadyMembers(hzTrgLookupKey, 3)
+		evaluateReadyMembers(hzSrcLookupKey)
+		evaluateReadyMembers(hzTrgLookupKey)
 
 		_ = waitForLBAddress(hzSrcLookupKey)
 		targetAddress := waitForLBAddress(hzTrgLookupKey)
