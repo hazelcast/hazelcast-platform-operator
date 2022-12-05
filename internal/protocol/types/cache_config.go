@@ -52,28 +52,6 @@ func DefaultCacheConfigInput() *CacheConfigInput {
 		DisablePerEntryInvalidationEvents: n.DefaultCacheDisablePerEntryInvalidationEvents,
 		InMemoryFormat:                    InMemoryFormatBinary,
 	}
-	// TODO: Temporary solution for https://github.com/hazelcast/hazelcast/issues/21799
-	cacheInput.DataPersistenceConfig = DataPersistenceConfig{
-		Enabled: false,
-		Fsync:   true,
-	}
-	cacheInput.MerkleTreeConfig = MerkleTreeConfig{
-		IsDefined:  true,
-		Enabled:    false,
-		Depth:      2,
-		EnabledSet: false,
-	}
-	cacheInput.HotRestartConfig = HotRestartConfig{
-		IsDefined: true,
-		Enabled:   false,
-		Fsync:     false,
-	}
-	cacheInput.EventJournalConfig = EventJournalConfig{
-		IsDefined:         true,
-		Enabled:           false,
-		Capacity:          1,
-		TimeToLiveSeconds: 1,
-	}
 	//default values
 	cacheInput.EvictionConfig = EvictionConfigHolder{
 		Size:           10000,
