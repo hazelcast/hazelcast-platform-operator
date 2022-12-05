@@ -723,24 +723,17 @@ func getQueueConfigFromMemberConfig(memberConfigXML string, queueName string) *c
 	return nil
 }
 
-func DnsLookup(ctx context.Context, host string) (string, error) {
-	r := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			d := net.Dialer{
-				Timeout: 10 * Second,
-			}
-			return d.DialContext(ctx, network, address)
-		},
-	}
-	IPs, err := r.LookupHost(ctx, host)
+func DnsLookupAddressMatched(ctx context.Context, host, addr string) (bool, error) {
+	IPs, err := net.DefaultResolver.LookupHost(ctx, host)
 	if err != nil {
-		return "", err
+		return false, err
 	}
-	if len(IPs) == 0 {
-		return "", fmt.Errorf("host '%s' cannot be resolved", host)
+	for _, IP := range IPs {
+		if IP == addr {
+			return true, nil
+		}
 	}
-	return IPs[0], nil
+	return false, nil
 }
 
 func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *codecTypes.CacheConfigInput {

@@ -135,11 +135,22 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
 				Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
-				serviceExternalIP := getLoadBalancerIngressPublicIP(ctx, service.Status.LoadBalancer.Ingress[0])
+				svcLoadBalancerIngress := service.Status.LoadBalancer.Ingress[0]
 				clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
 				Expect(clientPublicAddresses).Should(HaveLen(1))
 				clientPublicIp := clientPublicAddresses[0][:strings.IndexByte(clientPublicAddresses[0], ':')]
-				Expect(serviceExternalIP).Should(Equal(clientPublicIp))
+				if svcLoadBalancerIngress.IP != "" {
+					Expect(svcLoadBalancerIngress.IP).Should(Equal(clientPublicIp))
+				} else {
+					hostname := svcLoadBalancerIngress.Hostname
+					var addressMatched bool
+					Eventually(func() error {
+						matched, err := DnsLookupAddressMatched(ctx, hostname, clientPublicIp)
+						addressMatched = matched
+						return err
+					}, 3*Minute, interval).Should(BeNil())
+					Expect(addressMatched).Should(BeTrue())
+				}
 				continue memberLoop
 			}
 			Fail(fmt.Sprintf("member Uid '%s' is not matched with client members UUIDs", member.Uid))
@@ -194,16 +205,4 @@ func filterClientMemberAddressesByPublicIdentifier(member hzCluster.MemberInfo) 
 		}
 	}
 	return addresses
-}
-
-func getLoadBalancerIngressPublicIP(ctx context.Context, lbi corev1.LoadBalancerIngress) string {
-	publicIP := lbi.IP
-	if publicIP == "" {
-		By("Looking up for hostname of load balancer ingress")
-		Eventually(func() (err error) {
-			publicIP, err = DnsLookup(ctx, lbi.Hostname)
-			return
-		}, 3*Minute, interval).Should(BeNil())
-	}
-	return publicIP
 }
