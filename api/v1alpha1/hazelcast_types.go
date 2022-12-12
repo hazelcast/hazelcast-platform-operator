@@ -73,8 +73,8 @@ type HazelcastSpec struct {
 	LicenseKeySecret string `json:"licenseKeySecret,omitempty"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
-	// +optional
 	// +kubebuilder:default:={}
+	// +optional
 	ExposeExternally *ExposeExternallyConfiguration `json:"exposeExternally,omitempty"`
 
 	// Name of the Hazelcast cluster.
@@ -83,33 +83,34 @@ type HazelcastSpec struct {
 	ClusterName string `json:"clusterName,omitempty"`
 
 	// Scheduling details
-	// +optional
 	// +kubebuilder:default:={}
-	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
+	// +optional
+	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
 
 	// Compute Resources required by the Hazelcast container.
-	// +optional
 	// +kubebuilder:default:={}
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// +optional
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Persistence configuration
-	//+optional
 	//+kubebuilder:default:={}
+	//+optional
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +optional
 	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.11"}
-	Agent *AgentConfiguration `json:"agent,omitempty"`
+	// +optional
+	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
+	// +kubebuilder:default:={enabled: true, resourceUploadEnabled: false}
 	// +optional
-	// +kubebuilder:default:={enabled: true}
-	JetEngineConfiguration *JetEngineConfiguration `json:"jet,omitempty"`
+	JetEngineConfiguration JetEngineConfiguration `json:"jet,omitempty"`
 
 	// User Codes to Download into CLASSPATH
+	//+kubebuilder:default:={}
 	// +optional
-	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
+	UserCodeDeployment UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
 
 	// +optional
 	ExecutorServices []ExecutorServiceConfiguration `json:"executorServices,omitempty"`
@@ -123,20 +124,26 @@ type HazelcastSpec struct {
 	// +optional
 	Properties map[string]string `json:"properties,omitempty"`
 
-	// +optional
 	// +kubebuilder:default:="INFO"
+	// +optional
 	LoggingLevel LoggingLevel `json:"loggingLevel,omitempty"`
 }
 
 type JetEngineConfiguration struct {
 	// When false, disables Jet Engine.
 	// +kubebuilder:default:=true
+	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// When true, enables resource uploading for Jet jobs.
-	// +optional
 	// +kubebuilder:default:=false
+	// +optional
 	ResourceUploadEnabled bool `json:"resourceUploadEnabled"`
+}
+
+// Returns true if Jet section is configured.
+func (j *JetEngineConfiguration) IsConfigured() bool {
+	return j != nil
 }
 
 type ExecutorServiceConfiguration struct {
@@ -225,10 +232,12 @@ const (
 type BucketConfiguration struct {
 	// Name of the secret with credentials for cloud providers.
 	// +kubebuilder:validation:MinLength:=1
+	// +required
 	Secret string `json:"secret"`
 
 	// Full path to blob storage bucket.
 	// +kubebuilder:validation:MinLength:=6
+	// +required
 	BucketURI string `json:"bucketURI"`
 }
 
@@ -236,7 +245,7 @@ type BucketConfiguration struct {
 type UserCodeDeploymentConfig struct {
 	// When true, allows user code deployment from clients.
 	// +optional
-	ClientEnabled bool `json:"clientEnabled,omitempty"`
+	ClientEnabled *bool `json:"clientEnabled,omitempty"`
 
 	// Jar files in the bucket will be put under CLASSPATH.
 	// +optional
@@ -251,6 +260,16 @@ type UserCodeDeploymentConfig struct {
 	ConfigMaps []string `json:"configMaps,omitempty"`
 }
 
+// Returns true if userCodeDeployment.bucketConfiguration is specified.
+func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
+	return c != nil && c.BucketConfiguration != nil
+}
+
+// Returns true if userCodeDeployment.configMaps configuration is specified.
+func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
+	return c != nil && (len(c.ConfigMaps) != 0)
+}
+
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
 	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
@@ -258,7 +277,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.10"
+	// +kubebuilder:default:="0.1.11"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
@@ -277,8 +296,8 @@ const (
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
 type HazelcastPersistenceConfiguration struct {
-
 	// Persistence base directory.
+	// +required
 	BaseDir string `json:"baseDir"`
 
 	// Configuration of the cluster recovery strategy.
@@ -297,21 +316,46 @@ type HazelcastPersistenceConfiguration struct {
 	DataRecoveryTimeout int32 `json:"dataRecoveryTimeout,omitempty"`
 
 	// Configuration of PersistenceVolumeClaim.
+	// +kubebuilder:default:={}
 	// +optional
-	Pvc PersistencePvcConfiguration `json:"pvc"`
+	Pvc PersistencePvcConfiguration `json:"pvc,omitempty"`
 
 	// Host Path directory.
 	// +optional
 	HostPath string `json:"hostPath,omitempty"`
 
 	// Restore configuration
-	// +optional
 	// +kubebuilder:default:={}
-	Restore *RestoreConfiguration `json:"restore,omitempty"`
+	// +optional
+	Restore RestoreConfiguration `json:"restore,omitempty"`
+}
+
+// Returns true if ClusterDataRecoveryPolicy is not FullRecoveryOnly
+func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
+	return p.ClusterDataRecoveryPolicy != FullRecovery
+}
+
+// Returns true if Persistence configuration is specified.
+func (p *HazelcastPersistenceConfiguration) IsEnabled() bool {
+	return p != nil && p.BaseDir != ""
+}
+
+// Returns true if hostPath is enabled.
+func (p *HazelcastPersistenceConfiguration) UseHostPath() bool {
+	return p.HostPath != ""
+}
+
+// IsRestoreEnabled returns true if Restore configuration is specified
+func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
+	return p.IsEnabled() && !(p.Restore == (RestoreConfiguration{}))
+}
+
+// RestoreFromHotBackupResourceName returns true if Restore is done from a HotBackup resource
+func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() bool {
+	return p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != ""
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
-// +kubebuilder:validation:MinProperties=1
 // +kubebuilder:validation:MaxProperties=1
 type RestoreConfiguration struct {
 	// Bucket Configuration from which the backup will be downloaded.
@@ -390,13 +434,13 @@ type ExposeExternallyConfiguration struct {
 	// Valid values are:
 	// - "Smart" (default): each member pod is exposed with a separate external address
 	// - "Unisocket": all member pods are exposed with one external address
-	// +optional
 	// +kubebuilder:default:="Smart"
+	// +optional
 	Type ExposeExternallyType `json:"type,omitempty"`
 
 	// Type of the service used to discover Hazelcast cluster.
-	// +optional
 	// +kubebuilder:default:="LoadBalancer"
+	// +optional
 	DiscoveryServiceType corev1.ServiceType `json:"discoveryServiceType,omitempty"`
 
 	// How each member is accessed from the external client.
@@ -438,16 +482,6 @@ const (
 // Returns true if exposeExternally configuration is specified.
 func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
-}
-
-// Returns true if userCodeDeployment.bucketConfiguration is specified.
-func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
-	return c != nil && c.BucketConfiguration != nil
-}
-
-// Returns true if userCodeDeployment.configMaps configuration is specified.
-func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
-	return c != nil && (len(c.ConfigMaps) != 0)
 }
 
 // Returns true if Smart configuration is specified and therefore each Hazelcast member needs to be exposed with a separate address.
@@ -500,41 +534,11 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 	}
 }
 
-// Returns true if ClusterDataRecoveryPolicy is not FullRecoveryOnly
-func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
-	return p.ClusterDataRecoveryPolicy != FullRecovery
-}
-
-// Returns true if Persistence configuration is specified.
-func (p *HazelcastPersistenceConfiguration) IsEnabled() bool {
-	return p != nil && p.BaseDir != ""
-}
-
-// Returns true if hostPath is enabled.
-func (p *HazelcastPersistenceConfiguration) UseHostPath() bool {
-	return p.HostPath != ""
-}
-
-// IsRestoreEnabled returns true if Restore configuration is specified
-func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
-	return p.IsEnabled() && p.Restore != nil && !(*p.Restore == (RestoreConfiguration{}))
-}
-
-// RestoreFromHotBackupResourceName returns true if Restore is done from a HotBackup resource
-func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() bool {
-	return p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != ""
-}
-
-// Returns true if Jet section is configured.
-func (j *JetEngineConfiguration) IsConfigured() bool {
-	return j != nil
-}
-
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
 	// Phase of the Hazelcast cluster
 	// +optional
-	Phase Phase `json:"phase"`
+	Phase Phase `json:"phase,omitempty"`
 
 	// Status of the Hazelcast cluster
 	// +optional
@@ -549,15 +553,16 @@ type HazelcastStatus struct {
 	ExternalAddresses string `json:"externalAddresses,omitempty"`
 
 	// Status of Hazelcast members
-	// + optional
+	// +optional
 	Members []HazelcastMemberStatus `json:"members,omitempty"`
 
 	// Status of restore process of the Hazelcast cluster
-	// +optional
 	// +kubebuilder:default:={}
-	Restore *RestoreStatus `json:"restore,omitempty"`
+	// +optional
+	Restore RestoreStatus `json:"restore,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=Unknown;Failed;InProgress;Succeeded
 type RestoreState string
 
 const (
@@ -569,18 +574,20 @@ const (
 
 type RestoreStatus struct {
 	// State shows the current phase of the restore process of the cluster.
-	State RestoreState `json:"state"`
+	// +optional
+	State RestoreState `json:"state,omitempty"`
 
 	// RemainingValidationTime show the time in seconds remained for the restore validation step.
-	RemainingValidationTime int64 `json:"remainingValidationTime"`
+	// +optional
+	RemainingValidationTime int64 `json:"remainingValidationTime,omitempty"`
 
 	// RemainingDataLoadTime show the time in seconds remained for the restore data load step.
-	RemainingDataLoadTime int64 `json:"remainingDataLoadTime"`
+	// +optional
+	RemainingDataLoadTime int64 `json:"remainingDataLoadTime,omitempty"`
 }
 
 // HazelcastMemberStatus defines the observed state of the individual Hazelcast member.
 type HazelcastMemberStatus struct {
-
 	// PodName is the name of the Hazelcast member pod.
 	// +optional
 	PodName string `json:"podName,omitempty"`
@@ -615,6 +622,7 @@ type HazelcastMemberStatus struct {
 
 	// Ready is the flag that is set to true when the member is successfully started,
 	// connected to cluster and ready to accept connections.
+	// +optional
 	Ready bool `json:"connected"`
 
 	// Message contains the optional message with the details of the cluster state.
@@ -626,9 +634,11 @@ type HazelcastMemberStatus struct {
 	Reason string `json:"reason,omitempty"`
 
 	// RestartCount is the number of times the member has been restarted.
+	// +optional
 	RestartCount int32 `json:"restartCount"`
 }
 
+// +kubebuilder:validation:Enum=PASSIVE;ACTIVE;SHUT_DOWN;STARTING
 type NodeState string
 
 const (
@@ -642,7 +652,8 @@ const (
 type HazelcastClusterStatus struct {
 	// ReadyMembers represents the number of members that are connected to cluster from the desired number of members
 	// in the format <ready>/<desired>
-	ReadyMembers string `json:"readyMembers"`
+	// +optional
+	ReadyMembers string `json:"readyMembers,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -656,37 +667,21 @@ type HazelcastClusterStatus struct {
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Hazelcast Config"
 // +kubebuilder:resource:shortName=hz
 type Hazelcast struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// +optional
+	// Initial values will be filled with its fields' default values.
 	// +kubebuilder:default:={"repository" : "docker.io/hazelcast/hazelcast"}
+	// +optional
 	Spec HazelcastSpec `json:"spec,omitempty"`
+
 	// +optional
 	Status HazelcastStatus `json:"status,omitempty"`
 }
 
 func (h *Hazelcast) DockerImage() string {
 	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
-}
-
-//+kubebuilder:object:root=true
-
-// HazelcastList contains a list of Hazelcast
-type HazelcastList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Hazelcast `json:"items"`
-}
-
-func init() {
-	SchemeBuilder.Register(&Hazelcast{}, &HazelcastList{})
-}
-
-func FNV32a(txt string) uint32 {
-	alg := fnv.New32a()
-	alg.Write([]byte(txt))
-	return alg.Sum32()
 }
 
 func (h *Hazelcast) ClusterScopedName() string {
@@ -700,4 +695,23 @@ func (h *Hazelcast) ExternalAddressEnabled() bool {
 
 func (h *Hazelcast) AgentDockerImage() string {
 	return fmt.Sprintf("%s:%s", h.Spec.Agent.Repository, h.Spec.Agent.Version)
+}
+
+//+kubebuilder:object:root=true
+
+// HazelcastList contains a list of Hazelcast
+type HazelcastList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []Hazelcast `json:"items"`
+}
+
+func FNV32a(txt string) uint32 {
+	alg := fnv.New32a()
+	alg.Write([]byte(txt))
+	return alg.Sum32()
+}
+
+func init() {
+	SchemeBuilder.Register(&Hazelcast{}, &HazelcastList{})
 }

@@ -51,11 +51,13 @@ spec:
                 default: 0
                 description: Number of asynchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               backupCount:
                 default: 1
                 description: Number of synchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               binary:
                 default: false
@@ -106,6 +108,8 @@ spec:
                 - Terminating
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

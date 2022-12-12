@@ -109,7 +109,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
 		}
@@ -135,7 +135,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating new Hazelcast cluster from the existing backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
@@ -143,7 +143,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
 		}
@@ -178,7 +178,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
 		}
@@ -209,14 +209,14 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating cluster from external backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name}
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
 		}
@@ -249,7 +249,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
 		}
@@ -336,7 +336,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating cluster from from first backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 		CreateHazelcastCR(hazelcast)
@@ -351,7 +351,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating cluster from from second backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup2.Name,
 		}
 		CreateHazelcastCR(hazelcast)

@@ -15,6 +15,11 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: Cache is the Schema for the caches API
+      displayName: Cache
+      kind: Cache
+      name: caches.hazelcast.com
+      version: v1alpha1
     - description: CronHotBackup is the Schema for the cronhotbackups API
       displayName: Cron Hot Backup
       kind: CronHotBackup

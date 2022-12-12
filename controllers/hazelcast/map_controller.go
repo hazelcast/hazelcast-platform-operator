@@ -233,11 +233,11 @@ func (r *MapReconciler) ReconcileMapConfig(
 	if createdBefore {
 		req = codec.EncodeMCUpdateMapConfigRequest(
 			m.MapName(),
-			*m.Spec.TimeToLiveSeconds,
-			*m.Spec.MaxIdleSeconds,
+			m.Spec.TimeToLiveSeconds,
+			m.Spec.MaxIdleSeconds,
 			hazelcastv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy],
 			false,
-			*m.Spec.Eviction.MaxSize,
+			m.Spec.Eviction.MaxSize,
 			hazelcastv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy],
 		)
 	} else {
@@ -278,14 +278,14 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 
 	ms := m.Spec
 	mapInput.BackupCount = *ms.BackupCount
-	mapInput.AsyncBackupCount = *ms.AsyncBackupCount
-	mapInput.TimeToLiveSeconds = *ms.TimeToLiveSeconds
-	mapInput.MaxIdleSeconds = *ms.MaxIdleSeconds
-	if ms.Eviction != nil {
-		mapInput.EvictionConfig.EvictionPolicy = string(ms.Eviction.EvictionPolicy)
-		mapInput.EvictionConfig.Size = *ms.Eviction.MaxSize
-		mapInput.EvictionConfig.MaxSizePolicy = string(ms.Eviction.MaxSizePolicy)
-	}
+	mapInput.AsyncBackupCount = ms.AsyncBackupCount
+	mapInput.TimeToLiveSeconds = ms.TimeToLiveSeconds
+	mapInput.MaxIdleSeconds = ms.MaxIdleSeconds
+
+	mapInput.EvictionConfig.EvictionPolicy = string(ms.Eviction.EvictionPolicy)
+	mapInput.EvictionConfig.Size = ms.Eviction.MaxSize
+	mapInput.EvictionConfig.MaxSizePolicy = string(ms.Eviction.MaxSizePolicy)
+
 	mapInput.IndexConfigs = copyIndexes(ms.Indexes)
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
 	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)

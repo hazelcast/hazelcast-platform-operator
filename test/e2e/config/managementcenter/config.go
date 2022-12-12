@@ -4,6 +4,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -21,11 +22,11 @@ var (
 				Repository:       naming.MCRepo,
 				Version:          naming.MCVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
-				Persistence: &hazelcastv1alpha1.PersistenceConfiguration{
-					Enabled: true,
+				Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+					Enabled: pointer.Bool(true),
 					Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 				},
 			},
@@ -43,7 +44,7 @@ var (
 				Repository:       naming.MCRepo,
 				Version:          naming.MCVersion,
 				LicenseKeySecret: licenseKey(ee),
-				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
 				HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
@@ -52,8 +53,8 @@ var (
 						Address: "hazelcast",
 					},
 				},
-				Persistence: &hazelcastv1alpha1.PersistenceConfiguration{
-					Enabled: false,
+				Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+					Enabled: pointer.Bool(false),
 				},
 			},
 		}

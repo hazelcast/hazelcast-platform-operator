@@ -116,9 +116,9 @@ func fillQueueConfigInput(queueInput *codecTypes.QueueConfigInput, q *hazelcastv
 	queueInput.Name = q.GetDSName()
 	qs := q.Spec
 	queueInput.BackupCount = *qs.BackupCount
-	queueInput.AsyncBackupCount = *qs.AsyncBackupCount
+	queueInput.AsyncBackupCount = qs.AsyncBackupCount
 	queueInput.EmptyQueueTtl = *qs.EmptyQueueTtlSeconds
-	queueInput.MaxSize = *qs.MaxSize
+	queueInput.MaxSize = qs.MaxSize
 	queueInput.PriorityComparatorClassName = qs.PriorityComparatorClassName
 }
 

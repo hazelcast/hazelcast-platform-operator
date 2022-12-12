@@ -17,7 +17,7 @@ type ReplicatedMapSpec struct {
 	// AsyncFillup specifies whether the ReplicatedMap is available for reads before the initial replication is completed
 	// +kubebuilder:default:=true
 	// +optional
-	AsyncFillup bool `json:"asyncFillup,omitempty"`
+	AsyncFillup *bool `json:"asyncFillup,omitempty"`
 
 	// InMemoryFormat specifies in which format data will be stored in the ReplicatedMap
 	// +kubebuilder:default:=OBJECT
@@ -26,6 +26,7 @@ type ReplicatedMapSpec struct {
 
 	// HazelcastResourceName defines the name of the Hazelcast resource.
 	// +kubebuilder:validation:MinLength:=1
+	// +required
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 }
 
@@ -42,10 +43,13 @@ type ReplicatedMapStatus struct {
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current ReplicatedMap Config"
 // +kubebuilder:resource:shortName=rmap
 type ReplicatedMap struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ReplicatedMapSpec   `json:"spec,omitempty"`
+	// +required
+	Spec ReplicatedMapSpec `json:"spec"`
+	// +optional
 	Status ReplicatedMapStatus `json:"status,omitempty"`
 }
 

@@ -92,7 +92,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		By("creating new Hazelcast cluster from existing backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = &hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 
@@ -119,7 +119,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		By("creating the map configs")
 		for i, mapp := range maps {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapp, Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
-			m.Spec.Eviction = &hazelcastv1alpha1.EvictionConfig{MaxSize: pointer.Int32(int32(i) * 100)}
+			m.Spec.Eviction = hazelcastv1alpha1.EvictionConfig{MaxSize: int32(i) * 100}
 			m.Spec.HazelcastResourceName = hazelcast.Name
 			if mapp == "mapfail" {
 				m.Spec.HazelcastResourceName = "failedHz"

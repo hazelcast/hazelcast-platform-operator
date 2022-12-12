@@ -47,10 +47,13 @@ type MultiMapStatus struct {
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current MultiMap Config"
 // +kubebuilder:resource:shortName=mmap
 type MultiMap struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MultiMapSpec   `json:"spec,omitempty"`
+	// +required
+	Spec MultiMapSpec `json:"spec"`
+	// +optional
 	Status MultiMapStatus `json:"status,omitempty"`
 }
 

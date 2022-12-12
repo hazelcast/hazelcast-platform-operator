@@ -70,10 +70,14 @@ spec:
               message:
                 type: string
               state:
+                enum:
+                - Unknown
+                - Pending
+                - NotStarted
+                - InProgress
+                - Failure
+                - Success
                 type: string
-            required:
-            - message
-            - state
             type: object
         required:
         - spec

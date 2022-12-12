@@ -16,7 +16,7 @@ type QueueSpec struct {
 	// Max size of the queue.
 	// +kubebuilder:default:=0
 	// +optional
-	MaxSize *int32 `json:"maxSize,omitempty"`
+	MaxSize int32 `json:"maxSize"`
 
 	// Time in seconds after which the Queue will be destroyed if it stays empty or unused.
 	// If the values is not provided the Queue will never be destroyed.
@@ -44,10 +44,13 @@ type QueueStatus struct {
 
 // Queue is the Schema for the queues API
 type Queue struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   QueueSpec   `json:"spec,omitempty"`
+	// +required
+	Spec QueueSpec `json:"spec"`
+	// +optional
 	Status QueueStatus `json:"status,omitempty"`
 }
 

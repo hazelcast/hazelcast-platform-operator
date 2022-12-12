@@ -86,7 +86,7 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 				BackupCount:           pointer.Int32(3),
 			},
 			EmptyQueueTtlSeconds: pointer.Int32(10),
-			MaxSize:              pointer.Int32(100),
+			MaxSize:              100,
 		}
 		q := hazelcastconfig.Queue(qs, qLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())

@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/utils/pointer"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -81,7 +82,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		rms := hazelcastcomv1alpha1.ReplicatedMapSpec{
 			HazelcastResourceName: hzLookupKey.Name,
 			InMemoryFormat:        hazelcastcomv1alpha1.InMemoryFormatBinary,
-			AsyncFillup:           false,
+			AsyncFillup:           pointer.Bool(false),
 		}
 		rm := hazelcastconfig.ReplicatedMap(rms, rmLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
@@ -89,7 +90,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 
 		By("failing to update ReplicatedMap config")
 		rm.Spec.InMemoryFormat = hazelcastcomv1alpha1.InMemoryFormatObject
-		rm.Spec.AsyncFillup = true
+		rm.Spec.AsyncFillup = pointer.Bool(true)
 		Expect(k8sClient.Update(context.Background(), rm)).Should(Succeed())
 		assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.ReplicatedMap{})
 	})

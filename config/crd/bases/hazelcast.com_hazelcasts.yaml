@@ -55,7 +55,7 @@ spec:
           spec:
             default:
               repository: docker.io/hazelcast/hazelcast
-            description: HazelcastSpec defines the desired state of Hazelcast
+            description: Initial values will be filled with its fields' default values.
             properties:
               agent:
                 default:
@@ -68,7 +68,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.10
+                    default: 0.1.11
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -180,6 +180,7 @@ spec:
               jet:
                 default:
                   enabled: true
+                  resourceUploadEnabled: false
                 description: Jet Engine configuration
                 properties:
                   enabled:
@@ -260,7 +261,6 @@ spec:
                   restore:
                     description: Restore configuration
                     maxProperties: 1
-                    minProperties: 1
                     properties:
                       bucketConfig:
                         description: Bucket Configuration from which the backup will
@@ -1494,8 +1494,6 @@ spec:
                       are connected to cluster from the desired number of members
                       in the format <ready>/<desired>
                     type: string
-                required:
-                - readyMembers
                 type: object
               members:
                 description: Status of Hazelcast members
@@ -1541,6 +1539,11 @@ spec:
                       type: integer
                     state:
                       description: State represents the observed state of the member.
+                      enum:
+                      - PASSIVE
+                      - ACTIVE
+                      - SHUT_DOWN
+                      - STARTING
                       type: string
                     uid:
                       description: Uid is the unique member identifier within the
@@ -1550,9 +1553,6 @@ spec:
                       description: Version represents the Hazelcast version of the
                         member.
                       type: string
-                  required:
-                  - connected
-                  - restartCount
                   type: object
                 type: array
               message:
@@ -1582,11 +1582,12 @@ spec:
                   state:
                     description: State shows the current phase of the restore process
                       of the cluster.
+                    enum:
+                    - Unknown
+                    - Failed
+                    - InProgress
+                    - Succeeded
                     type: string
-                required:
-                - remainingDataLoadTime
-                - remainingValidationTime
-                - state
                 type: object
             type: object
         type: object

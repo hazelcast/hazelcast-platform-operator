@@ -45,8 +45,8 @@ spec:
               failedHotBackupsHistoryLimit:
                 default: 3
                 description: The number of failed finished hot backups to retain.
-                  This is a pointer to distinguish between explicit zero and not specified.
                 format: int32
+                minimum: 0
                 type: integer
               hotBackupTemplate:
                 description: Specifies the hot backup that will be created when executing
@@ -97,8 +97,8 @@ spec:
               successfulHotBackupsHistoryLimit:
                 default: 5
                 description: The number of successful finished hot backups to retain.
-                  This is a pointer to distinguish between explicit zero and not specified.
                 format: int32
+                minimum: 0
                 type: integer
               suspend:
                 default: false

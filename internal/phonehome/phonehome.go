@@ -173,7 +173,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client) {
 
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
-		phm.UserCodeDeployment.addUsageMetrics(hz.Spec.UserCodeDeployment)
+		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 	}
@@ -229,7 +229,7 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 	if hucd == nil {
 		return
 	}
-	if hucd.ClientEnabled {
+	if hucd.ClientEnabled != nil && *hucd.ClientEnabled {
 		ucd.ClientEnabled++
 	}
 	if hucd.IsBucketEnabled() {

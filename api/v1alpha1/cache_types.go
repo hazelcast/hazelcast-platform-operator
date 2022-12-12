@@ -40,10 +40,13 @@ type CacheStatus struct {
 
 // Cache is the Schema for the caches API
 type Cache struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CacheSpec   `json:"spec,omitempty"`
+	// +required
+	Spec CacheSpec `json:"spec"`
+	// +optional
 	Status CacheStatus `json:"status,omitempty"`
 }
 

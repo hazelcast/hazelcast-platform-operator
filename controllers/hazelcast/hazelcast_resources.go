@@ -599,18 +599,15 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				},
 			},
 		},
+		UserCodeDeployment: config.UserCodeDeployment{
+			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
+		},
 	}
 
 	if h.Spec.JetEngineConfiguration.IsConfigured() {
 		cfg.Jet = config.Jet{
 			Enabled:               h.Spec.JetEngineConfiguration.Enabled,
 			ResourceUploadEnabled: pointer.Bool(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
-		}
-	}
-
-	if h.Spec.UserCodeDeployment != nil {
-		cfg.UserCodeDeployment = config.UserCodeDeployment{
-			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
 		}
 	}
 
@@ -806,11 +803,11 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 	ms := m.Spec
 	mc := config.Map{
 		BackupCount:       *ms.BackupCount,
-		AsyncBackupCount:  *ms.AsyncBackupCount,
-		TimeToLiveSeconds: *ms.TimeToLiveSeconds,
+		AsyncBackupCount:  ms.AsyncBackupCount,
+		TimeToLiveSeconds: ms.TimeToLiveSeconds,
 		ReadBackupData:    false,
 		Eviction: config.MapEviction{
-			Size:           *ms.Eviction.MaxSize,
+			Size:           ms.Eviction.MaxSize,
 			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
 			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
 		},
@@ -918,7 +915,7 @@ func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
 	mms := mm.Spec
 	return config.MultiMap{
 		BackupCount:       *mms.BackupCount,
-		AsyncBackupCount:  *mms.AsyncBackupCount,
+		AsyncBackupCount:  mms.AsyncBackupCount,
 		Binary:            mms.Binary,
 		CollectionType:    string(mms.CollectionType),
 		StatisticsEnabled: n.DefaultMultiMapStatisticsEnabled,
@@ -933,9 +930,9 @@ func createQueueConfig(q *hazelcastv1alpha1.Queue) config.Queue {
 	qs := q.Spec
 	return config.Queue{
 		BackupCount:             *qs.BackupCount,
-		AsyncBackupCount:        *qs.AsyncBackupCount,
+		AsyncBackupCount:        qs.AsyncBackupCount,
 		EmptyQueueTtl:           *qs.EmptyQueueTtlSeconds,
-		MaxSize:                 *qs.MaxSize,
+		MaxSize:                 qs.MaxSize,
 		StatisticsEnabled:       n.DefaultQueueStatisticsEnabled,
 		PriorityComparatorClass: qs.PriorityComparatorClassName,
 		MergePolicy: config.MergePolicy{
@@ -949,7 +946,7 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 	cs := c.Spec
 	cache := config.Cache{
 		BackupCount:       *cs.BackupCount,
-		AsyncBackupCount:  *cs.AsyncBackupCount,
+		AsyncBackupCount:  cs.AsyncBackupCount,
 		StatisticsEnabled: n.DefaultCacheStatisticsEnabled,
 		ManagementEnabled: n.DefaultCacheManagementEnabled,
 		ReadThrough:       n.DefaultCacheReadThrough,
@@ -991,7 +988,7 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 	rms := rm.Spec
 	return config.ReplicatedMap{
 		InMemoryFormat:    string(rms.InMemoryFormat),
-		AsyncFillup:       rms.AsyncFillup,
+		AsyncFillup:       *rms.AsyncFillup,
 		StatisticsEnabled: n.DefaultReplicatedMapStatisticsEnabled,
 		MergePolicy: config.MergePolicy{
 			ClassName: n.DefaultReplicatedMapMergePolicy,
@@ -1086,24 +1083,12 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
+		sts.Spec.Template.Spec.Containers[0].Resources = h.Spec.Resources
 
-		if h.Spec.Scheduling != nil {
-			sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
-			sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
-			sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
-			sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
-		} else {
-			sts.Spec.Template.Spec.Affinity = nil
-			sts.Spec.Template.Spec.Tolerations = nil
-			sts.Spec.Template.Spec.NodeSelector = nil
-			sts.Spec.Template.Spec.TopologySpreadConstraints = nil
-		}
-
-		if h.Spec.Resources != nil {
-			sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
-		} else {
-			sts.Spec.Template.Spec.Containers[0].Resources = v1.ResourceRequirements{}
-		}
+		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
+		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
+		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
+		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
 
 		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client)
 		if err != nil {
@@ -1545,8 +1530,8 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 		return nil
 	}
 
-	// make sure restore was successfull
-	if h.Status.Restore == nil {
+	// make sure restore was successful
+	if h.Status.Restore == (hazelcastv1alpha1.RestoreStatus{}) {
 		return nil
 	}
 

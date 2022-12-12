@@ -49,11 +49,13 @@ spec:
                 default: 0
                 description: Number of asynchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               backupCount:
                 default: 1
                 description: Number of synchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               entryListeners:
                 description: EntryListeners contains the configuration for the map-level
@@ -84,7 +86,9 @@ spec:
                 type: array
               eviction:
                 default:
+                  evictionPolicy: NONE
                   maxSize: 0
+                  maxSizePolicy: PER_NODE
                 description: Configuration for removing data from the map when it
                   reaches its max size. It can be updated.
                 properties:
@@ -169,7 +173,6 @@ spec:
                       - BITMAP
                       type: string
                   required:
-                  - attributes
                   - type
                   type: object
                 type: array

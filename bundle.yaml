@@ -51,11 +51,13 @@ spec:
                 default: 0
                 description: Number of asynchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               backupCount:
                 default: 1
                 description: Number of synchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
@@ -104,6 +106,8 @@ spec:
                 - Terminating
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -156,8 +160,8 @@ spec:
               failedHotBackupsHistoryLimit:
                 default: 3
                 description: The number of failed finished hot backups to retain.
-                  This is a pointer to distinguish between explicit zero and not specified.
                 format: int32
+                minimum: 0
                 type: integer
               hotBackupTemplate:
                 description: Specifies the hot backup that will be created when executing
@@ -208,8 +212,8 @@ spec:
               successfulHotBackupsHistoryLimit:
                 default: 5
                 description: The number of successful finished hot backups to retain.
-                  This is a pointer to distinguish between explicit zero and not specified.
                 format: int32
+                minimum: 0
                 type: integer
               suspend:
                 default: false
@@ -287,7 +291,7 @@ spec:
           spec:
             default:
               repository: docker.io/hazelcast/hazelcast
-            description: HazelcastSpec defines the desired state of Hazelcast
+            description: Initial values will be filled with its fields' default values.
             properties:
               agent:
                 default:
@@ -300,7 +304,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.10
+                    default: 0.1.11
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -412,6 +416,7 @@ spec:
               jet:
                 default:
                   enabled: true
+                  resourceUploadEnabled: false
                 description: Jet Engine configuration
                 properties:
                   enabled:
@@ -492,7 +497,6 @@ spec:
                   restore:
                     description: Restore configuration
                     maxProperties: 1
-                    minProperties: 1
                     properties:
                       bucketConfig:
                         description: Bucket Configuration from which the backup will
@@ -1726,8 +1730,6 @@ spec:
                       are connected to cluster from the desired number of members
                       in the format <ready>/<desired>
                     type: string
-                required:
-                - readyMembers
                 type: object
               members:
                 description: Status of Hazelcast members
@@ -1773,6 +1775,11 @@ spec:
                       type: integer
                     state:
                       description: State represents the observed state of the member.
+                      enum:
+                      - PASSIVE
+                      - ACTIVE
+                      - SHUT_DOWN
+                      - STARTING
                       type: string
                     uid:
                       description: Uid is the unique member identifier within the
@@ -1782,9 +1789,6 @@ spec:
                       description: Version represents the Hazelcast version of the
                         member.
                       type: string
-                  required:
-                  - connected
-                  - restartCount
                   type: object
                 type: array
               message:
@@ -1814,11 +1818,12 @@ spec:
                   state:
                     description: State shows the current phase of the restore process
                       of the cluster.
+                    enum:
+                    - Unknown
+                    - Failed
+                    - InProgress
+                    - Succeeded
                     type: string
-                required:
-                - remainingDataLoadTime
-                - remainingValidationTime
-                - state
                 type: object
             type: object
         type: object
@@ -1898,10 +1903,14 @@ spec:
               message:
                 type: string
               state:
+                enum:
+                - Unknown
+                - Pending
+                - NotStarted
+                - InProgress
+                - Failure
+                - Success
                 type: string
-            required:
-            - message
-            - state
             type: object
         required:
         - spec
@@ -1963,7 +1972,7 @@ spec:
           spec:
             default:
               repository: docker.io/hazelcast/management-center
-            description: ManagementCenterSpec defines the desired state of ManagementCenter.
+            description: Initial values will be filled with its fields' default values.
             properties:
               externalConnectivity:
                 default:
@@ -3250,11 +3259,13 @@ spec:
                 default: 0
                 description: Number of asynchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               backupCount:
                 default: 1
                 description: Number of synchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               entryListeners:
                 description: EntryListeners contains the configuration for the map-level
@@ -3285,7 +3296,9 @@ spec:
                 type: array
               eviction:
                 default:
+                  evictionPolicy: NONE
                   maxSize: 0
+                  maxSizePolicy: PER_NODE
                 description: Configuration for removing data from the map when it
                   reaches its max size. It can be updated.
                 properties:
@@ -3370,7 +3383,6 @@ spec:
                       - BITMAP
                       type: string
                   required:
-                  - attributes
                   - type
                   type: object
                 type: array
@@ -3525,11 +3537,13 @@ spec:
                 default: 0
                 description: Number of asynchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               backupCount:
                 default: 1
                 description: Number of synchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               binary:
                 default: false
@@ -3580,6 +3594,8 @@ spec:
                 - Terminating
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -3639,11 +3655,13 @@ spec:
                 default: 0
                 description: Number of asynchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               backupCount:
                 default: 1
                 description: Number of synchronous backups.
                 format: int32
+                minimum: 0
                 type: integer
               emptyQueueTTLSeconds:
                 default: -1
@@ -3699,6 +3717,8 @@ spec:
                 - Terminating
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -3802,6 +3822,8 @@ spec:
                 - Terminating
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -3957,13 +3979,17 @@ spec:
             description: WanReplicationSpec defines the desired state of WanReplication
             properties:
               acknowledgement:
+                default:
+                  timeout: 60000
+                  type: ACK_ON_OPERATION_COMPLETE
                 description: Acknowledgement is the configuration for the condition
                   when the next batch of WAN events are sent.
                 properties:
                   timeout:
                     default: 60000
-                    description: Timeout represents the time the source cluster waits
-                      for the acknowledgement. After timeout, the events will be resent.
+                    description: Timeout represents the time in milliseconds the source
+                      cluster waits for the acknowledgement. After timeout, the events
+                      will be resent.
                     format: int32
                     type: integer
                   type:
@@ -3976,6 +4002,9 @@ spec:
                     type: string
                 type: object
               batch:
+                default:
+                  maximumDelay: 1000
+                  size: 500
                 description: Batch is the configuration for WAN events batch.
                 properties:
                   maximumDelay:
@@ -3996,6 +4025,9 @@ spec:
                 minLength: 1
                 type: string
               queue:
+                default:
+                  capacity: 10000
+                  fullBehavior: DISCARD_AFTER_MUTATION
                 description: Queue is the configuration for WAN events queue.
                 properties:
                   capacity:
@@ -4032,7 +4064,6 @@ spec:
                       minLength: 1
                       type: string
                   required:
-                  - kind
                   - name
                   type: object
                 minItems: 1
@@ -4072,6 +4103,8 @@ spec:
                   type: object
                 type: object
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -4583,6 +4616,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DEVELOPER_MODE_ENABLED
+          value: "true"
         image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: IfNotPresent
         livenessProbe:

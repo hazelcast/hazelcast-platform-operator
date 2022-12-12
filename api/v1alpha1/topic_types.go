@@ -29,6 +29,7 @@ type TopicSpec struct {
 	// HazelcastResourceName defines the name of the Hazelcast resource for which
 	// topic config will be created
 	// +kubebuilder:validation:MinLength:=1
+	// +required
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 }
 
@@ -44,10 +45,13 @@ type TopicStatus struct {
 
 // Topic is the Schema for the topics API
 type Topic struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   TopicSpec   `json:"spec"`
+	// +required
+	Spec TopicSpec `json:"spec"`
+	// +optional
 	Status TopicStatus `json:"status,omitempty"`
 }
 

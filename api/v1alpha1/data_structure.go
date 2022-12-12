@@ -8,22 +8,28 @@ type DataStructureSpec struct {
 
 	// HazelcastResourceName defines the name of the Hazelcast resource.
 	// +kubebuilder:validation:MinLength:=1
+	// +required
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 
 	// Number of synchronous backups.
+	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default:=1
 	// +optional
 	BackupCount *int32 `json:"backupCount,omitempty"`
 
 	// Number of asynchronous backups.
+	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default:=0
 	// +optional
-	AsyncBackupCount *int32 `json:"asyncBackupCount,omitempty"`
+	AsyncBackupCount int32 `json:"asyncBackupCount"`
 }
 
 type DataStructureStatus struct {
-	State          DataStructureConfigState            `json:"state,omitempty"`
-	Message        string                              `json:"message,omitempty"`
+	// +optional
+	State DataStructureConfigState `json:"state,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
+	// +optional
 	MemberStatuses map[string]DataStructureConfigState `json:"memberStatuses,omitempty"`
 }
 

@@ -21,9 +21,9 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 
 	configEqualsSpec := func(mapSpec *hazelcastcomv1alpha1.MapSpec) func(config codecTypes.MapConfig) bool {
 		return func(config codecTypes.MapConfig) bool {
-			return *mapSpec.TimeToLiveSeconds == config.TimeToLiveSeconds &&
-				*mapSpec.MaxIdleSeconds == config.MaxIdleSeconds &&
-				!config.ReadBackupData && *mapSpec.Eviction.MaxSize == config.MaxSize &&
+			return mapSpec.TimeToLiveSeconds == config.TimeToLiveSeconds &&
+				mapSpec.MaxIdleSeconds == config.MaxIdleSeconds &&
+				!config.ReadBackupData && mapSpec.Eviction.MaxSize == config.MaxSize &&
 				config.MaxSizePolicy == hazelcastcomv1alpha1.EncodeMaxSizePolicy[mapSpec.Eviction.MaxSizePolicy] &&
 				config.EvictionPolicy == hazelcastcomv1alpha1.EncodeEvictionPolicyType[mapSpec.Eviction.EvictionPolicy]
 		}
@@ -81,9 +81,9 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastcomv1alpha1.EncodeInMemoryFormat[m.Spec.InMemoryFormat]))
 		Expect(mapConfig.BackupCount).Should(Equal(n.DefaultMapBackupCount))
 		Expect(mapConfig.AsyncBackupCount).Should(Equal(int32(0)))
-		Expect(mapConfig.TimeToLiveSeconds).Should(Equal(*m.Spec.TimeToLiveSeconds))
-		Expect(mapConfig.MaxIdleSeconds).Should(Equal(*m.Spec.MaxIdleSeconds))
-		Expect(mapConfig.MaxSize).Should(Equal(*m.Spec.Eviction.MaxSize))
+		Expect(mapConfig.TimeToLiveSeconds).Should(Equal(m.Spec.TimeToLiveSeconds))
+		Expect(mapConfig.MaxIdleSeconds).Should(Equal(m.Spec.MaxIdleSeconds))
+		Expect(mapConfig.MaxSize).Should(Equal(m.Spec.Eviction.MaxSize))
 		Expect(mapConfig.MaxSizePolicy).Should(Equal(hazelcastcomv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy]))
 		Expect(mapConfig.ReadBackupData).Should(Equal(false))
 		Expect(mapConfig.EvictionPolicy).Should(Equal(hazelcastcomv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy]))
@@ -160,11 +160,11 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
 		By("updating the map config")
-		m.Spec.TimeToLiveSeconds = pointer.Int32(150)
-		m.Spec.MaxIdleSeconds = pointer.Int32(100)
-		m.Spec.Eviction = &hazelcastcomv1alpha1.EvictionConfig{
+		m.Spec.TimeToLiveSeconds = 150
+		m.Spec.MaxIdleSeconds = 100
+		m.Spec.Eviction = hazelcastcomv1alpha1.EvictionConfig{
 			EvictionPolicy: hazelcastcomv1alpha1.EvictionPolicyLFU,
-			MaxSize:        pointer.Int32(500),
+			MaxSize:        500,
 			MaxSizePolicy:  hazelcastcomv1alpha1.MaxSizePolicyFreeHeapSize,
 		}
 		Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())

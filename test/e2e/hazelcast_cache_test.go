@@ -93,7 +93,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 
 		By("failing to update cache config")
 		q.Spec.BackupCount = pointer.Int32(5)
-		q.Spec.AsyncBackupCount = pointer.Int32(20)
+		q.Spec.AsyncBackupCount = 20
 		Expect(k8sClient.Update(context.Background(), q)).Should(Succeed())
 		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Cache{})
 	})

@@ -549,7 +549,7 @@ func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcas
 			if err != nil {
 				return ""
 			}
-			if checkHz.Status.Restore == nil {
+			if checkHz.Status.Restore == (hazelcastcomv1alpha1.RestoreStatus{}) {
 				return ""
 			}
 			return checkHz.Status.Restore.State
@@ -794,16 +794,16 @@ func assertCorrectBackupStatus(hotBackup *hazelcastcomv1alpha1.HotBackup, seq st
 	Expect("backup-" + seq).Should(Equal(backupSeqFolder))
 }
 
-func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bool) *hazelcastcomv1alpha1.RestoreConfiguration {
+func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bool) hazelcastcomv1alpha1.RestoreConfiguration {
 	if useBucketConfig {
-		return &hazelcastcomv1alpha1.RestoreConfiguration{
+		return hazelcastcomv1alpha1.RestoreConfiguration{
 			BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
 				BucketURI: hotBackup.Status.GetBucketURI(),
 				Secret:    hotBackup.Spec.Secret,
 			},
 		}
 	}
-	return &hazelcastcomv1alpha1.RestoreConfiguration{
+	return hazelcastcomv1alpha1.RestoreConfiguration{
 		HotBackupResourceName: hotBackup.Name,
 	}
 }

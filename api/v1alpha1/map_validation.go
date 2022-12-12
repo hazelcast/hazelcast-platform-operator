@@ -11,7 +11,7 @@ func ValidateNotUpdatableFields(current *MapSpec, last *MapSpec) error {
 	if *current.BackupCount != *last.BackupCount {
 		return errors.New("backupCount cannot be updated")
 	}
-	if *current.AsyncBackupCount != *last.AsyncBackupCount {
+	if current.AsyncBackupCount != last.AsyncBackupCount {
 		return errors.New("asyncBackupCount cannot be updated")
 	}
 	if !indexConfigSliceEquals(current.Indexes, last.Indexes) {

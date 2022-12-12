@@ -37,7 +37,7 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 	structureSpec := hazelcastv1alpha1.DataStructureSpec{
 		HazelcastResourceName: meta.Name,
 		BackupCount:           pointer.Int32(1),
-		AsyncBackupCount:      pointer.Int32(0),
+		AsyncBackupCount:      0,
 	}
 	structureStatus := hazelcastv1alpha1.DataStructureStatus{State: hazelcastv1alpha1.DataStructureSuccess}
 

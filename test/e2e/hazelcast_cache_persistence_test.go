@@ -99,7 +99,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		By("creating new Hazelcast cluster from existing backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = &hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 

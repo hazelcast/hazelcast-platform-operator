@@ -158,7 +158,7 @@ type Topic struct {
 }
 
 type UserCodeDeployment struct {
-	Enabled           bool   `yaml:"enabled,omitempty"`
+	Enabled           *bool  `yaml:"enabled,omitempty"`
 	ClassCacheMode    string `yaml:"class-cache-mode,omitempty"`
 	ProviderMode      string `yaml:"provider-mode,omitempty"`
 	BlacklistPrefixes string `yaml:"blacklist-prefixes,omitempty"`

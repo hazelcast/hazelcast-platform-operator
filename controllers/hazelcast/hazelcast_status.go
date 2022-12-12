@@ -164,7 +164,7 @@ func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.H
 		}
 	}
 	if rs := options.restoreState.RestoreState(); h.Spec.Persistence.IsEnabled() && rs != hazelcastv1alpha1.RestoreUnknown {
-		h.Status.Restore = &hazelcastv1alpha1.RestoreStatus{
+		h.Status.Restore = hazelcastv1alpha1.RestoreStatus{
 			State:                   options.restoreState.RestoreState(),
 			RemainingDataLoadTime:   options.restoreState.RemainingDataLoadTimeSec(),
 			RemainingValidationTime: options.restoreState.RemainingValidationTimeSec(),

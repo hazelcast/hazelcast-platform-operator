@@ -19,19 +19,21 @@ type CronHotBackupSpec struct {
 	//	@daily (or @midnight)  | Run once a day, midnight                   | 0 0 * * *
 	//	@hourly                | Run once an hour, beginning of hour        | 0 * * * *
 	// +kubebuilder:validation:MinLength:=1
+	// +required
 	Schedule string `json:"schedule"`
 
 	// Specifies the hot backup that will be created when executing a CronHotBackup.
+	// +required
 	HotBackupTemplate HotBackupTemplateSpec `json:"hotBackupTemplate"`
 
 	// The number of successful finished hot backups to retain.
-	// This is a pointer to distinguish between explicit zero and not specified.
+	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default:=5
 	// +optional
 	SuccessfulHotBackupsHistoryLimit *int32 `json:"successfulHotBackupsHistoryLimit,omitempty"`
 
 	// The number of failed finished hot backups to retain.
-	// This is a pointer to distinguish between explicit zero and not specified.
+	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default:=3
 	// +optional
 	FailedHotBackupsHistoryLimit *int32 `json:"failedHotBackupsHistoryLimit,omitempty"`
@@ -39,16 +41,17 @@ type CronHotBackupSpec struct {
 	// When true, CronHotBackup will stop creating HotBackup CRs until it is disabled
 	// +kubebuilder:default:=false
 	// +optional
-	Suspend bool `json:"suspend,omitempty"`
+	Suspend bool `json:"suspend"`
 }
 
 type HotBackupTemplateSpec struct {
 	// Standard object's metadata of the hot backups created from this template.
-	// +optional
 	// +kubebuilder:validation:XPreserveUnknownFields
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Specification of the desired behavior of the hot backup.
+	// +required
 	Spec HotBackupSpec `json:"spec"`
 }
 
@@ -61,10 +64,13 @@ type CronHotBackupStatus struct{}
 // CronHotBackup is the Schema for the cronhotbackups API
 // +kubebuilder:printcolumn:name="SUSPENDED",type="boolean",JSONPath=".spec.suspend",description="Suspention status of the CronHotBackup"
 type CronHotBackup struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CronHotBackupSpec   `json:"spec"`
+	// +required
+	Spec CronHotBackupSpec `json:"spec"`
+	// +optional
 	Status CronHotBackupStatus `json:"status,omitempty"`
 }
 

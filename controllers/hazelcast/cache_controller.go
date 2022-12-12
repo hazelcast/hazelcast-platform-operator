@@ -120,7 +120,7 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 	cacheInput.Name = c.GetDSName()
 	cs := c.Spec
 	cacheInput.BackupCount = *cs.BackupCount
-	cacheInput.AsyncBackupCount = *cs.AsyncBackupCount
+	cacheInput.AsyncBackupCount = cs.AsyncBackupCount
 	cacheInput.KeyType = cs.KeyType
 	cacheInput.ValueType = cs.ValueType
 	cacheInput.HotRestartConfig.Enabled = cs.PersistenceEnabled

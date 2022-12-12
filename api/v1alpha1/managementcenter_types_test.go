@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/utils/pointer"
 )
 
 func TestExternalConnectivityConfigurationType(t *testing.T) {
@@ -63,7 +64,7 @@ func TestPersistenceConfigurationIsEnabled(t *testing.T) {
 		{
 			name: "Enabled configuration",
 			conf: PersistenceConfiguration{
-				Enabled: true,
+				Enabled: pointer.Bool(true),
 			},
 			want: true,
 		},

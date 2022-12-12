@@ -156,7 +156,7 @@ var (
 
 		// multiNode case
 		if nodeName == "" {
-			hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+			hz.Spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 					{
 						MaxSkew:           int32(1),
@@ -176,7 +176,7 @@ var (
 		}
 
 		// singleNode case
-		hz.Spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+		hz.Spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 			NodeSelector: map[string]string{
 				"kubernetes.io/hostname": nodeName,
 			},
@@ -209,7 +209,7 @@ var (
 		}
 	}
 
-	HazelcastRestore = func(hz *hazelcastv1alpha1.Hazelcast, restoreConfig *hazelcastv1alpha1.RestoreConfiguration) *hazelcastv1alpha1.Hazelcast {
+	HazelcastRestore = func(hz *hazelcastv1alpha1.Hazelcast, restoreConfig hazelcastv1alpha1.RestoreConfiguration) *hazelcastv1alpha1.Hazelcast {
 		hzRestore := &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      hz.Name,
@@ -234,7 +234,7 @@ var (
 				Repository:       repo(ee),
 				Version:          naming.HazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
+				UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
 					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
 						Secret:    s,
 						BucketURI: bkt,

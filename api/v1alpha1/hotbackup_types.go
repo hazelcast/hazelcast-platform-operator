@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// +kubebuilder:validation:Enum=Unknown;Pending;NotStarted;InProgress;Failure;Success
 type HotBackupState string
 
 const (
@@ -31,9 +32,12 @@ func (s HotBackupState) IsRunning() bool {
 
 // HotBackupStatus defines the observed state of HotBackup
 type HotBackupStatus struct {
-	State       HotBackupState `json:"state"`
-	Message     string         `json:"message"`
-	BackupUUIDs []string       `json:"backupUUIDs,omitempty"`
+	// +optional
+	State HotBackupState `json:"state,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
+	// +optional
+	BackupUUIDs []string `json:"backupUUIDs,omitempty"`
 }
 
 func (hbs *HotBackupStatus) GetBucketURI() string {
@@ -72,15 +76,16 @@ func (hbs *HotBackupStatus) GetBackupFolder() string {
 // HotBackupSpec defines the Spec of HotBackup
 type HotBackupSpec struct {
 	// HazelcastResourceName defines the name of the Hazelcast resource
+	// +required
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 
 	// URL of the bucket to download HotBackup folders.
 	// +optional
-	BucketURI string `json:"bucketURI"`
+	BucketURI string `json:"bucketURI,omitempty"`
 
 	// Name of the secret with credentials for cloud providers.
 	// +optional
-	Secret string `json:"secret"`
+	Secret string `json:"secret,omitempty"`
 }
 
 func (hbs *HotBackupSpec) IsExternal() bool {
@@ -95,12 +100,14 @@ func (hbs *HotBackupSpec) IsExternal() bool {
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current HotBackup Config"
 // +kubebuilder:resource:shortName=hb
 type HotBackup struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +required
+	Spec HotBackupSpec `json:"spec"`
 	// +optional
 	Status HotBackupStatus `json:"status,omitempty"`
-	Spec   HotBackupSpec   `json:"spec"`
 }
 
 //+kubebuilder:object:root=true
