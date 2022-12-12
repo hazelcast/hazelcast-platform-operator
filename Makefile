@@ -32,7 +32,7 @@ OPM_VERSION ?= v1.26.2
 # https://github.com/onsi/ginkgo/releases
 GINKGO_VERSION ?= v2
 # https://github.com/kubernetes-sigs/kustomize/releases
-KUSTOMIZE_VERSION= ?= v4@v4.5.3
+KUSTOMIZE_VERSION ?= v4@v4.5.3
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
