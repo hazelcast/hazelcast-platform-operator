@@ -190,7 +190,7 @@ test-e2e-focus: generate fmt vet ginkgo ## Run focused end-to-end tests
 
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
-CUSTOM_GO_BUILD_TAGS ?= 
+CUSTOM_GO_BUILD_TAGS ?= localrun
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" main.go
 
