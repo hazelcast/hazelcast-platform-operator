@@ -156,11 +156,17 @@ E2E_TEST_SUITE ?= hz || mc || hz_persistence || hz_expose_externally || map || m
 ifeq (,$(E2E_TEST_SUITE))
 E2E_TEST_LABELS =
 else 
-E2E_TEST_LABELS = && $(E2E_TEST_SUITE)
+E2E_TEST_LABELS = && ($(E2E_TEST_SUITE))
+endif
+E2E_TEST_EXCLUDED_SUITE =
+ifeq (,$(E2E_TEST_EXCLUDED_SUITE))
+E2E_TEST_EXCLUDED_LABELS =
+else
+E2E_TEST_EXCLUDED_LABELS = && !($(E2E_TEST_EXCLUDED_SUITE))
 endif
 GINKGO_PARALLEL_PROCESSES ?= 2
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS) $(E2E_TEST_EXCLUDED_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 test-ph: generate fmt vet ginkgo ## Run phone-home tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
