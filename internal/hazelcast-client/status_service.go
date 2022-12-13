@@ -133,7 +133,7 @@ func (ss *HzStatusService) UpdateMembers(ctx context.Context) {
 	if ss.client == nil {
 		return
 	}
-	ss.log.V(2).Info("Updating Hazelcast status", "CR", ss.namespacedName)
+	ss.log.V(util.DebugLevel).Info("Updating Hazelcast status", "CR", ss.namespacedName)
 
 	activeMemberList := ss.client.OrderedMembers()
 	activeMembers := make(map[hztypes.UUID]*MemberData, len(activeMemberList))
