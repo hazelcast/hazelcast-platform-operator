@@ -54,9 +54,6 @@ autolabeler:
   - label: 'ci'
     files:
       - '.github/workflows/*'
-  - label: 'test'
-    files:
-      - 'test/*'
   - label: 'documentation'
     files:
       - '*.md'

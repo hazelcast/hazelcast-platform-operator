@@ -63,7 +63,7 @@ func EncodeDynamicConfigAddQueueConfigRequest(input *types.QueueConfigInput) *pr
 	return clientMessage
 }
 
-//manual
+// manual
 func EncodeNullableForQueueStoreConfigHolder(clientMessage *proto.ClientMessage, _ types.QueueStoreConfigHolder) {
 	// Not implemented
 	clientMessage.AddFrame(proto.NullFrame.Copy())

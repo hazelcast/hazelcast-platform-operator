@@ -5,18 +5,17 @@ import (
 	"strconv"
 	. "time"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
-	localPort := strconv.Itoa(8200 + GinkgoParallelProcess())
+	localPort := strconv.Itoa(8700 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
 		if !useExistingCluster() {
@@ -60,23 +59,12 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
-		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-
 		By("creating the default topic config")
 		topic := hazelcastconfig.DefaultTopic(topicLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
 		topic = assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{}).(*hazelcastcomv1alpha1.Topic)
 
-		By("checking if the topic config is created correctly")
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
-		defer func() {
-			err := cl.Shutdown(context.Background())
-			Expect(err).To(BeNil())
-		}()
-
-		memberConfigXML := getMemberConfig(context.Background(), cl)
+		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		topicConfig := getTopicConfigFromMemberConfig(memberConfigXML, topic.GetDSName())
 		Expect(topicConfig).NotTo(BeNil())
 

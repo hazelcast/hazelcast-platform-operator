@@ -89,6 +89,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.19.0"
+
       - name: Cache Golang dependencies
         uses: actions/cache@v3
         with:
@@ -144,7 +148,7 @@ jobs:
 
   report-generation:
     needs: ["create-gke-cluster", "gke-ph-tests"]
-    if: always()
+    if: always() && (needs.gke-ph-tests.result == 'success' || needs.gke-ph-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:

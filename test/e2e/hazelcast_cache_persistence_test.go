@@ -70,60 +70,45 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hchp-2")
-		baseDir := "/data/hot-restart"
+		clusterSize := int32(3)
 
-		hazelcast := hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
-
-		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the cache config")
-		cache := hazelcastconfig.DefaultCache(mapLookupKey, hazelcast.Name, labels)
+		cache := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
 		cache.Spec.PersistenceEnabled = true
 		Expect(k8sClient.Create(context.Background(), cache)).Should(Succeed())
 		assertDataStructureStatus(chLookupKey, hazelcastv1alpha1.DataStructureSuccess, cache)
 
 		By("filling the cache with entries")
-		entryCount := 100
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
-		cli := hz.NewClientInternal(cl)
-		fillCacheData(entryCount, cli, cache)
-
-		validateCacheEntries(entryCount, cli, cache)
-		closeChannel(stopChan)
+		entryCount := 10
+		fillCachePortForward(hazelcast, cache.GetDSName(), localPort, entryCount)
+		validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)
 
 		By("creating HotBackup CR")
-		t := Now()
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
-
 		assertHotBackupSuccess(hotBackup, 1*Minute)
-		seq := GetBackupSequence(t, hzLookupKey)
+
+		By("filling the cache with entries after backup")
+		fillCachePortForward(hazelcast, cache.GetDSName(), localPort, entryCount)
+
 		RemoveHazelcastCR(hazelcast)
 
 		By("creating new Hazelcast cluster from existing backup")
-		baseDir += "/hot-backup/backup-" + seq
-		hazelcast = hazelcastconfig.PersistenceEnabled(hzLookupKey, baseDir, labels)
+		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.Persistence.Restore = &hazelcastv1alpha1.RestoreConfiguration{
+			HotBackupResourceName: hotBackup.Name,
+		}
 
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
 
-		By("port-forwarding to restarted Hazelcast master pod")
-		stopChan = portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-
-		By("checking the map entries")
-		cl = createHazelcastClient(context.Background(), hazelcast, localPort)
-		defer func() {
-			err := cl.Shutdown(context.Background())
-			Expect(err).To(BeNil())
-		}()
-		cli = hz.NewClientInternal(cl)
-
-		validateCacheEntries(entryCount, cli, cache)
+		By("checking the cache entries")
+		validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)
 	})
 
 	It("should persist the cache successfully created configs into the configmap", Label("fast"), func() {
@@ -135,7 +120,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the cache configs")
 		for _, cache := range caches {
@@ -170,20 +155,20 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
-		c := hazelcastconfig.DefaultCache(mapLookupKey, hazelcast.Name, labels)
+		c := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
 		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureSuccess, c)
 
-		By("checking if the map config is persisted")
+		By("checking if the cache config is persisted")
 		hzConfig := assertCacheConfigsPersisted(hazelcast, c.Name)
 		ccfg := hzConfig.Hazelcast.Cache[c.Name]
 
-		By("failing to update the map config")
-		c.Spec.BackupCount = pointer.Int32Ptr(4)
+		By("failing to update the cache config")
+		c.Spec.BackupCount = pointer.Int32(4)
 		Expect(k8sClient.Update(context.Background(), c)).Should(Succeed())
 		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureFailed, c)
 
-		By("checking if the same map config is still there")
+		By("checking if the same cache config is still there")
 		// Should wait for Hazelcast reconciler to get triggered, we do not have a waiting mechanism for that.
 		Sleep(5 * Second)
 		hzConfig = assertCacheConfigsPersisted(hazelcast, c.Name)
@@ -192,12 +177,16 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 	})
 })
 
-func validateCacheEntries(entryCount int, cli *hz.ClientInternal, cache *hazelcastv1alpha1.Cache) {
+func validateCacheEntriesPortForward(h *hazelcastv1alpha1.Hazelcast, localPort, cacheName string, entryCount int) {
+	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
+	defer closeChannel(stopChan)
+	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
+	cli := hz.NewClientInternal(cl)
 	for i := 0; i < entryCount; i++ {
 		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
 		Expect(err).To(BeNil())
 		value := fmt.Sprintf("myvalue%d", i)
-		getRequest := codec.EncodeCacheGetRequest("/hz/"+cache.GetDSName(), key, nil)
+		getRequest := codec.EncodeCacheGetRequest("/hz/"+cacheName, key, nil)
 		resp, err := cli.InvokeOnKey(context.Background(), getRequest, key, nil)
 		pairs := codec.DecodeCacheGetResponse(resp)
 		Expect(err).To(BeNil())
@@ -207,9 +196,14 @@ func validateCacheEntries(entryCount int, cli *hz.ClientInternal, cache *hazelca
 	}
 }
 
-func fillCacheData(entryCount int, cli *hz.ClientInternal, cache *hazelcastv1alpha1.Cache) {
+func fillCachePortForward(h *hazelcastv1alpha1.Hazelcast, cacheName, localPort string, entryCount int) {
+	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
+	defer closeChannel(stopChan)
+	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
+	cli := hz.NewClientInternal(cl)
+
 	for _, mi := range cli.OrderedMembers() {
-		configRequest := codec.EncodeCacheGetConfigRequest("/hz/"+cache.GetDSName(), cache.GetDSName())
+		configRequest := codec.EncodeCacheGetConfigRequest("/hz/"+cacheName, cacheName)
 		_, _ = cli.InvokeOnMember(context.Background(), configRequest, mi.UUID, nil)
 	}
 
@@ -218,7 +212,7 @@ func fillCacheData(entryCount int, cli *hz.ClientInternal, cache *hazelcastv1alp
 		Expect(err).To(BeNil())
 		value, err := cli.EncodeData(fmt.Sprintf("myvalue%d", i))
 		Expect(err).To(BeNil())
-		cpr := codec.EncodeCachePutRequest("/hz/"+cache.GetDSName(), key, value, nil, false, 0)
+		cpr := codec.EncodeCachePutRequest("/hz/"+cacheName, key, value, nil, false, 0)
 		_, err = cli.InvokeOnKey(context.Background(), cpr, key, nil)
 		Expect(err).To(BeNil())
 	}

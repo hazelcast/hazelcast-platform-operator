@@ -192,11 +192,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.update(ctx, h, pendingPhase(retryAfter))
 	}
 
-	if err = r.ensureClusterActive(ctx, h); err != nil {
-		logger.Error(err, "Cluster activation attempt after hot restore failed")
-		return r.update(ctx, h, pendingPhase(retryAfter))
-	}
-
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, *h.Spec.ClusterSize); !ok {
 		if err == nil {
 			return r.update(ctx, h, pendingPhase(retryAfter))
@@ -207,9 +202,14 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	cl, err := r.clientRegistry.Create(ctx, h)
 	if err != nil {
-		return r.update(ctx, h, failedPhase(err).withMessage(err.Error()))
+		return r.update(ctx, h, pendingPhase(retryAfter).withMessage(err.Error()))
 	}
 	r.statusServiceRegistry.Create(req.NamespacedName, cl, r.Log, r.triggerReconcileChan)
+
+	if err = r.ensureClusterActive(ctx, cl, h); err != nil {
+		logger.Error(err, "Cluster activation attempt after hot restore failed")
+		return r.update(ctx, h, pendingPhase(retryAfter))
+	}
 
 	if newExecutorServices != nil {
 		hzClient, ok := r.clientRegistry.Get(req.NamespacedName)

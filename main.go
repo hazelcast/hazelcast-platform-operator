@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/webhookca"
 
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
@@ -75,6 +77,12 @@ func main() {
 		setupLog.Info("Watching namespace: " + namespace)
 	}
 
+	deploymentName := "controller-manager"
+	podName, found := os.LookupEnv(n.PodNameEnv)
+	if found || podName != "" {
+		deploymentName = util.DeploymentName(podName)
+	}
+
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
@@ -101,6 +109,29 @@ func main() {
 	})
 	if err := mgr.Add(mtlsClient); err != nil {
 		setupLog.Error(err, "unable to create mtls client")
+		os.Exit(1)
+	}
+
+	webhookName := types.NamespacedName{
+		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "validating-webhook-configuration"),
+		Namespace: namespace,
+	}
+
+	serviceName := types.NamespacedName{
+		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "webhook-service"),
+		Namespace: namespace, // service namespace is also hardcoded in webhook manifest
+	}
+
+	setupLog.Info("Starting CA injector", "webhook", webhookName, "service", serviceName)
+
+	webhookCAInjector, err := webhookca.NewCAInjector(mgr.GetClient(), webhookName, serviceName)
+	if err != nil {
+		setupLog.Error(err, "unable to create webhook ca injector")
+		// we can continue without ca injector, no need to exit
+	}
+
+	if err := mgr.Add(webhookCAInjector); err != nil {
+		setupLog.Error(err, "unable to run webhook ca injector")
 		os.Exit(1)
 	}
 
@@ -230,6 +261,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Queue")
 		os.Exit(1)
 	}
+
 	if err = hazelcast.NewCacheReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Cache"),
@@ -238,6 +270,43 @@ func main() {
 		cr,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cache")
+		os.Exit(1)
+	}
+
+	if err = (&hazelcastcomv1alpha1.Hazelcast{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Hazelcast")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.ManagementCenter{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ManagementCenter")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.Map{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Map")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.MultiMap{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "MultiMap")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.Queue{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Queue")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.Topic{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Topic")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.WanReplication{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "WanReplication")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.HotBackup{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "HotBackup")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.CronHotBackup{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "CronHotBackup")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

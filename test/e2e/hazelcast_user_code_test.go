@@ -20,7 +20,7 @@ import (
 )
 
 var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func() {
-	localPort := strconv.Itoa(8200 + GinkgoParallelProcess())
+	localPort := strconv.Itoa(8800 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
 		if !useExistingCluster() {
@@ -85,7 +85,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("filling the map with entries")
 		entryCount := 5
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()
@@ -120,19 +120,25 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
 			{
-				Name:     "service1",
-				PoolSize: 5,
+				Name:          "service1",
+				PoolSize:      8,
+				QueueCapacity: 0,
 			},
 		}
 		durableExecutorServices := []hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{
 			{
 				Name:       "service1",
+				PoolSize:   16,
 				Durability: 20,
+				Capacity:   100,
 			},
 		}
 		scheduledExecutorServices := []hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{
 			{
 				Name:           "service2",
+				PoolSize:       16,
+				Durability:     1,
+				Capacity:       100,
 				CapacityPolicy: "PER_PARTITION",
 			},
 		}
@@ -147,7 +153,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		defer closeChannel(stopChan)
 
 		By("checking if the initially added executor service configs are created correctly")
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()
@@ -157,9 +163,9 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		assertExecutorServices(sampleExecutorServices, actualES)
 
 		By("adding new executor services dynamically")
-		sampleExecutorServices["es"] = append(sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration), hazelcastcomv1alpha1.ExecutorServiceConfiguration{Name: "new-service", QueueCapacity: 50})
-		sampleExecutorServices["des"] = append(sampleExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration), hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{Name: "new-durable-service", PoolSize: 12, Capacity: 40})
-		sampleExecutorServices["ses"] = append(sampleExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration), hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{Name: "new-scheduled-service", PoolSize: 12, Capacity: 40})
+		sampleExecutorServices["es"] = append(sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration), hazelcastcomv1alpha1.ExecutorServiceConfiguration{Name: "new-service", PoolSize: 8, QueueCapacity: 50})
+		sampleExecutorServices["des"] = append(sampleExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration), hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{Name: "new-durable-service", PoolSize: 12, Durability: 1, Capacity: 40})
+		sampleExecutorServices["ses"] = append(sampleExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration), hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{Name: "new-scheduled-service", PoolSize: 12, Durability: 1, Capacity: 40, CapacityPolicy: "PER_NODE"})
 
 		UpdateHazelcastCR(hazelcast, func(hz *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
 			hz.Spec.ExecutorServices = sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration)
@@ -207,7 +213,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("filling the map with entries")
 		entryCount := 5
-		cl := createHazelcastClient(context.Background(), hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels), localPort)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels), localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()

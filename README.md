@@ -24,6 +24,7 @@ Here is a short video to deploy a simple Hazelcast Platform cluster and Manageme
 2. [Connect the cluster from outside Kubernetes](https://docs.hazelcast.com/tutorials/hazelcast-platform-operator-expose-externally)
 3. [Restore a Cluster from Cloud Storage with Hazelcast Platform Operator](https://docs.hazelcast.com/tutorials/hazelcast-platform-operator-external-backup-restore)
 4. [Replicate Data between Two Hazelcast Clusters with Hazelcast Platform Operator](https://docs.hazelcast.com/tutorials/hazelcast-platform-operator-wan-replication)
+5. [Configure MongoDB Atlas as an External Data Store for the Cluster with Hazelcast Platform Operator](https://docs.hazelcast.com/tutorials/hazelcast-platform-operator-map-store-mongodb-atlas)
 
 ## Features
 

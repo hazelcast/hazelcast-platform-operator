@@ -40,7 +40,7 @@ func EncodeMerkleTreeConfig(clientMessage *proto.ClientMessage, merkleTreeConfig
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableForMerkleTreeConfig(clientMessage *proto.ClientMessage, merkleTreeConfig types.MerkleTreeConfig) {
 	if merkleTreeConfig == (types.MerkleTreeConfig{}) {
 		clientMessage.AddFrame(proto.NullFrame.Copy())

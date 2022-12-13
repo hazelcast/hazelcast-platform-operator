@@ -43,7 +43,7 @@ func EncodeEvictionConfigHolder(clientMessage *proto.ClientMessage, evictionConf
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableForEvictionConfigHolder(clientMessage *proto.ClientMessage, evictionConfigHolder types.EvictionConfigHolder) {
 	// types.EvictionConfigHolder{} is not comparable with ==
 	if reflect.DeepEqual(types.EvictionConfigHolder{}, evictionConfigHolder) {

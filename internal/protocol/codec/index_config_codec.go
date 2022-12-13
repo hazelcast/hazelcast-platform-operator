@@ -40,7 +40,7 @@ func EncodeIndexConfig(clientMessage *proto.ClientMessage, indexConfig types.Ind
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeListMultiFrameIndexConfig(message *proto.ClientMessage, values []types.IndexConfig) {
 	message.AddFrame(proto.BeginFrame.Copy())
 	for i := 0; i < len(values); i++ {
@@ -49,7 +49,7 @@ func EncodeListMultiFrameIndexConfig(message *proto.ClientMessage, values []type
 	message.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableListMultiFrameForIndexConfig(message *proto.ClientMessage, values []types.IndexConfig) {
 	if values == nil {
 		message.AddFrame(proto.NullFrame.Copy())
@@ -77,7 +77,7 @@ func DecodeIndexConfig(frameIterator *proto.ForwardFrameIterator) types.IndexCon
 	}
 }
 
-//manual
+// manual
 func DecodeNullableListMultiFrameForIndexConfig(frameIterator *proto.ForwardFrameIterator) []types.IndexConfig {
 	if NextFrameIsNullFrame(frameIterator) {
 		return nil

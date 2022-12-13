@@ -59,7 +59,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		setLabelAndCRName("hee-1")
 		hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		FillTheMapData(ctx, hzLookupKey, true, "map", 100)
 		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
@@ -71,7 +71,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		setLabelAndCRName("hee-2")
 		hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		members := getHazelcastMembers(ctx, hazelcast)
 		clientHz := GetHzClient(ctx, hzLookupKey, false)
@@ -117,7 +117,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		setLabelAndCRName("hee-3")
 		hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey, 3)
+		evaluateReadyMembers(hzLookupKey)
 
 		members := getHazelcastMembers(ctx, hazelcast)
 		clientHz := GetHzClient(ctx, hzLookupKey, false)

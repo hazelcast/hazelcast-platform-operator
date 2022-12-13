@@ -38,7 +38,7 @@ func EncodeHotRestartConfig(clientMessage *proto.ClientMessage, hotRestartConfig
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }
 
-//manual
+// manual
 func EncodeNullableForHotRestartConfig(clientMessage *proto.ClientMessage, hotRestartConfig types.HotRestartConfig) {
 	if hotRestartConfig == (types.HotRestartConfig{}) {
 		clientMessage.AddFrame(proto.NullFrame.Copy())
