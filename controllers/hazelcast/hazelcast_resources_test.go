@@ -36,8 +36,8 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 	}
 	structureSpec := hazelcastv1alpha1.DataStructureSpec{
 		HazelcastResourceName: meta.Name,
-		BackupCount:           pointer.Int32Ptr(1),
-		AsyncBackupCount:      pointer.Int32Ptr(0),
+		BackupCount:           pointer.Int32(1),
+		AsyncBackupCount:      pointer.Int32(0),
 	}
 	structureStatus := hazelcastv1alpha1.DataStructureStatus{State: hazelcastv1alpha1.DataStructureSuccess}
 
@@ -128,8 +128,8 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: hazelcastv1alpha1.QueueSpec{
-					EmptyQueueTtlSeconds: pointer.Int32Ptr(10),
-					MaxSize:              pointer.Int32Ptr(0),
+					EmptyQueueTtlSeconds: pointer.Int32(10),
+					MaxSize:              pointer.Int32(0),
 					DataStructureSpec:    structureSpec,
 				},
 				Status: hazelcastv1alpha1.QueueStatus{DataStructureStatus: structureStatus},
@@ -150,9 +150,9 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 				},
 				Spec: hazelcastv1alpha1.MapSpec{
 					DataStructureSpec: structureSpec,
-					TimeToLiveSeconds: pointer.Int32Ptr(10),
+					TimeToLiveSeconds: pointer.Int32(10),
 					Eviction: &hazelcastv1alpha1.EvictionConfig{
-						MaxSize: pointer.Int32Ptr(10),
+						MaxSize: pointer.Int32(10),
 					},
 				},
 				Status: hazelcastv1alpha1.MapStatus{State: hazelcastv1alpha1.MapSuccess},
