@@ -16,6 +16,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 type StatusService interface {
@@ -139,11 +140,12 @@ func (ss *HzStatusService) UpdateMembers(ctx context.Context) {
 	newClusterHotRestartStatus := &codecTypes.ClusterHotRestartStatus{}
 
 	for _, memberInfo := range activeMemberList {
-		activeMembers[memberInfo.UUID] = newMemberData(memberInfo)
 		state, err := fetchTimedMemberState(ctx, ss.client, memberInfo.UUID)
 		if err != nil {
-			ss.log.V(2).Info("Error fetching timed member state", "CR", ss.namespacedName, "error:", err)
+			ss.log.V(util.DebugLevel).Info("Error fetching timed member state", "CR", ss.namespacedName, "error:", err)
+			continue
 		}
+		activeMembers[memberInfo.UUID] = newMemberData(memberInfo)
 		activeMembers[memberInfo.UUID].enrichMemberData(state.TimedMemberState)
 		newClusterHotRestartStatus = &state.TimedMemberState.MemberState.ClusterHotRestartStatus
 	}
