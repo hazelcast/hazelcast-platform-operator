@@ -77,8 +77,8 @@ jobs:
               kubectl config set-context --current --namespace=$NAMESPACE
               kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
               kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
-              HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
-              HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
+              HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' kind | jq -r '.[0].Subnet' | sed -n 's/.0.0.16/.255.200/p')
+              HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' kind | jq -r '.[0].Subnet' | sed -n 's/.0.0.16/.255.250/p')
               IP_RANGE=$HOST_MIN-$HOST_MAX
 
               cat <<EOF | kubectl apply -f -
