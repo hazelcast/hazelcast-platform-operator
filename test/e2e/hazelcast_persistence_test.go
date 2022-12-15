@@ -11,6 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
@@ -252,4 +253,27 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode-external", "gs://operator-e2e-external-backup", "br-secret-gcp", true),
 		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode-external", "gs://operator-e2e-external-backup", "br-secret-gcp", false),
 	)
+
+	It("should start HotBackup after cluster is ready", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hp-8")
+
+		clusterSize := int32(1)
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1alpha1.MostRecent
+
+		By("creating HotBackup CR")
+		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
+		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+
+		assertHotBackupStatus(hotBackup, hazelcastcomv1alpha1.HotBackupPending, 1*Minute)
+
+		By("creating cluster with backup enabled")
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		assertHotBackupSuccess(hotBackup, 1*Minute)
+	})
 })

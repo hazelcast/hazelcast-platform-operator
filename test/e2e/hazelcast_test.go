@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 	})
 
 	Describe("Hazelcast cluster name", func() {
-		FIt("should create a Hazelcast cluster with Cluster name: development", Label("fast"), func() {
+		It("should create a Hazelcast cluster with Cluster name: development", Label("fast"), func() {
 			setLabelAndCRName("h-2")
 			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

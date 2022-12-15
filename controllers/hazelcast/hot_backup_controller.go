@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
@@ -114,10 +115,13 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err = r.Client.Get(ctx, hazelcastName, h)
 	if err != nil {
-		return r.updateStatus(ctx, req.NamespacedName, failedHbStatus(fmt.Errorf("could not trigger Hot Backup: Hazelcast resource not found: %w", err)))
+		logger.Info("Could not find hazelcast cluster", "name", hazelcastName, "err", err)
+		return r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupPending))
 	}
+
 	if h.Status.Phase != hazelcastv1alpha1.Running {
-		return r.updateStatus(ctx, req.NamespacedName, failedHbStatus(apiErrors.NewServiceUnavailable("Hazelcast CR is not ready")))
+		logger.Info("Hazelcast cluster is not ready", "name", hazelcastName, "phase", h.Status.Phase)
+		return r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupPending))
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName, logger)
@@ -130,7 +134,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 	r.cancelMap[req.NamespacedName] = cancelFunc
 
-	result, err = r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupPending))
+	result, err = r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupNotStarted))
 	if err != nil {
 		return result, err
 	}
@@ -200,6 +204,9 @@ func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.Names
 
 	if options.status == hazelcastv1alpha1.HotBackupFailure {
 		return ctrl.Result{}, options.err
+	}
+	if options.status == hazelcastv1alpha1.HotBackupPending {
+		return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Second}, nil
 	}
 	return ctrl.Result{}, err
 }

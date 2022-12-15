@@ -187,19 +187,18 @@ func TestHotBackupReconciler_shouldCancelContextIfHotbackupCRIsDeleted(t *testin
 	Expect(r.cancelMap).Should(&matchers.HaveLenMatcher{Count: 0})
 }
 
-func TestHotBackupReconciler_shouldSetStatusToFailedIfHazelcastCRNotFound(t *testing.T) {
+func TestHotBackupReconciler_shouldNotSetStatusToFailedIfHazelcastCRNotFound(t *testing.T) {
 	RegisterFailHandler(Fail)
 	nn, _, hb := defaultCRs()
 
 	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, hb)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
-	if err == nil {
-		t.Errorf("Error executing Reconcile to return error but returned nil")
+	if err != nil {
+		t.Errorf("Error expecting Reconcile to return without error")
 	}
 
 	_ = r.Client.Get(context.TODO(), nn, hb)
-	Expect(hb.Status.State).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
-	Expect(hb.Status.Message).Should(Not(BeEmpty()))
+	Expect(hb.Status.State).ShouldNot(Equal(hazelcastv1alpha1.HotBackupFailure))
 }
 
 func fail(t *testing.T) func(message string, callerSkip ...int) {
