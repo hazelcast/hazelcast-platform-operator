@@ -1,0 +1,36 @@
+name: Pull Request Label
+
+on:
+  pull_request_target:
+    types:
+      - opened
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+    branches:
+      - main
+      - 'release/**'
+
+jobs:
+  update-pr-labels:
+    name: Update Draft Release
+    permissions:
+      contents: write
+      pull-requests: write
+    # Run only once for pull request and pull request target
+    if: >-
+      (github.event_name == 'pull_request_target'
+        && github.event.pull_request.head.repo.full_name != github.repository)
+      ||
+      (github.event_name == 'pull_request'
+        && github.event.pull_request.head.repo.full_name == github.repository)
+      
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v5
+        with:
+          config-name: release-drafter-config.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
