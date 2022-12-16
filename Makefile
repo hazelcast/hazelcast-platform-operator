@@ -158,7 +158,7 @@ E2E_TEST_LABELS =
 else 
 E2E_TEST_LABELS = && $(E2E_TEST_SUITE)
 endif
-GINKGO_PARALLEL_PROCESSES ?= 2
+GINKGO_PARALLEL_PROCESSES ?= 4
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
