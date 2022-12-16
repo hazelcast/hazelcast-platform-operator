@@ -175,14 +175,14 @@ jobs:
       - name: Connect To The Second GKE Cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
         with:
-          cluster_name: $SECOND_CLUSTER_NAME
+          cluster_name: trg-wan-cluster-${{ github.run_number }}
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
       - name: Connect To The First GKE Cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
         with:
-          cluster_name: $FIRST_CLUSTER_NAME
+          cluster_name: src-wan-cluster-${{ github.run_number }}
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
