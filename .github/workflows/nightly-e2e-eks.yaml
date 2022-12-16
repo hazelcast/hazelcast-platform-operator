@@ -31,7 +31,7 @@ jobs:
       - name: Create EKS cluster
         id: create-cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           eksctl create cluster --name "${CLUSTER_NAME}" \
             --zones ${AWS_REGION}a \
@@ -75,7 +75,7 @@ jobs:
 
       - name: Install New Relic agent
         run: |
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           kubectl create namespace newrelic
           helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
             --set "global.cluster=aws-operator" \
@@ -148,7 +148,7 @@ jobs:
 
       - name: Update kubeconfig
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
       - name: Deploy Operator to EKS
@@ -233,7 +233,7 @@ jobs:
 
       - name: Delete EKS cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           eksctl delete addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}"
           eksctl delete nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1
           eksctl delete cluster "${CLUSTER_NAME}" --wait

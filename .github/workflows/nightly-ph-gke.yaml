@@ -27,7 +27,7 @@ jobs:
       - name: Create GKE cluster
         id: set-cluster-name
         run: |-
-          CLUSTER_NAME="operator-ph-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-ph-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --zone=${{ env.GKE_ZONE }} \
@@ -107,10 +107,11 @@ jobs:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
-        run: |
-          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
-            --zone ${{ env.GKE_ZONE }} \
-            --project ${{ env.GCP_PROJECT_ID }}
+        uses: 'google-github-actions/get-gke-credentials@v1'
+        with:
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          location: ${{ env.GKE_ZONE }}
 
       - name: Deploy Operator to GKE
         run: |

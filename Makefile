@@ -184,7 +184,7 @@ docker-build: test docker-build-ci ## Build docker image with the manager.
 
 PARDOT_ID ?= "dockerhub"
 docker-build-ci: ## Build docker image with the manager without running tests.
-	docker build -t ${IMG} --build-arg version=${VERSION} --build-arg pardotID=${PARDOT_ID} .
+	DOCKER_BUILDKIT=1 docker build -t ${IMG} --build-arg version=${VERSION} --build-arg pardotID=${PARDOT_ID} .
 
 ##@ Deployment
 docker-push: ## Push docker image with the manager.
@@ -295,7 +295,7 @@ bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metada
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	DOCKER_BUILDKIT=1 docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
