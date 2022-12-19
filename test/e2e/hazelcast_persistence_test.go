@@ -249,7 +249,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		backupRestore(hazelcast, hotBackup, false)
 	},
-		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode-bucket", "gs://operator-e2e-external-backup", "br-secret-gcp", true),
-		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode-bucket", "gs://operator-e2e-external-backup", "br-secret-gcp", false),
+		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode-external", "gs://operator-e2e-external-backup", "br-secret-gcp", true),
+		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode-external", "gs://operator-e2e-external-backup", "br-secret-gcp", false),
 	)
 })
