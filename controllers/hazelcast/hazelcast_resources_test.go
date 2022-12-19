@@ -110,7 +110,7 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 					Name:      "cr",
 					Namespace: "default",
 				},
-				Spec:   hazelcastv1alpha1.ReplicatedMapSpec{HazelcastResourceName: meta.Name},
+				Spec:   hazelcastv1alpha1.ReplicatedMapSpec{HazelcastResourceName: meta.Name, AsyncFillup: pointer.Bool(true)},
 				Status: hazelcastv1alpha1.ReplicatedMapStatus{DataStructureStatus: structureStatus},
 			},
 		},
