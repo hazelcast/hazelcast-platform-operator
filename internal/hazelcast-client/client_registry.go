@@ -11,7 +11,7 @@ import (
 type ClientRegistry interface {
 	Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error)
 	Get(ns types.NamespacedName) (Client, bool)
-	Delete(ctx context.Context, ns types.NamespacedName)
+	Delete(ctx context.Context, ns types.NamespacedName) error
 }
 
 type HazelcastClientRegistry struct {
@@ -39,8 +39,9 @@ func (cr *HazelcastClientRegistry) Get(ns types.NamespacedName) (Client, bool) {
 	return nil, false
 }
 
-func (cr *HazelcastClientRegistry) Delete(ctx context.Context, ns types.NamespacedName) {
+func (cr *HazelcastClientRegistry) Delete(ctx context.Context, ns types.NamespacedName) error {
 	if c, ok := cr.clients.LoadAndDelete(ns); ok {
-		c.(Client).Shutdown(ctx) //nolint:errcheck
+		return c.(Client).Shutdown(ctx) //nolint:errcheck
 	}
+	return nil
 }

@@ -68,10 +68,11 @@ func (cr *fakeHzClientRegistry) Get(ns types.NamespacedName) (hzclient.Client, b
 	return nil, false
 }
 
-func (cr *fakeHzClientRegistry) Delete(ctx context.Context, ns types.NamespacedName) {
+func (cr *fakeHzClientRegistry) Delete(ctx context.Context, ns types.NamespacedName) error {
 	if c, ok := cr.Clients.LoadAndDelete(ns); ok {
-		c.(hzclient.Client).Shutdown(ctx) //nolint:errcheck
+		return c.(hzclient.Client).Shutdown(ctx) //nolint:errcheck
 	}
+	return nil
 }
 
 type fakeHzClient struct {
