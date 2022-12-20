@@ -54,7 +54,11 @@ func validatePersistence(h *Hazelcast) error {
 
 	// if hostPath and PVC are both empty or set
 	if (p.HostPath == "") == p.Pvc.IsEmpty() {
-		return errors.New("when persistence is set either of \"hostPath\" or \"pvc\" fields must be set.")
+		return errors.New("when persistence is set either of \"hostPath\" or \"pvc\" fields must be set")
+	}
+
+	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
+		return errors.New("startupAction PartialStart can be used only with Partial* clusterDataRecoveryPolicy")
 	}
 	return nil
 }

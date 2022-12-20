@@ -186,7 +186,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	if err = r.checkHotRestart(ctx, h, logger); err != nil {
+	if err = r.persistenceStartupAction(ctx, h, logger); err != nil {
 		logger.Error(err, "Cluster HotRestart did not finish successfully")
 		return r.update(ctx, h, pendingPhase(retryAfter))
 	}
