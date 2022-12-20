@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -1044,7 +1045,7 @@ var _ = Describe("Hazelcast controller", func() {
 				for _, cm := range cms {
 					expectedVolMounts = append(expectedVolMounts, corev1.VolumeMount{
 						Name:      n.UserCodeConfigMapNamePrefix + cm + ts,
-						MountPath: n.UserCodeConfigMapPath + "/" + cm,
+						MountPath: path.Join(n.UserCodeConfigMapPath, cm),
 					})
 				}
 				Expect(ss.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElements(expectedVolMounts))
@@ -1053,7 +1054,7 @@ var _ = Describe("Hazelcast controller", func() {
 				b := []string{}
 
 				for _, cm := range cms {
-					b = append(b, n.UserCodeConfigMapPath+"/"+cm+"/*")
+					b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
 				}
 				expectedClassPath := strings.Join(b, ":")
 				classPath := ""

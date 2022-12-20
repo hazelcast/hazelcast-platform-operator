@@ -628,7 +628,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		cfg.Persistence = config.Persistence{
 			Enabled:                   pointer.Bool(true),
 			BaseDir:                   h.Spec.Persistence.BaseDir,
-			BackupDir:                 h.Spec.Persistence.BaseDir + "/hot-backup",
+			BackupDir:                 path.Join(h.Spec.Persistence.BaseDir, "hot-backup"),
 			Parallelism:               1,
 			ValidationTimeoutSec:      120,
 			DataLoadTimeoutSec:        900,
@@ -1498,7 +1498,7 @@ func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.Volu
 	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
 		vms = append(vms, corev1.VolumeMount{
 			Name:      n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
-			MountPath: n.UserCodeConfigMapPath + "/" + cm,
+			MountPath: path.Join(n.UserCodeConfigMapPath, cm),
 		})
 	}
 	return vms
@@ -1607,14 +1607,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 }
 
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
-	b := []string{n.UserCodeBucketPath + "/*"}
+	b := []string{path.Join(n.UserCodeBucketPath, "*")}
 
 	if !h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
 		return b[0]
 	}
 
 	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
-		b = append(b, n.UserCodeConfigMapPath+"/"+cm+"/*")
+		b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
 	}
 
 	return strings.Join(b, ":")
