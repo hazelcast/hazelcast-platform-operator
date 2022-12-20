@@ -73,11 +73,11 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	if m.GetDeletionTimestamp() != nil {
 		updateMapStatus(ctx, r.Client, m, terminatingStatus(nil)) //nolint:errcheck
-		err = r.executeFinalizer(ctx, m, logger)
+		err = r.executeFinalizer(ctx, m)
 		if err != nil {
 			return updateMapStatus(ctx, r.Client, m, terminatingStatus(err).withMessage(err.Error()))
 		}
-		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
 	}
 
@@ -92,7 +92,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 
-	err = ValidatePersistence(m.Spec.PersistenceEnabled, h)
+	err = util.ValidatePersistence(m.Spec.PersistenceEnabled, h)
 	if err != nil {
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
@@ -117,7 +117,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
 
-		err = ValidateNotUpdatableFields(&m.Spec, lastSpec)
+		err = hazelcastv1alpha1.ValidateNotUpdatableFields(&m.Spec, lastSpec)
 		if err != nil {
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
@@ -175,7 +175,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		withMemberStatuses(nil))
 }
 
-func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alpha1.Map, logger logr.Logger) error {
+func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alpha1.Map) error {
 	if !controllerutil.ContainsFinalizer(m, n.Finalizer) {
 		return nil
 	}
@@ -210,28 +210,6 @@ func ValidatePersistence(pe bool, h *hazelcastv1alpha1.Hazelcast) error {
 	return nil
 }
 
-func ValidateNotUpdatableFields(current *hazelcastv1alpha1.MapSpec, last *hazelcastv1alpha1.MapSpec) error {
-	if current.Name != last.Name {
-		return fmt.Errorf("name cannot be updated")
-	}
-	if *current.BackupCount != *last.BackupCount {
-		return fmt.Errorf("backupCount cannot be updated")
-	}
-	if *current.AsyncBackupCount != *last.AsyncBackupCount {
-		return fmt.Errorf("asyncBackupCount cannot be updated")
-	}
-	if !util.IndexConfigSliceEquals(current.Indexes, last.Indexes) {
-		return fmt.Errorf("indexes cannot be updated")
-	}
-	if current.PersistenceEnabled != last.PersistenceEnabled {
-		return fmt.Errorf("persistenceEnabled cannot be updated")
-	}
-	if current.HazelcastResourceName != last.HazelcastResourceName {
-		return fmt.Errorf("hazelcastResourceName cannot be updated")
-	}
-	return nil
-}
-
 func GetHazelcastClient(cs hzclient.ClientRegistry, m *hazelcastv1alpha1.Map) (hzclient.Client, error) {
 	hzcl, ok := cs.Get(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
 	if !ok {
@@ -255,11 +233,11 @@ func (r *MapReconciler) ReconcileMapConfig(
 	if createdBefore {
 		req = codec.EncodeMCUpdateMapConfigRequest(
 			m.MapName(),
-			*m.Spec.TimeToLiveSeconds,
-			*m.Spec.MaxIdleSeconds,
+			m.Spec.TimeToLiveSeconds,
+			m.Spec.MaxIdleSeconds,
 			hazelcastv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy],
 			false,
-			*m.Spec.Eviction.MaxSize,
+			m.Spec.Eviction.MaxSize,
 			hazelcastv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy],
 		)
 	} else {
@@ -300,14 +278,14 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 
 	ms := m.Spec
 	mapInput.BackupCount = *ms.BackupCount
-	mapInput.AsyncBackupCount = *ms.AsyncBackupCount
-	mapInput.TimeToLiveSeconds = *ms.TimeToLiveSeconds
-	mapInput.MaxIdleSeconds = *ms.MaxIdleSeconds
-	if ms.Eviction != nil {
-		mapInput.EvictionConfig.EvictionPolicy = string(ms.Eviction.EvictionPolicy)
-		mapInput.EvictionConfig.Size = *ms.Eviction.MaxSize
-		mapInput.EvictionConfig.MaxSizePolicy = string(ms.Eviction.MaxSizePolicy)
-	}
+	mapInput.AsyncBackupCount = ms.AsyncBackupCount
+	mapInput.TimeToLiveSeconds = ms.TimeToLiveSeconds
+	mapInput.MaxIdleSeconds = ms.MaxIdleSeconds
+
+	mapInput.EvictionConfig.EvictionPolicy = string(ms.Eviction.EvictionPolicy)
+	mapInput.EvictionConfig.Size = ms.Eviction.MaxSize
+	mapInput.EvictionConfig.MaxSizePolicy = string(ms.Eviction.MaxSizePolicy)
+
 	mapInput.IndexConfigs = copyIndexes(ms.Indexes)
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
 	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)

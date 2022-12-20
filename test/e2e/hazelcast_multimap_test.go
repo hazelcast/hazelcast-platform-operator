@@ -5,19 +5,18 @@ import (
 	"strconv"
 	. "time"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/utils/pointer"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
-	localPort := strconv.Itoa(8100 + GinkgoParallelProcess())
+	localPort := strconv.Itoa(8300 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
 		if !useExistingCluster() {
@@ -61,23 +60,12 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
-		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-
 		By("creating the default multiMap config")
 		mm := hazelcastconfig.DefaultMultiMap(mmLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
 		mm = assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{}).(*hazelcastcomv1alpha1.MultiMap)
 
-		By("checking if the multiMap config is created correctly")
-		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
-		defer func() {
-			err := cl.Shutdown(context.Background())
-			Expect(err).To(BeNil())
-		}()
-
-		memberConfigXML := getMemberConfig(context.Background(), cl)
+		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		multiMapConfig := getMultiMapConfigFromMemberConfig(memberConfigXML, mm.GetDSName())
 		Expect(multiMapConfig).NotTo(BeNil())
 

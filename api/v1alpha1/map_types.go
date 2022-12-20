@@ -14,20 +14,20 @@ type MapSpec struct {
 	// It can be updated.
 	// +kubebuilder:default:=0
 	// +optional
-	TimeToLiveSeconds *int32 `json:"timeToLiveSeconds,omitempty"`
+	TimeToLiveSeconds int32 `json:"timeToLiveSeconds"`
 
 	// Maximum time in seconds for each entry to stay idle in the map.
 	// Entries that are idle for more than this time are evicted automatically.
 	// It can be updated.
 	// +kubebuilder:default:=0
 	// +optional
-	MaxIdleSeconds *int32 `json:"maxIdleSeconds,omitempty"`
+	MaxIdleSeconds int32 `json:"maxIdleSeconds"`
 
 	// Configuration for removing data from the map when it reaches its max size.
 	// It can be updated.
-	// +kubebuilder:default:={maxSize: 0}
+	// +kubebuilder:default:={maxSize: 0, evictionPolicy: NONE, maxSizePolicy: PER_NODE}
 	// +optional
-	Eviction *EvictionConfig `json:"eviction,omitempty"`
+	Eviction EvictionConfig `json:"eviction,omitempty"`
 
 	// Indexes to be created for the map data.
 	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.
@@ -44,6 +44,7 @@ type MapSpec struct {
 	// Configuration options when you want to load/store the map entries
 	// from/to a persistent data store such as a relational database
 	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/data-structures/working-with-external-data
+	// +optional
 	MapStore *MapStoreConfig `json:"mapStore,omitempty"`
 
 	// InMemoryFormat specifies in which format data will be stored in your map
@@ -61,6 +62,7 @@ type MapSpec struct {
 type EntryListenerConfiguration struct {
 	// ClassName is the fully qualified name of the class that implements any of the Listener interface.
 	// +kubebuilder:validation:MinLength:=1
+	// +required
 	ClassName string `json:"className"`
 
 	// IncludeValues is an optional attribute that indicates whether the event will contain the map value.
@@ -73,7 +75,7 @@ type EntryListenerConfiguration struct {
 	// Defaults to false.
 	// +kubebuilder:default:=false
 	// +optional
-	Local bool `json:"local,omitempty"`
+	Local bool `json:"local"`
 }
 
 func (e *EntryListenerConfiguration) GetIncludedValue() bool {
@@ -92,7 +94,7 @@ type EvictionConfig struct {
 	// Max size of the map.
 	// +kubebuilder:default:=0
 	// +optional
-	MaxSize *int32 `json:"maxSize,omitempty"`
+	MaxSize int32 `json:"maxSize"`
 
 	// Policy for deciding if the maxSize is reached.
 	// +kubebuilder:default:="PER_NODE"
@@ -166,12 +168,15 @@ type IndexConfig struct {
 	Name string `json:"name,omitempty"`
 
 	// Type of the index.
+	// +required
 	Type IndexType `json:"type"`
 
 	// Attributes of the index.
-	Attributes []string `json:"attributes"`
+	// +optional
+	Attributes []string `json:"attributes,omitempty"`
 
 	// Options for "BITMAP" index type.
+	// +kubebuilder:default:={}
 	// +optional
 	BitmapIndexOptions *BitmapIndexOptionsConfig `json:"bitMapIndexOptions,omitempty"`
 }
@@ -186,8 +191,10 @@ const (
 )
 
 type BitmapIndexOptionsConfig struct {
+	// +required
 	UniqueKey string `json:"uniqueKey"`
 
+	// +required
 	UniqueKeyTransition UniqueKeyTransition `json:"uniqueKeyTransition"`
 }
 
@@ -202,8 +209,11 @@ const (
 
 // MapStatus defines the observed state of Map
 type MapStatus struct {
-	State          MapConfigState            `json:"state,omitempty"`
-	Message        string                    `json:"message,omitempty"`
+	// +optional
+	State MapConfigState `json:"state,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
+	// +optional
 	MemberStatuses map[string]MapConfigState `json:"memberStatuses,omitempty"`
 }
 
@@ -226,6 +236,7 @@ type MapStoreConfig struct {
 	InitialMode InitialModeType `json:"initialMode,omitempty"`
 
 	// Name of your class implementing MapLoader and/or MapStore interface.
+	// +required
 	ClassName string `json:"className"`
 
 	// Number of seconds to delay the storing of entries.
@@ -284,10 +295,13 @@ const (
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the Map Config"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Map Config"
 type Map struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MapSpec   `json:"spec"`
+	// +required
+	Spec MapSpec `json:"spec"`
+	// +optional
 	Status MapStatus `json:"status,omitempty"`
 }
 
@@ -313,10 +327,6 @@ func (ml *MapList) GetItems() []client.Object {
 		l = append(l, client.Object(&item))
 	}
 	return l
-}
-
-func init() {
-	SchemeBuilder.Register(&Map{}, &MapList{})
 }
 
 var (
@@ -358,3 +368,7 @@ var (
 		InMemoryFormatNative: 2,
 	}
 )
+
+func init() {
+	SchemeBuilder.Register(&Map{}, &MapList{})
+}

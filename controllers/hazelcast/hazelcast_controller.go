@@ -21,7 +21,6 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/mutate"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -98,7 +97,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			return r.update(ctx, h, terminatingPhase(err).withMessage(err.Error()))
 		}
-		logger.V(2).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
 	}
 
@@ -111,7 +110,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	err = validation.ValidateHazelcastSpec(h)
+	err = hazelcastv1alpha1.ValidateHazelcastSpec(h)
 	if err != nil {
 		return r.update(ctx, h,
 			failedPhase(err).
@@ -211,12 +210,20 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.update(ctx, h, pendingPhase(retryAfter))
 	}
 
+	if !cl.IsClientConnected() {
+		r.statusServiceRegistry.Delete(req.NamespacedName)
+		err = r.clientRegistry.Delete(ctx, req.NamespacedName)
+		if err != nil {
+			return r.update(ctx, h, pendingPhase(retryAfter).withMessage(err.Error()))
+		}
+		return r.update(ctx, h, pendingPhase(retryAfter).withMessage("Client is not connected to the cluster!"))
+	}
+
 	if newExecutorServices != nil {
-		hzClient, ok := r.clientRegistry.Get(req.NamespacedName)
-		if !(ok && hzClient.IsClientConnected() && hzClient.AreAllMembersAccessible()) {
+		if !cl.AreAllMembersAccessible() {
 			return r.update(ctx, h, pendingPhase(retryAfter))
 		}
-		r.addExecutorServices(ctx, hzClient, newExecutorServices)
+		r.addExecutorServices(ctx, cl, newExecutorServices)
 	}
 
 	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(h) {

@@ -12,6 +12,7 @@ import (
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,7 +26,8 @@ import (
 
 func fakeK8sClient(initObjs ...client.Object) client.Client {
 	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
-		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{}).
+		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{},
+			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.ConfigMap{}).
 		Build()
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 }
@@ -66,10 +68,11 @@ func (cr *fakeHzClientRegistry) Get(ns types.NamespacedName) (hzclient.Client, b
 	return nil, false
 }
 
-func (cr *fakeHzClientRegistry) Delete(ctx context.Context, ns types.NamespacedName) {
+func (cr *fakeHzClientRegistry) Delete(ctx context.Context, ns types.NamespacedName) error {
 	if c, ok := cr.Clients.LoadAndDelete(ns); ok {
-		c.(hzclient.Client).Shutdown(ctx) //nolint:errcheck
+		return c.(hzclient.Client).Shutdown(ctx) //nolint:errcheck
 	}
+	return nil
 }
 
 type fakeHzClient struct {

@@ -20,6 +20,11 @@ type CacheSpec struct {
 	// Class name of the value type
 	// +optional
 	ValueType string `json:"valueType,omitempty"`
+
+	// When enabled, cache data will be persisted.
+	// +kubebuilder:default:=false
+	// +optional
+	PersistenceEnabled bool `json:"persistenceEnabled"`
 }
 
 // CacheStatus defines the observed state of Cache
@@ -35,10 +40,13 @@ type CacheStatus struct {
 
 // Cache is the Schema for the caches API
 type Cache struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CacheSpec   `json:"spec,omitempty"`
+	// +required
+	Spec CacheSpec `json:"spec"`
+	// +optional
 	Status CacheStatus `json:"status,omitempty"`
 }
 
@@ -97,8 +105,8 @@ type CacheList struct {
 
 func (cl *CacheList) GetItems() []client.Object {
 	l := make([]client.Object, 0, len(cl.Items))
-	for _, item := range cl.Items {
-		l = append(l, &item)
+	for i := range cl.Items {
+		l = append(l, &cl.Items[i])
 	}
 	return l
 }

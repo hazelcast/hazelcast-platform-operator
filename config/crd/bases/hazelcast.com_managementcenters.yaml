@@ -51,7 +51,7 @@ spec:
           spec:
             default:
               repository: docker.io/hazelcast/management-center
-            description: ManagementCenterSpec defines the desired state of ManagementCenter.
+            description: Initial values will be filled with its fields' default values.
             properties:
               externalConnectivity:
                 default:

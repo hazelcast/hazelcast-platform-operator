@@ -18,19 +18,15 @@ import (
 	"strings"
 	. "time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	hzClient "github.com/hazelcast/hazelcast-go-client"
+	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -40,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -354,6 +351,9 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName 
 	Eventually(func() bool {
 		pod, err := getClientSet().CoreV1().Pods(lk.Namespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
+		if len(pod.Status.ContainerStatuses) < 1 {
+			return false
+		}
 		return pod.Status.ContainerStatuses[0].Ready
 	}, 5*Minute, interval).Should(Equal(true))
 	return clientPod
@@ -383,9 +383,12 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	Fail(fmt.Sprintf("Failed to find \"%s\" in member logs", expected))
 }
 
-func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
+func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		err := k8sClient.Get(context.Background(), lookupKey, hz)
+		Expect(err).ToNot(HaveOccurred())
+		membersCount := int(*hz.Spec.ClusterSize)
 		Eventually(func() string {
 			err := k8sClient.Get(context.Background(), lookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
@@ -432,18 +435,6 @@ loop1:
 	return ""
 }
 
-func addNodeSelectorForName(hz *hazelcastcomv1alpha1.Hazelcast, n string) *hazelcastcomv1alpha1.Hazelcast {
-	// If hostPath is not enabled, do nothing
-	if hz.Spec.Scheduling == nil {
-		return hz
-	}
-	// If NodeSelector is set with dummy name, put the real node name
-	if hz.Spec.Scheduling.NodeSelector != nil {
-		hz.Spec.Scheduling.NodeSelector = map[string]string{"kubernetes.io/hostname": n}
-	}
-	return hz
-}
-
 func waitForReadyChannel(readyChan chan struct{}, dur Duration) error {
 	timer := NewTimer(dur)
 	for {
@@ -471,7 +462,7 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 				return ""
 			}
 			return checkMap.Status.State
-		}, 20*Second, interval).Should(Equal(st))
+		}, 40*Second, interval).Should(Equal(st))
 	})
 	return checkMap
 }
@@ -526,15 +517,20 @@ func portForwardPod(sName, sNamespace, port string) chan struct{} {
 	return stopChan
 }
 
-func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
+func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
 	clientWithConfig := &hzClient.Client{}
 	By(fmt.Sprintf("creating Hazelcast client using address '%s'", "localhost:"+localPort), func() {
 		c := hzClient.Config{}
 		cc := &c.Cluster
+		cc.Unisocket = true
 		cc.Name = h.Spec.ClusterName
 		cc.Network.SetAddresses("localhost:" + localPort)
-		clientWithConfig, _ = hzClient.StartNewClientWithConfig(ctx, c)
+		Eventually(func() (err error) {
+			clientWithConfig, err = hzClient.StartNewClientWithConfig(ctx, c)
+			return err
+		}, 3*Minute, interval).Should(BeNil())
 	})
+
 	return clientWithConfig
 }
 
@@ -553,13 +549,39 @@ func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcas
 			if err != nil {
 				return ""
 			}
-			if checkHz.Status.Restore == nil {
+			if checkHz.Status.Restore == (hazelcastcomv1alpha1.RestoreStatus{}) {
 				return ""
 			}
 			return checkHz.Status.Restore.State
-		}, 20*Second, interval).Should(Equal(st))
+		}, 40*Second, interval).Should(Equal(st))
 	})
 	return checkHz
+}
+
+func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, caches ...string) *config.HazelcastWrapper {
+	cm := &corev1.ConfigMap{}
+	returnConfig := &config.HazelcastWrapper{}
+	Eventually(func() []string {
+		hzConfig := &config.HazelcastWrapper{}
+		err := k8sClient.Get(context.Background(), types.NamespacedName{
+			Name:      hazelcast.Name,
+			Namespace: hazelcast.Namespace,
+		}, cm)
+		if err != nil {
+			return nil
+		}
+		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		if err != nil {
+			return nil
+		}
+		keys := make([]string, 0, len(hzConfig.Hazelcast.Cache))
+		for k := range hzConfig.Hazelcast.Cache {
+			keys = append(keys, k)
+		}
+		returnConfig = hzConfig
+		return keys
+	}, 20*Second, interval).Should(ConsistOf(caches))
+	return returnConfig
 }
 
 func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps ...string) *config.HazelcastWrapper {
@@ -727,24 +749,17 @@ func getQueueConfigFromMemberConfig(memberConfigXML string, queueName string) *c
 	return nil
 }
 
-func DnsLookup(ctx context.Context, host string) (string, error) {
-	r := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			d := net.Dialer{
-				Timeout: 10 * Second,
-			}
-			return d.DialContext(ctx, network, address)
-		},
-	}
-	IPs, err := r.LookupHost(ctx, host)
+func DnsLookupAddressMatched(ctx context.Context, host, addr string) (bool, error) {
+	IPs, err := net.DefaultResolver.LookupHost(ctx, host)
 	if err != nil {
-		return "", err
+		return false, err
 	}
-	if len(IPs) == 0 {
-		return "", fmt.Errorf("host '%s' cannot be resolved", host)
+	for _, IP := range IPs {
+		if IP == addr {
+			return true, nil
+		}
 	}
-	return IPs[0], nil
+	return false, nil
 }
 
 func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *codecTypes.CacheConfigInput {
@@ -757,4 +772,38 @@ func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *c
 		}
 	}
 	return nil
+}
+
+func unixMilli(msec int64) Time {
+	return Unix(msec/1e3, (msec%1e3)*1e6)
+}
+
+func assertCorrectBackupStatus(hotBackup *hazelcastcomv1alpha1.HotBackup, seq string) {
+	if hotBackup.Spec.IsExternal() {
+		timestamp, _ := strconv.ParseInt(seq, 10, 64)
+		bucketURI := hotBackup.Spec.BucketURI + fmt.Sprintf("?prefix=%s/%s/", hzLookupKey.Name,
+			unixMilli(timestamp).UTC().Format("2006-01-02-15-04-05")) // hazelcast/2022-06-02-21-57-49/
+
+		backupBucketURI := hotBackup.Status.GetBucketURI()
+		Expect(bucketURI).Should(Equal(backupBucketURI))
+		return
+	}
+
+	// if local backup
+	backupSeqFolder := hotBackup.Status.GetBackupFolder()
+	Expect("backup-" + seq).Should(Equal(backupSeqFolder))
+}
+
+func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bool) hazelcastcomv1alpha1.RestoreConfiguration {
+	if useBucketConfig {
+		return hazelcastcomv1alpha1.RestoreConfiguration{
+			BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
+				BucketURI: hotBackup.Status.GetBucketURI(),
+				Secret:    hotBackup.Spec.Secret,
+			},
+		}
+	}
+	return hazelcastcomv1alpha1.RestoreConfiguration{
+		HotBackupResourceName: hotBackup.Name,
+	}
 }

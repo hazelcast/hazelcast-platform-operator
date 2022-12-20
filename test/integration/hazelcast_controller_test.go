@@ -542,7 +542,7 @@ var _ = Describe("Hazelcast controller", func() {
 		When("NodeSelector is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
 						"node.selector": "1",
 					},
@@ -565,7 +565,7 @@ var _ = Describe("Hazelcast controller", func() {
 		When("Affinity is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -618,7 +618,7 @@ var _ = Describe("Hazelcast controller", func() {
 		When("Toleration is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      "node.zone",
@@ -809,10 +809,10 @@ var _ = Describe("Hazelcast controller", func() {
 				By("checking the CR values with default ones")
 				Expect(ms.Name).To(Equal(""))
 				Expect(*ms.BackupCount).To(Equal(n.DefaultMapBackupCount))
-				Expect(*ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
-				Expect(*ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
+				Expect(ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
+				Expect(ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
 				Expect(ms.Eviction.EvictionPolicy).To(Equal(hazelcastv1alpha1.EvictionPolicyType(n.DefaultMapEvictionPolicy)))
-				Expect(*ms.Eviction.MaxSize).To(Equal(n.DefaultMapMaxSize))
+				Expect(ms.Eviction.MaxSize).To(Equal(n.DefaultMapMaxSize))
 				Expect(ms.Eviction.MaxSizePolicy).To(Equal(hazelcastv1alpha1.MaxSizePolicyType(n.DefaultMapMaxSizePolicy)))
 				Expect(ms.Indexes).To(BeNil())
 				Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
@@ -827,7 +827,7 @@ var _ = Describe("Hazelcast controller", func() {
 		When("Resources are used", func() {
 			It("should be set to Container spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.Resources = &corev1.ResourceRequirements{
+				spec.Resources = corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("500m"),
 						corev1.ResourceMemory: resource.MustParse("10Gi"),
@@ -906,8 +906,6 @@ var _ = Describe("Hazelcast controller", func() {
 			ImagePullSecrets: nil,
 			ExposeExternally: nil,
 			LicenseKeySecret: "key-secret",
-			Scheduling:       nil,
-			Resources:        nil,
 		}
 		secondSpec := hazelcastv1alpha1.HazelcastSpec{
 			ClusterSize:     pointer.Int32(3),
@@ -922,7 +920,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Type: hazelcastv1alpha1.ExposeExternallyTypeSmart,
 			},
 			LicenseKeySecret: "",
-			Scheduling: &hazelcastv1alpha1.SchedulingConfiguration{
+			Scheduling: hazelcastv1alpha1.SchedulingConfiguration{
 				Affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -937,7 +935,7 @@ var _ = Describe("Hazelcast controller", func() {
 					},
 				},
 			},
-			Resources: &corev1.ResourceRequirements{
+			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceCPU:    resource.MustParse("250m"),
 					corev1.ResourceMemory: resource.MustParse("5Gi"),
@@ -996,7 +994,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(ss.Spec.Template.Spec.TopologySpreadConstraints).To(Equal(secondSpec.Scheduling.TopologySpreadConstraints))
 
 				By("Checking if StatefulSet Resources is updated")
-				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
+				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(secondSpec.Resources))
 
 				Delete(hz)
 			})
@@ -1013,7 +1011,7 @@ var _ = Describe("Hazelcast controller", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
+						UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
 							ConfigMaps:      cms,
 							TriggerSequence: ts,
 						},
@@ -1259,7 +1257,7 @@ var _ = Describe("Hazelcast controller", func() {
 				By("checking the CR values with default ones")
 				Expect(rms.Name).To(Equal(""))
 				Expect(string(rms.InMemoryFormat)).To(Equal(n.DefaultReplicatedMapInMemoryFormat))
-				Expect(rms.AsyncFillup).To(Equal(n.DefaultReplicatedMapAsyncFillup))
+				Expect(*rms.AsyncFillup).To(Equal(n.DefaultReplicatedMapAsyncFillup))
 				Expect(rms.HazelcastResourceName).To(Equal("hazelcast"))
 			})
 		})
@@ -1309,10 +1307,10 @@ var _ = Describe("Hazelcast controller", func() {
 				By("checking the CR values with default ones")
 				Expect(qs.Name).To(Equal(""))
 				Expect(*qs.BackupCount).To(Equal(n.DefaultQueueBackupCount))
-				Expect(*qs.AsyncBackupCount).To(Equal(n.DefaultQueueAsyncBackupCount))
+				Expect(qs.AsyncBackupCount).To(Equal(n.DefaultQueueAsyncBackupCount))
 				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
 				Expect(*qs.EmptyQueueTtlSeconds).To(Equal(n.DefaultQueueEmptyQueueTtl))
-				Expect(*qs.MaxSize).To(Equal(n.DefaultMapMaxSize))
+				Expect(qs.MaxSize).To(Equal(n.DefaultMapMaxSize))
 				Expect(qs.PriorityComparatorClassName).To(Equal(""))
 			})
 		})
@@ -1345,7 +1343,7 @@ var _ = Describe("Hazelcast controller", func() {
 				By("checking the CR values with default ones")
 				Expect(qs.Name).To(Equal(""))
 				Expect(*qs.BackupCount).To(Equal(n.DefaultCacheBackupCount))
-				Expect(*qs.AsyncBackupCount).To(Equal(n.DefaultCacheAsyncBackupCount))
+				Expect(qs.AsyncBackupCount).To(Equal(n.DefaultCacheAsyncBackupCount))
 				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
 				Expect(qs.KeyType).To(Equal(""))
 				Expect(qs.ValueType).To(Equal(""))

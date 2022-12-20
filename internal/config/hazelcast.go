@@ -81,7 +81,7 @@ type Map struct {
 	InMemoryFormat          string                             `yaml:"in-memory-format"`
 	StatisticsEnabled       bool                               `yaml:"statistics-enabled"`
 	Indexes                 []MapIndex                         `yaml:"indexes,omitempty"`
-	HotRestart              MapHotRestart                      `yaml:"hot-restart,omitempty"`
+	DataPersistence         DataPersistence                    `yaml:"data-persistence,omitempty"`
 	WanReplicationReference map[string]WanReplicationReference `yaml:"wan-replication-ref,omitempty"`
 	MapStoreConfig          MapStoreConfig                     `yaml:"map-store,omitempty"`
 	EntryListeners          []EntryListener                    `yaml:"entry-listeners,omitempty"`
@@ -111,7 +111,7 @@ type BitmapIndexOptions struct {
 	UniqueKeyTransformation string `yaml:"unique-key-transformation"`
 }
 
-type MapHotRestart struct {
+type DataPersistence struct {
 	Enabled bool `yaml:"enabled"`
 	Fsync   bool `yaml:"fsync"`
 }
@@ -158,7 +158,7 @@ type Topic struct {
 }
 
 type UserCodeDeployment struct {
-	Enabled           bool   `yaml:"enabled,omitempty"`
+	Enabled           *bool  `yaml:"enabled,omitempty"`
 	ClassCacheMode    string `yaml:"class-cache-mode,omitempty"`
 	ProviderMode      string `yaml:"provider-mode,omitempty"`
 	BlacklistPrefixes string `yaml:"blacklist-prefixes,omitempty"`
@@ -186,16 +186,17 @@ type Queue struct {
 }
 
 type Cache struct {
-	BackupCount       int32       `yaml:"backup-count"`
-	AsyncBackupCount  int32       `yaml:"async-backup-count"`
-	StatisticsEnabled bool        `yaml:"statistics-enabled"`
-	ManagementEnabled bool        `yaml:"management-enabled"`
-	ReadThrough       bool        `yaml:"read-through"`
-	WriteThrough      bool        `yaml:"write-through"`
-	MergePolicy       MergePolicy `yaml:"merge-policy"`
-	KeyType           ClassType   `yaml:"key-type,omitempty"`
-	ValueType         ClassType   `yaml:"value-type,omitempty"`
-	InMemoryFormat    string      `yaml:"in-memory-format"`
+	BackupCount       int32           `yaml:"backup-count"`
+	AsyncBackupCount  int32           `yaml:"async-backup-count"`
+	StatisticsEnabled bool            `yaml:"statistics-enabled"`
+	ManagementEnabled bool            `yaml:"management-enabled"`
+	ReadThrough       bool            `yaml:"read-through"`
+	WriteThrough      bool            `yaml:"write-through"`
+	MergePolicy       MergePolicy     `yaml:"merge-policy"`
+	KeyType           ClassType       `yaml:"key-type,omitempty"`
+	ValueType         ClassType       `yaml:"value-type,omitempty"`
+	InMemoryFormat    string          `yaml:"in-memory-format"`
+	DataPersistence   DataPersistence `yaml:"data-persistence,omitempty"`
 }
 
 type ClassType struct {

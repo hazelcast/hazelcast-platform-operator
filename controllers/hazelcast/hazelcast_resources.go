@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -58,7 +57,10 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	}
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	r.statusServiceRegistry.Delete(lk)
-	r.clientRegistry.Delete(ctx, lk)
+
+	if err := r.clientRegistry.Delete(ctx, lk); err != nil {
+		return fmt.Errorf("Hazelcast client could not be deleted:  %w", err)
+	}
 
 	controllerutil.RemoveFinalizer(h, n.Finalizer)
 	err := r.Update(ctx, h)
@@ -320,15 +322,6 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 			Selector: labels(h),
 			Ports:    hazelcastPort(),
 		},
-	}
-
-	if h.ExternalAddressEnabled() && !h.Spec.ExposeExternally.IsSmart() {
-		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
-			Name:       "hazelcast-port-ex",
-			Protocol:   corev1.ProtocolTCP,
-			Port:       5702,
-			TargetPort: intstr.FromInt(5702),
-		})
 	}
 
 	if serviceType(h) == corev1.ServiceTypeClusterIP {
@@ -609,6 +602,9 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				},
 			},
 		},
+		UserCodeDeployment: config.UserCodeDeployment{
+			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
+		},
 	}
 
 	if h.Spec.JetEngineConfiguration.IsConfigured() {
@@ -618,17 +614,11 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
-	if h.Spec.UserCodeDeployment != nil {
-		cfg.UserCodeDeployment = config.UserCodeDeployment{
-			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
-		}
-	}
-
 	if h.Spec.ExposeExternally.UsesNodeName() {
 		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
 	}
 
-	if h.Spec.ExposeExternally.IsSmart() {
+	if h.Spec.ExposeExternally.IsEnabled() {
 		cfg.Network.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
 		cfg.Network.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
 	}
@@ -671,7 +661,7 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 func filterProperties(p map[string]string) map[string]string {
 	filteredProperties := map[string]string{}
 	for propertyKey, value := range p {
-		if _, ok := validation.BlackListProperties[propertyKey]; !ok {
+		if _, ok := hazelcastv1alpha1.BlackListProperties[propertyKey]; !ok {
 			filteredProperties[propertyKey] = value
 		}
 	}
@@ -816,18 +806,18 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 	ms := m.Spec
 	mc := config.Map{
 		BackupCount:       *ms.BackupCount,
-		AsyncBackupCount:  *ms.AsyncBackupCount,
-		TimeToLiveSeconds: *ms.TimeToLiveSeconds,
+		AsyncBackupCount:  ms.AsyncBackupCount,
+		TimeToLiveSeconds: ms.TimeToLiveSeconds,
 		ReadBackupData:    false,
 		Eviction: config.MapEviction{
-			Size:           *ms.Eviction.MaxSize,
+			Size:           ms.Eviction.MaxSize,
 			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
 			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
 		},
 		InMemoryFormat:    string(ms.InMemoryFormat),
 		Indexes:           copyMapIndexes(ms.Indexes),
 		StatisticsEnabled: true,
-		HotRestart: config.MapHotRestart{
+		DataPersistence: config.DataPersistence{
 			Enabled: ms.PersistenceEnabled,
 			Fsync:   false,
 		},
@@ -928,7 +918,7 @@ func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
 	mms := mm.Spec
 	return config.MultiMap{
 		BackupCount:       *mms.BackupCount,
-		AsyncBackupCount:  *mms.AsyncBackupCount,
+		AsyncBackupCount:  mms.AsyncBackupCount,
 		Binary:            mms.Binary,
 		CollectionType:    string(mms.CollectionType),
 		StatisticsEnabled: n.DefaultMultiMapStatisticsEnabled,
@@ -943,9 +933,9 @@ func createQueueConfig(q *hazelcastv1alpha1.Queue) config.Queue {
 	qs := q.Spec
 	return config.Queue{
 		BackupCount:             *qs.BackupCount,
-		AsyncBackupCount:        *qs.AsyncBackupCount,
+		AsyncBackupCount:        qs.AsyncBackupCount,
 		EmptyQueueTtl:           *qs.EmptyQueueTtlSeconds,
-		MaxSize:                 *qs.MaxSize,
+		MaxSize:                 qs.MaxSize,
 		StatisticsEnabled:       n.DefaultQueueStatisticsEnabled,
 		PriorityComparatorClass: qs.PriorityComparatorClassName,
 		MergePolicy: config.MergePolicy{
@@ -959,7 +949,7 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 	cs := c.Spec
 	cache := config.Cache{
 		BackupCount:       *cs.BackupCount,
-		AsyncBackupCount:  *cs.AsyncBackupCount,
+		AsyncBackupCount:  cs.AsyncBackupCount,
 		StatisticsEnabled: n.DefaultCacheStatisticsEnabled,
 		ManagementEnabled: n.DefaultCacheManagementEnabled,
 		ReadThrough:       n.DefaultCacheReadThrough,
@@ -968,6 +958,10 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 		MergePolicy: config.MergePolicy{
 			ClassName: n.DefaultCacheMergePolicy,
 			BatchSize: n.DefaultCacheMergeBatchSize,
+		},
+		DataPersistence: config.DataPersistence{
+			Enabled: cs.PersistenceEnabled,
+			Fsync:   false,
 		},
 	}
 	if cs.KeyType != "" {
@@ -980,6 +974,7 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 			ClassName: cs.ValueType,
 		}
 	}
+
 	return cache
 }
 
@@ -996,7 +991,7 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 	rms := rm.Spec
 	return config.ReplicatedMap{
 		InMemoryFormat:    string(rms.InMemoryFormat),
-		AsyncFillup:       rms.AsyncFillup,
+		AsyncFillup:       *rms.AsyncFillup,
 		StatisticsEnabled: n.DefaultReplicatedMapStatisticsEnabled,
 		MergePolicy: config.MergePolicy{
 			ClassName: n.DefaultReplicatedMapMergePolicy,
@@ -1091,24 +1086,12 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
+		sts.Spec.Template.Spec.Containers[0].Resources = h.Spec.Resources
 
-		if h.Spec.Scheduling != nil {
-			sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
-			sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
-			sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
-			sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
-		} else {
-			sts.Spec.Template.Spec.Affinity = nil
-			sts.Spec.Template.Spec.Tolerations = nil
-			sts.Spec.Template.Spec.NodeSelector = nil
-			sts.Spec.Template.Spec.TopologySpreadConstraints = nil
-		}
-
-		if h.Spec.Resources != nil {
-			sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
-		} else {
-			sts.Spec.Template.Spec.Containers[0].Resources = v1.ResourceRequirements{}
-		}
+		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
+		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
+		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
+		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
 
 		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client)
 		if err != nil {
@@ -1246,27 +1229,34 @@ func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContex
 
 func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
 	var containers []corev1.Container
-	if h.Spec.Persistence.IsRestoreEnabled() {
-		if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
-			cont, err := getRestoreFromHotBackupResource(ctx, cl, h,
-				types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName})
-			if err != nil {
-				return nil, err
-			}
-			containers = append(containers, cont)
 
-		} else {
-			containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
-				h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
-		}
-	}
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
 		containers = append(containers, ucdAgentContainer(h))
 	}
+
+	if !h.Spec.Persistence.IsRestoreEnabled() {
+		return containers, nil
+	}
+
+	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
+		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
+			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName})
+		if err != nil {
+			return nil, err
+		}
+		containers = append(containers, cont)
+
+		return containers, nil
+	}
+
+	// restoring from bucket config
+	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
+		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
+
 	return containers, nil
 }
 
-func getRestoreFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
+func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := cl.Get(ctx, key, hb)
 	if err != nil {
@@ -1286,11 +1276,17 @@ func getRestoreFromHotBackupResource(ctx context.Context, cl client.Client, h *h
 }
 
 func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
+	commandName := "restore_pvc"
+
+	if h.Spec.Persistence.UseHostPath() {
+		commandName = "restore_hostpath"
+	}
+
 	return v1.Container{
 		Name:            n.RestoreAgent,
 		Image:           h.AgentDockerImage(),
 		ImagePullPolicy: corev1.PullIfNotPresent,
-		Args:            []string{"restore"},
+		Args:            []string{commandName},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_SECRET_NAME",
@@ -1329,11 +1325,17 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 }
 
 func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
+	commandName := "restore_pvc_local"
+
+	if h.Spec.Persistence.UseHostPath() {
+		commandName = "restore_hostpath_local"
+	}
+
 	return v1.Container{
 		Name:            n.RestoreLocalAgent,
 		Image:           h.AgentDockerImage(),
 		ImagePullPolicy: corev1.PullIfNotPresent,
-		Args:            []string{"restore_local"},
+		Args:            []string{commandName},
 		Env: []v1.EnvVar{
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
@@ -1511,7 +1513,7 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 	if !h.Spec.Persistence.IsEnabled() || !h.Spec.Persistence.AutoForceStart {
 		return nil
 	}
-	logger.Info("Persistence and AutoForceStart are enabled. Checking for the cluster HotRestart.")
+	logger.Info("Persistence and AutoForceStart are enabled. Checking for the cluster DataPersistence.")
 	for _, member := range h.Status.Members {
 		if !member.Ready && member.Reason == "CrashLoopBackOff" {
 			logger.Info("Member is crashing with CrashLoopBackOff.",
@@ -1531,8 +1533,8 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 		return nil
 	}
 
-	// make sure restore was successfull
-	if h.Status.Restore == nil {
+	// make sure restore was successful
+	if h.Status.Restore == (hazelcastv1alpha1.RestoreStatus{}) {
 		return nil
 	}
 

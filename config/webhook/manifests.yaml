@@ -11,6 +11,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-hazelcast-com-v1alpha1-cache
+  failurePolicy: Fail
+  name: vcache.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - caches
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-hazelcast-com-v1alpha1-cronhotbackup
   failurePolicy: Ignore
   name: vcronhotbackup.kb.io
@@ -144,6 +164,26 @@ webhooks:
     - UPDATE
     resources:
     - queues
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-hazelcast-com-v1alpha1-replicatedmap
+  failurePolicy: Fail
+  name: vreplicatedmap.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - replicatedmaps
   sideEffects: None
 - admissionReviewVersions:
   - v1

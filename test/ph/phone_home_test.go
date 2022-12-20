@@ -76,7 +76,7 @@ var _ = Describe("Hazelcast", func() {
 				}
 				CreateHazelcastCR(cfg)
 				hzCreationTime := time.Now().UTC().Truncate(time.Hour)
-				evaluateReadyMembers(hzLookupKey, 3)
+				evaluateReadyMembers(hzLookupKey)
 				assertAnnotationExists(cfg)
 				time.Sleep(35 * time.Second)
 

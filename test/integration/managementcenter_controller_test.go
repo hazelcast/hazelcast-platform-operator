@@ -92,13 +92,13 @@ var _ = Describe("ManagementCenter controller", func() {
 
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(BeNil())
 
-			expectedExternalConnectivity := &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+			expectedExternalConnectivity := hazelcastv1alpha1.ExternalConnectivityConfiguration{
 				Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 			}
 			Expect(fetchedCR.Spec.ExternalConnectivity).Should(Equal(expectedExternalConnectivity))
 
-			expectedPersistence := &hazelcastv1alpha1.PersistenceConfiguration{
-				Enabled: true,
+			expectedPersistence := hazelcastv1alpha1.PersistenceConfiguration{
+				Enabled: pointer.Bool(true),
 				Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 			}
 			Expect(fetchedCR.Spec.Persistence).Should(Equal(expectedPersistence))
@@ -166,8 +166,8 @@ var _ = Describe("ManagementCenter controller", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
-						Persistence: &hazelcastv1alpha1.PersistenceConfiguration{
-							Enabled:                 true,
+						Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+							Enabled:                 pointer.Bool(true),
 							ExistingVolumeClaimName: "ClaimName",
 						},
 					},
@@ -222,7 +222,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		When("NodeSelector is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
 						"node.selector": "1",
 					},
@@ -245,7 +245,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		When("Affinity is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -298,7 +298,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		When("Toleration is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      "node.zone",
@@ -326,7 +326,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		When("Resources are used", func() {
 			It("should be set to Container spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Resources = &corev1.ResourceRequirements{
+				spec.Resources = corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("500m"),
 						corev1.ResourceMemory: resource.MustParse("10Gi"),
@@ -371,8 +371,6 @@ var _ = Describe("ManagementCenter controller", func() {
 			ImagePullSecrets:  nil,
 			LicenseKeySecret:  "key-secret",
 			HazelcastClusters: nil,
-			Scheduling:        nil,
-			Resources:         nil,
 		}
 		secondSpec := hazelcastv1alpha1.ManagementCenterSpec{
 			Repository:      "hazelcast/management-center",
@@ -388,7 +386,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				{Name: "dev", Address: "cluster-address"},
 			},
 
-			Scheduling: &hazelcastv1alpha1.SchedulingConfiguration{
+			Scheduling: hazelcastv1alpha1.SchedulingConfiguration{
 				Affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -403,7 +401,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					},
 				},
 			},
-			Resources: &corev1.ResourceRequirements{
+			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceCPU:    resource.MustParse("250m"),
 					corev1.ResourceMemory: resource.MustParse("5Gi"),
@@ -461,7 +459,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				Expect(ss.Spec.Template.Spec.TopologySpreadConstraints).To(Equal(secondSpec.Scheduling.TopologySpreadConstraints))
 
 				By("checking if StatefulSet Resources is updated")
-				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
+				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(secondSpec.Resources))
 
 				Delete(mc)
 			})

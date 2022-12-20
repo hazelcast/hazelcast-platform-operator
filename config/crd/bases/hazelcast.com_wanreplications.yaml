@@ -48,13 +48,17 @@ spec:
             description: WanReplicationSpec defines the desired state of WanReplication
             properties:
               acknowledgement:
+                default:
+                  timeout: 60000
+                  type: ACK_ON_OPERATION_COMPLETE
                 description: Acknowledgement is the configuration for the condition
                   when the next batch of WAN events are sent.
                 properties:
                   timeout:
                     default: 60000
-                    description: Timeout represents the time the source cluster waits
-                      for the acknowledgement. After timeout, the events will be resent.
+                    description: Timeout represents the time in milliseconds the source
+                      cluster waits for the acknowledgement. After timeout, the events
+                      will be resent.
                     format: int32
                     type: integer
                   type:
@@ -67,6 +71,9 @@ spec:
                     type: string
                 type: object
               batch:
+                default:
+                  maximumDelay: 1000
+                  size: 500
                 description: Batch is the configuration for WAN events batch.
                 properties:
                   maximumDelay:
@@ -87,6 +94,9 @@ spec:
                 minLength: 1
                 type: string
               queue:
+                default:
+                  capacity: 10000
+                  fullBehavior: DISCARD_AFTER_MUTATION
                 description: Queue is the configuration for WAN events queue.
                 properties:
                   capacity:
@@ -123,7 +133,6 @@ spec:
                       minLength: 1
                       type: string
                   required:
-                  - kind
                   - name
                   type: object
                 minItems: 1
@@ -163,6 +172,8 @@ spec:
                   type: object
                 type: object
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

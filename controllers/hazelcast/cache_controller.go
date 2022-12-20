@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/hazelcast/hazelcast-go-client"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -16,6 +18,7 @@ import (
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // CacheReconciler reconciles a Cache object
@@ -44,8 +47,8 @@ func NewCacheReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht
 func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-cache", req.NamespacedName)
 
-	q := &hazelcastv1alpha1.Cache{}
-	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, q, r.Update, r.clientRegistry, logger)
+	c := &hazelcastv1alpha1.Cache{}
+	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, c, r.Update, r.clientRegistry, logger)
 	if cl == nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -53,29 +56,48 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return res, nil
 	}
 
-	ms, err := r.ReconcileCacheConfig(ctx, q, cl, logger)
+	err = r.validateCachePersistence(ctx, req, c)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, q, dsPendingStatus(retryAfterForDataStructures).
+		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).
+			withMessage(err.Error()))
+	}
+
+	ms, err := r.ReconcileCacheConfig(ctx, c, cl, logger)
+	if err != nil {
+		return updateDSStatus(ctx, r.Client, c, dsPendingStatus(retryAfterForDataStructures).
 			withError(err).
 			withMessage(err.Error()).
 			withMemberStatuses(ms))
 	}
 
-	requeue, err := updateDSStatus(ctx, r.Client, q, dsPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
+	requeue, err := updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
 	if err != nil {
 		return requeue, err
 	}
 
-	persisted, err := r.validateCacheConfigPersistence(ctx, q)
+	persisted, err := r.validateCacheConfigPersistence(ctx, c)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, q, dsFailedStatus(err).withMessage(err.Error()))
+		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
 	}
 
 	if !persisted {
-		return updateDSStatus(ctx, r.Client, q, dsPersistingStatus(1*time.Second).withMessage("Waiting for Cache Config to be persisted."))
+		return updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Waiting for Cache Config to be persisted."))
 	}
 
-	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, q, logger)
+	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, c, logger)
+}
+
+func (r *CacheReconciler) validateCachePersistence(ctx context.Context, req ctrl.Request, c *hazelcastv1alpha1.Cache) error {
+	h := &hazelcastv1alpha1.Hazelcast{}
+	err := r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: c.Spec.HazelcastResourceName}, h)
+	if err != nil {
+		return fmt.Errorf("could not create/update Cache config: Hazelcast resource not found: %w", err)
+	}
+	err = util.ValidatePersistence(c.Spec.PersistenceEnabled, h)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *CacheReconciler) ReconcileCacheConfig(
@@ -98,16 +120,10 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 	cacheInput.Name = c.GetDSName()
 	cs := c.Spec
 	cacheInput.BackupCount = *cs.BackupCount
-	cacheInput.AsyncBackupCount = *cs.AsyncBackupCount
+	cacheInput.AsyncBackupCount = cs.AsyncBackupCount
 	cacheInput.KeyType = cs.KeyType
 	cacheInput.ValueType = cs.ValueType
-
-	//default values
-	cacheInput.EvictionConfig = codecTypes.EvictionConfigHolder{
-		Size:           10000,
-		MaxSizePolicy:  "ENTRY_COUNT",
-		EvictionPolicy: "LRU",
-	}
+	cacheInput.HotRestartConfig.Enabled = cs.PersistenceEnabled
 }
 
 func (r *CacheReconciler) validateCacheConfigPersistence(ctx context.Context, c *hazelcastv1alpha1.Cache) (bool, error) {

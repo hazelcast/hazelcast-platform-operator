@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -46,10 +47,13 @@ type MultiMapStatus struct {
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current MultiMap Config"
 // +kubebuilder:resource:shortName=mmap
 type MultiMap struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MultiMapSpec   `json:"spec,omitempty"`
+	// +required
+	Spec MultiMapSpec `json:"spec"`
+	// +optional
 	Status MultiMapStatus `json:"status,omitempty"`
 }
 
@@ -108,8 +112,8 @@ type MultiMapList struct {
 
 func (mml *MultiMapList) GetItems() []client.Object {
 	l := make([]client.Object, 0, len(mml.Items))
-	for _, item := range mml.Items {
-		l = append(l, &item)
+	for i := range mml.Items {
+		l = append(l, &mml.Items[i])
 	}
 	return l
 }

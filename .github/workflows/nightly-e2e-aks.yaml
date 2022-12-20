@@ -25,7 +25,7 @@ jobs:
         with:
           azcliversion: 2.31.0
           inlineScript: |
-            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
             echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
             az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" \
               --node-count 3 --generate-ssh-keys
@@ -115,7 +115,9 @@ jobs:
       - name: Cache Golang dependencies
         uses: actions/cache@v3
         with:
-          path: ~/go/pkg/mod
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
@@ -127,7 +129,7 @@ jobs:
 
       - name: Update kubeconfig
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
 
       - name: Deploy Operator to EKS
@@ -183,7 +185,7 @@ jobs:
 
   report-generation:
     needs: ["prepare-env", "aks-e2e-tests"]
-    if: always() && needs.aks-e2e-tests.result != 'cancelled'
+    if: always() && (needs.aks-e2e-tests.result == 'success' || needs.aks-e2e-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
@@ -205,7 +207,7 @@ jobs:
         with:
           azcliversion: 2.31.0
           inlineScript: |
-            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
             az aks delete --name "${CLUSTER_NAME}" --resource-group "${AZURE_RESOURCE_GROUP}" -y
 
   slack_notify:

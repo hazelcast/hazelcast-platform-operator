@@ -34,7 +34,6 @@ function get_linters {
     echo "golangci-lint is installed, skipping..."
   else
     echo "installing golangci-lint..."
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
-      | sh -s -- -b "${lintbin}/bin" v1.45.2 &> /dev/null
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "${lintbin}/bin" v1.50.1
   fi
 }

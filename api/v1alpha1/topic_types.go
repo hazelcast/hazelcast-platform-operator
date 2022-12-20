@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -28,6 +29,7 @@ type TopicSpec struct {
 	// HazelcastResourceName defines the name of the Hazelcast resource for which
 	// topic config will be created
 	// +kubebuilder:validation:MinLength:=1
+	// +required
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 }
 
@@ -43,10 +45,13 @@ type TopicStatus struct {
 
 // Topic is the Schema for the topics API
 type Topic struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   TopicSpec   `json:"spec"`
+	// +required
+	Spec TopicSpec `json:"spec"`
+	// +optional
 	Status TopicStatus `json:"status,omitempty"`
 }
 
@@ -105,8 +110,8 @@ type TopicList struct {
 
 func (tl *TopicList) GetItems() []client.Object {
 	l := make([]client.Object, 0, len(tl.Items))
-	for _, item := range tl.Items {
-		l = append(l, &item)
+	for i := range tl.Items {
+		l = append(l, &tl.Items[i])
 	}
 	return l
 }

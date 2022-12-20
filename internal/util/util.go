@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -81,6 +82,28 @@ func AddFinalizer(ctx context.Context, c client.Client, object client.Object, lo
 		}
 		logger.V(DebugLevel).Info("Finalizer added into custom resource successfully")
 	}
+	return nil
+}
+
+func ValidatePersistence(persistenceEnabled bool, h *hazelcastv1alpha1.Hazelcast) error {
+	if !persistenceEnabled {
+		return nil
+	}
+	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
+	}
+
+	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
+	err := json.Unmarshal([]byte(s), lastSpec)
+	if err != nil {
+		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
+	}
+
+	if !lastSpec.Persistence.IsEnabled() {
+		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
+	}
+
 	return nil
 }
 
@@ -278,49 +301,6 @@ func getLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
 		return lb.Hostname
 	}
 	return ""
-}
-
-func IndexConfigSliceEquals(a, b []hazelcastv1alpha1.IndexConfig) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if !indexConfigEquals(v, b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func indexConfigEquals(a, b hazelcastv1alpha1.IndexConfig) bool {
-	if a.Name != b.Name {
-		return false
-	}
-
-	if a.Type != b.Type {
-		return false
-	}
-
-	if !stringSliceEquals(a.Attributes, b.Attributes) {
-		return false
-	}
-
-	if a.BitmapIndexOptions != b.BitmapIndexOptions {
-		return false
-	}
-	return true
-}
-
-func stringSliceEquals(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func DeleteObject(ctx context.Context, c client.Client, obj client.Object) error {

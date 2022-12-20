@@ -40,7 +40,7 @@ type CacheConfigInput struct {
 // Default values are explicitly written for all fields that are not nullable
 // even though most are the same with the default values in Go.
 func DefaultCacheConfigInput() *CacheConfigInput {
-	return &CacheConfigInput{
+	cacheInput := &CacheConfigInput{
 		BackupCount:                       n.DefaultCacheBackupCount,
 		AsyncBackupCount:                  n.DefaultCacheAsyncBackupCount,
 		StatisticsEnabled:                 n.DefaultCacheStatisticsEnabled,
@@ -52,4 +52,11 @@ func DefaultCacheConfigInput() *CacheConfigInput {
 		DisablePerEntryInvalidationEvents: n.DefaultCacheDisablePerEntryInvalidationEvents,
 		InMemoryFormat:                    InMemoryFormatBinary,
 	}
+	//default values
+	cacheInput.EvictionConfig = EvictionConfigHolder{
+		Size:           10000,
+		MaxSizePolicy:  "ENTRY_COUNT",
+		EvictionPolicy: "LRU",
+	}
+	return cacheInput
 }
