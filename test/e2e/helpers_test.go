@@ -462,7 +462,7 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 				return ""
 			}
 			return checkMap.Status.State
-		}, 20*Second, interval).Should(Equal(st))
+		}, 40*Second, interval).Should(Equal(st))
 	})
 	return checkMap
 }
@@ -553,7 +553,7 @@ func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcas
 				return ""
 			}
 			return checkHz.Status.Restore.State
-		}, 20*Second, interval).Should(Equal(st))
+		}, 40*Second, interval).Should(Equal(st))
 	})
 	return checkHz
 }

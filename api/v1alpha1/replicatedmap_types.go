@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -103,8 +104,8 @@ type ReplicatedMapList struct {
 
 func (rml *ReplicatedMapList) GetItems() []client.Object {
 	l := make([]client.Object, 0, len(rml.Items))
-	for _, item := range rml.Items {
-		l = append(l, client.Object(&item))
+	for i := range rml.Items {
+		l = append(l, client.Object(&rml.Items[i]))
 	}
 	return l
 }

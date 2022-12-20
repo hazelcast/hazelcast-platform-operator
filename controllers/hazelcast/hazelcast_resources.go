@@ -321,15 +321,6 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		},
 	}
 
-	if h.ExternalAddressEnabled() && !h.Spec.ExposeExternally.IsSmart() {
-		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
-			Name:       "hazelcast-port-ex",
-			Protocol:   corev1.ProtocolTCP,
-			Port:       5702,
-			TargetPort: intstr.FromInt(5702),
-		})
-	}
-
 	if serviceType(h) == corev1.ServiceTypeClusterIP {
 		// We want to use headless to be compatible with Hazelcast helm chart
 		service.Spec.ClusterIP = "None"
@@ -627,7 +618,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
 	}
 
-	if h.Spec.ExposeExternally.IsSmart() {
+	if h.Spec.ExposeExternally.IsEnabled() {
 		cfg.Network.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
 		cfg.Network.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
 	}

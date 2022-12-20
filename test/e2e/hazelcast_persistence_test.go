@@ -210,8 +210,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		backupRestore(hazelcast, hotBackup, false)
 	},
-		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode", true),
-		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode", false),
+		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode-local", true),
+		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode-local", false),
 	)
 
 	DescribeTable("Should successfully restore from ExternalBackup-PVC", Label("slow"), func(bucketURI, secretName string, useBucketConfig bool) {
@@ -249,7 +249,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		backupRestore(hazelcast, hotBackup, false)
 	},
-		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode", "gs://operator-e2e-external-backup", "br-secret-gcp", true),
-		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode", "gs://operator-e2e-external-backup", "br-secret-gcp", false),
+		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode-external", "gs://operator-e2e-external-backup", "br-secret-gcp", true),
+		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode-external", "gs://operator-e2e-external-backup", "br-secret-gcp", false),
 	)
 })

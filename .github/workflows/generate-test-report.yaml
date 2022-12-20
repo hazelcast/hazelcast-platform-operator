@@ -76,11 +76,11 @@ jobs:
 
       - name: Update Permission
         run: |
-          sudo chown -R $USER:$USER allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
+          sudo chown -R $USER:$USER allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}
 
       - name: Update Test Files
         run: |-
-          cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/data/test-cases
+          cd allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/data/test-cases
           BEGIN_TIME=$(date +%s000 -d "- 3 hours")
           END_TIME=$(date +%s000 -d "+ 1 hours")
           for i in $(ls); do
@@ -132,19 +132,19 @@ jobs:
 
       - name: Update environment.properties
         run: |-
-          cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/widgets
+          cd allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/widgets
           cat <<< $(jq -e 'del(.[] | select(has("name") and (.name | select(contains("URL")))))' environment.json) > environment.json
 
       - name: Update Summary Report
         run: |-
-          cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/widgets
+          cd allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/widgets
           cat <<< $(jq -e '.reportName="${{ github.workflow }}"' summary.json) > summary.json
 
       - name: Update Hazelcast Logo
         run: |-
-          sed -i "s/>Allure</></g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/app.js
-          sed -i "s/Allure Report/Hazelcast Operator Test Report/g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/index.html
-          mv -f test-report-pages/styles.css allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
+          sed -i "s/>Allure</></g" allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/app.js
+          sed -i "s/Allure Report/Hazelcast Operator Test Report/g" allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/index.html
+          mv -f test-report-pages/styles.css allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}
 
       - name: Update The 'test-report-pages' Branch
         run: |
@@ -164,7 +164,7 @@ jobs:
         if: always()
         run: |
           source .github/scripts/utils.sh
-          cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${GITHUB_RUN_NUMBER} $CLEANUP_TIMEOUT
+          cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
 
       - name: Delete Test Artifact
         uses: geekyeggo/delete-artifact@v2

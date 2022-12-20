@@ -309,6 +309,14 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "CronHotBackup")
 		os.Exit(1)
 	}
+	if err = (&hazelcastcomv1alpha1.Cache{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Cache")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.ReplicatedMap{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ReplicatedMap")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

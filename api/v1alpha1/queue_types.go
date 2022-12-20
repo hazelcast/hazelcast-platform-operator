@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -105,8 +106,8 @@ type QueueList struct {
 
 func (ql *QueueList) GetItems() []client.Object {
 	l := make([]client.Object, 0, len(ql.Items))
-	for _, item := range ql.Items {
-		l = append(l, &item)
+	for i := range ql.Items {
+		l = append(l, &ql.Items[i])
 	}
 	return l
 }
