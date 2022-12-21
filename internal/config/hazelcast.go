@@ -42,7 +42,6 @@ type Persistence struct {
 	BackupDir                 string `yaml:"backup-dir,omitempty"`
 	Parallelism               int32  `yaml:"parallelism"`
 	ValidationTimeoutSec      int32  `yaml:"validation-timeout-seconds"`
-	DataLoadTimeoutSec        int32  `yaml:"data-load-timeout-seconds"`
 	ClusterDataRecoveryPolicy string `yaml:"cluster-data-recovery-policy"`
 	AutoRemoveStaleData       *bool  `yaml:"auto-remove-stale-data"`
 }

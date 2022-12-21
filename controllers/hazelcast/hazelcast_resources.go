@@ -634,13 +634,11 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			BackupDir:                 path.Join(h.Spec.Persistence.BaseDir, "hot-backup"),
 			Parallelism:               1,
 			ValidationTimeoutSec:      120,
-			DataLoadTimeoutSec:        900,
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
 			AutoRemoveStaleData:       &[]bool{h.Spec.Persistence.AutoRemoveStaleData()}[0],
 		}
 		if h.Spec.Persistence.DataRecoveryTimeout != 0 {
 			cfg.Persistence.ValidationTimeoutSec = h.Spec.Persistence.DataRecoveryTimeout
-			cfg.Persistence.DataLoadTimeoutSec = h.Spec.Persistence.DataRecoveryTimeout
 		}
 	}
 	return cfg
