@@ -4618,8 +4618,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: DEVELOPER_MODE_ENABLED
-          value: "true"
         image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: IfNotPresent
         livenessProbe:
@@ -4651,8 +4649,6 @@ spec:
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
-      securityContext:
-        runAsNonRoot: true
       serviceAccountName: hazelcast-platform-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
