@@ -1511,6 +1511,7 @@ func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.Volu
 // the persistence is enabled and if the Hazelcast is not yet running
 func (r *HazelcastReconciler) persistenceStartupAction(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !h.Spec.Persistence.IsEnabled() ||
+		!util.IsEnterprise(h.Spec.Repository) ||
 		h.Spec.Persistence.StartupAction == "" ||
 		h.Status.Phase == hazelcastv1alpha1.Running {
 		return nil
