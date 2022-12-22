@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   decide-run-tests:
-    name: Run E2E tests
+    name: Decide to run tests
     runs-on: ubuntu-22.04
     outputs:
       RUN_TESTS: ${{ steps.should-run-tests.outputs.RUN_TESTS }}
