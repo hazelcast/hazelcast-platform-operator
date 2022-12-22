@@ -467,6 +467,23 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 	return checkMap
 }
 
+func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1alpha1.WanStatus) *hazelcastcomv1alpha1.WanReplication {
+	checkWan := &hazelcastcomv1alpha1.WanReplication{}
+	By("waiting for Wan CR status", func() {
+		Eventually(func() hazelcastcomv1alpha1.WanStatus {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      wr.Name,
+				Namespace: wr.Namespace,
+			}, checkWan)
+			if err != nil {
+				return ""
+			}
+			return checkWan.Status.Status
+		}, 40*Second, interval).Should(Equal(st))
+	})
+	return checkWan
+}
+
 func getMemberConfig(ctx context.Context, client *hzClient.Client) string {
 	ci := hzClient.NewClientInternal(client)
 	req := codec.EncodeMCGetMemberConfigRequest()
