@@ -1,13 +1,26 @@
-name: Nightly E2E tests on GKE
+name: E2E tests on GCP
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * *"
+  workflow_call:
+    secrets:
+      NEW_RELIC_LICENCE_KEY:
+        required: true
+      HZ_LICENSE_KEY:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AZURE_STORAGE_KEY:
+        required: true
+      GKE_SA_KEY:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: true
 
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
-  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
 
 jobs:
   create-gke-cluster:
@@ -59,15 +72,11 @@ jobs:
       - name: Build and push image to ttl.sh
         id: build-img
         run: |
-          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
-            IMG=ttl.sh/$(uuidgen):2h
-            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-            make docker-push IMG=$IMG
-          else
-            IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
-            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-          fi
+          IMG=ttl.sh/$(uuidgen):2h
+          echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+          make docker-push IMG=$IMG
+
 
   gke-e2e-tests:
     name: Run E2E tests
@@ -78,7 +87,7 @@ jobs:
       matrix:
         edition: ["os", "ee"]
     env:
-      NAMESPACE: test-operator-nightly-${{ matrix.edition }}
+      NAMESPACE: test-operator-${{ matrix.edition }}
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
       IMG: ${{ needs.get-image.outputs.IMG }}

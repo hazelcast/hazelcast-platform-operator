@@ -1,11 +1,30 @@
-name: Nightly E2E tests on OCP
+name: E2E tests on OCP
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * *"
+  workflow_call:
+    secrets:
+      NEW_RELIC_LICENCE_KEY:
+        required: true
+      HZ_LICENSE_KEY:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AZURE_STORAGE_KEY:
+        required: true
+      GKE_SA_KEY:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: true
+      OCP_CLUSTER_URL:
+        required: true
+      OCP_USERNAME:
+        required: true
+      OCP_PASSWORD:
+        required: true
 
 env:
-  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
   AWS_REGION: us-east-1
   RESTART_OCP_NODE_TIMEOUT: 15
   OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
@@ -89,7 +108,7 @@ jobs:
     env:
       IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
-      NAMESPACE: oc-e2e-test-operator-nightly-${{ matrix.edition }}-${{ github.run_id }}
+      NAMESPACE: oc-e2e-test-operator-${{ matrix.edition }}-${{ github.run_id }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
     steps:
       - name: Checkout to hazelcast-operator
@@ -112,7 +131,7 @@ jobs:
       - name: Build Image
         if: github.event_name == 'workflow_dispatch'
         run: |
-          IMG=ttl.sh/$(uuidgen):1h
+          IMG=ttl.sh/$(uuidgen):2h
           echo "IMG=${IMG}" >> $GITHUB_ENV
 
           make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
