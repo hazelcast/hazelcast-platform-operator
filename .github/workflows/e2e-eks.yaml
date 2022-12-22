@@ -2,21 +2,7 @@ name: E2E tests on AWS
 on:
   workflow_dispatch:
   workflow_call:
-    secrets:
-      NEW_RELIC_LICENCE_KEY:
-        required: true
-      HZ_LICENSE_KEY:
-        required: true
-      AWS_ACCESS_KEY_ID:
-        required: true
-      AWS_SECRET_ACCESS_KEY:
-        required: true
-      AZURE_STORAGE_KEY:
-        required: true
-      GKE_SA_KEY:
-        required: true
-      SLACK_WEBHOOK_URL:
-        required: true
+
 
 env:
   AWS_REGION: us-east-1
