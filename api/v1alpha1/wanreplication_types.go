@@ -121,9 +121,11 @@ const (
 type WanStatus string
 
 const (
-	WanStatusFailed      WanStatus = "Failed"
-	WanStatusPending     WanStatus = "Pending"
-	WanStatusSuccess     WanStatus = "Success"
+	WanStatusFailed  WanStatus = "Failed"
+	WanStatusPending WanStatus = "Pending"
+	WanStatusSuccess WanStatus = "Success"
+	// The config is added into all members but waiting for the config to be persisted into ConfigMap
+	WanStatusPersisting  WanStatus = "Persisting"
 	WanStatusTerminating WanStatus = "Terminating"
 )
 

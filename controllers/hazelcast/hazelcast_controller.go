@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -354,6 +355,17 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.Cache{}, "hazelcastResourceName", func(rawObj client.Object) []string {
 		m := rawObj.(*hazelcastv1alpha1.Cache)
 		return []string{m.Spec.HazelcastResourceName}
+	}); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.WanReplication{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		wr := rawObj.(*hazelcastv1alpha1.WanReplication)
+		hzResources := []string{}
+		for k := range wr.Status.WanReplicationMapsStatus {
+			hzName := strings.Split(k, "_")[0]
+			hzResources = append(hzResources, hzName)
+		}
+		return hzResources
 	}); err != nil {
 		return err
 	}

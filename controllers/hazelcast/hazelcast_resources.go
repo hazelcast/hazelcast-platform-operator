@@ -531,16 +531,19 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
-	mapList := &hazelcastv1alpha1.MapList{}
-	if err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": h.Name}); err != nil {
+	ml, err := filterPersistedMaps(ctx, c, h.Name)
+	if err != nil {
 		return nil, err
 	}
-
-	ml := filterPersistedMaps(mapList.Items)
-
 	if err := fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml); err != nil {
 		return nil, err
 	}
+
+	wrl, err := filterPersistedWanReplications(ctx, c, h.Name)
+	if err != nil {
+		return nil, err
+	}
+	fillHazelcastConfigWithWanReplications(ctx, c, &cfg, wrl)
 
 	dataStructures := []client.ObjectList{
 		&hazelcastv1alpha1.MultiMapList{},
@@ -618,7 +621,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
 	}
 
-	if h.Spec.ExposeExternally.IsEnabled() {
+	if h.Spec.ExposeExternally.IsSmart() {
 		cfg.Network.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
 		cfg.Network.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
 	}
@@ -666,10 +669,15 @@ func filterProperties(p map[string]string) map[string]string {
 	return filteredProperties
 }
 
-func filterPersistedMaps(ml []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
+func filterPersistedMaps(ctx context.Context, c client.Client, hzName string) ([]hazelcastv1alpha1.Map, error) {
+	mapList := &hazelcastv1alpha1.MapList{}
+	if err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": hzName}); err != nil {
+		return nil, err
+	}
+
 	l := make([]hazelcastv1alpha1.Map, 0)
 
-	for _, mp := range ml {
+	for _, mp := range mapList.Items {
 		switch mp.Status.State {
 		case hazelcastv1alpha1.MapPersisting, hazelcastv1alpha1.MapSuccess:
 			l = append(l, mp)
@@ -686,7 +694,7 @@ func filterPersistedMaps(ml []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
 		default:
 		}
 	}
-	return l
+	return l, nil
 }
 
 func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName string, objList client.ObjectList) ([]client.Object, error) {
@@ -698,6 +706,29 @@ func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName stri
 		if isDSPersisted(obj) {
 			l = append(l, obj)
 		}
+	}
+	return l, nil
+}
+
+func filterPersistedWanReplications(ctx context.Context, c client.Client, hzResourceName string) (map[string]hazelcastv1alpha1.WanReplication, error) {
+	wrList := &hazelcastv1alpha1.WanReplicationList{}
+	if err := c.List(ctx, wrList, client.MatchingFields{"hazelcastResourceName": hzResourceName}); err != nil {
+		return nil, err
+	}
+
+	l := make(map[string]hazelcastv1alpha1.WanReplication, 0)
+	for _, wr := range wrList.Items {
+		for wanKey, mapStatus := range wr.Status.WanReplicationMapsStatus {
+			if s := strings.Split(wanKey, "_"); s[0] != hzResourceName {
+				continue
+			}
+			switch mapStatus.Status {
+			case hazelcastv1alpha1.WanStatusPersisting, hazelcastv1alpha1.WanStatusSuccess:
+				l[wanKey] = wr
+			default: // TODO, might want to do something for the other cases
+			}
+		}
+
 	}
 	return l, nil
 }
@@ -720,6 +751,18 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 		}
 	}
 	return nil
+}
+
+func fillHazelcastConfigWithWanReplications(ctx context.Context, c client.Client, cfg *config.Hazelcast, wrl map[string]hazelcastv1alpha1.WanReplication) {
+	if len(wrl) != 0 {
+		cfg.WanReplication = map[string]config.WanReplicationConfig{}
+		for wanKey, wan := range wrl {
+			mapName := strings.Split(wanKey, "_")[1]
+			mapStatus := wan.Status.WanReplicationMapsStatus[wanKey]
+			wanConfig := createWanReplicationConfig(mapStatus.PublisherId, wan)
+			cfg.WanReplication[hazelcastWanReplicationName(mapName)] = wanConfig
+		}
+	}
 }
 
 func fillHazelcastConfigWithMultiMaps(cfg *config.Hazelcast, mml []client.Object) {
@@ -996,6 +1039,24 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 			BatchSize: n.DefaultReplicatedMapMergeBatchSize,
 		},
 	}
+}
+
+func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanReplication) config.WanReplicationConfig {
+	cfg := config.WanReplicationConfig{
+		BatchPublisher: map[string]config.BatchPublisherConfig{
+			publisherId: {
+				ClusterName:           wr.Spec.Endpoints,
+				TargetEndpoints:       wr.Spec.Endpoints,
+				QueueCapacity:         wr.Spec.Queue.Capacity,
+				QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
+				BatchSize:             wr.Spec.Batch.Size,
+				BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
+				ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
+				AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
+			},
+		},
+	}
+	return cfg
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
