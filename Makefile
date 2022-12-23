@@ -386,7 +386,7 @@ OS_NAME = $(shell uname -s | tr A-Z a-z)
 
 OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
 
-OPERATOR_SDK=${shell pwd}/bin/operator-sdk
+OPERATOR_SDK=${shell pwd}/bin/operator-sdk-$(OPERATOR_SDK_VERSION)
 .PHONY: operator-sdk
 operator-sdk: $(OPERATOR_SDK)
 

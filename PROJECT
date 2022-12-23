@@ -115,8 +115,8 @@ resources:
   path: github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1
   version: v1alpha1
   webhooks:
-  validation: true
-  webhookVersion: v1
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
