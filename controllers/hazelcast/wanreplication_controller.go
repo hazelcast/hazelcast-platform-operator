@@ -270,6 +270,10 @@ func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Conte
 			if err != nil {
 				return nil, err
 			}
+			// If no map is present for the Hazelcast resource
+			if len(maps) == 0 {
+				continue
+			}
 			mapList, ok := HZClientMap[resource.Name]
 			if !ok {
 				HZClientMap[resource.Name] = maps
