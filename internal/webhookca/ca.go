@@ -90,26 +90,37 @@ func NewCAInjector(kubeClient client.Client, webhookName, serviceName types.Name
 
 func (c *CAInjector) Start(ctx context.Context) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		config := admissionregistration.ValidatingWebhookConfiguration{}
-		if err := c.kubeClient.Get(ctx, c.webhookName, &config); err != nil {
+		configList := &admissionregistration.ValidatingWebhookConfigurationList{}
+
+		labels := client.MatchingLabels{
+			"olm.owner.namespace": "hazelcast-platform-operator",
+		}
+		if err := c.kubeClient.List(ctx, configList, labels); err != nil {
 			return err
 		}
 
-		// skip if configuration is using cert-manager
-		if _, ok := config.Annotations[certManagerAnnotation]; ok {
-			return nil
+		if len(configList.Items) == 0 {
+			return fmt.Errorf("NO WEBHOOKS FOUND")
 		}
 
-		// update CA in all webhooks
-		scope := admissionregistration.NamespacedScope
-		for i := range config.Webhooks {
-			config.Webhooks[i].ClientConfig.CABundle = c.tlsCert
-			for j := range config.Webhooks[i].Rules {
-				config.Webhooks[i].Rules[j].Scope = &scope
+		for _, config := range configList.Items {
+			// update CA in all webhooks
+			scope := admissionregistration.NamespacedScope
+			for i := range config.Webhooks {
+				config.Webhooks[i].ClientConfig.CABundle = c.tlsCert
+				for j := range config.Webhooks[i].Rules {
+					config.Webhooks[i].Rules[j].Scope = &scope
+				}
 			}
-		}
 
-		return c.kubeClient.Update(ctx, &config)
+			err := c.kubeClient.Update(ctx, &config)
+			if err != nil {
+				return err
+			}
+
+		}
+		return nil
+		// skip if configuration is using cert-manager
 	})
 }
 
