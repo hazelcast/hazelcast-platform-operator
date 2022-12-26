@@ -621,7 +621,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
 	}
 
-	if h.Spec.ExposeExternally.IsSmart() {
+	if h.Spec.ExposeExternally.IsEnabled() {
 		cfg.Network.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
 		cfg.Network.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
 	}
