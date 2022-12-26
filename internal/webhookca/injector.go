@@ -6,7 +6,7 @@ import (
 )
 
 func MaybeInject(mgr *manager.Manager, setupLog logr.Logger, namespace, deploymentName string) error {
-	injected, err := MaybeInjectCAForOLM(mgr)
+	injected, err := maybeInjectCAForOLM(mgr)
 	if err != nil {
 		return err
 	}

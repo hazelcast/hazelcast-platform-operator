@@ -17,7 +17,7 @@ const (
 	webhookServerPathForOLM = "/tmp/k8s-webhook-server/serving-certs/"
 )
 
-func MaybeInjectCAForOLM(mgr *manager.Manager) (bool, error) {
+func maybeInjectCAForOLM(mgr *manager.Manager) (bool, error) {
 	certPathForOLM := filepath.Join(webhookServerPathForOLM, core.TLSCertKey)
 	if _, err := os.Stat(certPathForOLM); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
