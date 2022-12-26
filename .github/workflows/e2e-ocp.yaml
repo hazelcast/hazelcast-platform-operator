@@ -168,7 +168,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-ocp
           path: allure-results/ocp/
 
   cleanup-unused-images-and-new-relic:

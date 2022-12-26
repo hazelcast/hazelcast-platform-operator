@@ -157,7 +157,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-gke
           path: allure-results/gke/
 
   report-generation:

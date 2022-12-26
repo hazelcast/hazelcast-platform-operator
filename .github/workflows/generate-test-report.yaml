@@ -39,7 +39,7 @@ jobs:
         if: always()
         uses: actions/download-artifact@v3
         with:
-          name: test-report
+          name: test-report-${{ inputs.WORKFLOW_ID }}
           path: allure-results/${{ inputs.WORKFLOW_ID }}
 
       - name: Removing A First Run Attempt
@@ -169,4 +169,4 @@ jobs:
       - name: Delete Test Artifact
         uses: geekyeggo/delete-artifact@v2
         with:
-          name: test-report
+          name: test-report-${{ inputs.WORKFLOW_ID }}
