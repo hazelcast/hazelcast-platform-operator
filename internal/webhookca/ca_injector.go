@@ -1,23 +1,17 @@
 package webhookca
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"errors"
-	"fmt"
-	"math/big"
 	"os"
 	"path/filepath"
-	"time"
+	"strings"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	admissionregistration "k8s.io/api/admissionregistration/v1"
 	core "k8s.io/api/core/v1"
@@ -27,6 +21,33 @@ const (
 	certManagerAnnotation = "cert-manager.io/inject-ca-from"
 	webhookServerPath     = "/tmp/k8s-webhook-server/serving-certs"
 )
+
+func maybeInjectWebhook(mgr *manager.Manager, setupLog logr.Logger, namespace, deploymentName string) error {
+	webhookName := types.NamespacedName{
+		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "validating-webhook-configuration"),
+		Namespace: namespace,
+	}
+
+	serviceName := types.NamespacedName{
+		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "webhook-service"),
+		Namespace: namespace, // service namespace is also hardcoded in webhook manifest
+	}
+
+	setupLog.Info("Starting CA injector", "webhook", webhookName, "service", serviceName)
+
+	webhookCAInjector, err := NewCAInjector((*mgr).GetClient(), webhookName, serviceName)
+	if err != nil {
+		setupLog.Error(err, "unable to create webhook ca injector")
+		return err
+	}
+
+	if err := (*mgr).Add(webhookCAInjector); err != nil {
+		setupLog.Error(err, "unable to run webhook ca injector")
+		return err
+	}
+
+	return nil
+}
 
 type CAInjector struct {
 	kubeClient  client.Client
@@ -111,56 +132,4 @@ func (c *CAInjector) Start(ctx context.Context) error {
 
 		return c.kubeClient.Update(ctx, &config)
 	})
-}
-
-func generateCA(name, namespace string) (map[string][]byte, error) {
-	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().Unix()),
-		Subject: pkix.Name{
-			Organization: []string{"Hazelcast"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		IsCA:                  true,
-		BasicConstraintsValid: true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		DNSNames: []string{
-			fmt.Sprintf("%s.%s.svc", name, namespace),
-			fmt.Sprintf("%s.%s.svc.cluster.local", name, namespace),
-		},
-	}
-
-	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-	if err != nil {
-		return nil, err
-	}
-
-	rawCrt, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
-	if err != nil {
-		return nil, err
-	}
-
-	var crtPEM bytes.Buffer
-	err = pem.Encode(&crtPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: rawCrt,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var keyPEM bytes.Buffer
-	err = pem.Encode(&keyPEM, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string][]byte{
-		core.TLSCertKey:       crtPEM.Bytes(),
-		core.TLSPrivateKeyKey: keyPEM.Bytes(),
-	}, nil
 }

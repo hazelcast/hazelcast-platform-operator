@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
@@ -112,28 +111,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	webhookName := types.NamespacedName{
-		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "validating-webhook-configuration"),
-		Namespace: namespace,
-	}
-
-	serviceName := types.NamespacedName{
-		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "webhook-service"),
-		Namespace: namespace, // service namespace is also hardcoded in webhook manifest
-	}
-
-	setupLog.Info("Starting CA injector", "webhook", webhookName, "service", serviceName)
-
-	webhookCAInjector, err := webhookca.NewCAInjector(mgr.GetClient(), webhookName, serviceName)
-	if err != nil {
-		setupLog.Error(err, "unable to create webhook ca injector")
-		// we can continue without ca injector, no need to exit
-	}
-
-	if err := mgr.Add(webhookCAInjector); err != nil {
-		setupLog.Error(err, "unable to run webhook ca injector")
-		os.Exit(1)
-	}
+	webhookca.MaybeInject(&mgr, setupLog, namespace, deploymentName)
 
 	var metrics *phonehome.Metrics
 	var phoneHomeTrigger chan struct{}
