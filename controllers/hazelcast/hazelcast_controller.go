@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -362,7 +361,7 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		wr := rawObj.(*hazelcastv1alpha1.WanReplication)
 		hzResources := []string{}
 		for k := range wr.Status.WanReplicationMapsStatus {
-			hzName := strings.Split(k, "_")[0]
+			hzName, _ := splitWanMapKey(k)
 			hzResources = append(hzResources, hzName)
 		}
 		return hzResources

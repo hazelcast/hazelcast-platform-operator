@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v3"
@@ -175,7 +176,7 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 		}
 
 		for _, m := range maps {
-			mapWanKey := mapWanReplicationKey(hzResourceName, m.MapName())
+			mapWanKey := wanMapKey(hzResourceName, m.MapName())
 			// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
 			if wan.Status.WanReplicationMapsStatus[mapWanKey].PublisherId == "" {
 				log.Info("Applying WAN configuration for ", "mapKey", mapWanKey)
@@ -199,7 +200,7 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 	cmMap := map[string]config.WanReplicationConfig{}
 
 	// Fill map with Wan configs for each map wan key
-	for hz, mp := range HZClientMap {
+	for hz := range HZClientMap {
 		cm := &corev1.ConfigMap{}
 		err := r.Client.Get(ctx, types.NamespacedName{Name: hz, Namespace: wan.Namespace}, cm)
 		if err != nil {
@@ -212,8 +213,10 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 			return false, fmt.Errorf("persisted ConfigMap is not formatted correctly")
 		}
 
-		for _, v := range hzConfig.Hazelcast.WanReplication {
-			cmMap[mapWanReplicationKey(hz, mp[0].MapName())] = v
+		// Add all map wan configs in Hazelcast ConfigMap
+		for wanName, wanConfig := range hzConfig.Hazelcast.WanReplication {
+			mapName := splitWanName(wanName)
+			cmMap[wanMapKey(hz, mapName)] = wanConfig
 		}
 	}
 
@@ -241,6 +244,10 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 
 	if err := putWanMapStatus(ctx, r.Client, wan, mapWanStatus); err != nil {
 		return false, err
+	}
+
+	if wan.Status.Status != hazelcastv1alpha1.WanStatusFailed {
+		return false, fmt.Errorf("Wan replication for some maps failed")
 	}
 
 	if wan.Status.Status != hazelcastv1alpha1.WanStatusSuccess {
@@ -346,7 +353,7 @@ func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, cli 
 		QueueFullBehavior:     wan.Spec.Queue.FullBehavior,
 	}
 
-	ws := hzclient.NewWanService(cli, hazelcastWanReplicationName(mapName), publisherId)
+	ws := hzclient.NewWanService(cli, wanName(mapName), publisherId)
 	err := ws.AddBatchPublisherConfig(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to apply WAN configuration: %w", err)
@@ -370,14 +377,14 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 		}
 
 		for _, m := range maps {
-			mapWanKey := mapWanReplicationKey(hzResourceName, m.MapName())
+			mapWanKey := wanMapKey(hzResourceName, m.MapName())
 			// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
 			publisherId := wan.Status.WanReplicationMapsStatus[mapWanKey].PublisherId
 			if publisherId == "" {
 				log.V(util.DebugLevel).Info("publisherId is empty, will skip stopping WAN replication", "mapKey", mapWanKey)
 				continue
 			}
-			ws := hzclient.NewWanService(cli, hazelcastWanReplicationName(m.MapName()), publisherId)
+			ws := hzclient.NewWanService(cli, wanName(m.MapName()), publisherId)
 
 			if err := ws.ChangeWanState(ctx, codecTypes.WanReplicationStateStopped); err != nil {
 				return err
@@ -395,7 +402,7 @@ func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastv1alpha1.W
 	tempMapSet := make(map[string]hazelcastv1alpha1.Map)
 	for hzName, maps := range HZClientMap {
 		for _, m := range maps {
-			tempMapSet[mapWanReplicationKey(hzName, m.MapName())] = m
+			tempMapSet[wanMapKey(hzName, m.MapName())] = m
 		}
 	}
 
@@ -408,7 +415,7 @@ func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastv1alpha1.W
 		if err != nil {
 			return err
 		}
-		ws := hzclient.NewWanService(cli, hazelcastWanReplicationName(m.MapName()), status.PublisherId)
+		ws := hzclient.NewWanService(cli, wanName(m.MapName()), status.PublisherId)
 		if err := ws.ChangeWanState(ctx, codecTypes.WanReplicationStateStopped); err != nil {
 			return err
 		}
@@ -420,12 +427,21 @@ func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastv1alpha1.W
 	return nil
 }
 
-func mapWanReplicationKey(hzName, mapName string) string {
-	return hzName + "_" + mapName
+func wanMapKey(hzName, mapName string) string {
+	return hzName + "__" + mapName
 }
 
-func hazelcastWanReplicationName(mapName string) string {
+func splitWanMapKey(key string) (hzName string, mapName string) {
+	list := strings.Split(key, "__")
+	return list[0], list[1]
+}
+
+func wanName(mapName string) string {
 	return mapName + "-default"
+}
+
+func splitWanName(name string) string {
+	return strings.TrimSuffix(name, "-default")
 }
 
 func insertLastAppliedSpec(wan *hazelcastv1alpha1.WanReplication) *hazelcastv1alpha1.WanReplication {

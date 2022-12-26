@@ -719,7 +719,8 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, hzReso
 	l := make(map[string]hazelcastv1alpha1.WanReplication, 0)
 	for _, wr := range wrList.Items {
 		for wanKey, mapStatus := range wr.Status.WanReplicationMapsStatus {
-			if s := strings.Split(wanKey, "_"); s[0] != hzResourceName {
+			hzName, _ := splitWanMapKey(wanKey)
+			if hzName != hzResourceName {
 				continue
 			}
 			switch mapStatus.Status {
@@ -757,10 +758,10 @@ func fillHazelcastConfigWithWanReplications(ctx context.Context, c client.Client
 	if len(wrl) != 0 {
 		cfg.WanReplication = map[string]config.WanReplicationConfig{}
 		for wanKey, wan := range wrl {
-			mapName := strings.Split(wanKey, "_")[1]
+			_, mapName := splitWanMapKey(wanKey)
 			mapStatus := wan.Status.WanReplicationMapsStatus[wanKey]
 			wanConfig := createWanReplicationConfig(mapStatus.PublisherId, wan)
-			cfg.WanReplication[hazelcastWanReplicationName(mapName)] = wanConfig
+			cfg.WanReplication[wanName(mapName)] = wanConfig
 		}
 	}
 }

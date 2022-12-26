@@ -62,11 +62,7 @@ func wanStatus(statuses map[string]hazelcastv1alpha1.WanReplicationMapStatus) ha
 		return hazelcastv1alpha1.WanStatusSuccess
 	}
 
-	if successOk && persistingOk && len(set) == 2 {
-		return hazelcastv1alpha1.WanStatusPersisting
-	}
-
-	if persistingOk && len(set) == 1 {
+	if persistingOk {
 		return hazelcastv1alpha1.WanStatusPersisting
 	}
 
