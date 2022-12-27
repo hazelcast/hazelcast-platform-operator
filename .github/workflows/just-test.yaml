@@ -26,4 +26,4 @@ jobs:
 
       - name: Check if bundle.yaml is updated
         run: |
-          envsubst < .github/grafana/agent-configmap.yaml | echo
+          envsubst < .github/grafana/agent-configmap.yaml
