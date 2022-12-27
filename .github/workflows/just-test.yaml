@@ -1,0 +1,37 @@
+name: Testiiinggg
+
+on:
+  pull_request_target:
+    types:
+      - labeled
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - "**.md"
+
+env:
+  GO_VERSION: '1.19.0'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linter:
+    name: My-test
+    runs-on: ubuntu-latest
+    if: ( !cancelled() && github.event_name == 'pull_request' )
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Check if bundle.yaml is updated
+        run: |
+          envsubst < .github/workflows/just-test.yaml
