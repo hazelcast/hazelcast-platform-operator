@@ -20,7 +20,7 @@ const (
 func injectCAForOLM(mgr *manager.Manager) (bool, error) {
 	certPathForOLM := filepath.Join(webhookServerPathForOLM, core.TLSCertKey)
 	if _, err := os.Stat(certPathForOLM); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, os.ErrNotExist) {
 			// if the OLM generated certificate does not exist, it is not an error, it means it is not the OLM case
 			return false, nil
 		}
