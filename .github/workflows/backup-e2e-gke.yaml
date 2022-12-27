@@ -131,7 +131,7 @@ jobs:
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
         run: |
-          make test-e2e NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=backup_slow WORKFLOW_ID=backup
+          make test-e2e NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=backup_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=backup
 
       - name: Clean up after Tests
         if: always()
