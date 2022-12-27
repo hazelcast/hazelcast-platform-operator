@@ -5,40 +5,33 @@ import (
 	"os"
 	"time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/webhookca"
-
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/webhookca"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
-)
-
-const (
-	WatchNamespaceEnv = "WATCH_NAMESPACE"
 )
 
 func init() {
@@ -67,15 +60,15 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	// Get watch namespace from environment variable.
-	namespace, found := os.LookupEnv(WatchNamespaceEnv)
-	if !found || namespace == "" {
+	// Get watch watchedNamespace from environment variable.
+	watchedNamespace, found := os.LookupEnv(n.WatchNamespaceEnv)
+	if !found || watchedNamespace == "" {
 		setupLog.Info("No namespace specified in the WATCH_NAMESPACE env variable, watching all namespaces")
-	} else if namespace == "*" {
+	} else if watchedNamespace == "*" {
 		setupLog.Info("Watching all namespaces")
-		namespace = ""
+		watchedNamespace = ""
 	} else {
-		setupLog.Info("Watching namespace: " + namespace)
+		setupLog.Info("Watching namespace: " + watchedNamespace)
 	}
 
 	deploymentName := "controller-manager"
@@ -92,7 +85,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "8d830316.hazelcast.com",
-		Namespace:              namespace,
+		Namespace:              watchedNamespace,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -105,15 +98,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Get operatorNamespace from environment variable.
+	operatorNamespace, found := os.LookupEnv(n.NamespaceEnv)
+	if !found || operatorNamespace == "" {
+		setupLog.Info("No NAMESPACE environment variable is set! Operator might be running locally")
+	}
+
 	mtlsClient := mtls.NewClient(mgr.GetClient(), types.NamespacedName{
-		Name: n.MTLSCertSecretName, Namespace: namespace,
+		Name: n.MTLSCertSecretName, Namespace: operatorNamespace,
 	})
+
 	if err := mgr.Add(mtlsClient); err != nil {
 		setupLog.Error(err, "unable to create mtls client")
 		os.Exit(1)
 	}
 
-	webhookCAInjector, err := webhookca.NewCAInjector(mgr.GetClient(), deploymentName, namespace)
+	webhookCAInjector, err := webhookca.NewCAInjector(mgr.GetClient(), deploymentName, operatorNamespace)
 	if err != nil {
 		setupLog.Error(err, "unable to create webhook ca injector")
 		// we can continue without ca injector, no need to exit
