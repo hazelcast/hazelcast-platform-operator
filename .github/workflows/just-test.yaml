@@ -14,7 +14,6 @@ jobs:
   something:
     name: My-test
     runs-on: ubuntu-latest
-    if: ( !cancelled() && github.event_name == 'pull_request' )
     timeout-minutes: 10
     steps:
       - name: Checkout
