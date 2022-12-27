@@ -16,6 +16,15 @@ rules:
   - get
   - list
 - apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - apps
   resources:
   - statefulsets
@@ -73,15 +82,6 @@ rules:
   - create
   - get
   - list
-  - watch
-- apiGroups:
-  - admissionregistration.k8s.io
-  resources:
-  - validatingwebhookconfigurations
-  verbs:
-  - get
-  - list
-  - update
   - watch
 - apiGroups:
   - apps
