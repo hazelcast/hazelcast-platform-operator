@@ -5,14 +5,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-func MaybeInject(mgr *manager.Manager, setupLog logr.Logger, namespace, deploymentName string) error {
-	injected, err := maybeInjectCAForOLM(mgr)
+func Inject(mgr *manager.Manager, setupLog logr.Logger, namespace, deploymentName string) error {
+	injected, err := injectCAForOLM(mgr)
 	if err != nil {
 		return err
 	}
 
 	if !injected {
-		err = maybeInjectWebhook(mgr, setupLog, namespace, deploymentName)
+		err = injectWebhook(mgr, setupLog, namespace, deploymentName)
 		if err != nil {
 			return err
 		}

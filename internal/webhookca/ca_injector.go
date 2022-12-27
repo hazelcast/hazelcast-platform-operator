@@ -22,7 +22,7 @@ const (
 	webhookServerPath     = "/tmp/k8s-webhook-server/serving-certs"
 )
 
-func maybeInjectWebhook(mgr *manager.Manager, setupLog logr.Logger, namespace, deploymentName string) error {
+func injectWebhook(mgr *manager.Manager, setupLog logr.Logger, namespace, deploymentName string) error {
 	webhookName := types.NamespacedName{
 		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "validating-webhook-configuration"),
 		Namespace: namespace,
