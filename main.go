@@ -71,12 +71,6 @@ func main() {
 		setupLog.Info("Watching namespace: " + watchedNamespace)
 	}
 
-	deploymentName := "controller-manager"
-	podName, found := os.LookupEnv(n.PodNameEnv)
-	if found || podName != "" {
-		deploymentName = util.DeploymentName(podName)
-	}
-
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
@@ -111,6 +105,12 @@ func main() {
 	if err := mgr.Add(mtlsClient); err != nil {
 		setupLog.Error(err, "unable to create mtls client")
 		os.Exit(1)
+	}
+
+	deploymentName := "controller-manager"
+	podName, found := os.LookupEnv(n.PodNameEnv)
+	if found || podName != "" {
+		deploymentName = util.DeploymentName(podName)
 	}
 
 	webhookCAInjector, err := webhookca.NewCAInjector(mgr.GetClient(), deploymentName, operatorNamespace)
