@@ -31,7 +31,6 @@ func injectCAForOLM(mgr *manager.Manager) (bool, error) {
 	srv.CertDir = webhookServerPathForOLM
 	srv.CertName = core.TLSCertKey
 	srv.KeyName = core.TLSPrivateKeyKey
-	// srv.Port = WebhookPort
 
 	return true, nil
 }
