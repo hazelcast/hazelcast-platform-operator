@@ -1,7 +1,6 @@
 name: Pull Request Builder
 
 on:
-  push: {}
   pull_request_target:
     types:
       - labeled
