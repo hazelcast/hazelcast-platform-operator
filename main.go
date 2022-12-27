@@ -111,7 +111,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	webhookca.MaybeInject(&mgr, setupLog, namespace, deploymentName)
+	err = webhookca.MaybeInject(&mgr, setupLog, namespace, deploymentName)
+	if err != nil {
+		setupLog.Error(err, "unable to inject webhook ca")
+		os.Exit(1)
+	}
 
 	var metrics *phonehome.Metrics
 	var phoneHomeTrigger chan struct{}
