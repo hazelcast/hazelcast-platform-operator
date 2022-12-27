@@ -62,13 +62,14 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=system
 // ClusterRole inherited from Hazelcast ClusterRole
 //+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
+//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=watch;list
 // Role related to Reconcile()
 //+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=create;watch;get;list,namespace=system
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=system
 // ClusterRole related to Reconcile()
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=watch;list
 
 func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast", req.NamespacedName)

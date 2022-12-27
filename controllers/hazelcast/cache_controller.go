@@ -40,9 +40,9 @@ func NewCacheReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=caches,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=caches/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=caches/finalizers,verbs=update
+//+kubebuilder:rbac:groups=hazelcast.com,resources=caches,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=caches/status,verbs=get;update;patch,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=caches/finalizers,verbs=update,namespace=system
 
 func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-cache", req.NamespacedName)

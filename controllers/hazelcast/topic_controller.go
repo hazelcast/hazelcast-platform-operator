@@ -38,9 +38,9 @@ func NewTopicReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=topics,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=topics/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=topics/finalizers,verbs=update
+//+kubebuilder:rbac:groups=hazelcast.com,resources=topics,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=topics/status,verbs=get;update;patch,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=topics/finalizers,verbs=update,namespace=system
 
 func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-topic", req.NamespacedName)

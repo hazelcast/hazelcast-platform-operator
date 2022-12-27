@@ -49,9 +49,9 @@ func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht c
 
 const retryAfterForMap = 5 * time.Second
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/finalizers,verbs=update
+//+kubebuilder:rbac:groups=hazelcast.com,resources=maps,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/status,verbs=get;update;patch,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/finalizers,verbs=update,namespace=system
 
 func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-map", req.NamespacedName)
