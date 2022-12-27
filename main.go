@@ -111,7 +111,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = webhookca.MaybeInject(&mgr, setupLog, namespace, deploymentName)
+	err = webhookca.Inject(&mgr, setupLog, namespace, deploymentName)
 	if err != nil {
 		setupLog.Error(err, "unable to inject webhook ca")
 		os.Exit(1)
