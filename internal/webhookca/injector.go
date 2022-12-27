@@ -12,7 +12,7 @@ func MaybeInject(mgr *manager.Manager, setupLog logr.Logger, namespace, deployme
 	}
 
 	if !injected {
-		maybeInjectWebhook(mgr, setupLog, namespace, deploymentName)
+		err = maybeInjectWebhook(mgr, setupLog, namespace, deploymentName)
 		if err != nil {
 			return err
 		}
