@@ -532,7 +532,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
-	ml, err := filterPersistedMaps(ctx, c, h.Name)
+	ml, err := filterPersistedMaps(ctx, c, h)
 	if err != nil {
 		return nil, err
 	}
@@ -540,7 +540,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		return nil, err
 	}
 
-	wrl, err := filterPersistedWanReplications(ctx, c, h.Name)
+	wrl, err := filterPersistedWanReplications(ctx, c, h)
 	if err != nil {
 		return nil, err
 	}
@@ -554,7 +554,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		&hazelcastv1alpha1.CacheList{},
 	}
 	for _, ds := range dataStructures {
-		filteredDSList, err := filterPersistedDS(ctx, c, h.Name, ds)
+		filteredDSList, err := filterPersistedDS(ctx, c, h, ds)
 		if err != nil {
 			return nil, err
 		}
@@ -686,9 +686,12 @@ func filterProperties(p map[string]string) map[string]string {
 	return filteredProperties
 }
 
-func filterPersistedMaps(ctx context.Context, c client.Client, hzName string) ([]hazelcastv1alpha1.Map, error) {
+func filterPersistedMaps(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.Map, error) {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
 	mapList := &hazelcastv1alpha1.MapList{}
-	if err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": hzName}); err != nil {
+	if err := c.List(ctx, mapList, fieldMatcher, nsMatcher); err != nil {
 		return nil, err
 	}
 
@@ -714,8 +717,11 @@ func filterPersistedMaps(ctx context.Context, c client.Client, hzName string) ([
 	return l, nil
 }
 
-func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName string, objList client.ObjectList) ([]client.Object, error) {
-	if err := c.List(ctx, objList, client.MatchingFields{"hazelcastResourceName": hzResourceName}); err != nil {
+func filterPersistedDS(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, objList client.ObjectList) ([]client.Object, error) {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	if err := c.List(ctx, objList, fieldMatcher, nsMatcher); err != nil {
 		return nil, err
 	}
 	l := make([]client.Object, 0)
@@ -727,9 +733,12 @@ func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName stri
 	return l, nil
 }
 
-func filterPersistedWanReplications(ctx context.Context, c client.Client, hzResourceName string) (map[string]hazelcastv1alpha1.WanReplication, error) {
+func filterPersistedWanReplications(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (map[string]hazelcastv1alpha1.WanReplication, error) {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
 	wrList := &hazelcastv1alpha1.WanReplicationList{}
-	if err := c.List(ctx, wrList, client.MatchingFields{"hazelcastResourceName": hzResourceName}); err != nil {
+	if err := c.List(ctx, wrList, fieldMatcher, nsMatcher); err != nil {
 		return nil, err
 	}
 
@@ -737,7 +746,7 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, hzReso
 	for _, wr := range wrList.Items {
 		for wanKey, mapStatus := range wr.Status.WanReplicationMapsStatus {
 			hzName, _ := splitWanMapKey(wanKey)
-			if hzName != hzResourceName {
+			if hzName != h.Name {
 				continue
 			}
 			switch mapStatus.Status {
