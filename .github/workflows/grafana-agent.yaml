@@ -34,7 +34,7 @@ on:
         required: true
       LOKI_PASSWORD:
         required: true
-      LOKI_CLUSTER_NAME:
+      GRAFANA_CLUSTER_NAME:
         required: true
 jobs:
   grafana-setup:
