@@ -14,6 +14,7 @@ type Hazelcast struct {
 	DurableExecutorService   map[string]DurableExecutorService   `yaml:"durable-executor-service,omitempty"`
 	ScheduledExecutorService map[string]ScheduledExecutorService `yaml:"scheduled-executor-service,omitempty"`
 	UserCodeDeployment       UserCodeDeployment                  `yaml:"user-code-deployment,omitempty"`
+	WanReplication           map[string]WanReplicationConfig     `yaml:"wan-replication,omitempty"`
 	Properties               map[string]string                   `yaml:"properties,omitempty"`
 	MultiMap                 map[string]MultiMap                 `yaml:"multimap,omitempty"`
 	Topic                    map[string]Topic                    `yaml:"topic,omitempty"`
@@ -212,6 +213,22 @@ type ReplicatedMap struct {
 	AsyncFillup       bool        `yaml:"async-fillup"`
 	StatisticsEnabled bool        `yaml:"statistics-enabled"`
 	MergePolicy       MergePolicy `yaml:"merge-policy"`
+}
+
+type WanReplicationConfig struct {
+	BatchPublisher map[string]BatchPublisherConfig `yaml:"batch-publisher,omitempty"`
+}
+
+type BatchPublisherConfig struct {
+	ClusterName           string `yaml:"cluster-name,omitempty"`
+	BatchSize             int32  `yaml:"batch-size,omitempty"`
+	BatchMaxDelayMillis   int32  `yaml:"batch-max-delay-millis,omitempty"`
+	ResponseTimeoutMillis int32  `yaml:"response-timeout-millis,omitempty"`
+	AcknowledgementType   string `yaml:"acknowledge-type,omitempty"`
+	InitialPublisherState string `yaml:"initial-publisher-state,omitempty"`
+	QueueFullBehavior     string `yaml:"queue-full-behavior,omitempty"`
+	QueueCapacity         int32  `yaml:"queue-capacity,omitempty"`
+	TargetEndpoints       string `yaml:"target-endpoints,omitempty"`
 }
 
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {

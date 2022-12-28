@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
@@ -531,16 +532,19 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
-	mapList := &hazelcastv1alpha1.MapList{}
-	if err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": h.Name}); err != nil {
+	ml, err := filterPersistedMaps(ctx, c, h.Name)
+	if err != nil {
 		return nil, err
 	}
-
-	ml := filterPersistedMaps(mapList.Items)
-
 	if err := fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml); err != nil {
 		return nil, err
 	}
+
+	wrl, err := filterPersistedWanReplications(ctx, c, h.Name)
+	if err != nil {
+		return nil, err
+	}
+	fillHazelcastConfigWithWanReplications(ctx, c, &cfg, wrl)
 
 	dataStructures := []client.ObjectList{
 		&hazelcastv1alpha1.MultiMapList{},
@@ -666,10 +670,15 @@ func filterProperties(p map[string]string) map[string]string {
 	return filteredProperties
 }
 
-func filterPersistedMaps(ml []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
+func filterPersistedMaps(ctx context.Context, c client.Client, hzName string) ([]hazelcastv1alpha1.Map, error) {
+	mapList := &hazelcastv1alpha1.MapList{}
+	if err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": hzName}); err != nil {
+		return nil, err
+	}
+
 	l := make([]hazelcastv1alpha1.Map, 0)
 
-	for _, mp := range ml {
+	for _, mp := range mapList.Items {
 		switch mp.Status.State {
 		case hazelcastv1alpha1.MapPersisting, hazelcastv1alpha1.MapSuccess:
 			l = append(l, mp)
@@ -686,7 +695,7 @@ func filterPersistedMaps(ml []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
 		default:
 		}
 	}
-	return l
+	return l, nil
 }
 
 func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName string, objList client.ObjectList) ([]client.Object, error) {
@@ -702,10 +711,32 @@ func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName stri
 	return l, nil
 }
 
+func filterPersistedWanReplications(ctx context.Context, c client.Client, hzResourceName string) (map[string]hazelcastv1alpha1.WanReplication, error) {
+	wrList := &hazelcastv1alpha1.WanReplicationList{}
+	if err := c.List(ctx, wrList, client.MatchingFields{"hazelcastResourceName": hzResourceName}); err != nil {
+		return nil, err
+	}
+
+	l := make(map[string]hazelcastv1alpha1.WanReplication, 0)
+	for _, wr := range wrList.Items {
+		for wanKey, mapStatus := range wr.Status.WanReplicationMapsStatus {
+			hzName, _ := splitWanMapKey(wanKey)
+			if hzName != hzResourceName {
+				continue
+			}
+			switch mapStatus.Status {
+			case hazelcastv1alpha1.WanStatusPersisting, hazelcastv1alpha1.WanStatusSuccess:
+				l[wanKey] = wr
+			default: // TODO, might want to do something for the other cases
+			}
+		}
+
+	}
+	return l, nil
+}
+
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
-	p := filterProperties(h.Spec.Properties)
-	p["hazelcast.persistence.auto.cluster.state"] = "false"
-	cfg.Properties = p
+	cfg.Properties = filterProperties(h.Spec.Properties)
 }
 
 func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
@@ -720,6 +751,18 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 		}
 	}
 	return nil
+}
+
+func fillHazelcastConfigWithWanReplications(ctx context.Context, c client.Client, cfg *config.Hazelcast, wrl map[string]hazelcastv1alpha1.WanReplication) {
+	if len(wrl) != 0 {
+		cfg.WanReplication = map[string]config.WanReplicationConfig{}
+		for wanKey, wan := range wrl {
+			_, mapName := splitWanMapKey(wanKey)
+			mapStatus := wan.Status.WanReplicationMapsStatus[wanKey]
+			wanConfig := createWanReplicationConfig(mapStatus.PublisherId, wan)
+			cfg.WanReplication[wanName(mapName)] = wanConfig
+		}
+	}
 }
 
 func fillHazelcastConfigWithMultiMaps(cfg *config.Hazelcast, mml []client.Object) {
@@ -998,6 +1041,24 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 	}
 }
 
+func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanReplication) config.WanReplicationConfig {
+	cfg := config.WanReplicationConfig{
+		BatchPublisher: map[string]config.BatchPublisherConfig{
+			publisherId: {
+				ClusterName:           wr.Spec.Endpoints,
+				TargetEndpoints:       wr.Spec.Endpoints,
+				QueueCapacity:         wr.Spec.Queue.Capacity,
+				QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
+				BatchSize:             wr.Spec.Batch.Size,
+				BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
+				ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
+				AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
+			},
+		},
+	}
+	return cfg
+}
+
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	ls := labels(h)
 	sts := &appsv1.StatefulSet{
@@ -1090,6 +1151,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
 		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
 		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
+
+		if semver.Compare(fmt.Sprintf("v%s", h.Spec.Version), "v5.2.0") == 1 {
+			sts.Spec.Template.Spec.Containers[0].ReadinessProbe.ProbeHandler.HTTPGet.Path = "/hazelcast/health/ready"
+		}
 
 		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client)
 		if err != nil {
@@ -1259,6 +1324,10 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 	err := cl.Get(ctx, key, hb)
 	if err != nil {
 		return corev1.Container{}, err
+	}
+
+	if hb.Status.State != hazelcastv1alpha1.HotBackupSuccess {
+		return corev1.Container{}, fmt.Errorf("restore hotbackup '%s' status is not %s", hb.Name, hazelcastv1alpha1.HotBackupSuccess)
 	}
 
 	var cont corev1.Container

@@ -11,6 +11,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
 	github.com/robfig/cron/v3 v3.0.1
+	golang.org/x/mod v0.7.0
 	golang.org/x/sync v0.1.0
 	google.golang.org/api v0.103.0
 	gopkg.in/yaml.v3 v3.0.1

@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -13,10 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -48,7 +52,7 @@ func NewWanReplicationReconciler(
 func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.WithValues("name", req.Name, "namespace", req.NamespacedName)
 
-	wan := &hazelcastcomv1alpha1.WanReplication{}
+	wan := &hazelcastv1alpha1.WanReplication{}
 	if err := r.Get(ctx, req.NamespacedName, wan); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.V(util.DebugLevel).Info("Could not find WanReplication, it is probably already deleted")
@@ -85,7 +89,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if !util.IsApplied(wan) {
 		if err := r.Update(ctx, insertLastAppliedSpec(wan)); err != nil {
-			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 		} else {
 			return updateWanStatus(ctx, r.Client, wan, wanPendingStatus())
 		}
@@ -93,7 +97,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	HZClientMap, err := r.getMapsGroupByHazelcastName(ctx, wan)
 	if err != nil {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 	}
 
 	s, createdBefore := wan.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
@@ -102,7 +106,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		if err != nil {
 			err = fmt.Errorf("error marshaling WanReplication as JSON: %w", err)
-			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 		}
 
 		if s == string(ms) {
@@ -110,21 +114,21 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return updateWanStatus(ctx, r.Client, wan, wanSuccessStatus())
 		}
 
-		lastSpec := &hazelcastcomv1alpha1.WanReplicationSpec{}
+		lastSpec := &hazelcastv1alpha1.WanReplicationSpec{}
 		err = json.Unmarshal([]byte(s), lastSpec)
 		if err != nil {
 			err = fmt.Errorf("error unmarshaling Last WanReplication Spec: %w", err)
-			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 		}
 
 		err = validateNotUpdatableFields(&wan.Spec, lastSpec)
 		if err != nil {
-			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 		}
 
 		err = stopWanRepForRemovedResources(ctx, wan, HZClientMap, r.clientRegistry)
 		if err != nil {
-			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 		}
 
 	}
@@ -134,8 +138,18 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	if !isWanSuccessful(wan) {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage("WAN replication is not successfully applied to some maps"))
+	requeue, err := updateWanStatus(ctx, r.Client, wan, wanPersistingStatus(retryAfter).withMessage("Persisting the applied map config."))
+	if err != nil {
+		return requeue, err
+	}
+
+	persisted, err := r.validateWanConfigPersistence(ctx, wan, HZClientMap)
+	if err != nil {
+		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+	}
+
+	if !persisted {
+		return updateWanStatus(ctx, r.Client, wan, wanPersistingStatus(retryAfter).withMessage("Waiting for Wan Config to be persisted."))
 	}
 
 	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(wan) {
@@ -145,13 +159,13 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	err = r.updateLastSuccessfulConfiguration(ctx, wan)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus().withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 	}
 
 	return updateWanStatus(ctx, r.Client, wan, wanSuccessStatus())
 }
 
-func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication, HZClientMap map[string][]hazelcastcomv1alpha1.Map) error {
+func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, HZClientMap map[string][]hazelcastv1alpha1.Map) error {
 	log := getLogger(ctx)
 
 	mapWanStatus := make(map[string]wanOptionsBuilder)
@@ -162,14 +176,14 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 		}
 
 		for _, m := range maps {
-			mapWanKey := mapWanReplicationKey(hzResourceName, m.MapName())
+			mapWanKey := wanMapKey(hzResourceName, m.MapName())
 			// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
 			if wan.Status.WanReplicationMapsStatus[mapWanKey].PublisherId == "" {
 				log.Info("Applying WAN configuration for ", "mapKey", mapWanKey)
 				if publisherId, err := r.applyWanReplication(ctx, cl, wan, m.MapName(), mapWanKey); err != nil {
-					mapWanStatus[mapWanKey] = wanFailedStatus().withMessage(err.Error())
+					mapWanStatus[mapWanKey] = wanFailedStatus(err).withMessage(err.Error())
 				} else {
-					mapWanStatus[mapWanKey] = wanSuccessStatus().withPublisherId(publisherId)
+					mapWanStatus[mapWanKey] = wanPersistingStatus(0).withPublisherId(publisherId)
 				}
 
 			}
@@ -182,25 +196,90 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 	return nil
 }
 
-func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication) (map[string][]hazelcastcomv1alpha1.Map, error) {
-	HZClientMap := make(map[string][]hazelcastcomv1alpha1.Map)
+func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, HZClientMap map[string][]hazelcastv1alpha1.Map) (bool, error) {
+	cmMap := map[string]config.WanReplicationConfig{}
+
+	// Fill map with Wan configs for each map wan key
+	for hz := range HZClientMap {
+		cm := &corev1.ConfigMap{}
+		err := r.Client.Get(ctx, types.NamespacedName{Name: hz, Namespace: wan.Namespace}, cm)
+		if err != nil {
+			return false, fmt.Errorf("could not find ConfigMap for wan config persistence")
+		}
+
+		hzConfig := &config.HazelcastWrapper{}
+		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		if err != nil {
+			return false, fmt.Errorf("persisted ConfigMap is not formatted correctly")
+		}
+
+		// Add all map wan configs in Hazelcast ConfigMap
+		for wanName, wanConfig := range hzConfig.Hazelcast.WanReplication {
+			mapName := splitWanName(wanName)
+			cmMap[wanMapKey(hz, mapName)] = wanConfig
+		}
+	}
+
+	mapWanStatus := make(map[string]wanOptionsBuilder)
+	for mapWanKey, v := range wan.Status.WanReplicationMapsStatus {
+		// Status is not equal to persisting, do nothing
+		if v.Status != hazelcastv1alpha1.WanStatusPersisting {
+			continue
+		}
+
+		// Wan is not in ConfigMap yet
+		wanRep, ok := cmMap[mapWanKey]
+		if !ok {
+			continue
+		}
+
+		// Wan is in ConfigMap but is not correct
+		realWan := createWanReplicationConfig(v.PublisherId, *wan)
+		if !reflect.DeepEqual(realWan, wanRep) {
+			continue
+		}
+
+		mapWanStatus[mapWanKey] = wanSuccessStatus().withPublisherId(v.PublisherId)
+	}
+
+	if err := putWanMapStatus(ctx, r.Client, wan, mapWanStatus); err != nil {
+		return false, err
+	}
+
+	if wan.Status.Status != hazelcastv1alpha1.WanStatusFailed {
+		return false, fmt.Errorf("Wan replication for some maps failed")
+	}
+
+	if wan.Status.Status != hazelcastv1alpha1.WanStatusSuccess {
+		return false, nil
+	}
+
+	return true, nil
+
+}
+
+func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) (map[string][]hazelcastv1alpha1.Map, error) {
+	HZClientMap := make(map[string][]hazelcastv1alpha1.Map)
 	for _, resource := range wan.Spec.Resources {
 		switch resource.Kind {
-		case hazelcastcomv1alpha1.ResourceKindMap:
+		case hazelcastv1alpha1.ResourceKindMap:
 			m, err := r.getWanMap(ctx, types.NamespacedName{Name: resource.Name, Namespace: wan.Namespace}, true)
 			if err != nil {
 				return nil, err
 			}
 			mapList, ok := HZClientMap[m.Spec.HazelcastResourceName]
 			if !ok {
-				HZClientMap[m.Spec.HazelcastResourceName] = []hazelcastcomv1alpha1.Map{*m}
+				HZClientMap[m.Spec.HazelcastResourceName] = []hazelcastv1alpha1.Map{*m}
 			}
 			HZClientMap[m.Spec.HazelcastResourceName] = append(mapList, *m)
-		case hazelcastcomv1alpha1.ResourceKindHZ:
-			fmt.Println(resource.Name)
+		case hazelcastv1alpha1.ResourceKindHZ:
 			maps, err := r.getAllMapsInHazelcast(ctx, resource.Name, wan.Namespace)
 			if err != nil {
 				return nil, err
+			}
+			// If no map is present for the Hazelcast resource
+			if len(maps) == 0 {
+				continue
 			}
 			mapList, ok := HZClientMap[resource.Name]
 			if !ok {
@@ -212,11 +291,11 @@ func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Conte
 	return HZClientMap, nil
 }
 
-func (r *WanReplicationReconciler) getAllMapsInHazelcast(ctx context.Context, hazelcastResourceName string, wanNamespace string) ([]hazelcastcomv1alpha1.Map, error) {
+func (r *WanReplicationReconciler) getAllMapsInHazelcast(ctx context.Context, hazelcastResourceName string, wanNamespace string) ([]hazelcastv1alpha1.Map, error) {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": hazelcastResourceName}
 	nsMatcher := client.InNamespace(wanNamespace)
 
-	wrl := &hazelcastcomv1alpha1.MapList{}
+	wrl := &hazelcastv1alpha1.MapList{}
 
 	if err := r.Client.List(ctx, wrl, fieldMatcher, nsMatcher); err != nil {
 		return nil, fmt.Errorf("could not get Map resources dependent under given Hazelcast %w", err)
@@ -224,7 +303,7 @@ func (r *WanReplicationReconciler) getAllMapsInHazelcast(ctx context.Context, ha
 	return wrl.Items, nil
 }
 
-func validateNotUpdatableFields(current *hazelcastcomv1alpha1.WanReplicationSpec, last *hazelcastcomv1alpha1.WanReplicationSpec) error {
+func validateNotUpdatableFields(current *hazelcastv1alpha1.WanReplicationSpec, last *hazelcastv1alpha1.WanReplicationSpec) error {
 	if current.TargetClusterName != last.TargetClusterName {
 		return fmt.Errorf("targetClusterName cannot be updated")
 	}
@@ -243,8 +322,8 @@ func validateNotUpdatableFields(current *hazelcastcomv1alpha1.WanReplicationSpec
 	return nil
 }
 
-func (r *WanReplicationReconciler) getWanMap(ctx context.Context, lk types.NamespacedName, checkSuccess bool) (*hazelcastcomv1alpha1.Map, error) {
-	m := &hazelcastcomv1alpha1.Map{}
+func (r *WanReplicationReconciler) getWanMap(ctx context.Context, lk types.NamespacedName, checkSuccess bool) (*hazelcastv1alpha1.Map, error) {
+	m := &hazelcastv1alpha1.Map{}
 	if err := r.Client.Get(ctx, lk, m); err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil, err
@@ -252,7 +331,7 @@ func (r *WanReplicationReconciler) getWanMap(ctx context.Context, lk types.Names
 		return nil, fmt.Errorf("failed to get Map CR from WanReplication: %w", err)
 	}
 
-	if checkSuccess && m.Status.State != hazelcastcomv1alpha1.MapSuccess {
+	if checkSuccess && m.Status.State != hazelcastv1alpha1.MapSuccess {
 		return nil, fmt.Errorf("status of map %s is not success", m.Name)
 	}
 
@@ -260,30 +339,29 @@ func (r *WanReplicationReconciler) getWanMap(ctx context.Context, lk types.Names
 
 }
 
-func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, client hzclient.Client, wan *hazelcastcomv1alpha1.WanReplication, mapName, mapWanKey string) (string, error) {
+func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, cli hzclient.Client, wan *hazelcastv1alpha1.WanReplication, mapName, mapWanKey string) (string, error) {
 	publisherId := wan.Name + "-" + mapWanKey
 
-	req := &addBatchPublisherRequest{
-		hazelcastWanReplicationName(mapName),
-		wan.Spec.TargetClusterName,
-		publisherId,
-		wan.Spec.Endpoints,
-		wan.Spec.Queue.Capacity,
-		wan.Spec.Batch.Size,
-		wan.Spec.Batch.MaximumDelay,
-		wan.Spec.Acknowledgement.Timeout,
-		convertAckType(wan.Spec.Acknowledgement.Type),
-		convertQueueBehavior(wan.Spec.Queue.FullBehavior),
+	req := &hzclient.AddBatchPublisherRequest{
+		TargetCluster:         wan.Spec.TargetClusterName,
+		Endpoints:             wan.Spec.Endpoints,
+		QueueCapacity:         wan.Spec.Queue.Capacity,
+		BatchSize:             wan.Spec.Batch.Size,
+		BatchMaxDelayMillis:   wan.Spec.Batch.MaximumDelay,
+		ResponseTimeoutMillis: wan.Spec.Acknowledgement.Timeout,
+		AckType:               wan.Spec.Acknowledgement.Type,
+		QueueFullBehavior:     wan.Spec.Queue.FullBehavior,
 	}
 
-	err := addBatchPublisherConfig(ctx, client, req)
+	ws := hzclient.NewWanService(cli, wanName(mapName), publisherId)
+	err := ws.AddBatchPublisherConfig(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to apply WAN configuration: %w", err)
 	}
 	return publisherId, nil
 }
 
-func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication) error {
+func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) error {
 	HZClientMap, err := r.getMapsGroupByHazelcastName(ctx, wan)
 	if err != nil {
 		return err
@@ -299,29 +377,19 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 		}
 
 		for _, m := range maps {
-			mapWanKey := mapWanReplicationKey(hzResourceName, m.MapName())
+			mapWanKey := wanMapKey(hzResourceName, m.MapName())
 			// Check publisherId is registered to the status, otherwise issue WanReplication to Hazelcast
 			publisherId := wan.Status.WanReplicationMapsStatus[mapWanKey].PublisherId
 			if publisherId == "" {
 				log.V(util.DebugLevel).Info("publisherId is empty, will skip stopping WAN replication", "mapKey", mapWanKey)
 				continue
 			}
-			req := &changeWanStateRequest{
-				name:        hazelcastWanReplicationName(m.MapName()),
-				publisherId: publisherId,
-				state:       codecTypes.WanReplicationStateStopped,
-			}
+			ws := hzclient.NewWanService(cli, wanName(m.MapName()), publisherId)
 
-			if err := changeWanState(ctx, cli, req); err != nil {
+			if err := ws.ChangeWanState(ctx, codecTypes.WanReplicationStateStopped); err != nil {
 				return err
 			}
-
-			qreq := &clearWanQueueRequest{
-				name:        hazelcastWanReplicationName(m.MapName()),
-				publisherId: publisherId,
-			}
-
-			if err := clearWanQueue(ctx, cli, qreq); err != nil {
+			if err := ws.ClearWanQueue(ctx); err != nil {
 				return err
 			}
 			delete(wan.Status.WanReplicationMapsStatus, mapWanKey)
@@ -330,11 +398,11 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 	return nil
 }
 
-func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication, HZClientMap map[string][]hazelcastcomv1alpha1.Map, cs hzclient.ClientRegistry) error {
-	tempMapSet := make(map[string]hazelcastcomv1alpha1.Map)
+func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, HZClientMap map[string][]hazelcastv1alpha1.Map, cs hzclient.ClientRegistry) error {
+	tempMapSet := make(map[string]hazelcastv1alpha1.Map)
 	for hzName, maps := range HZClientMap {
 		for _, m := range maps {
-			tempMapSet[mapWanReplicationKey(hzName, m.MapName())] = m
+			tempMapSet[wanMapKey(hzName, m.MapName())] = m
 		}
 	}
 
@@ -343,17 +411,15 @@ func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastcomv1alpha
 		if ok {
 			continue
 		}
-		req := &changeWanStateRequest{
-			name:        hazelcastWanReplicationName(m.MapName()),
-			publisherId: status.PublisherId,
-			state:       codecTypes.WanReplicationStateStopped,
-		}
-
 		cli, err := GetHazelcastClient(cs, &m)
 		if err != nil {
 			return err
 		}
-		if err = changeWanState(ctx, cli, req); err != nil {
+		ws := hzclient.NewWanService(cli, wanName(m.MapName()), status.PublisherId)
+		if err := ws.ChangeWanState(ctx, codecTypes.WanReplicationStateStopped); err != nil {
+			return err
+		}
+		if err := ws.ClearWanQueue(ctx); err != nil {
 			return err
 		}
 		delete(wan.Status.WanReplicationMapsStatus, mapWanKey)
@@ -361,121 +427,24 @@ func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastcomv1alpha
 	return nil
 }
 
-func mapWanReplicationKey(hzName, mapName string) string {
-	return hzName + "_" + mapName
+func wanMapKey(hzName, mapName string) string {
+	return hzName + "__" + mapName
 }
 
-func hazelcastWanReplicationName(mapName string) string {
+func splitWanMapKey(key string) (hzName string, mapName string) {
+	list := strings.Split(key, "__")
+	return list[0], list[1]
+}
+
+func wanName(mapName string) string {
 	return mapName + "-default"
 }
 
-type addBatchPublisherRequest struct {
-	name                  string
-	targetCluster         string
-	publisherId           string
-	endpoints             string
-	queueCapacity         int32
-	batchSize             int32
-	batchMaxDelayMillis   int32
-	responseTimeoutMillis int32
-	ackType               int32
-	queueFullBehavior     int32
+func splitWanName(name string) string {
+	return strings.TrimSuffix(name, "-default")
 }
 
-func addBatchPublisherConfig(
-	ctx context.Context,
-	client hzclient.Client,
-	request *addBatchPublisherRequest,
-) error {
-
-	req := codec.EncodeMCAddWanBatchPublisherConfigRequest(
-		request.name,
-		request.targetCluster,
-		request.publisherId,
-		request.endpoints,
-		request.queueCapacity,
-		request.batchSize,
-		request.batchMaxDelayMillis,
-		request.responseTimeoutMillis,
-		request.ackType,
-		request.queueFullBehavior,
-	)
-
-	_, err := client.InvokeOnRandomTarget(ctx, req, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-type changeWanStateRequest struct {
-	name        string
-	publisherId string
-	state       codecTypes.WanReplicationState
-}
-
-func changeWanState(ctx context.Context, client hzclient.Client, request *changeWanStateRequest) error {
-	req := codec.EncodeMCChangeWanReplicationStateRequest(
-		request.name,
-		request.publisherId,
-		request.state,
-	)
-
-	for _, member := range client.OrderedMembers() {
-		_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-type clearWanQueueRequest struct {
-	name        string
-	publisherId string
-}
-
-func clearWanQueue(ctx context.Context, client hzclient.Client, request *clearWanQueueRequest) error {
-	req := codec.EncodeMCClearWanQueuesRequest(
-		request.name,
-		request.publisherId,
-	)
-
-	for _, member := range client.OrderedMembers() {
-		_, err := client.InvokeOnMember(ctx, req, member.UUID, nil)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func convertAckType(ackType hazelcastcomv1alpha1.AcknowledgementType) int32 {
-	switch ackType {
-	case hazelcastcomv1alpha1.AckOnReceipt:
-		return 0
-	case hazelcastcomv1alpha1.AckOnOperationComplete:
-		return 1
-	default:
-		return -1
-	}
-}
-
-func convertQueueBehavior(behavior hazelcastcomv1alpha1.FullBehaviorSetting) int32 {
-	switch behavior {
-	case hazelcastcomv1alpha1.DiscardAfterMutation:
-		return 0
-	case hazelcastcomv1alpha1.ThrowException:
-		return 1
-	case hazelcastcomv1alpha1.ThrowExceptionOnlyIfReplicationActive:
-		return 2
-	default:
-		return -1
-	}
-}
-
-func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication) *hazelcastcomv1alpha1.WanReplication {
+func insertLastAppliedSpec(wan *hazelcastv1alpha1.WanReplication) *hazelcastv1alpha1.WanReplication {
 	b, _ := json.Marshal(wan.Spec)
 	if wan.Annotations == nil {
 		wan.Annotations = make(map[string]string)
@@ -484,7 +453,7 @@ func insertLastAppliedSpec(wan *hazelcastcomv1alpha1.WanReplication) *hazelcastc
 	return wan
 }
 
-func (r *WanReplicationReconciler) updateLastSuccessfulConfiguration(ctx context.Context, wan *hazelcastcomv1alpha1.WanReplication) error {
+func (r *WanReplicationReconciler) updateLastSuccessfulConfiguration(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) error {
 	ms, err := json.Marshal(wan.Spec)
 	if err != nil {
 		return err
@@ -494,6 +463,7 @@ func (r *WanReplicationReconciler) updateLastSuccessfulConfiguration(ctx context
 		if wan.ObjectMeta.Annotations == nil {
 			wan.ObjectMeta.Annotations = map[string]string{}
 		}
+
 		wan.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(ms)
 		return nil
 	})
@@ -514,6 +484,6 @@ func getLogger(ctx context.Context) logr.Logger {
 // SetupWithManager sets up the controller with the Manager.
 func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastcomv1alpha1.WanReplication{}).
+		For(&hazelcastv1alpha1.WanReplication{}).
 		Complete(r)
 }

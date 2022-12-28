@@ -182,7 +182,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, nil
 		} else {
-			return r.update(ctx, h, failedPhase(err))
+			return r.update(ctx, h, failedPhase(err).withMessage(err.Error()))
 		}
 	}
 
@@ -354,6 +354,17 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.Cache{}, "hazelcastResourceName", func(rawObj client.Object) []string {
 		m := rawObj.(*hazelcastv1alpha1.Cache)
 		return []string{m.Spec.HazelcastResourceName}
+	}); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.WanReplication{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		wr := rawObj.(*hazelcastv1alpha1.WanReplication)
+		hzResources := []string{}
+		for k := range wr.Status.WanReplicationMapsStatus {
+			hzName, _ := splitWanMapKey(k)
+			hzResources = append(hzResources, hzName)
+		}
+		return hzResources
 	}); err != nil {
 		return err
 	}
