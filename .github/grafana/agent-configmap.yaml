@@ -18,7 +18,6 @@ data:
             filename: /tmp/positions.yaml
           target_config:
             sync_period: 10s
-          limits_config:
           scrape_configs:
             - job_name: pod-logs
               kubernetes_sd_configs:
