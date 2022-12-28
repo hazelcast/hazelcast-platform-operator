@@ -85,7 +85,6 @@ jobs:
       run:
         shell: bash
     env:
-      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
       NAMESPACE: oc-e2e-test-operator-${{ matrix.edition }}-${{ github.run_id }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
@@ -108,7 +107,6 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Build Image
-        if: github.event_name == 'workflow_dispatch'
         run: |
           IMG=ttl.sh/$(uuidgen):2h
           echo "IMG=${IMG}" >> $GITHUB_ENV
