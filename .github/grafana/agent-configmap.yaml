@@ -24,7 +24,7 @@ data:
                 - role: pod
               pipeline_stages:
                 - cri: {}
-                - labels:
+                - static_labels:
                     gh_run_id: "${GH_RUN_ID}"
                     gh_run_number: "${GH_RUN_NUMBER}"
                     commit_sha: "${GH_SHA}"
