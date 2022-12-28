@@ -1,7 +1,7 @@
-//go:build localrun || unittest
-// +build localrun unittest
+//go:build unittest
+// +build unittest
 
-// This file is used  for running operator locally and connect to the cluster that uses ExposeExternally feature
+// This file is used for unit tests
 
 package client
 

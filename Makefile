@@ -190,15 +190,14 @@ test-e2e-focus: generate fmt vet ginkgo ## Run focused end-to-end tests
 
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
-CUSTOM_GO_BUILD_TAGS ?= localrun
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" main.go
+	go build -o bin/manager -tags "$(GO_BUILD_TAGS)" main.go
 
 build-tilt: generate fmt vet
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" ./main.go
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS)" ./main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
@@ -371,15 +370,6 @@ generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml
 	$(KUSTOMIZE) build config/default > bundle.yaml
-
-STS_NAME ?= hazelcast
-expose-local: ## Port forward hazelcast Pod so that it's accessible from localhost
-	while [ true ] ; do \
-		$(KUBECTL) get sts $(STS_NAME) &> /dev/null && break ; \
-		sleep 5 ; \
-	done;
-	$(KUBECTL) wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
-	$(KUBECTL) port-forward statefulset/$(STS_NAME) 8000:5701
 
 # Detect the OS to set per-OS defaults
 OS_NAME = $(shell uname -s | tr A-Z a-z)
