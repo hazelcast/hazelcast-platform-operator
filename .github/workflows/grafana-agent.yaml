@@ -76,3 +76,9 @@ jobs:
           kubectl create namespace $NAMESPACE
           envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $NAMESPACE -f -'
           /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+
+      - name: Stdout
+        run: |
+          kubectl get cm grafana-agent-logs -n $NAMESPACE
+          echo "~~~~~~~~~~~~~~~~~~~~"
+          envsubst < .github/grafana/agent-configmap.yaml
