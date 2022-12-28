@@ -43,11 +43,11 @@ jobs:
     if: >-
       ( !cancelled()
       && ((github.event_name == 'pull_request_target'
-            && github.event.label.name == 'run-k8s-dist-tests'
+            && github.event.label.name == 'run-all-test'
             && github.event.pull_request.head.repo.full_name != github.repository)
           ||
           (github.event_name == 'pull_request'
-            && github.event.label.name == 'run-k8s-dist-tests'
+            && github.event.label.name == 'run-all-test'
             && github.event.pull_request.head.repo.full_name == github.repository)
           ||
           github.event_name == 'push'
@@ -70,7 +70,7 @@ jobs:
           PR_LABELS=$( (gh pr view https://github.com/${{github.repository}}/pull/${PR_NUMBER} --json labels  | jq .labels[].name) || echo "Could not get PR labels")
           for label in $PR_LABELS; do
             # if full suite is ran before 
-            if [[ "$label" == '"run-k8s-dist-tests"' ]]; then
+            if [[ "$label" == '"run-all-test"' ]]; then
               echo "RUN_TESTS=false" >> $GITHUB_OUTPUT
               exit 0
             fi
