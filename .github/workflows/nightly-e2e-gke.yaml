@@ -36,13 +36,13 @@ jobs:
             --num-nodes=3
           sleep 30
 
-  new-relic-setup:
+  grafana-setup:
     needs: [ create-gke-cluster ]
-    uses: ./.github/workflows/newrelic-gke.yaml
+    uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
       cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      nr_cluster_name: gke-operator
+      cluster_type: gke
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}

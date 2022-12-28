@@ -1,11 +1,11 @@
-name: Install new relic on GKE
+name: Install Grafana Agent on GKE
 on:
   workflow_call:
     inputs:
       cluster_name:
         type: string
         required: true
-      nr_cluster_name:
+      cluster_type:
         type: string
         required: true
       gh_run_id:
@@ -28,19 +28,29 @@ on:
     secrets:
       GKE_SA_KEY:
         required: true
-      NEW_RELIC_LICENCE_KEY:
+      GRAFANA_REMOTE_WRITE_URL:
+        required: true
+      LOKI_USERNAME:
+        required: true
+      LOKI_PASSWORD:
+        required: true
+      LOKI_CLUSTER_NAME:
         required: true
 jobs:
-  new-relic-setup:
-    name: Setup New Relic agent
+  grafana-setup:
+    name: Setup Grafana agent
     env:
-      NR_CLUSTER_NAME: ${{ inputs.nr_cluster_name }}
+      CLUSTER_TYPE: ${{ inputs.cluster_type }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
       GH_RUN_ID: ${{ inputs.gh_run_id }}
       GH_RUN_NUMBER: ${{ inputs.gh_run_number }}
       GH_SHA: ${{ inputs.gh_sha }}
       GKE_ZONE: ${{ inputs.gke_zone }}
       GCP_PROJECT_ID: ${{ inputs.gcp_project_id }}
+      LOKI_REMOTE_WRITE_URL: ${{ secrets.LOKI_REMOTE_WRITE_URL }}
+      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+      LOKI_CLUSTER_NAME: ${{ secrets.LOKI_CLUSTER_NAME }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -58,19 +68,8 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
-      - name: Install New Relic repo
-        run: |
-          helm repo add newrelic https://helm-charts.newrelic.com
 
-      - name: Install New Relic agent
+      - name: Install Grafana Agent agent
         run: |
           kubectl create namespace grafana
-          helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
-            --set "global.cluster=${{ env.NR_CLUSTER_NAME }}" \
-            --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ env.CLUSTER_NAME }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ env.GH_RUN_ID }}\"" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[2].name=GITHUB_RUN_NUMBER,newrelic-logging.fluentBit.additionalEnvVariables[2].value=\"${{ env.GH_RUN_NUMBER }}\"" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ env.GH_SHA }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[4].name=LOG_PARSER,newrelic-logging.fluentBit.additionalEnvVariables[4].value=cri" \
-            newrelic/nri-bundle
+          envsubst < .github/grafana/agent-configmap.yaml | NAMESPACE=grafana /bin/sh -c 'kubectl apply -n $NAMESPACE -f -'

@@ -8,12 +8,12 @@ data:
       configs:
         - name: default
           clients:
-            - url: ${LOKI_REMOTE_WRITE_URL}/loki/api/v1/push
+            - url: ${GRAFANA_REMOTE_WRITE_URL}/loki/api/v1/push
               basic_auth:
                 username: ${LOKI_USERNAME}
                 password: ${LOKI_PASSWORD}
               external_labels:
-                cluster: ${CLUSTER_NAME}
+                cluster: ${GRAFANA_CLUSTER_NAME}
           positions:
             filename: /tmp/positions.yaml
           target_config:
@@ -24,6 +24,12 @@ data:
                 - role: pod
               pipeline_stages:
                 - cri: {}
+                - labels:
+                    gh_run_id: ${GH_RUN_ID}
+                    gh_run_number: ${GH_RUN_NUMBER}
+                    commit_sha: ${GH_SHA}
+                    cluster_type: ${CLUSTER_TYPE}
+                    cluster_name: ${CLUSTER_NAME}
               relabel_configs:
                 - source_labels:
                     - __meta_kubernetes_pod_node_name
