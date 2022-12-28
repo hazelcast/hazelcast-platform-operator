@@ -192,3 +192,20 @@ wait_for_instance_restarted()
       echo "All instances are in 'Ready' status."
    fi
 }
+
+#This function sync certification tags and add the latest tag to the published image
+sync_certificated_image_tags()
+{
+     local PROJECT_ID=$1
+     local CERT_IMAGE_ID=$2
+     local RHEL_API_KEY=$3
+     curl -X 'POST' \
+     "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/requests/images" \
+     -H 'accept: application/json' \
+     -H 'Content-Type: application/json' \
+     -d "{
+           \"image_id\": \"${CERT_IMAGE_ID}\",
+           \"operation\": \"sync-tags\"
+         }" \
+     -H "X-API-KEY: ${RHEL_API_KEY}"
+}
