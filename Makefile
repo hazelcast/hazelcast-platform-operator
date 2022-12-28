@@ -14,9 +14,11 @@ endif
 
 
 ### TOOL VERSIONS
+TOOLBIN = $(shell pwd)/bin
 # https://github.com/kubernetes/kubernetes/releases
 # Used API version is set in go.mod file
 K8S_VERSION ?= 1.25.4
+SETUP_ENVTEST_VERSION ?= latest
 ENVTEST_K8S_VERSION ?= 1.25.x
 # https://github.com/operator-framework/operator-sdk/releases
 OPERATOR_SDK_VERSION ?= v1.25.2
@@ -30,9 +32,11 @@ OCP_OLM_CATALOG_VALIDATOR_VERSION ?= v0.0.1
 # https://github.com/operator-framework/operator-registry/releases
 OPM_VERSION ?= v1.26.2
 # https://github.com/onsi/ginkgo/releases
-GINKGO_VERSION ?= v2
+# It is set in the go.mod file
+GINKGO_VERSION ?= v2.1.6
 # https://github.com/kubernetes-sigs/kustomize/releases
-KUSTOMIZE_VERSION ?= v4@v4.5.3
+KUSTOMIZE_VERSION ?= v4.5.3
+
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -160,7 +164,7 @@ tilt-remote:
 tilt-remote-ttl:
 	 ALLOW_REMOTE=true USE_TTL_REG=true tilt up 
 
-ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
+ENVTEST_ASSETS_DIR=$(TOOLBIN)/envtest
 GO_TEST_FLAGS ?= "-ee=true"
 SUITE = $(subst =,-,$(GO_TEST_FLAGS))
 
@@ -276,39 +280,6 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=8m
 	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 2m
 
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
-
-KUSTOMIZE = $(shell pwd)/bin/kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/$(KUSTOMIZE_VERSION))
-
-GINKGO = $(GOBIN)/ginkgo
-$(GINKGO):
-	go install -mod=mod github.com/onsi/ginkgo/$(GINKGO_VERSION)/ginkgo
-
-ginkgo: $(GINKGO)
-
-ENVTEST = $(GOBIN)/setup-envtest
-envtest: $(ENVTEST)
-$(ENVTEST):
-	test -s $(ENVTEST) || GOBIN=$(GOBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest 
-
-# go-get-tool will 'go install' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
-
 .PHONY: bundle
 bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
@@ -325,23 +296,6 @@ bundle-build: ## Build the bundle image.
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
-
-.PHONY: opm
-OPM = ./bin/opm
-opm: ## Download opm locally if necessary.
-ifeq (,$(wildcard $(OPM)))
-ifeq (,$(shell which opm 2>/dev/null))
-	@{ \
-	set -e ;\
-	mkdir -p $(dir $(OPM)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
-	chmod +x $(OPM) ;\
-	}
-else
-OPM = $(shell which opm)
-endif
-endif
 
 # A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
 # These images MUST exist in a registry and be pull-able.
@@ -384,29 +338,9 @@ expose-local: ## Port forward hazelcast Pod so that it's accessible from localho
 # Detect the OS to set per-OS defaults
 OS_NAME = $(shell uname -s | tr A-Z a-z)
 
-OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
-
-OPERATOR_SDK=${shell pwd}/bin/operator-sdk
-.PHONY: operator-sdk
-operator-sdk: $(OPERATOR_SDK)
-
-.PHONY: print-bundle-version
-print-bundle-version:
+.PHONY: print-bundle-version 
+print-bundle-version: 
 	@echo -n $(BUNDLE_VERSION)
-
-$(OPERATOR_SDK):
-	curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
-	chmod +x $(OPERATOR_SDK)
-
-
-OCP_OLM_CATALOG_VALIDATOR=${shell pwd}/bin/ocp-olm-catalog-validator
-OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
-.PHONY: ocp-olm-catalog-validator
-ocp-olm-catalog-validator: $(OCP_OLM_CATALOG_VALIDATOR)
-
-$(OCP_OLM_CATALOG_VALIDATOR):
-	curl -sSL $(OCP_OLM_CATALOG_VALIDATOR_URL) -o $(OCP_OLM_CATALOG_VALIDATOR) --create-dirs || (echo "curl returned $$? trying to fetch ocp-olm-catalog-validator."; exit 1)
-	chmod +x $(OCP_OLM_CATALOG_VALIDATOR)
 
 bundle-ocp-validate: ocp-olm-catalog-validator
 	 $(OCP_OLM_CATALOG_VALIDATOR) ./bundle  --optional-values="file=./bundle/metadata/annotations.yaml"
@@ -414,3 +348,77 @@ bundle-ocp-validate: ocp-olm-catalog-validator
 api-ref-doc: 
 	@go build -o bin/docgen  ./apidocgen/main.go 
 	@./bin/docgen ./api/v1alpha1/*.go
+
+
+##@ Tool installation
+
+ENVTEST = $(TOOLBIN)/setup-envtest/$(SETUP_ENVTEST_VERSION)/setup-envtest
+envtest: ## Download setup-envtest locally if necessary.
+	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION))
+	@echo -n $(ENVTEST)
+
+OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
+OPERATOR_SDK=${TOOLBIN}/operator-sdk/$(OPERATOR_SDK_VERSION)/operator-sdk
+.PHONY: operator-sdk
+operator-sdk: ## Download operator-sdk locally if necessary.
+	@[ -f $(OPERATOR_SDK) ] || { \
+		curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs ;\
+		chmod +x $(OPERATOR_SDK);\
+	}
+	@echo -n $(OPERATOR_SDK)
+
+CONTROLLER_GEN = $(TOOLBIN)/controller-gen/$(CONTROLLER_GEN_VERSION)/controller-gen
+controller-gen: ## Download controller-gen locally if necessary.
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
+	@echo -n $(CONTROLLER_GEN)
+
+KUSTOMIZE = $(TOOLBIN)/kustomize/$(KUSTOMIZE_VERSION)/kustomize
+.PHONY: kustomize
+kustomize: ## Download kustomize locally if necessary.
+	@$(eval KUSTOMIZE_MAJOR_VERSION=$(firstword $(subst ., ,$(KUSTOMIZE_VERSION))))
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/$(KUSTOMIZE_MAJOR_VERSION)@$(KUSTOMIZE_VERSION))
+	@echo -n $(KUSTOMIZE)
+
+GINKGO = $(TOOLBIN)/ginkgo/$(GINKGO_VERSION)/ginkgo
+ginkgo: ## Download ginkgo locally if necessary.
+	@$(eval GINKGO_MAJOR_VERSION=$(firstword $(subst ., ,$(GINKGO_VERSION)))) 
+	@[ -f $(GINKGO) ] || { \
+	mkdir -p $(dir $(GINKGO)) ;\
+	go get github.com/onsi/ginkgo/$(GINKGO_MAJOR_VERSION)@$(GINKGO_VERSION) ;\
+	GOBIN=$(dir $(GINKGO)) go install -mod=mod github.com/onsi/ginkgo/$(GINKGO_MAJOR_VERSION)/ginkgo@$(GINKGO_VERSION) ;\
+	}
+	@echo -n $(GINKGO)
+
+.PHONY: opm
+OPM = $(TOOLBIN)/opm/$(OPM_VERSION)/opm
+opm: ## Download opm locally if necessary.
+	@[ -f $(OPM) ] || { \
+	mkdir -p $(dir $(OPM)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
+	chmod +x $(OPM) ;\
+	}
+	echo -n $(OPM)
+
+OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
+OCP_OLM_CATALOG_VALIDATOR=$(TOOLBIN)/ocp-olm-catalog-validator/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/ocp-olm-catalog-validator
+.PHONY: ocp-olm-catalog-validator
+ocp-olm-catalog-validator: ## Download ocp-olm-catalog-validator locally if necessary.
+	@[ -f $(OCP_OLM_CATALOG_VALIDATOR) ] || { \
+	curl -sSL $(OCP_OLM_CATALOG_VALIDATOR_URL) -o $(OCP_OLM_CATALOG_VALIDATOR) --create-dirs ;\
+	chmod +x $(OCP_OLM_CATALOG_VALIDATOR) ;\
+	}
+	@echo -n $(OCP_OLM_CATALOG_VALIDATOR)
+
+# go-get-tool will 'go install' any package $2 and install it to $1.
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp &> /dev/null;\
+mkdir -p $(dir $(1)) ;\
+GOBIN=$(dir $(1)) go install $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef
