@@ -81,8 +81,16 @@ endif
 # Path to the kubectl command, if it is not in $PATH
 KUBECTL ?= kubectl
 
+HELM_CHART ?= ./helm-chart
+
 PHONE_HOME_ENABLED ?= false
 DEVELOPER_MODE_ENABLED ?= true
+INSTALL_CRDS ?= false
+DEBUG_ENABLED ?= false
+
+RELEASE_NAME ?= v1
+DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
+STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -154,7 +162,7 @@ setup-linters:
 
 # Use tilt tool to deploy operator and its resources to the local K8s cluster in the current context 
 tilt: 
-	tilt up
+	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) tilt up
 
 tilt-debug:
 	DEBUG_ENABLED=true tilt up
@@ -164,11 +172,11 @@ tilt-debug-remote-ttl:
 
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context 
 tilt-remote: 
-	 ALLOW_REMOTE=true tilt up 
+	 DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) ALLOW_REMOTE=true tilt up
 
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context with ttl.sh configured for image registry.
 tilt-remote-ttl:
-	 ALLOW_REMOTE=true USE_TTL_REG=true tilt up 
+	 DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) ALLOW_REMOTE=true USE_TTL_REG=true tilt up
 
 ENVTEST_ASSETS_DIR=$(TOOLBIN)/envtest
 GO_TEST_FLAGS ?= "-ee=true"
@@ -190,16 +198,16 @@ endif
 GINKGO_PARALLEL_PROCESSES ?= 4
 
 test-e2e-split-kind: generate fmt vet ginkgo ## Run end-to-end tests on Kind
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --output-interceptor-mode=none --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --output-interceptor-mode=none --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report-${REPORT_SUFFIX}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test-report-${REPORT_SUFFIX}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 test-ph: generate fmt vet ginkgo ## Run phone-home tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 test-e2e-focus: generate fmt vet ginkgo ## Run focused end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
@@ -229,55 +237,43 @@ docker-push-latest:
 	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
 	docker push ${IMAGE_TAG_BASE}:latest
 
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
+update-chart-crds: manifests
+	echo "{{- if .Values.installCRDs }}" >> crds.yaml
+	cat config/crd/bases/* >> crds.yaml
+	echo "{{- end }}" >> crds.yaml
+	mv crds.yaml $(HELM_CHART)/templates/crds.yaml
 
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
+install-crds: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUBECTL) apply -f config/crd/bases
 
-webhook-install: manifests kustomize
-	$(KUSTOMIZE) build config/webhook | $(KUBECTL) apply -f -
+install-chart: helm
+	$(HELM) upgrade --install $(RELEASE_NAME) $(HELM_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
 
-webhook-uninstall: manifests kustomize
-	$(KUSTOMIZE) build config/webhook | $(KUBECTL) delete -f -
+uninstall-crds: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+	$(KUBECTL) delete -f config/crd/bases
 
-deploy: ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	@$(MAKE) manifests &> /dev/null
-	@$(MAKE) kustomize &> /dev/null
-ifneq (,$(NAME_PREFIX))
-	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
-endif
-	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml &> /dev/null
-ifeq (false,$(PHONE_HOME_ENABLED))
-	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path disable_phone_home.yaml
-endif
-ifeq (true,$(DEVELOPER_MODE_ENABLED))
-	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path enable_developer_mode.yaml
-endif
-	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path remove_security_context.yaml &> /dev/null
-ifeq (true,$(REMOVE_SECURITY_CONTEXT))
-	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path remove_security_context.yaml
-endif
-	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path debug_enabled.yaml &> /dev/null
-ifeq (true,$(DEBUG_ENABLED))
-	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path debug_enabled.yaml
-endif
-	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-ifneq (false,$(APPLY_MANIFESTS))
-	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply --server-side=true --force-conflicts=true -f -
-else
-	@$(KUSTOMIZE) build config/default
-endif
+uninstall-chart: helm
+	 $(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
 
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f - --ignore-not-found
+webhook-install: helm
+	$(HELM) template $(RELEASE_NAME) $(HELM_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
 
-undeploy-keep-crd: kustomize
-	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
-	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found
-	cd config/default && $(KUSTOMIZE) edit add resource ../crd
+webhook-uninstall: helm
+	$(HELM) template $(RELEASE_NAME) $(HELM_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
+
+deploy: manifests helm install-crds ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	$(MAKE) install-chart
+
+helm-template: helm
+	@$(HELM) template $(RELEASE_NAME) $(HELM_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+
+undeploy: uninstall-chart uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+
+undeploy-tilt:
+	$(MAKE) helm-template | $(KUBECTL) delete -f -
+	$(MAKE) uninstall-crds
+
+undeploy-keep-crd: uninstall-chart
 
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
 	$(eval CR_NAMES := $(shell $(KUBECTL) get crd -o jsonpath='{range.items[*]}{..metadata.name}{"\n"}{end}' | grep hazelcast.com))
@@ -338,10 +334,11 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle.yaml
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml
-	$(KUSTOMIZE) build config/default > bundle.yaml
+generate-bundle-yaml: manifests update-chart-crds helm ## Generate one file deployment bundle.yaml
+	$(HELM) template $(RELEASE_NAME) $(HELM_CHART) --namespace=$(NAMESPACE) --set installCRDs=true,image.imageOverride=$(IMG) > bundle.yaml
+
+generate-crds-yaml: manifests ## Generate one file containing all crds crds.yaml
+	cat config/crd/bases/* >> crds.yaml
 
 # Detect the OS to set per-OS defaults
 OS_NAME = $(shell uname -s | tr A-Z a-z)

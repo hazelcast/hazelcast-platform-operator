@@ -1,3 +1,17 @@
+---
+# Source: hazelcast-platform-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: v1-hazelcast-platform-operator
+  labels:
+    helm.sh/chart: hazelcast-platform-operator-5.0.6-alpha
+    app.kubernetes.io/name: hazelcast-platform-operator
+    app.kubernetes.io/instance: v1
+    app.kubernetes.io/version: "5.0.6"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -114,6 +128,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -235,6 +250,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -1841,6 +1857,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -1929,6 +1946,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -3218,6 +3236,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -3494,6 +3513,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -3611,6 +3631,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -3734,6 +3755,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -3839,6 +3861,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -3939,6 +3962,7 @@ spec:
     subresources:
       status: {}
 ---
+# Source: hazelcast-platform-operator/templates/crds.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -4120,771 +4144,807 @@ spec:
     subresources:
       status: {}
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: hazelcast-platform-controller-manager
-  namespace: default
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  creationTimestamp: null
-  name: hazelcast-platform-manager-role
-  namespace: default
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - events
-  - pods
-  - serviceaccounts
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  - pods
-  - serviceaccounts
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - get
-- apiGroups:
-  - apps
-  resources:
-  - statefulsets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hazelcasts
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hazelcasts/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hazelcasts/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hotbackups
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hotbackups/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hotbackups/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - managementcenters
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - managementcenters/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - managementcenters/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  - roles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
----
+# Source: hazelcast-platform-operator/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
-  name: hazelcast-platform-manager-role
+  name: v1-hazelcast-platform-operator
+  labels:
+    helm.sh/chart: hazelcast-platform-operator-5.0.6-alpha
+    app.kubernetes.io/name: hazelcast-platform-operator
+    app.kubernetes.io/instance: v1
+    app.kubernetes.io/version: "5.0.6"
+    app.kubernetes.io/managed-by: Helm
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - endpoints
-  - nodes
-  - pods
-  - services
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - admissionregistration.k8s.io
-  resources:
-  - validatingwebhookconfigurations
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - statefulsets
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - caches
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - caches/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - caches/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - cronhotbackups
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - cronhotbackups/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - cronhotbackups/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - maps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - maps/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - maps/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - multimaps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - multimaps/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - multimaps/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - queues
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - queues/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - queues/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - replicatedmaps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - replicatedmaps/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - replicatedmaps/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - topics
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - topics/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - topics/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - wanreplications
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - wanreplications/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - wanreplications/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - clusterrolebindings
-  - clusterroles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - security.openshift.io
-  resources:
-  - securitycontextconstraints
-  verbs:
-  - use
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+      - nodes
+      - pods
+      - services
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - list
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - caches
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - caches/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - caches/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - cronhotbackups
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - cronhotbackups/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - cronhotbackups/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - maps
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - maps/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - maps/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - multimaps
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - multimaps/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - multimaps/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - queues
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - queues/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - queues/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - replicatedmaps
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - replicatedmaps/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - replicatedmaps/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - topics
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - topics/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - topics/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - wanreplications
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - wanreplications/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - wanreplications/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterrolebindings
+      - clusterroles
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - security.openshift.io
+    resources:
+      - securitycontextconstraints
+    verbs:
+      - use
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: hazelcast-platform-manager-rolebinding
-  namespace: default
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: hazelcast-platform-manager-role
-subjects:
-- kind: ServiceAccount
-  name: hazelcast-platform-controller-manager
-  namespace: default
----
+# Source: hazelcast-platform-operator/templates/clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: hazelcast-platform-manager-clusterrolebinding
+  name: v1-hazelcast-platform-operator
+  labels:
+    helm.sh/chart: hazelcast-platform-operator-5.0.6-alpha
+    app.kubernetes.io/name: hazelcast-platform-operator
+    app.kubernetes.io/instance: v1
+    app.kubernetes.io/version: "5.0.6"
+    app.kubernetes.io/managed-by: Helm
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: hazelcast-platform-manager-role
+  name: v1-hazelcast-platform-operator
 subjects:
-- kind: ServiceAccount
-  name: hazelcast-platform-controller-manager
-  namespace: default
+  - kind: ServiceAccount
+    name: v1-hazelcast-platform-operator
+    namespace: default
 ---
+# Source: hazelcast-platform-operator/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: v1-hazelcast-platform-operator
+  labels:
+    helm.sh/chart: hazelcast-platform-operator-5.0.6-alpha
+    app.kubernetes.io/name: hazelcast-platform-operator
+    app.kubernetes.io/instance: v1
+    app.kubernetes.io/version: "5.0.6"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - events
+      - pods
+      - serviceaccounts
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+      - pods
+      - serviceaccounts
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - hazelcasts
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - hazelcasts/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - hazelcasts/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - hotbackups
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - hotbackups/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - hotbackups/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - managementcenters
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - managementcenters/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - managementcenters/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+      - roles
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+# Source: hazelcast-platform-operator/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: v1-hazelcast-platform-operator
+  labels:
+    helm.sh/chart: hazelcast-platform-operator-5.0.6-alpha
+    app.kubernetes.io/name: hazelcast-platform-operator
+    app.kubernetes.io/instance: v1
+    app.kubernetes.io/version: "5.0.6"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: v1-hazelcast-platform-operator
+subjects:
+  - kind: ServiceAccount
+    name: v1-hazelcast-platform-operator
+    namespace: default
+---
+# Source: hazelcast-platform-operator/templates/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
+  name: v1-hazelcast-platform-operator
   labels:
-    app.kubernetes.io/component: webhook
-    app.kubernetes.io/created-by: hazelcast-platform-operator
-    app.kubernetes.io/instance: webhook-service
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: service
-    app.kubernetes.io/part-of: hazelcast-platform-operator
-  name: hazelcast-platform-webhook-service
-  namespace: default
+    helm.sh/chart: hazelcast-platform-operator-5.0.6-alpha
+    app.kubernetes.io/name: hazelcast-platform-operator
+    app.kubernetes.io/instance: v1
+    app.kubernetes.io/version: "5.0.6"
+    app.kubernetes.io/managed-by: Helm
 spec:
+  type: ClusterIP
   ports:
-  - port: 443
-    protocol: TCP
-    targetPort: 9443
+    - port: 443
+      protocol: TCP
+      targetPort: 9443
   selector:
-    control-plane: controller-manager
+    app.kubernetes.io/name: hazelcast-platform-operator
+    app.kubernetes.io/instance: v1
 ---
+# Source: hazelcast-platform-operator/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: v1-hazelcast-platform-operator
   labels:
-    control-plane: controller-manager
-  name: hazelcast-platform-controller-manager
-  namespace: default
+    helm.sh/chart: hazelcast-platform-operator-5.0.6-alpha
+    app.kubernetes.io/name: hazelcast-platform-operator
+    app.kubernetes.io/instance: v1
+    app.kubernetes.io/version: "5.0.6"
+    app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
   selector:
     matchLabels:
-      control-plane: controller-manager
+      app.kubernetes.io/name: hazelcast-platform-operator
+      app.kubernetes.io/instance: v1
   template:
     metadata:
       labels:
-        control-plane: controller-manager
+        app.kubernetes.io/name: hazelcast-platform-operator
+        app.kubernetes.io/instance: v1
     spec:
-      containers:
-      - args:
-        - --leader-elect=false
-        command:
-        - /manager
-        env:
-        - name: WATCH_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        image: hazelcast/hazelcast-platform-operator:latest-snapshot
-        imagePullPolicy: IfNotPresent
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8081
-          initialDelaySeconds: 15
-          periodSeconds: 20
-        name: manager
-        ports:
-        - containerPort: 9443
-          name: webhook-server
-          protocol: TCP
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8081
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        resources:
-          limits:
-            cpu: 200m
-            memory: 300Mi
-          requests:
-            cpu: 100m
-            memory: 100Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-        volumeMounts:
-        - mountPath: /tmp/k8s-webhook-server/serving-certs
-          name: cert
-      serviceAccountName: hazelcast-platform-controller-manager
+      serviceAccountName: v1-hazelcast-platform-operator
       terminationGracePeriodSeconds: 10
+      # TODO: Add if check
+      securityContext:
+        null
       volumes:
-      - emptyDir: {}
-        name: cert
+        - emptyDir: { }
+          name: cert
+      containers:
+        - command:
+          - /manager
+          args:
+          - --leader-elect=false
+          name: manager
+          securityContext:
+            allowPrivilegeEscalation: false
+          image: hazelcast/hazelcast-platform-operator:latest-snapshot
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          ports:
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+          resources:
+            limits:
+              cpu: 200m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: WATCH_NAMESPACE
+              value: default
+            - name: DEVELOPER_MODE_ENABLED
+              value: "false"
+            - name: PHONE_HOME_ENABLED
+              value: "true"
 ---
+# Source: hazelcast-platform-operator/templates/validatingwebhookconfiguration.yaml
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  creationTimestamp: null
-  name: hazelcast-platform-validating-webhook-configuration
+  name: v1-hazelcast-platform-operator
+  labels:
+    helm.sh/chart: hazelcast-platform-operator-5.0.6-alpha
+    app.kubernetes.io/name: hazelcast-platform-operator
+    app.kubernetes.io/instance: v1
+    app.kubernetes.io/version: "5.0.6"
+    app.kubernetes.io/managed-by: Helm
 webhooks:
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-cache
-  failurePolicy: Fail
-  name: vcache.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - caches
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-cronhotbackup
-  failurePolicy: Ignore
-  name: vcronhotbackup.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - cronhotbackups
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-hazelcast
-  failurePolicy: Ignore
-  name: vhazelcast.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - hazelcasts
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-hotbackup
-  failurePolicy: Ignore
-  name: vhotbackup.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - hotbackups
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-managementcenter
-  failurePolicy: Ignore
-  name: vmanagementcenter.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - managementcenters
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-map
-  failurePolicy: Ignore
-  name: vmap.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - maps
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-multimap
-  failurePolicy: Ignore
-  name: vmultimap.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - multimaps
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-queue
-  failurePolicy: Ignore
-  name: vqueue.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - queues
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-replicatedmap
-  failurePolicy: Fail
-  name: vreplicatedmap.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - replicatedmaps
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-topic
-  failurePolicy: Ignore
-  name: vtopic.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - topics
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: hazelcast-platform-webhook-service
-      namespace: default
-      path: /validate-hazelcast-com-v1alpha1-wanreplication
-  failurePolicy: Ignore
-  name: vwanreplication.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - wanreplications
-  sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-cronhotbackup
+    failurePolicy: Ignore
+    name: vcronhotbackup.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - cronhotbackups
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-hazelcast
+    failurePolicy: Ignore
+    name: vhazelcast.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - hazelcasts
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-hotbackup
+    failurePolicy: Ignore
+    name: vhotbackup.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - hotbackups
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-managementcenter
+    failurePolicy: Ignore
+    name: vmanagementcenter.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - managementcenters
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-map
+    failurePolicy: Ignore
+    name: vmap.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - maps
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-multimap
+    failurePolicy: Ignore
+    name: vmultimap.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - multimaps
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-queue
+    failurePolicy: Ignore
+    name: vqueue.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - queues
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-topic
+    failurePolicy: Ignore
+    name: vtopic.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - topics
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-wanreplication
+    failurePolicy: Ignore
+    name: vwanreplication.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - wanreplications
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-cache
+    failurePolicy: Ignore
+    name: vcache.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - caches
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: v1-hazelcast-platform-operator
+        namespace: default
+        path: /validate-hazelcast-com-v1alpha1-replicatedmap
+    failurePolicy: Ignore
+    name: vreplicatedmap.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - replicatedmaps
+    sideEffects: None

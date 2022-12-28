@@ -100,7 +100,7 @@ jobs:
     env:
       HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
       NAMESPACE: oc-e2e-test-operator-${{ matrix.edition }}-${{ github.run_id }}
-      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
     steps:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v3
@@ -135,8 +135,9 @@ jobs:
         run: |
           oc new-project $NAMESPACE
 
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
-          oc rollout status deployment ${NAME_PREFIX}controller-manager
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
+          oc rollout status deployment ${DEPLOY_NAME}
 
       - name: Create secrets
         if: matrix.edition == 'ee'
@@ -166,7 +167,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=ocp
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=ocp
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests

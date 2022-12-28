@@ -89,6 +89,16 @@ jobs:
           curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
                -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-${RELEASE_VERSION}.yaml" \
                -T bundle.yaml
+          
+          make generate-crds-yaml
+          
+          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+               -X PUT "https://hazelcast.jfrog.io/artifactory/operator/crds-latest.yaml" \
+               -T crds.yaml
+
+          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+               -X PUT "https://hazelcast.jfrog.io/artifactory/operator/crds-${RELEASE_VERSION}.yaml" \
+               -T crds.yaml
 
   publish_image_to_redhat:
     name: Certify and Publish Container Image to Red Hat

@@ -78,7 +78,7 @@ jobs:
       IMG: ${{ needs.get-image.outputs.IMG }}
       NAMESPACE: test-operator-backup-ee
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      NAME_PREFIX: hp-ee-${{ github.run_id }}-
+      RELEASE_NAME: hp-ee-${{ github.run_id }}
 
     steps:
       - name: Checkout
@@ -115,10 +115,10 @@ jobs:
           kubectl create namespace ${{ env.NAMESPACE }}
           kubectl config set-context --current --namespace=$NAMESPACE
 
-          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
 
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secret
@@ -132,7 +132,7 @@ jobs:
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
         run: |
-          make test-e2e NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=backup_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=backup
+          make test-e2e NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME E2E_TEST_SUITE=backup_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=backup
 
       - name: Clean up after Tests
         if: always()

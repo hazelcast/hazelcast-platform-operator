@@ -43,6 +43,12 @@ jobs:
           curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
                -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-latest-snapshot.yaml" \
                -T bundle.yaml
+          
+          make generate-crds-yaml
+          
+          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
+               -X PUT "https://hazelcast.jfrog.io/artifactory/operator/crds-latest-snapshot.yaml" \
+               -T crds.yaml
 
       - name: Generate API Reference Docs
         run: |

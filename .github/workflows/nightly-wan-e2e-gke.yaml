@@ -124,9 +124,9 @@ jobs:
         run: |
           kubectl create namespace ${{ matrix.namespace }}
           kubectl config set-context --current --namespace=${{ matrix.namespace }}
-          DEPLOY_NAME=${{ matrix.namespace }}-controller-manager
+          DEPLOY_NAME=${{ matrix.namespace }}-hazelcast-platform-operator
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
-          make deploy IMG=$IMG NAMESPACE=${{ matrix.namespace }} NAME_PREFIX=${{ matrix.namespace }}-
+          make deploy IMG=$IMG NAMESPACE=${{ matrix.namespace }} RELEASE_NAME=${{ matrix.namespace }}
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create Secret On ${{ matrix.cluster }} Cluster and ${{ matrix.namespace }} namespace
@@ -206,7 +206,7 @@ jobs:
 
       - name: Run Wan Test
         run: |-
-          make test-e2e NAMESPACE=src-ns NAME_PREFIX=src-ns- E2E_TEST_SUITE=hz_wan_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=wan
+          make test-e2e NAMESPACE=src-ns RELEASE_NAME=src-ns E2E_TEST_SUITE=hz_wan_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=wan
 
       - name: Upload Test Report
         if: always()
