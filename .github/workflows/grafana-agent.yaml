@@ -47,10 +47,10 @@ jobs:
       GH_SHA: ${{ inputs.gh_sha }}
       GKE_ZONE: ${{ inputs.gke_zone }}
       GCP_PROJECT_ID: ${{ inputs.gcp_project_id }}
-      LOKI_REMOTE_WRITE_URL: ${{ secrets.LOKI_REMOTE_WRITE_URL }}
+      GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
       LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
       LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-      LOKI_CLUSTER_NAME: ${{ secrets.LOKI_CLUSTER_NAME }}
+      GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
       MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
       NAMESPACE: grafana
     runs-on: ubuntu-latest
