@@ -15,6 +15,7 @@ type Client interface {
 	IsClientConnected() bool
 	AreAllMembersAccessible() bool
 
+	ClusterId() hztypes.UUID
 	OrderedMembers() []cluster.MemberInfo
 	InvokeOnMember(ctx context.Context, req *proto.ClientMessage, uuid hztypes.UUID, opts *proto.InvokeOptions) (*proto.ClientMessage, error)
 	InvokeOnRandomTarget(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error)
@@ -103,6 +104,15 @@ func (cl *HazelcastClient) InvokeOnRandomTarget(ctx context.Context, req *proto.
 
 func (cl *HazelcastClient) Running() bool {
 	return cl.client != nil && cl.client.Running()
+}
+
+func (cl *HazelcastClient) ClusterId() hztypes.UUID {
+	if cl.client == nil {
+		return hztypes.UUID{}
+	}
+
+	ci := hazelcast.NewClientInternal(cl.client)
+	return ci.ClusterID()
 }
 
 func (c *HazelcastClient) Shutdown(ctx context.Context) error {
