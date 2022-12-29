@@ -155,6 +155,9 @@ tilt:
 tilt-debug:
 	DEBUG_ENABLED=true tilt up
 
+tilt-debug-remote-ttl:
+	DEBUG_ENABLED=true ALLOW_REMOTE=true USE_TTL_REG=true tilt up
+
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context 
 tilt-remote: 
 	 ALLOW_REMOTE=true tilt up 
