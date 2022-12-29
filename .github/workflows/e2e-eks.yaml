@@ -57,6 +57,7 @@ jobs:
       GH_RUN_NUMBER: ${{ github.run_number }}
       GH_SHA: ${{ github.sha }}
       CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+      MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

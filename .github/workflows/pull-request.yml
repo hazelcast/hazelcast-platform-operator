@@ -186,11 +186,11 @@ jobs:
 
       - name: Install Grafana Agent agent
         env:
-          GRAFANA_NS: grafana
           CLUSTER_TYPE: kind
           GH_RUN_ID: ${{ github.run_id }}
           GH_RUN_NUMBER: ${{ github.run_number }}
           GH_SHA: ${{ github.sha }}
+          MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
         run: |
           kubectl create namespace ${NAMESPACE}
           envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n ${NAMESPACE} -f -'
