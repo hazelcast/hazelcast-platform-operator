@@ -200,11 +200,11 @@ CUSTOM_GO_BUILD_TAGS ?= localrun
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" main.go
 
-build-tilt: generate fmt vet
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
+build-tilt: generate fmt vet # This is not going to work if client and server cpu architectures are different
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(shell go env GOARCH) go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
 
-build-tilt-debug: generate fmt vet
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -gcflags "-N -l" -o bin/tilt/manager-debug main.go
+build-tilt-debug: generate fmt vet # This is not going to work if client and server cpu architectures are different
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(shell go env GOARCH) go build -tags "$(GO_BUILD_TAGS)" -gcflags "-N -l" -o bin/tilt/manager-debug main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" ./main.go

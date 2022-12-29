@@ -21,7 +21,7 @@ debug_suffix = ''
 #
 if debug_enabled == "true":
   debug_suffix='-debug'
-  entrypoint='$GOPATH/bin/dlv --listen=0.0.0.0:40000 --api-version=2 --headless=true exec /manager-debug'
+  entrypoint='$GOPATH/bin/dlv --listen=0.0.0.0:40000 --api-version=2 --headless=true --accept-multiclient exec /manager-debug'
   k8s_resource(workload='hazelcast-platform-controller-manager', port_forwards=[40000])
 
 
