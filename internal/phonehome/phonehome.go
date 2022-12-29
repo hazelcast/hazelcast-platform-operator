@@ -196,12 +196,10 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 
 func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
 	hzcl, ok := reg.Get(types.NamespacedName{Name: hzName, Namespace: hzNamespace})
-	// If client not present continue
 	if !ok {
 		return "", false
 	}
 	cid := hzcl.ClusterId()
-	// If cid is empty continue
 	if cid.Default() {
 		return "", false
 	}
