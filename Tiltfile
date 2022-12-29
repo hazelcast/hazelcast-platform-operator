@@ -15,9 +15,16 @@ if os.getenv("USE_TTL_REG", default= "false").lower() == "true":
   registry_name='hpo-%s' % local('uuidgen')
   default_registry('ttl.sh/%s' % registry_name.strip("\n").lower())
 
+go_compile_cmd='make build-tilt'
+debug_enabled="false"
+#
+if os.getenv("DEBUG_ENABLED", default= "false").lower() == "true":
+   go_compile_cmd='make build-tilt-debug'
+   debug_enabled="true"
+
 local_resource(
   'go-compile',
-  'make build-tilt',
+  go_compile_cmd,
   deps=['./main.go','api/','controllers/','internal/',],
   ignore=['api/v1alpha1/zz_generated.deepcopy.go*'],
 )
@@ -32,20 +39,21 @@ local_resource(
 docker_build_with_restart(
   ref=image_name,
   context='.',
-  entrypoint=['/manager'],
-  dockerfile='./Dockerfile.tilt',
+  entrypoint='$GOPATH/bin/dlv --listen=:40000 --api-version=2 --headless=true exec /manager-debug',
+  dockerfile='./Dockerfile.tilt.debug',
   only=[
-    './bin/tilt/manager',
+    './bin/tilt/manager-debug',
   ],
   live_update=[
-    sync('./bin/tilt/manager', '/manager'),
+    sync('./bin/tilt/manager-debug', '/manager-debug'),
   ],
 )
 
 # This does not apply the operator deployment, it is done by docker_build_with_restart commmand
 k8s_yaml(local("""make deploy APPLY_MANIFESTS=false \
               REMOVE_SECURITY_CONTEXT=true IMG=%s \
-              NAMESPACE=$(kubectl config view --minify --output \"jsonpath={..namespace}\")""" % image_name))
+              DEBUG_ENABLED=%s
+              NAMESPACE=$(kubectl config view --minify --output \"jsonpath={..namespace}\")""" %(image_name,debug_enabled)))
 
 load('ext://uibutton', 'cmd_button','text_input',"location")
 cmd_button('Undeploy operator',

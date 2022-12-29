@@ -1,4 +1,4 @@
-FROM alpine
+FROM golang:1.19 as builder
 WORKDIR /
 ADD bin/tilt/manager manager
 ENTRYPOINT ["./manager"]
