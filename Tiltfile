@@ -15,16 +15,19 @@ if os.getenv("USE_TTL_REG", default= "false").lower() == "true":
   registry_name='hpo-%s' % local('uuidgen')
   default_registry('ttl.sh/%s' % registry_name.strip("\n").lower())
 
-go_compile_cmd='make build-tilt'
+entrypoint='/manager'
 debug_enabled="false"
+debug_suffix=''
 #
 if os.getenv("DEBUG_ENABLED", default= "false").lower() == "true":
-   go_compile_cmd='make build-tilt-debug'
-   debug_enabled="true"
+  debug_suffix='-debug'
+  debug_enabled="true"
+  entrypoint='$GOPATH/bin/dlv --listen=0.0.0.0:40000 --api-version=2 --headless=true exec /manager-debug'
+  k8s_resource(workload='hazelcast-platform-controller-manager', port_forwards=[40000])
 
 local_resource(
   'go-compile',
-  go_compile_cmd,
+  'make build-tilt'+debug_suffix,
   deps=['./main.go','api/','controllers/','internal/',],
   ignore=['api/v1alpha1/zz_generated.deepcopy.go*'],
 )
@@ -40,18 +43,14 @@ docker_build_with_restart(
   ref=image_name,
   context='.',
   entrypoint='$GOPATH/bin/dlv --listen=0.0.0.0:40000 --api-version=2 --headless=true exec /manager-debug',
-  dockerfile='./Dockerfile.tilt.debug',
+  dockerfile='./Dockerfile.tilt'+debug_suffix,
   only=[
-    './bin/tilt/manager-debug',
+    './bin/tilt/manager'+debug_suffix,
   ],
   live_update=[
-    sync('./bin/tilt/manager-debug', '/manager-debug'),
+    sync('./bin/tilt/manager'+debug_suffix, '/manager'+debug_suffix),
   ],
 )
-
-if debug_enabled == "true":
-  k8s_resource(workload='hazelcast-platform-controller-manager', port_forwards=[40000])
-
 
 # This does not apply the operator deployment, it is done by docker_build_with_restart commmand
 k8s_yaml(local("""make deploy APPLY_MANIFESTS=false \
