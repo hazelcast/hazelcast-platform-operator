@@ -42,7 +42,7 @@ local_resource(
 docker_build_with_restart(
   ref=image_name,
   context='.',
-  entrypoint='$GOPATH/bin/dlv --listen=0.0.0.0:40000 --api-version=2 --headless=true exec /manager-debug',
+  entrypoint='$GOPATH/bin/dlv --listen=0.0.0.0:40000 --api-version=2 --headless=true --accept-multiclient exec /manager-debug',
   dockerfile='./Dockerfile.tilt'+debug_suffix,
   only=[
     './bin/tilt/manager'+debug_suffix,
