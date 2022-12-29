@@ -8,6 +8,10 @@ on:
       cluster_type:
         type: string
         required: true
+      namespaces:
+        description: 'Coma-separated namespaces names for Grafana logs scraping'
+        type: string
+        required: true
       gh_run_id:
         type: string
         required: true
@@ -53,6 +57,7 @@ jobs:
       GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
       MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
       NAMESPACE: grafana
+      NAMESPACES: ${{ inputs.namespaces }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

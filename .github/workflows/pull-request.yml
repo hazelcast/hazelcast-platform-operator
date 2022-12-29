@@ -195,6 +195,7 @@ jobs:
           LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
           LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
           GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
+          NAMESPACES: "kind-test-operator-os, kind-test-operator-ee"
         run: |
           kubectl create namespace ${NAMESPACE}
           envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n ${NAMESPACE} -f -'

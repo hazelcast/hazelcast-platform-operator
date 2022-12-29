@@ -62,6 +62,7 @@ jobs:
       LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
       LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
       GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
+      NAMESPACES: "test-operator-os, test-operator-ee"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
