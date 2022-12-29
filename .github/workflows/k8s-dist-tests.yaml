@@ -29,10 +29,6 @@ permissions:
   pages: write
   id-token: write
   actions: write
-  
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   decide-run-tests:
