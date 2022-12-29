@@ -39,7 +39,7 @@ local_resource(
 docker_build_with_restart(
   ref=image_name,
   context='.',
-  entrypoint='$GOPATH/bin/dlv --listen=:40000 --api-version=2 --headless=true exec /manager-debug',
+  entrypoint='$GOPATH/bin/dlv --listen=0.0.0.0:40000 --api-version=2 --headless=true exec /manager-debug',
   dockerfile='./Dockerfile.tilt.debug',
   only=[
     './bin/tilt/manager-debug',
@@ -48,6 +48,10 @@ docker_build_with_restart(
     sync('./bin/tilt/manager-debug', '/manager-debug'),
   ],
 )
+
+if debug_enabled == "true":
+  k8s_resource(workload='hazelcast-platform-controller-manager', port_forwards=[40000])
+
 
 # This does not apply the operator deployment, it is done by docker_build_with_restart commmand
 k8s_yaml(local("""make deploy APPLY_MANIFESTS=false \
