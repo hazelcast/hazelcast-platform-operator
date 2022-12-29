@@ -173,21 +173,17 @@ jobs:
           config: ./kind-config.yaml
           cluster_name: ${{ env.CLUSTER_NAME }}
 
-      - name: Install New Relic repo
+      - name: Install Grafana Agent agent
+        env:
+          GRAFANA_NS: grafana
+          CLUSTER_TYPE: kind
+          GH_RUN_ID: ${{ github.run_id }}
+          GH_RUN_NUMBER: ${{ github.run_number }}
+          GH_SHA: ${{ github.sha }}
         run: |
-          helm repo add newrelic https://helm-charts.newrelic.com
-
-      - name: Install New Relic agent
-        run: |
-          kubectl create namespace newrelic
-          helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
-            --set "global.cluster=kind-operator" \
-            --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ env.CLUSTER_NAME }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[2].name=GITHUB_RUN_NUMBER,newrelic-logging.fluentBit.additionalEnvVariables[2].value=\"${{ github.run_number }}\"" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
-            newrelic/nri-bundle
+          kubectl create namespace $NAMESPACE
+          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $GRAFANA_NS -f -'
+          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
       - name: Install metallb
         uses: nick-fields/retry@v2
