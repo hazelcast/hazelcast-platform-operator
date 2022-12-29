@@ -192,7 +192,7 @@ jobs:
           GH_RUN_NUMBER: ${{ github.run_number }}
           GH_SHA: ${{ github.sha }}
         run: |
-          kubectl create namespace $NAMESPACE
+          kubectl create namespace $GRAFANA_NS
           envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $GRAFANA_NS -f -'
           /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
