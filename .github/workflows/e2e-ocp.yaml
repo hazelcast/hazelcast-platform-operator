@@ -37,6 +37,7 @@ jobs:
   grafana-setup:
     name: Setup Grafana agent
     env:
+      GRAFANA_NS: grafana
       CLUSTER_TYPE: ocp
       NAMESPACE: grafana
       CLUSTER_NAME: api-demo-ocp4-hazelcast-com
@@ -56,9 +57,9 @@ jobs:
 
       - name: Install Grafana Agent agent
         run: |
-          kubectl create namespace $NAMESPACE
-          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $NAMESPACE -f -'
-          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+          kubectl create namespace $GRAFANA_NS
+          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $GRAFANA_NS -f -'
+          NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
   ocp-e2e-tests:
     name: Run e2e tests at OCP
