@@ -22,6 +22,8 @@ data:
             - job_name: pod-logs
               kubernetes_sd_configs:  
                 - role: pod
+                  namespaces:
+                    names: [$NAMESPACES]
               pipeline_stages:
                 - cri: {}
                 - static_labels:
