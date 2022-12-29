@@ -192,8 +192,8 @@ jobs:
           GH_RUN_NUMBER: ${{ github.run_number }}
           GH_SHA: ${{ github.sha }}
         run: |
-          kubectl create namespace $GRAFANA_NS
-          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $GRAFANA_NS -f -'
+          kubectl create namespace ${NAMESPACE}
+          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n ${NAMESPACE} -f -'
           /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
       - name: Install metallb
@@ -203,7 +203,6 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-              kubectl create namespace ${NAMESPACE}
               kubectl config set-context --current --namespace=$NAMESPACE
               kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
               kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
