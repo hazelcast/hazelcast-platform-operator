@@ -1,58 +1,77 @@
-name: Nightly E2E tests on Azure
+name: E2E tests on AWS
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * *"
+  workflow_call:
+
 
 env:
-  AZURE_RESOURCE_GROUP: operator-test
-  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
+  AWS_REGION: us-east-1
+
 jobs:
   prepare-env:
-    name: Create AKS cluster
+    name: Create EKS cluster
     runs-on: ubuntu-latest
     outputs:
       CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
     steps:
-      - name: Azure login
-        uses: azure/login@v1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Create AKS cluster
+      - name: Install eksctl
+        run: |-
+          curl --silent --location \
+            "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" \
+            | tar xz -C /tmp
+          sudo mv /tmp/eksctl /usr/local/bin
+
+      - name: Create EKS cluster
         id: create-cluster
-        uses: azure/CLI@v1
-        with:
-          azcliversion: 2.31.0
-          inlineScript: |
-            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-            echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
-            az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" \
-              --node-count 3 --generate-ssh-keys
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
+          eksctl create cluster --name "${CLUSTER_NAME}" \
+            --zones ${AWS_REGION}a \
+            --zones ${AWS_REGION}c \
+            --with-oidc \
+            --without-nodegroup
+
+          eksctl create nodegroup --cluster "${CLUSTER_NAME}" \
+            --name node-group-1 \
+            --node-type t3.medium \
+            --nodes 3 \
+            --managed
+
+          eksctl create addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}"
 
   grafana-setup:
     name: Setup Grafana agent
     needs: "prepare-env"
     env:
       NAMESPACE: grafana
-      CLUSTER_TYPE: aks
-      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+      CLUSTER_TYPE: eks
       GH_RUN_ID: ${{ github.run_id }}
       GH_RUN_NUMBER: ${{ github.run_number }}
       GH_SHA: ${{ github.sha }}
+      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Azure login
-        uses: azure/login@v1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Update kubeconfig
         run: |-
-          az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
+          aws eks update-kubeconfig --name "${{ env.CLUSTER_NAME }}"
 
       - name: Install Grafana Agent agent
         run: |
@@ -72,18 +91,13 @@ jobs:
       - name: Build and push image to ttl.sh
         id: build-img
         run: |
-          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
-            IMG=ttl.sh/$(uuidgen):2h
-            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-            make docker-push IMG=$IMG
-          else
-            IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
-            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-          fi
+          IMG=ttl.sh/$(uuidgen):2h
+          echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+          make docker-push IMG=$IMG
 
-  aks-e2e-tests:
-    name: Run e2e test on AKS
+  eks-e2e-tests:
+    name: Run e2e test on EKS
     runs-on: ubuntu-latest
     needs: ["prepare-env", "grafana-setup", "get-image"]
     defaults:
@@ -94,9 +108,9 @@ jobs:
       matrix:
         edition: ["os", "ee"]
     env:
-      NAMESPACE: test-operator-nightly-${{ matrix.edition }}
-      IMG: ${{ needs.get-image.outputs.IMG }}
+      NAMESPACE: test-operator-${{ matrix.edition }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+      IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -115,30 +129,33 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Azure login
-        uses: azure/login@v1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Update kubeconfig
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
+          aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
       - name: Deploy Operator to EKS
         run: |
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
-          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
+
+          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secrets
         if: matrix.edition == 'ee'
         run: |
-          kubectl create secret generic hazelcast-license-key --namespace ${NAMESPACE} \
-            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+          kubectl create secret generic hazelcast-license-key \
+            --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
           kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
             --from-literal=region=us-east-1 \
@@ -161,7 +178,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} WORKFLOW_ID=aks
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} WORKFLOW_ID=eks
 
       - name: Clean up after Tests
         if: always()
@@ -172,40 +189,48 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
-          path: allure-results/aks/
+          name: test-report-eks
+          path: allure-results/eks/
 
   report-generation:
-    needs: ["prepare-env", "aks-e2e-tests"]
-    if: always() && (needs.aks-e2e-tests.result == 'success' || needs.aks-e2e-tests.result == 'failure')
+    needs: ["prepare-env", "eks-e2e-tests"]
+    if: always() && (needs.eks-e2e-tests.result == 'success' || needs.eks-e2e-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
-      WORKFLOW_ID: aks
+      WORKFLOW_ID: eks
 
   delete-cluster:
-    name: Delete AKS cluster
+    name: Delete EKS cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: ["prepare-env", "aks-e2e-tests"]
+    needs: ["prepare-env", "eks-e2e-tests"]
     steps:
-      - name: Azure login
-        uses: azure/login@v1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Delete AKS cluster
-        uses: azure/CLI@v1
-        with:
-          azcliversion: 2.31.0
-          inlineScript: |
-            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-            az aks delete --name "${CLUSTER_NAME}" --resource-group "${AZURE_RESOURCE_GROUP}" -y
+      - name: Install eksctl
+        run: |-
+          curl --silent --location \
+            "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" \
+            | tar xz -C /tmp
+          sudo mv /tmp/eksctl /usr/local/bin
+
+      - name: Delete EKS cluster
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          eksctl delete addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}" || echo "could not delete addon"
+          eksctl delete nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1
+          eksctl delete cluster "${CLUSTER_NAME}" --wait
 
   slack_notify:
     name: Slack Notify
-    needs: ["aks-e2e-tests", "delete-cluster"]
-    if: always() && ( needs.aks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
+    needs: ["eks-e2e-tests", "delete-cluster"]
+    if: always() && ( needs.eks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435

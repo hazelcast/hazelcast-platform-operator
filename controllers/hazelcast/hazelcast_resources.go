@@ -1326,6 +1326,10 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 		return corev1.Container{}, err
 	}
 
+	if hb.Status.State != hazelcastv1alpha1.HotBackupSuccess {
+		return corev1.Container{}, fmt.Errorf("restore hotbackup '%s' status is not %s", hb.Name, hazelcastv1alpha1.HotBackupSuccess)
+	}
+
 	var cont corev1.Container
 	if hb.Spec.IsExternal() {
 		bucketURI := hb.Status.GetBucketURI()

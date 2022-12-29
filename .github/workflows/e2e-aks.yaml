@@ -1,0 +1,211 @@
+name: E2E tests on Azure
+on:
+  workflow_dispatch:
+  workflow_call:
+
+env:
+  AZURE_RESOURCE_GROUP: operator-test
+
+jobs:
+  prepare-env:
+    name: Create AKS cluster
+    runs-on: ubuntu-latest
+    outputs:
+      CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
+    steps:
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create AKS cluster
+        id: create-cluster
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.31.0
+          inlineScript: |
+            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+            echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
+            az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" \
+              --node-count 3 --generate-ssh-keys
+
+  grafana-setup:
+    name: Setup Grafana agent
+    needs: "prepare-env"
+    env:
+      NAMESPACE: grafana
+      CLUSTER_TYPE: aks
+      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+      GH_RUN_ID: ${{ github.run_id }}
+      GH_RUN_NUMBER: ${{ github.run_number }}
+      GH_SHA: ${{ github.sha }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update kubeconfig
+        run: |-
+          az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
+
+      - name: Install Grafana Agent agent
+        run: |
+          kubectl create namespace $NAMESPACE
+          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $NAMESPACE -f -'
+          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+
+  get-image:
+    name: Get Image
+    runs-on: ubuntu-latest
+    outputs:
+      IMG: ${{ steps.build-img.outputs.IMG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build and push image to ttl.sh
+        id: build-img
+        run: |
+          IMG=ttl.sh/$(uuidgen):2h
+          echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+          make docker-push IMG=$IMG
+
+  aks-e2e-tests:
+    name: Run e2e test on AKS
+    runs-on: ubuntu-latest
+    needs: ["prepare-env", "grafana-setup", "get-image"]
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: ["os", "ee"]
+    env:
+      NAMESPACE: test-operator-${{ matrix.edition }}
+      IMG: ${{ needs.get-image.outputs.IMG }}
+      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.19.0"
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update kubeconfig
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
+
+      - name: Deploy Operator to EKS
+        run: |
+          kubectl create namespace ${NAMESPACE}
+          kubectl config set-context --current --namespace=${NAMESPACE}
+
+          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
+          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+          kubectl rollout status deployment $DEPLOY_NAME
+
+      - name: Create secrets
+        if: matrix.edition == 'ee'
+        run: |
+          kubectl create secret generic hazelcast-license-key --namespace ${NAMESPACE} \
+            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+
+          kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
+            --from-literal=region=us-east-1 \
+            --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+          kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
+            --from-literal=storage-account=operatortest \
+            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
+
+      - name: Create secret for both OS and EE tests
+        run: |
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+
+      - name: Run Hazelcast E2E tests on EKS
+        id: e2e-test
+        run: |
+          case ${{ matrix.edition }} in
+            os) GO_TEST_FLAGS=-ee=false;;
+            ee) GO_TEST_FLAGS=-ee=true;;
+            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
+          esac
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} WORKFLOW_ID=aks
+
+      - name: Clean up after Tests
+        if: always()
+        run: |
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report-aks
+          path: allure-results/aks/
+
+  report-generation:
+    needs: ["prepare-env", "aks-e2e-tests"]
+    if: always() && (needs.aks-e2e-tests.result == 'success' || needs.aks-e2e-tests.result == 'failure')
+    uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
+    with:
+      WORKFLOW_ID: aks
+
+  delete-cluster:
+    name: Delete AKS cluster
+    runs-on: ubuntu-latest
+    if: always()
+    needs: ["prepare-env", "aks-e2e-tests"]
+    steps:
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Delete AKS cluster
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.31.0
+          inlineScript: |
+            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+            az aks delete --name "${CLUSTER_NAME}" --resource-group "${AZURE_RESOURCE_GROUP}" -y
+
+  slack_notify:
+    name: Slack Notify
+    needs: ["aks-e2e-tests", "delete-cluster"]
+    if: always() && ( needs.aks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -6,6 +6,7 @@ on:
       - labeled
     branches:
       - main
+      - 'release/**'
     paths-ignore:
       - "**.md"
   pull_request:
@@ -20,6 +21,7 @@ permissions:
 
 env:
   GO_VERSION: '1.19.0'
+  GOBIN: ${{ github.workspace }}/bin
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -61,6 +63,15 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           config_file: hack/yamllint.yaml
+
+      - name: Check if tests are unfocused
+        if: ${{ !cancelled() }}
+        run: |
+           make ginkgo
+           if [[ $($GOBIN/ginkgo unfocus | wc -l) -gt 1 ]]; then
+             echo "Some tests have 'F' before the test name. Run the 'ginkgo unfocus' command against your branch '${{ github.event.pull_request.head.ref }}' and push the changes."
+             exit 1
+           fi
 
       - name: Check if bundle.yaml is updated
         run: |
