@@ -191,6 +191,10 @@ jobs:
           GH_RUN_NUMBER: ${{ github.run_number }}
           GH_SHA: ${{ github.sha }}
           MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
+          GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
+          LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+          GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
         run: |
           kubectl create namespace ${NAMESPACE}
           envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n ${NAMESPACE} -f -'
