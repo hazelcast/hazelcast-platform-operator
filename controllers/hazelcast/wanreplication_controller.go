@@ -231,7 +231,7 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 
 	mapWanStatus := make(map[string]wanOptionsBuilder)
 	for hzResourceName, maps := range HZClientMap {
-		cl, err := GetHazelcastClient(ctx, r.clientRegistry, &maps[0])
+		cl, err := GetHazelcastClient(ctx, r.clientRegistry, hzResourceName, wan.Namespace)
 		if err != nil {
 			return err
 		}
@@ -431,8 +431,7 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 	log := getLogger(ctx)
 
 	for hzResourceName, maps := range HZClientMap {
-
-		cli, err := GetHazelcastClient(ctx, r.clientRegistry, &maps[0])
+		cli, err := GetHazelcastClient(ctx, r.clientRegistry, hzResourceName, wan.Namespace)
 		if err != nil {
 			return err
 		}
@@ -472,7 +471,7 @@ func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastv1alpha1.W
 		if ok {
 			continue
 		}
-		cli, err := GetHazelcastClient(ctx, cs, &m)
+		cli, err := GetHazelcastClient(ctx, cs, m.Spec.HazelcastResourceName, m.Namespace)
 		if err != nil {
 			return err
 		}
