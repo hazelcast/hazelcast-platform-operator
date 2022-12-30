@@ -198,7 +198,7 @@ jobs:
           NAMESPACES: "kind-test-operator-os, kind-test-operator-ee"
           GRAFANA_NS: grafana
         run: |
-          kubectl create namespace ${NAMESPACE}
+          kubectl create namespace ${GRAFANA_NS}
           envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n ${GRAFANA_NS} -f -'
           NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
@@ -209,6 +209,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
+              kubectl create namespace ${NAMESPACE}
               kubectl config set-context --current --namespace=$NAMESPACE
               kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
               kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
