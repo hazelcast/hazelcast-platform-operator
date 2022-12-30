@@ -1574,22 +1574,21 @@ func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.Volu
 	return vms
 }
 
-// checkHotRestart checks if the persistence feature and AutoForceStart is enabled, and pods are failing
-// to perform the Force Start action.
-func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !h.Spec.Persistence.IsEnabled() || !h.Spec.Persistence.AutoForceStart {
+// persistenceStartupAction performs the action specified in the h.Spec.Persistence.StartupAction if
+// the persistence is enabled and if the Hazelcast is not yet running
+func (r *HazelcastReconciler) persistenceStartupAction(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !h.Spec.Persistence.IsEnabled() ||
+		!util.IsEnterprise(h.Spec.Repository) ||
+		h.Spec.Persistence.StartupAction == "" ||
+		h.Status.Phase == hazelcastv1alpha1.Running {
 		return nil
 	}
-	logger.Info("Persistence and AutoForceStart are enabled. Checking for the cluster DataPersistence.")
-	for _, member := range h.Status.Members {
-		if !member.Ready && member.Reason == "CrashLoopBackOff" {
-			logger.Info("Member is crashing with CrashLoopBackOff.",
-				"RestartCounts", member.RestartCount, "Message", member.Message)
-			err := NewRestClient(h).ForceStart(ctx)
-			if err != nil {
-				return err
-			}
-		}
+	logger.Info("Persistence enabled with startup action.", "action", h.Spec.Persistence.StartupAction)
+	if h.Spec.Persistence.StartupAction == hazelcastv1alpha1.ForceStart {
+		return NewRestClient(h).ForceStart(ctx)
+	}
+	if h.Spec.Persistence.StartupAction == hazelcastv1alpha1.PartialStart {
+		return NewRestClient(h).PartialStart(ctx)
 	}
 	return nil
 }

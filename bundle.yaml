@@ -448,11 +448,6 @@ spec:
               persistence:
                 description: Persistence configuration
                 properties:
-                  autoForceStart:
-                    default: false
-                    description: AutoForceStart enables the detection of constantly
-                      failing cluster and trigger the Force Start action.
-                    type: boolean
                   baseDir:
                     description: Persistence base directory.
                     type: string
@@ -520,6 +515,13 @@ spec:
                           will be fetched.
                         type: string
                     type: object
+                  startupAction:
+                    description: StartupAction represents the action triggered when
+                      the cluster starts to force the cluster startup.
+                    enum:
+                    - ForceStart
+                    - PartialStart
+                    type: string
                 required:
                 - baseDir
                 type: object

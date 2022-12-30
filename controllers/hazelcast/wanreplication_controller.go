@@ -246,7 +246,7 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 		return false, err
 	}
 
-	if wan.Status.Status != hazelcastv1alpha1.WanStatusFailed {
+	if wan.Status.Status == hazelcastv1alpha1.WanStatusFailed {
 		return false, fmt.Errorf("Wan replication for some maps failed")
 	}
 

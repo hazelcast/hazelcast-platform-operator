@@ -1,0 +1,118 @@
+name: Install Grafana Agent on GKE
+on:
+  workflow_call:
+    inputs:
+      cluster_name:
+        type: string
+        required: true
+      cluster_type:
+        type: string
+        required: true
+      namespaces:
+        description: 'Coma-separated namespaces names for Grafana logs scraping'
+        type: string
+        required: true
+      gh_run_id:
+        type: string
+        required: true
+      gh_run_number:
+        type: string
+        required: true
+      gh_sha:
+        type: string
+        required: true
+      gke_zone:
+        type: string
+        required: false
+        default: 'europe-west1-b'
+      gcp_project_id:
+        type: string
+        required: false
+        default: 'hazelcast-33'
+      aws_region:
+        type: string
+        required: false
+        default: 'us-east-1'
+      azure_resource_group:
+        type: string
+        required: false
+        default: operator-test
+    secrets:
+      GKE_SA_KEY:
+        required: true
+      GRAFANA_REMOTE_WRITE_URL:
+        required: true
+      LOKI_USERNAME:
+        required: true
+      LOKI_PASSWORD:
+        required: true
+      GRAFANA_CLUSTER_NAME:
+        required: true
+jobs:
+  grafana-setup:
+    name: Setup Grafana agent
+    env:
+      CLUSTER_TYPE: ${{ inputs.cluster_type }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
+      GH_RUN_ID: ${{ inputs.gh_run_id }}
+      GH_RUN_NUMBER: ${{ inputs.gh_run_number }}
+      GH_SHA: ${{ inputs.gh_sha }}
+      GKE_ZONE: ${{ inputs.gke_zone }}
+      AWS_REGION: ${{ inputs.aws_region }}
+      AZURE_RESOURCE_GROUP: ${{ inputs.azure_resource_group }}
+      GCP_PROJECT_ID: ${{ inputs.gcp_project_id }}
+      GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
+      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+      GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
+      MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
+      NAMESPACE: grafana
+      NAMESPACES: ${{ inputs.namespaces }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Authenticate to GCP
+        uses: "google-github-actions/auth@v1.0.0"
+        if: ${{ contains(inputs.cluster_type, 'gke') }}
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Connect to the GKE cluster
+        uses: 'google-github-actions/get-gke-credentials@v1'
+        if: ${{ contains(inputs.cluster_type, 'gke') }}
+        with:
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        if: ${{ contains(inputs.cluster_type, 'eks') }}
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        if: ${{ contains(inputs.cluster_type, 'eks') }}
+        run: |-
+          aws eks update-kubeconfig --name "${{ env.CLUSTER_NAME }}"
+
+      - name: Azure login
+        uses: azure/login@v1
+        if: ${{ contains(inputs.cluster_type, 'aks') }}
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update kubeconfig
+        if: ${{ contains(inputs.cluster_type, 'aks') }}
+        run: |-
+          az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
+
+      - name: Install Grafana Agent
+        run: |
+          kubectl create namespace $NAMESPACE
+          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $NAMESPACE -f -'
+          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -

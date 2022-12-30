@@ -162,6 +162,44 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		backupRestore(hazelcast, hotBackup, false)
 	})
 
+	DescribeTable("should trigger corresponding action when startupActionSpecified", Label("slow"),
+		func(action hazelcastv1alpha1.PersistenceStartupAction, dataPolicy hazelcastv1alpha1.DataRecoveryPolicyType) {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			setLabelAndCRName("hp-2")
+			clusterSize := int32(3)
+
+			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+			CreateHazelcastCR(hazelcast)
+			evaluateReadyMembers(hzLookupKey)
+
+			By("creating HotBackup CR")
+			t := Now()
+			hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
+			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+			assertHotBackupSuccess(hotBackup, 1*Minute)
+
+			seq := GetBackupSequence(t, hzLookupKey)
+			RemoveHazelcastCR(hazelcast)
+
+			By("creating new Hazelcast cluster from existing backup with 2 members")
+			baseDir := "/data/hot-restart/hot-backup/backup-" + seq
+
+			hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+			hazelcast.Spec.Persistence.BaseDir = baseDir
+			hazelcast.Spec.ClusterSize = &[]int32{2}[0]
+			hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
+			hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = dataPolicy
+			hazelcast.Spec.Persistence.StartupAction = action
+			CreateHazelcastCR(hazelcast)
+			evaluateReadyMembers(hzLookupKey)
+			assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
+		},
+		Entry("ForceStart", Label("slow"), hazelcastv1alpha1.ForceStart, hazelcastv1alpha1.FullRecovery),
+		Entry("PartialStart", Label("slow"), hazelcastv1alpha1.PartialStart, hazelcastv1alpha1.MostRecent),
+	)
+
 	DescribeTable("should successfully restore from LocalBackup-HostPath-HotBackupResourceName", Label("slow"), func(hostPath string, singleNode bool) {
 		if !ee {
 			Skip("This test will only run in EE configuration")

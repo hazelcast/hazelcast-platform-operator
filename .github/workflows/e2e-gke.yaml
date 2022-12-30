@@ -1,13 +1,11 @@
-name: Nightly E2E tests on GKE
+name: E2E tests on GCP
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * *"
+  workflow_call:
 
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
-  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
 
 jobs:
   create-gke-cluster:
@@ -36,16 +34,17 @@ jobs:
             --num-nodes=3
           sleep 30
 
-  new-relic-setup:
+  grafana-setup:
     needs: [ create-gke-cluster ]
-    uses: ./.github/workflows/newrelic-gke.yaml
+    uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
       cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      nr_cluster_name: gke-operator
+      cluster_type: gke
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
+      namespaces: "test-operator-os, test-operator-ee"
 
   get-image:
     name: Get Image
@@ -59,26 +58,21 @@ jobs:
       - name: Build and push image to ttl.sh
         id: build-img
         run: |
-          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
-            IMG=ttl.sh/$(uuidgen):2h
-            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-            make docker-push IMG=$IMG
-          else
-            IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
-            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-          fi
+          IMG=ttl.sh/$(uuidgen):2h
+          echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+          make docker-push IMG=$IMG
 
   gke-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-latest
-    needs: [create-gke-cluster, new-relic-setup, get-image]
+    needs: [create-gke-cluster, grafana-setup, get-image]
     strategy:
       fail-fast: false
       matrix:
         edition: ["os", "ee"]
     env:
-      NAMESPACE: test-operator-nightly-${{ matrix.edition }}
+      NAMESPACE: test-operator-${{ matrix.edition }}
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
       IMG: ${{ needs.get-image.outputs.IMG }}
@@ -116,7 +110,6 @@ jobs:
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${NAMESPACE}
-          kubectl label namespace ${NAMESPACE} newrelic.com/scrape=true
           kubectl config set-context --current --namespace=$NAMESPACE
 
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
@@ -163,7 +156,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-gke
           path: allure-results/gke/
 
   report-generation:

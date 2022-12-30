@@ -305,10 +305,9 @@ type HazelcastPersistenceConfiguration struct {
 	// +optional
 	ClusterDataRecoveryPolicy DataRecoveryPolicyType `json:"clusterDataRecoveryPolicy,omitempty"`
 
-	// AutoForceStart enables the detection of constantly failing cluster and trigger the Force Start action.
-	// +kubebuilder:default:=false
+	// StartupAction represents the action triggered when the cluster starts to force the cluster startup.
 	// +optional
-	AutoForceStart bool `json:"autoForceStart"`
+	StartupAction PersistenceStartupAction `json:"startupAction,omitempty"`
 
 	// DataRecoveryTimeout is timeout for each step of data recovery in seconds.
 	// Maximum timeout is equal to DataRecoveryTimeout*2 (for each step: validation and data-load).
@@ -407,6 +406,19 @@ const (
 	// MostComplete allow partial start with the members that have most complete partition table
 	// and corresponds to "cluster-data-recovery-policy.PARTIAL_RECOVERY_MOST_COMPLETE" configuration option.
 	MostComplete DataRecoveryPolicyType = "PartialRecoveryMostComplete"
+)
+
+// PersistenceStartupAction represents the action triggered on the cluster startup to force the cluster startup.
+// +kubebuilder:validation:Enum=ForceStart;PartialStart
+type PersistenceStartupAction string
+
+const (
+	// ForceStart will trigger the force start action on the startup
+	ForceStart PersistenceStartupAction = "ForceStart"
+
+	// PartialStart will trigger the partial start action on the startup.
+	// Can be used only with the MostComplete or MostRecent DataRecoveryPolicyType type.
+	PartialStart PersistenceStartupAction = "PartialStart"
 )
 
 // SchedulingConfiguration defines the pods scheduling details

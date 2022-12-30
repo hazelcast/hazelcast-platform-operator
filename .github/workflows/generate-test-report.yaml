@@ -5,7 +5,7 @@ on:
       WORKFLOW_ID:
         required: true
         type: string
-
+        
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   CLEANUP_TIMEOUT: 20
@@ -38,7 +38,7 @@ jobs:
         if: always()
         uses: actions/download-artifact@v3
         with:
-          name: test-report
+          name: test-report-${{ inputs.WORKFLOW_ID }}
           path: allure-results/${{ inputs.WORKFLOW_ID }}
 
       - name: Merge test-report.xml files
@@ -129,5 +129,5 @@ jobs:
         uses: geekyeggo/delete-artifact@v2
         with:
           name: |
-            test-report
             test-suites
+            test-report-${{ inputs.WORKFLOW_ID }}

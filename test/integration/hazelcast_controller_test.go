@@ -126,11 +126,6 @@ var _ = Describe("Hazelcast controller", func() {
 		return hz
 	}
 
-	SetLicenseKey := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
-		hz.Spec.LicenseKeySecret = n.LicenseKeySecret
-		return hz
-	}
-
 	Update := func(hz *hazelcastv1alpha1.Hazelcast, fns ...UpdateFn) {
 		By("updating the CR with specs successfully")
 		if len(fns) == 0 {
@@ -177,15 +172,6 @@ var _ = Describe("Hazelcast controller", func() {
 			hz = Fetch(hz)
 			return hz.Status.Phase
 		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
-		return hz
-	}
-
-	EnsureFailedStatus := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
-		By("ensuring that the status is failed")
-		Eventually(func() hazelcastv1alpha1.Phase {
-			hz = Fetch(hz)
-			return hz.Status.Phase
-		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Failed))
 		return hz
 	}
 
@@ -414,32 +400,6 @@ var _ = Describe("Hazelcast controller", func() {
 			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
 			Delete(fetchedCR)
 		})
-
-		It("should return expected messages when exposeExternally is misconfigured", Label("fast"), func() {
-			By("creating the cluster with unisocket client with incorrect configuration")
-			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.ClusterSize = &[]int32{3}[0]
-			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-				DiscoveryServiceType: corev1.ServiceTypeNodePort,
-				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
-			}
-			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: GetRandomObjectMeta(),
-				Spec:       spec,
-			}
-
-			Create(hz)
-			fetchedCR := EnsureFailedStatus(hz)
-			Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set"))
-
-			By("fixing the incorrect configuration")
-			Update(fetchedCR, DisableMemberAccess)
-			fetchedCR = EnsureStatus(fetchedCR)
-			Expect(fetchedCR.Status.Message).To(BeEmpty())
-
-			Delete(fetchedCR)
-		})
 	})
 	Context("Hazelcast CustomResource with default values", func() {
 		defaultHzSpecs := &test.HazelcastSpecValues{
@@ -508,33 +468,6 @@ var _ = Describe("Hazelcast controller", func() {
 			}, timeout, interval).Should(Equal(sampleProperties))
 
 			Delete(hz)
-		})
-	})
-
-	Context("Hazelcast license validation", func() {
-		When("EE repository is used", func() {
-			It("should raise error if no license key secret is provided", Label("fast"), func() {
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
-
-				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.LicenseKeySecret = ""
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec:       spec,
-				}
-				Create(hz)
-				fetchedCR := EnsureFailedStatus(hz)
-				Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when Hazelcast Enterprise is deployed, licenseKeySecret must be set"))
-
-				By("filling the licenseSecretKey should fix it")
-				Update(fetchedCR, SetLicenseKey)
-				fetchedCR = EnsureStatus(fetchedCR)
-				Expect(fetchedCR.Status.Message).To(BeEmpty())
-
-				Delete(fetchedCR)
-			})
 		})
 	})
 
@@ -1066,23 +999,6 @@ var _ = Describe("Hazelcast controller", func() {
 				Delete(hz)
 			})
 		})
-	})
-	It("should return expected messages when persistence is misconfigured", Label("fast"), func() {
-		By("creating Hazelcast with persistence enabled without pvc and hostPath")
-		spec := test.HazelcastSpec(defaultSpecValues, ee)
-		spec.ClusterSize = &[]int32{3}[0]
-		spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-			BaseDir: "/data/hot-backup",
-		}
-		hz := &hazelcastv1alpha1.Hazelcast{
-			ObjectMeta: GetRandomObjectMeta(),
-			Spec:       spec,
-		}
-
-		Create(hz)
-		fetchedCR := EnsureFailedStatus(hz)
-		Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when persistence is set either of \"hostPath\" or \"pvc\" fields must be set."))
-		Delete(fetchedCR)
 	})
 
 	Context("MultiMap CR configuration", func() {

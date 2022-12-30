@@ -15,10 +15,11 @@ import (
 
 // Section contains the REST API endpoints.
 const (
-	changeState = "/hazelcast/rest/management/cluster/changeState"
-	getState    = "/hazelcast/rest/management/cluster/state"
-	forceStart  = "/hazelcast/rest/management/cluster/forceStart"
-	hotBackup   = "/hazelcast/rest/management/cluster/hotBackup"
+	changeState  = "/hazelcast/rest/management/cluster/changeState"
+	getState     = "/hazelcast/rest/management/cluster/state"
+	forceStart   = "/hazelcast/rest/management/cluster/forceStart"
+	partialStart = "/hazelcast/rest/management/cluster/partialStart"
+	hotBackup    = "/hazelcast/rest/management/cluster/hotBackup"
 )
 
 type ClusterState string
@@ -47,11 +48,19 @@ func NewRestClient(h *v1alpha1.Hazelcast) *RestClient {
 	}
 }
 
+func (c *RestClient) PartialStart(ctx context.Context) error {
+	return c.startupAction(ctx, partialStart)
+}
+
 func (c *RestClient) ForceStart(ctx context.Context) error {
+	return c.startupAction(ctx, forceStart)
+}
+
+func (c *RestClient) startupAction(ctx context.Context, url string) error {
 	d := fmt.Sprintf("%s&", c.clusterName)
 	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	req, err := postRequest(ctxT, d, c.url, forceStart)
+	req, err := postRequest(ctxT, d, c.url, url)
 	if err != nil {
 		return err
 	}

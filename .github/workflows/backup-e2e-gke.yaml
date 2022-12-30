@@ -36,16 +36,17 @@ jobs:
             --num-nodes=3
           sleep 30
 
-  new-relic-setup:
+  grafana-setup:
     needs: [ create-gke-cluster ]
-    uses: ./.github/workflows/newrelic-gke.yaml
+    uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
       cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      nr_cluster_name: hot-backup-operator
+      cluster_type: gke-hot-backup
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
+      namespaces: test-operator-backup-ee
 
   get-image:
     name: Get Image
@@ -72,7 +73,7 @@ jobs:
   gke-e2e-backup-tests:
     name: Run E2E Backup tests
     runs-on: ubuntu-latest
-    needs: [create-gke-cluster, new-relic-setup, get-image]
+    needs: [create-gke-cluster, grafana-setup, get-image]
     env:
       IMG: ${{ needs.get-image.outputs.IMG }}
       NAMESPACE: test-operator-backup-ee

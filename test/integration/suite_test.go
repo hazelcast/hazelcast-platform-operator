@@ -2,8 +2,12 @@ package integration
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
+	"net"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -48,6 +52,10 @@ var _ = BeforeSuite(func() {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
+		WebhookInstallOptions: envtest.WebhookInstallOptions{
+			Paths:                    []string{filepath.Join("..", "..", "config", "webhook")},
+			IgnoreErrorIfPathMissing: false,
+		},
 	}
 
 	cfg, err := testEnv.Start()
@@ -66,8 +74,12 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
+	webhookInstallOptions := testEnv.WebhookInstallOptions
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme.Scheme,
+		Scheme:  scheme.Scheme,
+		Host:    webhookInstallOptions.LocalServingHost,
+		Port:    webhookInstallOptions.LocalServingPort,
+		CertDir: webhookInstallOptions.LocalServingCertDir,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -119,13 +131,50 @@ var _ = BeforeSuite(func() {
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&hazelcastcomv1alpha1.Hazelcast{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.Map{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.Cache{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.ReplicatedMap{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.Topic{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.Queue{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.CronHotBackup{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.HotBackup{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.MultiMap{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.WanReplication{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.ManagementCenter{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	//+kubebuilder:scaffold:webhook
+
 	ctx, cancel = context.WithCancel(ctrl.SetupSignalHandler())
 
 	go func() {
+		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
 
+	// wait for the webhook server to get ready
+	dialer := &net.Dialer{Timeout: time.Second}
+	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
+	Eventually(func() error {
+		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
+		if err != nil {
+			return err
+		}
+		conn.Close()
+		return nil
+	}).Should(Succeed())
 })
 
 var _ = AfterSuite(func() {

@@ -71,23 +71,24 @@ jobs:
             --num-nodes=${{ env.NUMBER_OF_NODES }}
           sleep 20
 
-  new-relic-setup:
-    needs: create-gke-cluster
-    uses: ./.github/workflows/newrelic-gke.yaml
+  grafana-setup:
+    needs: [ create-gke-cluster ]
+    uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     strategy:
       matrix:
-        cluster: ["src", "trg"]
+        cluster: [ "src", "trg" ]
     with:
       cluster_name: ${{ matrix.cluster }}-wan-cluster-${{ github.run_number }}
-      nr_cluster_name: wan-operator
+      cluster_type: gke-wan
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
+      namespaces: ${{ matrix.cluster }}-ns
 
   deploy-operator:
     name: Deploy Hazelcast Operator
-    needs: [create-gke-cluster, new-relic-setup, get-image]
+    needs: [create-gke-cluster, grafana-setup, get-image]
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: true
@@ -122,7 +123,6 @@ jobs:
       - name: Deploy Operator To ${{ matrix.cluster }} GKE Cluster and ${{ matrix.namespace }} namespace
         run: |
           kubectl create namespace ${{ matrix.namespace }}
-          kubectl label namespace ${{ matrix.namespace }} newrelic.com/scrape=true
           kubectl config set-context --current --namespace=${{ matrix.namespace }}
           DEPLOY_NAME=${{ matrix.namespace }}-controller-manager
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
