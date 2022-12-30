@@ -343,7 +343,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-pr
           path: allure-results/pr/
 
   report-generation:
