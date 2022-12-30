@@ -198,7 +198,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-wan
           path: allure-results/wan/
 
   report-generation:
