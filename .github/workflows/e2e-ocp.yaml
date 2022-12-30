@@ -38,7 +38,7 @@ jobs:
   grafana-setup:
     name: Setup Grafana agent
     env:
-      GRAFANA_NS: grafana
+      GRAFANA_NS: "grafana-${{ github.run_id }}"
       CLUSTER_TYPE: ocp
       CLUSTER_NAME: api-demo-ocp4-hazelcast-com
       GH_RUN_ID: ${{ github.run_id }}
@@ -62,7 +62,7 @@ jobs:
 
       - name: Install Grafana Agent
         run: |
-          kubectl create namespace $GRAFANA_NS | echo "namespace exists"
+          kubectl create namespace ${GRAFANA_NS}
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:grafana-agent-logs
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:default
           envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $GRAFANA_NS -f -'
@@ -168,11 +168,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: ocp-e2e-tests
     if: always()
+    env:
+      GRAFANA_NS: "grafana-${{ github.run_id }}"
     steps:
       - name: Image Prune
         run: |
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
-          kubectl delete namespace grafana
+          kubectl delete namespace ${GRAFANA_NS}
           for NODE in $(oc get nodes --no-headers -o name); do
           oc debug ${NODE} -- chroot /host sh -c "sleep 5; podman image prune -a -f"
           done
