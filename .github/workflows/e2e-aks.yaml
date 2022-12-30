@@ -30,40 +30,16 @@ jobs:
               --node-count 3 --generate-ssh-keys
 
   grafana-setup:
-    name: Setup Grafana agent
-    needs: "prepare-env"
-    env:
-      NAMESPACE: grafana
-      CLUSTER_TYPE: aks
-      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
-      GH_RUN_ID: ${{ github.run_id }}
-      GH_RUN_NUMBER: ${{ github.run_number }}
-      GH_SHA: ${{ github.sha }}
-      MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
-      GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
-      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
-      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-      GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
-      NAMESPACES: "test-operator-os, test-operator-ee"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Azure login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Update kubeconfig
-        run: |-
-          az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
-
-      - name: Install Grafana Agent agent
-        run: |
-          kubectl create namespace $NAMESPACE
-          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $NAMESPACE -f -'
-          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+    needs: [   prepare-env ]
+    uses: ./.github/workflows/grafana-agent.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+      cluster_type: aks
+      gh_run_id: ${{ github.run_id }}
+      gh_run_number: ${{ github.run_number }}
+      gh_sha: ${{ github.sha }}
+      namespaces: "test-operator-os, test-operator-ee"
 
   get-image:
     name: Get Image
