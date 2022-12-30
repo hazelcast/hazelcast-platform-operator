@@ -47,6 +47,7 @@ jobs:
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
+      namespaces: test-operator-ph-nightly-ee
 
   get-image:
     name: Get Image
