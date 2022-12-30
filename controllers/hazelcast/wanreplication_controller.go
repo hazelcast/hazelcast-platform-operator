@@ -349,7 +349,24 @@ func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Conte
 			HZClientMap[resource.Name] = append(mapList, maps...)
 		}
 	}
+	for k, v := range HZClientMap {
+		HZClientMap[k] = removeDuplicate(v)
+	}
+
 	return HZClientMap, nil
+}
+
+func removeDuplicate(mapList []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
+	keySet := make(map[types.NamespacedName]struct{})
+	list := []hazelcastv1alpha1.Map{}
+	for _, item := range mapList {
+		nsname := types.NamespacedName{Name: item.Name, Namespace: item.Namespace}
+		if _, ok := keySet[nsname]; !ok {
+			keySet[nsname] = struct{}{}
+			list = append(list, item)
+		}
+	}
+	return list
 }
 
 func (r *WanReplicationReconciler) getAllMapsInHazelcast(ctx context.Context, hazelcastResourceName string, wanNamespace string) ([]hazelcastv1alpha1.Map, error) {
