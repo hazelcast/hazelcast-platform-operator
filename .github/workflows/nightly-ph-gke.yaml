@@ -37,7 +37,7 @@ jobs:
             --num-nodes=3
           sleep 30
 
-    grafana-setup:
+  grafana-setup:
     needs: [ create-gke-cluster ]
     uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
