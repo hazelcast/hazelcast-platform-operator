@@ -184,7 +184,7 @@ jobs:
           config: ./kind-config.yaml
           cluster_name: ${{ env.CLUSTER_NAME }}
 
-      - name: Install Grafana Agent agent
+      - name: Install Grafana Agent
         env:
           CLUSTER_TYPE: kind
           GH_RUN_ID: ${{ github.run_id }}

@@ -111,7 +111,7 @@ jobs:
         run: |-
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
 
-      - name: Install Grafana Agent agent
+      - name: Install Grafana Agent
         run: |
           kubectl create namespace $NAMESPACE
           envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $NAMESPACE -f -'

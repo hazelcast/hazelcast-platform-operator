@@ -60,7 +60,7 @@ jobs:
         run: |-
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
 
-      - name: Install Grafana Agent agent
+      - name: Install Grafana Agent
         run: |
           kubectl create namespace $GRAFANA_NS | echo "namespace exists"
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:grafana-agent-logs
