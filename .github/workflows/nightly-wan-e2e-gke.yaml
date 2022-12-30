@@ -84,6 +84,7 @@ jobs:
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
+      namespaces: ${{ matrix.cluster }}-ns
 
   deploy-operator:
     name: Deploy Hazelcast Operator
