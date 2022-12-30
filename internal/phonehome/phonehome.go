@@ -182,10 +182,9 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 
 		cid, ok := ClusterUUID(hzClientRegistry, hz.Name, hz.Namespace)
-		if !ok {
-			continue
+		if ok {
+			clusterUUIDs = append(clusterUUIDs, cid)
 		}
-		clusterUUIDs = append(clusterUUIDs, cid)
 	}
 	phm.CreatedClusterCount = createdClusterCount
 	phm.CreatedEnterpriseClusterCount = createdEnterpriseClusterCount
