@@ -6,12 +6,6 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: write
-  pages: write
-  id-token: write
-  actions: write
-
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   CLEANUP_TIMEOUT: 20
