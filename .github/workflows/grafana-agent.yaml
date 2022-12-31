@@ -65,7 +65,7 @@ jobs:
       LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
       LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
       GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
-      MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
+      MANIFEST_URL: "https://raw.githubusercontent.com/hazelcast/hazelcast-platform-operator/CN-663-k8s-events/.github/grafana/agent-manifest.yaml"
       NAMESPACE: grafana
       NAMESPACES: ${{ inputs.namespaces }}
     runs-on: ubuntu-latest
@@ -114,5 +114,5 @@ jobs:
       - name: Install Grafana Agent
         run: |
           kubectl create namespace $NAMESPACE
-          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -f -'
+#          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -f -'
           /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
