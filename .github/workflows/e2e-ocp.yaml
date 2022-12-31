@@ -44,7 +44,7 @@ jobs:
       GH_RUN_ID: ${{ github.run_id }}
       GH_RUN_NUMBER: ${{ github.run_number }}
       GH_SHA: ${{ github.sha }}
-      MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
+      MANIFEST_URL: "https://raw.githubusercontent.com/hazelcast/hazelcast-platform-operator/CN-663-k8s-events/.github/grafana/agent-manifest.yaml"
       GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
       LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
       LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
@@ -65,7 +65,6 @@ jobs:
           kubectl create namespace ${GRAFANA_NS}
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:grafana-agent-logs
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:default
-          envsubst < .github/grafana/agent-configmap.yaml | NAMESPACE=${GRAFANA_NS} /bin/sh -c 'kubectl apply -f -'
           NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
   ocp-e2e-tests:
