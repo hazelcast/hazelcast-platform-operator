@@ -199,7 +199,7 @@ jobs:
           GRAFANA_NS: grafana
         run: |
           kubectl create namespace ${GRAFANA_NS}
-          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n ${GRAFANA_NS} -f -'
+          envsubst < .github/grafana/agent-configmap.yaml | NAMESPACE=${GRAFANA_NS} /bin/sh -c 'kubectl apply -f -'
           NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
       - name: Install metallb

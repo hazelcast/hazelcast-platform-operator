@@ -1,6 +1,7 @@
 kind: ConfigMap
 metadata:
   name: grafana-agent-logs
+  namespace: ${NAMESPACE}
 apiVersion: v1
 data:
   agent.yaml: |

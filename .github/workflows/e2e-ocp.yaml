@@ -65,7 +65,7 @@ jobs:
           kubectl create namespace ${GRAFANA_NS}
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:grafana-agent-logs
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:default
-          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $GRAFANA_NS -f -'
+          envsubst < .github/grafana/agent-configmap.yaml | NAMESPACE=${GRAFANA_NS} /bin/sh -c 'kubectl apply -f -'
           NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
   ocp-e2e-tests:

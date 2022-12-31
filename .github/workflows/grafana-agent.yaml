@@ -114,5 +114,5 @@ jobs:
       - name: Install Grafana Agent
         run: |
           kubectl create namespace $NAMESPACE
-          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $NAMESPACE -f -'
+          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -f -'
           /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
