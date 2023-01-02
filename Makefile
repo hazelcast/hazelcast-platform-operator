@@ -334,12 +334,6 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-generate-bundle-yaml: manifests update-chart-crds helm ## Generate one file deployment bundle.yaml
-	$(HELM) template $(RELEASE_NAME) $(HELM_CHART) --namespace=$(NAMESPACE) --set installCRDs=true,image.imageOverride=$(IMG) > bundle.yaml
-
-generate-crds-yaml: manifests ## Generate one file containing all crds crds.yaml
-	cat config/crd/bases/* >> crds.yaml
-
 # Detect the OS to set per-OS defaults
 OS_NAME = $(shell uname -s | tr A-Z a-z)
 

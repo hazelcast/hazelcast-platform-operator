@@ -62,26 +62,6 @@ jobs:
              exit 1
            fi
 
-      - name: Check if bundle.yaml is updated
-        run: |
-          mv bundle.yaml bundle.yaml.old
-          make generate-bundle-yaml
-
-          if ! cmp -s bundle.yaml bundle.yaml.old; then
-              echo "Please make sure your branch is up to date with main and run 'make generate-bundle-yaml'"
-              exit 1
-          fi
-
-      - name: Check if crds.yaml is updated
-        run: |
-          mv crds.yaml crds.yaml.old
-          make generate-crds-yaml
-
-          if ! cmp -s crds.yaml crds.yaml.old; then
-              echo "Please make sure your branch is up to date with main and run 'make generate-crds-yaml'"
-              exit 1
-          fi
-
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-latest
