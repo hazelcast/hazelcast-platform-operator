@@ -36,6 +36,8 @@ OPM_VERSION ?= v1.26.2
 GINKGO_VERSION ?= v2.1.6
 # https://github.com/kubernetes-sigs/kustomize/releases
 KUSTOMIZE_VERSION ?= v4.5.3
+# https://github.com/helm/helm/releases
+HELM_VERSION ?= v3.10.3
 
 
 # CHANNELS define the bundle channels used in the bundle.
@@ -421,3 +423,17 @@ GOBIN=$(dir $(1)) go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
+
+HELM = $(TOOLBIN)/helm/$(HELM_VERSION)/helm
+helm: ## Download helm locally if necessary.
+	@[ -f $(HELM) ] || { \
+	mkdir -p $(dir $(HELM)) ;\
+	TMP_DIR=$$(mktemp -d) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $${TMP_DIR}/temp.tar.gz https://get.helm.sh/helm-$(HELM_VERSION)-$${OS}-$${ARCH}.tar.gz;\
+	tar --directory $${TMP_DIR} -zxvf $${TMP_DIR}/temp.tar.gz &>/dev/null;\
+	mv $${TMP_DIR}/$${OS}-$${ARCH}/helm $(HELM);\
+	rm -rf $${TMP_DIR};\
+	chmod +x $(HELM);\
+	}
+	@echo -n $(HELM)
