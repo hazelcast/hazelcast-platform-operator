@@ -48,6 +48,12 @@ on:
         required: true
       GRAFANA_CLUSTER_NAME:
         required: true
+      GRAFANA_PROM_REMOTE_WRITE_URL:
+        required: true
+      GRAFANA_PROM_USERNAME:
+        required: true
+      GRAFANA_PROM_PASSWORD:
+        required: true
 jobs:
   grafana-setup:
     name: Setup Grafana agent
@@ -65,6 +71,9 @@ jobs:
       LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
       LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
       GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
+      GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
+      GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
+      GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
       MANIFEST_URL: "https://raw.githubusercontent.com/hazelcast/hazelcast-platform-operator/CN-663-k8s-events/.github/grafana/agent-manifest.yaml"
       NAMESPACE: grafana
       NAMESPACES: ${{ inputs.namespaces }}
