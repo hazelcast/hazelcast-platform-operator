@@ -110,12 +110,12 @@ jobs:
         if: ${{ contains(inputs.cluster_type, 'aks') }}
         run: |-
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
-          kubectl create namespace $NAMESPACE
 
       - name: Install Grafana Agent metrics
         env:
           MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-bare.yaml"
         run: |
+          kubectl create namespace $NAMESPACE
           envsubst < .github/grafana/metrics-cm.yaml | /bin/sh -c 'kubectl apply -f -'
           /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
