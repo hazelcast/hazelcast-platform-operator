@@ -14,7 +14,7 @@ data:
                 username: ${LOKI_USERNAME}
                 password: ${LOKI_PASSWORD}
               external_labels:
-                cluster: ${GRAFANA_CLUSTER_NAME}
+                cluster: ${CLUSTER_NAME}
           positions:
             filename: /tmp/positions.yaml
           target_config:

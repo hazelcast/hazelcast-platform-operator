@@ -10,7 +10,7 @@ data:
       global:
         scrape_interval: 60s
         external_labels:
-          cluster: cloud
+          cluster: ${CLUSTER_NAME}
       configs:
         - name: integrations
           remote_write:
@@ -92,7 +92,7 @@ data:
               username: ${LOKI_USERNAME}
               password: ${LOKI_PASSWORD}
             external_labels:
-              cluster: ${GRAFANA_CLUSTER_NAME}
+              cluster: ${CLUSTER_NAME}
               job: integrations/kubernetes/eventhandler
           positions:
             filename: /tmp/positions.yaml
