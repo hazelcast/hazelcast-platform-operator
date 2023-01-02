@@ -23,7 +23,7 @@ debug_suffix = ''
 if debug_enabled == "true":
   debug_suffix='-debug'
   entrypoint='$GOPATH/bin/dlv --listen=0.0.0.0:40000 --api-version=2 --headless=true --accept-multiclient exec /manager-debug'
-  k8s_resource(workload='hazelcast-platform-controller-manager', port_forwards=[40000])
+  k8s_resource(workload=deployment_name, port_forwards=[40000])
 
 
 local_resource(
@@ -54,13 +54,12 @@ docker_build_with_restart(
 )
 
 # This does not apply the operator deployment, it is done by docker_build_with_restart commmand
-k8s_yaml(local("""make install-crds  &> /dev/null; \
-              make helm-template IMG=%s DEBUG_ENABLED=%s \
-              NAMESPACE=$(kubectl config view --minify --output \"jsonpath={..namespace}\")""" % image_name))
+k8s_yaml(local("""make helm-template IMG=%s INSTALL_CRDS=true DEBUG_ENABLED=%s \
+              NAMESPACE=$(kubectl config view --minify --output \"jsonpath={..namespace}\")""" % (image_name,debug_enabled)))
 
 load('ext://uibutton', 'cmd_button','text_input',"location")
 cmd_button('Undeploy operator',
-            argv=['sh','-c', 'cd %s && make undeploy-tilt' % os.getcwd()],
+            argv=['sh','-c', 'cd %s && make undeploy-tilt INSTALL_CRDS=true' % os.getcwd()],
             resource=deployment_name,
             location=location.RESOURCE,
             icon_name='delete',

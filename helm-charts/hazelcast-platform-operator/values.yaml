@@ -16,6 +16,10 @@ developerModeEnabled: false
 phoneHomeEnabled: true
 watchNamespace: default
 
+debug:
+  enabled: false
+  port: 40000
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

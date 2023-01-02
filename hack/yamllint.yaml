@@ -12,3 +12,4 @@ rules:
 ignore: |
   config/
   .github/
+  helm-charts/

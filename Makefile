@@ -83,7 +83,8 @@ endif
 # Path to the kubectl command, if it is not in $PATH
 KUBECTL ?= kubectl
 
-HELM_CHART ?= ./helm-chart
+OPERATOR_CHART ?= ./helm-charts/hazelcast-platform-operator
+CRD_CHART := $(OPERATOR_CHART)/charts/hazelcast-platform-operator-crds
 
 PHONE_HOME_ENABLED ?= false
 DEVELOPER_MODE_ENABLED ?= true
@@ -91,8 +92,9 @@ INSTALL_CRDS ?= false
 DEBUG_ENABLED ?= false
 
 RELEASE_NAME ?= v1
+CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
 DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
-STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG)
+STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),debug.enabled=$(DEBUG_ENABLED)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -240,40 +242,38 @@ docker-push-latest:
 	docker push ${IMAGE_TAG_BASE}:latest
 
 update-chart-crds: manifests
-	echo "{{- if .Values.installCRDs }}" >> crds.yaml
-	cat config/crd/bases/* >> crds.yaml
-	echo "{{- end }}" >> crds.yaml
-	mv crds.yaml $(HELM_CHART)/templates/crds.yaml
+	cat config/crd/bases/* >> all-crds.yaml
+	mv all-crds.yaml $(CRD_CHART)/templates/
 
-install-crds: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUBECTL) apply -f config/crd/bases
+install-crds: helm update-chart-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(HELM) install $(CRD_RELEASE_NAME) $(CRD_CHART)
 
 install-chart: helm
-	$(HELM) upgrade --install $(RELEASE_NAME) $(HELM_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
+	$(HELM) upgrade --install $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
 
-uninstall-crds: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUBECTL) delete -f config/crd/bases
+uninstall-crds: helm ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+	$(HELM) uninstall $(CRD_RELEASE_NAME)
 
 uninstall-chart: helm
 	 $(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
 
 webhook-install: helm
-	$(HELM) template $(RELEASE_NAME) $(HELM_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
+	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
 
 webhook-uninstall: helm
-	$(HELM) template $(RELEASE_NAME) $(HELM_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
+	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
 
-deploy: manifests helm install-crds ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: helm install-crds ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	$(MAKE) install-chart
 
-helm-template: helm
-	@$(HELM) template $(RELEASE_NAME) $(HELM_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+helm-template:
+	@$(MAKE) helm &> /dev/null
+	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
 
 undeploy: uninstall-chart uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 
 undeploy-tilt:
 	$(MAKE) helm-template | $(KUBECTL) delete -f -
-	$(MAKE) uninstall-crds
 
 undeploy-keep-crd: uninstall-chart
 
