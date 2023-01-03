@@ -207,8 +207,9 @@ func checkConnectivity(ctx context.Context, m *mtls.Client, endpoints string, me
 
 		if ping {
 			return nil
+		} else {
+			return fmt.Errorf("target (%s) not reachable", memberAddress)
 		}
-		return fmt.Errorf("target (%s) not reachable", memberAddress)
 	}
 	return nil
 }
