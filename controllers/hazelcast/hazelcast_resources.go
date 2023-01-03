@@ -1083,7 +1083,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
-			ServiceName: h.Name,
+			ServiceName:         h.Name,
+			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
