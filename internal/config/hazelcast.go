@@ -25,7 +25,7 @@ type Hazelcast struct {
 }
 
 type PartitionGroup struct {
-	Enabled   bool   `yaml:"enabled,omitempty"`
+	Enabled   *bool  `yaml:"enabled,omitempty"`
 	GroupType string `yaml:"group-type,omitempty"`
 }
 

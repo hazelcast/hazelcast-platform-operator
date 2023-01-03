@@ -650,12 +650,12 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		switch h.Spec.HighAvailabilityMode {
 		case "NODE":
 			cfg.PartitionGroup = config.PartitionGroup{
-				Enabled:   true,
+				Enabled:   pointer.Bool(true),
 				GroupType: "NODE_AWARE",
 			}
 		case "ZONE":
 			cfg.PartitionGroup = config.PartitionGroup{
-				Enabled:   true,
+				Enabled:   pointer.Bool(true),
 				GroupType: "ZONE_AWARE",
 			}
 		}
@@ -1791,6 +1791,24 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 		logger.Info("Operation result", "Hazelcast Annotation", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func (r *HazelcastReconciler) unmarshalHazelcastSpec(h *hazelcastv1alpha1.Hazelcast, rawLastSpec string) (*hazelcastv1alpha1.HazelcastSpec, error) {
+	hs, err := json.Marshal(h.Spec)
+	if err != nil {
+		err = fmt.Errorf("error marshaling Hazelcast as JSON: %w", err)
+		return nil, err
+	}
+	if rawLastSpec == string(hs) {
+		return &h.Spec, nil
+	}
+	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
+	err = json.Unmarshal([]byte(rawLastSpec), lastSpec)
+	if err != nil {
+		err = fmt.Errorf("error unmarshaling Last HZ Spec: %w", err)
+		return nil, err
+	}
+	return lastSpec, nil
 }
 
 func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Hazelcast, lastSpec *hazelcastv1alpha1.HazelcastSpec) (map[string]interface{}, error) {

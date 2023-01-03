@@ -2,7 +2,6 @@ package hazelcast
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -167,21 +166,8 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	var newExecutorServices map[string]interface{}
 	if createdBefore {
-		hs, err := json.Marshal(h.Spec)
+		lastSpec, err := r.unmarshalHazelcastSpec(h, s)
 		if err != nil {
-			err = fmt.Errorf("error marshaling Hazelcast as JSON: %w", err)
-			return r.update(ctx, h, failedPhase(err))
-		}
-		if s == string(hs) {
-			return r.update(ctx, h,
-				runningPhase().
-					withMessage(fmt.Sprintf("hazelcast Config was already applied. name: %s , namespace: %s", h.Name, h.Namespace)))
-		}
-
-		lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
-		err = json.Unmarshal([]byte(s), lastSpec)
-		if err != nil {
-			err = fmt.Errorf("error unmarshaling last Hazelcast Spec: %w", err)
 			return r.update(ctx, h, failedPhase(err))
 		}
 
