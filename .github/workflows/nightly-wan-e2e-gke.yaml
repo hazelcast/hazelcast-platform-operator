@@ -208,6 +208,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: wan
+      CLUSTER_NAME: src-wan-cluster-${{ github.run_number }}
 
   cleanup-namespaces:
     name: Cleanup Namespaces

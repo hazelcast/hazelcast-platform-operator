@@ -178,6 +178,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: eks
+      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
 
   delete-cluster:
     name: Delete EKS cluster

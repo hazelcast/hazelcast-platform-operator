@@ -5,12 +5,14 @@ on:
       WORKFLOW_ID:
         required: true
         type: string
+      CLUSTER_NAME:
+        required: true
+        type: string
         
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   CLEANUP_TIMEOUT: 20
   GITHUB_PAGES_URL: https://${{ github.repository_owner }}.github.io/hazelcast-platform-operator
-  GRAFANA_BASE_URL: https://grafana.com
 
 jobs:
   report-creation:
@@ -85,7 +87,7 @@ jobs:
       - name: Update Test Files
         run: |-
           source .github/scripts/utils.sh
-          update_test_files ${{ inputs.WORKFLOW_ID }}
+          update_test_files ${{ inputs.WORKFLOW_ID }} ${{ inputs.CLUSTER_NAME }}
 
       - name: Update environment.properties
         run: |-

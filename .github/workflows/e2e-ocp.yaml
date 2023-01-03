@@ -16,7 +16,6 @@ jobs:
     name: Check OCP nodes state
     env:
       NR_CLUSTER_NAME: ocp-operator
-      CLUSTER_NAME: api-demo-ocp4-hazelcast-com
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -186,6 +185,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: ocp
+      CLUSTER_NAME: api-demo-ocp4-hazelcast-com
 
   slack_notify:
     name: Slack Notify

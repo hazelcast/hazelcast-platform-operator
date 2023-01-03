@@ -353,3 +353,4 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: pr
+      CLUSTER_NAME: kind

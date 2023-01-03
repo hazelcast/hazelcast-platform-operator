@@ -153,6 +153,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: backup
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
   delete-cluster:
     name: Cleanup the environment

@@ -270,8 +270,10 @@ merge_xml_test_reports()
 # Takes a single argument - the WORKFLOW_ID (kind,gke,eks, aks etc.)
 update_test_files()
 {
-      cd allure-history/$1/${GITHUB_RUN_NUMBER}/data/test-cases
-      local GRAFANA_BASE_URL="https://grafana.com"
+      local WORKFLOW_ID=$1
+      local CLUSTER_NAME=$2
+      cd allure-history/$WORKFLOW_ID/${GITHUB_RUN_NUMBER}/data/test-cases
+      local GRAFANA_BASE_URL="https://hazelcastoperator.grafana.net"
       local BEGIN_TIME=$(date +%s000 -d "- 3 hours")
       local END_TIME=$(date +%s000 -d "+ 1 hours")
       for i in $(ls); do
@@ -309,7 +311,7 @@ update_test_files()
          if [[ ${TEST_STATUS} != "skipped" ]]; then
             cat <<< $(jq -e '.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")}|del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))' $i) > $i
             local CR_ID=$(jq -r '.extra.tags.tag' $i)
-            local LINK=$(echo $GRAFANA_BASE_URL\?launcher\="$CR_ID")
+            local LINK=$(echo $GRAFANA_BASE_URL\/d\/-Lz9w3p4z\/all-logs\?orgId=1\&var-cluster="$CLUSTER_NAME"\&var-cr_id="$CR_ID"\&var-text=\&from="$BEGIN_TIME"\&to="$END_TIME")
             cat <<< $(jq -e '.links|= [{"name":"LOGS","url":"'"$LINK"'",type: "tms"}] + .' $i) > $i
         fi
       done
