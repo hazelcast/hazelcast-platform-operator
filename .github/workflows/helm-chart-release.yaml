@@ -20,7 +20,7 @@ jobs:
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
           git subtree add --prefix=charts https://github.com/hazelcast/charts.git master --squash
-          cp -rf helm-chart/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
+          cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
           git add charts/
           git commit --signoff -m "${{github.event.head_commit.message}}"
           git subtree push --prefix=charts https://github.com/hazelcast/charts.git master
