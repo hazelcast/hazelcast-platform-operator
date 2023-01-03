@@ -544,7 +544,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	if err != nil {
 		return nil, err
 	}
-	fillHazelcastConfigWithWanReplications(ctx, c, &cfg, wrl)
+	fillHazelcastConfigWithWanReplications(&cfg, wrl)
 
 	dataStructures := []client.ObjectList{
 		&hazelcastv1alpha1.MultiMapList{},
@@ -753,7 +753,7 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 	return nil
 }
 
-func fillHazelcastConfigWithWanReplications(ctx context.Context, c client.Client, cfg *config.Hazelcast, wrl map[string]hazelcastv1alpha1.WanReplication) {
+func fillHazelcastConfigWithWanReplications(cfg *config.Hazelcast, wrl map[string]hazelcastv1alpha1.WanReplication) {
 	if len(wrl) != 0 {
 		cfg.WanReplication = map[string]config.WanReplicationConfig{}
 		for wanKey, wan := range wrl {
@@ -1122,8 +1122,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
+	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
-		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 		if !h.Spec.Persistence.UseHostPath() {
 			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 		}
@@ -1191,16 +1191,16 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 	}
 }
 
-func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
-	return v1.Container{
-		Name:  n.BackupAgent,
+func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	c := v1.Container{
+		Name:  n.SidecarAgent,
 		Image: h.AgentDockerImage(),
 		Ports: []v1.ContainerPort{{
 			ContainerPort: n.DefaultAgentPort,
-			Name:          n.BackupAgent,
+			Name:          n.SidecarAgent,
 			Protocol:      v1.ProtocolTCP,
 		}},
-		Args: []string{"backup"},
+		Args: []string{"sidecar"},
 		LivenessProbe: &v1.Probe{
 			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
@@ -1245,16 +1245,25 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		},
 		VolumeMounts: []v1.VolumeMount{
 			{
-				Name:      n.PersistenceVolumeName,
-				MountPath: h.Spec.Persistence.BaseDir,
-			},
-			{
 				Name:      n.MTLSCertSecretName,
 				MountPath: n.MTLSCertPath,
 			},
 		},
 		SecurityContext: containerSecurityContext(h),
 	}
+
+	if h.Spec.Persistence.IsEnabled() {
+		if !h.Spec.Persistence.UseHostPath() {
+			c.VolumeMounts = []v1.VolumeMount{
+				{
+					Name:      n.PersistenceVolumeName,
+					MountPath: h.Spec.Persistence.BaseDir,
+				},
+			}
+		}
+	}
+
+	return c
 }
 
 func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContext {

@@ -204,7 +204,9 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("WanReplication"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
+		mtlsClient,
 		cr,
+		ssm,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controllers", "WanReplication")
 		os.Exit(1)

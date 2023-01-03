@@ -797,8 +797,8 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Backup Agent configuration", func() {
-		When("Backup Agent is configured with Persistence", func() {
+	Context("Sidecar Agent configuration", func() {
+		When("Sidecar Agent is configured with Persistence", func() {
 			It("should be deployed as a sidecar container", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{

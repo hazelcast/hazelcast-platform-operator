@@ -3,7 +3,10 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/pinger"
 	"reflect"
 	"strings"
 
@@ -29,19 +32,22 @@ import (
 type WanReplicationReconciler struct {
 	client.Client
 	logr.Logger
-	Scheme           *runtime.Scheme
-	phoneHomeTrigger chan struct{}
-	clientRegistry   hzclient.ClientRegistry
+	Scheme                *runtime.Scheme
+	phoneHomeTrigger      chan struct{}
+	clientRegistry        hzclient.ClientRegistry
+	mtlsClient            *mtls.Client
+	statusServiceRegistry hzclient.StatusServiceRegistry
 }
 
-func NewWanReplicationReconciler(
-	client client.Client, log logr.Logger, scheme *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry) *WanReplicationReconciler {
+func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *WanReplicationReconciler {
 	return &WanReplicationReconciler{
-		Client:           client,
-		Logger:           log,
-		Scheme:           scheme,
-		phoneHomeTrigger: pht,
-		clientRegistry:   cs,
+		Client:                client,
+		Logger:                log,
+		Scheme:                scheme,
+		phoneHomeTrigger:      pht,
+		clientRegistry:        cs,
+		mtlsClient:            mtlsClient,
+		statusServiceRegistry: ssm,
 	}
 }
 
@@ -62,6 +68,25 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 	ctx = context.WithValue(ctx, LogKey("logger"), logger)
+
+	statusService, ok := r.statusServiceRegistry.Get(types.NamespacedName{
+		Namespace: wan.Namespace,
+		Name:      wan.Spec.Resources[0].Name,
+	})
+	if !ok {
+		logger.Error(errors.New("get Hazelcast Status Service failed"), "")
+	}
+
+	members := statusService.GetStatus().MemberDataMap
+	var memberAddresses []string
+	for _, v := range members {
+		memberAddresses = append(memberAddresses, v.Address)
+	}
+
+	err := checkConnectivity(ctx, r.mtlsClient, wan.Spec.Endpoints, memberAddresses)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	if !controllerutil.ContainsFinalizer(wan, n.Finalizer) && wan.GetDeletionTimestamp().IsZero() {
 		controllerutil.AddFinalizer(wan, n.Finalizer)
@@ -163,6 +188,29 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	return updateWanStatus(ctx, r.Client, wan, wanSuccessStatus())
+}
+
+func checkConnectivity(ctx context.Context, m *mtls.Client, endpoints string, memberAddresses []string) error {
+	for _, memberAddress := range memberAddresses {
+		p, err := pinger.NewPinger(&pinger.Config{
+			MemberAddress: memberAddress,
+			MTLSClient:    m,
+		})
+		if err != nil {
+			return err
+		}
+
+		ping, err := p.Ping(ctx, endpoints)
+		if err != nil {
+			return err
+		}
+
+		if ping == true {
+			return nil
+		}
+		return errors.New(fmt.Sprintf("target (%s) not reachable", memberAddress))
+	}
+	return nil
 }
 
 func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, HZClientMap map[string][]hazelcastv1alpha1.Map) error {
