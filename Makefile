@@ -94,7 +94,7 @@ DEBUG_ENABLED ?= false
 RELEASE_NAME ?= v1
 CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
 DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
-STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),debug.enabled=$(DEBUG_ENABLED)
+STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchNamespace=$(NAMESPACE),debug.enabled=$(DEBUG_ENABLED)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -246,7 +246,7 @@ update-chart-crds: manifests
 	mv all-crds.yaml $(CRD_CHART)/templates/
 
 install-crds: helm update-chart-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(HELM) install $(CRD_RELEASE_NAME) $(CRD_CHART)
+	$(HELM) install $(CRD_RELEASE_NAME) $(CRD_CHART) -n $(NAMESPACE)
 
 install-chart: helm
 	$(HELM) upgrade --install $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
@@ -268,7 +268,7 @@ deploy: helm install-crds ## Deploy controller to the K8s cluster specified in ~
 
 helm-template:
 	@$(MAKE) helm &> /dev/null
-	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE) > try.yaml
 
 undeploy: uninstall-chart uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 
