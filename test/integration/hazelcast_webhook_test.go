@@ -126,7 +126,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       zoneHASpec,
 			}
 
-			k8sClient.Create(context.Background(), hz)
+			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 			test.CheckHazelcastCR(hz, defaultSpecValues, ee)
 
 			hz.Spec.HighAvailabilityMode = hazelcastv1alpha1.HighAvailabilityNodeMode
