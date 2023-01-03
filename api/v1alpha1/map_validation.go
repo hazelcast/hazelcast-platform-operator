@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-func ValidateNotUpdatableFields(current *MapSpec, last *MapSpec) error {
+func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) error {
 	if current.Name != last.Name {
 		return errors.New("name cannot be updated")
 	}

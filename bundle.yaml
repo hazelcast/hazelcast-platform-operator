@@ -396,6 +396,13 @@ spec:
                     - Unisocket
                     type: string
                 type: object
+              highAvailabilityMode:
+                description: Configuration to create clusters are resilient to node
+                  and zone failures
+                enum:
+                - NODE
+                - ZONE
+                type: string
               imagePullPolicy:
                 default: IfNotPresent
                 description: Pull policy for the Hazelcast Platform image
@@ -4618,6 +4625,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DEVELOPER_MODE_ENABLED
+          value: "true"
         image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: IfNotPresent
         livenessProbe:

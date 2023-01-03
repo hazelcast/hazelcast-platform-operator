@@ -151,7 +151,6 @@ var _ = Describe("Hazelcast controller", func() {
 				}
 			}
 		}
-
 	}
 
 	Delete := func(obj client.Object) {
@@ -619,6 +618,125 @@ var _ = Describe("Hazelcast controller", func() {
 
 					return *a.Hazelcast.Jet.Enabled
 				}, timeout, interval).Should(BeTrue())
+
+				Delete(hz)
+			})
+		})
+	})
+
+	Context("HighAvailabilityMode Configuration", func() {
+		When("HighAvailabilityMode is configured as NODE", func() {
+			It("should create topologySpreadConstraints", Label("fast"), func() {
+				s := test.HazelcastSpec(defaultSpecValues, ee)
+				s.HighAvailabilityMode = "NODE"
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       s,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
+
+				Eventually(func() []corev1.TopologySpreadConstraint {
+					ss := getStatefulSet(hz)
+					return ss.Spec.Template.Spec.TopologySpreadConstraints
+				}, timeout, interval).Should(
+					ConsistOf(WithTransform(func(tsc corev1.TopologySpreadConstraint) corev1.TopologySpreadConstraint {
+						return tsc
+					}, Equal(
+						corev1.TopologySpreadConstraint{
+							MaxSkew:           1,
+							TopologyKey:       "kubernetes.io/hostname",
+							WhenUnsatisfiable: corev1.ScheduleAnyway,
+							LabelSelector:     &metav1.LabelSelector{MatchLabels: labelFilter(hz)},
+						},
+					))),
+				)
+				Delete(hz)
+			})
+		})
+
+		When("HighAvailabilityMode is configured as ZONE", func() {
+			It("should create topologySpreadConstraints", Label("fast"), func() {
+				s := test.HazelcastSpec(defaultSpecValues, ee)
+				s.HighAvailabilityMode = "ZONE"
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       s,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
+
+				Eventually(func() []corev1.TopologySpreadConstraint {
+					ss := getStatefulSet(hz)
+					return ss.Spec.Template.Spec.TopologySpreadConstraints
+				}, timeout, interval).Should(
+					ConsistOf(WithTransform(func(tsc corev1.TopologySpreadConstraint) corev1.TopologySpreadConstraint {
+						return tsc
+					}, Equal(
+						corev1.TopologySpreadConstraint{
+							MaxSkew:           1,
+							TopologyKey:       "topology.kubernetes.io/zone",
+							WhenUnsatisfiable: corev1.ScheduleAnyway,
+							LabelSelector:     &metav1.LabelSelector{MatchLabels: labelFilter(hz)},
+						},
+					))),
+				)
+				Delete(hz)
+			})
+		})
+
+		When("HighAvailabilityMode is configured with the scheduling", func() {
+			It("should create both of them", Label("fast"), func() {
+				s := test.HazelcastSpec(defaultSpecValues, ee)
+				s.HighAvailabilityMode = "ZONE"
+				s.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+					Affinity: &corev1.Affinity{
+						PodAffinity: &corev1.PodAffinity{
+							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+								{
+									Weight: 10,
+									PodAffinityTerm: corev1.PodAffinityTerm{
+										TopologyKey: "node.zone",
+									},
+								},
+							},
+						},
+					},
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       s,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
+
+				Eventually(func() []corev1.TopologySpreadConstraint {
+					ss := getStatefulSet(hz)
+					return ss.Spec.Template.Spec.TopologySpreadConstraints
+				}, timeout, interval).Should(
+					ConsistOf(WithTransform(func(tsc corev1.TopologySpreadConstraint) corev1.TopologySpreadConstraint {
+						return tsc
+					}, Equal(
+						corev1.TopologySpreadConstraint{
+							MaxSkew:           1,
+							TopologyKey:       "topology.kubernetes.io/zone",
+							WhenUnsatisfiable: corev1.ScheduleAnyway,
+							LabelSelector:     &metav1.LabelSelector{MatchLabels: labelFilter(hz)},
+						},
+					))),
+				)
+
+				ss := getStatefulSet(hz)
+				Expect(len(ss.Spec.Template.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution)).To(Equal(1))
 
 				Delete(hz)
 			})

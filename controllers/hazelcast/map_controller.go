@@ -101,7 +101,6 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	if createdBefore {
 		ms, err := json.Marshal(m.Spec)
-
 		if err != nil {
 			err = fmt.Errorf("error marshaling Map as JSON: %w", err)
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
@@ -117,7 +116,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}
 
-		err = hazelcastv1alpha1.ValidateNotUpdatableFields(&m.Spec, lastSpec)
+		err = hazelcastv1alpha1.ValidateNotUpdatableMapFields(&m.Spec, lastSpec)
 		if err != nil {
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 		}

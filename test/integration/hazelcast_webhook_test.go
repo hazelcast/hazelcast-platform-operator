@@ -2,8 +2,8 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +35,17 @@ var _ = Describe("Hazelcast webhook", func() {
 		return metav1.ObjectMeta{
 			Name:      fmt.Sprintf("hazelcast-test-%s", uuid.NewUUID()),
 			Namespace: namespace,
+		}
+	}
+
+	GetRandomObjectMetaWithAnnotation := func(spec *hazelcastv1alpha1.HazelcastSpec) metav1.ObjectMeta {
+		hs, _ := json.Marshal(spec)
+		return metav1.ObjectMeta{
+			Name:      fmt.Sprintf("hazelcast-test-%s", uuid.NewUUID()),
+			Namespace: namespace,
+			Annotations: map[string]string{
+				n.LastSuccessfulSpecAnnotation: string(hs),
+			},
 		}
 	}
 
@@ -102,6 +113,25 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
 				Should(MatchError(ContainSubstring("when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set")))
+		})
+	})
+
+	Context("Hazelcast HighAvailabilityMode", func() {
+		It("should fail to update", Label("fast"), func() {
+			zoneHASpec := test.HazelcastSpec(defaultSpecValues, ee)
+			zoneHASpec.HighAvailabilityMode = "ZONE"
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMetaWithAnnotation(&zoneHASpec),
+				Spec:       zoneHASpec,
+			}
+
+			k8sClient.Create(context.Background(), hz)
+			test.CheckHazelcastCR(hz, defaultSpecValues, ee)
+
+			hz.Spec.HighAvailabilityMode = hazelcastv1alpha1.HighAvailabilityNodeMode
+			Expect(k8sClient.Update(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("highAvailabilityMode cannot be updated")))
 		})
 	})
 })
