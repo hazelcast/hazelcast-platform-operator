@@ -199,6 +199,8 @@ wait_for_instance_restarted()
 generate_test_suites()
 {
    mkdir suite_files
+   local GINKGO_VERSION=v2.1.6
+   make ginkgo GINKGO_VERSION=$GINKGO_VERSION
    SUITE_LIST=$(find test/e2e -type f \
      -name "*_test.go" \
    ! -name "hazelcast_backup_slow_test.go" \
@@ -210,7 +212,7 @@ generate_test_suites()
    ! -name "util_test.go" \
    ! -name "options_test.go")
    for SUITE_NAME in $SUITE_LIST; do
-       $(go env GOBIN)/ginkgo outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
+       $(go env GOBIN)/$GINKGO_VERSION/ginkgo outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
    done
    split --number=r/$1 TESTS_LIST suite_files/test_suite_ --numeric-suffixes=1 -a 2
    for i in $(ls suite_files/); do
