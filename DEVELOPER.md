@@ -56,13 +56,12 @@ make tilt-remote-ttl
 
 ## Running the operator locally
 
-Hazelcast Platform Operator uses [hazelcast go-client](https://github.com/hazelcast/hazelcast-go-client) to connect to the cluster. For this reason, the pods need to be
-exposed outside the cluster. Run the `make expose-local` command to expose Hazelcast member to `localhost:8000`.
+Hazelcast Platform Operator uses [hazelcast go-client](https://github.com/hazelcast/hazelcast-go-client) to connect to the cluster. For this reason, when running operator locally, operator needs to have access to the Kubernetes core-dns server, Kubernetes service network and Kubernetes pod network. If these conditions can be met, you can run the operator locally without a problem.
 
-The operator run must be built, with `build constraint` tag `localrun` and `hazelcastinternal`:
+The operator run must be built, with `build constraint` tag `hazelcastinternal`:
 
 ```shell
-go build -o bin/manager -tags localrun,hazelcastinternal main.go
+go build -o bin/manager -tags ,hazelcastinternal main.go
 ```
 
 Or using `make` that will include the tag by default:
@@ -78,7 +77,7 @@ make install run
 To run the operator from `GoLand`, execute the following steps to add build tags:
 
 1. In GoLand Preferences, navigate to `Go | Build tags & Vendoring`
-2. In the `Custom tags` field, enter `localrun hazelcastinternal`
+2. In the `Custom tags` field, enter `hazelcastinternal`
 3. Go to the `Run configuration` of the `Go build` select the `Use all custom build tags` checkbox
 
 Now you can run the `main.go` using `GoLand`.

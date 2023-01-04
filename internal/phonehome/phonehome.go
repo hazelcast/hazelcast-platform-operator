@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -26,6 +27,7 @@ type Metrics struct {
 	K8sDistibution string
 	K8sVersion     string
 	Trigger        chan struct{}
+	ClientRegistry hzclient.ClientRegistry
 }
 
 func Start(cl client.Client, m *Metrics) {
@@ -80,6 +82,7 @@ type PhoneHomeData struct {
 	CreatedEnterpriseClusterCount int                `json:"cecc"`
 	CreatedMCcount                int                `json:"cmcc"`
 	CreatedMemberCount            int                `json:"cmc"`
+	ClusterUUIDs                  []string           `json:"cuids"`
 	ExposeExternally              ExposeExternally   `json:"xe"`
 	Map                           Map                `json:"m"`
 	WanReplicationCount           int                `json:"wrc"`
@@ -135,7 +138,7 @@ func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 		K8sVersion:     m.K8sVersion,
 	}
 
-	phd.fillHazelcastMetrics(cl)
+	phd.fillHazelcastMetrics(cl, m.ClientRegistry)
 	phd.fillMCMetrics(cl)
 	phd.fillMapMetrics(cl)
 	phd.fillWanReplicationMetrics(cl)
@@ -152,11 +155,12 @@ func upTime(t time.Time) time.Duration {
 	return now.Sub(t)
 }
 
-func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client) {
+func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistry hzclient.ClientRegistry) {
 	createdEnterpriseClusterCount := 0
 	createdClusterCount := 0
 	createdMemberCount := 0
 	executorServiceCount := 0
+	clusterUUIDs := []string{}
 
 	hzl := &hazelcastv1alpha1.HazelcastList{}
 	err := cl.List(context.Background(), hzl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
@@ -176,11 +180,29 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client) {
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
+
+		cid, ok := ClusterUUID(hzClientRegistry, hz.Name, hz.Namespace)
+		if ok {
+			clusterUUIDs = append(clusterUUIDs, cid)
+		}
 	}
 	phm.CreatedClusterCount = createdClusterCount
 	phm.CreatedEnterpriseClusterCount = createdEnterpriseClusterCount
 	phm.CreatedMemberCount = createdMemberCount
 	phm.ExecutorServiceCount = executorServiceCount
+	phm.ClusterUUIDs = clusterUUIDs
+}
+
+func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
+	hzcl, ok := reg.Get(types.NamespacedName{Name: hzName, Namespace: hzNamespace})
+	if !ok {
+		return "", false
+	}
+	cid := hzcl.ClusterId()
+	if cid.Default() {
+		return "", false
+	}
+	return cid.String(), true
 }
 
 func (xe *ExposeExternally) addUsageMetrics(e *hazelcastv1alpha1.ExposeExternallyConfiguration) {
