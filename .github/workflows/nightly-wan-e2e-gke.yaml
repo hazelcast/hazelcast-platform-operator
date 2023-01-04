@@ -183,6 +183,10 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
+      - name: Get Second KUBECONFIG
+        run: |
+          echo "SECOND_KUBECONFIG=${{ env.KUBECONFIG }}" >> $GITHUB_ENV
+
       - name: Connect To The First GKE Cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
         with:
@@ -190,15 +194,25 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
+      - name: Get First KUBECONFIG
+        run: |
+          echo "FIRST_KUBECONFIG=${{ env.KUBECONFIG }}" >> $GITHUB_ENV
+
+      - name: Merge KUBECONFIG Files
+        run: |
+           KUBECONFIG="$FIRST_KUBECONFIG:$SECOND_KUBECONFIG"
+           kubectl config view --raw > ${GITHUB_WORKSPACE}/kubeconfig
+           echo "KUBECONFIG="${GITHUB_WORKSPACE}/kubeconfig"" >> $GITHUB_ENV
+
       - name: Run Wan Test
         run: |-
-          make test-e2e NAMESPACE=src-ns NAME_PREFIX=src-ns- E2E_TEST_SUITE=hz_wan_slow WORKFLOW_ID=wan
+          make test-e2e NAMESPACE=src-ns NAME_PREFIX=src-ns- E2E_TEST_SUITE=hz_wan_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=wan
 
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-wan
           path: allure-results/wan/
 
   report-generation:
@@ -208,6 +222,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: wan
+      CLUSTER_NAME: src-wan-cluster-${{ github.run_number }}
 
   cleanup-namespaces:
     name: Cleanup Namespaces

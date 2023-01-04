@@ -1,0 +1,5 @@
+FROM golang:1.19-alpine3.17
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+WORKDIR /
+ADD bin/tilt/manager-debug manager-debug
+ENTRYPOINT ["$GOPATH/bin/dlv --listen=0.0.0.0:40000 --api-version=2 --headless=true --accept-multiclient exec /manager-debug"]

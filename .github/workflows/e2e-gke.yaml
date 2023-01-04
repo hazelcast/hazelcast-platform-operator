@@ -63,7 +63,6 @@ jobs:
           make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
           make docker-push IMG=$IMG
 
-
   gke-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-latest
@@ -146,7 +145,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=gke
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=gke
 
       - name: Clean up after Tests
         if: always()
@@ -167,6 +166,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: gke
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
   delete-cluster:
     name: Delete GKE cluster

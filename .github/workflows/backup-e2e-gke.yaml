@@ -132,7 +132,7 @@ jobs:
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
         run: |
-          make test-e2e NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=backup_slow WORKFLOW_ID=backup
+          make test-e2e NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX E2E_TEST_SUITE=backup_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=backup
 
       - name: Clean up after Tests
         if: always()
@@ -143,7 +143,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-backup
           path: allure-results/backup/
 
   report-generation:
@@ -153,6 +153,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: backup
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
   delete-cluster:
     name: Cleanup the environment

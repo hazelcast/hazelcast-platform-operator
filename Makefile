@@ -14,9 +14,11 @@ endif
 
 
 ### TOOL VERSIONS
+TOOLBIN = $(shell pwd)/bin
 # https://github.com/kubernetes/kubernetes/releases
 # Used API version is set in go.mod file
 K8S_VERSION ?= 1.25.4
+SETUP_ENVTEST_VERSION ?= latest
 ENVTEST_K8S_VERSION ?= 1.25.x
 # https://github.com/operator-framework/operator-sdk/releases
 OPERATOR_SDK_VERSION ?= v1.25.2
@@ -30,9 +32,11 @@ OCP_OLM_CATALOG_VALIDATOR_VERSION ?= v0.0.1
 # https://github.com/operator-framework/operator-registry/releases
 OPM_VERSION ?= v1.26.2
 # https://github.com/onsi/ginkgo/releases
-GINKGO_VERSION ?= v2
+# It is set in the go.mod file
+GINKGO_VERSION ?= v2.1.6
 # https://github.com/kubernetes-sigs/kustomize/releases
-KUSTOMIZE_VERSION ?= v4@v4.5.3
+KUSTOMIZE_VERSION ?= v4.5.3
+
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -152,6 +156,12 @@ setup-linters:
 tilt: 
 	tilt up
 
+tilt-debug:
+	DEBUG_ENABLED=true tilt up
+
+tilt-debug-remote-ttl:
+	DEBUG_ENABLED=true ALLOW_REMOTE=true USE_TTL_REG=true tilt up
+
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context 
 tilt-remote: 
 	 ALLOW_REMOTE=true tilt up 
@@ -160,9 +170,8 @@ tilt-remote:
 tilt-remote-ttl:
 	 ALLOW_REMOTE=true USE_TTL_REG=true tilt up 
 
-ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
+ENVTEST_ASSETS_DIR=$(TOOLBIN)/envtest
 GO_TEST_FLAGS ?= "-ee=true"
-SUITE = $(subst =,-,$(GO_TEST_FLAGS))
 
 test-it: manifests generate fmt vet envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
@@ -179,26 +188,32 @@ else
 E2E_TEST_LABELS = && $(E2E_TEST_SUITE)
 endif
 GINKGO_PARALLEL_PROCESSES ?= 4
+
+test-e2e-split-kind: generate fmt vet ginkgo ## Run end-to-end tests on Kind
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 test-ph: generate fmt vet ginkgo ## Run phone-home tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 test-e2e-focus: generate fmt vet ginkgo ## Run focused end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
-CUSTOM_GO_BUILD_TAGS ?= localrun
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" main.go
+	go build -o bin/manager -tags "$(GO_BUILD_TAGS)" main.go
 
-build-tilt: generate fmt vet
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
+build-tilt: generate fmt vet # This is not going to work if client and server cpu architectures are different
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(shell go env GOARCH) go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
+
+build-tilt-debug: generate fmt vet # This is not going to work if client and server cpu architectures are different
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(shell go env GOARCH) go build -tags "$(GO_BUILD_TAGS)" -gcflags "-N -l" -o bin/tilt/manager-debug main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS) $(CUSTOM_GO_BUILD_TAGS)" ./main.go
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS)" ./main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
@@ -226,7 +241,9 @@ webhook-install: manifests kustomize
 webhook-uninstall: manifests kustomize
 	$(KUSTOMIZE) build config/webhook | $(KUBECTL) delete -f -
 
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	@$(MAKE) manifests &> /dev/null
+	@$(MAKE) kustomize &> /dev/null
 ifneq (,$(NAME_PREFIX))
 	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
 endif
@@ -240,6 +257,10 @@ endif
 	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path remove_security_context.yaml &> /dev/null
 ifeq (true,$(REMOVE_SECURITY_CONTEXT))
 	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path remove_security_context.yaml
+endif
+	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path debug_enabled.yaml &> /dev/null
+ifeq (true,$(DEBUG_ENABLED))
+	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path debug_enabled.yaml
 endif
 	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
@@ -276,39 +297,6 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=8m
 	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 2m
 
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
-
-KUSTOMIZE = $(shell pwd)/bin/kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/$(KUSTOMIZE_VERSION))
-
-GINKGO = $(GOBIN)/ginkgo
-$(GINKGO):
-	go install -mod=mod github.com/onsi/ginkgo/$(GINKGO_VERSION)/ginkgo
-
-ginkgo: $(GINKGO)
-
-ENVTEST = $(GOBIN)/setup-envtest
-envtest: $(ENVTEST)
-$(ENVTEST):
-	test -s $(ENVTEST) || GOBIN=$(GOBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest 
-
-# go-get-tool will 'go install' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
-
 .PHONY: bundle
 bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
@@ -325,23 +313,6 @@ bundle-build: ## Build the bundle image.
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
-
-.PHONY: opm
-OPM = ./bin/opm
-opm: ## Download opm locally if necessary.
-ifeq (,$(wildcard $(OPM)))
-ifeq (,$(shell which opm 2>/dev/null))
-	@{ \
-	set -e ;\
-	mkdir -p $(dir $(OPM)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
-	chmod +x $(OPM) ;\
-	}
-else
-OPM = $(shell which opm)
-endif
-endif
 
 # A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
 # These images MUST exist in a registry and be pull-able.
@@ -372,41 +343,12 @@ generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle
 	cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml
 	$(KUSTOMIZE) build config/default > bundle.yaml
 
-STS_NAME ?= hazelcast
-expose-local: ## Port forward hazelcast Pod so that it's accessible from localhost
-	while [ true ] ; do \
-		$(KUBECTL) get sts $(STS_NAME) &> /dev/null && break ; \
-		sleep 5 ; \
-	done;
-	$(KUBECTL) wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
-	$(KUBECTL) port-forward statefulset/$(STS_NAME) 8000:5701
-
 # Detect the OS to set per-OS defaults
 OS_NAME = $(shell uname -s | tr A-Z a-z)
 
-OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
-
-OPERATOR_SDK=${shell pwd}/bin/operator-sdk
-.PHONY: operator-sdk
-operator-sdk: $(OPERATOR_SDK)
-
-.PHONY: print-bundle-version
-print-bundle-version:
+.PHONY: print-bundle-version 
+print-bundle-version: 
 	@echo -n $(BUNDLE_VERSION)
-
-$(OPERATOR_SDK):
-	curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
-	chmod +x $(OPERATOR_SDK)
-
-
-OCP_OLM_CATALOG_VALIDATOR=${shell pwd}/bin/ocp-olm-catalog-validator
-OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
-.PHONY: ocp-olm-catalog-validator
-ocp-olm-catalog-validator: $(OCP_OLM_CATALOG_VALIDATOR)
-
-$(OCP_OLM_CATALOG_VALIDATOR):
-	curl -sSL $(OCP_OLM_CATALOG_VALIDATOR_URL) -o $(OCP_OLM_CATALOG_VALIDATOR) --create-dirs || (echo "curl returned $$? trying to fetch ocp-olm-catalog-validator."; exit 1)
-	chmod +x $(OCP_OLM_CATALOG_VALIDATOR)
 
 bundle-ocp-validate: ocp-olm-catalog-validator
 	 $(OCP_OLM_CATALOG_VALIDATOR) ./bundle  --optional-values="file=./bundle/metadata/annotations.yaml"
@@ -414,3 +356,77 @@ bundle-ocp-validate: ocp-olm-catalog-validator
 api-ref-doc: 
 	@go build -o bin/docgen  ./apidocgen/main.go 
 	@./bin/docgen ./api/v1alpha1/*.go
+
+
+##@ Tool installation
+
+ENVTEST = $(TOOLBIN)/setup-envtest/$(SETUP_ENVTEST_VERSION)/setup-envtest
+envtest: ## Download setup-envtest locally if necessary.
+	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION))
+	@echo -n $(ENVTEST)
+
+OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
+OPERATOR_SDK=${TOOLBIN}/operator-sdk/$(OPERATOR_SDK_VERSION)/operator-sdk
+.PHONY: operator-sdk
+operator-sdk: ## Download operator-sdk locally if necessary.
+	@[ -f $(OPERATOR_SDK) ] || { \
+		curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs ;\
+		chmod +x $(OPERATOR_SDK);\
+	}
+	@echo -n $(OPERATOR_SDK)
+
+CONTROLLER_GEN = $(TOOLBIN)/controller-gen/$(CONTROLLER_GEN_VERSION)/controller-gen
+controller-gen: ## Download controller-gen locally if necessary.
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
+	@echo -n $(CONTROLLER_GEN)
+
+KUSTOMIZE = $(TOOLBIN)/kustomize/$(KUSTOMIZE_VERSION)/kustomize
+.PHONY: kustomize
+kustomize: ## Download kustomize locally if necessary.
+	@$(eval KUSTOMIZE_MAJOR_VERSION=$(firstword $(subst ., ,$(KUSTOMIZE_VERSION))))
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/$(KUSTOMIZE_MAJOR_VERSION)@$(KUSTOMIZE_VERSION))
+	@echo -n $(KUSTOMIZE)
+
+GINKGO = $(TOOLBIN)/ginkgo/$(GINKGO_VERSION)/ginkgo
+ginkgo: ## Download ginkgo locally if necessary.
+	@$(eval GINKGO_MAJOR_VERSION=$(firstword $(subst ., ,$(GINKGO_VERSION)))) 
+	@[ -f $(GINKGO) ] || { \
+	mkdir -p $(dir $(GINKGO)) ;\
+	go get github.com/onsi/ginkgo/$(GINKGO_MAJOR_VERSION)@$(GINKGO_VERSION) ;\
+	GOBIN=$(dir $(GINKGO)) go install -mod=mod github.com/onsi/ginkgo/$(GINKGO_MAJOR_VERSION)/ginkgo@$(GINKGO_VERSION) ;\
+	}
+	@echo -n $(GINKGO)
+
+.PHONY: opm
+OPM = $(TOOLBIN)/opm/$(OPM_VERSION)/opm
+opm: ## Download opm locally if necessary.
+	@[ -f $(OPM) ] || { \
+	mkdir -p $(dir $(OPM)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
+	chmod +x $(OPM) ;\
+	}
+	echo -n $(OPM)
+
+OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
+OCP_OLM_CATALOG_VALIDATOR=$(TOOLBIN)/ocp-olm-catalog-validator/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/ocp-olm-catalog-validator
+.PHONY: ocp-olm-catalog-validator
+ocp-olm-catalog-validator: ## Download ocp-olm-catalog-validator locally if necessary.
+	@[ -f $(OCP_OLM_CATALOG_VALIDATOR) ] || { \
+	curl -sSL $(OCP_OLM_CATALOG_VALIDATOR_URL) -o $(OCP_OLM_CATALOG_VALIDATOR) --create-dirs ;\
+	chmod +x $(OCP_OLM_CATALOG_VALIDATOR) ;\
+	}
+	@echo -n $(OCP_OLM_CATALOG_VALIDATOR)
+
+# go-get-tool will 'go install' any package $2 and install it to $1.
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp &> /dev/null;\
+mkdir -p $(dir $(1)) ;\
+GOBIN=$(dir $(1)) go install $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef

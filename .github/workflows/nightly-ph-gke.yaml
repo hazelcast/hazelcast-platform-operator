@@ -135,8 +135,7 @@ jobs:
       - name: Run Hazelcast Phone Home tests at GKE
         id: ph-test
         run: |
-          GO_TEST_FLAGS=-ee=true
-          make test-ph GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=ph
+          make test-ph GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX REPORT_SUFFIX=ee-01 WORKFLOW_ID=ph
 
       - name: Clean up after Tests
         if: always()
@@ -147,7 +146,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-ph
           path: allure-results/ph/
 
   report-generation:
@@ -157,6 +156,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: ph
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
   delete-cluster:
     name: Delete PhoneHome cluster
