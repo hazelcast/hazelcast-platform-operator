@@ -65,8 +65,9 @@ jobs:
       - name: Check if tests are unfocused
         if: ${{ !cancelled() }}
         run: |
-           make ginkgo
-           if [[ $($GOBIN/ginkgo unfocus | wc -l) -gt 1 ]]; then
+           GINKGO_VERSION=v2.1.6
+           make ginkgo GINKGO_VERSION=$GINKGO_VERSION
+           if [[ $($GOBIN/ginkgo/$GINKGO_VERSION/ginkgo unfocus | wc -l) -gt 1 ]]; then
              echo "Some tests have 'F' before the test name. Run the 'ginkgo unfocus' command against your branch '${{ github.event.pull_request.head.ref }}' and push the changes."
              exit 1
            fi
