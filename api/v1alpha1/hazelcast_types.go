@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.12"}
+	// +kubebuilder:default:={repository: "docker.io/kutluhanhazelcast/platform-operator-agent", version: "0.1.14"}
 	// +optional
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
@@ -272,12 +272,12 @@ func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
+	// +kubebuilder:default:="docker.io/kutluhanhazelcast/platform-operator-agent"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.12"
+	// +kubebuilder:default:="0.1.14"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
