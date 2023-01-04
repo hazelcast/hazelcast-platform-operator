@@ -229,7 +229,9 @@ webhook-install: manifests kustomize
 webhook-uninstall: manifests kustomize
 	$(KUSTOMIZE) build config/webhook | $(KUBECTL) delete -f -
 
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	@$(MAKE) manifests &> /dev/null
+	@$(MAKE) kustomize &> /dev/null
 ifneq (,$(NAME_PREFIX))
 	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
 endif
