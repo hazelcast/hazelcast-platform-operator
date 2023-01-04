@@ -71,17 +71,6 @@ jobs:
               exit 1
           fi
 
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-latest
