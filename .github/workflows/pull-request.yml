@@ -121,7 +121,7 @@ jobs:
   generate-test-suites:
       name: Generate Test Suites
       runs-on: ubuntu-latest
-      permissions: { }
+      permissions: {}
       if: ( !cancelled() && github.event_name == 'pull_request' )
       timeout-minutes: 10
       steps:
@@ -157,7 +157,7 @@ jobs:
   get-image:
       name: Get Image
       runs-on: ubuntu-latest
-      permissions: { }
+      permissions: {}
       if: ( !cancelled() && github.event_name == 'pull_request' )
       timeout-minutes: 10
       outputs:
