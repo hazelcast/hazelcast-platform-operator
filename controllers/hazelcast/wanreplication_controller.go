@@ -69,43 +69,43 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	ctx = context.WithValue(ctx, LogKey("logger"), logger)
 
-	logger.Info(fmt.Sprintf("Qerying Status with params: %s ----- %s", req.Namespace, wan.Spec.Resources[0].Name))
-
-	hzResourceName := wan.Spec.Resources[0].Name
-	if wan.Spec.Resources[0].Kind == hazelcastv1alpha1.ResourceKindMap {
-		m := &hazelcastv1alpha1.Map{}
-		nn := types.NamespacedName{
-			Namespace: req.NamespacedName.Namespace,
-			Name:      wan.Spec.Resources[0].Name,
-		}
-		if err := r.Get(ctx, nn, m); err != nil {
-			if kerrors.IsNotFound(err) {
-				logger.V(util.DebugLevel).Info("Could not find Map")
-				return ctrl.Result{}, nil
-			} else {
-				return ctrl.Result{}, err
+	for _, rr := range wan.Spec.Resources {
+		hzResourceName := rr.Name
+		if rr.Kind == hazelcastv1alpha1.ResourceKindMap {
+			m := &hazelcastv1alpha1.Map{}
+			nn := types.NamespacedName{
+				Namespace: req.NamespacedName.Namespace,
+				Name:      rr.Name,
 			}
+			if err := r.Get(ctx, nn, m); err != nil {
+				if kerrors.IsNotFound(err) {
+					logger.V(util.DebugLevel).Info("Could not find Map")
+					return ctrl.Result{}, nil
+				} else {
+					return ctrl.Result{}, err
+				}
+			}
+			hzResourceName = m.Spec.HazelcastResourceName
 		}
-		hzResourceName = m.Spec.HazelcastResourceName
-	}
 
-	statusService, ok := r.statusServiceRegistry.Get(types.NamespacedName{
-		Namespace: req.Namespace,
-		Name:      hzResourceName,
-	})
-	if !ok {
-		logger.Error(errors.New("get Hazelcast Status Service failed"), "")
-	}
+		statusService, ok := r.statusServiceRegistry.Get(types.NamespacedName{
+			Namespace: req.Namespace,
+			Name:      hzResourceName,
+		})
+		if !ok {
+			logger.Error(errors.New("get Hazelcast Status Service failed"), "")
+		}
 
-	members := statusService.GetStatus().MemberDataMap
-	var memberAddresses []string
-	for _, v := range members {
-		memberAddresses = append(memberAddresses, v.Address)
-	}
+		members := statusService.GetStatus().MemberDataMap
+		var memberAddresses []string
+		for _, v := range members {
+			memberAddresses = append(memberAddresses, v.Address)
+		}
 
-	err := checkConnectivity(ctx, r.mtlsClient, wan.Spec.Endpoints, memberAddresses)
-	if err != nil {
-		return ctrl.Result{}, err
+		err := checkConnectivity(ctx, r.mtlsClient, wan.Spec.Endpoints, memberAddresses)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	if !controllerutil.ContainsFinalizer(wan, n.Finalizer) && wan.GetDeletionTimestamp().IsZero() {
