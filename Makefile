@@ -156,6 +156,12 @@ setup-linters:
 tilt: 
 	tilt up
 
+tilt-debug:
+	DEBUG_ENABLED=true tilt up
+
+tilt-debug-remote-ttl:
+	DEBUG_ENABLED=true ALLOW_REMOTE=true USE_TTL_REG=true tilt up
+
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context 
 tilt-remote: 
 	 ALLOW_REMOTE=true tilt up 
@@ -200,8 +206,11 @@ GO_BUILD_TAGS = hazelcastinternal
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager -tags "$(GO_BUILD_TAGS)" main.go
 
-build-tilt: generate fmt vet
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
+build-tilt: generate fmt vet # This is not going to work if client and server cpu architectures are different
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(shell go env GOARCH) go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
+
+build-tilt-debug: generate fmt vet # This is not going to work if client and server cpu architectures are different
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(shell go env GOARCH) go build -tags "$(GO_BUILD_TAGS)" -gcflags "-N -l" -o bin/tilt/manager-debug main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS)" ./main.go
@@ -248,6 +257,10 @@ endif
 	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path remove_security_context.yaml &> /dev/null
 ifeq (true,$(REMOVE_SECURITY_CONTEXT))
 	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path remove_security_context.yaml
+endif
+	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path debug_enabled.yaml &> /dev/null
+ifeq (true,$(DEBUG_ENABLED))
+	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path debug_enabled.yaml
 endif
 	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)

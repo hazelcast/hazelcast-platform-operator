@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -21,6 +22,7 @@ import (
 
 	admissionregistration "k8s.io/api/admissionregistration/v1"
 	core "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -29,23 +31,15 @@ const (
 )
 
 type CAInjector struct {
-	kubeClient  client.Client
-	webhookName types.NamespacedName
-	tlsCert     []byte
+	kubeClient   client.Client
+	webhookNames []types.NamespacedName
+	tlsCert      []byte
 }
 
-func NewCAInjector(kubeClient client.Client, webhookName, serviceName types.NamespacedName) (*CAInjector, error) {
-	if webhookName.Namespace == "" {
-		webhookName.Namespace = "default"
-	}
-
-	if serviceName.Namespace == "" {
-		serviceName.Namespace = "default"
-	}
-
+func NewCAInjector(kubeClient client.Client, deploymentName, namespace string) (*CAInjector, error) {
 	c := CAInjector{
-		kubeClient:  kubeClient,
-		webhookName: webhookName,
+		kubeClient:   kubeClient,
+		webhookNames: webhookNames(deploymentName, namespace),
 	}
 
 	certPath := filepath.Join(webhookServerPath, core.TLSCertKey)
@@ -54,8 +48,10 @@ func NewCAInjector(kubeClient client.Client, webhookName, serviceName types.Name
 			return nil, err
 		}
 
+		sn := serviceName(deploymentName, namespace)
+
 		// tls.crt not found, we need to create new
-		ca, err := generateCA(serviceName.Name, serviceName.Namespace)
+		ca, err := generateCA(sn.Name, sn.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -89,28 +85,47 @@ func NewCAInjector(kubeClient client.Client, webhookName, serviceName types.Name
 }
 
 func (c *CAInjector) Start(ctx context.Context) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		config := admissionregistration.ValidatingWebhookConfiguration{}
-		if err := c.kubeClient.Get(ctx, c.webhookName, &config); err != nil {
+	// olm is using multiple webhook configurations and we need
+	// working kubernetes client to list them
+	olmWebhooks, err := olmWebhookNames(ctx, c.kubeClient)
+	if err != nil {
+		return err
+	}
+	c.webhookNames = append(c.webhookNames, olmWebhooks...)
+
+	// try to update webhook certificates
+	for _, w := range c.webhookNames {
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			config := admissionregistration.ValidatingWebhookConfiguration{}
+			if err := c.kubeClient.Get(ctx, w, &config); err != nil {
+				return err
+			}
+
+			// skip if configuration is using cert-manager
+			if _, ok := config.Annotations[certManagerAnnotation]; ok {
+				return nil
+			}
+
+			// update CA in all webhooks
+			scope := admissionregistration.NamespacedScope
+			for i := range config.Webhooks {
+				config.Webhooks[i].ClientConfig.CABundle = c.tlsCert
+				for j := range config.Webhooks[i].Rules {
+					config.Webhooks[i].Rules[j].Scope = &scope
+				}
+			}
+
+			return c.kubeClient.Update(ctx, &config)
+		})
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				// skip if the webhook is missing (possible in olm)
+				continue
+			}
 			return err
 		}
-
-		// skip if configuration is using cert-manager
-		if _, ok := config.Annotations[certManagerAnnotation]; ok {
-			return nil
-		}
-
-		// update CA in all webhooks
-		scope := admissionregistration.NamespacedScope
-		for i := range config.Webhooks {
-			config.Webhooks[i].ClientConfig.CABundle = c.tlsCert
-			for j := range config.Webhooks[i].Rules {
-				config.Webhooks[i].Rules[j].Scope = &scope
-			}
-		}
-
-		return c.kubeClient.Update(ctx, &config)
-	})
+	}
+	return nil
 }
 
 func generateCA(name, namespace string) (map[string][]byte, error) {
@@ -126,8 +141,12 @@ func generateCA(name, namespace string) (map[string][]byte, error) {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		DNSNames: []string{
+			// default
 			fmt.Sprintf("%s.%s.svc", name, namespace),
 			fmt.Sprintf("%s.%s.svc.cluster.local", name, namespace),
+			// for olm
+			fmt.Sprintf("hazelcast-platform-controller-manager-service.%s.svc", namespace),
+			fmt.Sprintf("hazelcast-platform-controller-manager-service.%s.svc.cluster.local", namespace),
 		},
 	}
 
@@ -163,4 +182,51 @@ func generateCA(name, namespace string) (map[string][]byte, error) {
 		core.TLSCertKey:       crtPEM.Bytes(),
 		core.TLSPrivateKeyKey: keyPEM.Bytes(),
 	}, nil
+}
+
+func webhookNames(deploymentName, namespace string) []types.NamespacedName {
+	webhookName := types.NamespacedName{
+		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "validating-webhook-configuration"),
+		Namespace: namespace,
+	}
+
+	if webhookName.Namespace == "" {
+		webhookName.Namespace = "default"
+	}
+
+	return []types.NamespacedName{webhookName}
+}
+
+func olmWebhookNames(ctx context.Context, kubeClient client.Client) ([]types.NamespacedName, error) {
+	labels := client.MatchingLabels{
+		"olm.owner.namespace": "hazelcast-platform-operator",
+	}
+
+	configs := &admissionregistration.ValidatingWebhookConfigurationList{}
+	if err := kubeClient.List(ctx, configs, labels); err != nil {
+		return nil, err
+	}
+
+	var webhookNames []types.NamespacedName
+	for _, config := range configs.Items {
+		webhookNames = append(webhookNames, types.NamespacedName{
+			Name:      config.Name,
+			Namespace: config.Namespace,
+		})
+	}
+
+	return webhookNames, nil
+}
+
+func serviceName(deploymentName, namespace string) types.NamespacedName {
+	serviceName := types.NamespacedName{
+		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "webhook-service"),
+		Namespace: namespace, // service namespace is also hardcoded in webhook manifest
+	}
+
+	if serviceName.Namespace == "" {
+		serviceName.Namespace = "default"
+	}
+
+	return serviceName
 }

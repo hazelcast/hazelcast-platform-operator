@@ -36,6 +36,35 @@ After you run the command you can go to the local development wep page. There, y
 - run e2e-test in current namespace: It will run `make e2e-test` in the current context's namespace. You can stop it by pressing cancel button. if there are any leftover resources, you can delete them by pressing the `Delete CRs and PVCs` in `hazelcast-platform-controller-manager` resource. 
 - uncategorized: Applies CRD and RBAC resources for the operator. Re-triggering it will delete and recreate mentioned resources. If re-triggered, operator pod needs to be restarted to work correctly.
 
+### Debugging Using Tilt
+Before starting to debug, be sure that Delve server is up and running on port 40000, you can check from the logs.
+
+For local Kubernetes Clusters, use:
+```shell
+make tilt-debug
+```
+
+For remote Kubernetes Clusters, use:
+```shell
+make tilt-debug-remote-ttl
+```
+
+For VS Code users, add the following configuration:
+```json
+{
+  "name": "Attach to Delve",
+  "type": "go",
+  "request": "attach",
+  "mode": "remote",
+  "port": 40000,
+  "host": "127.0.0.1"
+}
+```
+
+For Goland users:
+![Goland Remote Debugging](static/goland_remote_debug.png "Goland Remote Debugging")
+
+
 ### Using tilt with Remote Clusters
 
 Tilt will not connect to remote clusters by default. If you want to use Tilt with any cluster, you can run one of the following commands
