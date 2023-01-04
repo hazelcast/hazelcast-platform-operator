@@ -140,9 +140,8 @@ jobs:
           run: |
              make ginkgo
              echo "get bin ginkgo"
-             ls -al /home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator/bin/ginkgo
-             echo "get bin"
-             ls -al /home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator/bin/
+             ls -al /home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator/bin/ginkgo/v2.1.6
+             ginkgo version
              source .github/scripts/utils.sh
              generate_test_suites $NR_OF_SUITES
 
