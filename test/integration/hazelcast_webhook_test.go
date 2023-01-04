@@ -132,6 +132,9 @@ var _ = Describe("Hazelcast webhook", func() {
 			hz.Spec.HighAvailabilityMode = hazelcastv1alpha1.HighAvailabilityNodeMode
 			Expect(k8sClient.Update(context.Background(), hz)).
 				Should(MatchError(ContainSubstring("highAvailabilityMode cannot be updated")))
+
+			deleteIfExists(lookupKey(hz), hz)
+			assertDoesNotExist(lookupKey(hz), hz)
 		})
 	})
 })
