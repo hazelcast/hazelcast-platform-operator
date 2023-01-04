@@ -16,9 +16,6 @@ on:
     paths-ignore:
       - "**.md"
 
-permissions:
-  contents: read
-
 env:
   GO_VERSION: '1.19.0'
   NR_OF_SUITES: 5
@@ -194,7 +191,7 @@ jobs:
             && github.event.pull_request.head.repo.full_name == github.repository))
       )
     env:
-      NAMESPACE: kind-test-operator-nightly-${{ matrix.edition }}
+      NAMESPACE: kind-test-operator-${{ matrix.edition }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
       CLUSTER_NAME: kind
       IMG: ${{ needs.get-image.outputs.IMG }}
