@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/pinger"
 	"reflect"
 	"strings"
 
@@ -22,7 +20,9 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/dialer"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -192,7 +192,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 func checkConnectivity(ctx context.Context, m *mtls.Client, endpoints string, memberAddresses []string) error {
 	for _, memberAddress := range memberAddresses {
-		p, err := pinger.NewPinger(&pinger.Config{
+		p, err := dialer.NewDialer(&dialer.Config{
 			MemberAddress: memberAddress,
 			MTLSClient:    m,
 		})
@@ -200,15 +200,9 @@ func checkConnectivity(ctx context.Context, m *mtls.Client, endpoints string, me
 			return err
 		}
 
-		ping, err := p.Ping(ctx, endpoints)
+		err = p.TryDial(ctx, endpoints)
 		if err != nil {
 			return err
-		}
-
-		if ping {
-			return nil
-		} else {
-			return fmt.Errorf("target (%s) not reachable", memberAddress)
 		}
 	}
 	return nil
