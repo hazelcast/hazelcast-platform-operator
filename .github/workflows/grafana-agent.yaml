@@ -74,7 +74,6 @@ jobs:
       GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
       GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
       GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
-      MANIFEST_URL: "https://raw.githubusercontent.com/hazelcast/hazelcast-platform-operator/CN-663-k8s-events/.github/grafana/agent-manifest.yaml"
       NAMESPACE: grafana
       NAMESPACES: ${{ inputs.namespaces }}
     runs-on: ubuntu-latest
