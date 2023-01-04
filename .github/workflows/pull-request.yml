@@ -292,5 +292,6 @@ jobs:
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
 
       - name: Show me the errors
+        id: debug-log
         run: |
           kubectl logs -n grafana $(kubectl get pods -n=grafana -o jsonpath="{.items[0].metadata.name}" -l=name=grafana-agent-logs)
