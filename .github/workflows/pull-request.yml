@@ -117,6 +117,8 @@ jobs:
   generate-test-suites:
       name: Generate Test Suites
       runs-on: ubuntu-latest
+      permissions: { }
+      if: ( !cancelled() && github.event_name == 'pull_request' )
       steps:
         - name: Checkout
           uses: actions/checkout@v3
@@ -150,6 +152,8 @@ jobs:
   get-image:
       name: Get Image
       runs-on: ubuntu-latest
+      permissions: { }
+      if: ( !cancelled() && github.event_name == 'pull_request' )
       outputs:
         IMG: ${{ steps.build-img.outputs.IMG }}
       steps:
