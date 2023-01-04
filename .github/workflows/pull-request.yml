@@ -33,7 +33,6 @@ jobs:
     name: Run linters
     runs-on: ubuntu-latest
     permissions: {}
-#    if: ( !cancelled() && github.event_name == 'pull_request' )
     timeout-minutes: 10
     steps:
       - name: Checkout
