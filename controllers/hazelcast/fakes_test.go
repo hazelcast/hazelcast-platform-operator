@@ -83,6 +83,7 @@ type fakeHzClient struct {
 	tInvokeOnMember          func(ctx context.Context, req *proto.ClientMessage, uuid hztypes.UUID, opts *proto.InvokeOptions) (*proto.ClientMessage, error)
 	tInvokeOnRandomTarget    func(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error)
 	tShutDown                error
+	tUUID                    hztypes.UUID
 }
 
 func (cl *fakeHzClient) OrderedMembers() []cluster.MemberInfo {
@@ -113,6 +114,10 @@ func (cl *fakeHzClient) InvokeOnRandomTarget(ctx context.Context, req *proto.Cli
 
 func (cl *fakeHzClient) Running() bool {
 	return cl.tRunning
+}
+
+func (cl *fakeHzClient) ClusterId() hztypes.UUID {
+	return cl.tUUID
 }
 
 func (cl *fakeHzClient) Shutdown(ctx context.Context) error {

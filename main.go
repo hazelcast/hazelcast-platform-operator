@@ -135,6 +135,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	cr := &hzclient.HazelcastClientRegistry{}
+	ssm := &hzclient.HzStatusServiceRegistry{}
+
 	var metrics *phonehome.Metrics
 	var phoneHomeTrigger chan struct{}
 	if util.IsPhoneHomeEnabled() {
@@ -147,11 +150,9 @@ func main() {
 			K8sDistibution: platform.GetDistribution(),
 			K8sVersion:     platform.GetVersion(),
 			Trigger:        phoneHomeTrigger,
+			ClientRegistry: cr,
 		}
 	}
-
-	cr := &hzclient.HazelcastClientRegistry{}
-	ssm := &hzclient.HzStatusServiceRegistry{}
 
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),

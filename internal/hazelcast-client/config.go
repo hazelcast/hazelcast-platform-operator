@@ -1,5 +1,5 @@
-//go:build !localrun && !unittest
-// +build !localrun,!unittest
+//go:build !unittest
+// +build !unittest
 
 package client
 

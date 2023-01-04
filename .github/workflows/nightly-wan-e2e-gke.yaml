@@ -183,12 +183,26 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
+      - name: Get Second KUBECONFIG
+        run: |
+          echo "SECOND_KUBECONFIG=${{ env.KUBECONFIG }}" >> $GITHUB_ENV
+
       - name: Connect To The First GKE Cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
         with:
           cluster_name: src-wan-cluster-${{ github.run_number }}
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
+
+      - name: Get First KUBECONFIG
+        run: |
+          echo "FIRST_KUBECONFIG=${{ env.KUBECONFIG }}" >> $GITHUB_ENV
+
+      - name: Merge KUBECONFIG Files
+        run: |
+           KUBECONFIG="$FIRST_KUBECONFIG:$SECOND_KUBECONFIG"
+           kubectl config view --raw > ${GITHUB_WORKSPACE}/kubeconfig
+           echo "KUBECONFIG="${GITHUB_WORKSPACE}/kubeconfig"" >> $GITHUB_ENV
 
       - name: Run Wan Test
         run: |-
