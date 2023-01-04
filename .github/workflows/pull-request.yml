@@ -55,6 +55,8 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           args: --timeout 3m --build-tags hazelcastinternal
+          skip-pkg-cache: true
+          skip-build-cache: true
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
