@@ -1,7 +1,6 @@
 name: Pull Request Builder
 
 on:
-  push: {}
   pull_request_target:
     types:
       - labeled
@@ -33,6 +32,7 @@ jobs:
     name: Run linters
     runs-on: ubuntu-latest
     permissions: {}
+    if: ( !cancelled() && github.event_name == 'pull_request' )
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -123,6 +123,16 @@ jobs:
       fail-fast: false
       matrix:
         edition: ["os","ee"]
+    if: >-
+      ( !cancelled()
+      && ((github.event_name == 'pull_request_target'
+            && github.event.action == 'labeled'
+            && github.event.label.name == 'safe-to-test'
+            && github.event.pull_request.head.repo.full_name != github.repository)
+          ||
+          (github.event_name == 'pull_request'
+            && github.event.pull_request.head.repo.full_name == github.repository))
+      )
     env:
       NAMESPACE: kind-test-operator-${{ matrix.edition }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
