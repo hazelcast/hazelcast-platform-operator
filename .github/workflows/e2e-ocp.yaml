@@ -16,7 +16,6 @@ jobs:
     name: Check OCP nodes state
     env:
       NR_CLUSTER_NAME: ocp-operator
-      CLUSTER_NAME: api-demo-ocp4-hazelcast-com
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -148,7 +147,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=ocp
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=ocp
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
@@ -186,6 +185,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: ocp
+      CLUSTER_NAME: api-demo-ocp4-hazelcast-com
 
   slack_notify:
     name: Slack Notify

@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
   workflow_call:
 
-
 env:
   AWS_REGION: us-east-1
 
@@ -158,7 +157,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} WORKFLOW_ID=eks
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=eks
 
       - name: Clean up after Tests
         if: always()
@@ -179,6 +178,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: eks
+      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
 
   delete-cluster:
     name: Delete EKS cluster

@@ -158,6 +158,7 @@ cleanup_page_publish_runs()
             sleep 20
     done
 }
+
 # This function will restart all instances that are not in ready status and wait until it will be ready
 wait_for_instance_restarted()
 {
@@ -191,6 +192,130 @@ wait_for_instance_restarted()
    else
       echo "All instances are in 'Ready' status."
    fi
+}
+
+# The function generates test suite files which are contains list of focused tests. Takes a single argument - number of files to be generated.
+# Returns the specified number of files with name test_suite_XX where XX - suffix number of file starting with '01'. The tests will be equally splitted between files.
+generate_test_suites()
+{
+   mkdir suite_files
+   local GINKGO_VERSION=v2.1.6
+   make ginkgo GINKGO_VERSION=$GINKGO_VERSION
+   SUITE_LIST=$(find test/e2e -type f \
+     -name "*_test.go" \
+   ! -name "hazelcast_backup_slow_test.go" \
+   ! -name "hazelcast_wan_slow_test.go" \
+   ! -name "custom_resource_test.go" \
+   ! -name "client_port_forward_test.go" \
+   ! -name "e2e_suite_test.go" \
+   ! -name "helpers_test.go" \
+   ! -name "util_test.go" \
+   ! -name "options_test.go")
+   for SUITE_NAME in $SUITE_LIST; do
+       $(go env GOBIN)/ginkgo/$GINKGO_VERSION/ginkgo outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
+   done
+   split --number=r/$1 TESTS_LIST suite_files/test_suite_ --numeric-suffixes=1 -a 2
+   for i in $(ls suite_files/); do
+       wc -l "suite_files/$i"
+       cat <<< $(tr '\n' ' ' < suite_files/$i) > suite_files/$i
+       cat suite_files/"$i"
+   done
+}
+
+# The function merges all test reports (XML) files from each node into one report.
+# Takes a single argument - the WORKFLOW_ID (kind,gke,eks, aks etc.)
+merge_xml_test_reports()
+{
+  sudo apt-get install -y xmlstarlet
+  local HZ_VERSIONS=("ee" "os")
+  for hz_version in "${HZ_VERSIONS[@]}"; do
+      IFS=$'\n'
+      local PARENT_TEST_REPORT_FILE="${GITHUB_WORKSPACE}/allure-results/$1/test-report-$hz_version-01.xml"
+      # for each test report file (except parent one) extracted the test cases
+      for ALLURE_SUITE_FILE in $(find ${GITHUB_WORKSPACE}/allure-results/$1 -type f \
+            -name 'test-report-'$hz_version'-?[0-9].xml' \
+          ! -name 'test-report-'$hz_version'-01.xml'); do
+          local TEST_CASES=$(sed '1,/<\/properties/d;/<\/testsuite/,$d' $ALLURE_SUITE_FILE)
+          # insert extracted test cases into parent_test_report_file
+          printf '%s\n' '0?<\/testcase>?a' $TEST_CASES . x | ex $PARENT_TEST_REPORT_FILE
+      done
+          #remove 'SynchronizedBeforeSuite' and 'AfterSuite' xml tags from the final report
+          cat <<< $(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+          cat <<< $(xmlstarlet ed -d '//testcase[@name="[AfterSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+          # for each test name verify status
+      for TEST_NAME in $(xmlstarlet sel -t -v "//testcase/@name" $PARENT_TEST_REPORT_FILE); do
+          local IS_PASSED=$(xmlstarlet sel -t -v 'count(//testcase[@name="'"${TEST_NAME}"'" and @status="passed"])' $PARENT_TEST_REPORT_FILE)
+          local IS_FAILED=$(xmlstarlet sel -t -v 'count(//testcase[@name="'"${TEST_NAME}"'" and @status="failed"])' $PARENT_TEST_REPORT_FILE)
+          if [[ "$IS_PASSED" -ge 1 || "$IS_FAILED" -ge 1 ]]; then
+          # if test is 'passed' or 'failed' then remove all tests with 'skipped' status and remove duplicated tags with 'passed' and 'failed' statuses except one
+              cat <<< $(xmlstarlet ed -d '//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+              cat <<< $(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="passed"])[position()>1]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+              cat <<< $(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="failed"])[position()>1]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+          else
+          # if tests in not in 'passed' or 'failed' statuses, then remove all duplicated tags with 'skipped' statuses except one
+              cat <<< $(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"])[position()>1]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+          fi
+      done
+      # count 'total' and 'skipped' number of tests and update the values in the final report
+      local TOTAL_TESTS=$(xmlstarlet sel -t -v 'count(//testcase)' $PARENT_TEST_REPORT_FILE)
+      local SKIPPED_TESTS=$(xmlstarlet sel -t -v 'count(//testcase[@status="skipped"])' $PARENT_TEST_REPORT_FILE)
+      sed -i 's/tests="[^"]*/tests="'$TOTAL_TESTS'/g' $PARENT_TEST_REPORT_FILE
+      sed -i 's/skipped="[^"]*/skipped="'$SKIPPED_TESTS'/g' $PARENT_TEST_REPORT_FILE
+      # remove all test report files except parent one for further processing
+      find ${GITHUB_WORKSPACE}/allure-results/$1 -type f -name 'test-report-'$hz_version'-?[0-9].xml' ! -name 'test-report-'$hz_version'-01.xml' -delete
+  done
+}
+
+# Function clean up the final test JSON files: removes all 'steps' objects that don't contain the 'name' object, 'Text' word in the name object, and CR_ID text.
+# It will also remove the 'By' annotation, converts 'Duration' time (h,m,s) into 'ms', added a URL with an error line which is the point to the source code, and finally added a direct link into the log system.
+# Takes a single argument - the WORKFLOW_ID (kind,gke,eks, aks etc.)
+update_test_files()
+{
+      local WORKFLOW_ID=$1
+      local CLUSTER_NAME=$2
+      cd allure-history/$WORKFLOW_ID/${GITHUB_RUN_NUMBER}/data/test-cases
+      local GRAFANA_BASE_URL="https://hazelcastoperator.grafana.net"
+      local BEGIN_TIME=$(date +%s000 -d "- 3 hours")
+      local END_TIME=$(date +%s000 -d "+ 1 hours")
+      for i in $(ls); do
+          cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not))))
+                               |.testStage.steps[].name |= sub("&{Text:";"")
+                               |.testStage.steps[].name |= sub("}";"")
+                               |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
+                               |.testStage.steps[].name |= sub(" Duration.*";"")
+                               |.testStage.steps[].time.duration |= sub(".*Duration:";"")
+                               |.testStage.steps[].time.duration |= (if contains("ms") then split("ms") | .[0]|tonumber elif contains("CR_ID") then . elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
+                               |.testStage.steps[]+={status: "passed"}
+                               |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
+                               |to_entries
+                               |walk(if type == "object" and (.value | select(contains("hazelcast-platform-operator/hazelcast-platform-operator"))) then . else . end)
+                               |del(.[].key)
+                               |.[].value|=sub("\\t";"")
+                               |.[].value|=sub("\\+0.*";"")
+                               |.[].value|=sub(" ";"")
+                               |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/${{ github.repository_owner }}/hazelcast-platform-operator/blob/main")
+                               |.[].value|= sub(".go:";".go#L")
+                               |unique
+                               |to_entries[]
+                               |.+={name: ("ERROR_LINE"+ "_" + (.key|tonumber+1|tostring))}
+                               |.url+=.value[]
+                               |del(.key)|del(.value)
+                               |.+={type: "issue"}]}
+                               |.testStage.steps[-1]+={status: "failed"} else . end)' $i) > $i
+
+         local NUMBER_OF_TEST_RUNS=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))] | length' $i)
+         if [[ ${NUMBER_OF_TEST_RUNS} -gt 1 ]]; then
+               local START_INDEX_OF_LAST_RETRY=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))][-1].key-1' $i)
+               cat <<< $(jq -e 'del(.testStage.steps[0:'${START_INDEX_OF_LAST_RETRY}'])' $i) > $i
+         fi
+         local TEST_STATUS=$(jq -r '.status' $i)
+         if [[ ${TEST_STATUS} != "skipped" ]]; then
+            cat <<< $(jq -e '.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")}|del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))' $i) > $i
+            local CR_ID=$(jq -r '.extra.tags.tag' $i)
+            local LINK=$(echo $GRAFANA_BASE_URL\/d\/-Lz9w3p4z\/all-logs\?orgId=1\&var-cluster="$CLUSTER_NAME"\&var-cr_id="$CR_ID"\&var-text=\&from="$BEGIN_TIME"\&to="$END_TIME")
+            cat <<< $(jq -e '.links|= [{"name":"LOGS","url":"'"$LINK"'",type: "tms"}] + .' $i) > $i
+        fi
+      done
 }
 
 #This function sync certification tags and add the latest tag to the published image

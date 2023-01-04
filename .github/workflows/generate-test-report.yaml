@@ -5,13 +5,14 @@ on:
       WORKFLOW_ID:
         required: true
         type: string
+      CLUSTER_NAME:
+        required: true
+        type: string
+        
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   CLEANUP_TIMEOUT: 20
   GITHUB_PAGES_URL: https://${{ github.repository_owner }}.github.io/hazelcast-platform-operator
-  NEW_RELIC_BASE_URL: https://one.eu.newrelic.com/launcher/logger.log-launcher
-  NEW_RELIC_SHORT_URL_GEN: https://urly.service.newrelic.com
-  NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
 
 jobs:
   report-creation:
@@ -42,6 +43,11 @@ jobs:
           name: test-report-${{ inputs.WORKFLOW_ID }}
           path: allure-results/${{ inputs.WORKFLOW_ID }}
 
+      - name: Merge test-report.xml files
+        run: |-
+          source .github/scripts/utils.sh
+          merge_xml_test_reports ${{ inputs.WORKFLOW_ID }}
+
       - name: Removing A First Run Attempt
         if: always()
         run: |
@@ -71,80 +77,35 @@ jobs:
           gh_pages: test-report-pages
           allure_report: allure-report
           allure_history: allure-history
-          keep_reports: 100
+          keep_reports: 10
           subfolder: ${{ inputs.WORKFLOW_ID }}
 
-      - name: Update Permission
+      - name: Update 'allure-history' Folder Permission
         run: |
-          sudo chown -R $USER:$USER allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}
+          sudo chown -R $USER:$USER allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
 
       - name: Update Test Files
         run: |-
-          cd allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/data/test-cases
-          BEGIN_TIME=$(date +%s000 -d "- 3 hours")
-          END_TIME=$(date +%s000 -d "+ 1 hours")
-          for i in $(ls); do
-          cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not))))
-                           |.testStage.steps[].name |= sub("&{Text:";"")
-                           |.testStage.steps[].name |= sub("}";"")
-                           |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
-                           |.testStage.steps[].name |= sub(" Duration.*";"")
-                           |.testStage.steps[].time.duration |= sub(".*Duration:";"")
-                           |.testStage.steps[].time.duration |= (if contains("ms") then split("ms") | .[0]|tonumber elif contains("CR_ID") then . elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
-                           |.testStage.steps[]+={status: "passed"}
-                           |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
-                           |to_entries
-                           |walk(if type == "object" and (.value | select(contains("hazelcast-platform-operator/hazelcast-platform-operator"))) then . else . end)
-                           |del(.[].key)
-                           |.[].value|=sub("\\t";"")
-                           |.[].value|=sub("\\+0.*";"")
-                           |.[].value|=sub(" ";"")
-                           |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/${{ github.repository_owner }}/hazelcast-platform-operator/blob/main")
-                           |.[].value|= sub(".go:";".go#L")
-                           |unique
-                           |to_entries[]
-                           |.+={name: ("ERROR_LINE"+ "_" + (.key|tonumber+1|tostring))}
-                           |.url+=.value[]
-                           |del(.key)|del(.value)
-                           |.+={type: "issue"}]}
-                           |.testStage.steps[-1]+={status: "failed"} else . end)' $i) > $i
-
-           NUMBER_OF_TEST_RUNS=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))] | length' $i)
-           if [[ ${NUMBER_OF_TEST_RUNS} -gt 1 ]]; then
-               START_INDEX_OF_LAST_RETRY=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))][-1].key-1' $i)
-               cat <<< $(jq -e 'del(.testStage.steps[0:'${START_INDEX_OF_LAST_RETRY}'])' $i) > $i
-           fi
-           TEST_STATUS=$(jq -r '.status' $i)
-           if [[ ${TEST_STATUS} != "skipped" ]]; then
-           cat <<< $(jq -e '.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")}|del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))' $i) > $i
-           CR_ID=$(jq -r '.extra.tags.tag' $i)
-           LAUNCHER=$(echo "{\"isEntitled\":true,\"query\":\"pod_name:\\\"$CR_ID*\\\" OR message:\\\"*$CR_ID*\\\"\",\"eventTypes\":[\"Log\"]}" | base64 -w0)
-           PANE=$(echo "{\"nerdletId\":\"logger.log-tailer\",\"accountId\":${NEW_RELIC_ACCOUNT_ID}}" | base64 -w0)
-           LINK=$(echo $NEW_RELIC_BASE_URL\?launcher\="$LAUNCHER"\&pane\="$PANE"\&platform%5BtimeRange%5D%5Bbegin_time%5D\="$BEGIN_TIME"\&platform%5BtimeRange%5D%5Bend_time%5D\="$END_TIME")
-           SHORT_LINK=$(curl -s -X POST \
-                      $NEW_RELIC_SHORT_URL_GEN \
-                      -H "Content-Type: application/json" \
-                      -H "Api-Key: ${{ secrets.NEW_RELIC_API_KEY }}" \
-                      -d '{"url":"'"$LINK"'"}' | jq -r '.url')
-           cat <<< $(jq -e '.links|= [{"name":"LOGS","url":"'"$SHORT_LINK"'",type: "tms"}] + .' $i) > $i
-           fi
-           done
+          source .github/scripts/utils.sh
+          update_test_files ${{ inputs.WORKFLOW_ID }} ${{ inputs.CLUSTER_NAME }}
 
       - name: Update environment.properties
         run: |-
-          cd allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/widgets
+          cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/widgets
           cat <<< $(jq -e 'del(.[] | select(has("name") and (.name | select(contains("URL")))))' environment.json) > environment.json
 
       - name: Update Summary Report
         run: |-
-          cd allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/widgets
+          cd allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/widgets
           cat <<< $(jq -e '.reportName="${{ github.workflow }}"' summary.json) > summary.json
 
       - name: Update Hazelcast Logo
         run: |-
-          sed -i "s/>Allure</></g" allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/app.js
-          sed -i "s/Allure Report/Hazelcast Operator Test Report/g" allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}/index.html
-          mv -f test-report-pages/styles.css allure-history/${{ inputs.WORKFLOW_ID }}/${{ github.run_number }}
+          sed -i "s/>Allure</></g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/app.js
+          sed -i "s/Allure Report/Hazelcast Operator Test Report/g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/index.html
+          sed -i "s/<link rel=\"favicon\" href=\"favicon.ico?v=2\">/<link rel=\"shortcut icon\" type=\"image\/x-icon\" href=\"favicon.ico\">/g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/index.html
+          mv -f test-report-pages/styles.css allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
+          mv -f test-report-pages/favicon.ico allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
 
       - name: Update The 'test-report-pages' Branch
         run: |
@@ -161,7 +122,7 @@ jobs:
           commit-message: deploy report with run number ${{ github.run_number }} and commit
 
       - name: Cleanup Page Publish Runs
-        if: always()
+        if: ${{ !cancelled() }}
         run: |
           source .github/scripts/utils.sh
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
@@ -169,4 +130,6 @@ jobs:
       - name: Delete Test Artifact
         uses: geekyeggo/delete-artifact@v2
         with:
-          name: test-report-${{ inputs.WORKFLOW_ID }}
+          name: |
+            test-suites
+            test-report-${{ inputs.WORKFLOW_ID }}

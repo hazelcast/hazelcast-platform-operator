@@ -30,7 +30,7 @@ jobs:
               --node-count 3 --generate-ssh-keys
 
   grafana-setup:
-    needs: [   prepare-env ]
+    needs: [prepare-env]
     uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
@@ -137,7 +137,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} WORKFLOW_ID=aks
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=aks
 
       - name: Clean up after Tests
         if: always()
@@ -158,6 +158,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: aks
+      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
 
   delete-cluster:
     name: Delete AKS cluster

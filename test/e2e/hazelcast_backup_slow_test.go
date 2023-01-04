@@ -363,4 +363,113 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 20, 1*Minute)
 
 	})
+
+	It("should not start repartitioning after one member restart", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("rep-1")
+		ctx := context.Background()
+		clusterSize := int32(3)
+		By("creating Hazelcast cluster")
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		persistenceStrategy := map[string]string{
+			"hazelcast.persistence.auto.cluster.state.strategy": "FROZEN",
+		}
+
+		hazelcast.Spec.Properties = persistenceStrategy
+		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("creating the map config")
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+		m.Spec.PersistenceEnabled = true
+		m.GetManagedFields()
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
+		t := Now()
+		DeletePod(hazelcast.Name+"-2", 10, hzLookupKey)
+		evaluateReadyMembers(hzLookupKey)
+		logs := InitLogs(t, hzLookupKey)
+		defer logs.Close()
+		scanner := bufio.NewScanner(logs)
+
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=2"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		Expect(logs.Close()).Should(Succeed())
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
+	})
+
+	It("should not start repartitioning after planned shutdown", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("rep-2")
+		ctx := context.Background()
+		clusterSize := int32(3)
+		By("creating Hazelcast cluster")
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
+
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("creating the map config")
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+		m.Spec.PersistenceEnabled = true
+		m.GetManagedFields()
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
+
+		By("creating HotBackup CR")
+		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
+		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+		assertHotBackupSuccess(hotBackup, 1*Minute)
+
+		RemoveHazelcastCR(hazelcast)
+
+		By("creating new Hazelcast cluster from existing backup")
+		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
+			HotBackupResourceName: hotBackup.Name,
+		}
+		t := Now()
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+		logs := InitLogs(t, hzLookupKey)
+		defer logs.Close()
+		scanner := bufio.NewScanner(logs)
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("cluster state: PASSIVE"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Expected-Size: 3, Actual-Size: 1"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		Expect(logs.Close()).Should(Succeed())
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
+	})
 })
