@@ -40,23 +40,11 @@ jobs:
         with:
           go-version: ${{ format('>={0}', env.GO_VERSION) }}
 
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3.3.1
         if: ${{ !cancelled() }}
         with:
           args: --timeout 3m --build-tags hazelcastinternal
-          skip-pkg-cache: true
-          skip-build-cache: true
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
@@ -82,6 +70,17 @@ jobs:
               echo "Please make sure your branch is up to date with main and run 'make generate-bundle-yaml'"
               exit 1
           fi
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
 
   unit-tests:
     name: Run unit and integration tests
