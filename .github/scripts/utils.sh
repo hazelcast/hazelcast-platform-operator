@@ -199,7 +199,6 @@ wait_for_instance_restarted()
 generate_test_suites()
 {
    mkdir suite_files
-   make ginkgo
    SUITE_LIST=$(find test/e2e -type f \
      -name "*_test.go" \
    ! -name "hazelcast_backup_slow_test.go" \

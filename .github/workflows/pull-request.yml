@@ -138,6 +138,7 @@ jobs:
         - name: Generate Test Suites
           id: set-outputs
           run: |
+             make ginkgo
              source .github/scripts/utils.sh
              generate_test_suites $NR_OF_SUITES
 
