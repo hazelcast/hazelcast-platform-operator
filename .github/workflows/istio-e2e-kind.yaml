@@ -183,6 +183,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: istio
+      CLUSTER_NAME: kind
 
   slack_notify:
     name: Slack Notify
