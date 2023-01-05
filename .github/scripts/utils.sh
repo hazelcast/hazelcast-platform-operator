@@ -294,7 +294,7 @@ update_test_files()
                                |.[].value|=sub("\\t";"")
                                |.[].value|=sub("\\+0.*";"")
                                |.[].value|=sub(" ";"")
-                               |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/$REPOSITORY_OWNER/hazelcast-platform-operator/blob/main")
+                               |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/'${REPOSITORY_OWNER}'/hazelcast-platform-operator/blob/main")
                                |.[].value|= sub(".go:";".go#L")
                                |unique
                                |to_entries[]
