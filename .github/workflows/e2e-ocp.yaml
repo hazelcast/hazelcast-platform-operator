@@ -1,23 +1,21 @@
-name: Nightly E2E tests on OCP
+name: E2E tests on OCP
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * *"
+  workflow_call:
 
 env:
-  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
   AWS_REGION: us-east-1
   RESTART_OCP_NODE_TIMEOUT: 15
   OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
   OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
   OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
+  GRAFANA_NAMESPACE: grafana
 
 jobs:
   check-and-restart-nodes:
     name: Check OCP nodes state
     env:
       NR_CLUSTER_NAME: ocp-operator
-      CLUSTER_NAME: api-demo-ocp4-hazelcast-com
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,11 +34,22 @@ jobs:
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           wait_for_instance_restarted $RESTART_OCP_NODE_TIMEOUT
 
-  new-relic-setup:
-    name: Setup New Relic agent
+  grafana-setup:
+    name: Setup Grafana agent
     env:
-      NR_CLUSTER_NAME: ocp-operator
+      GRAFANA_NS: "grafana-${{ github.run_id }}"
+      CLUSTER_TYPE: ocp
       CLUSTER_NAME: api-demo-ocp4-hazelcast-com
+      GH_RUN_ID: ${{ github.run_id }}
+      GH_RUN_NUMBER: ${{ github.run_number }}
+      GH_SHA: ${{ github.sha }}
+      GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
+      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+      GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
+      GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
+      GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
+      NAMESPACES: "oc-e2e-test-operator-os-${{ github.run_id }}, oc-e2e-test-operator-ee-${{ github.run_id }}"
     runs-on: ubuntu-latest
     needs: check-and-restart-nodes
     steps:
@@ -51,34 +60,36 @@ jobs:
         run: |-
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
 
-      - name: Install New Relic repo
+      - name: Install Grafana Agent metrics
+        env:
+          MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-bare.yaml"
         run: |
-          helm repo add newrelic https://helm-charts.newrelic.com
+          kubectl create namespace ${GRAFANA_NS}
+          NAMESPACE=${GRAFANA_NS} envsubst < .github/grafana/metrics-cm.yaml | /bin/sh -c 'kubectl apply -f -'
+          oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:grafana-agent
+          oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:default
+          NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
-      - name: Install New Relic agent
+      - name: Deploy kube-state-metrics
         run: |
-          kubectl create namespace newrelic || echo "namespace exists"
-            oc adm policy add-scc-to-user privileged system:serviceaccount:newrelic:newrelic-bundle-nri-metadata-injection-admission
-            oc adm policy add-scc-to-user privileged system:serviceaccount:newrelic:newrelic-bundle-newrelic-logging
-            oc adm policy add-scc-to-user privileged system:serviceaccount:newrelic:newrelic-bundle-newrelic-infrastructure
-            oc adm policy add-scc-to-user privileged system:serviceaccount:newrelic:newrelic-bundle-nri-kube-events
-            oc adm policy add-scc-to-user privileged system:serviceaccount:newrelic:newrelic-bundle-nrk8s-controlplane
-            oc adm policy add-scc-to-user privileged system:serviceaccount:newrelic:default
+          oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:ksm-kube-state-metrics
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && \
+          helm repo update && \
+          helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.4.2 -n ${GRAFANA_NS}
 
-          helm install --namespace=newrelic newrelic-bundle -f .github/newrelic/newrelic-values.yaml \
-            --set "global.cluster=${{ env.NR_CLUSTER_NAME }}" \
-            --set "global.licenseKey=${{ secrets.NEW_RELIC_LICENCE_KEY }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[0].name=K_CLUSTER_NAME,newrelic-logging.fluentBit.additionalEnvVariables[0].value=${{ env.CLUSTER_NAME }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[1].name=GITHUB_RUN_ID,newrelic-logging.fluentBit.additionalEnvVariables[1].value=\"${{ github.run_id }}\"" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[2].name=GITHUB_RUN_NUMBER,newrelic-logging.fluentBit.additionalEnvVariables[2].value=\"${{ github.run_number }}\"" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[3].name=GITHUB_SHA,newrelic-logging.fluentBit.additionalEnvVariables[3].value=${{ github.sha }}" \
-            --set "newrelic-logging.fluentBit.additionalEnvVariables[4].name=LOG_PARSER,newrelic-logging.fluentBit.additionalEnvVariables[4].value=cri" \
-            newrelic/nri-bundle
+      - name: Install Grafana Agent logs
+        env:
+          MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-loki.yaml"
+        run: |
+          NAMESPACE=${GRAFANA_NS} envsubst < .github/grafana/logs-cm.yaml | /bin/sh -c 'kubectl apply -f -'
+          oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:grafana-agent-logs
+          NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+
 
   ocp-e2e-tests:
     name: Run e2e tests at OCP
     runs-on: ubuntu-latest
-    needs: new-relic-setup
+    needs: grafana-setup
     strategy:
       fail-fast: false
       matrix:
@@ -87,9 +98,8 @@ jobs:
       run:
         shell: bash
     env:
-      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
-      NAMESPACE: oc-e2e-test-operator-nightly-${{ matrix.edition }}-${{ github.run_id }}
+      NAMESPACE: oc-e2e-test-operator-${{ matrix.edition }}-${{ github.run_id }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
     steps:
       - name: Checkout to hazelcast-operator
@@ -110,9 +120,8 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Build Image
-        if: github.event_name == 'workflow_dispatch'
         run: |
-          IMG=ttl.sh/$(uuidgen):1h
+          IMG=ttl.sh/$(uuidgen):2h
           echo "IMG=${IMG}" >> $GITHUB_ENV
 
           make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
@@ -125,7 +134,6 @@ jobs:
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
           oc new-project $NAMESPACE
-          kubectl label namespace ${NAMESPACE} newrelic.com/scrape=true
 
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
           oc rollout status deployment ${NAME_PREFIX}controller-manager
@@ -158,7 +166,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=ocp
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=ocp
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
@@ -170,20 +178,21 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-ocp
           path: allure-results/ocp/
 
-  cleanup-unused-images-and-new-relic:
+  cleanup-unused-images-and-grafana:
     name: Remove Unused Images From The Local Store
     runs-on: ubuntu-latest
     needs: ocp-e2e-tests
     if: always()
+    env:
+      GRAFANA_NS: "grafana-${{ github.run_id }}"
     steps:
       - name: Image Prune
         run: |
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
-          helm uninstall --namespace=newrelic newrelic-bundle
-          kubectl delete namespace newrelic
+          kubectl delete namespace ${GRAFANA_NS}
           for NODE in $(oc get nodes --no-headers -o name); do
           oc debug ${NODE} -- chroot /host sh -c "sleep 5; podman image prune -a -f"
           done
@@ -195,6 +204,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: ocp
+      CLUSTER_NAME: api-demo-ocp4-hazelcast-com
 
   slack_notify:
     name: Slack Notify

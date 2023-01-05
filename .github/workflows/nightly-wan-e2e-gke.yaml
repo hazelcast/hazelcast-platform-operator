@@ -71,23 +71,24 @@ jobs:
             --num-nodes=${{ env.NUMBER_OF_NODES }}
           sleep 20
 
-  new-relic-setup:
-    needs: create-gke-cluster
-    uses: ./.github/workflows/newrelic-gke.yaml
+  grafana-setup:
+    needs: [ create-gke-cluster ]
+    uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     strategy:
       matrix:
-        cluster: ["src", "trg"]
+        cluster: [ "src", "trg" ]
     with:
       cluster_name: ${{ matrix.cluster }}-wan-cluster-${{ github.run_number }}
-      nr_cluster_name: wan-operator
+      cluster_type: gke-wan
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
+      namespaces: ${{ matrix.cluster }}-ns
 
   deploy-operator:
     name: Deploy Hazelcast Operator
-    needs: [create-gke-cluster, new-relic-setup, get-image]
+    needs: [create-gke-cluster, grafana-setup, get-image]
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: true
@@ -122,7 +123,6 @@ jobs:
       - name: Deploy Operator To ${{ matrix.cluster }} GKE Cluster and ${{ matrix.namespace }} namespace
         run: |
           kubectl create namespace ${{ matrix.namespace }}
-          kubectl label namespace ${{ matrix.namespace }} newrelic.com/scrape=true
           kubectl config set-context --current --namespace=${{ matrix.namespace }}
           DEPLOY_NAME=${{ matrix.namespace }}-controller-manager
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
@@ -183,6 +183,10 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
+      - name: Get Second KUBECONFIG
+        run: |
+          echo "SECOND_KUBECONFIG=${{ env.KUBECONFIG }}" >> $GITHUB_ENV
+
       - name: Connect To The First GKE Cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
         with:
@@ -190,15 +194,25 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
+      - name: Get First KUBECONFIG
+        run: |
+          echo "FIRST_KUBECONFIG=${{ env.KUBECONFIG }}" >> $GITHUB_ENV
+
+      - name: Merge KUBECONFIG Files
+        run: |
+           KUBECONFIG="$FIRST_KUBECONFIG:$SECOND_KUBECONFIG"
+           kubectl config view --raw > ${GITHUB_WORKSPACE}/kubeconfig
+           echo "KUBECONFIG="${GITHUB_WORKSPACE}/kubeconfig"" >> $GITHUB_ENV
+
       - name: Run Wan Test
         run: |-
-          make test-e2e NAMESPACE=src-ns NAME_PREFIX=src-ns- E2E_TEST_SUITE=hz_wan_slow WORKFLOW_ID=wan
+          make test-e2e NAMESPACE=src-ns NAME_PREFIX=src-ns- E2E_TEST_SUITE=hz_wan_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=wan
 
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-wan
           path: allure-results/wan/
 
   report-generation:
@@ -208,6 +222,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: wan
+      CLUSTER_NAME: src-wan-cluster-${{ github.run_number }}
 
   cleanup-namespaces:
     name: Cleanup Namespaces

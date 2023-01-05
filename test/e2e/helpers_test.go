@@ -467,6 +467,23 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 	return checkMap
 }
 
+func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1alpha1.WanStatus) *hazelcastcomv1alpha1.WanReplication {
+	checkWan := &hazelcastcomv1alpha1.WanReplication{}
+	By("waiting for Wan CR status", func() {
+		Eventually(func() hazelcastcomv1alpha1.WanStatus {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      wr.Name,
+				Namespace: wr.Namespace,
+			}, checkWan)
+			if err != nil {
+				return ""
+			}
+			return checkWan.Status.Status
+		}, 40*Second, interval).Should(Equal(st))
+	})
+	return checkWan
+}
+
 func getMemberConfig(ctx context.Context, client *hzClient.Client) string {
 	ci := hzClient.NewClientInternal(client)
 	req := codec.EncodeMCGetMemberConfigRequest()
@@ -673,18 +690,22 @@ func assertScheduledES(expectedSES hazelcastcomv1alpha1.ScheduledExecutorService
 	Expect(expectedSES.CapacityPolicy).Should(Equal(actualSES.CapacityPolicy), "CapacityPolicy")
 }
 
-func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *hazelcastcomv1alpha1.HotBackup {
+func assertHotBackupStatus(hb *hazelcastcomv1alpha1.HotBackup, s hazelcastcomv1alpha1.HotBackupState, t Duration) *hazelcastcomv1alpha1.HotBackup {
 	hbCheck := &hazelcastcomv1alpha1.HotBackup{}
-	By("waiting for HotBackup CR status to be Success", func() {
+	By(fmt.Sprintf("waiting for HotBackup CR status to be %s", s), func() {
 		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
 			err := k8sClient.Get(
 				context.Background(), types.NamespacedName{Name: hb.Name, Namespace: hzNamespace}, hbCheck)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(hbCheck.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hbCheck.Status.Message)
 			return hbCheck.Status.State
-		}, t, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+		}, t, interval).Should(Equal(s))
 	})
 	return hbCheck
+}
+
+func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *hazelcastcomv1alpha1.HotBackup {
+	return assertHotBackupStatus(hb, hazelcastcomv1alpha1.HotBackupSuccess, t)
 }
 
 func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1alpha1.DataStructureConfigState, obj client.Object) client.Object {

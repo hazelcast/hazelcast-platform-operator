@@ -120,12 +120,19 @@ jobs:
           --docker-config=/home/runner/.docker/config.json \
           --certification-project-id=$PROJECT_ID
           grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
+          CERT_IMAGE_ID=$(cat preflight.log | grep "The container's image id is:" | awk '{print $8}' | cut -d '.' -f1)
+          echo "CERT_IMAGE_ID=${CERT_IMAGE_ID}" >> $GITHUB_ENV
 
       - name: Publish the Hazelcast-Platform-Operator Image
         run: |
           source .github/scripts/utils.sh
           checking_image_grade "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$GRADE_CHECK_TIMEOUT_IN_MINS"
           wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$PUBLISH_TIMEOUT_IN_MINS"
+
+      - name: Sync Latest Image
+        run: |
+          source .github/scripts/utils.sh
+          sync_certificated_image_tags "$PROJECT_ID" "$CERT_IMAGE_ID" "$PFLT_PYXIS_API_TOKEN"
 
   redhat_certified_operator_release:
     name: Create a PR in 'certified-operators' Repository

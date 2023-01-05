@@ -23,7 +23,7 @@ func init() {
 	flag.StringVar(&targetNamespace, "targetNamespace", os.Getenv("targetNamespace"), "The target namespace to run e2e wan tests")
 	flag.StringVar(&context1, "FIRST_CONTEXT_NAME", os.Getenv("FIRST_CONTEXT_NAME"), "First context name")
 	flag.StringVar(&context2, "SECOND_CONTEXT_NAME", os.Getenv("SECOND_CONTEXT_NAME"), "Second context name")
-	flag.DurationVar(&interval, "interval", 1*time.Second, "The length of time between checks")
+	flag.DurationVar(&interval, "interval", 100*time.Millisecond, "The length of time between checks")
 	flag.BoolVar(&ee, "ee", true, "Flag to define whether Enterprise edition of Hazelcast will be used")
 	rand.Seed(time.Now().UnixNano())
 }

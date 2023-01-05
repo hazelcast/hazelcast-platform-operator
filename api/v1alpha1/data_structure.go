@@ -40,7 +40,7 @@ const (
 	DataStructureFailed  DataStructureConfigState = "Failed"
 	DataStructureSuccess DataStructureConfigState = "Success"
 	DataStructurePending DataStructureConfigState = "Pending"
-	// The config is added into all members but waiting for the config to be persisten into ConfigMap
+	// The config is added into all members but waiting for the config to be persisted into ConfigMap
 	DataStructurePersisting  DataStructureConfigState = "Persisting"
 	DataStructureTerminating DataStructureConfigState = "Terminating"
 )
