@@ -130,13 +130,19 @@ var _ = Describe("Hazelcast webhook", func() {
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 			test.CheckHazelcastCR(hz, defaultSpecValues, ee)
 
-			hz.Spec.HighAvailabilityMode = hazelcastv1alpha1.HighAvailabilityNodeMode
-
-			err := k8sClient.Update(context.Background(), hz)
-			if err != nil && !errors.IsConflict(err) {
-				Expect(err).
-					Should(MatchError(ContainSubstring("highAvailabilityMode cannot be updated")))
+			var err error
+			for {
+				Expect(k8sClient.Get(
+					context.Background(), types.NamespacedName{Namespace: hz.Namespace, Name: hz.Name}, hz)).Should(Succeed())
+				hz.Spec.HighAvailabilityMode = hazelcastv1alpha1.HighAvailabilityNodeMode
+				err = k8sClient.Update(context.Background(), hz)
+				if errors.IsConflict(err) {
+					continue
+				}
+				break
 			}
+			Expect(err).
+				Should(MatchError(ContainSubstring("highAvailabilityMode cannot be updated")))
 
 			deleteIfExists(lookupKey(hz), hz)
 			assertDoesNotExist(lookupKey(hz), hz)
