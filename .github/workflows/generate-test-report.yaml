@@ -87,7 +87,7 @@ jobs:
       - name: Update Test Files
         run: |-
           source .github/scripts/utils.sh
-          update_test_files ${{ inputs.WORKFLOW_ID }} ${{ inputs.CLUSTER_NAME }}
+          update_test_files ${{ inputs.WORKFLOW_ID }} ${{ inputs.CLUSTER_NAME }} ${{ github.repository_owner }} 
 
       - name: Update environment.properties
         run: |-

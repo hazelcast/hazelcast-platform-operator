@@ -20,6 +20,7 @@ env:
   GO_VERSION: '1.19.0'
   NR_OF_SUITES: 5
   GOBIN: ${{ github.workspace }}/bin
+  GINKGO_VERSION: v2.1.6
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -65,7 +66,6 @@ jobs:
       - name: Check if tests are unfocused
         if: ${{ !cancelled() }}
         run: |
-           GINKGO_VERSION=v2.1.6
            make ginkgo GINKGO_VERSION=$GINKGO_VERSION
            if [[ $($GOBIN/ginkgo/$GINKGO_VERSION/ginkgo unfocus | wc -l) -gt 1 ]]; then
              echo "Some tests have 'F' before the test name. Run the 'ginkgo unfocus' command against your branch '${{ github.event.pull_request.head.ref }}' and push the changes."
