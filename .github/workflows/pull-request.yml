@@ -241,17 +241,22 @@ jobs:
           GH_RUN_ID: ${{ github.run_id }}
           GH_RUN_NUMBER: ${{ github.run_number }}
           GH_SHA: ${{ github.sha }}
-          MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
           GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
           LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
           LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-          GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
-          NAMESPACES: "kind-test-operator-os, kind-test-operator-ee"
+          GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
+          GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
+          GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
+          NAMESPACES: ${{ env.NAMESPACE }}
           GRAFANA_NS: grafana
         run: |
           kubectl create namespace ${GRAFANA_NS}
-          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n ${GRAFANA_NS} -f -'
-          NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+          NAMESPACE=${GRAFANA_NS} envsubst < .github/grafana/metrics-cm.yaml | /bin/sh -c 'kubectl apply -f -'
+          NAMESPACE=${GRAFANA_NS} envsubst < .github/grafana/logs-cm.yaml | /bin/sh -c 'kubectl apply -f -'
+          MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-bare.yaml NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && helm repo update && \
+          helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.4.2 -n ${GRAFANA_NS}
+          MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-loki.yaml NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
       - name: Install metallb
         uses: nick-fields/retry@v2

@@ -46,7 +46,11 @@ on:
         required: true
       LOKI_PASSWORD:
         required: true
-      GRAFANA_CLUSTER_NAME:
+      GRAFANA_PROM_REMOTE_WRITE_URL:
+        required: true
+      GRAFANA_PROM_USERNAME:
+        required: true
+      GRAFANA_PROM_PASSWORD:
         required: true
 jobs:
   grafana-setup:
@@ -64,8 +68,9 @@ jobs:
       GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
       LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
       LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-      GRAFANA_CLUSTER_NAME: ${{ secrets.GRAFANA_CLUSTER_NAME }}
-      MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/agent-loki.yaml"
+      GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
+      GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
+      GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
       NAMESPACE: grafana
       NAMESPACES: ${{ inputs.namespaces }}
     runs-on: ubuntu-latest
@@ -111,8 +116,24 @@ jobs:
         run: |-
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
 
-      - name: Install Grafana Agent
+      - name: Install Grafana Agent metrics
+        env:
+          MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-bare.yaml"
         run: |
           kubectl create namespace $NAMESPACE
-          envsubst < .github/grafana/agent-configmap.yaml | /bin/sh -c 'kubectl apply -n $NAMESPACE -f -'
-          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/release/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+          envsubst < .github/grafana/metrics-cm.yaml | /bin/sh -c 'kubectl apply -f -'
+          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+
+      - name: Deploy kube-state-metrics
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && \
+          helm repo update && \
+          helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.4.2 -n ${NAMESPACE}
+
+      - name: Install Grafana Agent logs
+        env:
+          MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-loki.yaml"
+        run: |
+          envsubst < .github/grafana/logs-cm.yaml | /bin/sh -c 'kubectl apply -f -'
+          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+
