@@ -653,7 +653,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				Enabled:   pointer.Bool(true),
 				GroupType: "NODE_AWARE",
 			}
-		case "ZONE":
+		case hazelcastv1alpha1.HighAvailabilityZoneMode:
 			cfg.PartitionGroup = config.PartitionGroup{
 				Enabled:   pointer.Bool(true),
 				GroupType: "ZONE_AWARE",
