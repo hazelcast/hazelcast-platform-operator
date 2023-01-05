@@ -648,7 +648,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	if h.Spec.HighAvailabilityMode != "" {
 		switch h.Spec.HighAvailabilityMode {
-		case "NODE":
+		case hazelcastv1alpha1.HighAvailabilityNodeMode:
 			cfg.PartitionGroup = config.PartitionGroup{
 				Enabled:   pointer.Bool(true),
 				GroupType: "NODE_AWARE",
