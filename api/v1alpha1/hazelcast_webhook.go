@@ -1,13 +1,14 @@
 package v1alpha1
 
 import (
-	"encoding/json"
-	"fmt"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"encoding/json"
+	"fmt"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 // log is for logging in this package.
