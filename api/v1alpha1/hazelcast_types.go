@@ -128,7 +128,7 @@ type HazelcastSpec struct {
 	// +optional
 	LoggingLevel LoggingLevel `json:"loggingLevel,omitempty"`
 
-	// Configuration to create clusters are resilient to node and zone failures
+	// Configuration to create clusters resilient to node and zone failures
 	// +optional
 	// +kubebuilder:default:={}
 	HighAvailabilityMode HighAvailabilityMode `json:"highAvailabilityMode,omitempty"`
