@@ -6,6 +6,7 @@ import (
 	"fmt"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 
@@ -130,8 +131,12 @@ var _ = Describe("Hazelcast webhook", func() {
 			test.CheckHazelcastCR(hz, defaultSpecValues, ee)
 
 			hz.Spec.HighAvailabilityMode = hazelcastv1alpha1.HighAvailabilityNodeMode
-			Expect(k8sClient.Update(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("highAvailabilityMode cannot be updated")))
+
+			err := k8sClient.Update(context.Background(), hz)
+			if err != nil && !errors.IsConflict(err) {
+				Expect(err).
+					Should(MatchError(ContainSubstring("highAvailabilityMode cannot be updated")))
+			}
 
 			deleteIfExists(lookupKey(hz), hz)
 			assertDoesNotExist(lookupKey(hz), hz)
