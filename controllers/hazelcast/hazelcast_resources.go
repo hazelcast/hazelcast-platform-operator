@@ -1123,11 +1123,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
-	if h.Spec.Persistence.IsEnabled() {
-		if !h.Spec.Persistence.UseHostPath() {
-			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
-		}
-	}
+	sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
