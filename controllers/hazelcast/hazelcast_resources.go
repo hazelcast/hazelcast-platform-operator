@@ -1124,7 +1124,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
-		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+		if !h.Spec.Persistence.UseHostPath() {
+			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+		}
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -1251,10 +1253,12 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 
 	if h.Spec.Persistence.IsEnabled() {
-		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
-			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
-		})
+		if !h.Spec.Persistence.UseHostPath() {
+			c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
+				Name:      n.PersistenceVolumeName,
+				MountPath: h.Spec.Persistence.BaseDir,
+			})
+		}
 	}
 
 	return c
