@@ -1244,12 +1244,15 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Name:      n.MTLSCertSecretName,
 				MountPath: n.MTLSCertPath,
 			},
-			{
-				Name:      n.PersistenceVolumeName,
-				MountPath: h.Spec.Persistence.BaseDir,
-			},
 		},
 		SecurityContext: containerSecurityContext(h),
+	}
+
+	if h.Spec.Persistence.IsEnabled() {
+		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		})
 	}
 
 	return c
