@@ -1,5 +1,4 @@
 #!/bin/bash
-
 get_image()
 {
     local PUBLISHED=$1
@@ -89,6 +88,32 @@ wait_for_container_publish()
         fi
         sleep 10
     done
+}
+# The function waits until all Elastic Load Balancers attached to EC2 instances (under the current Kubernetes context) are deleted. Takes a single argument - timeout.
+wait_for_elb_deleted()
+{
+    local TIMEOUT_IN_MINS=$1
+    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 6 ))
+    INSTANCE_IDS=$(kubectl get nodes -o json | jq -r 'try([.items[].metadata.annotations."csi.volume.kubernetes.io/nodeid"][]|fromjson|."ebs.csi.aws.com"|select( . != null ))'| tr '\n' '|' | sed '$s/|$/\n/' | awk '{ print "\""$0"\""}')
+    if [ ! -z "$INSTANCE_IDS" ]; then
+        for i in `seq 1 ${NOF_RETRIES}`; do
+            ACTIVE_ELB=$(aws elb describe-load-balancers | grep -E $INSTANCE_IDS >/dev/null; echo $?)
+            if [ $ACTIVE_ELB -eq 1 ] ; then
+               echo "Load Balancers are deleted."
+               exit 0
+            else
+               echo "Load Balancers are still being deleting, waiting..."
+            fi
+            if [[ $i == $NOF_RETRIES ]]; then
+                echo "Timeout! Deleting of Load Balancers couldn't be finished."
+                return 42
+            fi
+            sleep 10
+        done
+    else
+      echo "The required annotations 'csi.volume.kubernetes.io/nodeid' are missing in the EC2 instances metadata."
+      exit 0
+    fi
 }
 
 checking_image_grade()

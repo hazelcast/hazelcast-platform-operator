@@ -5,6 +5,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
+  DELETE_ELB_TIMEOUT_IN_MINS: "10"
 
 jobs:
   prepare-env:
@@ -33,6 +34,7 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           eksctl create cluster --name "${CLUSTER_NAME}" \
+            --region=${AWS_REGION} \
             --zones ${AWS_REGION}a \
             --zones ${AWS_REGION}c \
             --version auto \
@@ -163,6 +165,8 @@ jobs:
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
+          source .github/scripts/utils.sh
+          wait_for_elb_deleted "$DELETE_ELB_TIMEOUT_IN_MINS"
 
       - name: Upload Test Report
         if: always()
@@ -203,8 +207,6 @@ jobs:
       - name: Delete EKS cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          eksctl delete addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}" || echo "could not delete addon"
-          eksctl delete nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1
           eksctl delete cluster "${CLUSTER_NAME}" --wait
 
   slack_notify:
