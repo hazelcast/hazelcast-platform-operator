@@ -127,7 +127,21 @@ type HazelcastSpec struct {
 	// +kubebuilder:default:="INFO"
 	// +optional
 	LoggingLevel LoggingLevel `json:"loggingLevel,omitempty"`
+
+	// Configuration to create clusters resilient to node and zone failures
+	// +optional
+	// +kubebuilder:default:={}
+	HighAvailabilityMode HighAvailabilityMode `json:"highAvailabilityMode,omitempty"`
 }
+
+// +kubebuilder:validation:Enum=NODE;ZONE
+type HighAvailabilityMode string
+
+const (
+	HighAvailabilityNodeMode HighAvailabilityMode = "NODE"
+
+	HighAvailabilityZoneMode HighAvailabilityMode = "ZONE"
+)
 
 type JetEngineConfiguration struct {
 	// When false, disables Jet Engine.

@@ -11,5 +11,5 @@ rules:
     spaces: 2
 ignore: |
   config/
-  bundle.yaml
   .github/
+  helm-charts/

@@ -21,6 +21,12 @@ type Hazelcast struct {
 	ReplicatedMap            map[string]ReplicatedMap            `yaml:"replicatedmap,omitempty"`
 	Queue                    map[string]Queue                    `yaml:"queue,omitempty"`
 	Cache                    map[string]Cache                    `yaml:"cache,omitempty"`
+	PartitionGroup           PartitionGroup                      `yaml:"partition-group,omitempty"`
+}
+
+type PartitionGroup struct {
+	Enabled   *bool  `yaml:"enabled,omitempty"`
+	GroupType string `yaml:"group-type,omitempty"`
 }
 
 type Jet struct {

@@ -72,7 +72,7 @@ jobs:
     env:
       NAMESPACE: test-operator-${{ matrix.edition }}
       IMG: ${{ needs.get-image.outputs.IMG }}
-      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -106,8 +106,8 @@ jobs:
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
-          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
-          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
+          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secrets
@@ -137,7 +137,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=aks
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=aks
 
       - name: Clean up after Tests
         if: always()

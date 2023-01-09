@@ -14,7 +14,7 @@ jobs:
       CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -35,6 +35,7 @@ jobs:
           eksctl create cluster --name "${CLUSTER_NAME}" \
             --zones ${AWS_REGION}a \
             --zones ${AWS_REGION}c \
+            --version auto \
             --with-oidc \
             --without-nodegroup
 
@@ -88,7 +89,7 @@ jobs:
         edition: ["os", "ee"]
     env:
       NAMESPACE: test-operator-${{ matrix.edition }}
-      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Checkout
@@ -109,7 +110,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -125,9 +126,8 @@ jobs:
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
-          DEPLOY_NAME=${NAME_PREFIX}controller-manager
-
-          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
+          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secrets
@@ -157,7 +157,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=eks
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=eks
 
       - name: Clean up after Tests
         if: always()
@@ -187,7 +187,7 @@ jobs:
     needs: ["prepare-env", "eks-e2e-tests"]
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

@@ -93,6 +93,7 @@ type PhoneHomeData struct {
 	ReplicatedMapCount            int                `json:"rmc"`
 	CronHotBackupCount            int                `json:"chbc"`
 	TopicCount                    int                `json:"tc"`
+	HighAvailabilityMode          []string           `json:"ha"`
 }
 
 type ExposeExternally struct {
@@ -161,6 +162,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	createdMemberCount := 0
 	executorServiceCount := 0
 	clusterUUIDs := []string{}
+	highAvailabilityModes := []string{}
 
 	hzl := &hazelcastv1alpha1.HazelcastList{}
 	err := cl.List(context.Background(), hzl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
@@ -180,6 +182,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
+		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
 
 		cid, ok := ClusterUUID(hzClientRegistry, hz.Name, hz.Namespace)
 		if ok {
@@ -191,6 +194,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.CreatedMemberCount = createdMemberCount
 	phm.ExecutorServiceCount = executorServiceCount
 	phm.ClusterUUIDs = clusterUUIDs
+	phm.HighAvailabilityMode = highAvailabilityModes
 }
 
 func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {

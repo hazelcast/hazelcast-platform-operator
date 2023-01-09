@@ -135,11 +135,7 @@ func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
 }
 
 func GetControllerManagerName() string {
-	np := os.Getenv("NAME_PREFIX")
-	if np == "" {
-		return "hazelcast-platform-controller-manager"
-	}
-	return np + "controller-manager"
+	return os.Getenv("DEPLOYMENT_NAME")
 }
 
 func bigQueryTable() string {

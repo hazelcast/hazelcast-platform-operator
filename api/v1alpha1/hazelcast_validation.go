@@ -10,6 +10,13 @@ var BlackListProperties = map[string]struct{}{
 	"": {},
 }
 
+func ValidateNotUpdatableHazelcastFields(current *HazelcastSpec, last *HazelcastSpec) error {
+	if current.HighAvailabilityMode != last.HighAvailabilityMode {
+		return errors.New("highAvailabilityMode cannot be updated")
+	}
+	return nil
+}
+
 func ValidateHazelcastSpec(h *Hazelcast) error {
 	if err := validateExposeExternally(h); err != nil {
 		return err

@@ -78,18 +78,6 @@ jobs:
           echo "IMAGE_DIGEST=${IMAGE_DIGEST}" >> $GITHUB_ENV
           echo "IMAGE_DIGEST=${IMAGE_DIGEST}" >> $GITHUB_OUTPUT
 
-      - name: Upload Bundle to Jfrog
-        run: |
-          make generate-bundle-yaml VERSION=${RELEASE_VERSION}
-
-          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
-               -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-latest.yaml" \
-               -T bundle.yaml
-
-          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
-               -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-${RELEASE_VERSION}.yaml" \
-               -T bundle.yaml
-
   publish_image_to_redhat:
     name: Certify and Publish Container Image to Red Hat
     needs: publish_docker_image
@@ -348,17 +336,6 @@ jobs:
         run: |
           docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
           make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
-
-      - name: Removing Published Jfrog Bundle and Making Previous Bundle As 'latest'
-        run: |
-          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
-               -X DELETE https://hazelcast.jfrog.io/artifactory/operator/bundle-${RELEASE_VERSION}.yaml
-
-          curl --fail -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
-               -X DELETE https://hazelcast.jfrog.io/artifactory/operator/bundle-latest.yaml
-
-          curl --fail -L -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
-               -X POST "https://hazelcast.jfrog.io/artifactory/api/copy/operator/bundle-${CURRENT_LATEST_TAG}.yaml?to=/operator/bundle-latest.yaml"
 
       - name: Removing Release Tag
         run: |

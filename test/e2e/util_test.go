@@ -33,11 +33,7 @@ func runningLocally() bool {
 }
 
 func GetControllerManagerName() string {
-	np := os.Getenv("NAME_PREFIX")
-	if np == "" {
-		return "hazelcast-platform-controller-manager"
-	}
-	return np + "controller-manager"
+	return os.Getenv("DEPLOYMENT_NAME")
 }
 
 func GetSuiteName() string {

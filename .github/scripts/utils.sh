@@ -273,6 +273,7 @@ update_test_files()
 {
       local WORKFLOW_ID=$1
       local CLUSTER_NAME=$2
+      local REPOSITORY_OWNER=$3
       cd allure-history/$WORKFLOW_ID/${GITHUB_RUN_NUMBER}/data/test-cases
       local GRAFANA_BASE_URL="https://hazelcastoperator.grafana.net"
       local BEGIN_TIME=$(date +%s000 -d "- 3 hours")
@@ -293,7 +294,7 @@ update_test_files()
                                |.[].value|=sub("\\t";"")
                                |.[].value|=sub("\\+0.*";"")
                                |.[].value|=sub(" ";"")
-                               |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/${{ github.repository_owner }}/hazelcast-platform-operator/blob/main")
+                               |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/'${REPOSITORY_OWNER}'/hazelcast-platform-operator/blob/main")
                                |.[].value|= sub(".go:";".go#L")
                                |unique
                                |to_entries[]
