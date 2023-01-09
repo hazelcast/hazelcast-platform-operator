@@ -248,13 +248,13 @@ update-chart-crds: manifests
 install-crds: helm update-chart-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(HELM) install $(CRD_RELEASE_NAME) $(CRD_CHART) -n $(NAMESPACE)
 
-install-chart: helm
+install-operator: helm
 	$(HELM) upgrade --install $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
 
 uninstall-crds: helm ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(HELM) uninstall $(CRD_RELEASE_NAME)
 
-uninstall-chart: helm
+uninstall-operator: helm
 	 $(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
 
 webhook-install: helm
@@ -264,18 +264,18 @@ webhook-uninstall: helm
 	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
 
 deploy: helm install-crds ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	$(MAKE) install-chart
+	$(MAKE) install-operator
 
 helm-template:
 	@$(MAKE) helm &> /dev/null
 	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
 
-undeploy: uninstall-chart uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+undeploy: uninstall-operator uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 
 undeploy-tilt:
 	$(MAKE) helm-template | $(KUBECTL) delete -f -
 
-undeploy-keep-crd: uninstall-chart
+undeploy-keep-crd: uninstall-operator
 
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
 	$(eval CR_NAMES := $(shell $(KUBECTL) get crd -o jsonpath='{range.items[*]}{..metadata.name}{"\n"}{end}' | grep hazelcast.com))
