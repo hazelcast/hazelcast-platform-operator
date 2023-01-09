@@ -95,7 +95,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	err := r.checkConnectivity(ctx, req, wan, logger)
 	if err != nil {
-		return ctrl.Result{}, err
+		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 	}
 
 	if !util.IsApplied(wan) {
