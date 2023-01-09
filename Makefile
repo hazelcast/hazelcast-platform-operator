@@ -92,7 +92,7 @@ INSTALL_CRDS ?= false
 DEBUG_ENABLED ?= false
 
 RELEASE_NAME ?= v1
-CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
+CRD_RELEASE_NAME := $(RELEASE_NAME)-crds
 DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
 STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchNamespace=$(NAMESPACE),debug.enabled=$(DEBUG_ENABLED)
 
