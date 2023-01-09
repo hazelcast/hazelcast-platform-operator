@@ -199,9 +199,7 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			Name:      hzResourceName,
 		})
 		if !ok {
-			err := errors.New("get Hazelcast Status Service failed")
-			logger.Error(err, "")
-			return err
+			return errors.New("get Hazelcast Status Service failed")
 		}
 
 		members := statusService.GetStatus().MemberDataMap
