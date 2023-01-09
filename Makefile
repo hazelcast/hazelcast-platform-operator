@@ -246,7 +246,7 @@ update-chart-crds: manifests
 	mv all-crds.yaml $(CRD_CHART)/templates/
 
 install-crds: helm update-chart-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
-	status=$$(($(HELM) status $(CRD_RELEASE_NAME) -o json | jq -r '.info.status') 2> /dev/null ); \
+	status=$$($(HELM) list --filter $(CRD_RELEASE_NAME) -o json | jq -r '.[].status'); \
     [[ "$${status}" == "deployed" ]] || $(HELM) install $(CRD_RELEASE_NAME) $(CRD_CHART) -n default ;\
 
 install-operator: helm
