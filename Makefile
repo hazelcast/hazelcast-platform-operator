@@ -247,7 +247,7 @@ update-chart-crds: manifests
 
 install-crds: helm update-chart-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	status=$$(($(HELM) status $(CRD_RELEASE_NAME) -o json | jq -r '.info.status') 2> /dev/null ); \
-    [[ "$${status}" == "deployed" ]] || $(HELM) install $(CRD_RELEASE_NAME) $(CRD_CHART) -n $(NAMESPACE) ;\
+    [[ "$${status}" == "deployed" ]] || $(HELM) install $(CRD_RELEASE_NAME) $(CRD_CHART) -n default ;\
 
 install-operator: helm
 	$(HELM) upgrade --install $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
