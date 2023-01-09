@@ -85,11 +85,26 @@ jobs:
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:grafana-agent-logs
           NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
+  install-crds:
+    name: Install CRDs Helm Chart
+    runs-on: ubuntu-latest
+    needs: [grafana-setup]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Update kubeconfig
+        run: |-
+          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+
+      - name: Install CRDs Helm Chart
+        run: |
+          make install-crds
 
   ocp-e2e-tests:
     name: Run e2e tests at OCP
     runs-on: ubuntu-latest
-    needs: grafana-setup
+    needs: install-crds
     strategy:
       fail-fast: false
       matrix:
@@ -136,7 +151,7 @@ jobs:
           oc new-project $NAMESPACE
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
+          make install-operator IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           oc rollout status deployment ${DEPLOY_NAME}
 
       - name: Create secrets

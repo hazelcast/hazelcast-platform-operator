@@ -58,10 +58,32 @@ jobs:
           make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
           make docker-push IMG=$IMG
 
+  install-crds:
+    name: Install CRDs Helm Chart
+    runs-on: ubuntu-latest
+    needs: [prepare-env]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update kubeconfig
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
+
+      - name: Install CRDs Helm Chart
+        run: |
+          make install-crds
+
   aks-e2e-tests:
     name: Run e2e test on AKS
     runs-on: ubuntu-latest
-    needs: ["prepare-env", "grafana-setup", "get-image"]
+    needs: ["install-crds", "grafana-setup", "get-image"]
     defaults:
       run:
         shell: bash
@@ -107,7 +129,7 @@ jobs:
           kubectl config set-context --current --namespace=${NAMESPACE}
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} RELEASE_NAME=$RELEASE_NAME
+          make install-operator NAMESPACE=${NAMESPACE} IMG=${IMG} RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secrets

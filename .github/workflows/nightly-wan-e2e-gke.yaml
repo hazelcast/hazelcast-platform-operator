@@ -86,9 +86,37 @@ jobs:
       gh_sha: ${{ github.sha }}
       namespaces: ${{ matrix.cluster }}-ns
 
+  install-crds:
+    name: Install CRDs Helm Chart
+    runs-on: ubuntu-latest
+    needs: [create-gke-cluster]
+    strategy:
+      fail-fast: true
+      matrix:
+        cluster: [ "src", "trg" ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
+        uses: 'google-github-actions/auth@v1.0.0'
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Connect To The ${{ matrix.cluster }} GKE Cluster
+        uses: 'google-github-actions/get-gke-credentials@v1'
+        with:
+          cluster_name: ${{ matrix.cluster }}-wan-cluster-${{ github.run_number }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Install CRDs Helm Chart
+        run: |
+          make install-crds
+
   deploy-operator:
     name: Deploy Hazelcast Operator
-    needs: [create-gke-cluster, grafana-setup, get-image]
+    needs: [install-crds, grafana-setup, get-image]
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: true
@@ -126,7 +154,7 @@ jobs:
           kubectl config set-context --current --namespace=${{ matrix.namespace }}
           DEPLOY_NAME=${{ matrix.namespace }}-hazelcast-platform-operator
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
-          make deploy IMG=$IMG NAMESPACE=${{ matrix.namespace }} RELEASE_NAME=${{ matrix.namespace }}
+          make install-operator IMG=$IMG NAMESPACE=${{ matrix.namespace }} RELEASE_NAME=${{ matrix.namespace }}
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create Secret On ${{ matrix.cluster }} Cluster and ${{ matrix.namespace }} namespace

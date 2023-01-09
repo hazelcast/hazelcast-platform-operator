@@ -67,6 +67,8 @@ jobs:
     name: Install CRDs Helm Chart
     runs-on: ubuntu-latest
     needs: [create-gke-cluster]
+    env:
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -90,7 +92,7 @@ jobs:
   gke-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-latest
-    needs: [install-crds, grafana-setup, get-image]
+    needs: [install-crds, create-gke-cluster, grafana-setup, get-image]
     strategy:
       fail-fast: false
       matrix:
