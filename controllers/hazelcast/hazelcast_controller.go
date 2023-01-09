@@ -166,9 +166,21 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	var newExecutorServices map[string]interface{}
 	if createdBefore {
-		newExecutorServices, err = r.detectNewExecutorServices(h, s)
+		lastSpec, err := r.unmarshalHazelcastSpec(h, s)
 		if err != nil {
 			return r.update(ctx, h, failedPhase(err))
+		}
+
+		newExecutorServices, err = r.detectNewExecutorServices(h, lastSpec)
+		if err != nil {
+			return r.update(ctx, h, failedPhase(err))
+		}
+
+		err = hazelcastv1alpha1.ValidateNotUpdatableHazelcastFields(&h.Spec, lastSpec)
+		if err != nil {
+			return r.update(ctx, h,
+				failedPhase(err).
+					withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
 		}
 	}
 

@@ -196,13 +196,13 @@ endif
 GINKGO_PARALLEL_PROCESSES ?= 4
 
 test-e2e-split-kind: generate fmt vet ginkgo ## Run end-to-end tests on Kind
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --output-interceptor-mode=none --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report${SUITE}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS) $(E2E_TEST_EXCLUDED_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report-${REPORT_SUFFIX}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS) $(E2E_TEST_EXCLUDED_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 test-ph: generate fmt vet ginkgo ## Run phone-home tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 test-e2e-focus: generate fmt vet ginkgo ## Run focused end-to-end tests
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
@@ -352,8 +352,8 @@ generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle
 # Detect the OS to set per-OS defaults
 OS_NAME = $(shell uname -s | tr A-Z a-z)
 
-.PHONY: print-bundle-version
-print-bundle-version:
+.PHONY: print-bundle-version 
+print-bundle-version: 
 	@echo -n $(BUNDLE_VERSION)
 
 bundle-ocp-validate: ocp-olm-catalog-validator
@@ -395,7 +395,7 @@ kustomize: ## Download kustomize locally if necessary.
 
 GINKGO = $(TOOLBIN)/ginkgo/$(GINKGO_VERSION)/ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
-	@$(eval GINKGO_MAJOR_VERSION=$(firstword $(subst ., ,$(GINKGO_VERSION))))
+	@$(eval GINKGO_MAJOR_VERSION=$(firstword $(subst ., ,$(GINKGO_VERSION)))) 
 	@[ -f $(GINKGO) ] || { \
 	mkdir -p $(dir $(GINKGO)) ;\
 	go get github.com/onsi/ginkgo/$(GINKGO_MAJOR_VERSION)@$(GINKGO_VERSION) ;\

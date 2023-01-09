@@ -645,6 +645,22 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			cfg.Persistence.ValidationTimeoutSec = h.Spec.Persistence.DataRecoveryTimeout
 		}
 	}
+
+	if h.Spec.HighAvailabilityMode != "" {
+		switch h.Spec.HighAvailabilityMode {
+		case hazelcastv1alpha1.HighAvailabilityNodeMode:
+			cfg.PartitionGroup = config.PartitionGroup{
+				Enabled:   pointer.Bool(true),
+				GroupType: "NODE_AWARE",
+			}
+		case hazelcastv1alpha1.HighAvailabilityZoneMode:
+			cfg.PartitionGroup = config.PartitionGroup{
+				Enabled:   pointer.Bool(true),
+				GroupType: "ZONE_AWARE",
+			}
+		}
+	}
+
 	return cfg
 }
 
@@ -1150,7 +1166,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
 		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
 		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
-		sts.Spec.Template.Spec.TopologySpreadConstraints = h.Spec.Scheduling.TopologySpreadConstraints
+		sts.Spec.Template.Spec.TopologySpreadConstraints = appendHAModeTopologySpreadConstraints(h)
 
 		if semver.Compare(fmt.Sprintf("v%s", h.Spec.Version), "v5.2.0") == 1 {
 			sts.Spec.Template.Spec.Containers[0].ReadinessProbe.ProbeHandler.HTTPGet.Path = "/hazelcast/health/ready"
@@ -1630,6 +1646,31 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 	return svc.ChangeClusterState(ctx, codecTypes.ClusterStateActive)
 }
 
+func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.TopologySpreadConstraint {
+	topologySpreadConstraints := h.Spec.Scheduling.TopologySpreadConstraints
+	if h.Spec.HighAvailabilityMode != "" {
+		switch h.Spec.HighAvailabilityMode {
+		case "NODE":
+			topologySpreadConstraints = append(topologySpreadConstraints,
+				v1.TopologySpreadConstraint{
+					MaxSkew:           1,
+					TopologyKey:       "kubernetes.io/hostname",
+					WhenUnsatisfiable: v1.ScheduleAnyway,
+					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels(h)},
+				})
+		case "ZONE":
+			topologySpreadConstraints = append(topologySpreadConstraints,
+				v1.TopologySpreadConstraint{
+					MaxSkew:           1,
+					TopologyKey:       "topology.kubernetes.io/zone",
+					WhenUnsatisfiable: v1.ScheduleAnyway,
+					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels(h)},
+				})
+		}
+	}
+	return topologySpreadConstraints
+}
+
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
@@ -1752,15 +1793,14 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	return err
 }
 
-func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Hazelcast, rawLastSpec string) (map[string]interface{}, error) {
+func (r *HazelcastReconciler) unmarshalHazelcastSpec(h *hazelcastv1alpha1.Hazelcast, rawLastSpec string) (*hazelcastv1alpha1.HazelcastSpec, error) {
 	hs, err := json.Marshal(h.Spec)
-
 	if err != nil {
 		err = fmt.Errorf("error marshaling Hazelcast as JSON: %w", err)
 		return nil, err
 	}
 	if rawLastSpec == string(hs) {
-		return nil, nil
+		return &h.Spec, nil
 	}
 	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
 	err = json.Unmarshal([]byte(rawLastSpec), lastSpec)
@@ -1768,7 +1808,10 @@ func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Haz
 		err = fmt.Errorf("error unmarshaling Last HZ Spec: %w", err)
 		return nil, err
 	}
+	return lastSpec, nil
+}
 
+func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Hazelcast, lastSpec *hazelcastv1alpha1.HazelcastSpec) (map[string]interface{}, error) {
 	currentSpec := h.Spec
 
 	existExecutorServices := make(map[string]struct{}, len(lastSpec.ExecutorServices))

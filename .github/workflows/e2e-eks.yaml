@@ -14,7 +14,7 @@ jobs:
       CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -35,6 +35,7 @@ jobs:
           eksctl create cluster --name "${CLUSTER_NAME}" \
             --zones ${AWS_REGION}a \
             --zones ${AWS_REGION}c \
+            --version auto \
             --with-oidc \
             --without-nodegroup
 
@@ -109,7 +110,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -187,7 +188,7 @@ jobs:
     needs: ["prepare-env", "eks-e2e-tests"]
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

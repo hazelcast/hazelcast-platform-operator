@@ -42,7 +42,7 @@ func (m *Map) ValidateUpdate(old runtime.Object) error {
 			return fmt.Errorf("error parsing last map spec: %w", err)
 		}
 
-		return ValidateNotUpdatableFields(&m.Spec, &parsed)
+		return ValidateNotUpdatableMapFields(&m.Spec, &parsed)
 	}
 
 	return nil
