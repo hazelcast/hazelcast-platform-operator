@@ -268,7 +268,7 @@ deploy: helm install-crds ## Deploy controller to the K8s cluster specified in ~
 
 helm-template:
 	@$(MAKE) helm &> /dev/null
-	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE) > try.yaml
+	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
 
 undeploy: uninstall-chart uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 

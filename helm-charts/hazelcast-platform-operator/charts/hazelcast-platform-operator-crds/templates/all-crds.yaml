@@ -397,6 +397,13 @@ spec:
                     - Unisocket
                     type: string
                 type: object
+              highAvailabilityMode:
+                description: Configuration to create clusters resilient to node and
+                  zone failures
+                enum:
+                - NODE
+                - ZONE
+                type: string
               imagePullPolicy:
                 default: IfNotPresent
                 description: Pull policy for the Hazelcast Platform image

@@ -1,9 +1,11 @@
-name: Helm Chart Update
+name: Helm Chart Sync
 
 on:
   push:
     paths:
       - 'helm-charts/**'
+    branches:
+      - main
 
 jobs:
   push-new-chart-version:
