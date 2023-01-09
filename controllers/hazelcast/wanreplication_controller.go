@@ -69,45 +69,6 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	ctx = context.WithValue(ctx, LogKey("logger"), logger)
 
-	for _, rr := range wan.Spec.Resources {
-		hzResourceName := rr.Name
-		if rr.Kind == hazelcastv1alpha1.ResourceKindMap {
-			m := &hazelcastv1alpha1.Map{}
-			nn := types.NamespacedName{
-				Namespace: req.NamespacedName.Namespace,
-				Name:      rr.Name,
-			}
-			if err := r.Get(ctx, nn, m); err != nil {
-				if kerrors.IsNotFound(err) {
-					logger.V(util.DebugLevel).Info("Could not find Map")
-					return ctrl.Result{}, nil
-				} else {
-					return ctrl.Result{}, err
-				}
-			}
-			hzResourceName = m.Spec.HazelcastResourceName
-		}
-
-		statusService, ok := r.statusServiceRegistry.Get(types.NamespacedName{
-			Namespace: req.Namespace,
-			Name:      hzResourceName,
-		})
-		if !ok {
-			logger.Error(errors.New("get Hazelcast Status Service failed"), "")
-		}
-
-		members := statusService.GetStatus().MemberDataMap
-		var memberAddresses []string
-		for _, v := range members {
-			memberAddresses = append(memberAddresses, v.Address)
-		}
-
-		err := checkConnectivity(ctx, r.mtlsClient, wan.Spec.Endpoints, memberAddresses)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	}
-
 	if !controllerutil.ContainsFinalizer(wan, n.Finalizer) && wan.GetDeletionTimestamp().IsZero() {
 		controllerutil.AddFinalizer(wan, n.Finalizer)
 		logger.Info("Adding finalizer")
@@ -130,6 +91,11 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 		}
 		return ctrl.Result{}, nil
+	}
+
+	err := r.checkConnectivity(ctx, req, wan, logger)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if !util.IsApplied(wan) {
@@ -210,19 +176,51 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return updateWanStatus(ctx, r.Client, wan, wanSuccessStatus())
 }
 
-func checkConnectivity(ctx context.Context, m *mtls.Client, endpoints string, memberAddresses []string) error {
-	for _, memberAddress := range memberAddresses {
-		p, err := dialer.NewDialer(&dialer.Config{
-			MemberAddress: memberAddress,
-			MTLSClient:    m,
-		})
-		if err != nil {
-			return err
+func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ctrl.Request, wan *hazelcastv1alpha1.WanReplication, logger logr.Logger) error {
+	for _, rr := range wan.Spec.Resources {
+		hzResourceName := rr.Name
+		if rr.Kind == hazelcastv1alpha1.ResourceKindMap {
+			m := &hazelcastv1alpha1.Map{}
+			nn := types.NamespacedName{
+				Namespace: req.NamespacedName.Namespace,
+				Name:      rr.Name,
+			}
+			if err := r.Get(ctx, nn, m); err != nil {
+				if kerrors.IsNotFound(err) {
+					logger.V(util.DebugLevel).Info("Could not find Map")
+				}
+				return err
+			}
+			hzResourceName = m.Spec.HazelcastResourceName
 		}
 
-		err = p.TryDial(ctx, endpoints)
-		if err != nil {
-			return err
+		statusService, ok := r.statusServiceRegistry.Get(types.NamespacedName{
+			Namespace: req.Namespace,
+			Name:      hzResourceName,
+		})
+		if !ok {
+			logger.Error(errors.New("get Hazelcast Status Service failed"), "")
+		}
+
+		members := statusService.GetStatus().MemberDataMap
+		var memberAddresses []string
+		for _, v := range members {
+			memberAddresses = append(memberAddresses, v.Address)
+		}
+
+		for _, memberAddress := range memberAddresses {
+			p, err := dialer.NewDialer(&dialer.Config{
+				MemberAddress: memberAddress,
+				MTLSClient:    r.mtlsClient,
+			})
+			if err != nil {
+				return err
+			}
+
+			err = p.TryDial(ctx, wan.Spec.Endpoints)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
