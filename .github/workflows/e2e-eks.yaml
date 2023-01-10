@@ -164,7 +164,9 @@ jobs:
       - name: Clean up after Tests
         if: always()
         run: |
-          make clean-up-namespace NAMESPACE=${NAMESPACE} 
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
+          source .github/scripts/utils.sh
+          wait_for_elb_deleted $DELETE_EKS_STACK_TIMEOUT_IN_MINS
 
       - name: Upload Test Report
         if: always()
