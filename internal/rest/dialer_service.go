@@ -27,7 +27,8 @@ type DialRequest struct {
 }
 
 type DialResponse struct {
-	Success bool `json:"success"`
+	Success       bool     `json:"success"`
+	ErrorMessages []string `json:"error_messages"`
 }
 
 func (p *DialerService) TryDial(ctx context.Context, r *DialRequest) (*DialResponse, *http.Response, error) {

@@ -2,8 +2,9 @@ package dialer
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net"
+	"strings"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
@@ -43,7 +44,7 @@ func (p *Dialer) TryDial(ctx context.Context, endpoints string) error {
 		return err
 	}
 	if !dialResp.Success {
-		return fmt.Errorf("target (%s) not reachable", endpoints)
+		return errors.New(strings.Join(dialResp.ErrorMessages, "\t"))
 	}
 	return nil
 }
