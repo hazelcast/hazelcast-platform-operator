@@ -256,7 +256,7 @@ jobs:
       - name: Clean up after Tests on ${{ matrix.cluster }} Cluster and ${{ matrix.namespace }} Namespace
         if: always()
         run: |
-          make clean-up-namespace NAMESPACE=${{ matrix.namespace }}
+          make clean-up-namespace NAMESPACE=${{ matrix.namespace }} RELEASE_NAME=${{ matrix.namespace }}
 
   delete-gke-cluster:
     name: Delete GKE Cluster
