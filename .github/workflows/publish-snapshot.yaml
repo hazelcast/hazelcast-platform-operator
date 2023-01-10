@@ -36,14 +36,6 @@ jobs:
       - name: Push Operator Image
         run: make docker-push IMG="hazelcast/hazelcast-platform-operator:latest-snapshot"
 
-      - name: Upload bundle.yaml to Jfrog
-        run: |
-          make generate-bundle-yaml VERSION=latest-snapshot
-
-          curl -H "Authorization: Bearer ${{ secrets.JFROG_TOKEN }}" \
-               -X PUT "https://hazelcast.jfrog.io/artifactory/operator/bundle-latest-snapshot.yaml" \
-               -T bundle.yaml
-
       - name: Generate API Reference Docs
         run: |
           make api-ref-doc > api-ref.adoc

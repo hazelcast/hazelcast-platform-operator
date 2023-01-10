@@ -36,6 +36,8 @@ OPM_VERSION ?= v1.26.2
 GINKGO_VERSION ?= v2.1.6
 # https://github.com/kubernetes-sigs/kustomize/releases
 KUSTOMIZE_VERSION ?= v4.5.3
+# https://github.com/helm/helm/releases
+HELM_VERSION ?= v3.10.3
 
 
 # CHANNELS define the bundle channels used in the bundle.
@@ -81,8 +83,18 @@ endif
 # Path to the kubectl command, if it is not in $PATH
 KUBECTL ?= kubectl
 
+OPERATOR_CHART ?= ./helm-charts/hazelcast-platform-operator
+CRD_CHART := $(OPERATOR_CHART)/charts/hazelcast-platform-operator-crds
+
 PHONE_HOME_ENABLED ?= false
 DEVELOPER_MODE_ENABLED ?= true
+INSTALL_CRDS ?= false
+DEBUG_ENABLED ?= false
+
+RELEASE_NAME ?= v1
+CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
+DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
+STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchNamespace=$(NAMESPACE),debug.enabled=$(DEBUG_ENABLED)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -154,7 +166,7 @@ setup-linters:
 
 # Use tilt tool to deploy operator and its resources to the local K8s cluster in the current context 
 tilt: 
-	tilt up
+	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) tilt up
 
 tilt-debug:
 	DEBUG_ENABLED=true tilt up
@@ -164,11 +176,11 @@ tilt-debug-remote-ttl:
 
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context
 tilt-remote: 
-	 ALLOW_REMOTE=true tilt up 
+	 DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) ALLOW_REMOTE=true tilt up
 
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context with ttl.sh configured for image registry.
 tilt-remote-ttl:
-	 ALLOW_REMOTE=true USE_TTL_REG=true tilt up 
+	 DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) ALLOW_REMOTE=true USE_TTL_REG=true tilt up
 
 ENVTEST_ASSETS_DIR=$(TOOLBIN)/envtest
 GO_TEST_FLAGS ?= "-ee=true"
@@ -196,16 +208,17 @@ endif
 GINKGO_PARALLEL_PROCESSES ?= 4
 
 test-e2e-split-kind: generate fmt vet ginkgo ## Run end-to-end tests on Kind
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --output-interceptor-mode=none --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --output-interceptor-mode=none --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
+	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test-report-${REPORT_SUFFIX}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report-${REPORT_SUFFIX}.xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS) $(E2E_TEST_EXCLUDED_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 test-ph: generate fmt vet ginkgo ## Run phone-home tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) -r --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test-report-$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 test-e2e-focus: generate fmt vet ginkgo ## Run focused end-to-end tests
-	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" $(GO_TEST_FLAGS)
 
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
@@ -235,55 +248,45 @@ docker-push-latest:
 	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
 	docker push ${IMAGE_TAG_BASE}:latest
 
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
+update-chart-crds: manifests
+	cat config/crd/bases/* >> all-crds.yaml
+	mv all-crds.yaml $(CRD_CHART)/templates/
 
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
+install-crds: helm update-chart-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
+	$(eval STATUS := $(shell $(HELM) list -n default --filter $(CRD_RELEASE_NAME) -o json | jq -r '.[].status'))
+	if [ "$(STATUS)" == "deployed" ]; then \
+		echo "CRDs are already deployed."; \
+	else \
+		$(HELM) install $(CRD_RELEASE_NAME) $(CRD_CHART) -n default ;\
+	fi
 
-webhook-install: manifests kustomize
-	$(KUSTOMIZE) build config/webhook | $(KUBECTL) apply -f -
+install-operator: helm
+	$(HELM) upgrade --install $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
 
-webhook-uninstall: manifests kustomize
-	$(KUSTOMIZE) build config/webhook | $(KUBECTL) delete -f -
+uninstall-crds: helm ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+	$(HELM) uninstall $(CRD_RELEASE_NAME) -n default
 
-deploy: ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	@$(MAKE) manifests &> /dev/null
-	@$(MAKE) kustomize &> /dev/null
-ifneq (,$(NAME_PREFIX))
-	@cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
-endif
-	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml &> /dev/null
-ifeq (false,$(PHONE_HOME_ENABLED))
-	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path disable_phone_home.yaml
-endif
-ifeq (true,$(DEVELOPER_MODE_ENABLED))
-	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path enable_developer_mode.yaml
-endif
-	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path remove_security_context.yaml &> /dev/null
-ifeq (true,$(REMOVE_SECURITY_CONTEXT))
-	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path remove_security_context.yaml
-endif
-	@cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path debug_enabled.yaml &> /dev/null
-ifeq (true,$(DEBUG_ENABLED))
-	@cd config/manager && $(KUSTOMIZE) edit add patch --kind Deployment --path debug_enabled.yaml
-endif
-	@cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	@cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
-	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-ifneq (false,$(APPLY_MANIFESTS))
-	@$(KUSTOMIZE) build config/default | $(KUBECTL) apply --server-side=true --force-conflicts=true -f -
-else
-	@$(KUSTOMIZE) build config/default
-endif
+uninstall-operator: helm
+	 $(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
 
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f - --ignore-not-found
+webhook-install: helm
+	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
 
-undeploy-keep-crd: kustomize
-	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
-	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found
-	cd config/default && $(KUSTOMIZE) edit add resource ../crd
+webhook-uninstall: helm
+	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
+
+deploy: helm install-crds install-operator ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+
+helm-template:
+	@$(MAKE) helm &> /dev/null
+	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+
+undeploy: uninstall-operator uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+
+undeploy-tilt:
+	$(MAKE) helm-template | $(KUBECTL) delete -f -
+
+undeploy-keep-crd: uninstall-operator
 
 clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
 	$(eval CR_NAMES := $(shell $(KUBECTL) get crd -o jsonpath='{range.items[*]}{..metadata.name}{"\n"}{end}' | grep hazelcast.com))
@@ -343,11 +346,6 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
-
-generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle.yaml
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd config/manager && $(KUSTOMIZE) edit remove patch --kind Deployment --path disable_phone_home.yaml
-	$(KUSTOMIZE) build config/default > bundle.yaml
 
 # Detect the OS to set per-OS defaults
 OS_NAME = $(shell uname -s | tr A-Z a-z)
@@ -436,3 +434,17 @@ GOBIN=$(dir $(1)) go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
+
+HELM = $(TOOLBIN)/helm/$(HELM_VERSION)/helm
+helm: ## Download helm locally if necessary.
+	@[ -f $(HELM) ] || { \
+	mkdir -p $(dir $(HELM)) ;\
+	TMP_DIR=$$(mktemp -d) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $${TMP_DIR}/temp.tar.gz https://get.helm.sh/helm-$(HELM_VERSION)-$${OS}-$${ARCH}.tar.gz;\
+	tar --directory $${TMP_DIR} -zxvf $${TMP_DIR}/temp.tar.gz &>/dev/null;\
+	mv $${TMP_DIR}/$${OS}-$${ARCH}/helm $(HELM);\
+	rm -rf $${TMP_DIR};\
+	chmod +x $(HELM);\
+	}
+	@echo -n $(HELM)

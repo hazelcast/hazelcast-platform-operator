@@ -13,7 +13,6 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -186,7 +185,7 @@ func generateCA(name, namespace string) (map[string][]byte, error) {
 
 func webhookNames(deploymentName, namespace string) []types.NamespacedName {
 	webhookName := types.NamespacedName{
-		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "validating-webhook-configuration"),
+		Name:      deploymentName,
 		Namespace: namespace,
 	}
 
@@ -220,7 +219,7 @@ func olmWebhookNames(ctx context.Context, kubeClient client.Client) ([]types.Nam
 
 func serviceName(deploymentName, namespace string) types.NamespacedName {
 	serviceName := types.NamespacedName{
-		Name:      strings.ReplaceAll(deploymentName, "controller-manager", "webhook-service"),
+		Name:      deploymentName,
 		Namespace: namespace, // service namespace is also hardcoded in webhook manifest
 	}
 

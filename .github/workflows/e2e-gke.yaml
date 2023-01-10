@@ -74,7 +74,7 @@ jobs:
     env:
       NAMESPACE: test-operator-${{ matrix.edition }}
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
       IMG: ${{ needs.get-image.outputs.IMG }}
 
     steps:
@@ -112,10 +112,10 @@ jobs:
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=$NAMESPACE
 
-          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
 
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secrets
@@ -145,7 +145,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=gke
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=gke
 
       - name: Clean up after Tests
         if: always()

@@ -62,16 +62,6 @@ jobs:
              exit 1
            fi
 
-      - name: Check if bundle.yaml is updated
-        run: |
-          mv bundle.yaml bundle.yaml.old
-          make generate-bundle-yaml
-
-          if ! cmp -s bundle.yaml bundle.yaml.old; then
-              echo "Please make sure your branch is up to date with main and run 'make generate-bundle-yaml'"
-              exit 1
-          fi
-
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-latest
@@ -182,7 +172,7 @@ jobs:
       )
     env:
       NAMESPACE: kind-test-operator-${{ matrix.edition }}
-      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
       CLUSTER_NAME: kind
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
@@ -321,8 +311,8 @@ jobs:
 
       - name: Deploy Operator to Kind Cluster
         run: |
-          DEPLOY_NAME=${NAME_PREFIX}controller-manager
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Download test-suites Files
@@ -339,7 +329,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e-split-kind REPORT_SUFFIX=${{ matrix.edition }}-${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX} WORKFLOW_ID=pr FOCUSED_TESTS="$(cat suite_files/test_suite_${{ matrix.node_number }})"
+          make test-e2e-split-kind REPORT_SUFFIX=${{ matrix.edition }}-${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr FOCUSED_TESTS="$(cat suite_files/test_suite_${{ matrix.node_number }})"
 
       - name: Upload Test Report
         if: always()

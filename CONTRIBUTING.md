@@ -44,6 +44,6 @@ All PRs follow the same process:
 3.	The latest changes are in the `main` branch.
 4.	Make sure to design clean commits that are easily readable. That includes descriptive commit messages.
 5.  Please keep your PRs as small as possible, _i.e._ if you plan to perform a huge change, do not submit a single and large PR for it. For an enhancement or larger feature, you can create a GitHub issue first to discuss.
-6.  Run `make generate-bundle-yaml` command, if you modify the API of Custom Resources.
+6.  Run make update-chart-crds command, if you modify the API of Custom Resources.
 7.  Before you push, run the command `make lint` in your terminal and fix the linter errors if any. Push your PR once it is free of linter errors.
-8.	If you submit a PR as the solution to a specific issue, please mention the issue number either in the PR description or commit message.
+8.  If you submit a PR as the solution to a specific issue, please mention the issue number either in the PR description or commit message.
