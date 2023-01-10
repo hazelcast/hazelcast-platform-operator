@@ -180,7 +180,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-istio
           path: allure-results/istio/
 
   report-generation:
