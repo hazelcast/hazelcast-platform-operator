@@ -1061,7 +1061,7 @@ func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanRepl
 	cfg := config.WanReplicationConfig{
 		BatchPublisher: map[string]config.BatchPublisherConfig{
 			publisherId: {
-				ClusterName:           wr.Spec.Endpoints,
+				ClusterName:           wr.Spec.TargetClusterName,
 				TargetEndpoints:       wr.Spec.Endpoints,
 				QueueCapacity:         wr.Spec.Queue.Capacity,
 				QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
