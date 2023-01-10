@@ -107,6 +107,10 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
+      - name: Deploy CRDs
+        if: matrix.edition == 'ee'
+        run: make install-crds
+
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${NAMESPACE}
@@ -115,7 +119,7 @@ jobs:
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
 
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
+          make install-operator IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secrets

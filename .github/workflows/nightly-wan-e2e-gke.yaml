@@ -120,13 +120,17 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
+      - name: Deploy CRDs
+        if: matrix.namespace == 'trg-ns'
+        run: make install-crds
+
       - name: Deploy Operator To ${{ matrix.cluster }} GKE Cluster and ${{ matrix.namespace }} namespace
         run: |
           kubectl create namespace ${{ matrix.namespace }}
           kubectl config set-context --current --namespace=${{ matrix.namespace }}
           DEPLOY_NAME=${{ matrix.namespace }}-hazelcast-platform-operator
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
-          make deploy IMG=$IMG NAMESPACE=${{ matrix.namespace }} RELEASE_NAME=${{ matrix.namespace }}
+          make install-operator IMG=$IMG NAMESPACE=${{ matrix.namespace }} RELEASE_NAME=${{ matrix.namespace }}
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create Secret On ${{ matrix.cluster }} Cluster and ${{ matrix.namespace }} namespace

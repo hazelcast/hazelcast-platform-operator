@@ -131,12 +131,16 @@ jobs:
         run: |-
             oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
 
+      - name: Deploy CRDs
+        if: matrix.edition == 'ee'
+        run: make install-crds
+
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
           oc new-project $NAMESPACE
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
+          make install-operator IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           oc rollout status deployment ${DEPLOY_NAME}
 
       - name: Create secrets
