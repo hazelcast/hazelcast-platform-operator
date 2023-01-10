@@ -87,7 +87,7 @@ jobs:
 
 
   ocp-e2e-tests:
-    name: Run e2e tests at OCP
+    name: Run e2e test on OCP
     runs-on: ubuntu-latest
     needs: grafana-setup
     strategy:
