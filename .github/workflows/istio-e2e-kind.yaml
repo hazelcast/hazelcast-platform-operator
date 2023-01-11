@@ -16,7 +16,7 @@ jobs:
         edition: [ "os","ee" ]
     env:
       NAMESPACE: istio-test-operator-${{ matrix.edition }}
-      NAME_PREFIX: istio-${{ matrix.edition }}-${{ github.run_id }}-
+      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
       CLUSTER_NAME: kind
       E2E_TEST_EXCLUDED_SUITE: hz_expose_externally
     steps:
@@ -157,8 +157,8 @@ jobs:
 
       - name: Deploy Operator to Istio Cluster
         run: |
-          DEPLOY_NAME=${NAME_PREFIX}hazelcast-platform-operator
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Run Hazelcast E2E Tests
@@ -169,7 +169,7 @@ jobs:
           ee) GO_TEST_FLAGS=-ee=true;;
           *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX WORKFLOW_ID=istio E2E_TEST_EXCLUDED_SUITE=$E2E_TEST_EXCLUDED_SUITE
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=istio E2E_TEST_EXCLUDED_SUITE=$E2E_TEST_EXCLUDED_SUITE
 
       - name: Clean up after Tests
         if: always()
