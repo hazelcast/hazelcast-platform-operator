@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"github.com/hazelcast/platform-operator-agent/sidecar"
 	"net/http"
 	"net/url"
 )
@@ -22,16 +23,7 @@ func NewDialerService(address string, c *http.Client) (*DialerService, error) {
 	}}, nil
 }
 
-type DialRequest struct {
-	Endpoints string `json:"endpoints"`
-}
-
-type DialResponse struct {
-	Success       bool     `json:"success"`
-	ErrorMessages []string `json:"error_messages"`
-}
-
-func (p *DialerService) TryDial(ctx context.Context, r *DialRequest) (*DialResponse, *http.Response, error) {
+func (p *DialerService) TryDial(ctx context.Context, r *sidecar.DialRequest) (*sidecar.DialResponse, *http.Response, error) {
 	u := "dial"
 
 	dialReq, err := p.client.NewRequest("POST", u, r)
@@ -39,7 +31,7 @@ func (p *DialerService) TryDial(ctx context.Context, r *DialRequest) (*DialRespo
 		return nil, nil, err
 	}
 
-	dialResp := new(DialResponse)
+	dialResp := new(sidecar.DialResponse)
 	httpResp, err := p.client.Do(ctx, dialReq, dialResp)
 	if err != nil {
 		return nil, httpResp, err
