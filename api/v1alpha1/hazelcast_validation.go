@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -9,6 +10,8 @@ var BlackListProperties = map[string]struct{}{
 	// TODO: Add properties which should not be exposed.
 	"": {},
 }
+
+const clusterSizeLimit = 300
 
 func ValidateNotUpdatableHazelcastFields(current *HazelcastSpec, last *HazelcastSpec) error {
 	if current.HighAvailabilityMode != last.HighAvailabilityMode {
@@ -30,6 +33,17 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 		return err
 	}
 
+	if err := validateClusterSize(h); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateClusterSize(h *Hazelcast) error {
+	if *h.Spec.ClusterSize > clusterSizeLimit {
+		return errors.New(fmt.Sprintf("cluster size limit is exceeded. Requested: %d, Limit: %d", *h.Spec.ClusterSize, clusterSizeLimit))
+	}
 	return nil
 }
 
