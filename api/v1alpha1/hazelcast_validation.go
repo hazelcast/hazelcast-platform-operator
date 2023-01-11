@@ -11,7 +11,8 @@ var BlackListProperties = map[string]struct{}{
 	"": {},
 }
 
-const clusterSizeLimit = 300
+const ClusterSizeLimit = 300
+const ClusterSizeLimitErrStr = "cluster size limit is exceeded. Requested: %d, Limit: %d"
 
 func ValidateNotUpdatableHazelcastFields(current *HazelcastSpec, last *HazelcastSpec) error {
 	if current.HighAvailabilityMode != last.HighAvailabilityMode {
@@ -41,8 +42,8 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 }
 
 func validateClusterSize(h *Hazelcast) error {
-	if *h.Spec.ClusterSize > clusterSizeLimit {
-		return errors.New(fmt.Sprintf("cluster size limit is exceeded. Requested: %d, Limit: %d", *h.Spec.ClusterSize, clusterSizeLimit))
+	if *h.Spec.ClusterSize > ClusterSizeLimit {
+		return fmt.Errorf(ClusterSizeLimitErrStr, *h.Spec.ClusterSize, ClusterSizeLimit)
 	}
 	return nil
 }
