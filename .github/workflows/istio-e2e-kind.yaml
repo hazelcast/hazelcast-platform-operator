@@ -143,21 +143,14 @@ jobs:
 
       - name: Build And Push Image
         run: |
-          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
-            IMG=hazelcast/hazelcast-platform-operator:0.0.1
-            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-            kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
-            echo "IMG=${IMG}" >> $GITHUB_ENV
-          else
-            IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
-            docker pull $IMG
-            kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
-            echo "IMG=${IMG}" >> $GITHUB_ENV
-          fi
+          IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
+          docker pull $IMG
+          kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
+          echo "IMG=${IMG}" >> $GITHUB_ENV
 
       - name: Deploy Operator to Istio Cluster
         run: |
-          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+          DEPLOY_NAME=${NAME_PREFIX}platform-operator
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
           kubectl rollout status deployment $DEPLOY_NAME
 
