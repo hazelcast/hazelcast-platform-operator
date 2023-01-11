@@ -141,7 +141,7 @@ jobs:
           --namespace ${{ env.NAMESPACE }} \
           --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
 
-      - name: Build And Push Image
+      - name: Build And Load Image
         run: |
           IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
           docker pull $IMG
@@ -150,7 +150,7 @@ jobs:
 
       - name: Deploy Operator to Istio Cluster
         run: |
-          DEPLOY_NAME=${NAME_PREFIX}platform-operator
+          DEPLOY_NAME=${NAME_PREFIX}-hazelcast-platform-operator
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
           kubectl rollout status deployment $DEPLOY_NAME
 
