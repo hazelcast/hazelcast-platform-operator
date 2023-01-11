@@ -5,6 +5,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
+  DELETE_EKS_STACK_TIMEOUT_IN_MINS: "15"
 
 jobs:
   prepare-env:
@@ -33,6 +34,7 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           eksctl create cluster --name "${CLUSTER_NAME}" \
+            --region=${AWS_REGION} \
             --zones ${AWS_REGION}a \
             --zones ${AWS_REGION}c \
             --version auto \
@@ -121,13 +123,17 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
+      - name: Deploy CRDs
+        if: matrix.edition == 'ee'
+        run: make install-crds
+
       - name: Deploy Operator to EKS
         run: |
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} RELEASE_NAME=$RELEASE_NAME
+          make install-operator NAMESPACE=${NAMESPACE} IMG=${IMG} RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secrets
@@ -163,6 +169,8 @@ jobs:
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
+          source .github/scripts/utils.sh
+          wait_for_elb_deleted $DELETE_EKS_STACK_TIMEOUT_IN_MINS
 
       - name: Upload Test Report
         if: always()
@@ -186,6 +194,9 @@ jobs:
     if: always()
     needs: ["prepare-env", "eks-e2e-tests"]
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
         with:
@@ -202,10 +213,9 @@ jobs:
 
       - name: Delete EKS cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          eksctl delete addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}" || echo "could not delete addon"
-          eksctl delete nodegroup --cluster "${CLUSTER_NAME}" --name node-group-1
-          eksctl delete cluster "${CLUSTER_NAME}" --wait
+          CLUSTER_NAME="eksctl-operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          source .github/scripts/utils.sh
+          wait_for_eks_stack_deleted $CLUSTER_NAME $DELETE_EKS_STACK_TIMEOUT_IN_MINS 
 
   slack_notify:
     name: Slack Notify

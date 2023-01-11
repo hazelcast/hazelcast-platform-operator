@@ -131,12 +131,16 @@ jobs:
         run: |-
             oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
 
+      - name: Deploy CRDs
+        if: matrix.edition == 'ee'
+        run: make install-crds
+
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
           oc new-project $NAMESPACE
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
+          make install-operator IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           oc rollout status deployment ${DEPLOY_NAME}
 
       - name: Create secrets
@@ -190,14 +194,18 @@ jobs:
     env:
       GRAFANA_NS: "grafana-${{ github.run_id }}"
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Image Prune And 'ksm-kube-state-metrics' Cleanup
         run: |
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           helm uninstall ksm --namespace ${GRAFANA_NS}
           kubectl delete namespace ${GRAFANA_NS}
           for NODE in $(oc get nodes --no-headers -o name); do
-          oc debug ${NODE} -- chroot /host sh -c "sleep 5; podman image prune -a -f"
+            oc debug ${NODE} -- chroot /host sh -c "sleep 5; podman image prune -a -f"
           done
+          make uninstall-crds
 
   report-generation:
     needs: ocp-e2e-tests

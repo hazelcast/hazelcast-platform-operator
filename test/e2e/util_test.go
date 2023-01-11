@@ -168,7 +168,7 @@ func waitForDSPods(ds *appsv1.DaemonSet, lb client.MatchingLabels) *corev1.PodLi
 			return false
 		}
 		return int(ds.Status.DesiredNumberScheduled) == len(pods.Items)
-	}, 1*Minute, interval).Should(BeTrue())
+	}, 2*Minute, interval).Should(BeTrue())
 	return pods
 }
 
