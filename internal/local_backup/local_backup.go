@@ -8,7 +8,7 @@ import (
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
-	"github.com/hazelcast/platform-operator-agent/backup"
+	"github.com/hazelcast/platform-operator-agent/sidecar"
 )
 
 type LocalBackup struct {
@@ -39,7 +39,7 @@ func NewLocalBackup(config *Config) (*LocalBackup, error) {
 }
 
 func (u *LocalBackup) GetLatestLocalBackup(ctx context.Context) (string, error) {
-	localBackups, _, err := u.service.LocalBackups(ctx, &backup.Req{
+	localBackups, _, err := u.service.LocalBackups(ctx, &sidecar.Req{
 		BackupBaseDir: u.config.BackupBaseDir,
 		MemberID:      u.config.MemberID,
 	})

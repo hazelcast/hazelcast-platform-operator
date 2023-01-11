@@ -3,6 +3,7 @@ package dialer
 import (
 	"context"
 	"errors"
+	"github.com/hazelcast/platform-operator-agent/sidecar"
 	"net"
 	"strings"
 
@@ -37,7 +38,7 @@ func NewDialer(config *Config) (*Dialer, error) {
 }
 
 func (p *Dialer) TryDial(ctx context.Context, endpoints string) error {
-	dialResp, _, err := p.service.TryDial(ctx, &rest.DialRequest{
+	dialResp, _, err := p.service.TryDial(ctx, &sidecar.DialRequest{
 		Endpoints: endpoints,
 	})
 	if err != nil {

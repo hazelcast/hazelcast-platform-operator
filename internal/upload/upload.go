@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
-	"github.com/hazelcast/platform-operator-agent/backup"
+	"github.com/hazelcast/platform-operator-agent/sidecar"
 )
 
 var (
@@ -53,7 +53,7 @@ func (u *Upload) Start(ctx context.Context) error {
 	if u.uploadID != nil {
 		return errUploadAlreadyStarted
 	}
-	upload, _, err := u.service.Upload(ctx, &backup.UploadReq{
+	upload, _, err := u.service.Upload(ctx, &sidecar.UploadReq{
 		BucketURL:       u.config.BucketURI,
 		BackupBaseDir:   u.config.BackupBaseDir,
 		HazelcastCRName: u.config.HazelcastName,
