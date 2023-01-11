@@ -143,17 +143,10 @@ jobs:
 
       - name: Build And Load Image
         run: |
-          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
-            IMG=hazelcast/hazelcast-platform-operator:0.0.1
-            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-            kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
-            echo "IMG=${IMG}" >> $GITHUB_ENV
-          else
-            IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
-            docker pull $IMG
-            kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
-            echo "IMG=${IMG}" >> $GITHUB_ENV
-          fi
+          IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
+          docker pull $IMG
+          kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
+          echo "IMG=${IMG}" >> $GITHUB_ENV
 
       - name: Deploy Operator to Istio Cluster
         run: |
@@ -169,7 +162,7 @@ jobs:
           ee) GO_TEST_FLAGS=-ee=true;;
           *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=istio E2E_TEST_EXCLUDED_SUITE=$E2E_TEST_EXCLUDED_SUITE
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=istio E2E_TEST_EXCLUDED_SUITE=${E2E_TEST_EXCLUDED_SUITE}
 
       - name: Clean up after Tests
         if: always()
