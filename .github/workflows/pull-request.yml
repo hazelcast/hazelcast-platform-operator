@@ -62,6 +62,16 @@ jobs:
              exit 1
            fi
 
+      - name: Check if all-crds.yaml is updated
+        run: |
+          CRD_PATH=./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds/templates
+          mv $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
+          make update-chart-crds
+          if ! cmp -s $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old; then
+              echo "Please make sure your branch is up to date with main and run 'make update-chart-crds'"
+              exit 1
+          fi
+
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-latest
