@@ -177,7 +177,7 @@ func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.H
 		}
 		return ctrl.Result{}, err
 	}
-	if options.phase == hazelcastv1alpha1.Failed {
+	if options.err != nil {
 		return ctrl.Result{}, options.err
 	}
 	if options.phase == hazelcastv1alpha1.Pending {
