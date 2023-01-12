@@ -93,7 +93,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Check if the Hazelcast CR is marked to be deleted
 	if h.GetDeletionTimestamp() != nil {
 		// Execute finalizer's pre-delete function to cleanup ClusterRole
-		r.update(ctx, h, terminatingPhase(nil)) //nolint:errcheck
 		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
 			return r.update(ctx, h, terminatingPhase(err).withMessage(err.Error()))

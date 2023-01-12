@@ -109,7 +109,10 @@ func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcas
 	for i := 0; i < len(dsItems); i++ {
 		i := i
 		g.Go(func() error {
-			return util.DeleteObject(groupCtx, r.Client, dsItems[i])
+			if dsItems[i].GetDeletionTimestamp() == nil {
+				return util.DeleteObject(groupCtx, r.Client, dsItems[i])
+			}
+			return nil
 		})
 	}
 
