@@ -144,6 +144,10 @@ type WanReplicationStatus struct {
 }
 
 type WanReplicationMapStatus struct {
+	// ResourceName is the name of the Map CR
+	// +optional
+	ResourceName string `json:"resourceName,omitempty"`
+
 	// PublisherId is the ID used for WAN publisher ID
 	// +optional
 	PublisherId string `json:"publisherId,omitempty"`
