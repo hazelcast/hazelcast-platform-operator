@@ -441,6 +441,21 @@ var (
 		}
 	}
 
+	WanReplication = func(wan types.NamespacedName, targetClusterName, endpoints string, resources []hazelcastv1alpha1.ResourceSpec, lbls map[string]string) *hazelcastv1alpha1.WanReplication {
+		return &hazelcastv1alpha1.WanReplication{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      wan.Name,
+				Namespace: wan.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.WanReplicationSpec{
+				TargetClusterName: targetClusterName,
+				Endpoints:         endpoints,
+				Resources:         resources,
+			},
+		}
+	}
+
 	DefaultMultiMap = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastv1alpha1.MultiMap {
 		return &hazelcastv1alpha1.MultiMap{
 			ObjectMeta: v1.ObjectMeta{

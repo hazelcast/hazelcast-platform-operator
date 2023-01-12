@@ -26,6 +26,7 @@ import (
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,16 +34,19 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
+	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 type UpdateFn func(*hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast
@@ -479,7 +483,24 @@ func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1a
 				return ""
 			}
 			return checkWan.Status.Status
-		}, 40*Second, interval).Should(Equal(st))
+		}, 1*Minute, interval).Should(Equal(st))
+	})
+	return checkWan
+}
+
+func assertWanStatusMapCount(wr *hazelcastcomv1alpha1.WanReplication, mapLen int) *hazelcastcomv1alpha1.WanReplication {
+	checkWan := &hazelcastcomv1alpha1.WanReplication{}
+	By("waiting for Wan CR status map length", func() {
+		Eventually(func() int {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      wr.Name,
+				Namespace: wr.Namespace,
+			}, checkWan)
+			if err != nil {
+				return -1
+			}
+			return len(checkWan.Status.WanReplicationMapsStatus)
+		}, 1*Minute, interval).Should(Equal(mapLen))
 	})
 	return checkWan
 }
@@ -722,6 +743,17 @@ func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1alpha1.
 	return obj
 }
 
+func assertObjectDoesNotExist(obj client.Object) {
+	cpy := obj.DeepCopyObject().(client.Object)
+	Eventually(func() bool {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, cpy)
+		if err == nil || !kerrors.IsNotFound(err) {
+			return false
+		}
+		return true
+	}, 1*Minute, interval).Should(BeTrue())
+}
+
 func getMultiMapConfigFromMemberConfig(memberConfigXML string, multiMapName string) *codecTypes.MultiMapConfig {
 	var multiMaps codecTypes.MultiMapConfigs
 	err := xml.Unmarshal([]byte(memberConfigXML), &multiMaps)
@@ -827,4 +859,52 @@ func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bo
 	return hazelcastcomv1alpha1.RestoreConfiguration{
 		HotBackupResourceName: hotBackup.Name,
 	}
+}
+
+func createWanResources(ctx context.Context, hzMapResources map[string][]string, ns string, labels map[string]string) (map[string]*hazelcastcomv1alpha1.Hazelcast, map[string]*hazelcastcomv1alpha1.Map) {
+	hzCrs := map[string]*hazelcastcomv1alpha1.Hazelcast{}
+
+	for hzName := range hzMapResources {
+		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzName, Namespace: ns}, ee, labels)
+		hz.Spec.ClusterName = hzName
+		hz.Spec.ClusterSize = pointer.Int32(1)
+		hzCrs[hzName] = hz
+		CreateHazelcastCRWithoutCheck(hz)
+	}
+
+	for _, hz := range hzCrs {
+		evaluateReadyMembers(types.NamespacedName{Name: hz.Name, Namespace: ns})
+	}
+
+	mapCrs := map[string]*hazelcastcomv1alpha1.Map{}
+
+	for hzName, mapNames := range hzMapResources {
+		for _, mapName := range mapNames {
+			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapName, Namespace: ns}, hzName, labels)
+			m.Name = mapName
+			mapCrs[mapName] = m
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		}
+	}
+
+	for i := range mapCrs {
+		mapCrs[i] = assertMapStatus(mapCrs[i], hazelcastcomv1alpha1.MapSuccess)
+	}
+
+	return hzCrs, mapCrs
+
+}
+
+func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazelcastcomv1alpha1.Hazelcast, resources []hazelcastcomv1alpha1.ResourceSpec, mapCount int, labels map[string]string) *hazelcastcomv1alpha1.WanReplication {
+	wan := hazelcastconfig.WanReplication(
+		lk,
+		target.Spec.ClusterName,
+		hzclient.HazelcastUrl(target),
+		resources,
+		labels,
+	)
+	Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+	wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
+	wan = assertWanStatusMapCount(wan, mapCount)
+	return wan
 }

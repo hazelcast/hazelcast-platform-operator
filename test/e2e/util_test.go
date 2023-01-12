@@ -29,7 +29,7 @@ func useExistingCluster() bool {
 }
 
 func runningLocally() bool {
-	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
+	return true //TODO: revert
 }
 
 func GetControllerManagerName() string {
