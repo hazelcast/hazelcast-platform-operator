@@ -16,7 +16,7 @@ exclude-labels:
   - 'non-release'
 replacers:
   - search: '/(((\)##[^(#)]+\##)\s+.*)\s+\!?)|(((\)[^(#)]+\##)\s+.*)\s+\!?)/g'
-    replace: ')<br> -'
+    replace: ')<br>    -'
   - search: '/\[(.*?)\]/g'
     replace: ''
   - search: '^Add'
