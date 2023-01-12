@@ -1,4 +1,3 @@
-commitish: 'main'
 categories:
   - title: 'New Features'
     labels:
@@ -13,7 +12,11 @@ include-labels:
   - 'feature'
   - 'enhancement'
   - 'fix'
+exclude-labels:
+  - 'non-release'
 replacers:
+  - search: '/(((\)##[^(#)]+\##)\s+.*)\s+\!?)|(((\)[^(#)]+\##)\s+.*)\s+\!?)/g'
+    replace: ')<br> -'
   - search: '/\[(.*?)\]/g'
     replace: ''
   - search: '^Add'
@@ -24,8 +27,7 @@ replacers:
     replace: ''
   - search: 'enhancement:'
     replace: ''
-  - search: '/(##[\s\S]Description)\s+\w.*\s+(##[\s\S]User)\s+\w.*\s+/g'
-    replace: '   - '
+
 autolabeler:
   - label: 'feature'
     branch:
@@ -33,8 +35,6 @@ autolabeler:
     title:
       - '/feature/i'
       - '/feat/i'
-      - '/implement/i'
-      - '/support/i'
   - label: 'enhancement'
     branch:
       - '/enhancement\/.+/'

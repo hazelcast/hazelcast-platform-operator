@@ -49,7 +49,7 @@ jobs:
           git add Makefile Dockerfile config/
           git commit --signoff -m "${RELEASE_VERSION}"
           
-          BRANCH=$( echo ${{ github.ref }} | cut -d'/' -f3 )
+          BRANCH=$( echo ${{ github.ref }} | cut -d '/' -f 3- )
           git push origin $BRANCH
 
       - name: Create a new tag
