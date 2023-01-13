@@ -102,9 +102,9 @@ var _ = Describe("Hazelcast webhook", func() {
 	})
 
 	Context("Hazelcast Cluster Size", func() {
-		It(fmt.Sprintf("should validate cluster size is not more than %d", hazelcastv1alpha1.ClusterSizeLimit), Label("fast"), func() {
+		It(fmt.Sprintf("should validate cluster size is not more than %d", n.ClusterSizeLimit), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			requestedClusterSize := int32(hazelcastv1alpha1.ClusterSizeLimit + 1)
+			requestedClusterSize := int32(n.ClusterSizeLimit + 1)
 			spec.ClusterSize = &requestedClusterSize
 
 			hz := &hazelcastv1alpha1.Hazelcast{
@@ -112,7 +112,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 
-			expectedErrStr := fmt.Sprintf(hazelcastv1alpha1.ClusterSizeLimitErrStr, requestedClusterSize, hazelcastv1alpha1.ClusterSizeLimit)
+			expectedErrStr := fmt.Sprintf(n.ClusterSizeLimitErrStr, requestedClusterSize, n.ClusterSizeLimit)
 			Expect(k8sClient.Create(context.Background(), hz)).Should(MatchError(ContainSubstring(expectedErrStr)))
 		})
 	})
