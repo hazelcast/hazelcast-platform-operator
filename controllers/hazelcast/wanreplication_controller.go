@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -214,7 +213,7 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			}
 			if err := r.Get(ctx, nn, m); err != nil {
 				if kerrors.IsNotFound(err) {
-					logger.V(util.DebugLevel).Info("Could not find Map")
+					logger.V(util.DebugLevel).Info("Could not find Map ", nn.Name)
 				}
 				return err
 			}
@@ -226,7 +225,7 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			Name:      hzResourceName,
 		})
 		if !ok {
-			return errors.New("get Hazelcast Status Service failed")
+			return fmt.Errorf("get Hazelcast Status Service failed for Hazelcast CR %s", hzResourceName)
 		}
 
 		members := statusService.GetStatus().MemberDataMap
