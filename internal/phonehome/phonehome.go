@@ -27,7 +27,7 @@ type Metrics struct {
 	K8sDistibution string
 	K8sVersion     string
 	Trigger        chan struct{}
-	ClientRegistry hzclient.ClientRegistry
+	ClientRegistry hzclient.Registry
 }
 
 func Start(cl client.Client, m *Metrics) {
@@ -64,8 +64,8 @@ func PhoneHome(cl client.Client, m *Metrics) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 10 * time.Second}
-	_, err = client.Do(req)
+	c := &http.Client{Timeout: 10 * time.Second}
+	_, err = c.Do(req)
 	if err != nil {
 		return
 	}
@@ -156,7 +156,7 @@ func upTime(t time.Time) time.Duration {
 	return now.Sub(t)
 }
 
-func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistry hzclient.ClientRegistry) {
+func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistry hzclient.Registry) {
 	createdEnterpriseClusterCount := 0
 	createdClusterCount := 0
 	createdMemberCount := 0
@@ -197,9 +197,9 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.HighAvailabilityMode = highAvailabilityModes
 }
 
-func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
-	hzcl, ok := reg.Get(types.NamespacedName{Name: hzName, Namespace: hzNamespace})
-	if !ok {
+func ClusterUUID(reg hzclient.Registry, hzName, hzNamespace string) (string, bool) {
+	hzcl, err := reg.GetOrCreate(context.Background(), types.NamespacedName{Name: hzName, Namespace: hzNamespace})
+	if err != nil {
 		return "", false
 	}
 	cid := hzcl.ClusterId()

@@ -34,11 +34,11 @@ type HotBackupReconciler struct {
 	backup                map[types.NamespacedName]struct{}
 	phoneHomeTrigger      chan struct{}
 	mtlsClient            *mtls.Client
-	clientRegistry        hzclient.ClientRegistry
+	clientRegistry        hzclient.Registry
 	statusServiceRegistry hzclient.StatusServiceRegistry
 }
 
-func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *HotBackupReconciler {
+func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.Registry, ssm hzclient.StatusServiceRegistry) *HotBackupReconciler {
 	return &HotBackupReconciler{
 		Client:                c,
 		Log:                   log,
@@ -242,8 +242,8 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
 
-	client, ok := r.clientRegistry.Get(hazelcastName)
-	if !ok {
+	client, err := r.clientRegistry.GetOrCreate(ctx, hazelcastName)
+	if err != nil {
 		logger.Error(err, "Get Hazelcast Client failed")
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}

@@ -207,7 +207,7 @@ func fail(t *testing.T) func(message string, callerSkip ...int) {
 	}
 }
 
-func hotBackupReconcilerWithCRs(clientReg hzclient.ClientRegistry, serviceReg hzclient.StatusServiceRegistry, initObjs ...client.Object) *HotBackupReconciler {
+func hotBackupReconcilerWithCRs(clientReg hzclient.Registry, serviceReg hzclient.StatusServiceRegistry, initObjs ...client.Object) *HotBackupReconciler {
 	return NewHotBackupReconciler(
 		fakeK8sClient(initObjs...),
 		ctrl.Log.WithName("test").WithName("Hazelcast"),

@@ -122,7 +122,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cr := &hzclient.HazelcastClientRegistry{}
+	cr := &hzclient.HazelcastClientRegistry{K8sClient: mgr.GetClient()}
 	ssm := &hzclient.HzStatusServiceRegistry{}
 
 	var metrics *phonehome.Metrics

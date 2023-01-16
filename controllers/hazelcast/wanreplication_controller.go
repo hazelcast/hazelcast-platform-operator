@@ -34,12 +34,12 @@ type WanReplicationReconciler struct {
 	logr.Logger
 	Scheme                *runtime.Scheme
 	phoneHomeTrigger      chan struct{}
-	clientRegistry        hzclient.ClientRegistry
+	clientRegistry        hzclient.Registry
 	mtlsClient            *mtls.Client
 	statusServiceRegistry hzclient.StatusServiceRegistry
 }
 
-func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *WanReplicationReconciler {
+func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.Registry, ssm hzclient.StatusServiceRegistry) *WanReplicationReconciler {
 	return &WanReplicationReconciler{
 		Client:                client,
 		Logger:                log,
@@ -459,7 +459,7 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 	return nil
 }
 
-func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, HZClientMap map[string][]hazelcastv1alpha1.Map, cs hzclient.ClientRegistry) error {
+func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, HZClientMap map[string][]hazelcastv1alpha1.Map, cs hzclient.Registry) error {
 	tempMapSet := make(map[string]hazelcastv1alpha1.Map)
 	for hzName, maps := range HZClientMap {
 		for _, m := range maps {
