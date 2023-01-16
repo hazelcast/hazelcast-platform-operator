@@ -1,0 +1,12 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  nativeMemory:
+    enabled: true
+    size: 512M
+    allocatorType: POOLED
+    pageSize: 4194304
+    minBlockSize: 16
+    metadataSpacePercentage: 15

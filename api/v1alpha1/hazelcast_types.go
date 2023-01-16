@@ -132,6 +132,11 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	HighAvailabilityMode HighAvailabilityMode `json:"highAvailabilityMode,omitempty"`
+
+	// Hazelcast Native Memory (HD Memory) configuration
+	// +optional
+	// +kubebuilder:default:={}
+	NativeMemory *NativeMemoryConfiguration `json:"nativeMemory,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE
@@ -558,6 +563,91 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 	default:
 		return corev1.ServiceTypeNodePort
 	}
+}
+
+// NativeMemoryAllocatorType is one of 2 types of mechanism for allocating HD Memory
+// +kubebuilder:validation:Enum=STANDARD;POOLED
+type NativeMemoryAllocatorType string
+
+const (
+	// NativeMemoryStandard allocate memory using default OS memory manager
+	NativeMemoryStandard NativeMemoryAllocatorType = "STANDARD"
+
+	// NativeMemoryPooled is Hazelcast own pooling memory allocator
+	NativeMemoryPooled NativeMemoryAllocatorType = "POOLED"
+)
+
+// NativeMemoryConfiguration is a Hazelcast HD memory configuration
+type NativeMemoryConfiguration struct {
+	// Enabled specifies if HD Memory is enabled
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// AllocatorType specifies one of 2 types of mechanism for allocating memory to HD
+	// +optional
+	AllocatorType *NativeMemoryAllocatorType `json:"allocatorType,omitempty"`
+
+	// Size of the total native memory to allocate
+	// +optional
+	Size *resource.Quantity `json:"size,omitempty"`
+
+	// MinBlockSize is the size of smallest block that will be allocated.
+	// It is used only by the POOLED memory allocator.
+	// +optional
+	MinBlockSize *int32 `json:"minBlockSize,omitempty"`
+
+	// PageSize is the size of the page in bytes to allocate memory as a block.
+	// It is used only by the POOLED memory allocator.
+	// +optional
+	PageSize *int32 `json:"pageSize,omitempty"`
+
+	// MetadataSpacePercentage defines percentage of the allocated native memory
+	// that is used for the metadata of other map components such as index
+	// (for predicates), offset, etc.
+	// +optional
+	MetadataSpacePercentage *int32 `json:"metadataSpacePercentage,omitempty"`
+}
+
+func (c *NativeMemoryConfiguration) GetEnabled() bool {
+	if c != nil && c.Enabled != nil {
+		return *c.Enabled
+	}
+	return false
+}
+
+func (c *NativeMemoryConfiguration) GetAllocatorType() NativeMemoryAllocatorType {
+	if c != nil && c.AllocatorType != nil {
+		return *c.AllocatorType
+	}
+	return ""
+}
+
+func (c *NativeMemoryConfiguration) GetSize() *resource.Quantity {
+	if c != nil && c.Size != nil {
+		return c.Size
+	}
+	return &resource.Quantity{}
+}
+
+func (c *NativeMemoryConfiguration) GetMinBlockSize() int32 {
+	if c != nil && c.MinBlockSize != nil {
+		return *c.MinBlockSize
+	}
+	return 0
+}
+
+func (c *NativeMemoryConfiguration) GetPageSize() int32 {
+	if c != nil && c.PageSize != nil {
+		return *c.PageSize
+	}
+	return 0
+}
+
+func (c *NativeMemoryConfiguration) GetMetadataSpacePercentage() int32 {
+	if c != nil && c.MetadataSpacePercentage != nil {
+		return *c.MetadataSpacePercentage
+	}
+	return 0
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

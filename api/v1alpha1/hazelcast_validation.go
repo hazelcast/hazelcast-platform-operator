@@ -37,6 +37,10 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 		return err
 	}
 
+	if err := validateNativeMemory(h); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -90,4 +94,30 @@ func checkEnterprise(repo string) bool {
 		return false
 	}
 	return strings.HasSuffix(path[len(path)-1], "-enterprise")
+}
+
+func validateNativeMemory(h *Hazelcast) error {
+	if !h.Spec.NativeMemory.GetEnabled() {
+		// skip validation
+		return nil
+	}
+
+	if h.Spec.NativeMemory.GetAllocatorType() == NativeMemoryPooled {
+		// pooled supports all options, skip validation
+		return nil
+	}
+
+	if h.Spec.NativeMemory.MinBlockSize != nil {
+		return errors.New("native-memory: MinBlockSize is used only by the POOLED memory allocator")
+	}
+
+	if h.Spec.NativeMemory.PageSize != nil {
+		return errors.New("native-memory: PageSize is used only by the POOLED memory allocator")
+	}
+
+	if h.Spec.NativeMemory.MetadataSpacePercentage != nil {
+		return errors.New("native-memory: MetadataSpacePercentage is used only by the POOLED memory allocator")
+	}
+
+	return nil
 }
