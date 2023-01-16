@@ -331,6 +331,12 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 			if err != nil {
 				return err
 			}
+			defer func() {
+				// we just log error message, this is not critical
+				if err := u.Remove(context.Background()); err != nil {
+					logger.Error(err, "Failed to remove finished upload task", "member", m.Address)
+				}
+			}()
 
 			// now start and wait for upload
 			if err := u.Start(groupCtx); err != nil {

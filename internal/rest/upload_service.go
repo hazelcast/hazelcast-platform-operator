@@ -61,6 +61,22 @@ func (s *UploadService) Status(ctx context.Context, uploadID uuid.UUID) (*sideca
 	return status, resp, nil
 }
 
+func (s *UploadService) Cancel(ctx context.Context, uploadID uuid.UUID) (*http.Response, error) {
+	u := fmt.Sprintf("upload/%v/cancel", uploadID)
+
+	req, err := s.client.NewRequest("POST", u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
 func (s *UploadService) Delete(ctx context.Context, uploadID uuid.UUID) (*http.Response, error) {
 	u := fmt.Sprintf("upload/%v", uploadID)
 
