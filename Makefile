@@ -38,6 +38,8 @@ GINKGO_VERSION ?= v2.1.6
 KUSTOMIZE_VERSION ?= v4.5.3
 # https://github.com/helm/helm/releases
 HELM_VERSION ?= v3.10.3
+# https://github.com/mikefarah/yq/releases
+YQ_VERSION ?= v4.30.7
 
 
 # CHANNELS define the bundle channels used in the bundle.
@@ -241,16 +243,16 @@ docker-push-latest:
 	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
 	docker push ${IMAGE_TAG_BASE}:latest
 
-sync-manifests: manifests
+sync-manifests: manifests yq
 # Move CRDs into helm template
 	@cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml $(CRD_CHART)/templates/
 # Move role rules into helm template
 	@role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
-		 && cat config/rbac/role.yaml | yq 'select(.kind == "Role") | .rules') ;\
+		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role") | .rules') ;\
 		echo "$$role" > $(OPERATOR_CHART)/templates/role.yaml
 # Move clusterrole rules into helm template
 	@clusterrole=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/clusterrole.yaml \
-		 && cat config/rbac/role.yaml | yq 'select(.kind == "ClusterRole") | .rules') ;\
+		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "ClusterRole") | .rules') ;\
 		echo "$$clusterrole" > $(OPERATOR_CHART)/templates/clusterrole.yaml
 
 install-crds: helm sync-manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
@@ -411,6 +413,16 @@ opm: ## Download opm locally if necessary.
 	chmod +x $(OPM) ;\
 	}
 	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OPM); fi
+
+YQ=${TOOLBIN}/yq/$(YQ_VERSION)/yq
+.PHONY: yq
+yq: ## Download yq locally if necessary.
+	@[ -f $(YQ) ] || { \
+		curl -sSL https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_$(OS)_$(ARCH) -o $(YQ) --create-dirs ;\
+		chmod +x $(YQ);\
+	}
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(YQ); fi
+
 
 OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
 OCP_OLM_CATALOG_VALIDATOR=$(TOOLBIN)/ocp-olm-catalog-validator/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/ocp-olm-catalog-validator
