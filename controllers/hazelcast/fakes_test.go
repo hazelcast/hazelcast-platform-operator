@@ -49,7 +49,7 @@ type fakeHzClientRegistry struct {
 }
 
 func (cr *fakeHzClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (hzclient.Client, error) {
-	client, ok := cr.Get(nn)
+	client, ok := cr.get(nn)
 	if !ok {
 		return client, fmt.Errorf("Fake client was not set before test")
 	}
@@ -60,7 +60,7 @@ func (cr *fakeHzClientRegistry) Set(ns types.NamespacedName, cl hzclient.Client)
 	cr.Clients.Store(ns, cl)
 }
 
-func (cr *fakeHzClientRegistry) Get(ns types.NamespacedName) (hzclient.Client, bool) {
+func (cr *fakeHzClientRegistry) get(ns types.NamespacedName) (hzclient.Client, bool) {
 	if v, ok := cr.Clients.Load(ns); ok {
 		return v.(hzclient.Client), true
 	}
