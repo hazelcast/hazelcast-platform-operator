@@ -440,4 +440,4 @@ helm: ## Download helm locally if necessary.
 	rm -rf $${TMP_DIR};\
 	chmod +x $(HELM);\
 	}
-	@echo -n $(HELM)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(HELM); fi
