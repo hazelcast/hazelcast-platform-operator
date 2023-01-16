@@ -24,10 +24,10 @@ type QueueReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientRegistry   hzclient.Registry
+	clientRegistry   hzclient.ClientRegistry
 }
 
-func NewQueueReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cr hzclient.Registry) *QueueReconciler {
+func NewQueueReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cr hzclient.ClientRegistry) *QueueReconciler {
 	return &QueueReconciler{
 		Client:           c,
 		Log:              log,

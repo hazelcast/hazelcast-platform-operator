@@ -34,11 +34,11 @@ type HotBackupReconciler struct {
 	backup                map[types.NamespacedName]struct{}
 	phoneHomeTrigger      chan struct{}
 	mtlsClient            *mtls.Client
-	clientRegistry        hzclient.Registry
+	clientRegistry        hzclient.ClientRegistry
 	statusServiceRegistry hzclient.StatusServiceRegistry
 }
 
-func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.Registry, ssm hzclient.StatusServiceRegistry) *HotBackupReconciler {
+func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *HotBackupReconciler {
 	return &HotBackupReconciler{
 		Client:                c,
 		Log:                   log,

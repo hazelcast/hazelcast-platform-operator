@@ -36,11 +36,11 @@ type HazelcastReconciler struct {
 	Scheme                *runtime.Scheme
 	triggerReconcileChan  chan event.GenericEvent
 	phoneHomeTrigger      chan struct{}
-	clientRegistry        hzclient.Registry
+	clientRegistry        hzclient.ClientRegistry
 	statusServiceRegistry hzclient.StatusServiceRegistry
 }
 
-func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.Registry, ssm hzclient.StatusServiceRegistry) *HazelcastReconciler {
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *HazelcastReconciler {
 	return &HazelcastReconciler{
 		Client:                c,
 		Log:                   log,
@@ -303,7 +303,7 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 	}
 }
 
-func clientConnectionMessage(cs hzclient.Registry, req ctrl.Request) string {
+func clientConnectionMessage(cs hzclient.ClientRegistry, req ctrl.Request) string {
 	c, err := cs.GetOrCreate(context.Background(), req.NamespacedName)
 	if err != nil {
 		return "Operator failed to create connection to cluster, some features might be unavailable."

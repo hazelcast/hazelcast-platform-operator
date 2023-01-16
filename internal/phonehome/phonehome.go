@@ -27,7 +27,7 @@ type Metrics struct {
 	K8sDistibution string
 	K8sVersion     string
 	Trigger        chan struct{}
-	ClientRegistry hzclient.Registry
+	ClientRegistry hzclient.ClientRegistry
 }
 
 func Start(cl client.Client, m *Metrics) {
@@ -156,7 +156,7 @@ func upTime(t time.Time) time.Duration {
 	return now.Sub(t)
 }
 
-func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistry hzclient.Registry) {
+func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistry hzclient.ClientRegistry) {
 	createdEnterpriseClusterCount := 0
 	createdClusterCount := 0
 	createdMemberCount := 0
@@ -197,7 +197,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.HighAvailabilityMode = highAvailabilityModes
 }
 
-func ClusterUUID(reg hzclient.Registry, hzName, hzNamespace string) (string, bool) {
+func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
 	hzcl, err := reg.GetOrCreate(context.Background(), types.NamespacedName{Name: hzName, Namespace: hzNamespace})
 	if err != nil {
 		return "", false

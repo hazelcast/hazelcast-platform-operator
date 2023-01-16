@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-type Registry interface {
+type ClientRegistry interface {
 	GetOrCreate(ctx context.Context, nn types.NamespacedName) (Client, error)
 	Delete(ctx context.Context, ns types.NamespacedName) error
 }

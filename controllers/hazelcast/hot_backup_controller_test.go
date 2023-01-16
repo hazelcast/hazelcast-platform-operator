@@ -191,7 +191,7 @@ func TestHotBackupReconciler_shouldNotSetStatusToFailedIfHazelcastCRNotFound(t *
 	RegisterFailHandler(Fail)
 	nn, _, hb := defaultCRs()
 
-	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{K8sClient: fakeK8sClient()}, &fakeHzStatusServiceRegistry{}, hb)
+	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, hb)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	if err != nil {
 		t.Errorf("Error expecting Reconcile to return without error")
@@ -207,7 +207,7 @@ func fail(t *testing.T) func(message string, callerSkip ...int) {
 	}
 }
 
-func hotBackupReconcilerWithCRs(clientReg hzclient.Registry, serviceReg hzclient.StatusServiceRegistry, initObjs ...client.Object) *HotBackupReconciler {
+func hotBackupReconcilerWithCRs(clientReg hzclient.ClientRegistry, serviceReg hzclient.StatusServiceRegistry, initObjs ...client.Object) *HotBackupReconciler {
 	return NewHotBackupReconciler(
 		fakeK8sClient(initObjs...),
 		ctrl.Log.WithName("test").WithName("Hazelcast"),

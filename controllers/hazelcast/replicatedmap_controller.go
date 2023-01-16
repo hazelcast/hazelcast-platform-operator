@@ -25,10 +25,10 @@ type ReplicatedMapReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientRegistry   hzclient.Registry
+	clientRegistry   hzclient.ClientRegistry
 }
 
-func NewReplicatedMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.Registry) *ReplicatedMapReconciler {
+func NewReplicatedMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry) *ReplicatedMapReconciler {
 	return &ReplicatedMapReconciler{
 		Client:           c,
 		Log:              log,

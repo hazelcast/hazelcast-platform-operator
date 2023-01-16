@@ -25,10 +25,10 @@ type MultiMapReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
-	clientRegistry   hzclient.Registry
+	clientRegistry   hzclient.ClientRegistry
 }
 
-func NewMultiMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.Registry) *MultiMapReconciler {
+func NewMultiMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry) *MultiMapReconciler {
 	return &MultiMapReconciler{
 		Client:           c,
 		Log:              log,
