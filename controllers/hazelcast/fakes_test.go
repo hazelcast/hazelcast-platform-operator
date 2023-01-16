@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -47,28 +48,20 @@ type fakeHzClientRegistry struct {
 	Clients sync.Map
 }
 
-func (cr *fakeHzClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (hzclient.Client, error) {
-	var h *hazelcastv1alpha1.Hazelcast
-	h.Spec.ClusterName = "test-cluster"
-
-	client, ok := cr.get(nn)
-	if ok {
-		return client, nil
+func (cr *fakeHzClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (hzclient.Client, error) {
+	ns := types.NamespacedName{Namespace: h.Namespace, Name: h.Name}
+	client, ok := cr.Get(ns)
+	if !ok {
+		return client, fmt.Errorf("Fake client was not set before test")
 	}
-
-	c, err := hzclient.NewClient(ctx, hzclient.BuildConfig(h))
-	if err != nil {
-		return nil, err
-	}
-	cr.Clients.Store(nn, c)
-	return c, nil
+	return client, nil
 }
 
-func (cr *fakeHzClientRegistry) Set(ns types.NamespacedName, cl hzclient.Client) {
-	cr.Clients.Store(ns, cl)
+func (ssr *fakeHzClientRegistry) Set(ns types.NamespacedName, cl hzclient.Client) {
+	ssr.Clients.Store(ns, cl)
 }
 
-func (cr *fakeHzClientRegistry) get(ns types.NamespacedName) (hzclient.Client, bool) {
+func (cr *fakeHzClientRegistry) Get(ns types.NamespacedName) (hzclient.Client, bool) {
 	if v, ok := cr.Clients.Load(ns); ok {
 		return v.(hzclient.Client), true
 	}
