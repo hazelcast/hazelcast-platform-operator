@@ -467,7 +467,9 @@ update_status_badges()
      elif [[ ! -z "$EXISTING_GIST_ID" && "$EXISTING_GIST_ID" == $PRECONFIGURED_TEST_STATUSES_GIST_ID ]]; then
        for ENV_NAME in "GKE" "EKS" "AKS" "OCP"; do
             local TEST_RESULT=$(get_test_status $RUN_ID $ENV_NAME $GIST_TOKEN)
-            update_gist_content $EXISTING_GIST_ID $RUN_ID $ENV_NAME $TEST_RESULT $GIST_TOKEN
+            if [ $(echo $TEST_RESULT |jq -r | jq -r '.message') != 'unknown' ];then
+                update_gist_content $EXISTING_GIST_ID $RUN_ID $ENV_NAME $TEST_RESULT $GIST_TOKEN
+            fi
        done
      elif [[ "$EXISTING_GIST_ID" != $PRECONFIGURED_TEST_STATUSES_GIST_ID ]]; then
        echo "Existing Gist ID $EXISTING_GIST_ID doesn't equal to \${{ secrets.TEST_STATUSES_GIST_ID }}. Update secret TEST_STATUSES_GIST_ID with this id: $EXISTING_GIST_ID and update status badges links in README.md file:"
