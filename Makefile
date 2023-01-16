@@ -352,10 +352,15 @@ api-ref-doc:
 
 ##@ Tool installation
 
+.PHONY: print
+print:
+	@print #empty command
+	$(eval PRINT_TOOL_NAME=true)
+
 ENVTEST = $(TOOLBIN)/setup-envtest/$(SETUP_ENVTEST_VERSION)/setup-envtest
 envtest: ## Download setup-envtest locally if necessary.
 	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION))
-	@echo -n $(ENVTEST)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(ENVTEST); fi
 
 OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
 OPERATOR_SDK=${TOOLBIN}/operator-sdk/$(OPERATOR_SDK_VERSION)/operator-sdk
@@ -365,19 +370,19 @@ operator-sdk: ## Download operator-sdk locally if necessary.
 		curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs ;\
 		chmod +x $(OPERATOR_SDK);\
 	}
-	@echo -n $(OPERATOR_SDK)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OPERATOR_SDK); fi
 
 CONTROLLER_GEN = $(TOOLBIN)/controller-gen/$(CONTROLLER_GEN_VERSION)/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
-	@echo -n $(CONTROLLER_GEN)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(CONTROLLER_GEN); fi
 
 KUSTOMIZE = $(TOOLBIN)/kustomize/$(KUSTOMIZE_VERSION)/kustomize
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
 	@$(eval KUSTOMIZE_MAJOR_VERSION=$(firstword $(subst ., ,$(KUSTOMIZE_VERSION))))
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/$(KUSTOMIZE_MAJOR_VERSION)@$(KUSTOMIZE_VERSION))
-	@echo -n $(KUSTOMIZE)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(KUSTOMIZE); fi
 
 GINKGO = $(TOOLBIN)/ginkgo/$(GINKGO_VERSION)/ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
@@ -387,7 +392,7 @@ ginkgo: ## Download ginkgo locally if necessary.
 	go get github.com/onsi/ginkgo/$(GINKGO_MAJOR_VERSION)@$(GINKGO_VERSION) ;\
 	GOBIN=$(dir $(GINKGO)) go install -mod=mod github.com/onsi/ginkgo/$(GINKGO_MAJOR_VERSION)/ginkgo@$(GINKGO_VERSION) ;\
 	}
-	@echo -n $(GINKGO)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(GINKGO); fi
 
 .PHONY: opm
 OPM = $(TOOLBIN)/opm/$(OPM_VERSION)/opm
@@ -398,7 +403,7 @@ opm: ## Download opm locally if necessary.
 	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
-	echo -n $(OPM)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OPM); fi
 
 OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
 OCP_OLM_CATALOG_VALIDATOR=$(TOOLBIN)/ocp-olm-catalog-validator/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/ocp-olm-catalog-validator
@@ -408,7 +413,7 @@ ocp-olm-catalog-validator: ## Download ocp-olm-catalog-validator locally if nece
 	curl -sSL $(OCP_OLM_CATALOG_VALIDATOR_URL) -o $(OCP_OLM_CATALOG_VALIDATOR) --create-dirs ;\
 	chmod +x $(OCP_OLM_CATALOG_VALIDATOR) ;\
 	}
-	@echo -n $(OCP_OLM_CATALOG_VALIDATOR)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OCP_OLM_CATALOG_VALIDATOR); fi
 
 # go-get-tool will 'go install' any package $2 and install it to $1.
 define go-get-tool
@@ -418,7 +423,7 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp &> /dev/null;\
 mkdir -p $(dir $(1)) ;\
-GOBIN=$(dir $(1)) go install $(2) ;\
+GOBIN=$(dir $(1)) go install $(2) &> /dev/null ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
