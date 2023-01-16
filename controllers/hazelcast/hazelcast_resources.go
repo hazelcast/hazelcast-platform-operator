@@ -20,6 +20,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -660,6 +661,26 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			cfg.PartitionGroup = config.PartitionGroup{
 				Enabled:   pointer.Bool(true),
 				GroupType: "ZONE_AWARE",
+			}
+		}
+	}
+
+	if h.Spec.NativeMemory.GetEnabled() {
+		nativeMemory := h.Spec.NativeMemory
+		cfg.NativeMemory = config.NativeMemory{
+			Enabled: true,
+
+			// config supports nil values so it is safe to
+			// use h.Spec.NativeMemory here directly
+			AllocatorType:           (*string)(nativeMemory.AllocatorType),
+			MinBlockSize:            nativeMemory.MinBlockSize,
+			PageSize:                nativeMemory.PageSize,
+			MetadataSpacePercentage: nativeMemory.MetadataSpacePercentage,
+		}
+		if nativeMemory.Size != nil {
+			cfg.NativeMemory.Size = &config.NativeMemorySize{
+				Value: nativeMemory.Size.ScaledValue(resource.Mega),
+				Unit:  "MEGABYTES",
 			}
 		}
 	}

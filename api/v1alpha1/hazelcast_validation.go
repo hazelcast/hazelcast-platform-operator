@@ -47,6 +47,10 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 		return err
 	}
 
+	if err := validateNativeMemory(h); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -145,6 +149,32 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
 
 	if !lastSpec.Persistence.IsEnabled() {
 		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
+	}
+
+	return nil
+}
+
+func validateNativeMemory(h *Hazelcast) error {
+	if !h.Spec.NativeMemory.GetEnabled() {
+		// skip validation
+		return nil
+	}
+
+	if h.Spec.NativeMemory.GetAllocatorType() == NativeMemoryPooled {
+		// pooled supports all options, skip validation
+		return nil
+	}
+
+	if h.Spec.NativeMemory.MinBlockSize != nil {
+		return errors.New("native-memory: MinBlockSize is used only by the POOLED memory allocator")
+	}
+
+	if h.Spec.NativeMemory.PageSize != nil {
+		return errors.New("native-memory: PageSize is used only by the POOLED memory allocator")
+	}
+
+	if h.Spec.NativeMemory.MetadataSpacePercentage != nil {
+		return errors.New("native-memory: MetadataSpacePercentage is used only by the POOLED memory allocator")
 	}
 
 	return nil
