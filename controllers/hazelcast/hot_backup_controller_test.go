@@ -39,7 +39,7 @@ func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 
 	defer defaultFakeHttpServer()()
 
-	cr := &fakeHzClientRegistry{K8sClient: fakeK8sClient()}
+	cr := &fakeHzClientRegistry{}
 	sr := &fakeHzStatusServiceRegistry{}
 	cr.Set(nn, &fakeHzClient)
 	sr.Set(nn, &fakeHzStatusService)
@@ -69,7 +69,7 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 	defer defaultFakeHttpServer()()
 
 	sr := &fakeHzStatusServiceRegistry{}
-	cr := &fakeHzClientRegistry{K8sClient: fakeK8sClient()}
+	cr := &fakeHzClientRegistry{}
 
 	sr.Set(nn, &fakeHzStatusService)
 	cr.Set(nn, &fakeHzClient)
@@ -94,7 +94,7 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenTimedMemberStateFails(t 
 	defer defaultFakeHttpServer()()
 
 	sr := &fakeHzStatusServiceRegistry{}
-	cr := &fakeHzClientRegistry{K8sClient: fakeK8sClient()}
+	cr := &fakeHzClientRegistry{}
 
 	sr.Set(nn, &fakeHzStatusService)
 	cr.Set(nn, &fakeHzClient)
@@ -129,7 +129,7 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 	defer defaultFakeHttpServer()()
 
 	sr := &fakeHzStatusServiceRegistry{}
-	cr := &fakeHzClientRegistry{K8sClient: fakeK8sClient()}
+	cr := &fakeHzClientRegistry{}
 	sr.Set(nn, &fakeHzStatusService)
 	cr.Set(nn, &fakeHzClient)
 
@@ -164,7 +164,7 @@ func TestHotBackupReconciler_shouldCancelContextIfHotbackupCRIsDeleted(t *testin
 	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
 	defer defaultFakeHttpServer()()
 
-	cr := &fakeHzClientRegistry{K8sClient: fakeK8sClient()}
+	cr := &fakeHzClientRegistry{}
 	sr := &fakeHzStatusServiceRegistry{}
 	cr.Set(nn, &fakeHzClient)
 	sr.Set(nn, &fakeHzStatusService)
