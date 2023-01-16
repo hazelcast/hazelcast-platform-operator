@@ -418,7 +418,7 @@ YQ=${TOOLBIN}/yq/$(YQ_VERSION)/yq
 .PHONY: yq
 yq: ## Download yq locally if necessary.
 	@[ -f $(YQ) ] || { \
-		curl -sSL https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_$(OS)_$(ARCH) -o $(YQ) --create-dirs ;\
+		curl -sSL https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_$(shell go env GOOS)_$(shell go env GOARCH) -o $(YQ) --create-dirs ;\
 		chmod +x $(YQ);\
 	}
 	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(YQ); fi
