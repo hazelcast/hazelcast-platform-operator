@@ -2,7 +2,6 @@ package hazelcast
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +15,7 @@ import (
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
@@ -45,15 +45,28 @@ func fakeHttpServer(url string, handler http.HandlerFunc) (*httptest.Server, err
 }
 
 type fakeHzClientRegistry struct {
-	Clients sync.Map
+	Clients   sync.Map
+	K8sClient k8sClient.Client
 }
 
 func (cr *fakeHzClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (hzclient.Client, error) {
-	client, ok := cr.get(nn)
-	if !ok {
-		return client, fmt.Errorf("Fake client was not set before test")
+	h := &hazelcastv1alpha1.Hazelcast{}
+	err := cr.K8sClient.Get(ctx, nn, h)
+	if err != nil {
+		return nil, err
 	}
-	return client, nil
+
+	client, ok := cr.get(nn)
+	if ok {
+		return client, nil
+	}
+
+	c, err := hzclient.NewClient(ctx, hzclient.BuildConfig(h))
+	if err != nil {
+		return nil, err
+	}
+	cr.Clients.Store(nn, c)
+	return c, nil
 }
 
 func (cr *fakeHzClientRegistry) Set(ns types.NamespacedName, cl hzclient.Client) {

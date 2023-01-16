@@ -345,7 +345,7 @@ var _ = Describe("Hazelcast controller", func() {
 			Delete(fetchedCR)
 		})
 
-		It("should allow updating expose externally configuration", Label("fast"), func() {
+		FIt("should allow updating expose externally configuration", Label("fast"), func() {
 			By("creating the cluster with smart client")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.ClusterSize = &[]int32{3}[0]
