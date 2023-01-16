@@ -349,7 +349,7 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 			},
 			v1.EnvVar{
 				Name: javaOpts,
-				Value: fmt.Sprintf("-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true"+
+				Value: fmt.Sprintf("-XX:+UseContainerSupport -Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true"+
 					" -Dhazelcast.mc.lock.skip=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
 			},
 		)
@@ -357,7 +357,7 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: javaOpts,
-				Value: fmt.Sprintf("-Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"+
+				Value: fmt.Sprintf("-XX:+UseContainerSupport -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"+
 					" -Dhazelcast.mc.lock.skip=true -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
 			},
 		)
