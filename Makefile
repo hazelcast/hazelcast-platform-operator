@@ -241,38 +241,45 @@ docker-push-latest:
 	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
 	docker push ${IMAGE_TAG_BASE}:latest
 
-update-chart-crds: manifests
-	cat config/crd/bases/* >> all-crds.yaml
-	mv all-crds.yaml $(CRD_CHART)/templates/
+sync-manifests: manifests
+# Move CRDs into helm template
+	@cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml $(CRD_CHART)/templates/
+# Move role rules into helm template
+	@role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
+		 && cat config/rbac/role.yaml | yq 'select(.kind == "Role") | .rules') ;\
+		echo "$$role" > $(OPERATOR_CHART)/templates/role.yaml
+# Move clusterrole rules into helm template
+	@clusterrole=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/clusterrole.yaml \
+		 && cat config/rbac/role.yaml | yq 'select(.kind == "ClusterRole") | .rules') ;\
+		echo "$$clusterrole" > $(OPERATOR_CHART)/templates/clusterrole.yaml
 
-install-crds: helm update-chart-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
+install-crds: helm sync-manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
 	$(HELM) upgrade --install $(CRD_RELEASE_NAME) $(CRD_CHART) -n default ;\
 
-install-operator: helm
+install-operator: helm sync-manifests
 	$(HELM) upgrade --install $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
 
-uninstall-crds: helm ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+uninstall-crds: helm sync-manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(HELM) uninstall $(CRD_RELEASE_NAME) -n default
 
-uninstall-operator: helm
-	 $(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
+uninstall-operator: helm sync-manifests
+	$(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
 
-webhook-install: helm
+webhook-install: helm sync-manifests
 	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
 
-webhook-uninstall: helm
+webhook-uninstall: helm sync-manifests
 	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
 
-deploy: helm install-crds install-operator ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-
-helm-template:
-	@$(MAKE) helm &> /dev/null
-	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+deploy: install-crds install-operator ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 
 undeploy: uninstall-operator uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 
-undeploy-tilt:
-	$(MAKE) helm-template | $(KUBECTL) delete -f -
+deploy-tilt: helm sync-manifests
+	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+
+undeploy-tilt: 
+	$(MAKE) -s deploy-tilt RELEASE_NAME=$(RELEASE_NAME) OPERATOR_CHART=$(OPERATOR_CHART) NAMESPACE=$(NAMESPACE) | $(KUBECTL) delete -f -
 
 undeploy-keep-crd: uninstall-operator
 
@@ -434,7 +441,7 @@ helm: ## Download helm locally if necessary.
 	mkdir -p $(dir $(HELM)) ;\
 	TMP_DIR=$$(mktemp -d) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $${TMP_DIR}/temp.tar.gz https://get.helm.sh/helm-$(HELM_VERSION)-$${OS}-$${ARCH}.tar.gz;\
+	curl -sSLo $${TMP_DIR}/temp.tar.gz https://get.helm.sh/helm-$(HELM_VERSION)-$${OS}-$${ARCH}.tar.gz &>/dev/null;\
 	tar --directory $${TMP_DIR} -zxvf $${TMP_DIR}/temp.tar.gz &>/dev/null;\
 	mv $${TMP_DIR}/$${OS}-$${ARCH}/helm $(HELM);\
 	rm -rf $${TMP_DIR};\
