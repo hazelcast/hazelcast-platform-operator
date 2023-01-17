@@ -406,7 +406,7 @@ get_test_status()
      -H "Authorization: Bearer $GIST_TOKEN" |
      jq -r '[.jobs|map(select(.name | contains ("Run e2e test on '$ENV_NAME'")))
      | .[].conclusion=="success"]|unique | if .
-     | length == 2 then {"label":"'$ENV_NAME'","message":"failing","color":"red"} elif length == 1 then {"label":"'$ENV_NAME'","message":"passing","color":"green"} else
+     | length == 2 then {"label":"'$ENV_NAME'","message":"failing","color":"red"} elif (length == 1 and .[] == false) then {"label":"'$ENV_NAME'","message":"failing","color":"red"} elif (length == 1 and .[] == true) then {"label":"'$ENV_NAME'","message":"passing","color":"green"} else
      {"label":"'$ENV_NAME'","message":"unknown","color":"inactive"} end')
 }
 
