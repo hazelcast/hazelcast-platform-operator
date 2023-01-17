@@ -264,6 +264,24 @@ var (
 		}
 	}
 
+	HighAvailability = func(lk types.NamespacedName, ee bool, size int32, mode hazelcastv1alpha1.HighAvailabilityMode, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:          &size,
+				HighAvailabilityMode: mode,
+				Repository:           repo(ee),
+				Version:              naming.HazelcastVersion,
+				LicenseKeySecret:     licenseKey(ee),
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
+			},
+		}
+	}
+
 	HotBackupBucket = func(lk types.NamespacedName, hzName string, lbls map[string]string, bucketURI, secretName string) *hazelcastv1alpha1.HotBackup {
 		return &hazelcastv1alpha1.HotBackup{
 			ObjectMeta: v1.ObjectMeta{

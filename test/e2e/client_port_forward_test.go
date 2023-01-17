@@ -6,14 +6,14 @@ import (
 	"strconv"
 	. "time"
 
-	hzClient "github.com/hazelcast/hazelcast-go-client"
-	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	hzClient "github.com/hazelcast/hazelcast-go-client"
+	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
-	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 func fillTheMapDataPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string, entryCount int) {
@@ -83,6 +83,27 @@ func memberConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazel
 		cfg = getMemberConfig(ctx, cl)
 	})
 	return cfg
+}
+
+func mapSizePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, podName, localPort, mapName string) int {
+	size := 0
+	By(fmt.Sprintf("Getting the map size with lookup name '%s'", hz.Name), func() {
+		stopChan := portForwardPod(podName, hz.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+
+		cl := newHazelcastClientPortForward(ctx, hz, localPort)
+		defer func() {
+			err := cl.Shutdown(ctx)
+			Expect(err).To(BeNil())
+		}()
+
+		hzMap, err := cl.GetMap(ctx, mapName)
+		Expect(err).To(BeNil())
+
+		size, err = hzMap.Size(ctx)
+		Expect(err).To(BeNil())
+	})
+	return size
 }
 
 func mapConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string) codecTypes.MapConfig {
