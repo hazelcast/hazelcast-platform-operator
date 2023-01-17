@@ -12,6 +12,7 @@ import (
 
 type ClientRegistry interface {
 	GetOrCreate(ctx context.Context, nn types.NamespacedName) (Client, error)
+	Get(ns types.NamespacedName) (Client, bool)
 	Delete(ctx context.Context, ns types.NamespacedName) error
 }
 
@@ -27,7 +28,7 @@ func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.Nam
 		return nil, err
 	}
 
-	client, ok := cr.get(nn)
+	client, ok := cr.Get(nn)
 	if ok {
 		return client, nil
 	}
@@ -39,7 +40,7 @@ func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.Nam
 	return c, nil
 }
 
-func (cr *HazelcastClientRegistry) get(ns types.NamespacedName) (Client, bool) {
+func (cr *HazelcastClientRegistry) Get(ns types.NamespacedName) (Client, bool) {
 	if v, ok := cr.clients.Load(ns); ok {
 		return v.(Client), true
 	}
