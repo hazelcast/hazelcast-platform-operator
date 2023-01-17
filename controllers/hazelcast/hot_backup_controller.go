@@ -51,14 +51,10 @@ func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{},
 	}
 }
 
-// Openshift related permissions
-//+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=use
 // Role related to CRs
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hotbackups,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hotbackups/status,verbs=get;update;patch,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hotbackups/finalizers,verbs=update,namespace=system
-// ClusterRole related to Reconcile()
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 
 func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Request) (result reconcile.Result, err error) {
 	logger := r.Log.WithValues("hazelcast-hot-backup", req.NamespacedName)

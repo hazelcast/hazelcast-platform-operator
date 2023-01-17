@@ -169,6 +169,7 @@ const (
 	PardotIDEnv             = "PARDOT_ID"
 	OperatorVersionEnv      = "OPERATOR_VERSION"
 	NamespaceEnv            = "NAMESPACE"
+	WatchNamespaceEnv       = "WATCH_NAMESPACE"
 	PodNameEnv              = "POD_NAME"
 )
 
