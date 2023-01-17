@@ -181,7 +181,8 @@ jobs:
 
   update-test-run-status-badge:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    needs: eks-e2e-tests
+    if: always() && github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v3
