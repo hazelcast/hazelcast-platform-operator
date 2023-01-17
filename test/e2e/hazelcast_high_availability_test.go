@@ -42,7 +42,7 @@ var _ = Describe("Hazelcast High Availability", Label("hz_ha"), func() {
 		})
 
 		By("checking chaos-mesh-operator running", func() {
-			podNames, err := allPodNamesInNamespace(ctx, "chaos-mesh")
+			podNames, err := allPodNamesInNamespace(ctx, chaosMeshNamespace)
 			Expect(err).To(BeNil())
 			Expect(podNames).Should(ContainElement(ContainSubstring("chaos-controller-manager")))
 			Expect(podNames).Should(ContainElement(ContainSubstring("chaos-daemon")))
@@ -275,8 +275,8 @@ func zoneFromNodeLabels(node *corev1.Node) (string, error) {
 const nodeZoneLabel = "topology.kubernetes.io/zone"
 
 var gcpProject = os.Getenv("GCP_PROJECT_ID")
-var chaosMeshNamespace = os.Getenv("CHAOS_MESH_NAMESPACE")
 var cloudKeySecretName = os.Getenv("CLOUD_KEY_SECRET_NAME")
+var chaosMeshNamespace = "chaos-mesh"
 
 const chaosMeshNodeStopTemplate = `
 apiVersion: chaos-mesh.org/v1alpha1

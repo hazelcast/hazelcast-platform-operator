@@ -7,7 +7,6 @@ on:
 
 env:
   GCP_PROJECT_ID: hazelcast-33
-  CHAOS_MESH_NAMESPACE: chaos-mesh
   CLOUD_KEY_SECRET_NAME: cloud-key-secret
 
 jobs:
@@ -36,7 +35,7 @@ jobs:
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-2 \
             --num-nodes=2 \
-            --node-locations "us-central1-a","us-central1-c"
+            --node-locations "europe-west1-c","europe-west1-d"
           sleep 30
 
   grafana-setup:
@@ -127,13 +126,29 @@ jobs:
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME PHONE_HOME_ENABLED=${{ env.PHONE_HOME_ENABLED }}
           kubectl rollout status deployment $DEPLOY_NAME
 
+      - name: Install Chaos Mesh
+        run: |
+          curl -sSL https://mirrors.chaos-mesh.org/v2.5.1/install.sh | bash
+          kubectl get po -n chaos-mesh
+          cat << EOF > key-secret.yaml
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: ${CLOUD_KEY_SECRET_NAME}
+            namespace: chaos-mesh
+          type: Opaque
+          stringData: $(echo ${{ secrets.GKE_SA_KEY }} | base64)
+          EOF
+          kubectl apply -f key-secret.yaml
+
       - name: Run high Availability tests at GKE
-        run: make test-e2e E2E_TEST_LABELS='hz_ha'
+        run: make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME E2E_TEST_LABELS='hz_ha' REPORT_SUFFIX=01 WORKFLOW_ID=high-availability
 
       - name: Clean up after Tests
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
+          curl -sSL https://mirrors.chaos-mesh.org/v2.5.1/install.sh | bash -s -- --template | kubectl delete -f -
 
       - name: Upload Test Report
         if: always()
