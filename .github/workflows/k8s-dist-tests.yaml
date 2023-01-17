@@ -104,8 +104,9 @@ jobs:
     secrets: inherit
 
   update-test-run-status-badges:
-    needs: decide-run-tests
-    runs-on: ubuntu-22.04
+    needs: [run-aks, run-eks, run-gke, run-ocp]
+    if: always() && needs.decide-run-tests.outputs.RUN_TESTS == 'true'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
