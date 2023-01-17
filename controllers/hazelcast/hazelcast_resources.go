@@ -174,14 +174,6 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 	}
 
-	if h.Spec.Persistence.IsEnabled() {
-		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
-			APIGroups: []string{"apps"},
-			Resources: []string{"statefulsets"},
-			Verbs:     []string{"watch", "list"},
-		})
-	}
-
 	if platform.GetType() == platform.OpenShift {
 		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{"security.openshift.io"},
@@ -214,6 +206,14 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 				Verbs:     []string{"get"},
 			},
 		},
+	}
+
+	if h.Spec.Persistence.IsEnabled() {
+		role.Rules = append(role.Rules, rbacv1.PolicyRule{
+			APIGroups: []string{"apps"},
+			Resources: []string{"statefulsets"},
+			Verbs:     []string{"watch", "list"},
+		})
 	}
 
 	err := controllerutil.SetControllerReference(h, role, r.Scheme)
