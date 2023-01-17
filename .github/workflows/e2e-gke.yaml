@@ -173,7 +173,7 @@ jobs:
       - name: Update Status Badge
         run: |
           source .github/scripts/utils.sh
-          update_status_badges ${{ github_run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+          update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
 
   report-generation:
     needs: ["gke-e2e-tests","create-gke-cluster"]
