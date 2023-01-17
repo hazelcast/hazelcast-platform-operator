@@ -54,7 +54,7 @@ docker_build_with_restart(
 )
 
 # This does not apply the operator deployment, it is done by docker_build_with_restart commmand
-k8s_yaml(local("""make helm-template IMG=%s INSTALL_CRDS=true DEBUG_ENABLED=%s \
+k8s_yaml(local("""make -s deploy-tilt IMG=%s INSTALL_CRDS=true DEBUG_ENABLED=%s \
               NAMESPACE=$(kubectl config view --minify --output \"jsonpath={..namespace}\")""" % (image_name,debug_enabled)))
 
 load('ext://uibutton', 'cmd_button','text_input',"location")
