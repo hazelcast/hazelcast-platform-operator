@@ -32,6 +32,7 @@ Hazelcast Platform Operator supports the features below:
 
 * Custom resource for Hazelcast Platform (Open Source & Enterprise) and Management Center
 * Observe status of Hazelcast clusters and Management Center instances
+* High Availability Mode configuration to create clusters that are resilient to node and zone failures
 * Scale up and down Hazelcast clusters
 * Expose Hazelcast cluster to external
   clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/latest/clients/java#java-client-operation-modes))
@@ -39,8 +40,9 @@ Hazelcast Platform Operator supports the features below:
 * WAN Replication feature when you need to synchronize multiple Hazelcast clusters, which are connected by WANs
 * User Code Deployment feature, which allows you to deploy custom and domain classes from cloud storages to Hazelcast members
 * ExecutorService and EntryProcessor support
-* Support several data structures like Map, Topic, MultiMap, and ReplicatedMap, which can be created dynamically via specific Custom Resources
+* Support several data structures like Map, Topic, MultiMap, ReplicatedMap, Queue and Cache which can be created dynamically via specific Custom Resources
 * MapStore support for Map CR
+* Persistence support for the Cache CR
 
 For Hazelcast Platform Enterprise, you can request a trial license key from [here](https://trialrequest.hazelcast.com).
 
