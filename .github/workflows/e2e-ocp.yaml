@@ -85,9 +85,8 @@ jobs:
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:grafana-agent-logs
           NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
-
   ocp-e2e-tests:
-    name: Run e2e tests at OCP
+    name: Run e2e test on OCP
     runs-on: ubuntu-latest
     needs: grafana-setup
     strategy:
@@ -206,6 +205,18 @@ jobs:
             oc debug ${NODE} -- chroot /host sh -c "sleep 5; podman image prune -a -f"
           done
           make uninstall-crds
+
+  update-test-run-status-badge:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Update Status Badge
+        run: |
+          source .github/scripts/utils.sh
+          update_status_badges ${{ github_run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
 
   report-generation:
     needs: ocp-e2e-tests

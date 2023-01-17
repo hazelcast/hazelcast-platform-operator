@@ -393,3 +393,89 @@ sync_certificated_image_tags()
          }" \
      -H "X-API-KEY: ${RHEL_API_KEY}"
 }
+
+#Functions: get_test_status, update_gist_content, create_empty_gist, update_status_badges are necessary for updating test status badges on the main repo page.
+#All the Gists statuses are storing and updating under devOpsHelm user.
+#get_test_status - function fetch tests statuses from test RUN and form the JSON response required for the status badges. If impossible to fetch the status - then the function return JSON with status 'unknown'
+get_test_status()
+{
+     local RUN_ID=$1
+     local ENV_NAME=$2
+     local GIST_TOKEN=$3
+     jq @json <<< $(curl -s https://api.github.com/repos/hazelcast/hazelcast-platform-operator/actions/runs/$RUN_ID/jobs \
+     -H "Authorization: Bearer $GIST_TOKEN" |
+     jq -r '[.jobs|map(select(.name | contains ("Run e2e test on '$ENV_NAME'")))
+     | .[].conclusion=="success"]|unique | if .
+     | length == 2 then {"label":"'$ENV_NAME'","message":"failing","color":"red"} elif length == 1 then {"label":"'$ENV_NAME'","message":"passing","color":"green"} else
+     {"label":"'$ENV_NAME'","message":"unknown","color":"inactive"} end')
+}
+
+#Function updates provided GIST_ID with JSON response from the get_test_status() function
+update_gist_content()
+{
+   local GIST_ID=$1
+   local RUN_ID=$2
+   local ENV_NAME=$3
+   local TEST_RESULT=$4
+   local GIST_TOKEN=$5
+   echo "Updating $ENV_NAME.json gist file with ID $GIST_ID"
+   curl -s -o /dev/null \
+       -X PATCH \
+       -H "Accept: application/vnd.github+json" \
+       -H "Authorization: Bearer $GIST_TOKEN"\
+       -H "X-GitHub-Api-Version: 2022-11-28" \
+       https://api.github.com/gists/$GIST_ID \
+       -d '{"files":{"'$ENV_NAME'.json":{"content":'$TEST_RESULT'}}}'
+}
+
+#This function is required for creating empty gist file if it was removed suddenly and return GIST_ID.
+create_empty_gist()
+{
+      local GIST_TOKEN=$1
+      local INIT_ENV_NAME="GKE"
+      local EMPTY_RESULT="\"{\\\"label\\\":\\\"$INIT_ENV_NAME\\\",\\\"message\\\":\\\"unknown\\\",\\\"color\\\":\\\"inactive\\\"}\""
+      curl -s \
+         -X POST \
+         -H "Accept: application/vnd.github+json" \
+         -H "Authorization: Bearer $GIST_TOKEN" \
+         -H "X-GitHub-Api-Version: 2022-11-28" \
+         https://api.github.com/gists \
+         -d '{"description":"Hazelcast Operator Test Statuses","public":false,"files":{"'$INIT_ENV_NAME'.json":{"content":'$EMPTY_RESULT'}}}' | jq -r '.id'
+}
+
+#This function is required for updating test status badges.
+#If the Gist is removed suddenly - the function will create a new one, update it, and GitHub Action will return the error with the correct Gist ID that should be updated in the secrets propertyupdate_status_badges()
+update_status_badges()
+{
+    local RUN_ID=$1
+    local PRECONFIGURED_TEST_STATUSES_GIST_ID=$2
+    local GIST_TOKEN=$3
+    local EXISTING_GIST_ID=$(curl -s \
+                 -H "Accept: application/vnd.github+json" \
+                 -H "Authorization: Bearer $GIST_TOKEN"\
+                 -H "X-GitHub-Api-Version: 2022-11-28" \
+                 https://api.github.com/users/devOpsHelm/gists | jq -r 'del(.[] | select(.description| contains("Hazelcast Operator Test Statuses")|not))|.[].id')
+     if [ -z "$EXISTING_GIST_ID" ]; then
+       echo "Creating new Gist..."
+       local NEW_GIST_ID=$(create_empty_gist $GIST_TOKEN)
+       local EMPTY_RESULT="\"{\\\"label\\\":\\\"$ENV_NAME\\\",\\\"message\\\":\\\"unknown\\\",\\\"color\\\":\\\"inactive\\\"}\""
+       for ENV_NAME in "GKE" "EKS" "AKS" "OCP"; do
+            local TEST_RESULT=$(get_test_status $RUN_ID $ENV_NAME $GIST_TOKEN)
+            update_gist_content $NEW_GIST_ID $RUN_ID $ENV_NAME $EMPTY_RESULT $GIST_TOKEN
+            update_gist_content $NEW_GIST_ID $RUN_ID $ENV_NAME $TEST_RESULT $GIST_TOKEN
+       done
+     elif [[ ! -z "$EXISTING_GIST_ID" && "$EXISTING_GIST_ID" == $PRECONFIGURED_TEST_STATUSES_GIST_ID ]]; then
+       for ENV_NAME in "GKE" "EKS" "AKS" "OCP"; do
+            local TEST_RESULT=$(get_test_status $RUN_ID $ENV_NAME $GIST_TOKEN)
+            if [ $(echo $TEST_RESULT |jq -r | jq -r '.message') != 'unknown' ];then
+                update_gist_content $EXISTING_GIST_ID $RUN_ID $ENV_NAME $TEST_RESULT $GIST_TOKEN
+            fi
+       done
+     elif [[ "$EXISTING_GIST_ID" != $PRECONFIGURED_TEST_STATUSES_GIST_ID ]]; then
+       echo "Existing Gist ID $EXISTING_GIST_ID doesn't equal to \${{ secrets.TEST_STATUSES_GIST_ID }}. Update secret TEST_STATUSES_GIST_ID with this id: $EXISTING_GIST_ID and update status badges links in README.md file:"
+       for ENV_NAME in "GKE" "EKS" "AKS" "OCP"; do
+            echo "https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FdevOpsHelm%2F$EXISTING_GIST_ID%2Fraw%2F$ENV_NAME.json%3Fcachebust%3D1"
+       done
+       exit 1
+     fi
+}

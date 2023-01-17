@@ -155,6 +155,18 @@ jobs:
           name: test-report-aks
           path: allure-results/aks/
 
+  update-test-run-status-badge:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Update Status Badge
+        run: |
+          source .github/scripts/utils.sh
+          update_status_badges ${{ github_run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+
   report-generation:
     needs: ["prepare-env", "aks-e2e-tests"]
     if: always() && (needs.aks-e2e-tests.result == 'success' || needs.aks-e2e-tests.result == 'failure')
