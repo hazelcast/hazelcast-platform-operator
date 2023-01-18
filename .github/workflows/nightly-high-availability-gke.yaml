@@ -132,7 +132,7 @@ jobs:
           kubectl create ns ${CHAOS_MESH_NAMESPACE}
           helm install chaos-mesh chaos-mesh/chaos-mesh -n=${CHAOS_MESH_NAMESPACE} --version 2.5.1
           kubectl get po -n ${CHAOS_MESH_NAMESPACE}
-          kubectl create secret generic ${CLOUD_KEY_SECRET_NAME} -n ${CHAOS_MESH_NAMESPACE}  --from-literal=service_account=${{ secrets.GKE_SA_KEY }}
+          kubectl create secret generic ${CLOUD_KEY_SECRET_NAME} -n ${CHAOS_MESH_NAMESPACE} --from-literal=service_account=${{ secrets.GKE_SA_KEY }}
 
       - name: Run high Availability tests at GKE
         run: make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME E2E_TEST_LABELS='hz_ha' REPORT_SUFFIX=01 WORKFLOW_ID=high-availability
