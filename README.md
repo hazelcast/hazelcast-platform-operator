@@ -42,7 +42,6 @@ Hazelcast Platform Operator supports the features below:
 * ExecutorService and EntryProcessor support
 * Support several data structures like Map, Topic, MultiMap, ReplicatedMap, Queue and Cache which can be created dynamically via specific Custom Resources
 * MapStore support for Map CR
-* Persistence support for the Cache CR
 
 For Hazelcast Platform Enterprise, you can request a trial license key from [here](https://trialrequest.hazelcast.com).
 
