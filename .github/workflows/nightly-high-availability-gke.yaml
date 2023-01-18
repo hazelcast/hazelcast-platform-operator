@@ -29,7 +29,7 @@ jobs:
         id: set-cluster-name
         run: |-
           CLUSTER_NAME="operator-ha-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          GKE_REGION=${GKE_REGION}
+          GKE_REGION="${{ env.GKE_REGION}}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --region=${{ env.GKE_REGION }} \
