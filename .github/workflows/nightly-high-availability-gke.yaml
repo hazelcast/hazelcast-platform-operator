@@ -29,8 +29,8 @@ jobs:
         id: set-cluster-name
         run: |-
           CLUSTER_NAME="operator-ha-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          GKE_REGION="${{ env.GKE_REGION}}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
+          echo "GKE_REGION=${GKE_REGION}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --region=${{ env.GKE_REGION }} \
             --project=${{ env.GCP_PROJECT_ID }} \
@@ -175,8 +175,8 @@ jobs:
     if: always()
     needs: [ create-gke-cluster, gke-high-availability-tests ]
     env:
-      GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
