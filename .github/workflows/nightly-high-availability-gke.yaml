@@ -58,7 +58,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       IMG: ${{ steps.build-img.outputs.IMG }}
-      VERSION: ${{ steps.build-img.outputs.VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -71,11 +70,9 @@ jobs:
             make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
             make docker-push IMG=$IMG
             echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-            echo "VERSION=${{github.sha}}" >> $GITHUB_OUTPUT
           else
             IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
             echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-            echo "VERSION=latest-snapshot" >> $GITHUB_OUTPUT
           fi
 
   gke-high-availability-tests:
@@ -84,9 +81,9 @@ jobs:
     needs: [ create-gke-cluster, grafana-setup, get-image ]
     env:
       IMG: ${{ needs.get-image.outputs.IMG }}
-      VERSION: ${{ needs.get-image.outputs.VERSION }}
       NAMESPACE: test-operator-high-availability-nightly
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
       RELEASE_NAME: high-availability-${{ github.run_id }}
     steps:
       - name: Checkout
@@ -116,7 +113,7 @@ jobs:
         with:
           cluster_name: ${{ env.CLUSTER_NAME }}
           project_id: ${{ env.GCP_PROJECT_ID }}
-          location: ${{ env.GKE_ZONE }}
+          location: ${{ env.GKE_REGION }}
 
       - name: Deploy Operator to GKE
         run: |
