@@ -7,6 +7,7 @@ on:
 
 env:
   GCP_PROJECT_ID: hazelcast-33
+  GKE_REGION: europe-west1
   CLOUD_KEY_SECRET_NAME: cloud-key-secret
 
 jobs:
@@ -17,7 +18,6 @@ jobs:
       CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
     env:
       GCP_NETWORK: operator-test-network
-      GKE_REGION: europe-west1
     steps:
       - name: Authenticate to GCP
         uses: 'google-github-actions/auth@v1.0.0'
@@ -27,7 +27,7 @@ jobs:
       - name: Create GKE cluster
         id: set-cluster-name
         run: |-
-          CLUSTER_NAME="operator-ha-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-high-availability-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --region=${{ env.GKE_REGION }} \
@@ -45,6 +45,7 @@ jobs:
     with:
       cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       cluster_type: gke-high-availability
+      gke_zone: ${{ env.GKE_REGION }}
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
