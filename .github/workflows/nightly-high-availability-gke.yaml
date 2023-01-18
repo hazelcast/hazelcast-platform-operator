@@ -18,6 +18,7 @@ jobs:
       GKE_REGION: ${{ steps.set-cluster-name.outputs.GKE_REGION }}
     env:
       GCP_NETWORK: operator-test-network
+      GKE_REGION: europe-west1
     steps:
       - name: Authenticate to GCP
         uses: 'google-github-actions/auth@v1.0.0'
@@ -28,7 +29,7 @@ jobs:
         id: set-cluster-name
         run: |-
           CLUSTER_NAME="operator-ha-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          GKE_REGION="europe-west1"
+          GKE_REGION=${GKE_REGION}
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --region=${{ env.GKE_REGION }} \
