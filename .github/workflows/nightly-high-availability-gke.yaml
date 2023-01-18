@@ -121,14 +121,15 @@ jobs:
           kubectl config set-context --current --namespace=$NAMESPACE
           
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
-          
+
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME PHONE_HOME_ENABLED=${{ env.PHONE_HOME_ENABLED }}
           kubectl rollout status deployment $DEPLOY_NAME
 
-      - name: Install Chaos Mesh
+      - name: Deploy ChaosMesh to GKE
         run: |
-          curl -sSL https://mirrors.chaos-mesh.org/v2.5.1/install.sh | bash
+          helm repo add chaos-mesh https://charts.chaos-mesh.org
+          kubectl create ns chaos-mesh
+          helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --version 2.5.1
           kubectl get po -n chaos-mesh
           cat << EOF > key-secret.yaml
           apiVersion: v1
@@ -148,7 +149,7 @@ jobs:
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
-          curl -sSL https://mirrors.chaos-mesh.org/v2.5.1/install.sh | bash -s -- --template | kubectl delete -f -
+          helm uninstall chaos-mesh -n chaos-mesh
 
       - name: Upload Test Report
         if: always()
