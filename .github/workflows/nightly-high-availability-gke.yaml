@@ -17,7 +17,6 @@ jobs:
       CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
       GKE_REGION: ${{ steps.set-cluster-name.outputs.GKE_REGION }}
     env:
-      GKE_REGION: europe-west1
       GCP_NETWORK: operator-test-network
     steps:
       - name: Authenticate to GCP
@@ -28,8 +27,8 @@ jobs:
       - name: Create GKE cluster
         id: set-cluster-name
         run: |-
-          CLUSTER_NAME="operator-high-availability-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          GKE_REGION=$GKE_REGION
+          CLUSTER_NAME="operator-ha-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          GKE_REGION="europe-west1"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --region=${{ env.GKE_REGION }} \
@@ -37,7 +36,7 @@ jobs:
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-2 \
             --num-nodes=2 \
-            --node-locations "europe-west1-c","europe-west1-d"
+            --node-locations "${GKE_REGION}-c","${GKE_REGION}-d"
           sleep 30
 
   grafana-setup:

@@ -1,20 +1,8 @@
 name: Pull Request Builder
 
 on:
-  pull_request_target:
-    types:
-      - labeled
-    branches:
-      - main
-      - 'release/**'
-    paths-ignore:
-      - "**.md"
-  pull_request:
-    branches:
-      - main
-      - 'release/**'
-    paths-ignore:
-      - "**.md"
+  #todo
+  workflow_dispatch:
 
 env:
   GO_VERSION: '1.19.0'
