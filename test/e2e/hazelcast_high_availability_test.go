@@ -276,7 +276,7 @@ const nodeZoneLabel = "topology.kubernetes.io/zone"
 
 var gcpProject = os.Getenv("GCP_PROJECT_ID")
 var cloudKeySecretName = os.Getenv("CLOUD_KEY_SECRET_NAME")
-var chaosMeshNamespace = "chaos-mesh"
+var chaosMeshNamespace = os.Getenv("CHAOS_MESH_NAMESPACE")
 
 const chaosMeshNodeStopTemplate = `
 apiVersion: chaos-mesh.org/v1alpha1
