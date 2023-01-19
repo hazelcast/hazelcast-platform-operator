@@ -13,7 +13,19 @@ include-labels:
   - 'feature'
   - 'enhancement'
   - 'fix'
+exclude-labels:
+  - 'non-release'
+  - 'ci'
+  - 'documentation'
 replacers:
+  - search: '/(<!.*)\s+/gm'
+    replace: ''
+  - search: '/^(## User Impact)/gm'
+    replace: '### User Impact'
+  - search: '/(((?<=(#\d\d\d)\)(.*?))[^#]*((?=### User Impact)))|(### User Impact)|((?<=(#\d\d\d)\)(.*?)))##*)|(### User Impact)|((?<=(#\d\d\d)\)(.*?)))##*|(?<=(#\d\d\d)\)(.*?))[^#]*((?:#L).*)|((?<=(#\d\d\d)\)(.*?))[^#]*((?=\n)))/gm'
+    replace: ''
+  - search: '/(?=^[a-zA-Z`])^(?!In this release)/gm'
+    replace: '    - '
   - search: '/\[(.*?)\]/g'
     replace: ''
   - search: '^Add'
@@ -24,8 +36,6 @@ replacers:
     replace: ''
   - search: 'enhancement:'
     replace: ''
-  - search: '/(##[\s\S]Description)\s+\w.*\s+(##[\s\S]User)\s+\w.*\s+/g'
-    replace: '   - '
 autolabeler:
   - label: 'feature'
     branch:
@@ -33,8 +43,6 @@ autolabeler:
     title:
       - '/feature/i'
       - '/feat/i'
-      - '/implement/i'
-      - '/support/i'
   - label: 'enhancement'
     branch:
       - '/enhancement\/.+/'
@@ -62,4 +70,3 @@ template: |
   # Release notes
   In this release, we introduced the {REPLACE THIS}. We also introduced {REPLACE THIS}.
   $CHANGES
-

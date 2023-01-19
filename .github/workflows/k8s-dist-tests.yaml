@@ -102,3 +102,16 @@ jobs:
     if: needs.decide-run-tests.outputs.RUN_TESTS == 'true' 
     uses: ./.github/workflows/e2e-ocp.yaml
     secrets: inherit
+
+  update-test-run-status-badges:
+    needs: [run-aks, run-eks, run-gke, run-ocp]
+    if: always() && needs.decide-run-tests.outputs.RUN_TESTS == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Update Status Badges
+        run: |
+          source .github/scripts/utils.sh
+          update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}

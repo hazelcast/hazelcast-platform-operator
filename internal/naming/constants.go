@@ -50,7 +50,7 @@ const (
 	UserCodeBucketVolumeName    = "user-code-bucket"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 
-	BackupAgent           = "backup-agent"
+	SidecarAgent          = "sidecar-agent"
 	BackupAgentPortName   = "backup-agent-port"
 	RestoreAgent          = "restore-agent"
 	RestoreLocalAgent     = "restore-local-agent"
@@ -169,6 +169,7 @@ const (
 	PardotIDEnv             = "PARDOT_ID"
 	OperatorVersionEnv      = "OPERATOR_VERSION"
 	NamespaceEnv            = "NAMESPACE"
+	WatchNamespaceEnv       = "WATCH_NAMESPACE"
 	PodNameEnv              = "POD_NAME"
 )
 

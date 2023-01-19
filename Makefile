@@ -38,6 +38,8 @@ GINKGO_VERSION ?= v2.1.6
 KUSTOMIZE_VERSION ?= v4.5.3
 # https://github.com/helm/helm/releases
 HELM_VERSION ?= v3.10.3
+# https://github.com/mikefarah/yq/releases
+YQ_VERSION ?= v4.30.7
 
 
 # CHANNELS define the bundle channels used in the bundle.
@@ -247,38 +249,45 @@ docker-push-latest:
 	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
 	docker push ${IMAGE_TAG_BASE}:latest
 
-update-chart-crds: manifests
-	cat config/crd/bases/* >> all-crds.yaml
-	mv all-crds.yaml $(CRD_CHART)/templates/
+sync-manifests: manifests yq
+# Move CRDs into helm template
+	@cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml $(CRD_CHART)/templates/
+# Move role rules into helm template
+	@role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
+		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role") | .rules') ;\
+		echo "$$role" > $(OPERATOR_CHART)/templates/role.yaml
+# Move clusterrole rules into helm template
+	@clusterrole=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/clusterrole.yaml \
+		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "ClusterRole") | .rules') ;\
+		echo "$$clusterrole" > $(OPERATOR_CHART)/templates/clusterrole.yaml
 
-install-crds: helm update-chart-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
+install-crds: helm sync-manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
 	$(HELM) upgrade --install $(CRD_RELEASE_NAME) $(CRD_CHART) -n default ;\
 
-install-operator: helm
+install-operator: helm sync-manifests
 	$(HELM) upgrade --install $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
 
-uninstall-crds: helm ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+uninstall-crds: helm sync-manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(HELM) uninstall $(CRD_RELEASE_NAME) -n default
 
-uninstall-operator: helm
-	 $(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
+uninstall-operator: helm sync-manifests
+	$(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
 
-webhook-install: helm
+webhook-install: helm sync-manifests
 	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
 
-webhook-uninstall: helm
+webhook-uninstall: helm sync-manifests
 	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
 
-deploy: helm install-crds install-operator ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-
-helm-template:
-	@$(MAKE) helm &> /dev/null
-	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+deploy: install-crds install-operator ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 
 undeploy: uninstall-operator uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 
-undeploy-tilt:
-	$(MAKE) helm-template | $(KUBECTL) delete -f -
+deploy-tilt: helm sync-manifests
+	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+
+undeploy-tilt: 
+	$(MAKE) -s deploy-tilt RELEASE_NAME=$(RELEASE_NAME) OPERATOR_CHART=$(OPERATOR_CHART) NAMESPACE=$(NAMESPACE) | $(KUBECTL) delete -f -
 
 undeploy-keep-crd: uninstall-operator
 
@@ -341,9 +350,6 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-# Detect the OS to set per-OS defaults
-OS_NAME = $(shell uname -s | tr A-Z a-z)
-
 .PHONY: print-bundle-version 
 print-bundle-version: 
 	@echo -n $(BUNDLE_VERSION)
@@ -358,12 +364,21 @@ api-ref-doc:
 
 ##@ Tool installation
 
+OS=$(shell go env GOOS)
+ARCH=$(shell go env GOARCH)
+
+.PHONY: print
+print:
+	@print #empty command
+	$(eval PRINT_TOOL_NAME=true)
+
 ENVTEST = $(TOOLBIN)/setup-envtest/$(SETUP_ENVTEST_VERSION)/setup-envtest
+.PHONY: envtest
 envtest: ## Download setup-envtest locally if necessary.
 	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION))
-	@echo -n $(ENVTEST)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(ENVTEST); fi
 
-OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
+OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS)_$(ARCH)
 OPERATOR_SDK=${TOOLBIN}/operator-sdk/$(OPERATOR_SDK_VERSION)/operator-sdk
 .PHONY: operator-sdk
 operator-sdk: ## Download operator-sdk locally if necessary.
@@ -371,21 +386,23 @@ operator-sdk: ## Download operator-sdk locally if necessary.
 		curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs ;\
 		chmod +x $(OPERATOR_SDK);\
 	}
-	@echo -n $(OPERATOR_SDK)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OPERATOR_SDK); fi
 
 CONTROLLER_GEN = $(TOOLBIN)/controller-gen/$(CONTROLLER_GEN_VERSION)/controller-gen
+.PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
-	@echo -n $(CONTROLLER_GEN)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(CONTROLLER_GEN); fi
 
 KUSTOMIZE = $(TOOLBIN)/kustomize/$(KUSTOMIZE_VERSION)/kustomize
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
 	@$(eval KUSTOMIZE_MAJOR_VERSION=$(firstword $(subst ., ,$(KUSTOMIZE_VERSION))))
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/$(KUSTOMIZE_MAJOR_VERSION)@$(KUSTOMIZE_VERSION))
-	@echo -n $(KUSTOMIZE)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(KUSTOMIZE); fi
 
 GINKGO = $(TOOLBIN)/ginkgo/$(GINKGO_VERSION)/ginkgo
+.PHONY: ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
 	@$(eval GINKGO_MAJOR_VERSION=$(firstword $(subst ., ,$(GINKGO_VERSION)))) 
 	@[ -f $(GINKGO) ] || { \
@@ -393,20 +410,18 @@ ginkgo: ## Download ginkgo locally if necessary.
 	go get github.com/onsi/ginkgo/$(GINKGO_MAJOR_VERSION)@$(GINKGO_VERSION) ;\
 	GOBIN=$(dir $(GINKGO)) go install -mod=mod github.com/onsi/ginkgo/$(GINKGO_MAJOR_VERSION)/ginkgo@$(GINKGO_VERSION) ;\
 	}
-	@echo -n $(GINKGO)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(GINKGO); fi
 
-.PHONY: opm
 OPM = $(TOOLBIN)/opm/$(OPM_VERSION)/opm
+.PHONY: opm
 opm: ## Download opm locally if necessary.
 	@[ -f $(OPM) ] || { \
-	mkdir -p $(dir $(OPM)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$(OS)-$(ARCH)-opm --create-dirs ;\
 	chmod +x $(OPM) ;\
 	}
-	echo -n $(OPM)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OPM); fi
 
-OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
+OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS)-$(ARCH)-ocp-olm-catalog-validator
 OCP_OLM_CATALOG_VALIDATOR=$(TOOLBIN)/ocp-olm-catalog-validator/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/ocp-olm-catalog-validator
 .PHONY: ocp-olm-catalog-validator
 ocp-olm-catalog-validator: ## Download ocp-olm-catalog-validator locally if necessary.
@@ -414,7 +429,31 @@ ocp-olm-catalog-validator: ## Download ocp-olm-catalog-validator locally if nece
 	curl -sSL $(OCP_OLM_CATALOG_VALIDATOR_URL) -o $(OCP_OLM_CATALOG_VALIDATOR) --create-dirs ;\
 	chmod +x $(OCP_OLM_CATALOG_VALIDATOR) ;\
 	}
-	@echo -n $(OCP_OLM_CATALOG_VALIDATOR)
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OCP_OLM_CATALOG_VALIDATOR); fi
+
+YQ=${TOOLBIN}/yq/$(YQ_VERSION)/yq
+.PHONY: yq
+yq: ## Download yq locally if necessary.
+	@[ -f $(YQ) ] || { \
+		curl -sSL https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_$(OS)_$(ARCH) -o $(YQ) --create-dirs ;\
+		chmod +x $(YQ);\
+	}
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(YQ); fi
+
+
+HELM = $(TOOLBIN)/helm/$(HELM_VERSION)/helm
+.PHONY: helm
+helm: ## Download helm locally if necessary.
+	@[ -f $(HELM) ] || { \
+	mkdir -p $(dir $(HELM)) ;\
+	TMP_DIR=$$(mktemp -d) ;\
+	curl -sSLo $${TMP_DIR}/temp.tar.gz https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz  &>/dev/null;\
+	tar --directory $${TMP_DIR} -zxvf $${TMP_DIR}/temp.tar.gz &>/dev/null;\
+	mv $${TMP_DIR}/$(OS)-$(ARCH)/helm $(HELM);\
+	rm -rf $${TMP_DIR};\
+	chmod +x $(HELM);\
+	}
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(HELM); fi
 
 # go-get-tool will 'go install' any package $2 and install it to $1.
 define go-get-tool
@@ -424,21 +463,7 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp &> /dev/null;\
 mkdir -p $(dir $(1)) ;\
-GOBIN=$(dir $(1)) go install $(2) ;\
+GOBIN=$(dir $(1)) go install $(2) &> /dev/null ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
-
-HELM = $(TOOLBIN)/helm/$(HELM_VERSION)/helm
-helm: ## Download helm locally if necessary.
-	@[ -f $(HELM) ] || { \
-	mkdir -p $(dir $(HELM)) ;\
-	TMP_DIR=$$(mktemp -d) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $${TMP_DIR}/temp.tar.gz https://get.helm.sh/helm-$(HELM_VERSION)-$${OS}-$${ARCH}.tar.gz;\
-	tar --directory $${TMP_DIR} -zxvf $${TMP_DIR}/temp.tar.gz &>/dev/null;\
-	mv $${TMP_DIR}/$${OS}-$${ARCH}/helm $(HELM);\
-	rm -rf $${TMP_DIR};\
-	chmod +x $(HELM);\
-	}
-	@echo -n $(HELM)

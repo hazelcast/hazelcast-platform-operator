@@ -815,10 +815,10 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 				EnsureStatus(hz)
 
-				By("checking ClusterRole", func() {
-					rbac := &rbacv1.ClusterRole{}
+				By("checking Role", func() {
+					rbac := &rbacv1.Role{}
 					Expect(k8sClient.Get(
-						context.Background(), client.ObjectKey{Name: hz.ClusterScopedName()}, rbac)).
+						context.Background(), client.ObjectKey{Name: hz.Name, Namespace: hz.Namespace}, rbac)).
 						Should(Succeed())
 
 					Expect(rbac.Rules).Should(ContainElement(rbacv1.PolicyRule{
@@ -915,8 +915,8 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Backup Agent configuration", func() {
-		When("Backup Agent is configured with Persistence", func() {
+	Context("Sidecar Agent configuration", func() {
+		When("Sidecar Agent is configured with Persistence", func() {
 			It("should be deployed as a sidecar container", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{

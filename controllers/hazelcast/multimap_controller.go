@@ -38,9 +38,9 @@ func NewMultiMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, 
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=multimaps,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=multimaps/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=multimaps/finalizers,verbs=update
+//+kubebuilder:rbac:groups=hazelcast.com,resources=multimaps,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=multimaps/status,verbs=get;update;patch,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=multimaps/finalizers,verbs=update,namespace=system
 
 func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-multimap", req.NamespacedName)

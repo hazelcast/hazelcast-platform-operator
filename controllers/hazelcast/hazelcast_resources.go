@@ -174,14 +174,6 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 	}
 
-	if h.Spec.Persistence.IsEnabled() {
-		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
-			APIGroups: []string{"apps"},
-			Resources: []string{"statefulsets"},
-			Verbs:     []string{"watch", "list"},
-		})
-	}
-
 	if platform.GetType() == platform.OpenShift {
 		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{"security.openshift.io"},
@@ -214,6 +206,14 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 				Verbs:     []string{"get"},
 			},
 		},
+	}
+
+	if h.Spec.Persistence.IsEnabled() {
+		role.Rules = append(role.Rules, rbacv1.PolicyRule{
+			APIGroups: []string{"apps"},
+			Resources: []string{"statefulsets"},
+			Verbs:     []string{"watch", "list"},
+		})
 	}
 
 	err := controllerutil.SetControllerReference(h, role, r.Scheme)
@@ -532,7 +532,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
-	ml, err := filterPersistedMaps(ctx, c, h.Name)
+	ml, err := filterPersistedMaps(ctx, c, h)
 	if err != nil {
 		return nil, err
 	}
@@ -540,11 +540,11 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		return nil, err
 	}
 
-	wrl, err := filterPersistedWanReplications(ctx, c, h.Name)
+	wrl, err := filterPersistedWanReplications(ctx, c, h)
 	if err != nil {
 		return nil, err
 	}
-	fillHazelcastConfigWithWanReplications(ctx, c, &cfg, wrl)
+	fillHazelcastConfigWithWanReplications(&cfg, wrl)
 
 	dataStructures := []client.ObjectList{
 		&hazelcastv1alpha1.MultiMapList{},
@@ -554,7 +554,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		&hazelcastv1alpha1.CacheList{},
 	}
 	for _, ds := range dataStructures {
-		filteredDSList, err := filterPersistedDS(ctx, c, h.Name, ds)
+		filteredDSList, err := filterPersistedDS(ctx, c, h, ds)
 		if err != nil {
 			return nil, err
 		}
@@ -686,9 +686,12 @@ func filterProperties(p map[string]string) map[string]string {
 	return filteredProperties
 }
 
-func filterPersistedMaps(ctx context.Context, c client.Client, hzName string) ([]hazelcastv1alpha1.Map, error) {
+func filterPersistedMaps(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.Map, error) {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
 	mapList := &hazelcastv1alpha1.MapList{}
-	if err := c.List(ctx, mapList, client.MatchingFields{"hazelcastResourceName": hzName}); err != nil {
+	if err := c.List(ctx, mapList, fieldMatcher, nsMatcher); err != nil {
 		return nil, err
 	}
 
@@ -714,8 +717,11 @@ func filterPersistedMaps(ctx context.Context, c client.Client, hzName string) ([
 	return l, nil
 }
 
-func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName string, objList client.ObjectList) ([]client.Object, error) {
-	if err := c.List(ctx, objList, client.MatchingFields{"hazelcastResourceName": hzResourceName}); err != nil {
+func filterPersistedDS(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, objList client.ObjectList) ([]client.Object, error) {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	if err := c.List(ctx, objList, fieldMatcher, nsMatcher); err != nil {
 		return nil, err
 	}
 	l := make([]client.Object, 0)
@@ -727,9 +733,12 @@ func filterPersistedDS(ctx context.Context, c client.Client, hzResourceName stri
 	return l, nil
 }
 
-func filterPersistedWanReplications(ctx context.Context, c client.Client, hzResourceName string) (map[string]hazelcastv1alpha1.WanReplication, error) {
+func filterPersistedWanReplications(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (map[string]hazelcastv1alpha1.WanReplication, error) {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
 	wrList := &hazelcastv1alpha1.WanReplicationList{}
-	if err := c.List(ctx, wrList, client.MatchingFields{"hazelcastResourceName": hzResourceName}); err != nil {
+	if err := c.List(ctx, wrList, fieldMatcher, nsMatcher); err != nil {
 		return nil, err
 	}
 
@@ -737,7 +746,7 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, hzReso
 	for _, wr := range wrList.Items {
 		for wanKey, mapStatus := range wr.Status.WanReplicationMapsStatus {
 			hzName, _ := splitWanMapKey(wanKey)
-			if hzName != hzResourceName {
+			if hzName != h.Name {
 				continue
 			}
 			switch mapStatus.Status {
@@ -769,7 +778,7 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 	return nil
 }
 
-func fillHazelcastConfigWithWanReplications(ctx context.Context, c client.Client, cfg *config.Hazelcast, wrl map[string]hazelcastv1alpha1.WanReplication) {
+func fillHazelcastConfigWithWanReplications(cfg *config.Hazelcast, wrl map[string]hazelcastv1alpha1.WanReplication) {
 	if len(wrl) != 0 {
 		cfg.WanReplication = map[string]config.WanReplicationConfig{}
 		for wanKey, wan := range wrl {
@@ -1083,7 +1092,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
-			ServiceName: h.Name,
+			ServiceName:         h.Name,
+			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
@@ -1138,8 +1148,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
+	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
-		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, backupAgentContainer(h))
 		if !h.Spec.Persistence.UseHostPath() {
 			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 		}
@@ -1207,16 +1217,16 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 	}
 }
 
-func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
-	return v1.Container{
-		Name:  n.BackupAgent,
+func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	c := v1.Container{
+		Name:  n.SidecarAgent,
 		Image: h.AgentDockerImage(),
 		Ports: []v1.ContainerPort{{
 			ContainerPort: n.DefaultAgentPort,
-			Name:          n.BackupAgent,
+			Name:          n.SidecarAgent,
 			Protocol:      v1.ProtocolTCP,
 		}},
-		Args: []string{"backup"},
+		Args: []string{"sidecar"},
 		LivenessProbe: &v1.Probe{
 			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
@@ -1261,16 +1271,21 @@ func backupAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		},
 		VolumeMounts: []v1.VolumeMount{
 			{
-				Name:      n.PersistenceVolumeName,
-				MountPath: h.Spec.Persistence.BaseDir,
-			},
-			{
 				Name:      n.MTLSCertSecretName,
 				MountPath: n.MTLSCertPath,
 			},
 		},
 		SecurityContext: containerSecurityContext(h),
 	}
+
+	if h.Spec.Persistence.IsEnabled() {
+		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		})
+	}
+
+	return c
 }
 
 func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContext {

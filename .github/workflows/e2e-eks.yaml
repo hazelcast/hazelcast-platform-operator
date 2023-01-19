@@ -179,6 +179,19 @@ jobs:
           name: test-report-eks
           path: allure-results/eks/
 
+  update-test-run-status-badge:
+    runs-on: ubuntu-latest
+    needs: eks-e2e-tests
+    if: always() && github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Update Status Badge
+        run: |
+          source .github/scripts/utils.sh
+          update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+
   report-generation:
     needs: ["prepare-env", "eks-e2e-tests"]
     if: always() && (needs.eks-e2e-tests.result == 'success' || needs.eks-e2e-tests.result == 'failure')

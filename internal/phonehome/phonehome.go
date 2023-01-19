@@ -165,7 +165,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	highAvailabilityModes := []string{}
 
 	hzl := &hazelcastv1alpha1.HazelcastList{}
-	err := cl.List(context.Background(), hzl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	err := cl.List(context.Background(), hzl, listOptions()...)
 	if err != nil {
 		return //TODO maybe add retry
 	}
@@ -271,7 +271,7 @@ func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
 	successfullyCreatedMCCount := 0
 
 	mcl := &hazelcastv1alpha1.ManagementCenterList{}
-	err := cl.List(context.Background(), mcl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	err := cl.List(context.Background(), mcl, listOptions()...)
 	if err != nil {
 		return //TODO maybe add retry
 	}
@@ -291,7 +291,7 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 	mapStoreMapCount := 0
 
 	ml := &hazelcastv1alpha1.MapList{}
-	err := cl.List(context.Background(), ml, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	err := cl.List(context.Background(), ml, listOptions()...)
 	if err != nil {
 		return //TODO maybe add retry
 	}
@@ -312,7 +312,7 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 
 func (phm *PhoneHomeData) fillWanReplicationMetrics(cl client.Client) {
 	wrl := &hazelcastv1alpha1.WanReplicationList{}
-	err := cl.List(context.Background(), wrl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	err := cl.List(context.Background(), wrl, listOptions()...)
 	if err != nil || wrl.Items == nil {
 		return
 	}
@@ -321,7 +321,7 @@ func (phm *PhoneHomeData) fillWanReplicationMetrics(cl client.Client) {
 
 func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {
 	hbl := &hazelcastv1alpha1.HotBackupList{}
-	err := cl.List(context.Background(), hbl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	err := cl.List(context.Background(), hbl, listOptions()...)
 	if err != nil {
 		return //TODO maybe add retry
 	}
@@ -346,7 +346,7 @@ func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {
 
 func (phm *PhoneHomeData) fillMultiMapMetrics(cl client.Client) {
 	mml := &hazelcastv1alpha1.MultiMapList{}
-	err := cl.List(context.Background(), mml, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	err := cl.List(context.Background(), mml, listOptions()...)
 	if err != nil || mml.Items == nil {
 		return
 	}
@@ -355,7 +355,7 @@ func (phm *PhoneHomeData) fillMultiMapMetrics(cl client.Client) {
 
 func (phm *PhoneHomeData) fillCronHotBackupMetrics(cl client.Client) {
 	chbl := &hazelcastv1alpha1.CronHotBackupList{}
-	err := cl.List(context.Background(), chbl, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	err := cl.List(context.Background(), chbl, listOptions()...)
 	if err != nil || chbl.Items == nil {
 		return
 	}
@@ -364,7 +364,7 @@ func (phm *PhoneHomeData) fillCronHotBackupMetrics(cl client.Client) {
 
 func (phm *PhoneHomeData) fillTopicMetrics(cl client.Client) {
 	mml := &hazelcastv1alpha1.TopicList{}
-	err := cl.List(context.Background(), mml, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	err := cl.List(context.Background(), mml, listOptions()...)
 	if err != nil || mml.Items == nil {
 		return
 	}
@@ -373,9 +373,20 @@ func (phm *PhoneHomeData) fillTopicMetrics(cl client.Client) {
 
 func (phm *PhoneHomeData) fillReplicatedMapMetrics(cl client.Client) {
 	rml := &hazelcastv1alpha1.ReplicatedMapList{}
-	err := cl.List(context.Background(), rml, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	err := cl.List(context.Background(), rml, listOptions()...)
 	if err != nil || rml.Items == nil {
 		return
 	}
 	phm.ReplicatedMapCount = len(rml.Items)
+}
+
+func listOptions() []client.ListOption {
+	lo := []client.ListOption{}
+	watchedNamespace, found := os.LookupEnv(n.WatchNamespaceEnv)
+	if !found || watchedNamespace == "" || watchedNamespace == "*" {
+		return lo
+	}
+
+	lo = append(lo, client.InNamespace(watchedNamespace))
+	return lo
 }

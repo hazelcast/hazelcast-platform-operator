@@ -43,9 +43,9 @@ func NewManagementCenterReconciler(c client.Client, log logr.Logger, s *runtime.
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/status,verbs=get;update;patch,namespace=system
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/finalizers,verbs=update,namespace=system
 // Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=system
+// duplicated in hazelcast_contoller.go +kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
+// duplicated in hazelcast_contoller.go +kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
+// duplicated in hazelcast_contoller.go +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=system
 
 func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("management-center", req.NamespacedName)
