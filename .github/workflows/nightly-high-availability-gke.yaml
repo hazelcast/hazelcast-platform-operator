@@ -137,7 +137,9 @@ jobs:
           kubectl create secret generic hazelcast-license-key \
             --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
-          cat << EOF > key-secret.yaml
+          SA_BASE64_ENCODED=$(echo '${{ secrets.GKE_SA_KEY }}' | base64)
+
+          cat << EOF | kubectl apply -f -
           apiVersion: v1
           kind: Secret
           metadata:
@@ -145,9 +147,8 @@ jobs:
             namespace: ${CHAOS_MESH_NAMESPACE}
           type: Opaque
           stringData:
-            service_account: $(echo '${{ secrets.GKE_SA_KEY }}' | base64)
+            service_account: ${SA_BASE64_ENCODED}
           EOF
-          kubectl apply -f key-secret.yaml
 
       - name: Run high Availability tests at GKE
         run: make test-e2e NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME GINKGO_PARALLEL_PROCESSES=1 E2E_TEST_SUITE=high_availability REPORT_SUFFIX=01 WORKFLOW_ID=high-availability
