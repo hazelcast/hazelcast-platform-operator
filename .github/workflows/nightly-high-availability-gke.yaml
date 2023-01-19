@@ -147,7 +147,7 @@ jobs:
             namespace: ${CHAOS_MESH_NAMESPACE}
           type: Opaque
           stringData:
-            service_account: ${SA_BASE64_ENCODED}
+            service_account: "${SA_BASE64_ENCODED}"
           EOF
 
       - name: Run high Availability tests at GKE
