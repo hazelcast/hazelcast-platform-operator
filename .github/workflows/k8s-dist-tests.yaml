@@ -209,17 +209,19 @@ jobs:
           name: test-coverage
 
       - name: Publish Integration Test results to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v2
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: cover_it-ee=true.out,cover_it-ee=false.out
           flags: integration
           name: Integration Tests Report
-          verbose: true
+          fail_ci_if_error: true
 
       - name: Publish Unit Test results to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v2
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: cover-controllers.out,cover-internal.out,cover-api.out
           flags: unit
           name: Unit Tests Report
-          verbose: true
+          fail_ci_if_error: true

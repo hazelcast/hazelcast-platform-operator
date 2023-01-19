@@ -9,8 +9,5 @@ coverage:
 codecov:
   bot: hazelcast
   notify:
-    wait_for_ci: false
+    wait_for_ci: true
   require_ci_to_pass: false
-flag_management:
-  default_rules:
-    carryforward: true
