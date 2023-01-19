@@ -141,7 +141,7 @@ jobs:
             --namespace ${CHAOS_MESH_NAMESPACE} --from-literal='service_account=${{ secrets.GKE_SA_KEY }}'
 
       - name: Run high Availability tests at GKE
-        run: make test-e2e NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME E2E_TEST_SUITE=high_availability REPORT_SUFFIX=01 WORKFLOW_ID=high-availability
+        run: make test-e2e NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME GINKGO_PARALLEL_PROCESSES=1 E2E_TEST_SUITE=high_availability REPORT_SUFFIX=01 WORKFLOW_ID=high-availability
 
       - name: Clean up after Tests
         if: always()

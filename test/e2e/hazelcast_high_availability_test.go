@@ -32,13 +32,14 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		if runningLocally() {
 			return
 		}
+
 		ctx := context.Background()
+
 		By("checking hazelcast-platform-operator running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
 				return getDeploymentReadyReplicas(ctx, controllerManagerName, controllerDep)
 			}, 90*Second, interval).Should(Equal(int32(1)))
-
 		})
 
 		By("checking chaos-mesh-operator running", func() {
@@ -46,7 +47,6 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 			Expect(err).To(BeNil())
 			Expect(podNames).Should(ContainElement(ContainSubstring("chaos-controller-manager")))
 			Expect(podNames).Should(ContainElement(ContainSubstring("chaos-daemon")))
-
 		})
 
 		By("checking Kubernetes topology is proper for running zone-level tests", func() {
@@ -65,7 +65,6 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 			Expect(err).To(BeNil())
 			Expect(readyNodesNumber).To(Equal(numberOfNodes))
 		})
-
 	})
 
 	AfterEach(func() {
