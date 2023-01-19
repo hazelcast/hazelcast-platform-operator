@@ -22,7 +22,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast High Availability", Label("hz_ha"), func() {
+var _ = Describe("Hazelcast High Availability", Label("high_availability"), func() {
 	localPort := strconv.Itoa(8100 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
