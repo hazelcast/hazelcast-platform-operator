@@ -115,3 +115,111 @@ jobs:
         run: |
           source .github/scripts/utils.sh
           update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.19.0
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run unit tests
+        run: make test-unit
+
+      - name: Upload Unit Test Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-coverage
+          path: |
+            cover-controllers.out
+            cover-internal.out
+            cover-api.out
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: ["os", "ee"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.19.0
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run integration tests
+        run: |
+          case ${{ matrix.edition }} in
+            os) GO_TEST_FLAGS=-ee=false;;
+            ee) GO_TEST_FLAGS=-ee=true;;
+            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
+          esac
+          echo "GO_TEST_FLAGS=${GO_TEST_FLAGS}" >> $GITHUB_ENV
+          make GO_TEST_FLAGS=${GO_TEST_FLAGS} test-it
+
+      - name: Upload Integration Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-coverage
+          path: cover_it${{ env.GO_TEST_FLAGS }}.out
+
+  upload-coverage:
+    name: Upload Test Coverage
+    needs: [unit-tests,integration-tests]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download Test Coverage Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: test-coverage
+
+      - name: Publish Integration Test results to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: cover_it-ee=true.out,cover_it-ee=false.out
+          flags: integration
+          name: Integration Tests Report
+          verbose: true
+
+      - name: Publish Unit Test results to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: cover-controllers.out,cover-internal.out,cover-api.out
+          flags: unit
+          name: Unit Tests Report
+          verbose: true

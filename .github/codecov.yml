@@ -1,0 +1,16 @@
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+codecov:
+  bot: hazelcast
+  notify:
+    wait_for_ci: false
+  require_ci_to_pass: false
+flag_management:
+  default_rules:
+    carryforward: true

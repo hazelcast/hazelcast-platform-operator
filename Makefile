@@ -149,9 +149,9 @@ test: test-unit test-it
 
 test-unit: GO_BUILD_TAGS = "hazelcastinternal,unittest"
 test-unit: manifests generate fmt vet
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/... -coverprofile cover.out
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./internal/... -coverprofile cover.out
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./api/... -coverprofile cover.out
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/... -coverprofile=cover-controllers.out -coverpkg=./controllers/...
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./internal/... -coverprofile=cover-internal.out -coverpkg=./internal/...
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./api/... -coverprofile=cover-api.out -coverpkg=./api/...
 
 lint: lint-go lint-yaml
 
@@ -189,7 +189,7 @@ GO_TEST_FLAGS ?= "-ee=true"
 
 test-it: manifests generate fmt vet envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" -coverprofile cover.out $(GO_TEST_FLAGS) -timeout 5m
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" -coverprofile=cover_it$(GO_TEST_FLAGS).out -coverpkg=./api/...,./internal/...,./controllers/... $(GO_TEST_FLAGS) -timeout 5m
 
 test-it-focus: manifests generate fmt vet envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
