@@ -187,6 +187,5 @@ const (
 
 // Cluster Size Limit constants
 const (
-	ClusterSizeLimit       = 300
-	ClusterSizeLimitErrStr = "cluster size limit is exceeded. Requested: %d, Limit: %d"
+	ClusterSizeLimit = 300
 )

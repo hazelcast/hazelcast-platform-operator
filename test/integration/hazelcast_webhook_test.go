@@ -112,8 +112,8 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 
-			expectedErrStr := fmt.Sprintf(n.ClusterSizeLimitErrStr, requestedClusterSize, n.ClusterSizeLimit)
-			Expect(k8sClient.Create(context.Background(), hz)).Should(MatchError(ContainSubstring(expectedErrStr)))
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("cluster size limit is exceeded")))
 		})
 	})
 

@@ -3,8 +3,9 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"strings"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 var BlackListProperties = map[string]struct{}{
@@ -41,7 +42,7 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 
 func validateClusterSize(h *Hazelcast) error {
 	if *h.Spec.ClusterSize > naming.ClusterSizeLimit {
-		return fmt.Errorf(naming.ClusterSizeLimitErrStr, *h.Spec.ClusterSize, naming.ClusterSizeLimit)
+		return fmt.Errorf("cluster size limit is exceeded. Requested: %d, Limit: %d", *h.Spec.ClusterSize, naming.ClusterSizeLimit)
 	}
 	return nil
 }
