@@ -7,7 +7,8 @@ on:
         required: true
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   create_release:
@@ -58,20 +59,9 @@ jobs:
           git tag ${TAG_VERSION}
           git push origin ${TAG_VERSION}
 
-  update_draft_release:
-    needs: create_release
-    permissions:
-      contents: write
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: release-drafter/release-drafter@v5
-        with:
-          tag: v${{ inputs.RELEASE_VERSION }}
-          name: ${{ inputs.RELEASE_VERSION }}
-          config-name: release-drafter-config.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  create-release-notes:
+    uses: ./.github/workflows/create-release-notes.yaml
+    secrets: inherit
 
   slack_notify:
     name: Slack Notify

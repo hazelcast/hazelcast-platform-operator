@@ -52,23 +52,24 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 	}
 }
 
-// Role related to Operator UUID
-//+kubebuilder:rbac:groups="apps",resources=deployments,verbs=get,namespace=system
 // Openshift related permissions
 //+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=use
 // Role related to CRs
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=system
-// ClusterRole inherited from Hazelcast ClusterRole
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=watched
+// ClusterRole inherited from permissions Hazelcast needs
 //+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
-// Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;watch;get;list,namespace=system
-// ClusterRole related to Reconcile()
+// Role inherited from permissions Hazelcast needs for persistence
+//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=watch;list,namespace=watched
+// ClusterRole related to Reconcile() to be able to give Hazelcast ClusterRole permissions
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=watch;list
+// Role related to Reconcile() to be able to give Hazelcast Role permissions
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+// Role related to Reconcile()
+//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;watch;get;list,namespace=watched
 
 func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast", req.NamespacedName)

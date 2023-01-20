@@ -815,10 +815,10 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 				EnsureStatus(hz)
 
-				By("checking ClusterRole", func() {
-					rbac := &rbacv1.ClusterRole{}
+				By("checking Role", func() {
+					rbac := &rbacv1.Role{}
 					Expect(k8sClient.Get(
-						context.Background(), client.ObjectKey{Name: hz.ClusterScopedName()}, rbac)).
+						context.Background(), client.ObjectKey{Name: hz.Name, Namespace: hz.Namespace}, rbac)).
 						Should(Succeed())
 
 					Expect(rbac.Rules).Should(ContainElement(rbacv1.PolicyRule{

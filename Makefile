@@ -247,8 +247,9 @@ sync-manifests: manifests yq
 # Move CRDs into helm template
 	@cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml $(CRD_CHART)/templates/
 # Move role rules into helm template
-	@role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
-		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role") | .rules') ;\
+	role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
+		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "operator-namespace") | .rules' \
+		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "watched") | .rules') ;\
 		echo "$$role" > $(OPERATOR_CHART)/templates/role.yaml
 # Move clusterrole rules into helm template
 	@clusterrole=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/clusterrole.yaml \
@@ -344,9 +345,6 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-# Detect the OS to set per-OS defaults
-OS_NAME = $(shell uname -s | tr A-Z a-z)
-
 .PHONY: print-bundle-version 
 print-bundle-version: 
 	@echo -n $(BUNDLE_VERSION)
@@ -361,17 +359,21 @@ api-ref-doc:
 
 ##@ Tool installation
 
+OS=$(shell go env GOOS)
+ARCH=$(shell go env GOARCH)
+
 .PHONY: print
 print:
 	@print #empty command
 	$(eval PRINT_TOOL_NAME=true)
 
 ENVTEST = $(TOOLBIN)/setup-envtest/$(SETUP_ENVTEST_VERSION)/setup-envtest
+.PHONY: envtest
 envtest: ## Download setup-envtest locally if necessary.
 	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION))
 	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(ENVTEST); fi
 
-OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
+OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS)_$(ARCH)
 OPERATOR_SDK=${TOOLBIN}/operator-sdk/$(OPERATOR_SDK_VERSION)/operator-sdk
 .PHONY: operator-sdk
 operator-sdk: ## Download operator-sdk locally if necessary.
@@ -382,6 +384,7 @@ operator-sdk: ## Download operator-sdk locally if necessary.
 	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OPERATOR_SDK); fi
 
 CONTROLLER_GEN = $(TOOLBIN)/controller-gen/$(CONTROLLER_GEN_VERSION)/controller-gen
+.PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
 	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(CONTROLLER_GEN); fi
@@ -394,6 +397,7 @@ kustomize: ## Download kustomize locally if necessary.
 	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(KUSTOMIZE); fi
 
 GINKGO = $(TOOLBIN)/ginkgo/$(GINKGO_VERSION)/ginkgo
+.PHONY: ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
 	@$(eval GINKGO_MAJOR_VERSION=$(firstword $(subst ., ,$(GINKGO_VERSION)))) 
 	@[ -f $(GINKGO) ] || { \
@@ -403,28 +407,16 @@ ginkgo: ## Download ginkgo locally if necessary.
 	}
 	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(GINKGO); fi
 
-.PHONY: opm
 OPM = $(TOOLBIN)/opm/$(OPM_VERSION)/opm
+.PHONY: opm
 opm: ## Download opm locally if necessary.
 	@[ -f $(OPM) ] || { \
-	mkdir -p $(dir $(OPM)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$(OS)-$(ARCH)-opm --create-dirs ;\
 	chmod +x $(OPM) ;\
 	}
 	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OPM); fi
 
-YQ=${TOOLBIN}/yq/$(YQ_VERSION)/yq
-.PHONY: yq
-yq: ## Download yq locally if necessary.
-	@[ -f $(YQ) ] || { \
-		curl -sSL https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_$(shell go env GOOS)_$(shell go env GOARCH) -o $(YQ) --create-dirs ;\
-		chmod +x $(YQ);\
-	}
-	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(YQ); fi
-
-
-OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS_NAME)-amd64-ocp-olm-catalog-validator
+OCP_OLM_CATALOG_VALIDATOR_URL=https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases/download/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/$(OS)-$(ARCH)-ocp-olm-catalog-validator
 OCP_OLM_CATALOG_VALIDATOR=$(TOOLBIN)/ocp-olm-catalog-validator/$(OCP_OLM_CATALOG_VALIDATOR_VERSION)/ocp-olm-catalog-validator
 .PHONY: ocp-olm-catalog-validator
 ocp-olm-catalog-validator: ## Download ocp-olm-catalog-validator locally if necessary.
@@ -433,6 +425,30 @@ ocp-olm-catalog-validator: ## Download ocp-olm-catalog-validator locally if nece
 	chmod +x $(OCP_OLM_CATALOG_VALIDATOR) ;\
 	}
 	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(OCP_OLM_CATALOG_VALIDATOR); fi
+
+YQ=${TOOLBIN}/yq/$(YQ_VERSION)/yq
+.PHONY: yq
+yq: ## Download yq locally if necessary.
+	@[ -f $(YQ) ] || { \
+		curl -sSL https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_$(OS)_$(ARCH) -o $(YQ) --create-dirs ;\
+		chmod +x $(YQ);\
+	}
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(YQ); fi
+
+
+HELM = $(TOOLBIN)/helm/$(HELM_VERSION)/helm
+.PHONY: helm
+helm: ## Download helm locally if necessary.
+	@[ -f $(HELM) ] || { \
+	mkdir -p $(dir $(HELM)) ;\
+	TMP_DIR=$$(mktemp -d) ;\
+	curl -sSLo $${TMP_DIR}/temp.tar.gz https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz  &>/dev/null;\
+	tar --directory $${TMP_DIR} -zxvf $${TMP_DIR}/temp.tar.gz &>/dev/null;\
+	mv $${TMP_DIR}/$(OS)-$(ARCH)/helm $(HELM);\
+	rm -rf $${TMP_DIR};\
+	chmod +x $(HELM);\
+	}
+	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(HELM); fi
 
 # go-get-tool will 'go install' any package $2 and install it to $1.
 define go-get-tool
@@ -446,17 +462,3 @@ GOBIN=$(dir $(1)) go install $(2) &> /dev/null ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
-
-HELM = $(TOOLBIN)/helm/$(HELM_VERSION)/helm
-helm: ## Download helm locally if necessary.
-	@[ -f $(HELM) ] || { \
-	mkdir -p $(dir $(HELM)) ;\
-	TMP_DIR=$$(mktemp -d) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $${TMP_DIR}/temp.tar.gz https://get.helm.sh/helm-$(HELM_VERSION)-$${OS}-$${ARCH}.tar.gz &>/dev/null;\
-	tar --directory $${TMP_DIR} -zxvf $${TMP_DIR}/temp.tar.gz &>/dev/null;\
-	mv $${TMP_DIR}/$${OS}-$${ARCH}/helm $(HELM);\
-	rm -rf $${TMP_DIR};\
-	chmod +x $(HELM);\
-	}
-	@if [ "$(PRINT_TOOL_NAME)" == "true" ]; then echo -n $(HELM); fi

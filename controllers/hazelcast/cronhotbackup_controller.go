@@ -49,9 +49,9 @@ func NewCronHotBackupReconciler(
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=cronhotbackups,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=cronhotbackups/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=cronhotbackups/finalizers,verbs=update
+//+kubebuilder:rbac:groups=hazelcast.com,resources=cronhotbackups,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=cronhotbackups/status,verbs=get;update;patch,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=cronhotbackups/finalizers,verbs=update,namespace=watched
 
 func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	logger := r.Log.WithValues("hazelcast-hot-backup", req.NamespacedName)

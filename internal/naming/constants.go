@@ -169,6 +169,7 @@ const (
 	PardotIDEnv             = "PARDOT_ID"
 	OperatorVersionEnv      = "OPERATOR_VERSION"
 	NamespaceEnv            = "NAMESPACE"
+	WatchNamespaceEnv       = "WATCH_NAMESPACE"
 	PodNameEnv              = "POD_NAME"
 )
 
@@ -183,4 +184,9 @@ const (
 	// DefaultMergePolicyClassName is the default value for
 	// merge policy in WAN reference config
 	DefaultMergePolicyClassName = "PassThroughMergePolicy"
+)
+
+// Cluster Size Limit constants
+const (
+	ClusterSizeLimit = 300
 )
