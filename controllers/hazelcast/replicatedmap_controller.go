@@ -38,9 +38,9 @@ func NewReplicatedMapReconciler(c client.Client, log logr.Logger, s *runtime.Sch
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=replicatedmaps,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=replicatedmaps/status,verbs=get;update;patch,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=replicatedmaps/finalizers,verbs=update,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=replicatedmaps,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=replicatedmaps/status,verbs=get;update;patch,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=replicatedmaps/finalizers,verbs=update,namespace=watched
 
 func (r *ReplicatedMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-replicatedmap", req.NamespacedName)

@@ -41,7 +41,12 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-//+kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete,namespace=system
+// Role related to leader election
+//+kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete,namespace=operator-namespace
+// Role related to Operator UUID
+//+kubebuilder:rbac:groups="apps",resources=deployments,verbs=get,namespace=operator-namespace
+// ClusterRole related to Webhooks
+//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources=validatingwebhookconfigurations,verbs=update;get;watch;list
 
 func main() {
 	var metricsAddr string

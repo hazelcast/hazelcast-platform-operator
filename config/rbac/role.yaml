@@ -49,7 +49,33 @@ kind: Role
 metadata:
   creationTimestamp: null
   name: manager-role
-  namespace: system
+  namespace: operator-namespace
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: manager-role
+  namespace: watched
 rules:
 - apiGroups:
   - ""
@@ -79,25 +105,7 @@ rules:
 - apiGroups:
   - apps
   resources:
-  - deployments
-  verbs:
-  - get
-- apiGroups:
-  - apps
-  resources:
   - statefulsets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
   verbs:
   - create
   - delete

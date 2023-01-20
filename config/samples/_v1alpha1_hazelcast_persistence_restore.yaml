@@ -15,7 +15,6 @@ spec:
     pvc:
       accessModes: ["ReadWriteOnce"]
       requestStorage: 8Gi
-      storageClassName: "standard"
     restore:
       bucketConfig:
         secret: br-secret-az

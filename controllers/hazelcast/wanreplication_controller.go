@@ -51,9 +51,9 @@ func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/status,verbs=get;update;patch,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/finalizers,verbs=update,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/status,verbs=get;update;patch,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/finalizers,verbs=update,namespace=watched
 
 func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.WithValues("name", req.Name, "namespace", req.NamespacedName)
