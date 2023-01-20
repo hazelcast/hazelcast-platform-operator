@@ -1092,7 +1092,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 				},
 				Spec: v1.PodSpec{
 					ServiceAccountName: h.Name,
-					SecurityContext:    podSecurityContext(h),
+					SecurityContext:    podSecurityContext(),
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
 						Ports: []v1.ContainerPort{{
@@ -1276,7 +1276,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return c
 }
 
-func podSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.PodSecurityContext {
+func podSecurityContext() *v1.PodSecurityContext {
 	// Openshift assigns user and fsgroup ids itself
 	if platform.GetPlatform().Type == platform.OpenShift {
 		return &v1.PodSecurityContext{
