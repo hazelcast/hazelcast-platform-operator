@@ -105,6 +105,14 @@ func (u *Upload) Cancel(ctx context.Context) error {
 	if u.uploadID == nil {
 		return errUploadNotStarted
 	}
+	_, err := u.service.Cancel(ctx, *u.uploadID)
+	return err
+}
+
+func (u *Upload) Remove(ctx context.Context) error {
+	if u.uploadID == nil {
+		return errUploadNotStarted
+	}
 	_, err := u.service.Delete(ctx, *u.uploadID)
 	return err
 }
