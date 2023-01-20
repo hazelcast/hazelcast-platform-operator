@@ -1522,7 +1522,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		return vols
 	}
 
-	// Add tmpDir because Hazelcast fails with read-only root file system error
+	// Add tmpDir because Hazelcast wit persistence enabled fails with read-only root file system error
 	// when it tries to write to /tmp dir.
 	vols = append(vols, tmpDirVolume())
 
