@@ -247,7 +247,7 @@ sync-manifests: manifests yq
 # Move CRDs into helm template
 	@cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml $(CRD_CHART)/templates/
 # Move role rules into helm template
-	role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
+	@role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
 		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "operator-namespace") | .rules' \
 		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "watched") | .rules') ;\
 		echo "$$role" > $(OPERATOR_CHART)/templates/role.yaml
