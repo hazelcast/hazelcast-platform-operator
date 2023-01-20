@@ -1278,7 +1278,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 
 func podSecurityContext() *v1.PodSecurityContext {
 	// Openshift assigns user and fsgroup ids itself
-	if platform.GetPlatform().Type == platform.OpenShift {
+	if platform.GetType() == platform.OpenShift {
 		return &v1.PodSecurityContext{
 			RunAsNonRoot: pointer.Bool(true),
 		}

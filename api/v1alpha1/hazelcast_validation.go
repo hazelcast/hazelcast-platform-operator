@@ -83,7 +83,7 @@ func validatePersistence(h *Hazelcast) error {
 		return errors.New("startupAction PartialStart can be used only with Partial* clusterDataRecoveryPolicy")
 	}
 
-	if p.HostPath != "" && platform.GetPlatform().Type == platform.OpenShift {
+	if p.HostPath != "" && platform.GetType() == platform.OpenShift {
 		return errors.New("HostPath persistence is not supported in OpenShift environments")
 	}
 	return nil

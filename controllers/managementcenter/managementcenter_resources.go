@@ -196,7 +196,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 
 func podSecurityContext() *v1.PodSecurityContext {
 	// Openshift assigns user and fsgroup ids itself
-	if platform.GetPlatform().Type == platform.OpenShift {
+	if platform.GetType() == platform.OpenShift {
 		return &v1.PodSecurityContext{
 			RunAsNonRoot: pointer.Bool(true),
 		}
