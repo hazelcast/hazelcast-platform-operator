@@ -37,6 +37,7 @@ const (
 	HazelcastPortName    = "hazelcast-port"
 	HazelcastStorageName = Hazelcast + "-storage"
 	HazelcastMountPath   = "/data/hazelcast"
+	TmpDirVolName        = "tmp-vol"
 
 	// ManagementCenter MC name
 	ManagementCenter = "management-center"
