@@ -48,7 +48,7 @@ type fakeHzClientRegistry struct {
 	Clients sync.Map
 }
 
-func (cr *fakeHzClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (hzclient.Client, error) {
+func (cr *fakeHzClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, l logr.Logger) (hzclient.Client, error) {
 	ns := types.NamespacedName{Namespace: h.Namespace, Name: h.Name}
 	client, ok := cr.Get(ns)
 	if !ok {
@@ -57,8 +57,8 @@ func (cr *fakeHzClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1
 	return client, nil
 }
 
-func (ssr *fakeHzClientRegistry) Set(ns types.NamespacedName, cl hzclient.Client) {
-	ssr.Clients.Store(ns, cl)
+func (cr *fakeHzClientRegistry) Set(ns types.NamespacedName, cl hzclient.Client) {
+	cr.Clients.Store(ns, cl)
 }
 
 func (cr *fakeHzClientRegistry) Get(ns types.NamespacedName) (hzclient.Client, bool) {

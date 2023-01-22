@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"github.com/go-logr/logr"
+	"github.com/hazelcast/hazelcast-go-client/logger"
 	"sync"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -9,7 +11,7 @@ import (
 )
 
 type ClientRegistry interface {
-	Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error)
+	Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, l logr.Logger) (Client, error)
 	Get(ns types.NamespacedName) (Client, bool)
 	Delete(ctx context.Context, ns types.NamespacedName) error
 }
@@ -18,13 +20,17 @@ type HazelcastClientRegistry struct {
 	clients sync.Map
 }
 
-func (cr *HazelcastClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error) {
+func (cr *HazelcastClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, l logr.Logger) (Client, error) {
 	ns := types.NamespacedName{Namespace: h.Namespace, Name: h.Name}
 	client, ok := cr.Get(ns)
 	if ok {
 		return client, nil
 	}
-	c, err := NewClient(ctx, BuildConfig(h))
+	hzLogger, err := NewLogrHzClientLoggerAdapter(l, logger.InfoLevel, h)
+	if err != nil {
+		return nil, err
+	}
+	c, err := NewClient(ctx, BuildConfig(h, hzLogger))
 	if err != nil {
 		return nil, err
 	}

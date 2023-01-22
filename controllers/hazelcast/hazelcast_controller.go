@@ -212,7 +212,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	cl, err := r.clientRegistry.Create(ctx, h)
+	cl, err := r.clientRegistry.Create(ctx, h, logger)
 	if err != nil {
 		return r.update(ctx, h, pendingPhase(retryAfter).withMessage(err.Error()))
 	}
