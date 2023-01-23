@@ -105,8 +105,8 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 
 		By("creating the map config and adding entries")
 		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
-		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
+		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
+		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 		mapName := "ha-test-map"
 		mapSize := 1000
 		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)
@@ -159,8 +159,8 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 
 		By("creating the map config and adding entries")
 		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
-		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
+		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
+		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 		mapName := "ha-test-map"
 		mapSize := 1000
 		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)
