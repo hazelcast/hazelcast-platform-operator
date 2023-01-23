@@ -96,7 +96,7 @@ DEBUG_ENABLED ?= false
 RELEASE_NAME ?= v1
 CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
 DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
-STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchNamespace=$(NAMESPACE),debug.enabled=$(DEBUG_ENABLED)
+STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespace=$(NAMESPACE),debug.enabled=$(DEBUG_ENABLED)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -270,10 +270,10 @@ uninstall-operator: helm sync-manifests
 	$(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
 
 webhook-install: helm sync-manifests
-	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
+	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/webhook.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
 
 webhook-uninstall: helm sync-manifests
-	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
+	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/webhook.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
 
 deploy: install-crds install-operator ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 

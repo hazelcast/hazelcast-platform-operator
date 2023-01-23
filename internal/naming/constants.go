@@ -191,3 +191,7 @@ const (
 const (
 	ClusterSizeLimit = 300
 )
+
+const (
+	WebhookServerPath = "/tmp/k8s-webhook-server/serving-certs"
+)
