@@ -85,27 +85,6 @@ func memberConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazel
 	return cfg
 }
 
-func mapSizePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, podName, localPort, mapName string) int {
-	size := 0
-	By(fmt.Sprintf("Getting the map size with lookup name '%s'", hz.Name), func() {
-		stopChan := portForwardPod(podName, hz.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-
-		cl := newHazelcastClientPortForward(ctx, hz, localPort)
-		defer func() {
-			err := cl.Shutdown(ctx)
-			Expect(err).To(BeNil())
-		}()
-
-		hzMap, err := cl.GetMap(ctx, mapName)
-		Expect(err).To(BeNil())
-
-		size, err = hzMap.Size(ctx)
-		Expect(err).To(BeNil())
-	})
-	return size
-}
-
 func mapConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string) codecTypes.MapConfig {
 	cfg := codecTypes.MapConfig{}
 	By(fmt.Sprintf("Getting the map config with lookup name '%s'", hz.Name), func() {

@@ -1,9 +1,9 @@
-name: Nightly High Availability tests on GKE
+name: High Availability tests on GKE
 on:
   workflow_dispatch:
   pull_request:
   schedule:
-    - cron: "0 9 * * *"
+    - cron: "0 9 */3 * *"
 
 env:
   GCP_PROJECT_ID: hazelcast-33
@@ -52,7 +52,7 @@ jobs:
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
-      namespaces: "test-operator-high-availability-nightly"
+      namespaces: "test-operator-high-availability"
 
   get-image:
     name: Get Image
@@ -82,7 +82,7 @@ jobs:
     needs: [ create-gke-cluster, grafana-setup, get-image ]
     env:
       IMG: ${{ needs.get-image.outputs.IMG }}
-      NAMESPACE: test-operator-high-availability-nightly
+      NAMESPACE: test-operator-high-availability
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
       RELEASE_NAME: high-availability-${{ github.run_id }}
@@ -154,7 +154,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report-gke
+          name: test-report-high-availability
           path: allure-results/high-availability/
 
   report-generation:

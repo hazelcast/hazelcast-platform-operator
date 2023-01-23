@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"text/template"
 	. "time"
@@ -23,7 +22,6 @@ import (
 )
 
 var _ = Describe("Hazelcast High Availability", Label("high_availability"), func() {
-	localPort := strconv.Itoa(8100 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
 		if !useExistingCluster() {
@@ -43,13 +41,19 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		})
 
 		By("checking chaos-mesh-operator running", func() {
-			podNames, err := allPodNamesInNamespace(ctx, chaosMeshNamespace)
+			var podList corev1.PodList
+			err := k8sClient.List(ctx, &podList, client.InNamespace(chaosMeshNamespace))
+			Expect(err).To(BeNil())
+			podNames := make([]string, 0, len(podList.Items))
+			for _, pod := range podList.Items {
+				podNames = append(podNames, pod.Name)
+			}
 			Expect(err).To(BeNil())
 			Expect(podNames).Should(ContainElement(ContainSubstring("chaos-controller-manager")))
 			Expect(podNames).Should(ContainElement(ContainSubstring("chaos-daemon")))
 		})
 
-		By("checking Kubernetes topology is proper for running zone-level tests", func() {
+		By("checking Kubernetes topology is proper for running the tests", func() {
 			zoneNodeNameMap, err := nodeNamesInZones(context.Background())
 			Expect(err).To(BeNil())
 			Expect(len(zoneNodeNameMap)).Should(BeNumerically(">", 1))
@@ -100,15 +104,13 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config and adding entries")
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
+		mapName := "ha-test-map"
 		mapSize := 1000
-		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), mapSize)
-
-		By("checking map size before zone outage")
-		mapSizeBeforeDropping := mapSizePortForward(ctx, hazelcast, fmt.Sprintf("%s-%d", hazelcast.Name, 0), localPort, m.MapName())
-		Expect(mapSizeBeforeDropping).Should(Equal(mapSize))
+		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 
 		By("detecting the node which the operator is running on")
 		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
@@ -125,7 +127,12 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		}
 
 		By(fmt.Sprintf("dropping node '%s'", droppingNodeName))
-		zone, err := zoneOfNode(ctx, droppingNodeName)
+		var droppingNode corev1.Node
+		err = k8sClient.Get(ctx, types.NamespacedName{
+			Name: droppingNodeName,
+		}, &droppingNode)
+		Expect(err).To(BeNil())
+		zone, err := zoneFromNodeLabels(&droppingNode)
 		Expect(err).To(BeNil())
 		err = dropNodes(ctx, zone, droppingNodeName)
 		Expect(err).To(BeNil())
@@ -134,22 +141,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		waitForDroppedNodes(ctx, 1)
 
 		By("checking map size after node outage")
-		nodeHzMemberPodNameMap, err := hzMemberPodsNamesInNodes(ctx, hazelcast.Name)
-		Expect(err).To(BeNil())
-		var runningHzMemberPodName string
-		for _, nodeName := range nodeNames {
-			if nodeName == droppingNodeName {
-				continue
-			}
-			pods, ok := nodeHzMemberPodNameMap[nodeName]
-			if ok && len(pods) > 0 {
-				runningHzMemberPodName = pods[0]
-				break
-			}
-		}
-		mapSizeAfterDropping := mapSizePortForward(ctx, hazelcast, runningHzMemberPodName, localPort, m.MapName())
-		Expect(mapSizeAfterDropping).Should(Equal(mapSize))
-
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
 	It("should have no data lose after zone outage", Label("slow"), func() {
@@ -166,15 +158,13 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config and adding entries")
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
+		mapName := "ha-test-map"
 		mapSize := 1000
-		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), mapSize)
-
-		By("checking map size before zone outage")
-		mapSizeBeforeDropping := mapSizePortForward(ctx, hazelcast, fmt.Sprintf("%s-%d", hazelcast.Name, 0), localPort, m.MapName())
-		Expect(mapSizeBeforeDropping).Should(Equal(mapSize))
+		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 
 		By("detecting the node which the operator is running on")
 		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
@@ -184,15 +174,15 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		zoneNodeNameMap, err := nodeNamesInZones(ctx)
 		Expect(err).To(BeNil())
 		var droppingZone string
-	zoneNodeNames:
 		for zone, nodeNames := range zoneNodeNameMap {
+			safeToDrop := true
 			for _, nodeName := range nodeNames {
-				if nodeName == nodeNameOperatorRunningOn {
-					continue zoneNodeNames
-				}
+				safeToDrop = safeToDrop && (nodeName != nodeNameOperatorRunningOn)
 			}
-			droppingZone = zone
-			break
+			if safeToDrop {
+				droppingZone = zone
+				break
+			}
 		}
 		numberOfNodesInDroppingZone := len(zoneNodeNameMap[droppingZone])
 
@@ -204,26 +194,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		waitForDroppedNodes(ctx, numberOfNodesInDroppingZone)
 
 		By("checking map size after zone outage")
-		nodeHzMemberPodNameMap, err := hzMemberPodsNamesInNodes(ctx, hazelcast.Name)
-		Expect(err).To(BeNil())
-		var runningHzMemberPodName string
-		for zone, nodeNames := range zoneNodeNameMap {
-			if zone == droppingZone {
-				continue
-			}
-			for _, nodeName := range nodeNames {
-				pods, ok := nodeHzMemberPodNameMap[nodeName]
-				if ok && len(pods) > 0 {
-					runningHzMemberPodName = pods[0]
-					break
-				}
-			}
-			if runningHzMemberPodName != "" {
-				break
-			}
-		}
-		mapSizeAfterDropping := mapSizePortForward(ctx, hazelcast, runningHzMemberPodName, localPort, m.MapName())
-		Expect(mapSizeAfterDropping).Should(Equal(mapSize))
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 })
 
@@ -400,48 +371,4 @@ func waitForDroppedNodes(ctx context.Context, expectedNumberOfDroppedNodes int) 
 		Expect(err).To(BeNil())
 		return numberOfNodes - n
 	}, 9*Minute, interval).Should(Equal(expectedNumberOfDroppedNodes))
-}
-
-func hzMemberPodsNamesInNodes(ctx context.Context, hzName string) (map[string][]string, error) {
-	var podList corev1.PodList
-	err := k8sClient.List(ctx, &podList)
-	if err != nil {
-		return nil, err
-	}
-	nodePodMap := make(map[string][]string)
-	for _, pod := range podList.Items {
-		if !strings.HasPrefix(pod.Name, hzName) {
-			continue
-		}
-		pods := nodePodMap[pod.Spec.NodeName]
-		if pods == nil {
-			pods = make([]string, 0)
-		}
-		nodePodMap[pod.Spec.NodeName] = append(pods, pod.Name)
-	}
-	return nodePodMap, nil
-}
-
-func zoneOfNode(ctx context.Context, nodeName string) (string, error) {
-	var node corev1.Node
-	err := k8sClient.Get(ctx, types.NamespacedName{
-		Name: nodeName,
-	}, &node)
-	if err != nil {
-		return "", err
-	}
-	return zoneFromNodeLabels(&node)
-}
-
-func allPodNamesInNamespace(ctx context.Context, namespace string) ([]string, error) {
-	var podList corev1.PodList
-	err := k8sClient.List(ctx, &podList, client.InNamespace(namespace))
-	if err != nil {
-		return nil, err
-	}
-	podNames := make([]string, 0, len(podList.Items))
-	for _, pod := range podList.Items {
-		podNames = append(podNames, pod.Name)
-	}
-	return podNames, err
 }
