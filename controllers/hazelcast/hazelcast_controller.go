@@ -212,7 +212,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	cl, err := r.clientRegistry.GetOrCreate(ctx, req.NamespacedName,logger)
+	cl, err := r.clientRegistry.GetOrCreate(ctx, req.NamespacedName, logger)
 	if err != nil {
 		return r.update(ctx, h, pendingPhase(retryAfter).withMessage(err.Error()))
 	}
@@ -251,7 +251,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	externalAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
 	return r.update(ctx, h, r.runningPhaseWithStatus(req).
 		withExternalAddresses(externalAddrs).
-		withMessage(clientConnectionMessage(r.clientRegistry, req)))
+		withMessage(clientConnectionMessage(r.clientRegistry, req, logger)))
 }
 
 func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
@@ -304,8 +304,8 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 	}
 }
 
-func clientConnectionMessage(cs hzclient.ClientRegistry, req ctrl.Request) string {
-	c, err := cs.GetOrCreate(context.Background(), req.NamespacedName)
+func clientConnectionMessage(cs hzclient.ClientRegistry, req ctrl.Request, logger logr.Logger) string {
+	c, err := cs.GetOrCreate(context.Background(), req.NamespacedName, logger)
 	if err != nil {
 		return "Operator failed to create connection to cluster, some features might be unavailable."
 	}
