@@ -212,7 +212,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	cl, err := r.clientRegistry.Create(ctx, h)
+	cl, err := r.clientRegistry.GetOrCreate(ctx, req.NamespacedName)
 	if err != nil {
 		return r.update(ctx, h, pendingPhase(retryAfter).withMessage(err.Error()))
 	}
@@ -305,8 +305,8 @@ func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 }
 
 func clientConnectionMessage(cs hzclient.ClientRegistry, req ctrl.Request) string {
-	c, ok := cs.Get(req.NamespacedName)
-	if !ok {
+	c, err := cs.GetOrCreate(context.Background(), req.NamespacedName)
+	if err != nil {
 		return "Operator failed to create connection to cluster, some features might be unavailable."
 	}
 

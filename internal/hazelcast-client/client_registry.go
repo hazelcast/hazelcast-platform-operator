@@ -4,23 +4,31 @@ import (
 	"context"
 	"sync"
 
+	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 type ClientRegistry interface {
-	Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error)
+	GetOrCreate(ctx context.Context, nn types.NamespacedName) (Client, error)
 	Get(ns types.NamespacedName) (Client, bool)
 	Delete(ctx context.Context, ns types.NamespacedName) error
 }
 
 type HazelcastClientRegistry struct {
-	clients sync.Map
+	clients   sync.Map
+	K8sClient k8sClient.Client
 }
 
-func (cr *HazelcastClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) (Client, error) {
-	ns := types.NamespacedName{Namespace: h.Namespace, Name: h.Name}
-	client, ok := cr.Get(ns)
+func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (Client, error) {
+	h := &hazelcastv1alpha1.Hazelcast{}
+	err := cr.K8sClient.Get(ctx, nn, h)
+	if err != nil {
+		return nil, err
+	}
+
+	client, ok := cr.Get(nn)
 	if ok {
 		return client, nil
 	}
@@ -28,7 +36,7 @@ func (cr *HazelcastClientRegistry) Create(ctx context.Context, h *hazelcastv1alp
 	if err != nil {
 		return nil, err
 	}
-	cr.clients.Store(ns, c)
+	cr.clients.Store(nn, c)
 	return c, nil
 }
 
