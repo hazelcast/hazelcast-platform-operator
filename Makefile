@@ -279,7 +279,7 @@ deploy: install-crds install-operator ## Deploy controller to the K8s cluster sp
 undeploy: uninstall-operator uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 
 deploy-tilt: helm sync-manifests
-	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES),podSecurityContext=null,securityContext=null --namespace=$(NAMESPACE)
 
 undeploy-tilt: 
 	$(MAKE) -s deploy-tilt RELEASE_NAME=$(RELEASE_NAME) OPERATOR_CHART=$(OPERATOR_CHART) NAMESPACE=$(NAMESPACE) | $(KUBECTL) delete -f -
