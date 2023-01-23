@@ -48,9 +48,8 @@ type fakeHzClientRegistry struct {
 	Clients sync.Map
 }
 
-func (cr *fakeHzClientRegistry) Create(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, l logr.Logger) (hzclient.Client, error) {
-	ns := types.NamespacedName{Namespace: h.Namespace, Name: h.Name}
-	client, ok := cr.Get(ns)
+func (cr *fakeHzClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName, l logr.Logger) (hzclient.Client, error) {
+	client, ok := cr.Get(nn)
 	if !ok {
 		return client, fmt.Errorf("Fake client was not set before test")
 	}

@@ -49,9 +49,9 @@ func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht c
 
 const retryAfterForMap = 5 * time.Second
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/status,verbs=get;update;patch,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/finalizers,verbs=update,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=maps,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/status,verbs=get;update;patch,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/finalizers,verbs=update,namespace=watched
 
 func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-map", req.NamespacedName)
@@ -122,7 +122,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	cl, err := GetHazelcastClient(r.clientRegistry, m)
+	cl, err := GetHazelcastClient(ctx, r.clientRegistry, m)
 	if err != nil {
 		if errors.IsInternalError(err) {
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).
@@ -209,9 +209,9 @@ func ValidatePersistence(pe bool, h *hazelcastv1alpha1.Hazelcast) error {
 	return nil
 }
 
-func GetHazelcastClient(cs hzclient.ClientRegistry, m *hazelcastv1alpha1.Map) (hzclient.Client, error) {
-	hzcl, ok := cs.Get(types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
-	if !ok {
+func GetHazelcastClient(ctx context.Context, cs hzclient.ClientRegistry, m *hazelcastv1alpha1.Map) (hzclient.Client, error) {
+	hzcl, err := cs.GetOrCreate(ctx, types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
+	if err != nil {
 		return nil, errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", m.Spec.HazelcastResourceName))
 	}
 	if !hzcl.Running() {

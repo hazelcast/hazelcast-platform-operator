@@ -185,3 +185,8 @@ const (
 	// merge policy in WAN reference config
 	DefaultMergePolicyClassName = "PassThroughMergePolicy"
 )
+
+// Cluster Size Limit constants
+const (
+	ClusterSizeLimit = 300
+)

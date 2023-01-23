@@ -101,6 +101,22 @@ var _ = Describe("Hazelcast webhook", func() {
 		})
 	})
 
+	Context("Hazelcast Cluster Size", func() {
+		It(fmt.Sprintf("should validate cluster size is not more than %d", n.ClusterSizeLimit), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			requestedClusterSize := int32(n.ClusterSizeLimit + 1)
+			spec.ClusterSize = &requestedClusterSize
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("cluster size limit is exceeded")))
+		})
+	})
+
 	Context("Hazelcast Expose externaly", func() {
 		It("should validate MemberAccess for unisocket", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
