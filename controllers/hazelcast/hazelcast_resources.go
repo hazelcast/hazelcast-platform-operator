@@ -1086,7 +1086,9 @@ func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanRepl
 
 func (r *HazelcastReconciler) reconcileMtlsSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
 	_, err := r.mtlsClientRegistry.Create(ctx, r.Client, h.Namespace)
-
+	if err != nil {
+		return err
+	}
 	secret := &v1.Secret{}
 	secretName := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: h.Namespace}
 	err = r.Client.Get(ctx, secretName, secret)
