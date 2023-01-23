@@ -260,7 +260,7 @@ spec:
   project: {{ .project }}
   zone: {{ .zone }}
   instance: {{ .instance }}
-  duration: '5m'
+  duration: '3m'
 `
 
 func chaosMeshNodeStopYaml(parameters map[string]string) (string, error) {
