@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -75,6 +77,32 @@ func (cr *fakeHzClientRegistry) Delete(ctx context.Context, ns types.NamespacedN
 	return nil
 }
 
+type fakeHttpClientRegistry struct {
+	clients sync.Map
+}
+
+func (hr *fakeHttpClientRegistry) Create(_ context.Context, _ client.Client, ns string) (*http.Client, error) {
+	if v, ok := hr.clients.Load(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}); ok {
+		return v.(*http.Client), nil
+	}
+	return nil, errors.New("no client found")
+}
+
+func (hr *fakeHttpClientRegistry) Get(ns string) (*http.Client, bool) {
+	if v, ok := hr.clients.Load(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}); ok {
+		return v.(*http.Client), ok
+	}
+	return nil, false
+}
+
+func (hr *fakeHttpClientRegistry) Delete(ns string) {
+	hr.clients.Delete(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns})
+}
+
+func (hr *fakeHttpClientRegistry) Set(ns string, cl *http.Client) {
+	hr.clients.Store(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}, cl)
+}
+
 type fakeHzClient struct {
 	tOrderedMembers          []cluster.MemberInfo
 	tIsClientConnected       bool
@@ -120,7 +148,7 @@ func (cl *fakeHzClient) ClusterId() hztypes.UUID {
 	return cl.tUUID
 }
 
-func (cl *fakeHzClient) Shutdown(ctx context.Context) error {
+func (cl *fakeHzClient) Shutdown(_ context.Context) error {
 	return cl.tShutDown
 }
 
@@ -128,7 +156,7 @@ type fakeHzStatusServiceRegistry struct {
 	statusServices sync.Map
 }
 
-func (ssr *fakeHzStatusServiceRegistry) Create(ns types.NamespacedName, cl hzclient.Client, l logr.Logger, channel chan event.GenericEvent) hzclient.StatusService {
+func (ssr *fakeHzStatusServiceRegistry) Create(ns types.NamespacedName, _ hzclient.Client, l logr.Logger, channel chan event.GenericEvent) hzclient.StatusService {
 	ss, ok := ssr.Get(ns)
 	if ok {
 		return ss
@@ -178,7 +206,7 @@ func (ss *fakeHzStatusService) UpdateMembers(ctx context.Context) {
 	}
 }
 
-func (ss *fakeHzStatusService) GetTimedMemberState(ctx context.Context, uuid hztypes.UUID) (*codecTypes.TimedMemberStateWrapper, error) {
+func (ss *fakeHzStatusService) GetTimedMemberState(_ context.Context, uuid hztypes.UUID) (*codecTypes.TimedMemberStateWrapper, error) {
 	if state, ok := ss.timedMemberStateMap[uuid]; ok {
 		return state, nil
 	}
