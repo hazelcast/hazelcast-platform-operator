@@ -212,7 +212,7 @@ func hotBackupReconcilerWithCRs(clientReg hzclient.ClientRegistry, serviceReg hz
 		fakeK8sClient(initObjs...),
 		ctrl.Log.WithName("test").WithName("Hazelcast"),
 		nil,
-		&mtls.Client{},
+		mtls.NewHttpClientRegistry(),
 		clientReg,
 		serviceReg,
 	)

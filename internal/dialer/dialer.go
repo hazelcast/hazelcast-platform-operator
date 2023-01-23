@@ -3,11 +3,12 @@ package dialer
 import (
 	"context"
 	"errors"
-	"github.com/hazelcast/platform-operator-agent/sidecar"
 	"net"
+	"net/http"
 	"strings"
 
-	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
+	"github.com/hazelcast/platform-operator-agent/sidecar"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
 )
 
@@ -18,7 +19,7 @@ type Dialer struct {
 
 type Config struct {
 	MemberAddress string
-	MTLSClient    *mtls.Client
+	MTLSClient    *http.Client
 }
 
 func NewDialer(config *Config) (*Dialer, error) {
@@ -26,7 +27,7 @@ func NewDialer(config *Config) (*Dialer, error) {
 	if err != nil {
 		return nil, err
 	}
-	s, err := rest.NewDialerService("https://"+host+":8443", &config.MTLSClient.Client)
+	s, err := rest.NewDialerService("https://"+host+":8443", config.MTLSClient)
 	if err != nil {
 		return nil, err
 	}

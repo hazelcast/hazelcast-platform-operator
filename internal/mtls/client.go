@@ -15,12 +15,11 @@ import (
 	"net/http"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const TLSCAKey = "ca.crt"
@@ -34,69 +33,56 @@ var (
 
 type Client struct {
 	http.Client
-
-	kubeClient client.Client
-	secretName types.NamespacedName
 }
 
-func NewClient(kubeClient client.Client, secretName types.NamespacedName) *Client {
+func NewClient(ctx context.Context, kubeClient client.Client, secretName types.NamespacedName) (*http.Client, error) {
 	if secretName.Namespace == "" {
 		// if not specified we always use default namespace
 		// as a fallback for running operator locally
 		secretName.Namespace = "default"
 	}
-	client := Client{
-		kubeClient: kubeClient,
-		secretName: secretName,
-	}
-	return &client
-}
-
-func (m *Client) Start(ctx context.Context) error {
 	secret := &v1.Secret{}
-	err := m.kubeClient.Get(ctx, m.secretName, secret)
+	err := kubeClient.Get(ctx, secretName, secret)
 	if err != nil {
 		// exit for errors other than not found
 		if !kerrors.IsNotFound(err) {
-			return err
+			return nil, err
 		}
 		// generate new secret with tls cert
-		secret, err = m.createSecret(ctx)
+		secret, err = createSecret(ctx, kubeClient, secretName)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// parse secret data
 	ca, ok := secret.Data[TLSCAKey]
 	if !ok {
-		return errMissingCA
+		return nil, errMissingCA
 	}
 
 	tlsCert, ok := secret.Data[v1.TLSCertKey]
 	if !ok {
-		return errMissingTLSCert
+		return nil, errMissingTLSCert
 	}
 
 	tlsKey, ok := secret.Data[v1.TLSPrivateKeyKey]
 	if !ok {
-		return errMissingTLSKey
+		return nil, errMissingTLSKey
 	}
 
 	// add ca to pool
 	pool := x509.NewCertPool()
 	if ok := pool.AppendCertsFromPEM(ca); !ok {
-		return errInvalidCA
+		return nil, errInvalidCA
 	}
 
 	// parse tls cert and key
 	cert, err := tls.X509KeyPair(tlsCert, tlsKey)
 	if err != nil {
-		return fmt.Errorf("mtls: %w", err)
+		return nil, fmt.Errorf("mtls: %w", err)
 	}
-
-	// configure http client
-	m.Client = http.Client{
+	c := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				ServerName:   "mtls",
@@ -105,23 +91,23 @@ func (m *Client) Start(ctx context.Context) error {
 			},
 		},
 	}
-	return nil
+	return c, nil
 }
 
-func (m *Client) createSecret(ctx context.Context) (*v1.Secret, error) {
+func createSecret(ctx context.Context, kubeClient client.Client, secretName types.NamespacedName) (*v1.Secret, error) {
 	ca, err := generateCA()
 	if err != nil {
 		return nil, fmt.Errorf("mtls: %w", err)
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.secretName.Name,
-			Namespace: m.secretName.Namespace,
+			Name:      secretName.Name,
+			Namespace: secretName.Namespace,
 		},
 		Type: v1.SecretTypeTLS,
 		Data: ca,
 	}
-	return secret, m.kubeClient.Create(ctx, secret)
+	return secret, kubeClient.Create(ctx, secret)
 }
 
 func generateCA() (map[string][]byte, error) {

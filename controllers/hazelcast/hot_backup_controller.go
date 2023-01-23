@@ -33,19 +33,19 @@ type HotBackupReconciler struct {
 	cancelMap             map[types.NamespacedName]context.CancelFunc
 	backup                map[types.NamespacedName]struct{}
 	phoneHomeTrigger      chan struct{}
-	mtlsClient            *mtls.Client
+	mtlsClientRegistry    mtls.HttpClientRegistry
 	clientRegistry        hzclient.ClientRegistry
 	statusServiceRegistry hzclient.StatusServiceRegistry
 }
 
-func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *HotBackupReconciler {
+func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{}, mtlsClientRegistry mtls.HttpClientRegistry, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *HotBackupReconciler {
 	return &HotBackupReconciler{
 		Client:                c,
 		Log:                   log,
 		cancelMap:             make(map[types.NamespacedName]context.CancelFunc),
 		backup:                make(map[types.NamespacedName]struct{}),
 		phoneHomeTrigger:      pht,
-		mtlsClient:            mtlsClient,
+		mtlsClientRegistry:    mtlsClientRegistry,
 		clientRegistry:        cs,
 		statusServiceRegistry: ssm,
 	}
@@ -77,7 +77,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 
 	//Check if the HotBackup CR is marked to be deleted
 	if hb.GetDeletionTimestamp() != nil {
-		err = r.executeFinalizer(ctx, hb, logger)
+		err = r.executeFinalizer(ctx, hb)
 		if err != nil {
 			return r.updateStatus(ctx, req.NamespacedName, failedHbStatus(err))
 		}
@@ -120,7 +120,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 		return r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupPending))
 	}
 
-	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName, logger)
+	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 		return
@@ -144,7 +144,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	return
 }
 
-func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Context, name types.NamespacedName, logger logr.Logger) error {
+func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Context, name types.NamespacedName) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Always fetch the new version of the resource
 		hb := &hazelcastv1alpha1.HotBackup{}
@@ -164,7 +164,7 @@ func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	})
 }
 
-func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup, logger logr.Logger) error {
+func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup) error {
 	if !controllerutil.ContainsFinalizer(hb, n.Finalizer) {
 		return nil
 	}
@@ -287,6 +287,10 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	backupUUIDs := make([]string, len(b.Members()))
 	// for each member monitor and upload backup if needed
 	g, groupCtx = errgroup.WithContext(ctx)
+	mtlsClient, ok := r.mtlsClientRegistry.Get(hazelcastName.Namespace)
+	if !ok {
+		return r.updateStatus(ctx, backupName, failedHbStatus(errors.New("failed to get MTLS client")))
+	}
 	for i, m := range b.Members() {
 		m := m
 		i := i
@@ -295,7 +299,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 			if !isExternal {
 				b, err := localbackup.NewLocalBackup(&localbackup.Config{
 					MemberAddress: m.Address,
-					MTLSClient:    r.mtlsClient,
+					MTLSClient:    mtlsClient,
 					BackupBaseDir: hz.Spec.Persistence.BaseDir,
 					MemberID:      i,
 				})
@@ -317,7 +321,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 
 			u, err := upload.NewUpload(&upload.Config{
 				MemberAddress: m.Address,
-				MTLSClient:    r.mtlsClient,
+				MTLSClient:    mtlsClient,
 				BucketURI:     hb.Spec.BucketURI,
 				BackupBaseDir: hz.Spec.Persistence.BaseDir,
 				HazelcastName: hb.Spec.HazelcastResourceName,

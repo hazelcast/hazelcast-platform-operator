@@ -1084,6 +1084,25 @@ func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanRepl
 	return cfg
 }
 
+func (r *HazelcastReconciler) reconcileMtlsSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+	_, err := r.mtlsClientRegistry.Create(ctx, r.Client, h.Namespace)
+
+	secret := &v1.Secret{}
+	secretName := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: h.Namespace}
+	err = r.Client.Get(ctx, secretName, secret)
+	if err != nil {
+		return err
+	}
+	err = controllerutil.SetControllerReference(h, secret, r.Scheme)
+	if err != nil {
+		return err
+	}
+	_, err = util.CreateOrUpdate(ctx, r.Client, secret, func() error {
+		return nil
+	})
+	return err
+}
+
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	ls := labels(h)
 	sts := &appsv1.StatefulSet{

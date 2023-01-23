@@ -8,7 +8,6 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -98,15 +97,6 @@ func main() {
 		setupLog.Info("No NAMESPACE environment variable is set! Operator might be running locally")
 	}
 
-	mtlsClient := mtls.NewClient(mgr.GetClient(), types.NamespacedName{
-		Name: n.MTLSCertSecretName, Namespace: operatorNamespace,
-	})
-
-	if err := mgr.Add(mtlsClient); err != nil {
-		setupLog.Error(err, "unable to create mtls client")
-		os.Exit(1)
-	}
-
 	deploymentName := "controller-manager"
 	podName, found := os.LookupEnv(n.PodNameEnv)
 	if found || podName != "" {
@@ -143,6 +133,7 @@ func main() {
 		}
 	}
 
+	mtlsRegistry := mtls.NewHttpClientRegistry()
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
@@ -150,6 +141,7 @@ func main() {
 		phoneHomeTrigger,
 		cr,
 		ssm,
+		mtlsRegistry,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Hazelcast")
 		os.Exit(1)
@@ -169,7 +161,7 @@ func main() {
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("HotBackup"),
 		phoneHomeTrigger,
-		mtlsClient,
+		mtlsRegistry,
 		cr,
 		ssm,
 	).SetupWithManager(mgr); err != nil {
@@ -193,7 +185,7 @@ func main() {
 		ctrl.Log.WithName("controllers").WithName("WanReplication"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
-		mtlsClient,
+		mtlsRegistry,
 		cr,
 		ssm,
 	).SetupWithManager(mgr); err != nil {

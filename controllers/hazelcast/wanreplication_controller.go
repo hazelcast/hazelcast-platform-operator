@@ -35,18 +35,18 @@ type WanReplicationReconciler struct {
 	Scheme                *runtime.Scheme
 	phoneHomeTrigger      chan struct{}
 	clientRegistry        hzclient.ClientRegistry
-	mtlsClient            *mtls.Client
+	mtlsClientRegistry    mtls.HttpClientRegistry
 	statusServiceRegistry hzclient.StatusServiceRegistry
 }
 
-func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, pht chan struct{}, mtlsClient *mtls.Client, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *WanReplicationReconciler {
+func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, pht chan struct{}, mtlsClientRegistry mtls.HttpClientRegistry, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *WanReplicationReconciler {
 	return &WanReplicationReconciler{
 		Client:                client,
 		Logger:                log,
 		Scheme:                scheme,
 		phoneHomeTrigger:      pht,
 		clientRegistry:        cs,
-		mtlsClient:            mtlsClient,
+		mtlsClientRegistry:    mtlsClientRegistry,
 		statusServiceRegistry: ssm,
 	}
 }
@@ -208,10 +208,14 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			memberAddresses = append(memberAddresses, v.Address)
 		}
 
+		mtlsClient, ok := r.mtlsClientRegistry.Get(req.Namespace)
+		if !ok {
+			return errors.New("failed to get MTLS client")
+		}
 		for _, memberAddress := range memberAddresses {
 			p, err := dialer.NewDialer(&dialer.Config{
 				MemberAddress: memberAddress,
-				MTLSClient:    r.mtlsClient,
+				MTLSClient:    mtlsClient,
 			})
 			if err != nil {
 				return err
