@@ -9,7 +9,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -41,95 +40,6 @@ func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *h
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
 	}
 	return nil
-}
-
-func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	if platform.GetType() == platform.Kubernetes {
-		return nil
-	}
-
-	role := &rbacv1.Role{
-		ObjectMeta: metadata(mc),
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{"security.openshift.io"},
-				Resources: []string{"securitycontextconstraints"},
-				Verbs:     []string{"use"},
-			},
-		},
-	}
-
-	err := controllerutil.SetControllerReference(mc, role, r.Scheme)
-	if err != nil {
-		return fmt.Errorf("failed to set owner reference on Role: %w", err)
-	}
-
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
-		return nil
-	})
-	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "Role", mc.Name, "result", opResult)
-	}
-	return err
-}
-
-func (r *ManagementCenterReconciler) reconcileServiceAccount(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	pt := platform.GetType()
-
-	if pt == platform.Kubernetes {
-		return nil
-	}
-
-	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metadata(mc),
-	}
-
-	err := controllerutil.SetControllerReference(mc, serviceAccount, r.Scheme)
-	if err != nil {
-		return fmt.Errorf("failed to set owner reference on ServiceAccount: %w", err)
-	}
-
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
-		return nil
-	})
-	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "ServiceAccount", mc.Name, "result", opResult)
-	}
-	return err
-}
-
-func (r *ManagementCenterReconciler) reconcileRoleBinding(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	if platform.GetType() == platform.Kubernetes {
-		return nil
-	}
-
-	rb := &rbacv1.RoleBinding{
-		ObjectMeta: metadata(mc),
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      rbacv1.ServiceAccountKind,
-				Name:      mc.Name,
-				Namespace: mc.Namespace,
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     mc.Name,
-		},
-	}
-	err := controllerutil.SetControllerReference(mc, rb, r.Scheme)
-	if err != nil {
-		return fmt.Errorf("failed to set owner reference on RoleBinding: %w", err)
-	}
-
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, rb, func() error {
-		return nil
-	})
-	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "RoleBinding", mc.Name, "result", opResult)
-	}
-	return err
 }
 
 func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
@@ -237,27 +147,12 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 							SuccessThreshold:    1,
 							FailureThreshold:    10,
 						},
-						SecurityContext: &v1.SecurityContext{
-							RunAsNonRoot:             pointer.Bool(true),
-							RunAsUser:                pointer.Int64(65534),
-							Privileged:               pointer.Bool(false),
-							ReadOnlyRootFilesystem:   pointer.Bool(false),
-							AllowPrivilegeEscalation: pointer.Bool(false),
-							Capabilities: &v1.Capabilities{
-								Drop: []v1.Capability{"ALL"},
-							},
-						},
+						SecurityContext: containerSecurityContext(),
 					}},
-					SecurityContext: &v1.PodSecurityContext{
-						FSGroup: pointer.Int64(65534),
-					},
+					SecurityContext: podSecurityContext(),
 				},
 			},
 		},
-	}
-
-	if platform.GetType() == platform.OpenShift {
-		sts.Spec.Template.Spec.ServiceAccountName = mc.Name
 	}
 
 	err := controllerutil.SetControllerReference(mc, sts, r.Scheme)
@@ -266,13 +161,18 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 	}
 
 	if mc.Spec.Persistence.IsEnabled() {
-		sts.Spec.Template.Spec.Containers[0].VolumeMounts = []v1.VolumeMount{persistentVolumeMount()}
 		if mc.Spec.Persistence.ExistingVolumeClaimName == "" {
 			sts.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{persistentVolumeClaim(mc)}
 		} else {
 			sts.Spec.Template.Spec.Volumes = []v1.Volume{existingVolumeClaim(mc.Spec.Persistence.ExistingVolumeClaimName)}
 		}
+	} else {
+		// Add emptyDir volume to make /data writable
+		sts.Spec.Template.Spec.Volumes = []v1.Volume{emptyDirVolume(mc.Spec.Persistence.ExistingVolumeClaimName)}
 	}
+	// Add tmpDir to make /tmp writable
+	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, tmpDir())
+	sts.Spec.Template.Spec.Containers[0].VolumeMounts = []v1.VolumeMount{persistentVolumeMount(), tmpDirMount()}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		sts.Spec.Template.Spec.ImagePullSecrets = mc.Spec.ImagePullSecrets
@@ -294,10 +194,49 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 	return err
 }
 
+func podSecurityContext() *v1.PodSecurityContext {
+	// Openshift assigns user and fsgroup ids itself
+	if platform.GetType() == platform.OpenShift {
+		return &v1.PodSecurityContext{
+			RunAsNonRoot: pointer.Bool(true),
+		}
+	}
+
+	return &v1.PodSecurityContext{
+		RunAsNonRoot: pointer.Bool(true),
+		// Do not have to give User and FSGroup IDs because MC image's default user is 1001 so kubelet
+		// does not complain when RunAsNonRoot is true
+		// To keep it consistent with Hazelcast, we are adding following
+		RunAsUser: pointer.Int64(65534),
+		FSGroup:   pointer.Int64(65534),
+	}
+}
+
+func containerSecurityContext() *v1.SecurityContext {
+	sec := &v1.SecurityContext{
+		RunAsNonRoot:             pointer.Bool(true),
+		Privileged:               pointer.Bool(false),
+		ReadOnlyRootFilesystem:   pointer.Bool(true),
+		AllowPrivilegeEscalation: pointer.Bool(false),
+		Capabilities: &v1.Capabilities{
+			Drop: []v1.Capability{"ALL"},
+		},
+	}
+
+	return sec
+}
+
 func persistentVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      n.MancenterStorageName,
 		MountPath: "/data",
+	}
+}
+
+func tmpDirMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      n.TmpDirVolName,
+		MountPath: "/tmp",
 	}
 }
 
@@ -331,6 +270,24 @@ func existingVolumeClaim(claimName string) v1.Volume {
 	}
 }
 
+func emptyDirVolume(claimName string) v1.Volume {
+	return v1.Volume{
+		Name: n.MancenterStorageName,
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+func tmpDir() v1.Volume {
+	return v1.Volume{
+		Name: n.TmpDirVolName,
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{{Name: mcInitCmd, Value: clusterAddCommand(mc)}}
 
@@ -349,7 +306,7 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 			},
 			v1.EnvVar{
 				Name: javaOpts,
-				Value: fmt.Sprintf("-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true"+
+				Value: fmt.Sprintf("-XX:+UseContainerSupport -Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true"+
 					" -Dhazelcast.mc.lock.skip=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
 			},
 		)
@@ -357,7 +314,7 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: javaOpts,
-				Value: fmt.Sprintf("-Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"+
+				Value: fmt.Sprintf("-XX:+UseContainerSupport -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"+
 					" -Dhazelcast.mc.lock.skip=true -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
 			},
 		)

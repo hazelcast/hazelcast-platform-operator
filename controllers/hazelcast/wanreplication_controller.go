@@ -51,9 +51,9 @@ func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/status,verbs=get;update;patch,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/finalizers,verbs=update,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/status,verbs=get;update;patch,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/finalizers,verbs=update,namespace=watched
 
 func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.WithValues("name", req.Name, "namespace", req.NamespacedName)
@@ -231,7 +231,7 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 
 	mapWanStatus := make(map[string]wanOptionsBuilder)
 	for hzResourceName, maps := range HZClientMap {
-		cl, err := GetHazelcastClient(r.clientRegistry, &maps[0])
+		cl, err := GetHazelcastClient(ctx, r.clientRegistry, &maps[0])
 		if err != nil {
 			return err
 		}
@@ -432,7 +432,7 @@ func (r *WanReplicationReconciler) stopWanReplication(ctx context.Context, wan *
 
 	for hzResourceName, maps := range HZClientMap {
 
-		cli, err := GetHazelcastClient(r.clientRegistry, &maps[0])
+		cli, err := GetHazelcastClient(ctx, r.clientRegistry, &maps[0])
 		if err != nil {
 			return err
 		}
@@ -472,7 +472,7 @@ func stopWanRepForRemovedResources(ctx context.Context, wan *hazelcastv1alpha1.W
 		if ok {
 			continue
 		}
-		cli, err := GetHazelcastClient(cs, &m)
+		cli, err := GetHazelcastClient(ctx, cs, &m)
 		if err != nil {
 			return err
 		}

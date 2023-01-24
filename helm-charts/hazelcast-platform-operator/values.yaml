@@ -14,7 +14,10 @@ image:
 installCRDs: false
 developerModeEnabled: false
 phoneHomeEnabled: true
-watchNamespace: default
+# Namespace operator watches, if empty string or omitted release namespace is watched.
+watchedNamespace: ""
+webhook:
+  enabled: true
 
 debug:
   enabled: false
@@ -36,16 +39,15 @@ serviceAccount:
 podAnnotations: {}
 
 podSecurityContext:
-  # fsGroup: 2000
+  runAsNonRoot: true
 
 securityContext:
   allowPrivilegeEscalation: false
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
 
 service:
   type: ClusterIP

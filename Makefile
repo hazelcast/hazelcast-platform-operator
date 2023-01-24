@@ -96,7 +96,7 @@ DEBUG_ENABLED ?= false
 RELEASE_NAME ?= v1
 CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
 DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
-STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchNamespace=$(NAMESPACE),debug.enabled=$(DEBUG_ENABLED)
+STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespace=$(NAMESPACE),debug.enabled=$(DEBUG_ENABLED)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -254,12 +254,14 @@ sync-manifests: manifests yq
 	@cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml $(CRD_CHART)/templates/
 # Move role rules into helm template
 	@role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
-		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role") | .rules') ;\
-		echo "$$role" > $(OPERATOR_CHART)/templates/role.yaml
+		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "operator-namespace") | .rules' \
+		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "watched") | .rules');\
+		 echo "$$role" > "$(OPERATOR_CHART)/templates/role.yaml"
+
 # Move clusterrole rules into helm template
 	@clusterrole=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/clusterrole.yaml \
-		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "ClusterRole") | .rules') ;\
-		echo "$$clusterrole" > $(OPERATOR_CHART)/templates/clusterrole.yaml
+			&& cat config/rbac/role.yaml | $(YQ) 'select(.kind == "ClusterRole") | .rules');\
+	  		echo "$$clusterrole" > "$(OPERATOR_CHART)/templates/clusterrole.yaml"
 
 install-crds: helm sync-manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
 	$(HELM) upgrade --install $(CRD_RELEASE_NAME) $(CRD_CHART) -n default ;\
@@ -274,17 +276,17 @@ uninstall-operator: helm sync-manifests
 	$(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
 
 webhook-install: helm sync-manifests
-	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
+	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/webhook.yaml --namespace=$(NAMESPACE) | $(KUBECTL) apply -f -
 
 webhook-uninstall: helm sync-manifests
-	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/validatingwebhookconfiguration.yaml -s templates/service.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
+	$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) -s templates/webhook.yaml --namespace=$(NAMESPACE) | $(KUBECTL) delete -f -
 
 deploy: install-crds install-operator ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 
 undeploy: uninstall-operator uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 
 deploy-tilt: helm sync-manifests
-	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) --namespace=$(NAMESPACE)
+	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES),podSecurityContext=null,securityContext=null --namespace=$(NAMESPACE)
 
 undeploy-tilt: 
 	$(MAKE) -s deploy-tilt RELEASE_NAME=$(RELEASE_NAME) OPERATOR_CHART=$(OPERATOR_CHART) NAMESPACE=$(NAMESPACE) | $(KUBECTL) delete -f -

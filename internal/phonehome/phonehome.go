@@ -64,8 +64,8 @@ func PhoneHome(cl client.Client, m *Metrics) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 10 * time.Second}
-	_, err = client.Do(req)
+	c := &http.Client{Timeout: 10 * time.Second}
+	_, err = c.Do(req)
 	if err != nil {
 		return
 	}
@@ -198,8 +198,8 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 }
 
 func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
-	hzcl, ok := reg.Get(types.NamespacedName{Name: hzName, Namespace: hzNamespace})
-	if !ok {
+	hzcl, err := reg.GetOrCreate(context.Background(), types.NamespacedName{Name: hzName, Namespace: hzNamespace})
+	if err != nil {
 		return "", false
 	}
 	cid := hzcl.ClusterId()
