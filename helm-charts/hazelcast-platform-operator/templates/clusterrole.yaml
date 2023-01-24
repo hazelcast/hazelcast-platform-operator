@@ -1,7 +1,11 @@
 {{/*
 ClusterRole permission rules are synced manually
 */}}
-{{- if .Values.enableHazelcastNodeDiscovery -}}
+{{- $watchOwnNamespace := (eq .Release.Namespace .Values.watchedNamespace) -}}
+{{- $watchAllNamespace := (has .Values.watchedNamespace (list "" "*" )) -}}
+{{- $watchOtherNamespace := (and (not $watchAllNamespace) (not $watchOwnNamespace) ) -}}
+{{- if .Values.createClusterScopedResources }}
+{{- if or .Values.enableHazelcastNodeDiscovery $watchAllNamespace }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -9,25 +13,12 @@ metadata:
   labels:
     {{- include "hazelcast-platform-operator.labels" . | nindent 4 }}
 rules:
-- apiGroups:
-    - ""
-  resources:
-    - nodes
-  verbs:
-    - get
-- apiGroups:
-    - rbac.authorization.k8s.io
-  resources:
-    - clusterrolebindings
-    - clusterroles
-  verbs:
-    - create
-    - delete
-    - get
-    - list
-    - patch
-    - update
-    - watch
+{{- if .Values.enableHazelcastNodeDiscovery }}
+{{- include "hazelcast-platform-operator.hazelcastNodeReadRules" . | nindent 0 }}
+{{- end }}
+{{- if $watchAllNamespace }}
+{{- include "hazelcast-platform-operator.watchedNamespaceRules" . | nindent 0  }}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -43,4 +34,31 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "hazelcast-platform-operator.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- if $watchOtherNamespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "hazelcast-platform-operator.fullname" . }}-role-bound
+  labels:
+    {{- include "hazelcast-platform-operator.labels" . | nindent 4 }}
+rules:
+{{- include "hazelcast-platform-operator.watchedNamespaceRules" . | nindent 0 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "hazelcast-platform-operator.fullname" . }}-clusterrole-binder
+  labels:
+    {{- include "hazelcast-platform-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "hazelcast-platform-operator.fullname" . }}-role-bound
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "hazelcast-platform-operator.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end -}}
 {{- end -}}
