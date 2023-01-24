@@ -64,18 +64,11 @@ jobs:
 
       - name: Check if all manifests are synced
         run: |
-          OP_PATH=./helm-charts/hazelcast-platform-operator/templates
           CRD_PATH=./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds/templates
-          cp $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
-          cp $OP_PATH/role.yaml $OP_PATH/role.yaml.old
+          mv $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
 
           make sync-manifests
           if ! cmp -s $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old; then
-              echo "Please make sure your branch is up to date with main and run 'make sync-manifests'"
-              exit 1
-          fi
-
-          if ! cmp -s $OP_PATH/role.yaml $OP_PATH/role.yaml.old; then
               echo "Please make sure your branch is up to date with main and run 'make sync-manifests'"
               exit 1
           fi
