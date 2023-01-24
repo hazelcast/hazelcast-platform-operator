@@ -634,75 +634,37 @@ const (
 
 // NativeMemoryConfiguration is a Hazelcast HD memory configuration
 type NativeMemoryConfiguration struct {
-	// Enabled specifies if HD Memory is enabled
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
 	// AllocatorType specifies one of 2 types of mechanism for allocating memory to HD
+	// +kubebuilder:default:="STANDARD"
 	// +optional
-	AllocatorType *NativeMemoryAllocatorType `json:"allocatorType,omitempty"`
+	AllocatorType NativeMemoryAllocatorType `json:"allocatorType,omitempty"`
 
 	// Size of the total native memory to allocate
+	// +kubebuilder:default:="512M"
 	// +optional
-	Size *resource.Quantity `json:"size,omitempty"`
+	Size resource.Quantity `json:"size,omitempty"`
 
 	// MinBlockSize is the size of smallest block that will be allocated.
 	// It is used only by the POOLED memory allocator.
 	// +optional
-	MinBlockSize *int32 `json:"minBlockSize,omitempty"`
+	MinBlockSize int32 `json:"minBlockSize,omitempty"`
 
 	// PageSize is the size of the page in bytes to allocate memory as a block.
 	// It is used only by the POOLED memory allocator.
+	// +kubebuilder:default:=4194304
 	// +optional
-	PageSize *int32 `json:"pageSize,omitempty"`
+	PageSize int32 `json:"pageSize,omitempty"`
 
 	// MetadataSpacePercentage defines percentage of the allocated native memory
 	// that is used for the metadata of other map components such as index
 	// (for predicates), offset, etc.
+	// +kubebuilder:default:=12
 	// +optional
-	MetadataSpacePercentage *int32 `json:"metadataSpacePercentage,omitempty"`
+	MetadataSpacePercentage int32 `json:"metadataSpacePercentage,omitempty"`
 }
 
-func (c *NativeMemoryConfiguration) GetEnabled() bool {
-	if c != nil && c.Enabled != nil {
-		return *c.Enabled
-	}
-	return false
-}
-
-func (c *NativeMemoryConfiguration) GetAllocatorType() NativeMemoryAllocatorType {
-	if c != nil && c.AllocatorType != nil {
-		return *c.AllocatorType
-	}
-	return ""
-}
-
-func (c *NativeMemoryConfiguration) GetSize() *resource.Quantity {
-	if c != nil && c.Size != nil {
-		return c.Size
-	}
-	return &resource.Quantity{}
-}
-
-func (c *NativeMemoryConfiguration) GetMinBlockSize() int32 {
-	if c != nil && c.MinBlockSize != nil {
-		return *c.MinBlockSize
-	}
-	return 0
-}
-
-func (c *NativeMemoryConfiguration) GetPageSize() int32 {
-	if c != nil && c.PageSize != nil {
-		return *c.PageSize
-	}
-	return 0
-}
-
-func (c *NativeMemoryConfiguration) GetMetadataSpacePercentage() int32 {
-	if c != nil && c.MetadataSpacePercentage != nil {
-		return *c.MetadataSpacePercentage
-	}
-	return 0
+func (c *NativeMemoryConfiguration) IsEnabled() bool {
+	return c != nil && !(*c == (NativeMemoryConfiguration{}))
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

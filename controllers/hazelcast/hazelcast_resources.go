@@ -665,23 +665,18 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
-	if h.Spec.NativeMemory.GetEnabled() {
+	if h.Spec.NativeMemory.IsEnabled() {
 		nativeMemory := h.Spec.NativeMemory
 		cfg.NativeMemory = config.NativeMemory{
-			Enabled: true,
-
-			// config supports nil values so it is safe to
-			// use h.Spec.NativeMemory here directly
-			AllocatorType:           (*string)(nativeMemory.AllocatorType),
+			Enabled:                 true,
+			AllocatorType:           string(nativeMemory.AllocatorType),
 			MinBlockSize:            nativeMemory.MinBlockSize,
 			PageSize:                nativeMemory.PageSize,
 			MetadataSpacePercentage: nativeMemory.MetadataSpacePercentage,
-		}
-		if nativeMemory.Size != nil {
-			cfg.NativeMemory.Size = &config.NativeMemorySize{
+			Size: config.NativeMemorySize{
 				Value: nativeMemory.Size.ScaledValue(resource.Mega),
 				Unit:  "MEGABYTES",
-			}
+			},
 		}
 	}
 

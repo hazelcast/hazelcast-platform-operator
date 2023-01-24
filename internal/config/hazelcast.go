@@ -239,12 +239,12 @@ type BatchPublisherConfig struct {
 }
 
 type NativeMemory struct {
-	Enabled                 bool              `yaml:"enabled"`
-	AllocatorType           *string           `yaml:"allocator-type"`
-	Size                    *NativeMemorySize `yaml:"size,omitempty"`
-	MinBlockSize            *int32            `yaml:"min-block-size,omitempty"`
-	PageSize                *int32            `yaml:"page-size,omitempty"`
-	MetadataSpacePercentage *int32            `yaml:"metadata-space-percentage,omitempty"`
+	Enabled                 bool             `yaml:"enabled"`
+	AllocatorType           string           `yaml:"allocator-type"`
+	Size                    NativeMemorySize `yaml:"size,omitempty"`
+	MinBlockSize            int32            `yaml:"min-block-size,omitempty"`
+	PageSize                int32            `yaml:"page-size,omitempty"`
+	MetadataSpacePercentage int32            `yaml:"metadata-space-percentage,omitempty"`
 }
 
 type NativeMemorySize struct {

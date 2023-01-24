@@ -4,9 +4,5 @@ metadata:
   name: hazelcast
 spec:
   nativeMemory:
-    enabled: true
-    size: 512M
     allocatorType: POOLED
-    pageSize: 4194304
-    minBlockSize: 16
-    metadataSpacePercentage: 15
+    size: 512M
