@@ -132,6 +132,11 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	HighAvailabilityMode HighAvailabilityMode `json:"highAvailabilityMode,omitempty"`
+
+	// Hazelcast JVM configuration
+	// +optional
+	// +kubebuilder:default:={}
+	JVM *JVMConfiguration `json:"jvm,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE
@@ -558,6 +563,56 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 	default:
 		return corev1.ServiceTypeNodePort
 	}
+}
+
+// JVMConfiguration is a Hazelcast JVM configuration
+type JVMConfiguration struct {
+	// Memory is a JVM memory configuration
+	// +optional
+	Memory *JVMMemoryConfiguration `json:"memory,omitempty"`
+}
+
+func (c *JVMConfiguration) GetMemory() *JVMMemoryConfiguration {
+	if c != nil {
+		return c.Memory
+	}
+	return nil
+}
+
+// JVMMemoryConfiguration is a JVM memory configuration
+type JVMMemoryConfiguration struct {
+	// InitialRAMPercentage configures JVM initial heap size
+	// +optional
+	InitialRAMPercentage *string `json:"initialRAMPercentage,omitempty"`
+
+	// MinRAMPercentage sets the minimum heap size for a JVM
+	// +optional
+	MinRAMPercentage *string `json:"minRAMPercentage,omitempty"`
+
+	// MaxRAMPercentage sets the maximum heap size for a JVM
+	// +optional
+	MaxRAMPercentage *string `json:"maxRAMPercentage,omitempty"`
+}
+
+func (c *JVMMemoryConfiguration) GetInitialRAMPercentage() string {
+	if c != nil && c.InitialRAMPercentage != nil {
+		return *c.InitialRAMPercentage
+	}
+	return ""
+}
+
+func (c *JVMMemoryConfiguration) GetMinRAMPercentage() string {
+	if c != nil && c.MinRAMPercentage != nil {
+		return *c.MinRAMPercentage
+	}
+	return ""
+}
+
+func (c *JVMMemoryConfiguration) GetMaxRAMPercentage() string {
+	if c != nil && c.MaxRAMPercentage != nil {
+		return *c.MaxRAMPercentage
+	}
+	return ""
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

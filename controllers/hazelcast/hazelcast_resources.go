@@ -1690,7 +1690,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
 			Name:  "JAVA_OPTS",
-			Value: fmt.Sprintf("-Dhazelcast.config=%s/hazelcast.yaml", n.HazelcastMountPath),
+			Value: javaOPTS(h),
 		},
 		{
 			Name:  "HZ_PARDOT_ID",
@@ -1729,6 +1729,31 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	}
 
 	return envs
+}
+
+func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
+	b := strings.Builder{}
+	b.WriteString("-Dhazelcast.config=" + path.Join(n.HazelcastMountPath, "hazelcast.yaml"))
+
+	// we should configure JVM to respect container’s resource limits
+	b.WriteString(" -XX:+UseContainerSupport")
+
+	jvmMemory := h.Spec.JVM.GetMemory()
+
+	// in addition we allow user to set explicit memory limits
+	if value := jvmMemory.GetInitialRAMPercentage(); value != "" {
+		b.WriteString(" -XX:InitialRAMPercentage=" + value)
+	}
+
+	if value := jvmMemory.GetMinRAMPercentage(); value != "" {
+		b.WriteString(" -XX:MinRAMPercentage=" + value)
+	}
+
+	if value := jvmMemory.GetMaxRAMPercentage(); value != "" {
+		b.WriteString(" -XX:MaxRAMPercentage=" + value)
+	}
+
+	return b.String()
 }
 
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
