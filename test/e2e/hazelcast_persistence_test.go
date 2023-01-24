@@ -11,7 +11,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
@@ -273,7 +272,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		assertHotBackupStatus(hotBackup, hazelcastcomv1alpha1.HotBackupPending, 1*Minute)
+		assertHotBackupStatus(hotBackup, hazelcastv1alpha1.HotBackupPending, 1*Minute)
 
 		By("creating cluster with backup enabled")
 		CreateHazelcastCR(hazelcast)
