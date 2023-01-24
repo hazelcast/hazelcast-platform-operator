@@ -43,9 +43,8 @@ func NewManagementCenterReconciler(c client.Client, log logr.Logger, s *runtime.
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/status,verbs=get;update;patch,namespace=watched
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/finalizers,verbs=update,namespace=watched
 // Role related to Reconcile()
-// duplicated in hazelcast_contoller.go +kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+// duplicated in hazelcast_contoller.go +kubebuilder:rbac:groups="",resources=events;services;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 // duplicated in hazelcast_contoller.go +kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-// duplicated in hazelcast_contoller.go +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 
 func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("management-center", req.NamespacedName)
@@ -74,21 +73,6 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
-	}
-
-	err = r.reconcileRole(ctx, mc, logger)
-	if err != nil {
-		return update(ctx, r.Client, mc, failedPhase(err))
-	}
-
-	err = r.reconcileServiceAccount(ctx, mc, logger)
-	if err != nil {
-		return update(ctx, r.Client, mc, failedPhase(err))
-	}
-
-	err = r.reconcileRoleBinding(ctx, mc, logger)
-	if err != nil {
-		return update(ctx, r.Client, mc, failedPhase(err))
 	}
 
 	err = r.reconcileService(ctx, mc, logger)

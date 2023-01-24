@@ -416,7 +416,7 @@ func getFirstWorkerNodeName() string {
 			}
 		}
 	}
-	if platform.GetPlatform().Type == platform.OpenShift {
+	if platform.GetType() == platform.OpenShift {
 		labelMatcher = client.MatchingLabels{
 			"node-role.kubernetes.io/worker": "",
 		}

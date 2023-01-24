@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 )
 
 var BlackListProperties = map[string]struct{}{
@@ -80,6 +81,10 @@ func validatePersistence(h *Hazelcast) error {
 
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
 		return errors.New("startupAction PartialStart can be used only with Partial* clusterDataRecoveryPolicy")
+	}
+
+	if p.HostPath != "" && platform.GetType() == platform.OpenShift {
+		return errors.New("HostPath persistence is not supported in OpenShift environments")
 	}
 	return nil
 }

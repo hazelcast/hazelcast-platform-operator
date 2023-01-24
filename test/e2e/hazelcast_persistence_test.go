@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
@@ -203,6 +204,9 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		if platform.GetType() == platform.OpenShift {
+			Skip("HostPath is not supported in OpenShift environments")
+		}
 		setLabelAndCRName("hp-5")
 
 		By("creating cluster with backup enabled")
@@ -241,6 +245,9 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 	DescribeTable("Should successfully restore from ExternalBackup-HostPath-HotBackupResourceName", Label("slow"), func(hostPath, bucketURI, secretName string, singleNode bool) {
 		if !ee {
 			Skip("This test will only run in EE configuration")
+		}
+		if platform.GetType() == platform.OpenShift {
+			Skip("HostPath is not supported in OpenShift environments")
 		}
 		setLabelAndCRName("hp-7")
 
