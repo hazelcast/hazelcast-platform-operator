@@ -48,7 +48,7 @@ type fakeHzClientRegistry struct {
 	Clients sync.Map
 }
 
-func (cr *fakeHzClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName, l logr.Logger) (hzclient.Client, error) {
+func (cr *fakeHzClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (hzclient.Client, error) {
 	client, ok := cr.Get(nn)
 	if !ok {
 		return client, fmt.Errorf("Fake client was not set before test")

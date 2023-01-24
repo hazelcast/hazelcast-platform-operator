@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client/logger"
+	ctrl "sigs.k8s.io/controller-runtime"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -13,7 +13,7 @@ import (
 )
 
 type ClientRegistry interface {
-	GetOrCreate(ctx context.Context, nn types.NamespacedName,l logr.Logger) (Client, error)
+	GetOrCreate(ctx context.Context, nn types.NamespacedName) (Client, error)
 	Get(ns types.NamespacedName) (Client, bool)
 	Delete(ctx context.Context, ns types.NamespacedName) error
 }
@@ -23,7 +23,7 @@ type HazelcastClientRegistry struct {
 	K8sClient k8sClient.Client
 }
 
-func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName, l logr.Logger) (Client, error) {
+func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (Client, error) {
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err := cr.K8sClient.Get(ctx, nn, h)
 	if err != nil {
@@ -34,7 +34,7 @@ func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.Nam
 	if ok {
 		return client, nil
 	}
-	hzLogger, err := NewLogrHzClientLoggerAdapter(l, logger.InfoLevel, h)
+	hzLogger, err := NewLogrHzClientLoggerAdapter(ctrl.Log, logger.ErrorLevel, h)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +43,7 @@ func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.Nam
 		return nil, err
 	}
 	cr.clients.Store(nn, c)
+	hzLogger.enableFunc = c.IsClientConnected
 	return c, nil
 }
 
