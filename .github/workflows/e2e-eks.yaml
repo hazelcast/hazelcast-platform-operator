@@ -163,6 +163,7 @@ jobs:
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
       - name: Helm Registry Login
+        run: |-
           cat ${{ secrets.GKE_SA_KEY }} | helm registry login -u _json_key --password-stdin \
           https://us-east1-docker.pkg.dev
 
