@@ -162,10 +162,12 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
-      - name: Helm Registry Login
-        run: |-
-          echo ${{ secrets.GKE_SA_KEY }} | helm registry login -u _json_key --password-stdin \
-          https://us-east1-docker.pkg.dev
+      - name: Authenticate to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
 
       - name: Deploy CRDs
         if: matrix.edition == 'ee'
