@@ -1,5 +1,6 @@
 name: High Availability tests on GKE
 on:
+  pull_request:
   workflow_dispatch:
   schedule:
     - cron: "0 9 */3 * *"
@@ -141,13 +142,13 @@ jobs:
             --namespace ${CHAOS_MESH_NAMESPACE} --from-literal=service_account="$GKE_SA_BASE64"
 
       - name: Run high Availability tests at GKE
-        run: make test-e2e NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME GINKGO_PARALLEL_PROCESSES=1 E2E_TEST_SUITE=high_availability REPORT_SUFFIX=01 WORKFLOW_ID=high-availability
+        run: make test-high-availability NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=01 WORKFLOW_ID=high-availability
 
       - name: Clean up after Tests
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
-          helm uninstall chaos-mesh -n chaos-mesh
+          helm uninstall chaos-mesh -n ${CHAOS_MESH_NAMESPACE}
 
       - name: Upload Test Report
         if: always()
