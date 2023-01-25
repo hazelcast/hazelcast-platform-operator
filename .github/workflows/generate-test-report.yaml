@@ -126,10 +126,3 @@ jobs:
         run: |
           source .github/scripts/utils.sh
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
-
-      - name: Delete Test Artifact
-        uses: geekyeggo/delete-artifact@v2
-        with:
-          name: |
-            test-suites
-            test-report-${{ inputs.WORKFLOW_ID }}

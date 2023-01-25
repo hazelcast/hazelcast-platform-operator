@@ -10,6 +10,9 @@ env:
   OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
   OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
   GRAFANA_NAMESPACE: grafana
+  GAR_REGION: us-east1
+  GAR_PROJECT: hazelcast-33
+  GAR_REPO: hazelcast-platform-operator
 
 jobs:
   check-and-restart-nodes:
@@ -33,6 +36,59 @@ jobs:
           source .github/scripts/utils.sh
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           wait_for_instance_restarted $RESTART_OCP_NODE_TIMEOUT
+
+  get-image:
+    name: Get Image
+    runs-on: ubuntu-latest
+    outputs:
+      IMG: ${{ steps.get-image-tag.outputs.IMG }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set Up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@master
+        with:
+          install: true
+
+      - name: Cache Docker Layers
+        uses: actions/cache@v3.2.3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-multi-buildx-${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-multi-buildx
+
+      - name: Authenticate to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Generate Image Name
+        id: get-image-tag
+        run: |
+          echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
+
+      - name: Build Image
+        uses: docker/build-push-action@v3.3.0
+        with:
+          context: .
+          builder: ${{ steps.buildx.outputs.name }}
+          build-args: |
+            version=${{github.sha}}
+            pardotID=dockerhub
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.get-image-tag.outputs.IMG }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache-new
+
+      - name: Move Docker Cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
   grafana-setup:
     name: Setup Grafana agent
@@ -88,7 +144,7 @@ jobs:
   ocp-e2e-tests:
     name: Run e2e test on OCP
     runs-on: ubuntu-latest
-    needs: grafana-setup
+    needs: [grafana-setup, get-image]
     strategy:
       fail-fast: false
       matrix:
@@ -100,6 +156,7 @@ jobs:
       HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
       NAMESPACE: oc-e2e-test-operator-${{ matrix.edition }}-${{ github.run_id }}
       RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
+      IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v3
@@ -118,17 +175,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Build Image
-        run: |
-          IMG=ttl.sh/$(uuidgen):2h
-          echo "IMG=${IMG}" >> $GITHUB_ENV
-
-          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-          make docker-push IMG=$IMG
-
       - name: Update kubeconfig
         run: |-
-            oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+
+      - name: Authenticate to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
 
       - name: Deploy CRDs
         if: matrix.edition == 'ee'
@@ -189,6 +245,7 @@ jobs:
     name: Remove Unused Images From The Local Store
     runs-on: ubuntu-latest
     needs: ocp-e2e-tests
+    timeout-minutes: 10
     if: always()
     timeout-minutes: 10
     env:
@@ -232,7 +289,7 @@ jobs:
   slack_notify:
     name: Slack Notify
     needs: [ 'ocp-e2e-tests' ]
-    if: always() &&  needs.ocp-e2e-tests.result != 'success' 
+    if: always() &&  needs.ocp-e2e-tests.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
