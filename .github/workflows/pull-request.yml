@@ -355,7 +355,7 @@ jobs:
           --namespace ${{ env.NAMESPACE }} \
           --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
 
-      - name: Login to GAR
+      - name: Authenticate to GAR
         uses: docker/login-action@v2
         with:
           registry: us-east1-docker.pkg.dev

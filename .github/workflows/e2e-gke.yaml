@@ -163,8 +163,6 @@ jobs:
           kubectl config set-context --current --namespace=$NAMESPACE
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
-
           make install-operator IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 

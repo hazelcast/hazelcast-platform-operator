@@ -130,13 +130,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Authenticate to GAR
-        uses: docker/login-action@v2
-        with:
-          registry: us-east1-docker.pkg.dev
-          username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
-
       - name: Azure login
         uses: azure/login@v1
         with:
@@ -146,6 +139,13 @@ jobs:
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
+
+      - name: Authenticate to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
 
       - name: Deploy CRDs
         if: matrix.edition == 'ee'
