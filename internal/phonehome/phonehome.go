@@ -382,11 +382,15 @@ func (phm *PhoneHomeData) fillReplicatedMapMetrics(cl client.Client) {
 
 func listOptions() []client.ListOption {
 	lo := []client.ListOption{}
-	watchedNamespace, found := os.LookupEnv(n.WatchNamespaceEnv)
-	if !found || watchedNamespace == "" || watchedNamespace == "*" {
+	watchedNamespaces := strings.Split(os.Getenv(n.WatchedNamespacesEnv), ",")
+	if len(watchedNamespaces) == 1 && (watchedNamespaces[0] == "" || watchedNamespaces[0] == "*") {
+		// Watching all namespaces, no need to filter
 		return lo
 	}
 
-	lo = append(lo, client.InNamespace(watchedNamespace))
+	for _, watchedNamespace := range watchedNamespaces {
+		lo = append(lo, client.InNamespace(watchedNamespace))
+	}
+
 	return lo
 }

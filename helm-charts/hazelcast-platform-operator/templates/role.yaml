@@ -1,6 +1,7 @@
-{{- $watchOwnNamespace := (eq .Release.Namespace .Values.watchedNamespace) -}}
-{{- $watchAllNamespace := (has .Values.watchedNamespace (list "" "*" )) -}}
+{{- $watchOwnNamespace := (eq .Release.Namespace .Values.watchedNamespaces) -}}
+{{- $watchAllNamespace := (has .Values.watchedNamespaces (list "" "*" )) -}}
 {{- $watchOtherNamespace := (and (not $watchAllNamespace) (not $watchOwnNamespace) ) -}}
+{{- $watchedNamespaces := splitList "," .Values.watchedNamespaces -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -30,30 +31,32 @@ subjects:
     name: {{ include "hazelcast-platform-operator.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- if $watchOtherNamespace }}
+{{- range $watchedNamespaces }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "hazelcast-platform-operator.fullname" . }}-other-ns
-  namespace: {{ .Values.watchedNamespace }}
+  name: {{ include "hazelcast-platform-operator.fullname" $ }}-other-ns
+  namespace: {{ . }}
   labels:
-    {{- include "hazelcast-platform-operator.labels" . | nindent 4 }}
+    {{- include "hazelcast-platform-operator.labels" $ | nindent 4 }}
 rules:
-{{- include "hazelcast-platform-operator.watchedNamespaceRules" . | nindent 0 }}
+{{- include "hazelcast-platform-operator.watchedNamespaceRules" $ | nindent 0 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "hazelcast-platform-operator.fullname" . }}-other-ns
-  namespace: {{ .Values.watchedNamespace }}
+  name: {{ include "hazelcast-platform-operator.fullname" $ }}-other-ns
+  namespace: {{ . }}
   labels:
-    {{- include "hazelcast-platform-operator.labels" . | nindent 4 }}
+    {{- include "hazelcast-platform-operator.labels" $ | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "hazelcast-platform-operator.fullname" . }}-other-ns
+  name: {{ include "hazelcast-platform-operator.fullname" $ }}-other-ns
 subjects:
   - kind: ServiceAccount
-    name: {{ include "hazelcast-platform-operator.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+    name: {{ include "hazelcast-platform-operator.serviceAccountName" $ }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
 {{- end -}}
