@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"os"
 	"time"
@@ -24,7 +25,6 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/webhookca"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -40,7 +40,12 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-//+kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete,namespace=system
+// Role related to leader election
+//+kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete,namespace=operator-namespace
+// Role related to Operator UUID
+//+kubebuilder:rbac:groups="apps",resources=deployments,verbs=get,namespace=operator-namespace
+// ClusterRole related to Webhooks
+//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources=validatingwebhookconfigurations,verbs=update;get;watch;list
 
 func main() {
 	var metricsAddr string
@@ -91,29 +96,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Get operatorNamespace from environment variable.
-	operatorNamespace, found := os.LookupEnv(n.NamespaceEnv)
-	if !found || operatorNamespace == "" {
-		setupLog.Info("No NAMESPACE environment variable is set! Operator might be running locally")
-	}
-
-	deploymentName := "controller-manager"
-	podName, found := os.LookupEnv(n.PodNameEnv)
-	if found || podName != "" {
-		deploymentName = util.DeploymentName(podName)
-	}
-
-	webhookCAInjector, err := webhookca.NewCAInjector(mgr.GetClient(), deploymentName, operatorNamespace)
-	if err != nil {
-		setupLog.Error(err, "unable to create webhook ca injector")
-		// we can continue without ca injector, no need to exit
-	}
-
-	if err := mgr.Add(webhookCAInjector); err != nil {
-		setupLog.Error(err, "unable to run webhook ca injector")
-		os.Exit(1)
-	}
-
 	cr := &hzclient.HazelcastClientRegistry{}
 	ssm := &hzclient.HzStatusServiceRegistry{}
 
@@ -133,10 +115,12 @@ func main() {
 		}
 	}
 
+	controllerLogger := ctrl.Log.WithName("controllers")
+
 	mtlsRegistry := mtls.NewHttpClientRegistry()
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
+		controllerLogger.WithName("Hazelcast"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -149,7 +133,7 @@ func main() {
 
 	if err = managementcenter.NewManagementCenterReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Management Center"),
+		controllerLogger.WithName("Management Center"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
@@ -159,7 +143,7 @@ func main() {
 
 	if err = hazelcast.NewHotBackupReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("HotBackup"),
+		controllerLogger.WithName("HotBackup"),
 		phoneHomeTrigger,
 		mtlsRegistry,
 		cr,
@@ -171,7 +155,7 @@ func main() {
 
 	if err = hazelcast.NewMapReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Map"),
+		controllerLogger.WithName("Map"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -182,7 +166,7 @@ func main() {
 
 	if err = hazelcast.NewWanReplicationReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("WanReplication"),
+		controllerLogger.WithName("WanReplication"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		mtlsRegistry,
@@ -195,7 +179,7 @@ func main() {
 
 	if err = hazelcast.NewCronHotBackupReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("CronHotBackup"),
+		controllerLogger.WithName("CronHotBackup"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
@@ -205,7 +189,7 @@ func main() {
 
 	if err = hazelcast.NewMultiMapReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("MultiMap"),
+		controllerLogger.WithName("MultiMap"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -215,7 +199,7 @@ func main() {
 
 	if err = hazelcast.NewTopicReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Topic"),
+		controllerLogger.WithName("Topic"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -226,7 +210,7 @@ func main() {
 
 	if err = hazelcast.NewReplicatedMapReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("ReplicatedMap"),
+		controllerLogger.WithName("ReplicatedMap"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -237,7 +221,7 @@ func main() {
 
 	if err = hazelcast.NewQueueReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Queue"),
+		controllerLogger.WithName("Queue"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -248,7 +232,7 @@ func main() {
 
 	if err = hazelcast.NewCacheReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Cache"),
+		controllerLogger.WithName("Cache"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -257,50 +241,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&hazelcastcomv1alpha1.Hazelcast{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Hazelcast")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.ManagementCenter{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "ManagementCenter")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.Map{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Map")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.MultiMap{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "MultiMap")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.Queue{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Queue")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.Topic{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Topic")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.WanReplication{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "WanReplication")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.HotBackup{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "HotBackup")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.CronHotBackup{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "CronHotBackup")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.Cache{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Cache")
-		os.Exit(1)
-	}
-	if err = (&hazelcastcomv1alpha1.ReplicatedMap{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "ReplicatedMap")
-		os.Exit(1)
-	}
+	setupWithWebhookOrDie(mgr)
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -319,6 +261,63 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+}
+
+func setupWithWebhookOrDie(mgr ctrl.Manager) {
+	if _, err := os.Stat(n.WebhookServerPath); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			setupLog.Error(err, "unable to check existence of webhook server sertificate path")
+			os.Exit(1)
+		}
+		setupLog.Info("webhook server certificate path does not exist, will not start webhook server")
+		return
+	}
+	setupLog.Info("setting up webhook server listeners for custom resources")
+
+	if err := (&hazelcastcomv1alpha1.Hazelcast{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Hazelcast")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.ManagementCenter{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ManagementCenter")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.Map{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Map")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.MultiMap{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "MultiMap")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.Queue{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Queue")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.Topic{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Topic")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.WanReplication{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "WanReplication")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.HotBackup{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "HotBackup")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.CronHotBackup{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "CronHotBackup")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.Cache{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Cache")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.ReplicatedMap{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ReplicatedMap")
 		os.Exit(1)
 	}
 }

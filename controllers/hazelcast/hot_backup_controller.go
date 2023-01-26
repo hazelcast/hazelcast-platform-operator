@@ -52,9 +52,9 @@ func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{},
 }
 
 // Role related to CRs
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hotbackups,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hotbackups/status,verbs=get;update;patch,namespace=system
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hotbackups/finalizers,verbs=update,namespace=system
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hotbackups,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hotbackups/status,verbs=get;update;patch,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hotbackups/finalizers,verbs=update,namespace=watched
 
 func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Request) (result reconcile.Result, err error) {
 	logger := r.Log.WithValues("hazelcast-hot-backup", req.NamespacedName)
@@ -238,8 +238,8 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
 
-	client, ok := r.clientRegistry.Get(hazelcastName)
-	if !ok {
+	client, err := r.clientRegistry.GetOrCreate(ctx, hazelcastName)
+	if err != nil {
 		logger.Error(err, "Get Hazelcast Client failed")
 		return r.updateStatus(ctx, backupName, failedHbStatus(err))
 	}
@@ -331,6 +331,12 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 			if err != nil {
 				return err
 			}
+			defer func() {
+				// we just log error message, this is not critical
+				if err := u.Remove(context.Background()); err != nil {
+					logger.Error(err, "Failed to remove finished upload task", "member", m.Address)
+				}
+			}()
 
 			// now start and wait for upload
 			if err := u.Start(groupCtx); err != nil {

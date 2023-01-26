@@ -9,7 +9,6 @@ env:
   GKE_ZONE: europe-west1-b
   NUMBER_OF_NODES: 3
   GCP_NETWORK: operator-test-network
-  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
 
 jobs:
   get-image:

@@ -184,7 +184,7 @@ var _ = Describe("ManagementCenter controller", func() {
 						},
 					},
 				}
-				Expect(fetchedSts.Spec.Template.Spec.Volumes).To(ConsistOf(expectedVolume))
+				Expect(fetchedSts.Spec.Template.Spec.Volumes).To(ContainElement(expectedVolume))
 				Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(BeNil())
 				expectedVolumeMount := corev1.VolumeMount{
 					Name:      n.MancenterStorageName,

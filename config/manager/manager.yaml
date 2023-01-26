@@ -15,8 +15,6 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
-      securityContext:
-        runAsNonRoot: true
       containers:
       - command:
         - /manager
@@ -25,8 +23,6 @@ spec:
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
-        securityContext:
-          allowPrivilegeEscalation: false
         livenessProbe:
           httpGet:
             path: /healthz

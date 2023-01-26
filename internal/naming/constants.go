@@ -37,6 +37,7 @@ const (
 	HazelcastPortName    = "hazelcast-port"
 	HazelcastStorageName = Hazelcast + "-storage"
 	HazelcastMountPath   = "/data/hazelcast"
+	TmpDirVolName        = "tmp-vol"
 
 	// ManagementCenter MC name
 	ManagementCenter = "management-center"
@@ -184,4 +185,13 @@ const (
 	// DefaultMergePolicyClassName is the default value for
 	// merge policy in WAN reference config
 	DefaultMergePolicyClassName = "PassThroughMergePolicy"
+)
+
+// Cluster Size Limit constants
+const (
+	ClusterSizeLimit = 300
+)
+
+const (
+	WebhookServerPath = "/tmp/k8s-webhook-server/serving-certs"
 )

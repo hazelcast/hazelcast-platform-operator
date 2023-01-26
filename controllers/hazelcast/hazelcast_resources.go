@@ -174,14 +174,6 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 	}
 
-	if platform.GetType() == platform.OpenShift {
-		clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
-			APIGroups: []string{"security.openshift.io"},
-			Resources: []string{"securitycontextconstraints"},
-			Verbs:     []string{"use"},
-		})
-	}
-
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
 		return nil
 	})
@@ -1121,11 +1113,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 				},
 				Spec: v1.PodSpec{
 					ServiceAccountName: h.Name,
-					SecurityContext: &v1.PodSecurityContext{
-						FSGroup:      pointer.Int64(65534),
-						RunAsNonRoot: pointer.Bool(true),
-						RunAsUser:    pointer.Int64(65534),
-					},
+					SecurityContext:    podSecurityContext(),
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
 						Ports: []v1.ContainerPort{{
@@ -1208,7 +1196,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			return err
 		}
 		sts.Spec.Template.Spec.Volumes = volumes(h)
-		sts.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts(h)
+		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -1309,10 +1297,27 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return c
 }
 
+func podSecurityContext() *v1.PodSecurityContext {
+	// Openshift assigns user and fsgroup ids itself
+	if platform.GetType() == platform.OpenShift {
+		return &v1.PodSecurityContext{
+			RunAsNonRoot: pointer.Bool(true),
+		}
+	}
+
+	return &v1.PodSecurityContext{
+		FSGroup:      pointer.Int64(65534),
+		RunAsNonRoot: pointer.Bool(true),
+		// Have to give userID otherwise Kubelet fails to create the pod
+		// saying userID must be numberic, Hazelcast image's default userID is "hazelcast"
+		// UBI images prohibits all numeric userIDs https://access.redhat.com/solutions/3103631
+		RunAsUser: pointer.Int64(65534),
+	}
+}
+
 func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContext {
 	sec := &v1.SecurityContext{
 		RunAsNonRoot:             pointer.Bool(true),
-		RunAsUser:                pointer.Int64(65534),
 		Privileged:               pointer.Bool(false),
 		ReadOnlyRootFilesystem:   pointer.Bool(true),
 		AllowPrivilegeEscalation: pointer.Bool(false),
@@ -1325,19 +1330,14 @@ func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContex
 		return sec
 	}
 
-	sec.ReadOnlyRootFilesystem = pointer.Bool(false)
-
 	if !h.Spec.Persistence.UseHostPath() {
 		return sec
 	}
 
+	// We do not support these parameters for Openshift clusters
+	// OpenShift environments with HostPath enabled fail in Webhook validation.
 	sec.RunAsNonRoot = pointer.Bool(false)
 	sec.RunAsUser = pointer.Int64(0)
-
-	if platform.GetType() == platform.OpenShift {
-		sec.Privileged = pointer.Bool(true)
-		sec.AllowPrivilegeEscalation = pointer.Bool(true)
-	}
 
 	return sec
 }
@@ -1534,12 +1534,23 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		userCodeAgentVolume(h),
 		tlsVolume(h),
 	}
-	if h.Spec.Persistence.IsEnabled() && h.Spec.Persistence.UseHostPath() {
-		vols = append(vols, hostPathVolume(h))
-	}
+
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
 		vols = append(vols, userCodeConfigMapVolumes(h)...)
 	}
+
+	if !h.Spec.Persistence.IsEnabled() {
+		return vols
+	}
+
+	// Add tmpDir because Hazelcast wit persistence enabled fails with read-only root file system error
+	// when it tries to write to /tmp dir.
+	vols = append(vols, tmpDirVolume())
+
+	if h.Spec.Persistence.UseHostPath() {
+		vols = append(vols, hostPathVolume(h))
+	}
+
 	return vols
 }
 
@@ -1560,6 +1571,15 @@ func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 				Path: h.Spec.Persistence.HostPath,
 				Type: &[]v1.HostPathType{v1.HostPathDirectoryOrCreate}[0],
 			},
+		},
+	}
+}
+
+func tmpDirVolume() v1.Volume {
+	return v1.Volume{
+		Name: n.TmpDirVolName,
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
 	}
 }
@@ -1594,7 +1614,7 @@ func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
 	return vols
 }
 
-func volumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,
@@ -1606,6 +1626,12 @@ func volumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
+		}, v1.VolumeMount{
+			// /tmp dir is overriden with emptyDir because Hazelcast fails to start with
+			// read-only rootFileSystem when persistence is enabled because it tries to write
+			// into /tmp dir.
+			Name:      n.TmpDirVolName,
+			MountPath: "/tmp",
 		})
 	}
 
@@ -1711,7 +1737,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
 			Name:  "JAVA_OPTS",
-			Value: fmt.Sprintf("-Dhazelcast.config=%s/hazelcast.yaml", n.HazelcastMountPath),
+			Value: javaOPTS(h),
 		},
 		{
 			Name:  "HZ_PARDOT_ID",
@@ -1750,6 +1776,31 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	}
 
 	return envs
+}
+
+func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
+	b := strings.Builder{}
+	b.WriteString("-Dhazelcast.config=" + path.Join(n.HazelcastMountPath, "hazelcast.yaml"))
+
+	// we should configure JVM to respect container’s resource limits
+	b.WriteString(" -XX:+UseContainerSupport")
+
+	jvmMemory := h.Spec.JVM.GetMemory()
+
+	// in addition we allow user to set explicit memory limits
+	if value := jvmMemory.GetInitialRAMPercentage(); value != "" {
+		b.WriteString(" -XX:InitialRAMPercentage=" + value)
+	}
+
+	if value := jvmMemory.GetMinRAMPercentage(); value != "" {
+		b.WriteString(" -XX:MinRAMPercentage=" + value)
+	}
+
+	if value := jvmMemory.GetMaxRAMPercentage(); value != "" {
+		b.WriteString(" -XX:MaxRAMPercentage=" + value)
+	}
+
+	return b.String()
 }
 
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {

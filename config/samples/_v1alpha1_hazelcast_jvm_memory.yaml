@@ -1,0 +1,10 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  jvm:
+    memory:
+      initialRAMPercentage: "10"
+      maxRAMPercentage: "20"
+      minRAMPercentage: "10"
