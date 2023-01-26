@@ -35,7 +35,7 @@ func (cr *httpClientRegistry) Create(ctx context.Context, kubeClient client.Clie
 	if err != nil {
 		return nil, err
 	}
-	cr.clients.Store(c, c)
+	cr.clients.Store(nn, c)
 	return c, nil
 }
 
