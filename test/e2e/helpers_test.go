@@ -94,7 +94,7 @@ func SidecarAgentLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 		}, &corev1.PodLogOptions{
 			Follow:    true,
 			SinceTime: &metav1.Time{Time: t},
-			Container: "backup-agent",
+			Container: "sidecar-agent",
 		})
 	})
 	return logs

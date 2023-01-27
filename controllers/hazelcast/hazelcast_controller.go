@@ -59,8 +59,10 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=watched
 //+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=watched
-// ClusterRole inherited from permissions Hazelcast needs
-//+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
+// ClusterRole inherited from permissions Hazelcast needs for node,zone discovery
+//+kubebuilder:rbac:groups="",resources=nodes,verbs=get
+// Role inherited from permissions Hazelcast needs for discovery
+//+kubebuilder:rbac:groups="",resources=endpoints;pods;services,verbs=get;list,namespace=watched
 // Role inherited from permissions Hazelcast needs for persistence
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=watch;list,namespace=watched
 // ClusterRole related to Reconcile() to be able to give Hazelcast ClusterRole permissions
