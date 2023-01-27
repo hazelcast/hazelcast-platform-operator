@@ -86,9 +86,11 @@ var _ = BeforeSuite(func() {
 	cs := &hzclient.HazelcastClientRegistry{K8sClient: k8sClient}
 	ssm := &hzclient.HzStatusServiceRegistry{}
 
+	controllerLogger := ctrl.Log.WithName("controllers")
+
 	err = hazelcast.NewHazelcastReconciler(
 		k8sManager.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
+		controllerLogger.WithName("Hazelcast"),
 		k8sManager.GetScheme(),
 		nil,
 		cs,
@@ -98,7 +100,7 @@ var _ = BeforeSuite(func() {
 
 	err = managementcenter.NewManagementCenterReconciler(
 		k8sManager.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Management Center"),
+		controllerLogger.WithName("Management Center"),
 		k8sManager.GetScheme(),
 		nil,
 	).SetupWithManager(k8sManager)
@@ -106,7 +108,7 @@ var _ = BeforeSuite(func() {
 
 	err = hazelcast.NewMapReconciler(
 		k8sManager.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Map"),
+		controllerLogger.WithName("Map"),
 		k8sManager.GetScheme(),
 		nil,
 		cs,
@@ -115,7 +117,7 @@ var _ = BeforeSuite(func() {
 
 	err = hazelcast.NewHotBackupReconciler(
 		k8sManager.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Hot Backup"),
+		controllerLogger.WithName("Hot Backup"),
 		nil,
 		nil,
 		cs,
@@ -125,7 +127,7 @@ var _ = BeforeSuite(func() {
 
 	err = hazelcast.NewCronHotBackupReconciler(
 		k8sManager.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Cron Hot Backup"),
+		controllerLogger.WithName("Cron Hot Backup"),
 		k8sManager.GetScheme(),
 		nil,
 	).SetupWithManager(k8sManager)

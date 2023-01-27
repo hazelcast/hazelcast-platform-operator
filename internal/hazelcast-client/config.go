@@ -9,7 +9,7 @@ import (
 
 	"github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
-	"github.com/hazelcast/hazelcast-go-client/logger"
+	hzlogger "github.com/hazelcast/hazelcast-go-client/logger"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -20,10 +20,10 @@ const (
 	AgentPort = 8443
 )
 
-func BuildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
+func BuildConfig(h *hazelcastv1alpha1.Hazelcast, logger hzlogger.Logger) hazelcast.Config {
 	config := hazelcast.Config{
-		Logger: logger.Config{
-			Level: logger.OffLevel,
+		Logger: hzlogger.Config{
+			CustomLogger: logger,
 		},
 		Cluster: cluster.Config{
 			ConnectionStrategy: cluster.ConnectionStrategyConfig{

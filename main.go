@@ -21,6 +21,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
@@ -112,6 +113,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := mgr.Add(kubeclient.Setup(mgr.GetClient())); err != nil {
+		setupLog.Error(err, "unable to setup kubeclient package")
+		os.Exit(1)
+	}
+
 	cr := &hzclient.HazelcastClientRegistry{K8sClient: mgr.GetClient()}
 	ssm := &hzclient.HzStatusServiceRegistry{}
 
@@ -131,9 +137,11 @@ func main() {
 		}
 	}
 
+	controllerLogger := ctrl.Log.WithName("controllers")
+
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
+		controllerLogger.WithName("Hazelcast"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -145,7 +153,7 @@ func main() {
 
 	if err = managementcenter.NewManagementCenterReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Management Center"),
+		controllerLogger.WithName("Management Center"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
@@ -155,7 +163,7 @@ func main() {
 
 	if err = hazelcast.NewHotBackupReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("HotBackup"),
+		controllerLogger.WithName("HotBackup"),
 		phoneHomeTrigger,
 		mtlsClient,
 		cr,
@@ -167,7 +175,7 @@ func main() {
 
 	if err = hazelcast.NewMapReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Map"),
+		controllerLogger.WithName("Map"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -178,7 +186,7 @@ func main() {
 
 	if err = hazelcast.NewWanReplicationReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("WanReplication"),
+		controllerLogger.WithName("WanReplication"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		mtlsClient,
@@ -191,7 +199,7 @@ func main() {
 
 	if err = hazelcast.NewCronHotBackupReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("CronHotBackup"),
+		controllerLogger.WithName("CronHotBackup"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
@@ -201,7 +209,7 @@ func main() {
 
 	if err = hazelcast.NewMultiMapReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("MultiMap"),
+		controllerLogger.WithName("MultiMap"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -211,7 +219,7 @@ func main() {
 
 	if err = hazelcast.NewTopicReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Topic"),
+		controllerLogger.WithName("Topic"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -222,7 +230,7 @@ func main() {
 
 	if err = hazelcast.NewReplicatedMapReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("ReplicatedMap"),
+		controllerLogger.WithName("ReplicatedMap"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -233,7 +241,7 @@ func main() {
 
 	if err = hazelcast.NewQueueReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Queue"),
+		controllerLogger.WithName("Queue"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
@@ -244,7 +252,7 @@ func main() {
 
 	if err = hazelcast.NewCacheReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Cache"),
+		controllerLogger.WithName("Cache"),
 		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,

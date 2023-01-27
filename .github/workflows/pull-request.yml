@@ -69,7 +69,6 @@ jobs:
           CRD_PATH=./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds/templates
           cp $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
           cp $OP_PATH/role.yaml $OP_PATH/role.yaml.old
-          cp $OP_PATH/clusterrole.yaml $OP_PATH/clusterrole.yaml.old
 
           make sync-manifests
           if ! cmp -s $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old; then
@@ -78,11 +77,6 @@ jobs:
           fi
 
           if ! cmp -s $OP_PATH/role.yaml $OP_PATH/role.yaml.old; then
-              echo "Please make sure your branch is up to date with main and run 'make sync-manifests'"
-              exit 1
-          fi
-
-          if ! cmp -s $OP_PATH/clusterrole.yaml $OP_PATH/clusterrole.yaml.old; then
               echo "Please make sure your branch is up to date with main and run 'make sync-manifests'"
               exit 1
           fi

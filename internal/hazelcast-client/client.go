@@ -115,12 +115,12 @@ func (cl *HazelcastClient) ClusterId() hztypes.UUID {
 	return ci.ClusterID()
 }
 
-func (c *HazelcastClient) Shutdown(ctx context.Context) error {
-	if c.client == nil {
+func (cl *HazelcastClient) Shutdown(ctx context.Context) error {
+	if cl.client == nil {
 		return nil
 	}
 
-	if err := c.client.Shutdown(ctx); err != nil {
+	if err := cl.client.Shutdown(ctx); err != nil {
 		return err
 	}
 	return nil
