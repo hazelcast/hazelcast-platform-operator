@@ -6,11 +6,11 @@ import (
 	"strconv"
 	. "time"
 
+	hzClient "github.com/hazelcast/hazelcast-go-client"
+	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	hzClient "github.com/hazelcast/hazelcast-go-client"
-	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
