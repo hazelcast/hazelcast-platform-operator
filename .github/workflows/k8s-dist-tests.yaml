@@ -150,6 +150,7 @@ jobs:
             cover-controllers.out
             cover-internal.out
             cover-api.out
+          retention-days: 1
 
   integration-tests:
     name: Integration Tests
@@ -193,6 +194,7 @@ jobs:
         with:
           name: test-coverage
           path: cover_it${{ env.GO_TEST_FLAGS }}.out
+          retention-days: 1
 
   upload-coverage:
     name: Upload Test Coverage
