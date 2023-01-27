@@ -168,10 +168,13 @@ jobs:
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
+
+      - name: Undeploy Istio after Tests
+        if : matrix.edition == 'ee'
+        run: |
           helm delete istiod -n istio-system
           helm delete istio-base -n istio-system
           kubectl delete namespace istio-system
-          
 
       - name: Upload Test Report
         if: always()
