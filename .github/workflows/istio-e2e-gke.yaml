@@ -111,6 +111,7 @@ jobs:
           location: ${{ env.GKE_ZONE }}
 
       - name: Deploy Istio to GKE
+        if: matrix.edition == 'ee'
         run: |
           helm repo add istio https://istio-release.storage.googleapis.com/charts
           helm repo update
