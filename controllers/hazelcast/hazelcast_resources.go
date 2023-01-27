@@ -43,6 +43,12 @@ const (
 	hzLicenseKey = "HZ_LICENSEKEY"
 )
 
+const (
+	MemberServerSocketPort = 5702
+	ClientServerSocketPort = 5701
+	RestServerSocketPort   = 8080
+)
+
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil

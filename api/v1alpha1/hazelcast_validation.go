@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"strings"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -35,6 +36,10 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 	}
 
 	if err := validateClusterSize(h); err != nil {
+		return err
+	}
+
+	if err := validateAdvancedNetwork(h); err != nil {
 		return err
 	}
 
@@ -95,4 +100,27 @@ func checkEnterprise(repo string) bool {
 		return false
 	}
 	return strings.HasSuffix(path[len(path)-1], "-enterprise")
+}
+
+func validateAdvancedNetwork(h *Hazelcast) error {
+	if h.Spec.AdvancedNetwork.Enabled {
+		for _, w := range h.Spec.AdvancedNetwork.Wan {
+			if err := isPortInRange(w.Port, w.PortCount); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func isPortInRange(port, portCount uint) error {
+	if (hazelcast.MemberServerSocketPort >= port && hazelcast.MemberServerSocketPort < port+portCount) ||
+		(hazelcast.ClientServerSocketPort >= port && hazelcast.ClientServerSocketPort < port+portCount) ||
+		(hazelcast.RestServerSocketPort >= port && hazelcast.RestServerSocketPort < port+portCount) {
+		return fmt.Errorf("following port number are not in use for wan replication: %d, %d, %d",
+			hazelcast.MemberServerSocketPort,
+			hazelcast.ClientServerSocketPort,
+			hazelcast.RestServerSocketPort)
+	}
+	return nil
 }
