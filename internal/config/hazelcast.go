@@ -22,6 +22,34 @@ type Hazelcast struct {
 	Queue                    map[string]Queue                    `yaml:"queue,omitempty"`
 	Cache                    map[string]Cache                    `yaml:"cache,omitempty"`
 	PartitionGroup           PartitionGroup                      `yaml:"partition-group,omitempty"`
+	AdvancedNetwork          AdvancedNetwork                     `yaml:"advanced-network,omitempty"`
+}
+
+type AdvancedNetwork struct {
+	Join                             Join                             `yaml:"join,omitempty"`
+	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `yaml:"member-server-socket-endpoint-config,omitempty"`
+	ClientServerSocketEndpointConfig ClientServerSocketEndpointConfig `yaml:"client-server-socket-endpoint-config,omitempty"`
+	RestServerSocketEndpointConfig   RestServerSocketEndpointConfig   `yaml:"rest-server-socket-endpoint-config,omitempty"`
+	WanServerSocketEndpointConfig    []PortAndPortCount               `yaml:"wan-server-socket-endpoint-config,omitempty"`
+}
+
+type MemberServerSocketEndpointConfig struct {
+	Port       []uint   `yaml:"port,omitempty"`
+	Interfaces []string `yaml:"interfaces,omitempty"`
+}
+
+type ClientServerSocketEndpointConfig struct {
+	Port []uint `yaml:"port,omitempty"`
+}
+
+type RestServerSocketEndpointConfig struct {
+	Port           uint           `yaml:"port,omitempty"`
+	EndpointGroups EndpointGroups `yaml:"endpoint-groups,omitempty"`
+}
+
+type PortAndPortCount struct {
+	Port      uint `yaml:"port,omitempty"`
+	PortCount uint `yaml:"port-count,omitempty"`
 }
 
 type PartitionGroup struct {

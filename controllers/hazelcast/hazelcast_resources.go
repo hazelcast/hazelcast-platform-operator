@@ -653,6 +653,36 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
+	if h.Spec.AdvancedNetwork.Enabled {
+		cfg.AdvancedNetwork.Join.Kubernetes.Enabled = pointer.Bool(true)
+		cfg.AdvancedNetwork.Join.Kubernetes.ServiceName = h.Name
+
+		// Member Network
+		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig = config.MemberServerSocketEndpointConfig{
+			Port:       []uint{5702},
+			Interfaces: h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces,
+		}
+
+		// Client Network
+		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig = config.ClientServerSocketEndpointConfig{
+			Port: []uint{5701},
+		}
+
+		// Rest Network
+		cfg.AdvancedNetwork.RestServerSocketEndpointConfig.Port = 8080
+		cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.Persistence.Enabled = pointer.Bool(true)
+		cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.HealthCheck.Enabled = pointer.Bool(true)
+		cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.ClusterWrite.Enabled = pointer.Bool(true)
+
+		// Wan Network
+		for _, w := range h.Spec.AdvancedNetwork.Wan {
+			cfg.AdvancedNetwork.WanServerSocketEndpointConfig = append(cfg.AdvancedNetwork.WanServerSocketEndpointConfig, config.PortAndPortCount{
+				Port:      w.Port,
+				PortCount: w.PortCount,
+			})
+		}
+	}
+
 	return cfg
 }
 

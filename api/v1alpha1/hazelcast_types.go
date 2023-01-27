@@ -137,6 +137,11 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	JVM *JVMConfiguration `json:"jvm,omitempty"`
+
+	// Hazelcast Advanced Network configuration
+	// +optional
+	// +kubebuilder:default:={}
+	AdvancedNetwork AdvancedNetwork `json:"advancedNetwork,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE
@@ -613,6 +618,27 @@ func (c *JVMMemoryConfiguration) GetMaxRAMPercentage() string {
 		return *c.MaxRAMPercentage
 	}
 	return ""
+}
+
+type AdvancedNetwork struct {
+	Enabled                          bool                             `json:"enabled"`
+	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig"`
+	Wan                              []PortAndPortCount               `json:"wan"`
+}
+
+type PortAndPortCount struct {
+	Port      uint `json:"port"`
+	PortCount uint `json:"port_count"`
+}
+
+type MemberServerSocketEndpointConfig struct {
+	Port       uint     `json:"port"`
+	Interfaces []string `json:"interfaces"`
+}
+
+type ClientServerSocketEndpointConfig struct {
+	Port       uint     `json:"port"`
+	Interfaces []string `json:"interfaces"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
