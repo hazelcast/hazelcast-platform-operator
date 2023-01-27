@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -20,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
@@ -82,28 +80,6 @@ func AddFinalizer(ctx context.Context, c client.Client, object client.Object, lo
 		}
 		logger.V(DebugLevel).Info("Finalizer added into custom resource successfully")
 	}
-	return nil
-}
-
-func ValidatePersistence(persistenceEnabled bool, h *hazelcastv1alpha1.Hazelcast) error {
-	if !persistenceEnabled {
-		return nil
-	}
-	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-	if !ok {
-		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
-	}
-
-	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
-	err := json.Unmarshal([]byte(s), lastSpec)
-	if err != nil {
-		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
-	}
-
-	if !lastSpec.Persistence.IsEnabled() {
-		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
-	}
-
 	return nil
 }
 
@@ -323,4 +299,12 @@ func IsSuccessfullyApplied(obj client.Object) bool {
 
 func IsWatchingAllNamespaces(ns string) bool {
 	return ns == "" || ns == "*"
+}
+
+func NodeDiscoveryEnabled() bool {
+	watching, found := os.LookupEnv(n.HazelcastNodeDiscoveryEnabledEnv)
+	if !found {
+		return true
+	}
+	return watching == "true"
 }
