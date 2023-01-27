@@ -302,7 +302,7 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 2m
 
 .PHONY: bundle
-bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
+bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	($(YQ) 'select(.kind == "ClusterRole")  | .' config/rbac/role.yaml && \
