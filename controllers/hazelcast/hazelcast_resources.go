@@ -315,6 +315,11 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 }
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	err := r.createServicesForWanConfig(ctx, h, logger)
+	if err != nil {
+		return err
+	}
+
 	service := &corev1.Service{
 		ObjectMeta: metadata(h),
 		Spec: corev1.ServiceSpec{
@@ -328,7 +333,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		service.Spec.ClusterIP = "None"
 	}
 
-	err := controllerutil.SetControllerReference(h, service, r.Scheme)
+	err = controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
 	}
@@ -345,6 +350,46 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		logger.Info("Operation result", "Service", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !h.Spec.AdvancedNetwork.Enabled {
+		return nil
+	}
+
+	if len(h.Spec.AdvancedNetwork.Wan) == 0 {
+		return nil
+	}
+
+	for _, w := range h.Spec.AdvancedNetwork.Wan {
+		var i uint = 0
+		for i = 0; i < w.PortCount; i++ {
+			service := &corev1.Service{
+				ObjectMeta: metadata(h),
+				Spec: corev1.ServiceSpec{
+					Selector: labels(h),
+					Ports: []corev1.ServicePort{
+						{
+							Name:        "wan-rep-port-" + strconv.Itoa(int(i)),
+							Protocol:    corev1.ProtocolTCP,
+							Port:        int32(w.Port + i),
+							TargetPort:  intstr.FromString(n.Hazelcast), //TODO
+							AppProtocol: pointer.String("tcp"),
+						},
+					},
+				},
+			}
+
+			opResult, _ := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+				service.Spec.Type = w.ServiceType
+				return nil
+			})
+			if opResult != controllerutil.OperationResultNone {
+				logger.Info("Operation result", "Service", h.Name, "result", opResult)
+			}
+		}
+	}
+	return nil
 }
 
 func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
@@ -682,10 +727,11 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 		// Wan Network
 		for _, w := range h.Spec.AdvancedNetwork.Wan {
-			cfg.AdvancedNetwork.WanServerSocketEndpointConfig = append(cfg.AdvancedNetwork.WanServerSocketEndpointConfig, config.PortAndPortCount{
-				Port:      w.Port,
-				PortCount: w.PortCount,
-			})
+			cfg.AdvancedNetwork.WanServerSocketEndpointConfig = append(cfg.AdvancedNetwork.WanServerSocketEndpointConfig,
+				config.PortAndPortCount{
+					Port:      w.Port,
+					PortCount: w.PortCount,
+				})
 		}
 	}
 

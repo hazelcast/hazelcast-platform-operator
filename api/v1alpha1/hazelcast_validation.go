@@ -114,6 +114,7 @@ func validateAdvancedNetwork(h *Hazelcast) error {
 }
 
 func isPortInRange(port, portCount uint) error {
+	//TODO: check if there is overlapping port numbers between wan replication configurations
 	if (hazelcast.MemberServerSocketPort >= port && hazelcast.MemberServerSocketPort < port+portCount) ||
 		(hazelcast.ClientServerSocketPort >= port && hazelcast.ClientServerSocketPort < port+portCount) ||
 		(hazelcast.RestServerSocketPort >= port && hazelcast.RestServerSocketPort < port+portCount) {
