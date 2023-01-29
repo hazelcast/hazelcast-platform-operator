@@ -21,6 +21,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/phonehome"
@@ -109,6 +110,11 @@ func main() {
 
 	if err := mgr.Add(mtlsClient); err != nil {
 		setupLog.Error(err, "unable to create mtls client")
+		os.Exit(1)
+	}
+
+	if err := mgr.Add(kubeclient.Setup(mgr.GetClient())); err != nil {
+		setupLog.Error(err, "unable to setup kubeclient package")
 		os.Exit(1)
 	}
 

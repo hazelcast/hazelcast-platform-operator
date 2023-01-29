@@ -1,11 +1,17 @@
 package v1alpha1
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 )
@@ -70,6 +76,22 @@ func validateLicense(h *Hazelcast) error {
 	if checkEnterprise(h.Spec.Repository) && len(h.Spec.LicenseKeySecret) == 0 {
 		return errors.New("when Hazelcast Enterprise is deployed, licenseKeySecret must be set")
 	}
+
+	// make sure secret exists
+	if h.Spec.LicenseKeySecret != "" {
+		secretName := types.NamespacedName{
+			Name:      h.Spec.LicenseKeySecret,
+			Namespace: h.Namespace,
+		}
+
+		var secret corev1.Secret
+		err := kubeclient.Get(context.Background(), secretName, &secret)
+		if kerrors.IsNotFound(err) {
+			// we care only about not found error
+			return errors.New("secret not found")
+		}
+	}
+
 	return nil
 }
 

@@ -174,8 +174,8 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"endpoints", "pods", "nodes", "services"},
-				Verbs:     []string{"get", "list"},
+				Resources: []string{"nodes"},
+				Verbs:     []string{"get"},
 			},
 		},
 	}
@@ -202,6 +202,11 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 				APIGroups: []string{""},
 				Resources: []string{"secrets"},
 				Verbs:     []string{"get"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"endpoints", "pods", "services"},
+				Verbs:     []string{"get", "list"},
 			},
 		},
 	}
@@ -1144,7 +1149,7 @@ func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanRepl
 	cfg := config.WanReplicationConfig{
 		BatchPublisher: map[string]config.BatchPublisherConfig{
 			publisherId: {
-				ClusterName:           wr.Spec.Endpoints,
+				ClusterName:           wr.Spec.TargetClusterName,
 				TargetEndpoints:       wr.Spec.Endpoints,
 				QueueCapacity:         wr.Spec.Queue.Capacity,
 				QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
