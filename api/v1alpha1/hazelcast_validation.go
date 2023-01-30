@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -14,6 +13,12 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+)
+
+const (
+	MemberServerSocketPort = 5702
+	ClientServerSocketPort = 5701
+	RestServerSocketPort   = 8080
 )
 
 var BlackListProperties = map[string]struct{}{
@@ -126,10 +131,8 @@ func checkEnterprise(repo string) bool {
 
 func validateAdvancedNetwork(h *Hazelcast) error {
 	if h.Spec.AdvancedNetwork.Enabled {
-		for _, w := range h.Spec.AdvancedNetwork.Wan {
-			if err := isPortInRange(w.Port, w.PortCount); err != nil {
-				return err
-			}
+		if err := isPortInRange(h.Spec.AdvancedNetwork.Wan.Port, h.Spec.AdvancedNetwork.Wan.PortCount); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -137,13 +140,13 @@ func validateAdvancedNetwork(h *Hazelcast) error {
 
 func isPortInRange(port, portCount uint) error {
 	//TODO: check if there is overlapping port numbers between wan replication configurations
-	if (hazelcast.MemberServerSocketPort >= port && hazelcast.MemberServerSocketPort < port+portCount) ||
-		(hazelcast.ClientServerSocketPort >= port && hazelcast.ClientServerSocketPort < port+portCount) ||
-		(hazelcast.RestServerSocketPort >= port && hazelcast.RestServerSocketPort < port+portCount) {
+	if (MemberServerSocketPort >= port && MemberServerSocketPort < port+portCount) ||
+		(ClientServerSocketPort >= port && ClientServerSocketPort < port+portCount) ||
+		(RestServerSocketPort >= port && RestServerSocketPort < port+portCount) {
 		return fmt.Errorf("following port number are not in use for wan replication: %d, %d, %d",
-			hazelcast.MemberServerSocketPort,
-			hazelcast.ClientServerSocketPort,
-			hazelcast.RestServerSocketPort)
+			MemberServerSocketPort,
+			ClientServerSocketPort,
+			RestServerSocketPort)
 	}
 	return nil
 }

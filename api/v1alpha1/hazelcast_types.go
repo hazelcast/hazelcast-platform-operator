@@ -624,7 +624,7 @@ type AdvancedNetwork struct {
 	//TODO: annotations
 	Enabled                          bool                             `json:"enabled"`
 	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig"`
-	Wan                              []WanConfig                      `json:"wan"`
+	Wan                              WanConfig                        `json:"wan"`
 }
 
 type WanConfig struct {
@@ -634,7 +634,6 @@ type WanConfig struct {
 }
 
 type MemberServerSocketEndpointConfig struct {
-	Port       uint     `json:"port"`
 	Interfaces []string `json:"interfaces"`
 }
 

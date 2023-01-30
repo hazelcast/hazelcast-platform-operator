@@ -294,6 +294,41 @@ spec:
               repository: docker.io/hazelcast/hazelcast
             description: Initial values will be filled with its fields' default values.
             properties:
+              advancedNetwork:
+                description: Hazelcast Advanced Network configuration
+                properties:
+                  enabled:
+                    description: 'TODO: annotations'
+                    type: boolean
+                  memberServerSocketEndpointConfig:
+                    properties:
+                      interfaces:
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - interfaces
+                    type: object
+                  wan:
+                    properties:
+                      port:
+                        type: integer
+                      portCount:
+                        type: integer
+                      serviceType:
+                        description: Service Type string describes ingress methods
+                          for a service
+                        type: string
+                    required:
+                    - port
+                    - portCount
+                    - serviceType
+                    type: object
+                required:
+                - enabled
+                - memberServerSocketEndpointConfig
+                - wan
+                type: object
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent

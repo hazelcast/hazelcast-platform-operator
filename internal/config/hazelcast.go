@@ -30,26 +30,35 @@ type AdvancedNetwork struct {
 	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `yaml:"member-server-socket-endpoint-config,omitempty"`
 	ClientServerSocketEndpointConfig ClientServerSocketEndpointConfig `yaml:"client-server-socket-endpoint-config,omitempty"`
 	RestServerSocketEndpointConfig   RestServerSocketEndpointConfig   `yaml:"rest-server-socket-endpoint-config,omitempty"`
-	WanServerSocketEndpointConfig    []PortAndPortCount               `yaml:"wan-server-socket-endpoint-config,omitempty"`
+	WanServerSocketEndpointConfig    WanServerSockerEndpointConfig    `yaml:"wan-server-socket-endpoint-config,omitempty"`
 }
 
 type MemberServerSocketEndpointConfig struct {
-	Port       []uint   `yaml:"port,omitempty"`
-	Interfaces []string `yaml:"interfaces,omitempty"`
+	Port       PortAndPortCount     `yaml:"port,omitempty"`
+	Interfaces EnabledAndInterfaces `yaml:"interfaces,omitempty"`
 }
 
 type ClientServerSocketEndpointConfig struct {
-	Port []uint `yaml:"port,omitempty"`
+	Port PortAndPortCount `yaml:"port,omitempty"`
 }
 
 type RestServerSocketEndpointConfig struct {
-	Port           uint           `yaml:"port,omitempty"`
-	EndpointGroups EndpointGroups `yaml:"endpoint-groups,omitempty"`
+	Port           PortAndPortCount `yaml:"port,omitempty"`
+	EndpointGroups EndpointGroups   `yaml:"endpoint-groups,omitempty"`
+}
+
+type WanServerSockerEndpointConfig struct {
+	Port PortAndPortCount `yaml:"port,omitempty"`
 }
 
 type PortAndPortCount struct {
 	Port      uint `yaml:"port,omitempty"`
 	PortCount uint `yaml:"port-count,omitempty"`
+}
+
+type EnabledAndInterfaces struct {
+	Enabled    bool     `yaml:"enabled,omitempty"`
+	Interfaces []string `yaml:"interfaces,omitempty"`
 }
 
 type PartitionGroup struct {

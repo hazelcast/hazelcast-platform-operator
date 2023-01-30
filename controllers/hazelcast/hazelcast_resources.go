@@ -362,38 +362,37 @@ func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h 
 		return nil
 	}
 
-	if len(h.Spec.AdvancedNetwork.Wan) == 0 {
-		return nil
-	}
-
-	for _, w := range h.Spec.AdvancedNetwork.Wan {
-		var i uint = 0
-		for i = 0; i < w.PortCount; i++ {
-			service := &corev1.Service{
-				ObjectMeta: metadata(h),
-				Spec: corev1.ServiceSpec{
-					Selector: labels(h),
-					Ports: []corev1.ServicePort{
-						{
-							Name:        "wan-rep-port-" + strconv.Itoa(int(i)),
-							Protocol:    corev1.ProtocolTCP,
-							Port:        int32(w.Port + i),
-							TargetPort:  intstr.FromString(n.Hazelcast), //TODO
-							AppProtocol: pointer.String("tcp"),
-						},
+	var i uint = 0
+	for i = 0; i < h.Spec.AdvancedNetwork.Wan.PortCount; i++ {
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      h.Name + "-wan-rep-port-" + strconv.Itoa(int(i)),
+				Namespace: h.Namespace,
+				Labels:    labels(h),
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: labels(h),
+				Ports: []corev1.ServicePort{
+					{
+						Name:        "wan-rep-port-" + strconv.Itoa(int(i)),
+						Protocol:    corev1.ProtocolTCP,
+						Port:        int32(h.Spec.AdvancedNetwork.Wan.Port + i),
+						TargetPort:  intstr.FromString(n.Hazelcast), //TODO
+						AppProtocol: pointer.String("tcp"),
 					},
 				},
-			}
+			},
+		}
 
-			opResult, _ := util.CreateOrUpdate(ctx, r.Client, service, func() error {
-				service.Spec.Type = w.ServiceType
-				return nil
-			})
-			if opResult != controllerutil.OperationResultNone {
-				logger.Info("Operation result", "Service", h.Name, "result", opResult)
-			}
+		opResult, _ := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+			service.Spec.Type = h.Spec.AdvancedNetwork.Wan.ServiceType
+			return nil
+		})
+		if opResult != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Service", h.Name, "result", opResult)
 		}
 	}
+
 	return nil
 }
 
@@ -715,29 +714,39 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 		// Member Network
 		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig = config.MemberServerSocketEndpointConfig{
-			Port:       []uint{5702},
-			Interfaces: h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces,
+			Port: config.PortAndPortCount{
+				Port:      5702,
+				PortCount: 1,
+			},
+			Interfaces: config.EnabledAndInterfaces{
+				Enabled:    true,
+				Interfaces: h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces,
+			},
 		}
 
 		// Client Network
 		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig = config.ClientServerSocketEndpointConfig{
-			Port: []uint{5701},
+			Port: config.PortAndPortCount{
+				Port:      5701,
+				PortCount: 1,
+			},
 		}
 
 		// Rest Network
-		cfg.AdvancedNetwork.RestServerSocketEndpointConfig.Port = 8080
+		cfg.AdvancedNetwork.RestServerSocketEndpointConfig.Port = config.PortAndPortCount{
+			Port:      8080,
+			PortCount: 1,
+		}
 		cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.Persistence.Enabled = pointer.Bool(true)
 		cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.HealthCheck.Enabled = pointer.Bool(true)
 		cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.ClusterWrite.Enabled = pointer.Bool(true)
 
 		// Wan Network
-		for _, w := range h.Spec.AdvancedNetwork.Wan {
-			cfg.AdvancedNetwork.WanServerSocketEndpointConfig = append(cfg.AdvancedNetwork.WanServerSocketEndpointConfig,
-				config.PortAndPortCount{
-					Port:      w.Port,
-					PortCount: w.PortCount,
-				})
-		}
+		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = config.WanServerSockerEndpointConfig{
+			Port: config.PortAndPortCount{
+				Port:      h.Spec.AdvancedNetwork.Wan.Port,
+				PortCount: h.Spec.AdvancedNetwork.Wan.PortCount,
+			}}
 	}
 
 	return cfg
