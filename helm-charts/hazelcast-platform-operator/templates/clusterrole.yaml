@@ -1,7 +1,7 @@
 {{/*
 ClusterRole permission rules are synced manually
 */}}
-{{- $watchAllNamespace := (has .Values.watchedNamespaces (list "" "*" )) -}}
+{{- $watchAllNamespace := (has (include "watched-namespaces.string" .) (list "" "*" )) -}}
 {{- if .Values.createClusterScopedResources }}
 {{- if or .Values.enableHazelcastNodeDiscovery $watchAllNamespace }}
 apiVersion: rbac.authorization.k8s.io/v1

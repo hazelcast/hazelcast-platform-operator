@@ -89,7 +89,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: WATCHED_NAMESPACES
-              value: {{ .Values.watchedNamespaces | quote }}
+              value: {{ include "watched-namespaces.string" . | quote }}
             - name: DEVELOPER_MODE_ENABLED
               value: {{ .Values.developerModeEnabled | quote }}
             - name: PHONE_HOME_ENABLED
