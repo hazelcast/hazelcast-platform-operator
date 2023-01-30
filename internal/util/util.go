@@ -320,3 +320,7 @@ func IsSuccessfullyApplied(obj client.Object) bool {
 	_, ok := obj.GetAnnotations()[n.LastSuccessfulSpecAnnotation]
 	return ok
 }
+
+func IsWatchingAllNamespaces(ns string) bool {
+	return ns == "" || ns == "*"
+}
