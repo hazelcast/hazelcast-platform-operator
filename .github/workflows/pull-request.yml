@@ -42,10 +42,11 @@ jobs:
           go-version: ${{ format('>={0}', env.GO_VERSION) }}
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3.3.1
+        uses: golangci/golangci-lint-action@v3.4.0
         if: ${{ !cancelled() }}
         with:
-          args: --timeout 3m --build-tags hazelcastinternal
+          args: --timeout 5m --build-tags hazelcastinternal
+          skip-cache: true
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
