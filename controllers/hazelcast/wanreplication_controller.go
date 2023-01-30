@@ -213,7 +213,7 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			}
 			if err := r.Get(ctx, nn, m); err != nil {
 				if kerrors.IsNotFound(err) {
-					logger.V(util.DebugLevel).Info("Could not find Map ", nn.Name)
+					logger.V(util.DebugLevel).Info("Could not find", "Map", nn.Name)
 				}
 				return err
 			}
