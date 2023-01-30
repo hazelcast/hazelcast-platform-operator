@@ -339,7 +339,7 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 func setManagerWathedNamespaces(mgrOptions ctrl.Options, operatorNamespace string) {
 	watchedNamespaces := strings.Split(os.Getenv(n.WatchedNamespacesEnv), ",")
 	switch {
-	case len(watchedNamespaces) == 1 && (watchedNamespaces[0] == "" || watchedNamespaces[0] == "*"):
+	case len(watchedNamespaces) == 1 && util.IsWatchingAllNamespaces(watchedNamespaces[0]):
 		setupLog.Info("Watching all namespaces")
 	case len(watchedNamespaces) == 1 && watchedNamespaces[0] == operatorNamespace:
 		setupLog.Info("Watching a single namespace", "namespace", watchedNamespaces[0])

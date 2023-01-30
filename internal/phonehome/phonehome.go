@@ -383,7 +383,7 @@ func (phm *PhoneHomeData) fillReplicatedMapMetrics(cl client.Client) {
 func listOptions() []client.ListOption {
 	lo := []client.ListOption{}
 	watchedNamespaces := strings.Split(os.Getenv(n.WatchedNamespacesEnv), ",")
-	if len(watchedNamespaces) == 1 && (watchedNamespaces[0] == "" || watchedNamespaces[0] == "*") {
+	if len(watchedNamespaces) == 1 && util.IsWatchingAllNamespaces(watchedNamespaces[0]) {
 		// Watching all namespaces, no need to filter
 		return lo
 	}
