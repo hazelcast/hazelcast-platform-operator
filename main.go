@@ -84,19 +84,7 @@ func main() {
 	}
 
 	// Get watchedNamespaces from environment variable.
-	watchedNamespaces := strings.Split(os.Getenv(n.WatchedNamespacesEnv), ",")
-	switch {
-	case len(watchedNamespaces) == 1 && (watchedNamespaces[0] == "" || watchedNamespaces[0] == "*"):
-		setupLog.Info("Watching all namespaces")
-	case len(watchedNamespaces) == 1 && watchedNamespaces[0] == operatorNamespace:
-		setupLog.Info("Watching a single namespace", "namespace", watchedNamespaces[0])
-		mgrOptions.Namespace = watchedNamespaces[0]
-	default:
-		setupLog.Info("Watching namespaces", "watched_namespaces", watchedNamespaces, "operator_namespace", operatorNamespace)
-		// Operator should be able watch resources in its own namespace
-		watchedNamespaces = append(watchedNamespaces, operatorNamespace)
-		mgrOptions.NewCache = cache.MultiNamespacedCacheBuilder(watchedNamespaces)
-	}
+	setManagerWathedNamespaces(mgrOptions, operatorNamespace)
 
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, mgrOptions)
@@ -346,5 +334,21 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 	if err := (&hazelcastcomv1alpha1.ReplicatedMap{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "ReplicatedMap")
 		os.Exit(1)
+	}
+}
+
+func setManagerWathedNamespaces(mgrOptions ctrl.Options, operatorNamespace string) {
+	watchedNamespaces := strings.Split(os.Getenv(n.WatchedNamespacesEnv), ",")
+	switch {
+	case len(watchedNamespaces) == 1 && (watchedNamespaces[0] == "" || watchedNamespaces[0] == "*"):
+		setupLog.Info("Watching all namespaces")
+	case len(watchedNamespaces) == 1 && watchedNamespaces[0] == operatorNamespace:
+		setupLog.Info("Watching a single namespace", "namespace", watchedNamespaces[0])
+		mgrOptions.Namespace = watchedNamespaces[0]
+	default:
+		setupLog.Info("Watching namespaces", "watched_namespaces", watchedNamespaces, "operator_namespace", operatorNamespace)
+		// Operator should be able watch resources in its own namespace
+		watchedNamespaces = append(watchedNamespaces, operatorNamespace)
+		mgrOptions.NewCache = cache.MultiNamespacedCacheBuilder(watchedNamespaces)
 	}
 }
