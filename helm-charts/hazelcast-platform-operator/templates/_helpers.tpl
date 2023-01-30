@@ -76,7 +76,7 @@ Create the image name of the deployment
 Watched namespaces list concatenated as comma separated string
 */}}
 {{- define "watched-namespaces.string" -}}
-{{ join "," .Values.watchedNamespaces }}
+{{ trim (join "," .Values.watchedNamespaces) }}
 {{- end -}}
 
 {{/*
@@ -90,8 +90,8 @@ matchExpressions:
 - key: kubernetes.io/metadata.name
   operator: In
   values:
-{{- range .Values.watchedNamespaces }}
-  - {{ . }}
+{{- range $watchedNamespace := .Values.watchedNamespaces }}
+  - {{ trim $watchedNamespace }}
 {{- end -}}
 {{- end -}}
 {{- end -}}
