@@ -313,6 +313,23 @@ bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and met
 	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 
+olm-deploy: operator-sdk ## Deploying Operator with OLM bundle
+	@$(eval CONTAINER_IMAGE=ttl.sh/$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
+	@$(eval BUNDLE_IMAGE=ttl.sh/$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
+	@$(eval VERSION=1.0.0)
+	$(MAKE) docker-build-ci IMG=$(CONTAINER_IMAGE) VERSION=$(VERSION)
+	$(MAKE) docker-push IMG=$(CONTAINER_IMAGE)
+	$(MAKE) bundle IMG=${CONTAINER_IMAGE} VERSION=$(VERSION)
+	@printf "  com.redhat.openshift.versions: v4.8\n  operators.operatorframework.io.bundle.channel.default.v1: alpha" >> ./bundle/metadata/annotations.yaml
+	docker build -f bundle.Dockerfile -t ${BUNDLE_IMAGE} .
+	docker push ${BUNDLE_IMAGE}
+	$(KUBECTL) create namespace $(NS)
+	operator-sdk run bundle ${BUNDLE_IMAGE} --namespace=$(NS) --timeout=10m --install-mode=OwnNamespace
+
+cleanup-olm: operator-sdk ## Clean up an Operator deployed with OLM
+	operator-sdk cleanup hazelcast-platform-operator --namespace=$(NS)
+	$(KUBECTL) delete namespace $(NS) --wait=true --timeout 5m
+
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
 	DOCKER_BUILDKIT=1 docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
