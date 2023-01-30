@@ -263,19 +263,19 @@ jobs:
         with:
           operator-sdk: "latest"
 
-      - name: Login to OCP and Create New Project
-        id: project_creation
-        run: |
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
-          oc new-project ${NAMESPACE}
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
-
       - name: Authenticate to GAR
         uses: docker/login-action@v2
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
           password: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Login to OCP and Create New Project
+        id: project_creation
+        run: |
+          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc new-project ${NAMESPACE}
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Initiating an Operator Bundle Scan
         run: |
