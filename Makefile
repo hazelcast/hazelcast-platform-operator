@@ -250,12 +250,7 @@ docker-push-latest:
 sync-manifests: manifests yq
 # Move CRDs into helm template
 	@cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml $(CRD_CHART)/templates/
-# Move role rules into helm template
-	@role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
-		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "operator-namespace") | .rules' \
-		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "watched") | .rules') ;\
-		echo "$$role" > $(OPERATOR_CHART)/templates/role.yaml
-# Cluster role syncing is done manually
+# Role and ClusterRole syncing is done manually
 
 install-crds: helm sync-manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
 	$(HELM) upgrade --install $(CRD_RELEASE_NAME) $(CRD_CHART) -n default ;\

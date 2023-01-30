@@ -96,7 +96,7 @@ go build -o bin/manager -tags ,hazelcastinternal main.go
 Or using `make` that will include the tag by default:
 
 ```shell
-make install run
+make install-crds run
 ```
 
 > Note: You can override the build tags in the `make` commands by setting `GO_BUILD_TAGS` env variable.
@@ -132,3 +132,10 @@ You can run end-to-end tests by [deploying the operator to Kubernetes cluster](#
 ```shell
 make test-e2e NAMESPACE=<YOUR NAMESPACE>
 ```
+
+## Updating Operator RBAC resources
+
+When you add/remove RBAC rules for the operator. You should run `make manifests` command and update the following parts in the `_helpers.tpl` in `hazelcast-platform-operator` Helm Charts.
+
+- If you update roles which operator needs for its own namespace, update the definition `hazelcast-platform-operator.operatorNamespaceRules` with rules taken from the `Role` resource with `operator-namespace` namespace in `/config/rbac.role.yaml`
+- If you update roles which operator needs for watching namespaces, update the definition `hazelcast-platform-operator.watchedNamespaceRules` with rules taken from the `Role` resource with `watched` namespace in `/config/rbac.role.yaml`
