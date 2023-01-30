@@ -83,7 +83,6 @@ func main() {
 		setupLog.Info("No namespace specified in the NAMESPACE env variable! Operator might be running locally")
 	}
 
-	// Get watchedNamespaces from environment variable.
 	setManagerWathedNamespaces(mgrOptions, operatorNamespace)
 
 	cfg := ctrl.GetConfigOrDie()
