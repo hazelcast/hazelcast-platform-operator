@@ -1,4 +1,4 @@
-name: E2E tests on GCP
+name: E2E tests with Istio on GCP
 on:
   # todo
   pull_request:
@@ -180,8 +180,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report-istio-gke
-          path: allure-results/gke/
+          name: test-report-istio
+          path: allure-results/istio/
 
   report-generation:
     needs: ["gke-e2e-tests","create-gke-cluster"]
