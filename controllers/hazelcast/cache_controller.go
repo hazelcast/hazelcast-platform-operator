@@ -18,7 +18,6 @@ import (
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // CacheReconciler reconciles a Cache object
@@ -93,7 +92,7 @@ func (r *CacheReconciler) validateCachePersistence(ctx context.Context, req ctrl
 	if err != nil {
 		return fmt.Errorf("could not create/update Cache config: Hazelcast resource not found: %w", err)
 	}
-	err = util.ValidatePersistence(c.Spec.PersistenceEnabled, h)
+	err = hazelcastv1alpha1.ValidateAppliedPersistence(c.Spec.PersistenceEnabled, h)
 	if err != nil {
 		return err
 	}
