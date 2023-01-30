@@ -247,7 +247,6 @@ jobs:
     needs: ocp-e2e-tests
     timeout-minutes: 10
     if: always()
-    timeout-minutes: 10
     env:
       GRAFANA_NS: "grafana-${{ github.run_id }}"
     steps:
