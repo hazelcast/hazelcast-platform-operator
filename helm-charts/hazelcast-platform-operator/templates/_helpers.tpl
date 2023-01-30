@@ -107,7 +107,6 @@ Rules needed for giving Hazelcast node read permissions
   - patch
   - update
   - watch
-  - afasd
 {{- end -}}
 
 {{/*
