@@ -204,7 +204,7 @@ jobs:
       OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
       OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
       OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
-      KUBECONFIG: ""
+      KUBECONFIG: $HOME/.kube/config
     steps:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v3
