@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"k8s.io/utils/pointer"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -624,6 +625,10 @@ type AdvancedNetwork struct {
 	Enabled                          *bool                             `json:"enabled"`
 	MemberServerSocketEndpointConfig *MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig"`
 	Wan                              *WanConfig                        `json:"wan"`
+}
+
+func (a *AdvancedNetwork) IsEnabled() bool {
+	return a != nil && a.Enabled != nil && a.Enabled == pointer.Bool(true)
 }
 
 type WanConfig struct {

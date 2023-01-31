@@ -714,7 +714,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
-	if *h.Spec.AdvancedNetwork.Enabled {
+	if h.Spec.AdvancedNetwork.IsEnabled() {
 		cfg.AdvancedNetwork.Join.Kubernetes.Enabled = pointer.Bool(true)
 		cfg.AdvancedNetwork.Join.Kubernetes.ServiceName = h.Name
 
