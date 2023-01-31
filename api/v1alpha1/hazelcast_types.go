@@ -621,9 +621,12 @@ func (c *JVMMemoryConfiguration) GetMaxRAMPercentage() string {
 }
 
 type AdvancedNetwork struct {
-	Enabled                          bool                             `json:"enabled"`
+	// +optional
+	Enabled bool `json:"enabled"`
+	// +optional
 	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig"`
-	Wan                              WanConfig                        `json:"wan"`
+	// +optional
+	Wan WanConfig `json:"wan"`
 }
 
 func (a *AdvancedNetwork) IsEnabled() bool {

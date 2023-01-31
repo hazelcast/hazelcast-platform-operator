@@ -61,8 +61,6 @@ spec:
                 description: Hazelcast Advanced Network configuration
                 properties:
                   enabled:
-                    description: 'TODO: annotations Enabled enables advanced networking
-                      feature'
                     type: boolean
                   memberServerSocketEndpointConfig:
                     properties:
@@ -89,6 +87,7 @@ spec:
                     - serviceType
                     type: object
                 required:
+                - enabled
                 - memberServerSocketEndpointConfig
                 - wan
                 type: object
