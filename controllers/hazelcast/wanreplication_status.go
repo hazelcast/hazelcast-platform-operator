@@ -142,7 +142,7 @@ func putWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha
 	return nil
 }
 
-func deleteWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, mapWanKey string, conflictOk bool) error {
+func deleteWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, mapWanKey string) error {
 	if wan.Status.WanReplicationMapsStatus == nil {
 		return nil
 	}
@@ -150,9 +150,24 @@ func deleteWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1al
 	delete(wan.Status.WanReplicationMapsStatus, mapWanKey)
 
 	if err := c.Status().Update(ctx, wan); err != nil {
-		if conflictOk && errors.IsConflict(err) {
-			return nil
-		}
+		return err
+	}
+
+	return nil
+}
+
+func updateWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, mapWanKey string, status hazelcastv1alpha1.WanStatus) error {
+	if wan.Status.WanReplicationMapsStatus == nil {
+		return nil
+	}
+
+	val, ok := wan.Status.WanReplicationMapsStatus[mapWanKey]
+	if !ok {
+		return nil
+	}
+	val.Status = status
+
+	if err := c.Status().Update(ctx, wan); err != nil {
 		return err
 	}
 

@@ -208,8 +208,8 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		assertObjectDoesNotExist(wan)
 	})
 
-	//When("Wan replicated Hazelcast CR is deleted which was given as a Hazelcast resource in Wan spec",
-	It("should delete the maps from status and Wan status should be Pending ", Label("slow"), func() {
+	//When("Wan replicated Hazelcast CR is first deleted and then removed from the Wan spec",
+	It("should fail first and after spec removal, should succeed ", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -243,12 +243,14 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		Expect(k8sClient.Delete(context.Background(), hzCrs[hzSource2])).Should(BeNil())
 		assertObjectDoesNotExist(hzCrs[hzSource2])
 		wan = assertWanStatusMapCount(wan, 3)
-		wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
+		wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusFailed)
 
-		Expect(k8sClient.Delete(context.Background(), hzCrs[hzSource1])).Should(BeNil())
-		assertObjectDoesNotExist(hzCrs[hzSource1])
-		wan = assertWanStatusMapCount(wan, 0)
-		_ = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusPending)
+		wan.Spec.Resources = []hazelcastcomv1alpha1.ResourceSpec{
+			{Name: hzSource1, Kind: hazelcastcomv1alpha1.ResourceKindHZ},
+		}
+		Expect(k8sClient.Update(context.Background(), wan)).Should(BeNil())
+		wan = assertWanStatusMapCount(wan, 3)
+		_ = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	})
 
 	//When("Wan replicated maps are removed from Wan spec",
