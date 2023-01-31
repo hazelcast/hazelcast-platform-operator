@@ -121,17 +121,12 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
 	}
 
-	err = r.reconcileRole(ctx, h, logger)
-	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
-	}
-
-	err = r.reconcileClusterRole(ctx, h, logger)
-	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
-	}
-
 	err = r.reconcileServiceAccount(ctx, h, logger)
+	if err != nil {
+		return r.update(ctx, h, failedPhase(err))
+	}
+
+	err = r.reconcileRole(ctx, h, logger)
 	if err != nil {
 		return r.update(ctx, h, failedPhase(err))
 	}
@@ -141,9 +136,16 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.update(ctx, h, failedPhase(err))
 	}
 
-	err = r.reconcileClusterRoleBinding(ctx, h, logger)
-	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+	if util.NodeDiscoveryEnabled() {
+		err = r.reconcileClusterRole(ctx, h, logger)
+		if err != nil {
+			return r.update(ctx, h, failedPhase(err))
+		}
+
+		err = r.reconcileClusterRoleBinding(ctx, h, logger)
+		if err != nil {
+			return r.update(ctx, h, failedPhase(err))
+		}
 	}
 
 	err = r.reconcileService(ctx, h, logger)
@@ -389,15 +391,20 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}); err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+
+	controller := ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Hazelcast{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ServiceAccount{}).
-		Owns(&rbacv1.ClusterRole{}).
-		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).
-		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates)).
-		Complete(r)
+		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates))
+
+	if util.NodeDiscoveryEnabled() {
+		controller.
+			Owns(&rbacv1.ClusterRole{}).
+			Owns(&rbacv1.ClusterRoleBinding{})
+	}
+	return controller.Complete(r)
 }

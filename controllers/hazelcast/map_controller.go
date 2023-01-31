@@ -92,7 +92,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 
-	err = util.ValidatePersistence(m.Spec.PersistenceEnabled, h)
+	err = hazelcastv1alpha1.ValidateAppliedPersistence(m.Spec.PersistenceEnabled, h)
 	if err != nil {
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}

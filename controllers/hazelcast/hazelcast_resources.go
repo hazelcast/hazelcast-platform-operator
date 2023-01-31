@@ -50,12 +50,15 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if err := r.deleteDependentCRs(ctx, h); err != nil {
 		return fmt.Errorf("Could not delete all dependent CRs: %w", err)
 	}
-	if err := r.removeClusterRole(ctx, h, logger); err != nil {
-		return fmt.Errorf("ClusterRole could not be removed: %w", err)
+	if util.NodeDiscoveryEnabled() {
+		if err := r.removeClusterRole(ctx, h, logger); err != nil {
+			return fmt.Errorf("ClusterRole could not be removed: %w", err)
+		}
+		if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
+			return fmt.Errorf("ClusterRoleBinding could not be removed: %w", err)
+		}
 	}
-	if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
-		return fmt.Errorf("ClusterRoleBinding could not be removed: %w", err)
-	}
+
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	r.statusServiceRegistry.Delete(lk)
 

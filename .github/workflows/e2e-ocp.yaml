@@ -190,6 +190,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: ocp-e2e-tests
     if: always()
+    timeout-minutes: 10
     env:
       GRAFANA_NS: "grafana-${{ github.run_id }}"
     steps:

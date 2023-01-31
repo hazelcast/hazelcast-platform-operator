@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -13,6 +14,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -65,27 +67,25 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	// Get watch watchedNamespace from environment variable.
-	watchedNamespace, found := os.LookupEnv(n.WatchNamespaceEnv)
-	if !found || watchedNamespace == "" {
-		setupLog.Info("No namespace specified in the WATCH_NAMESPACE env variable, watching all namespaces")
-	} else if watchedNamespace == "*" {
-		setupLog.Info("Watching all namespaces")
-		watchedNamespace = ""
-	} else {
-		setupLog.Info("Watching namespace: " + watchedNamespace)
-	}
-
-	cfg := ctrl.GetConfigOrDie()
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+	mgrOptions := ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "8d830316.hazelcast.com",
-		Namespace:              watchedNamespace,
-	})
+	}
+
+	// Get operatorNamespace from environment variable.
+	operatorNamespace, found := os.LookupEnv(n.NamespaceEnv)
+	if !found || operatorNamespace == "" {
+		setupLog.Info("No namespace specified in the NAMESPACE env variable! Operator might be running locally")
+	}
+
+	setManagerWathedNamespaces(mgrOptions, operatorNamespace)
+
+	cfg := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(cfg, mgrOptions)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
@@ -325,5 +325,21 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 	if err := (&hazelcastcomv1alpha1.ReplicatedMap{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "ReplicatedMap")
 		os.Exit(1)
+	}
+}
+
+func setManagerWathedNamespaces(mgrOptions ctrl.Options, operatorNamespace string) {
+	watchedNamespaces := strings.Split(os.Getenv(n.WatchedNamespacesEnv), ",")
+	switch {
+	case len(watchedNamespaces) == 1 && util.IsWatchingAllNamespaces(watchedNamespaces[0]):
+		setupLog.Info("Watching all namespaces")
+	case len(watchedNamespaces) == 1 && watchedNamespaces[0] == operatorNamespace:
+		setupLog.Info("Watching a single namespace", "namespace", watchedNamespaces[0])
+		mgrOptions.Namespace = watchedNamespaces[0]
+	default:
+		setupLog.Info("Watching namespaces", "watched_namespaces", watchedNamespaces, "operator_namespace", operatorNamespace)
+		// Operator should be able watch resources in its own namespace
+		watchedNamespaces = append(watchedNamespaces, operatorNamespace)
+		mgrOptions.NewCache = cache.MultiNamespacedCacheBuilder(watchedNamespaces)
 	}
 }
