@@ -364,12 +364,12 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 }
 
 func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !*h.Spec.AdvancedNetwork.Enabled {
+	if !h.Spec.AdvancedNetwork.Enabled {
 		return nil
 	}
 
 	var i uint
-	for i = 0; i < *h.Spec.AdvancedNetwork.Wan.PortCount; i++ {
+	for i = 0; i < h.Spec.AdvancedNetwork.Wan.PortCount; i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      h.Name + "-wan-rep-port-" + strconv.Itoa(int(i)),
@@ -382,7 +382,7 @@ func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h 
 					{
 						Name:        "wan-rep-port-" + strconv.Itoa(int(i)),
 						Protocol:    corev1.ProtocolTCP,
-						Port:        int32(*h.Spec.AdvancedNetwork.Wan.Port + i),
+						Port:        int32(h.Spec.AdvancedNetwork.Wan.Port + i),
 						TargetPort:  intstr.FromString(n.Hazelcast), //TODO
 						AppProtocol: pointer.String("tcp"),
 					},
@@ -750,8 +750,8 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		// Wan Network
 		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = config.WanServerSockerEndpointConfig{
 			Port: config.PortAndPortCount{
-				Port:      *h.Spec.AdvancedNetwork.Wan.Port,
-				PortCount: *h.Spec.AdvancedNetwork.Wan.PortCount,
+				Port:      h.Spec.AdvancedNetwork.Wan.Port,
+				PortCount: h.Spec.AdvancedNetwork.Wan.PortCount,
 			}}
 	}
 

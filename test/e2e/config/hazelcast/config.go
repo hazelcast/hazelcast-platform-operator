@@ -1,14 +1,12 @@
 package hazelcast
 
 import (
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 var (
@@ -144,11 +142,11 @@ var (
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				AdvancedNetwork: hazelcastv1alpha1.AdvancedNetwork{
-					Enabled:                          pointer.Bool(true),
-					MemberServerSocketEndpointConfig: &hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: interfaces},
-					Wan: &hazelcastv1alpha1.WanConfig{
-						Port:        pointer.Uint(wanPort),
-						PortCount:   pointer.Uint(wanPortCount),
+					Enabled:                          true,
+					MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: interfaces},
+					Wan: hazelcastv1alpha1.WanConfig{
+						Port:        wanPort,
+						PortCount:   wanPortCount,
 						ServiceType: wanServiceType,
 					},
 				},
