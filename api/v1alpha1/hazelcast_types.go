@@ -627,7 +627,7 @@ type AdvancedNetwork struct {
 }
 
 func (a *AdvancedNetwork) IsEnabled() bool {
-	return a != nil && a.Enabled == true
+	return a != nil && a.Enabled
 }
 
 type WanConfig struct {
