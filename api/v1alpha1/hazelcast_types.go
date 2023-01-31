@@ -621,15 +621,14 @@ func (c *JVMMemoryConfiguration) GetMaxRAMPercentage() string {
 }
 
 type AdvancedNetwork struct {
-	//TODO: annotations
-	Enabled                          bool                             `json:"enabled"`
-	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig"`
-	Wan                              WanConfig                        `json:"wan"`
+	Enabled                          *bool                             `json:"enabled"`
+	MemberServerSocketEndpointConfig *MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig"`
+	Wan                              *WanConfig                        `json:"wan"`
 }
 
 type WanConfig struct {
-	Port        uint               `json:"port"`
-	PortCount   uint               `json:"portCount"`
+	Port        *uint              `json:"port"`
+	PortCount   *uint              `json:"portCount"`
 	ServiceType corev1.ServiceType `json:"serviceType"`
 }
 

@@ -130,8 +130,8 @@ func checkEnterprise(repo string) bool {
 }
 
 func validateAdvancedNetwork(h *Hazelcast) error {
-	if h.Spec.AdvancedNetwork.Enabled {
-		if err := isPortInRange(h.Spec.AdvancedNetwork.Wan.Port, h.Spec.AdvancedNetwork.Wan.PortCount); err != nil {
+	if *h.Spec.AdvancedNetwork.Enabled {
+		if err := isPortInRange(*h.Spec.AdvancedNetwork.Wan.Port, *h.Spec.AdvancedNetwork.Wan.PortCount); err != nil {
 			return err
 		}
 	}

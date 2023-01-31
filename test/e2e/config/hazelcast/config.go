@@ -5,6 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -128,6 +129,28 @@ var (
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		}
+	}
+
+	AdvancedNetwork = func(lk types.NamespacedName, ee bool, lbls map[string]string,
+		wanPort uint, wanPortCount uint, wanServiceType corev1.ServiceType, interfaces []string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				AdvancedNetwork: hazelcastv1alpha1.AdvancedNetwork{
+					Enabled:                          pointer.Bool(true),
+					MemberServerSocketEndpointConfig: &hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: interfaces},
+					Wan: &hazelcastv1alpha1.WanConfig{
+						Port:        pointer.Uint(wanPort),
+						PortCount:   pointer.Uint(wanPortCount),
+						ServiceType: wanServiceType,
+					},
 				},
 			},
 		}
