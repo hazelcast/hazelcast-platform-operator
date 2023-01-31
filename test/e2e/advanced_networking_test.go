@@ -5,6 +5,7 @@ import (
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	v1 "k8s.io/api/core/v1"
+	"strings"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -54,6 +55,12 @@ var _ = Describe("Hazelcast CR with Advanced Networking Feature", Label("hz_adva
 		serviceList := &v1.ServiceList{}
 		err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace))
 		Expect(err).Should(BeNil())
-		Expect(len(serviceList.Items)).Should(Equal(wanPortCount))
+		var wanRepSvcCount = 0
+		for _, s := range serviceList.Items {
+			if strings.Contains(s.Name, "-wan-rep-port-") {
+				wanRepSvcCount++
+			}
+		}
+		Expect(wanRepSvcCount).Should(Equal(wanPortCount))
 	})
 })
