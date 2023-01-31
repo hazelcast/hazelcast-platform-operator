@@ -122,7 +122,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	cl, err := GetHazelcastClient(ctx, r.clientRegistry, m)
+	cl, err := getHazelcastClient(ctx, r.clientRegistry, m.Spec.HazelcastResourceName, m.Namespace)
 	if err != nil {
 		if errors.IsInternalError(err) {
 			return updateMapStatus(ctx, r.Client, m, failedStatus(err).
@@ -209,13 +209,13 @@ func ValidatePersistence(pe bool, h *hazelcastv1alpha1.Hazelcast) error {
 	return nil
 }
 
-func GetHazelcastClient(ctx context.Context, cs hzclient.ClientRegistry, m *hazelcastv1alpha1.Map) (hzclient.Client, error) {
-	hzcl, err := cs.GetOrCreate(ctx, types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace})
+func getHazelcastClient(ctx context.Context, cs hzclient.ClientRegistry, hzName, hzNamespace string) (hzclient.Client, error) {
+	hzcl, err := cs.GetOrCreate(ctx, types.NamespacedName{Name: hzName, Namespace: hzNamespace})
 	if err != nil {
-		return nil, errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", m.Spec.HazelcastResourceName))
+		return nil, errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", hzName))
 	}
 	if !hzcl.Running() {
-		return nil, fmt.Errorf("trying to connect to the cluster %s", m.Spec.HazelcastResourceName)
+		return nil, fmt.Errorf("trying to connect to the cluster %s", hzName)
 	}
 
 	return hzcl, nil
