@@ -2,6 +2,8 @@ name: E2E tests on OCP
 on:
   workflow_dispatch:
   workflow_call:
+  schedule:
+    - cron: "0 9 * * *"
 
 env:
   AWS_REGION: us-east-1
