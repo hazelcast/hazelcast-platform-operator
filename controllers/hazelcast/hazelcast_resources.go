@@ -368,7 +368,7 @@ func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h 
 		return nil
 	}
 
-	var i uint = 0
+	var i uint
 	for i = 0; i < *h.Spec.AdvancedNetwork.Wan.PortCount; i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
