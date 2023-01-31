@@ -31,10 +31,6 @@ var (
 	errMissingTLSKey  = errors.New("mtls: missing tls.key in secret")
 )
 
-type Client struct {
-	http.Client
-}
-
 func NewClient(ctx context.Context, kubeClient client.Client, secretName types.NamespacedName) (*http.Client, error) {
 	if secretName.Namespace == "" {
 		// if not specified we always use default namespace
