@@ -22,6 +22,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/mutate"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -38,9 +39,10 @@ type HazelcastReconciler struct {
 	phoneHomeTrigger      chan struct{}
 	clientRegistry        hzclient.ClientRegistry
 	statusServiceRegistry hzclient.StatusServiceRegistry
+	mtlsClientRegistry    mtls.HttpClientRegistry
 }
 
-func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *HazelcastReconciler {
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry, mtlsRegistry mtls.HttpClientRegistry) *HazelcastReconciler {
 	return &HazelcastReconciler{
 		Client:                c,
 		Log:                   log,
@@ -49,6 +51,7 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 		phoneHomeTrigger:      pht,
 		clientRegistry:        cs,
 		statusServiceRegistry: ssm,
+		mtlsClientRegistry:    mtlsRegistry,
 	}
 }
 
@@ -93,7 +96,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Check if the Hazelcast CR is marked to be deleted
 	if h.GetDeletionTimestamp() != nil {
 		// Execute finalizer's pre-delete function to cleanup ClusterRole
-		r.update(ctx, h, terminatingPhase(nil)) //nolint:errcheck
 		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
 			return r.update(ctx, h, terminatingPhase(err).withMessage(err.Error()))
@@ -118,17 +120,12 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
 	}
 
-	err = r.reconcileRole(ctx, h, logger)
-	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
-	}
-
-	err = r.reconcileClusterRole(ctx, h, logger)
-	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
-	}
-
 	err = r.reconcileServiceAccount(ctx, h, logger)
+	if err != nil {
+		return r.update(ctx, h, failedPhase(err))
+	}
+
+	err = r.reconcileRole(ctx, h, logger)
 	if err != nil {
 		return r.update(ctx, h, failedPhase(err))
 	}
@@ -138,9 +135,16 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.update(ctx, h, failedPhase(err))
 	}
 
-	err = r.reconcileClusterRoleBinding(ctx, h, logger)
-	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+	if util.NodeDiscoveryEnabled() {
+		err = r.reconcileClusterRole(ctx, h, logger)
+		if err != nil {
+			return r.update(ctx, h, failedPhase(err))
+		}
+
+		err = r.reconcileClusterRoleBinding(ctx, h, logger)
+		if err != nil {
+			return r.update(ctx, h, failedPhase(err))
+		}
 	}
 
 	err = r.reconcileService(ctx, h, logger)
@@ -186,6 +190,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	err = r.reconcileConfigMap(ctx, h, logger)
+	if err != nil {
+		return r.update(ctx, h, failedPhase(err))
+	}
+
+	err = r.reconcileMtlsSecret(ctx, h)
 	if err != nil {
 		return r.update(ctx, h, failedPhase(err))
 	}
@@ -381,15 +390,20 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}); err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+
+	controller := ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Hazelcast{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ServiceAccount{}).
-		Owns(&rbacv1.ClusterRole{}).
-		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).
-		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates)).
-		Complete(r)
+		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates))
+
+	if util.NodeDiscoveryEnabled() {
+		controller.
+			Owns(&rbacv1.ClusterRole{}).
+			Owns(&rbacv1.ClusterRoleBinding{})
+	}
+	return controller.Complete(r)
 }

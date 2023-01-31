@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/http"
+
+	"github.com/hazelcast/platform-operator-agent/sidecar"
 
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
-	"github.com/hazelcast/platform-operator-agent/sidecar"
 )
 
 type LocalBackup struct {
@@ -19,7 +20,7 @@ type LocalBackup struct {
 type Config struct {
 	MemberAddress string
 	BackupBaseDir string
-	MTLSClient    *mtls.Client
+	MTLSClient    *http.Client
 	MemberID      int
 }
 
@@ -28,7 +29,7 @@ func NewLocalBackup(config *Config) (*LocalBackup, error) {
 	if err != nil {
 		return nil, err
 	}
-	s, err := rest.NewLocalBackupService(hzclient.AgentUrl(host), &config.MTLSClient.Client)
+	s, err := rest.NewLocalBackupService(hzclient.AgentUrl(host), config.MTLSClient)
 	if err != nil {
 		return nil, err
 	}

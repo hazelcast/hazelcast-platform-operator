@@ -97,7 +97,7 @@ DEBUG_ENABLED ?= false
 RELEASE_NAME ?= v1
 CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
 DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
-STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespace=$(NAMESPACE),debug.enabled=$(DEBUG_ENABLED)
+STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespace='{$(NAMESPACE)}',debug.enabled=$(DEBUG_ENABLED)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -250,12 +250,7 @@ docker-push-latest:
 sync-manifests: manifests yq
 # Move CRDs into helm template
 	@cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml $(CRD_CHART)/templates/
-# Move role rules into helm template
-	@role=$$(awk '{print; if (match($$0,"rules:")) exit}' $(OPERATOR_CHART)/templates/role.yaml \
-		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "operator-namespace") | .rules' \
-		 && cat config/rbac/role.yaml | $(YQ) 'select(.kind == "Role" and .metadata.namespace == "watched") | .rules') ;\
-		echo "$$role" > $(OPERATOR_CHART)/templates/role.yaml
-# Cluster role syncing is done manually
+# Role and ClusterRole syncing is done manually
 
 install-crds: helm sync-manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
 	$(HELM) upgrade --install $(CRD_RELEASE_NAME) $(CRD_CHART) -n default ;\
@@ -279,7 +274,7 @@ deploy: install-crds install-operator ## Deploy controller to the K8s cluster sp
 
 undeploy: uninstall-operator uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 
-deploy-tilt: helm sync-manifests
+deploy-tilt: helm sync-manifests generate
 	@$(HELM) template $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES),podSecurityContext=null,securityContext=null --namespace=$(NAMESPACE)
 
 undeploy-tilt: 
@@ -306,10 +301,14 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 2m
 
 .PHONY: bundle
-bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
+bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	($(YQ) 'select(.kind == "ClusterRole")  | .' config/rbac/role.yaml && \
+	 echo "---" && \
+	 $(YQ)  eval-all '. | select(.kind == "Role" ) | . as $$item ireduce ({}; . *+ $$item) '  config/rbac/role.yaml) > config/rbac/role.yaml.new && mv config/rbac/role.yaml.new config/rbac/role.yaml
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(BUNDLE_VERSION) $(BUNDLE_METADATA_OPTS)
+	$(MAKE) manifests # Revert changes done for generating bundle
 	sed -i  "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework

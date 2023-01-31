@@ -169,7 +169,10 @@ func (r *CronHotBackupReconciler) deleteDependentHotBackups(ctx context.Context,
 	for i := 0; i < len(hbl.Items); i++ {
 		i := i
 		g.Go(func() error {
-			return util.DeleteObject(groupCtx, r.Client, &hbl.Items[i])
+			if hbl.Items[i].GetDeletionTimestamp() == nil {
+				return util.DeleteObject(groupCtx, r.Client, &hbl.Items[i])
+			}
+			return nil
 		})
 	}
 

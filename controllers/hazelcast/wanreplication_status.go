@@ -12,23 +12,18 @@ import (
 )
 
 type wanOptionsBuilder struct {
-	publisherId string
-	err         error
-	status      hazelcastv1alpha1.WanStatus
-	message     string
-	retryAfter  time.Duration
+	publisherId  string
+	err          error
+	status       hazelcastv1alpha1.WanStatus
+	message      string
+	resourceName string
+	retryAfter   time.Duration
 }
 
 func wanFailedStatus(err error) wanOptionsBuilder {
 	return wanOptionsBuilder{
 		status: hazelcastv1alpha1.WanStatusFailed,
 		err:    err,
-	}
-}
-
-func wanPendingStatus() wanOptionsBuilder {
-	return wanOptionsBuilder{
-		status: hazelcastv1alpha1.WanStatusPending,
 	}
 }
 
@@ -88,6 +83,11 @@ func (o wanOptionsBuilder) withPublisherId(hz string) wanOptionsBuilder {
 	return o
 }
 
+func (o wanOptionsBuilder) withResourceName(rn string) wanOptionsBuilder {
+	o.resourceName = rn
+	return o
+}
+
 func (o wanOptionsBuilder) withMessage(msg string) wanOptionsBuilder {
 	o.message = msg
 	return o
@@ -120,18 +120,54 @@ func putWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha
 
 	for mapWanKey, builder := range options {
 		wan.Status.WanReplicationMapsStatus[mapWanKey] = hazelcastv1alpha1.WanReplicationMapStatus{
-			PublisherId: builder.publisherId,
-			Message:     builder.message,
-			Status:      builder.status,
+			PublisherId:  builder.publisherId,
+			Message:      builder.message,
+			Status:       builder.status,
+			ResourceName: builder.resourceName,
 		}
 	}
 
 	wan.Status.Status = wanStatus(wan.Status.WanReplicationMapsStatus)
+	if wan.Status.Status == hazelcastv1alpha1.WanStatusSuccess {
+		wan.Status.Message = ""
+	}
 
 	if err := c.Status().Update(ctx, wan); err != nil {
 		if errors.IsConflict(err) {
 			return nil
 		}
+		return err
+	}
+
+	return nil
+}
+
+func deleteWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, mapWanKey string) error {
+	if wan.Status.WanReplicationMapsStatus == nil {
+		return nil
+	}
+
+	delete(wan.Status.WanReplicationMapsStatus, mapWanKey)
+
+	if err := c.Status().Update(ctx, wan); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, mapWanKey string, status hazelcastv1alpha1.WanStatus) error {
+	if wan.Status.WanReplicationMapsStatus == nil {
+		return nil
+	}
+
+	val, ok := wan.Status.WanReplicationMapsStatus[mapWanKey]
+	if !ok {
+		return nil
+	}
+	val.Status = status
+
+	if err := c.Status().Update(ctx, wan); err != nil {
 		return err
 	}
 

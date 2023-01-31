@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,7 +13,9 @@ import (
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 const (
@@ -74,6 +77,12 @@ func validateExposeExternally(h *Hazelcast) error {
 		return errors.New("when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set")
 	}
 
+	if ee.Type == ExposeExternallyTypeSmart && ee.MemberAccess == MemberAccessNodePortExternalIP {
+		if !util.NodeDiscoveryEnabled() {
+			return errors.New("when Hazelcast node discovery is not enabled, exposeExternally.MemberAccess cannot be set to `NodePortExternalIP`")
+		}
+	}
+
 	return nil
 }
 
@@ -127,6 +136,28 @@ func checkEnterprise(repo string) bool {
 		return false
 	}
 	return strings.HasSuffix(path[len(path)-1], "-enterprise")
+}
+
+func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
+	if !persistenceEnabled {
+		return nil
+	}
+	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
+	}
+
+	lastSpec := &HazelcastSpec{}
+	err := json.Unmarshal([]byte(s), lastSpec)
+	if err != nil {
+		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
+	}
+
+	if !lastSpec.Persistence.IsEnabled() {
+		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
+	}
+
+	return nil
 }
 
 func validateAdvancedNetwork(h *Hazelcast) error {
