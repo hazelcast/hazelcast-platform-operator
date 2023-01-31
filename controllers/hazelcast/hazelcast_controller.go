@@ -22,6 +22,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/mutate"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -38,9 +39,10 @@ type HazelcastReconciler struct {
 	phoneHomeTrigger      chan struct{}
 	clientRegistry        hzclient.ClientRegistry
 	statusServiceRegistry hzclient.StatusServiceRegistry
+	mtlsClientRegistry    mtls.HttpClientRegistry
 }
 
-func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry) *HazelcastReconciler {
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry, ssm hzclient.StatusServiceRegistry, mtlsRegistry mtls.HttpClientRegistry) *HazelcastReconciler {
 	return &HazelcastReconciler{
 		Client:                c,
 		Log:                   log,
@@ -49,6 +51,7 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 		phoneHomeTrigger:      pht,
 		clientRegistry:        cs,
 		statusServiceRegistry: ssm,
+		mtlsClientRegistry:    mtlsRegistry,
 	}
 }
 
@@ -188,6 +191,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	err = r.reconcileConfigMap(ctx, h, logger)
+	if err != nil {
+		return r.update(ctx, h, failedPhase(err))
+	}
+
+	err = r.reconcileMtlsSecret(ctx, h)
 	if err != nil {
 		return r.update(ctx, h, failedPhase(err))
 	}

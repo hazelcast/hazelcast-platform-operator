@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
 	"github.com/hazelcast/platform-operator-agent/sidecar"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
 )
 
 var (
@@ -30,7 +31,7 @@ type Config struct {
 	BackupBaseDir string
 	HazelcastName string
 	SecretName    string
-	MTLSClient    *mtls.Client
+	MTLSClient    *http.Client
 	MemberID      int
 }
 
@@ -39,7 +40,7 @@ func NewUpload(config *Config) (*Upload, error) {
 	if err != nil {
 		return nil, err
 	}
-	s, err := rest.NewUploadService("https://"+host+":8443", &config.MTLSClient.Client)
+	s, err := rest.NewUploadService("https://"+host+":8443", config.MTLSClient)
 	if err != nil {
 		return nil, err
 	}

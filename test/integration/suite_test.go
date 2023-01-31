@@ -22,6 +22,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 
 	. "github.com/hazelcast/hazelcast-platform-operator/test"
@@ -95,7 +96,8 @@ var _ = BeforeSuite(func() {
 		nil,
 		cs,
 		ssm,
-	).SetupWithManager(k8sManager)
+		mtls.NewHttpClientRegistry()).
+		SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = managementcenter.NewManagementCenterReconciler(
