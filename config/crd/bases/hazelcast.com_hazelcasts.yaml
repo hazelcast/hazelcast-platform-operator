@@ -68,8 +68,6 @@ spec:
                         items:
                           type: string
                         type: array
-                    required:
-                    - interfaces
                     type: object
                   wan:
                     properties:
@@ -81,15 +79,7 @@ spec:
                         description: Service Type string describes ingress methods
                           for a service
                         type: string
-                    required:
-                    - port
-                    - portCount
-                    - serviceType
                     type: object
-                required:
-                - enabled
-                - memberServerSocketEndpointConfig
-                - wan
                 type: object
               agent:
                 default:
