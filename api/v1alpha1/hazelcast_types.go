@@ -622,11 +622,11 @@ func (c *JVMMemoryConfiguration) GetMaxRAMPercentage() string {
 
 type AdvancedNetwork struct {
 	// +optional
-	Enabled bool `json:"enabled"`
+	Enabled bool `json:"enabled,omitempty"`
 	// +optional
-	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig"`
+	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
 	// +optional
-	Wan WanConfig `json:"wan"`
+	Wan WanConfig `json:"wan,omitempty"`
 }
 
 func (a *AdvancedNetwork) IsEnabled() bool {
@@ -634,18 +634,18 @@ func (a *AdvancedNetwork) IsEnabled() bool {
 }
 
 type WanConfig struct {
-	Port        uint               `json:"port"`
-	PortCount   uint               `json:"portCount"`
-	ServiceType corev1.ServiceType `json:"serviceType"`
+	Port        uint               `json:"port,omitempty"`
+	PortCount   uint               `json:"portCount,omitempty"`
+	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
 }
 
 type MemberServerSocketEndpointConfig struct {
-	Interfaces []string `json:"interfaces"`
+	Interfaces []string `json:"interfaces,omitempty"`
 }
 
 type ClientServerSocketEndpointConfig struct {
-	Port       uint     `json:"port"`
-	Interfaces []string `json:"interfaces"`
+	Port       uint     `json:"port,omitempty"`
+	Interfaces []string `json:"interfaces,omitempty"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
