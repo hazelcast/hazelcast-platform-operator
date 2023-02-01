@@ -63,28 +63,26 @@ var _ = Describe("Hazelcast CR with Advanced Networking Feature", Label("hz_adva
 		Expect(err).Should(BeNil())
 
 		// Member Network
-		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.Port.Port)).
-			Should(Equal(5702))
-		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.Port.PortCount)).
-			Should(Equal(1))
-		Expect(hzConfig.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces.Enabled).
-			Should(Equal(true))
-		Expect(hzConfig.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces.Interfaces[0]).
-			Should(Equal(interfaces[0]))
+		m := hzConfig.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig
+		Expect(int(m.Port.Port)).Should(Equal(5702))
+		Expect(int(m.Port.PortCount)).Should(Equal(1))
+		Expect(m.Interfaces.Enabled).Should(Equal(true))
+		Expect(m.Interfaces.Interfaces[0]).Should(Equal(interfaces[0]))
 
 		// Client Network
-		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.RestServerSocketEndpointConfig.Port.Port)).
-			Should(Equal(8080))
-		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.RestServerSocketEndpointConfig.Port.PortCount)).
-			Should(Equal(1))
+		c := hzConfig.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig
+		Expect(int(c.Port.Port)).Should(Equal(5701))
+		Expect(int(c.Port.PortCount)).Should(Equal(1))
 
 		// Rest Network
+		r := hzConfig.Hazelcast.AdvancedNetwork.RestServerSocketEndpointConfig
+		Expect(int(r.Port.Port)).Should(Equal(8080))
+		Expect(int(r.Port.PortCount)).Should(Equal(1))
 
 		// Wan Network
-		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.WanServerSocketEndpointConfig.Port.Port)).
-			Should(Equal(wanPort))
-		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.WanServerSocketEndpointConfig.Port.PortCount)).
-			Should(Equal(wanPortCount))
+		w := hzConfig.Hazelcast.AdvancedNetwork.WanServerSocketEndpointConfig
+		Expect(int(w.Port.Port)).Should(Equal(wanPort))
+		Expect(int(w.Port.PortCount)).Should(Equal(wanPortCount))
 
 		// check if services created successfully
 		serviceList := &v1.ServiceList{}
