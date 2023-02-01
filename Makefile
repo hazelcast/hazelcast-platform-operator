@@ -313,7 +313,7 @@ bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and met
 	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 
-olm-deploy: operator-sdk ## Deploying Operator with OLM bundle
+olm-deploy: operator-sdk ## Deploying Operator with OLM bundle. Available modes are AllNamespace|OwnNamespace|SingleNamespace
 	@$(eval CONTAINER_IMAGE=ttl.sh/$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
 	@$(eval BUNDLE_IMAGE=ttl.sh/$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
 	@$(eval VERSION=1.0.0)
@@ -324,7 +324,7 @@ olm-deploy: operator-sdk ## Deploying Operator with OLM bundle
 	docker build -f bundle.Dockerfile -t ${BUNDLE_IMAGE} .
 	docker push ${BUNDLE_IMAGE}
 	$(KUBECTL) create namespace $(NS)
-	operator-sdk run bundle ${BUNDLE_IMAGE} --namespace=$(NS) --timeout=10m --install-mode=OwnNamespace
+	operator-sdk run bundle ${BUNDLE_IMAGE} --namespace=$(NS) --timeout=10m --install-mode=$(MODE)
 
 cleanup-olm: operator-sdk ## Clean up an Operator deployed with OLM
 	operator-sdk cleanup hazelcast-platform-operator --namespace=$(NS)
