@@ -3,8 +3,11 @@ package e2e
 import (
 	"context"
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"strings"
 	. "time"
 
@@ -39,7 +42,7 @@ var _ = Describe("Hazelcast CR with Advanced Networking Feature", Label("hz_adva
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should create advanced network config", Label("slow"), func() {
+	FIt("should create advanced network config", Label("slow"), func() {
 		wanPort := 5710
 		wanPortCount := 5
 		interfaces := []string{"10.10.1.*"}
@@ -49,11 +52,22 @@ var _ = Describe("Hazelcast CR with Advanced Networking Feature", Label("hz_adva
 			uint(wanPort), uint(wanPortCount), v1.ServiceTypeNodePort, interfaces)
 		CreateHazelcastCR(hz)
 
-		//TODO: check if hazelcast config created successfully
+		cm := &v1.ConfigMap{}
+		hzConfig := &config.HazelcastWrapper{}
+		err := k8sClient.Get(context.Background(), types.NamespacedName{
+			Name:      hz.Name,
+			Namespace: hz.Namespace,
+		}, cm)
+		Expect(err).Should(BeNil())
+		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		Expect(err).Should(BeNil())
+
+		GinkgoWriter.Println("KUTLUHAN")
+		Expect(hzConfig.Hazelcast.AdvancedNetwork.WanServerSocketEndpointConfig.Port.PortCount).Should(Equal(wanPortCount))
 
 		// check if services created successfully
 		serviceList := &v1.ServiceList{}
-		err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace))
+		err = k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace))
 		Expect(err).Should(BeNil())
 		var wanRepSvcCount = 0
 		for _, s := range serviceList.Items {
