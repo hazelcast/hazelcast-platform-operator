@@ -92,7 +92,7 @@ func validateLicense(h *Hazelcast) error {
 		err := kubeclient.Get(context.Background(), secretName, &secret)
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
-			return errors.New("Hazelcast Enterprise licenseKeySecret secret is not found")
+			return errors.New("Hazelcast Enterprise licenseKeySecret is not found")
 		}
 	}
 
