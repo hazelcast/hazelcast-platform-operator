@@ -39,6 +39,7 @@ jobs:
         with:
           preflight: "latest"
           source: github
+          skip_cache: true
 
       - name: Set Environment Variables And Job Outputs
         id: setup-envs
@@ -64,17 +65,9 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@master
+        uses: docker/setup-buildx-action@v2.4.0
         with:
           install: true
-
-      - name: Cache Docker Layers
-        uses: actions/cache@v3.2.3
-        with:
-          path: /tmp/.buildx-cache-aks
-          key: ${{ runner.os }}-multi-buildx-${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-multi-buildx
 
       - name: Authenticate to GAR
         uses: docker/login-action@v2
@@ -95,13 +88,8 @@ jobs:
           file: Dockerfile
           push: true
           tags: ${{ steps.setup-envs.outputs.CONTAINER_IMAGE }}
-          cache-from: type=local,src=/tmp/.buildx-cache-aks
-          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache-aks-new
-
-      - name: Move Docker Cache
-        run: |
-          rm -rf /tmp/.buildx-cache-aks
-          mv /tmp/.buildx-cache-aks-new /tmp/.buildx-cache-aks
+          cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+          cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
 
       - name: Initiating a Container Scan
         run: |
@@ -182,9 +170,12 @@ jobs:
         with:
           preflight: "latest"
           source: github
+          skip_cache: true
+
       - uses: redhat-actions/openshift-tools-installer@v1
         with:
           opm: "latest"
+          skip_cache: true
 
       - name: Authenticate to GAR
         uses: docker/login-action@v2
@@ -258,10 +249,12 @@ jobs:
         with:
           preflight: "latest"
           source: github
+          skip_cache: true
 
       - uses: redhat-actions/openshift-tools-installer@v1
         with:
           operator-sdk: "latest"
+          skip_cache: true
 
       - name: Authenticate to GAR
         uses: docker/login-action@v2

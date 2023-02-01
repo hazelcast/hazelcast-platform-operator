@@ -54,14 +54,14 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@master
+        uses: docker/setup-buildx-action@v2.4.0
         with:
           install: true
 
       - name: Cache Docker Layers
         uses: actions/cache@v3.2.3
         with:
-          path: /tmp/.buildx-cache-aks
+          path: /tmp/.buildx-cache
           key: ${{ runner.os }}-multi-buildx-${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-multi-buildx
@@ -89,8 +89,8 @@ jobs:
           file: Dockerfile
           push: true
           tags: ${{ steps.get-image-tag.outputs.IMG }}
-          cache-from: type=local,src=/tmp/.buildx-cache-aks
-          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache-aks-new
+          cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+          cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
 
       - name: Move Docker Cache
         run: |
