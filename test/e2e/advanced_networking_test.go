@@ -62,8 +62,29 @@ var _ = Describe("Hazelcast CR with Advanced Networking Feature", Label("hz_adva
 		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
 		Expect(err).Should(BeNil())
 
-		GinkgoWriter.Println("KUTLUHAN")
-		Expect(hzConfig.Hazelcast.AdvancedNetwork.WanServerSocketEndpointConfig.Port.PortCount).Should(Equal(wanPortCount))
+		// Member Network
+		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.Port.Port)).
+			Should(Equal(5702))
+		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.Port.PortCount)).
+			Should(Equal(1))
+		Expect(hzConfig.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces.Enabled).
+			Should(Equal(true))
+		Expect(hzConfig.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces.Interfaces[0]).
+			Should(Equal(interfaces[0]))
+
+		// Client Network
+		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.RestServerSocketEndpointConfig.Port.Port)).
+			Should(Equal(8080))
+		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.RestServerSocketEndpointConfig.Port.PortCount)).
+			Should(Equal(1))
+
+		// Rest Network
+
+		// Wan Network
+		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.WanServerSocketEndpointConfig.Port.Port)).
+			Should(Equal(wanPort))
+		Expect(int(hzConfig.Hazelcast.AdvancedNetwork.WanServerSocketEndpointConfig.Port.PortCount)).
+			Should(Equal(wanPortCount))
 
 		// check if services created successfully
 		serviceList := &v1.ServiceList{}
