@@ -82,7 +82,7 @@ func main() {
 		setupLog.Info("No namespace specified in the NAMESPACE env variable! Operator might be running locally")
 	}
 
-	setManagerWathedNamespaces(mgrOptions, operatorNamespace)
+	setManagerWathedNamespaces(&mgrOptions, operatorNamespace)
 
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, mgrOptions)
@@ -328,7 +328,7 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 	}
 }
 
-func setManagerWathedNamespaces(mgrOptions ctrl.Options, operatorNamespace string) {
+func setManagerWathedNamespaces(mgrOptions *ctrl.Options, operatorNamespace string) {
 	watchedNamespaces := strings.Split(os.Getenv(n.WatchedNamespacesEnv), ",")
 	switch {
 	case len(watchedNamespaces) == 1 && util.IsWatchingAllNamespaces(watchedNamespaces[0]):
