@@ -42,7 +42,7 @@ var _ = Describe("Hazelcast CR with Advanced Networking Feature", Label("hz_adva
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	FIt("should create advanced network config", Label("slow"), func() {
+	It("should create advanced network config", Label("slow"), func() {
 		wanPort := 5710
 		wanPortCount := 5
 		interfaces := []string{"10.10.1.*"}
