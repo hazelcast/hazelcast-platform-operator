@@ -1555,10 +1555,6 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	// when it tries to write to /tmp dir.
 	vols = append(vols, tmpDirVolume())
 
-	if h.Spec.Persistence.UseHostPath() {
-		vols = append(vols, hostPathVolume(h))
-	}
-
 	return vols
 }
 
@@ -1567,18 +1563,6 @@ func userCodeAgentVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
 		Name: n.UserCodeBucketVolumeName,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
-	return v1.Volume{
-		Name: n.PersistenceVolumeName,
-		VolumeSource: v1.VolumeSource{
-			HostPath: &v1.HostPathVolumeSource{
-				Path: h.Spec.Persistence.HostPath,
-				Type: &[]v1.HostPathType{v1.HostPathDirectoryOrCreate}[0],
-			},
 		},
 	}
 }

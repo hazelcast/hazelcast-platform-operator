@@ -241,9 +241,7 @@ func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersis
 	if !p.IsEnabled() {
 		return
 	}
-	if p.HostPath != "" {
-		br.HostPathCount += 1
-	} else if !p.Pvc.IsEmpty() {
+	if !p.Pvc.IsEmpty() {
 		br.PvcCount += 1
 	}
 	if p.IsRestoreEnabled() {
