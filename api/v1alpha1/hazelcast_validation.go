@@ -161,8 +161,8 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
 }
 
 func validateAdvancedNetwork(h *Hazelcast) error {
-	if h.Spec.AdvancedNetwork.Enabled {
-		if err := isPortInRange(h.Spec.AdvancedNetwork.Wan.Port, h.Spec.AdvancedNetwork.Wan.PortCount); err != nil {
+	for _, w := range h.Spec.AdvancedNetwork.Wan {
+		if err := isPortInRange(w.Port, w.PortCount); err != nil {
 			return err
 		}
 	}

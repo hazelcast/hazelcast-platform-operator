@@ -60,8 +60,6 @@ spec:
               advancedNetwork:
                 description: Hazelcast Advanced Network configuration
                 properties:
-                  enabled:
-                    type: boolean
                   memberServerSocketEndpointConfig:
                     properties:
                       interfaces:
@@ -70,16 +68,20 @@ spec:
                         type: array
                     type: object
                   wan:
-                    properties:
-                      port:
-                        type: integer
-                      portCount:
-                        type: integer
-                      serviceType:
-                        description: Service Type string describes ingress methods
-                          for a service
-                        type: string
-                    type: object
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        port:
+                          type: integer
+                        portCount:
+                          type: integer
+                        serviceType:
+                          description: Service Type string describes ingress methods
+                            for a service
+                          type: string
+                      type: object
+                    type: array
                 type: object
               agent:
                 default:

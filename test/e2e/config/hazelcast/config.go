@@ -132,28 +132,6 @@ var (
 		}
 	}
 
-	AdvancedNetwork = func(lk types.NamespacedName, ee bool, lbls map[string]string,
-		wanPort uint, wanPortCount uint, wanServiceType corev1.ServiceType, interfaces []string) *hazelcastv1alpha1.Hazelcast {
-		return &hazelcastv1alpha1.Hazelcast{
-			ObjectMeta: v1.ObjectMeta{
-				Name:      lk.Name,
-				Namespace: lk.Namespace,
-				Labels:    lbls,
-			},
-			Spec: hazelcastv1alpha1.HazelcastSpec{
-				AdvancedNetwork: hazelcastv1alpha1.AdvancedNetwork{
-					Enabled:                          true,
-					MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: interfaces},
-					Wan: hazelcastv1alpha1.WanConfig{
-						Port:        wanPort,
-						PortCount:   wanPortCount,
-						ServiceType: wanServiceType,
-					},
-				},
-			},
-		}
-	}
-
 	HazelcastPersistenceHostPath = func(lk types.NamespacedName, clusterSize int32, lbls map[string]string, hostPath, nodeName string) *hazelcastv1alpha1.Hazelcast {
 		hz := &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
