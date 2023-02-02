@@ -1,6 +1,7 @@
 package managementcenter
 
 import (
+	"flag"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -9,6 +10,12 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
+
+var mcVersion string
+
+func init() {
+	flag.StringVar(&mcVersion, "MC_VERSION", naming.MCVersion, "The Management Center Version to run e2e tests")
+}
 
 var (
 	Default = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.ManagementCenter {
@@ -20,7 +27,7 @@ var (
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
 				Repository:       naming.MCRepo,
-				Version:          naming.MCVersion,
+				Version:          mcVersion,
 				LicenseKeySecret: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
@@ -42,7 +49,7 @@ var (
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
 				Repository:       naming.MCRepo,
-				Version:          naming.MCVersion,
+				Version:          mcVersion,
 				LicenseKeySecret: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,

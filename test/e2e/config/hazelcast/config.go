@@ -1,14 +1,20 @@
 package hazelcast
 
 import (
+	"flag"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
+
+var hzVersion string
+
+func init() {
+	flag.StringVar(&hzVersion, "HZ_VERSION", naming.HazelcastVersion, "The Hazelcast Version to run e2e tests")
+}
 
 var (
 	ClusterName = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
@@ -22,7 +28,7 @@ var (
 				ClusterSize:      &[]int32{3}[0],
 				ClusterName:      "development",
 				Repository:       repo(ee),
-				Version:          naming.HazelcastVersion,
+				Version:          hzVersion,
 				LicenseKeySecret: licenseKey(ee),
 				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 			},
@@ -39,7 +45,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
-				Version:          naming.HazelcastVersion,
+				Version:          hzVersion,
 				LicenseKeySecret: licenseKey(ee),
 				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 			},
@@ -56,7 +62,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
-				Version:          naming.HazelcastVersion,
+				Version:          hzVersion,
 				LicenseKeySecret: licenseKey(ee),
 				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
@@ -78,7 +84,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
-				Version:          naming.HazelcastVersion,
+				Version:          hzVersion,
 				LicenseKeySecret: licenseKey(ee),
 				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
@@ -100,7 +106,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
-				Version:          naming.HazelcastVersion,
+				Version:          hzVersion,
 				LicenseKeySecret: licenseKey(ee),
 				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
@@ -122,7 +128,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{3}[0],
 				Repository:       repo(ee),
-				Version:          naming.HazelcastVersion,
+				Version:          hzVersion,
 				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				LicenseKeySecret: licenseKey(ee),
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
@@ -143,7 +149,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{clusterSize}[0],
 				Repository:       repo(true),
-				Version:          naming.HazelcastVersion,
+				Version:          hzVersion,
 				LicenseKeySecret: licenseKey(true),
 				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
@@ -194,7 +200,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{clusterSize}[0],
 				Repository:       repo(true),
-				Version:          naming.HazelcastVersion,
+				Version:          hzVersion,
 				LicenseKeySecret: licenseKey(true),
 				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
@@ -232,7 +238,7 @@ var (
 			Spec: hazelcastv1alpha1.HazelcastSpec{
 				ClusterSize:      &[]int32{1}[0],
 				Repository:       repo(ee),
-				Version:          naming.HazelcastVersion,
+				Version:          hzVersion,
 				LicenseKeySecret: licenseKey(ee),
 				UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
 					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
@@ -255,7 +261,7 @@ var (
 				LoggingLevel:              hazelcastv1alpha1.LoggingLevelDebug,
 				ClusterSize:               &[]int32{1}[0],
 				Repository:                repo(ee),
-				Version:                   naming.HazelcastVersion,
+				Version:                   hzVersion,
 				LicenseKeySecret:          licenseKey(ee),
 				ExecutorServices:          allExecutorServices["es"].([]hazelcastv1alpha1.ExecutorServiceConfiguration),
 				DurableExecutorServices:   allExecutorServices["des"].([]hazelcastv1alpha1.DurableExecutorServiceConfiguration),
@@ -275,7 +281,7 @@ var (
 				ClusterSize:          &size,
 				HighAvailabilityMode: mode,
 				Repository:           repo(ee),
-				Version:              naming.HazelcastVersion,
+				Version:              hzVersion,
 				LicenseKeySecret:     licenseKey(ee),
 				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
