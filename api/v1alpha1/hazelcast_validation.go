@@ -110,7 +110,7 @@ func validatePersistence(h *Hazelcast) error {
 
 	// if hostPath and PVC are both empty or set
 	if p.Pvc.IsEmpty() {
-		return errors.New("when persistence is enables \"pvc\" field must be set")
+		return errors.New("when persistence is enabled \"pvc\" field must be set")
 	}
 
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {

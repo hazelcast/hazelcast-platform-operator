@@ -73,7 +73,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Should(MatchError(ContainSubstring("startupAction PartialStart can be used only with Partial* clusterDataRecoveryPolicy")))
 		})
 
-		It("should not create HZ if none of hostPath and pvc are specified", Label("fast"), func() {
+		It("should not create HZ if pvc is specified", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				BaseDir: "/baseDir/",
@@ -84,7 +84,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("when persistence is set either of \"hostPath\" or \"pvc\" fields must be set")))
+				Should(MatchError(ContainSubstring("when persistence is enabled \"pvc\" field must be set")))
 		})
 	})
 
