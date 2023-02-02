@@ -5,6 +5,9 @@ on:
 
 env:
   AZURE_RESOURCE_GROUP: operator-test
+  GAR_REGION: us-east1
+  GAR_PROJECT: hazelcast-33
+  GAR_REPO: hazelcast-platform-operator
 
 jobs:
   prepare-env:
@@ -45,18 +48,54 @@ jobs:
     name: Get Image
     runs-on: ubuntu-latest
     outputs:
-      IMG: ${{ steps.build-img.outputs.IMG }}
+      IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Build and push image to ttl.sh
-        id: build-img
+      - name: Set Up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2.4.0
+        with:
+          install: true
+
+      - name: Cache Docker Layers
+        uses: actions/cache@v3.2.3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-multi-buildx-${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-multi-buildx
+
+      - name: Authenticate to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Generate Image Name
+        id: get-image-tag
         run: |
-          IMG=ttl.sh/$(uuidgen):2h
-          echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-          make docker-push IMG=$IMG
+          echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
+
+      - name: Build Image
+        uses: docker/build-push-action@v3.3.0
+        with:
+          context: .
+          builder: ${{ steps.buildx.outputs.name }}
+          build-args: |
+            version=${{github.sha}}
+            pardotID=dockerhub
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.get-image-tag.outputs.IMG }}
+          cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+          cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+
+      - name: Move Docker Cache
+        run: |
+          rm -rf /tmp/.buildx-cache-aks
+          mv /tmp/.buildx-cache-aks-new /tmp/.buildx-cache-aks
 
   aks-e2e-tests:
     name: Run e2e test on AKS
@@ -91,6 +130,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Authenticate to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
+
       - name: Azure login
         uses: azure/login@v1
         with:
@@ -100,6 +146,13 @@ jobs:
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
+
+      - name: Authenticate to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
 
       - name: Deploy CRDs
         if: matrix.edition == 'ee'
