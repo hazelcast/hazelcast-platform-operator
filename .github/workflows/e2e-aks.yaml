@@ -58,14 +58,6 @@ jobs:
         with:
           install: true
 
-      - name: Cache Docker Layers
-        uses: actions/cache@v3.2.3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-multi-buildx-${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-multi-buildx
-
       - name: Authenticate to GAR
         uses: docker/login-action@v2
         with:
@@ -91,11 +83,6 @@ jobs:
           tags: ${{ steps.get-image-tag.outputs.IMG }}
           cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
           cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
-
-      - name: Move Docker Cache
-        run: |
-          rm -rf /tmp/.buildx-cache-aks
-          mv /tmp/.buildx-cache-aks-new /tmp/.buildx-cache-aks
 
   aks-e2e-tests:
     name: Run e2e test on AKS
