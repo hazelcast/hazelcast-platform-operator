@@ -94,6 +94,11 @@ type PhoneHomeData struct {
 	CronHotBackupCount            int                `json:"chbc"`
 	TopicCount                    int                `json:"tc"`
 	HighAvailabilityMode          []string           `json:"ha"`
+	AdvancedNetwork               AdvancedNetwork    `json:"an"`
+}
+
+type AdvancedNetwork struct {
+	WANEndpointCount int `json:"wec"`
 }
 
 type ExposeExternally struct {
@@ -178,6 +183,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		}
 
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
+		phm.AdvancedNetwork.addUsageMetrics(&hz.Spec.AdvancedNetwork.Wan)
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
@@ -207,6 +213,10 @@ func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (strin
 		return "", false
 	}
 	return cid.String(), true
+}
+
+func (an *AdvancedNetwork) addUsageMetrics(w *hazelcastv1alpha1.WanConfig) {
+	an.WANEndpointCount += int(w.PortCount)
 }
 
 func (xe *ExposeExternally) addUsageMetrics(e *hazelcastv1alpha1.ExposeExternallyConfiguration) {
