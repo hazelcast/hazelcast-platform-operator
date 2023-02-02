@@ -180,7 +180,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		It("should create and update service correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: GetRandomObjectMeta(),
-				Spec:       hazelcastv1alpha1.ManagementCenterSpec{},
+				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
 			}
 
 			Create(mc)
@@ -207,7 +207,7 @@ var _ = Describe("ManagementCenter controller", func() {
 
 			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeClusterIP
 			Update(fetchedMc)
-			fetchedMc = EnsureStatus(mc)
+			EnsureStatus(mc)
 			fetchedService = EnsureServiceType(mc, corev1.ServiceTypeClusterIP)
 			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 		})
@@ -215,7 +215,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		It("should handle ingress correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: GetRandomObjectMeta(),
-				Spec:       hazelcastv1alpha1.ManagementCenterSpec{},
+				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
 			}
 
 			Create(mc)
@@ -273,7 +273,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			fetchedMc.Spec.ExternalConnectivity.Ingress = nil
 			Update(fetchedMc)
 			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(BeNil())
-			fetchedMc = EnsureStatus(mc)
+			EnsureStatus(mc)
 			assertDoesNotExist(lookupKey(mc), ing)
 		})
 	})
