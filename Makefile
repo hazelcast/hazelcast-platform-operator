@@ -253,13 +253,13 @@ sync-manifests: manifests yq
 # Role and ClusterRole syncing is done manually
 
 install-crds: helm sync-manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
-	$(HELM) upgrade --install $(CRD_RELEASE_NAME) $(CRD_CHART) -n default ;\
+	$(HELM) template $(CRD_RELEASE_NAME) $(CRD_CHART) | $(KUBECTL) apply -f -
 
 install-operator: helm sync-manifests
 	$(HELM) upgrade --install $(RELEASE_NAME) $(OPERATOR_CHART) --set $(STRING_SET_VALUES) -n $(NAMESPACE)
 
 uninstall-crds: helm sync-manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(HELM) uninstall $(CRD_RELEASE_NAME) -n default
+	$(HELM) template $(CRD_RELEASE_NAME) $(CRD_CHART) | $(KUBECTL) delete -f -
 
 uninstall-operator: helm sync-manifests
 	$(HELM) uninstall $(RELEASE_NAME) -n $(NAMESPACE)
