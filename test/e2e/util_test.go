@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -20,8 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
 func useExistingCluster() bool {
@@ -69,87 +66,6 @@ func assertExists(name types.NamespacedName, obj client.Object) {
 		err := k8sClient.Get(context.Background(), name, obj)
 		return err == nil
 	}, 20*Second, interval).Should(BeTrue())
-}
-
-func cleanUpHostPath(namespace, hostPath, hzDir string) {
-	By(fmt.Sprintf("cleanup hostpath '%s' and directory '%s' for namespace '%s'", hostPath, hzDir, namespace), func() {
-		lb := map[string]string{
-			"cleanup": "hazelcast-hostPath",
-		}
-		ds := &appsv1.DaemonSet{
-			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: "hostpath-",
-				Namespace:    namespace,
-				Labels:       lb,
-			},
-			Spec: appsv1.DaemonSetSpec{
-				Selector: &metav1.LabelSelector{
-					MatchLabels: lb,
-				},
-				Template: v1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: lb,
-					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{{
-							Name:  "cleanup",
-							Image: "busybox",
-
-							Command: []string{"sh"},
-							Args:    []string{"-c", fmt.Sprintf("rm -rf /host/%s || echo 'Could not delete'; echo 'done'; sleep 120", hzDir)},
-							SecurityContext: &v1.SecurityContext{
-								RunAsNonRoot:             &[]bool{false}[0],
-								RunAsUser:                &[]int64{0}[0],
-								Privileged:               &[]bool{true}[0],
-								ReadOnlyRootFilesystem:   &[]bool{false}[0],
-								AllowPrivilegeEscalation: &[]bool{true}[0],
-								Capabilities: &v1.Capabilities{
-									Drop: []v1.Capability{"ALL"},
-								},
-							},
-							VolumeMounts: []v1.VolumeMount{
-								{
-									Name:      "hostpath-hazelcast",
-									MountPath: "/host",
-								},
-							},
-						}},
-						TerminationGracePeriodSeconds: &[]int64{0}[0],
-						Volumes: []v1.Volume{
-							{
-								Name: "hostpath-hazelcast",
-								VolumeSource: v1.VolumeSource{
-									HostPath: &v1.HostPathVolumeSource{
-										Path: hostPath,
-										Type: &[]v1.HostPathType{v1.HostPathDirectory}[0],
-									},
-								},
-							},
-						},
-					},
-				}},
-		}
-		Expect(k8sClient.Create(context.Background(), ds)).Should(Succeed())
-		pods := waitForDSPods(ds, lb)
-		for _, pod := range pods.Items {
-			running := assertRunningOrFailedMount(pod, hostPath)
-			if !running {
-				continue
-			}
-
-			logs := test.GetPodLogs(context.Background(), types.NamespacedName{
-				Name:      pod.Name,
-				Namespace: pod.Namespace,
-			}, &corev1.PodLogOptions{
-				Follow: true,
-			})
-			defer logs.Close()
-			scanner := bufio.NewScanner(logs)
-			test.EventuallyInLogs(scanner, 40*Second, logInterval).
-				Should(ContainSubstring("done"))
-		}
-		DeleteAllOf(ds, nil, namespace, lb)
-	})
 }
 
 func waitForDSPods(ds *appsv1.DaemonSet, lb client.MatchingLabels) *corev1.PodList {
