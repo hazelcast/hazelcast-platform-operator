@@ -80,9 +80,13 @@ type ExternalConnectivityConfiguration struct {
 	// +kubebuilder:default:="LoadBalancer"
 	// +optional
 	Type ExternalConnectivityType `json:"type,omitempty"`
+
+	// Ingress configuration of Management Center
+	// +optional
+	Ingress *ExternalConnectivityIngress `json:"ingress,omitempty"`
 }
 
-// Returns service type that is used by Management Center (LoadBalancer by default).
+// ManagementCenterServiceType returns service type that is used by Management Center (LoadBalancer by default).
 func (ec *ExternalConnectivityConfiguration) ManagementCenterServiceType() corev1.ServiceType {
 	if ec == nil {
 		return corev1.ServiceTypeClusterIP
@@ -118,6 +122,27 @@ const (
 	ExternalConnectivityTypeLoadBalancer ExternalConnectivityType = "LoadBalancer"
 )
 
+// ExternalConnectivityIngress defines ingress configuration of Management Center
+type ExternalConnectivityIngress struct {
+	// Hostname of Management Center exposed by Ingress.
+	// Ingress controller will use this hostname to route inbound traffic.
+	// +required
+	Hostname string `json:"hostname"`
+
+	// IngressClassName of the ingress object.
+	// +optional
+	IngressClassName string `json:"ingressClassName,omitempty"`
+
+	// Annotations added to the ingress object.
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+// IsEnabled returns true if external connectivity ingress is enabled.
+func (eci *ExternalConnectivityIngress) IsEnabled() bool {
+	return eci != nil
+}
+
 type PersistenceConfiguration struct {
 	// When true, MC will use a PersistentVolumeClaim to store data.
 	// +kubebuilder:default:=true
@@ -139,7 +164,7 @@ type PersistenceConfiguration struct {
 	Size *resource.Quantity `json:"size,omitempty"`
 }
 
-// Returns true if persistence configuration is specified.
+// IsEnabled returns true if persistence configuration is specified.
 func (pc *PersistenceConfiguration) IsEnabled() bool {
 	return pc != nil && pc.Enabled != nil && *pc.Enabled
 }

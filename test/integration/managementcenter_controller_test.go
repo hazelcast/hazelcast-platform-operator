@@ -6,8 +6,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -43,6 +44,11 @@ var _ = Describe("ManagementCenter controller", func() {
 		Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
 	}
 
+	Update := func(mc *hazelcastv1alpha1.ManagementCenter) {
+		By("updating the CR with specs successfully")
+		Expect(k8sClient.Update(context.Background(), mc)).Should(Succeed())
+	}
+
 	Delete := func(mc *hazelcastv1alpha1.ManagementCenter) {
 		By("expecting to delete CR successfully")
 		fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
@@ -67,6 +73,16 @@ var _ = Describe("ManagementCenter controller", func() {
 			return mc.Status.Phase
 		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
 		return mc
+	}
+
+	EnsureServiceType := func(mc *hazelcastv1alpha1.ManagementCenter, svcType corev1.ServiceType) *corev1.Service {
+		By("ensuring that the status is correct")
+		svc := &corev1.Service{}
+		Eventually(func() corev1.ServiceType {
+			assertExists(lookupKey(mc), svc)
+			return svc.Spec.Type
+		}, timeout, interval).Should(Equal(svcType))
+		return svc
 	}
 
 	Context("ManagementCenter CustomResource with default specs", func() {
@@ -113,12 +129,10 @@ var _ = Describe("ManagementCenter controller", func() {
 				BlockOwnerDeletion: pointer.Bool(true),
 			}
 
-			fetchedService := &corev1.Service{}
-			assertExists(lookupKey(fetchedCR), fetchedService)
+			fetchedService := EnsureServiceType(fetchedCR, corev1.ServiceTypeLoadBalancer)
 			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
-			Expect(fetchedService.Spec.Type).Should(Equal(corev1.ServiceType("LoadBalancer")))
 
-			fetchedSts := &v1.StatefulSet{}
+			fetchedSts := &appsv1.StatefulSet{}
 			assertExists(lookupKey(fetchedCR), fetchedSts)
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(*fetchedSts.Spec.Replicas).Should(Equal(int32(1)))
@@ -160,6 +174,110 @@ var _ = Describe("ManagementCenter controller", func() {
 			Delete(mc)
 		})
 	})
+
+	Context("ManagementCenter CustomResource with ExternalConnectivity", func() {
+
+		It("should create and update service correctly", Label("fast"), func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       hazelcastv1alpha1.ManagementCenterSpec{},
+			}
+
+			Create(mc)
+			fetchedMc := EnsureStatus(mc)
+			test.CheckManagementCenterCR(fetchedMc, defaultSpecValues, ee)
+
+			expectedOwnerReference := metav1.OwnerReference{
+				Kind:               "ManagementCenter",
+				APIVersion:         "hazelcast.com/v1alpha1",
+				UID:                fetchedMc.UID,
+				Name:               fetchedMc.Name,
+				Controller:         pointer.Bool(true),
+				BlockOwnerDeletion: pointer.Bool(true),
+			}
+
+			fetchedService := EnsureServiceType(mc, corev1.ServiceTypeLoadBalancer)
+			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
+
+			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeNodePort
+			Update(fetchedMc)
+			fetchedMc = EnsureStatus(mc)
+			fetchedService = EnsureServiceType(mc, corev1.ServiceTypeNodePort)
+			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
+
+			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeClusterIP
+			Update(fetchedMc)
+			fetchedMc = EnsureStatus(mc)
+			fetchedService = EnsureServiceType(mc, corev1.ServiceTypeClusterIP)
+			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
+		})
+
+		It("should handle ingress correctly", Label("fast"), func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       hazelcastv1alpha1.ManagementCenterSpec{},
+			}
+
+			Create(mc)
+			fetchedMc := EnsureStatus(mc)
+			test.CheckManagementCenterCR(fetchedMc, defaultSpecValues, ee)
+
+			ing := &networkingv1.Ingress{}
+			assertDoesNotExist(lookupKey(mc), ing)
+
+			externalConnectivityIngress := &hazelcastv1alpha1.ExternalConnectivityIngress{
+				IngressClassName: "nginx",
+				Annotations:      map[string]string{"app": "hazelcast-mc"},
+				Hostname:         "mancenter",
+			}
+			fetchedMc.Spec.ExternalConnectivity.Ingress = externalConnectivityIngress
+
+			expectedOwnerReference := metav1.OwnerReference{
+				Kind:               "ManagementCenter",
+				APIVersion:         "hazelcast.com/v1alpha1",
+				UID:                fetchedMc.UID,
+				Name:               fetchedMc.Name,
+				Controller:         pointer.Bool(true),
+				BlockOwnerDeletion: pointer.Bool(true),
+			}
+
+			Update(fetchedMc)
+			fetchedMc = EnsureStatus(mc)
+			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(externalConnectivityIngress))
+			assertExists(lookupKey(mc), ing)
+			Expect(*ing.Spec.IngressClassName).Should(Equal(externalConnectivityIngress.IngressClassName))
+			Expect(ing.Annotations).Should(Equal(externalConnectivityIngress.Annotations))
+			Expect(ing.Spec.Rules).Should(HaveLen(1))
+			Expect(ing.Spec.Rules[0].Host).Should(Equal(externalConnectivityIngress.Hostname))
+			Expect(ing.Spec.Rules[0].HTTP.Paths).Should(HaveLen(1))
+			Expect(ing.Spec.Rules[0].HTTP.Paths[0].Path).Should(Equal("/"))
+			Expect(*ing.Spec.Rules[0].HTTP.Paths[0].PathType).Should(Equal(networkingv1.PathTypePrefix))
+			Expect(ing.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
+
+			updatedExternalConnectivityIngress := &hazelcastv1alpha1.ExternalConnectivityIngress{
+				IngressClassName: "traefik",
+				Annotations:      map[string]string{"app": "hazelcast-mc", "management-center": "ingress"},
+				Hostname:         "mc.app",
+			}
+			fetchedMc.Spec.ExternalConnectivity.Ingress = updatedExternalConnectivityIngress
+			Update(fetchedMc)
+			fetchedMc = EnsureStatus(mc)
+			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(updatedExternalConnectivityIngress))
+			assertExists(lookupKey(mc), ing)
+			Expect(*ing.Spec.IngressClassName).Should(Equal(updatedExternalConnectivityIngress.IngressClassName))
+			Expect(ing.Annotations).Should(Equal(updatedExternalConnectivityIngress.Annotations))
+			Expect(ing.Spec.Rules).Should(HaveLen(1))
+			Expect(ing.Spec.Rules[0].Host).Should(Equal(updatedExternalConnectivityIngress.Hostname))
+			Expect(ing.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
+
+			fetchedMc.Spec.ExternalConnectivity.Ingress = nil
+			Update(fetchedMc)
+			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(BeNil())
+			fetchedMc = EnsureStatus(mc)
+			assertDoesNotExist(lookupKey(mc), ing)
+		})
+	})
+
 	Context("ManagementCenter CustomResource with Persistence", func() {
 		When("persistence is enabled with existing Volume Claim", func() {
 			It("should add existing Volume Claim to statefulset", Label("fast"), func() {
@@ -174,7 +292,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				}
 				Create(mc)
 				fetchedCR := EnsureStatus(mc)
-				fetchedSts := &v1.StatefulSet{}
+				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(lookupKey(fetchedCR), fetchedSts)
 				expectedVolume := corev1.Volume{
 					Name: n.MancenterStorageName,
@@ -210,7 +328,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				}
 				Create(mc)
 				EnsureStatus(mc)
-				fetchedSts := &v1.StatefulSet{}
+				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, fetchedSts)
 				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
 				Delete(mc)

@@ -50,6 +50,35 @@ func TestExternalConnectivityConfigurationType(t *testing.T) {
 	}
 }
 
+func TestExternalConnectivityConfigurationIngress(t *testing.T) {
+	tests := []struct {
+		name string
+		conf ExternalConnectivityConfiguration
+		want bool
+	}{
+		{
+			name: "Default configuration",
+			conf: ExternalConnectivityConfiguration{},
+			want: false,
+		},
+		{
+			name: "Ingress enabled configuration",
+			conf: ExternalConnectivityConfiguration{
+				Ingress: &ExternalConnectivityIngress{},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.conf.Ingress.IsEnabled(); got != tt.want {
+				t.Errorf("IsEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPersistenceConfigurationIsEnabled(t *testing.T) {
 	tests := []struct {
 		name string

@@ -3,12 +3,14 @@ package managementcenter
 import (
 	"context"
 	"fmt"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -62,6 +64,62 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Service", mc.Name, "result", opResult)
+	}
+	return err
+}
+
+func (r *ManagementCenterReconciler) reconcileIngress(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metadata(mc),
+		Spec:       networkingv1.IngressSpec{},
+	}
+
+	if !mc.Spec.ExternalConnectivity.Ingress.IsEnabled() {
+		err := r.Client.Delete(ctx, ingress)
+		if err != nil && !kerrors.IsNotFound(err) {
+			return err
+		}
+		if err == nil {
+			logger.Info("Deleting ingress", "Ingress", mc.Name)
+		}
+		return nil
+	}
+
+	err := controllerutil.SetControllerReference(mc, ingress, r.Scheme)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on Ingress: %w", err)
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, ingress, func() error {
+		ingress.Spec.IngressClassName = &mc.Spec.ExternalConnectivity.Ingress.IngressClassName
+		ingress.ObjectMeta.Annotations = mc.Spec.ExternalConnectivity.Ingress.Annotations
+		ingress.Spec.Rules = []networkingv1.IngressRule{
+			{
+				Host: mc.Spec.ExternalConnectivity.Ingress.Hostname,
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{
+							{
+								Path:     "/",
+								PathType: &[]networkingv1.PathType{networkingv1.PathTypePrefix}[0],
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: metadata(mc).Name,
+										Port: networkingv1.ServiceBackendPort{
+											Number: 8080,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Ingress", mc.Name, "result", opResult)
 	}
 	return err
 }
