@@ -156,7 +156,6 @@ func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd.fillReplicatedMapMetrics(cl)
 	phd.fillCronHotBackupMetrics(cl)
 	phd.fillTopicMetrics(cl)
-	phd.fillMcExternalConnectivityMetrics(cl)
 	return phd
 }
 
@@ -290,8 +289,25 @@ func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
 		if mc.Status.Phase == hazelcastv1alpha1.Running {
 			successfullyCreatedMCCount += 1
 		}
+		phm.McExternalConnectivity.addUsageMetrics(&mc.Spec.ExternalConnectivity)
 	}
 	phm.CreatedMCcount = createdMCCount
+}
+
+func (mec *McExternalConnectivity) addUsageMetrics(ec *hazelcastv1alpha1.ExternalConnectivityConfiguration) {
+	if ec.IsEnabled() {
+		switch ec.Type {
+		case hazelcastv1alpha1.ExternalConnectivityTypeClusterIP:
+			mec.ServiceTypeClusterIP++
+		case hazelcastv1alpha1.ExternalConnectivityTypeNodePort:
+			mec.ServiceTypeNodePort++
+		case hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer:
+			mec.ServiceTypeLoadBalancer++
+		}
+		if ec.Ingress.IsEnabled() {
+			mec.IngressEnabledCount++
+		}
+	}
 }
 
 func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
@@ -387,31 +403,6 @@ func (phm *PhoneHomeData) fillReplicatedMapMetrics(cl client.Client) {
 		return
 	}
 	phm.ReplicatedMapCount = len(rml.Items)
-}
-
-func (phm *PhoneHomeData) fillMcExternalConnectivityMetrics(cl client.Client) {
-	mcl := &hazelcastv1alpha1.ManagementCenterList{}
-	err := cl.List(context.Background(), mcl, listOptions()...)
-	if err != nil {
-		return
-	}
-	mcExternalConn := McExternalConnectivity{}
-	for _, mc := range mcl.Items {
-		if mc.Spec.ExternalConnectivity.IsEnabled() {
-			switch mc.Spec.ExternalConnectivity.Type {
-			case hazelcastv1alpha1.ExternalConnectivityTypeClusterIP:
-				mcExternalConn.ServiceTypeClusterIP++
-			case hazelcastv1alpha1.ExternalConnectivityTypeNodePort:
-				mcExternalConn.ServiceTypeNodePort++
-			case hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer:
-				mcExternalConn.ServiceTypeLoadBalancer++
-			}
-			if mc.Spec.ExternalConnectivity.Ingress.IsEnabled() {
-				mcExternalConn.IngressEnabledCount++
-			}
-		}
-	}
-	phm.McExternalConnectivity = mcExternalConn
 }
 
 func listOptions() []client.ListOption {

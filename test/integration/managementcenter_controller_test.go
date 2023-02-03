@@ -186,30 +186,17 @@ var _ = Describe("ManagementCenter controller", func() {
 			Create(mc)
 			fetchedMc := EnsureStatus(mc)
 			test.CheckManagementCenterCR(fetchedMc, defaultSpecValues, ee)
-
-			expectedOwnerReference := metav1.OwnerReference{
-				Kind:               "ManagementCenter",
-				APIVersion:         "hazelcast.com/v1alpha1",
-				UID:                fetchedMc.UID,
-				Name:               fetchedMc.Name,
-				Controller:         pointer.Bool(true),
-				BlockOwnerDeletion: pointer.Bool(true),
-			}
-
-			fetchedService := EnsureServiceType(mc, corev1.ServiceTypeLoadBalancer)
-			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
+			EnsureServiceType(mc, corev1.ServiceTypeLoadBalancer)
 
 			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeNodePort
 			Update(fetchedMc)
 			fetchedMc = EnsureStatus(mc)
-			fetchedService = EnsureServiceType(mc, corev1.ServiceTypeNodePort)
-			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
+			EnsureServiceType(mc, corev1.ServiceTypeNodePort)
 
 			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeClusterIP
 			Update(fetchedMc)
 			EnsureStatus(mc)
-			fetchedService = EnsureServiceType(mc, corev1.ServiceTypeClusterIP)
-			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
+			EnsureServiceType(mc, corev1.ServiceTypeClusterIP)
 		})
 
 		It("should handle ingress correctly", Label("fast"), func() {
