@@ -1,6 +1,7 @@
 name: E2E tests with Istio on GCP
 on:
   workflow_dispatch:
+  pull_request:
   schedule:
     - cron: "0 9 */3 * *"
 
@@ -51,18 +52,40 @@ jobs:
     name: Get Image
     runs-on: ubuntu-latest
     outputs:
-      IMG: ${{ steps.build-img.outputs.IMG }}
+      IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Build and push image to ttl.sh
-        id: build-img
+      - name: Set Up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2.4.0
+        with:
+          install: true
+
+      - name: Authenticate to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Generate Image Name
+        id: get-image-tag
         run: |
-          IMG=ttl.sh/$(uuidgen):2h
-          echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-          make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
-          make docker-push IMG=$IMG
+          echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
+      - name: Build Image
+        uses: docker/build-push-action@v3.3.0
+        with:
+          context: .
+          builder: ${{ steps.buildx.outputs.name }}
+          build-args: |
+            version=${{github.sha}}
+            pardotID=dockerhub
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.get-image-tag.outputs.IMG }}
+          cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+          cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
 
   gke-e2e-tests:
     name: Run e2e test on GKE with Istio
