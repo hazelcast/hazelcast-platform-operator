@@ -41,10 +41,12 @@ func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 
 	cr := &fakeHzClientRegistry{}
 	sr := &fakeHzStatusServiceRegistry{}
+	hr := &fakeHttpClientRegistry{}
+	hr.Set(nn.Namespace, &http.Client{})
 	cr.Set(nn, &fakeHzClient)
 	sr.Set(nn, &fakeHzStatusService)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
+	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
@@ -70,11 +72,12 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 
 	sr := &fakeHzStatusServiceRegistry{}
 	cr := &fakeHzClientRegistry{}
-
+	hr := &fakeHttpClientRegistry{}
+	hr.Set(nn.Namespace, &http.Client{})
 	sr.Set(nn, &fakeHzStatusService)
 	cr.Set(nn, &fakeHzClient)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
+	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
@@ -95,11 +98,12 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenTimedMemberStateFails(t 
 
 	sr := &fakeHzStatusServiceRegistry{}
 	cr := &fakeHzClientRegistry{}
-
+	hr := &fakeHttpClientRegistry{}
+	hr.Set(nn.Namespace, &http.Client{})
 	sr.Set(nn, &fakeHzStatusService)
 	cr.Set(nn, &fakeHzClient)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
+	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
@@ -130,10 +134,12 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 
 	sr := &fakeHzStatusServiceRegistry{}
 	cr := &fakeHzClientRegistry{}
+	hr := &fakeHttpClientRegistry{}
+	hr.Set(nn.Namespace, &http.Client{})
 	sr.Set(nn, &fakeHzStatusService)
 	cr.Set(nn, &fakeHzClient)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
+	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
 	var reconcileWg sync.WaitGroup
 	reconcileWg.Add(1)
 	go func() {
@@ -166,10 +172,12 @@ func TestHotBackupReconciler_shouldCancelContextIfHotbackupCRIsDeleted(t *testin
 
 	cr := &fakeHzClientRegistry{}
 	sr := &fakeHzStatusServiceRegistry{}
+	hr := &fakeHttpClientRegistry{}
+	hr.Set(nn.Namespace, &http.Client{})
 	cr.Set(nn, &fakeHzClient)
 	sr.Set(nn, &fakeHzStatusService)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, h, hb)
+	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
@@ -191,7 +199,7 @@ func TestHotBackupReconciler_shouldNotSetStatusToFailedIfHazelcastCRNotFound(t *
 	RegisterFailHandler(Fail)
 	nn, _, hb := defaultCRs()
 
-	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, hb)
+	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, &fakeHttpClientRegistry{}, hb)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	if err != nil {
 		t.Errorf("Error expecting Reconcile to return without error")
@@ -207,12 +215,12 @@ func fail(t *testing.T) func(message string, callerSkip ...int) {
 	}
 }
 
-func hotBackupReconcilerWithCRs(clientReg hzclient.ClientRegistry, serviceReg hzclient.StatusServiceRegistry, initObjs ...client.Object) *HotBackupReconciler {
+func hotBackupReconcilerWithCRs(clientReg hzclient.ClientRegistry, serviceReg hzclient.StatusServiceRegistry, httpReg mtls.HttpClientRegistry, initObjs ...client.Object) *HotBackupReconciler {
 	return NewHotBackupReconciler(
 		fakeK8sClient(initObjs...),
 		ctrl.Log.WithName("test").WithName("Hazelcast"),
 		nil,
-		&mtls.Client{},
+		httpReg,
 		clientReg,
 		serviceReg,
 	)

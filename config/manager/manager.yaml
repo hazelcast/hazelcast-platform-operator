@@ -43,10 +43,11 @@ spec:
             cpu: 100m
             memory: 100Mi
         env:
-          - name: WATCH_NAMESPACE
+          - name: WATCHED_NAMESPACES
+            # Value is for OLM installation, it is different in Helm chart
             valueFrom:
               fieldRef:
-                fieldPath: metadata.namespace
+                fieldPath: metadata.annotations['olm.targetNamespaces'] 
           - name: NAMESPACE
             valueFrom:
               fieldRef:

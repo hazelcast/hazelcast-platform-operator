@@ -50,12 +50,15 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if err := r.deleteDependentCRs(ctx, h); err != nil {
 		return fmt.Errorf("Could not delete all dependent CRs: %w", err)
 	}
-	if err := r.removeClusterRole(ctx, h, logger); err != nil {
-		return fmt.Errorf("ClusterRole could not be removed: %w", err)
+	if util.NodeDiscoveryEnabled() {
+		if err := r.removeClusterRole(ctx, h, logger); err != nil {
+			return fmt.Errorf("ClusterRole could not be removed: %w", err)
+		}
+		if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
+			return fmt.Errorf("ClusterRoleBinding could not be removed: %w", err)
+		}
 	}
-	if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
-		return fmt.Errorf("ClusterRoleBinding could not be removed: %w", err)
-	}
+
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	r.statusServiceRegistry.Delete(lk)
 
@@ -106,7 +109,10 @@ func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcas
 	for i := 0; i < len(dsItems); i++ {
 		i := i
 		g.Go(func() error {
-			return util.DeleteObject(groupCtx, r.Client, dsItems[i])
+			if dsItems[i].GetDeletionTimestamp() == nil {
+				return util.DeleteObject(groupCtx, r.Client, dsItems[i])
+			}
+			return nil
 		})
 	}
 
@@ -1079,6 +1085,27 @@ func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanRepl
 		},
 	}
 	return cfg
+}
+
+func (r *HazelcastReconciler) reconcileMtlsSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+	_, err := r.mtlsClientRegistry.Create(ctx, r.Client, h.Namespace)
+	if err != nil {
+		return err
+	}
+	secret := &v1.Secret{}
+	secretName := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: h.Namespace}
+	err = r.Client.Get(ctx, secretName, secret)
+	if err != nil {
+		return err
+	}
+	err = controllerutil.SetControllerReference(h, secret, r.Scheme)
+	if err != nil {
+		return err
+	}
+	_, err = util.CreateOrUpdate(ctx, r.Client, secret, func() error {
+		return nil
+	})
+	return err
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {

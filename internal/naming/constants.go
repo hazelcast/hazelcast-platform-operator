@@ -8,6 +8,8 @@ import (
 const (
 	// Finalizer name used by operator
 	Finalizer = "hazelcast.com/finalizer"
+	// Finalizer name used by operator to stop wan replication of a map
+	WanRepMapFinalizer = "hazelcast.com/wan-replicated-map"
 	// LicenseDataKey is a key used in k8s secret that holds the Hazelcast license
 	LicenseDataKey = "license-key"
 	// LicenseKeySecret default license key secret
@@ -165,13 +167,14 @@ const (
 
 // Operator Values
 const (
-	PhoneHomeEnabledEnv     = "PHONE_HOME_ENABLED"
-	DeveloperModeEnabledEnv = "DEVELOPER_MODE_ENABLED"
-	PardotIDEnv             = "PARDOT_ID"
-	OperatorVersionEnv      = "OPERATOR_VERSION"
-	NamespaceEnv            = "NAMESPACE"
-	WatchNamespaceEnv       = "WATCH_NAMESPACE"
-	PodNameEnv              = "POD_NAME"
+	PhoneHomeEnabledEnv              = "PHONE_HOME_ENABLED"
+	DeveloperModeEnabledEnv          = "DEVELOPER_MODE_ENABLED"
+	PardotIDEnv                      = "PARDOT_ID"
+	OperatorVersionEnv               = "OPERATOR_VERSION"
+	NamespaceEnv                     = "NAMESPACE"
+	WatchedNamespacesEnv             = "WATCHED_NAMESPACES"
+	PodNameEnv                       = "POD_NAME"
+	HazelcastNodeDiscoveryEnabledEnv = "HAZELCAST_NODE_DISCOVERY_ENABLED"
 )
 
 // Backup&Restore agent default configurations

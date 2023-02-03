@@ -50,7 +50,7 @@ func setCRNamespace(ns string) {
 	targetLookupKey2.Namespace = targetNamespace
 }
 
-func setLabelAndCRName(n string) {
+func setLabelAndCRName(n string) string {
 	n = n + "-" + randString(6)
 	By(fmt.Sprintf("setting the label and CR with name '%s'", n))
 	labels["test_suite"] = n
@@ -71,6 +71,7 @@ func setLabelAndCRName(n string) {
 	targetLookupKey.Name = "trg-" + n
 	targetLookupKey2.Name = "trg-2-" + n
 	AddReportEntry("CR_ID:" + n)
+	return n
 }
 
 const charset = "abcdefghijklmnopqrstuvwxyz" +
