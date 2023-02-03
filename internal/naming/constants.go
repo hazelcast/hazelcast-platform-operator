@@ -198,3 +198,15 @@ const (
 const (
 	WebhookServerPath = "/tmp/k8s-webhook-server/serving-certs"
 )
+
+// Advanced Network Constants
+const (
+	MemberPortName = "member-port"
+	ClientPortName = "client-port"
+	RestPortName   = "rest-port"
+	WanPortName    = "wan-port"
+
+	MemberServerSocketPort = 5702
+	ClientServerSocketPort = 5701
+	RestServerSocketPort   = 8081
+)

@@ -43,12 +43,6 @@ const (
 	hzLicenseKey = "HZ_LICENSEKEY"
 )
 
-const (
-	MemberServerSocketPort = 5702
-	ClientServerSocketPort = 5701
-	RestServerSocketPort   = 8080
-)
-
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
@@ -380,10 +374,10 @@ func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h 
 		for i = 0; i < w.PortCount; i++ {
 			service.Spec.Ports = append(service.Spec.Ports,
 				corev1.ServicePort{
-					Name:        w.Name,
+					Name:        w.Name + strconv.Itoa(int(i)),
 					Protocol:    corev1.ProtocolTCP,
 					Port:        int32(w.Port + i),
-					TargetPort:  intstr.FromInt(int(w.Port + 1)),
+					TargetPort:  intstr.FromInt(int(w.Port + i)),
 					AppProtocol: pointer.String("tcp"),
 				})
 		}
@@ -519,6 +513,20 @@ func hazelcastPort() []v1.ServicePort {
 			TargetPort:  intstr.FromString(n.Hazelcast),
 			AppProtocol: pointer.String("tcp"),
 		},
+		{
+			Name:        "member-port",
+			Protocol:    v1.ProtocolTCP,
+			Port:        n.MemberServerSocketPort,
+			TargetPort:  intstr.FromInt(n.MemberServerSocketPort),
+			AppProtocol: pointer.String("tcp"),
+		},
+		{
+			Name:        "rest-port",
+			Protocol:    v1.ProtocolTCP,
+			Port:        n.RestServerSocketPort,
+			TargetPort:  intstr.FromInt(n.RestServerSocketPort),
+			AppProtocol: pointer.String("tcp"),
+		},
 	}
 }
 
@@ -636,10 +644,12 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	cfg := config.Hazelcast{
 		AdvancedNetwork: config.AdvancedNetwork{
+			Enabled: true,
 			Join: config.Join{
 				Kubernetes: config.Kubernetes{
 					Enabled:     pointer.Bool(true),
 					ServiceName: h.Name,
+					ServicePort: n.MemberServerSocketPort,
 				},
 			},
 		},
@@ -701,7 +711,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	// Member Network
 	cfg.AdvancedNetwork.MemberServerSocketEndpointConfig = config.MemberServerSocketEndpointConfig{
 		Port: config.PortAndPortCount{
-			Port:      MemberServerSocketPort,
+			Port:      n.MemberServerSocketPort,
 			PortCount: 1,
 		},
 	}
@@ -716,14 +726,14 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	// Client Network
 	cfg.AdvancedNetwork.ClientServerSocketEndpointConfig = config.ClientServerSocketEndpointConfig{
 		Port: config.PortAndPortCount{
-			Port:      ClientServerSocketPort,
+			Port:      n.ClientServerSocketPort,
 			PortCount: 1,
 		},
 	}
 
 	// Rest Network
 	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.Port = config.PortAndPortCount{
-		Port:      RestServerSocketPort,
+		Port:      n.RestServerSocketPort,
 		PortCount: 1,
 	}
 	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.Persistence.Enabled = pointer.Bool(true)
@@ -1208,12 +1218,21 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							ContainerPort: n.DefaultHzPort,
 							Name:          n.Hazelcast,
 							Protocol:      v1.ProtocolTCP,
-						}},
+						}, {
+							ContainerPort: n.MemberServerSocketPort,
+							Name:          n.MemberPortName,
+							Protocol:      v1.ProtocolTCP,
+						}, {
+							ContainerPort: n.RestServerSocketPort,
+							Name:          n.RestPortName,
+							Protocol:      v1.ProtocolTCP,
+						},
+						},
 						LivenessProbe: &v1.Probe{
 							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
-									Port:   intstr.FromInt(n.DefaultHzPort),
+									Port:   intstr.FromInt(n.RestServerSocketPort),
 									Scheme: corev1.URISchemeHTTP,
 								},
 							},
@@ -1227,7 +1246,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
-									Port:   intstr.FromInt(n.DefaultHzPort),
+									Port:   intstr.FromInt(n.RestServerSocketPort),
 									Scheme: corev1.URISchemeHTTP,
 								},
 							},
@@ -1244,6 +1263,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			},
 		},
 	}
+
+	sts.Spec.Template.Spec.Containers[0].Ports = append(sts.Spec.Template.Spec.Containers[0].Ports, wanRepContainers(h)...)
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
@@ -1380,6 +1401,22 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
 		})
+	}
+
+	return c
+}
+
+func wanRepContainers(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
+	var c []v1.ContainerPort
+
+	for _, w := range h.Spec.AdvancedNetwork.Wan {
+		for i := 0; i < int(w.PortCount); i++ {
+			c = append(c, v1.ContainerPort{
+				ContainerPort: int32(int(w.Port) + i),
+				Name:          n.WanPortName + strconv.Itoa(i),
+				Protocol:      v1.ProtocolTCP,
+			})
+		}
 	}
 
 	return c

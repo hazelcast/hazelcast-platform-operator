@@ -18,12 +18,6 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
-const (
-	MemberServerSocketPort = 5702
-	ClientServerSocketPort = 5701
-	RestServerSocketPort   = 8080
-)
-
 var BlackListProperties = map[string]struct{}{
 	// TODO: Add properties which should not be exposed.
 	"": {},
@@ -171,13 +165,13 @@ func validateAdvancedNetwork(h *Hazelcast) error {
 
 func isPortInRange(port, portCount uint) error {
 	//TODO: check if there is overlapping port numbers between wan replication configurations
-	if (MemberServerSocketPort >= port && MemberServerSocketPort < port+portCount) ||
-		(ClientServerSocketPort >= port && ClientServerSocketPort < port+portCount) ||
-		(RestServerSocketPort >= port && RestServerSocketPort < port+portCount) {
+	if (n.MemberServerSocketPort >= port && n.MemberServerSocketPort < port+portCount) ||
+		(n.ClientServerSocketPort >= port && n.ClientServerSocketPort < port+portCount) ||
+		(n.RestServerSocketPort >= port && n.RestServerSocketPort < port+portCount) {
 		return fmt.Errorf("following port number are not in use for wan replication: %d, %d, %d",
-			MemberServerSocketPort,
-			ClientServerSocketPort,
-			RestServerSocketPort)
+			n.MemberServerSocketPort,
+			n.ClientServerSocketPort,
+			n.RestServerSocketPort)
 	}
 	return nil
 }

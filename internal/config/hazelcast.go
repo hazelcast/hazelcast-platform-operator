@@ -26,6 +26,7 @@ type Hazelcast struct {
 }
 
 type AdvancedNetwork struct {
+	Enabled                          bool                             `yaml:"enabled,omitempty"`
 	Join                             Join                             `yaml:"join,omitempty"`
 	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `yaml:"member-server-socket-endpoint-config,omitempty"`
 	ClientServerSocketEndpointConfig ClientServerSocketEndpointConfig `yaml:"client-server-socket-endpoint-config,omitempty"`
@@ -97,6 +98,7 @@ type Kubernetes struct {
 	UseNodeNameAsExternalAddress *bool  `yaml:"use-node-name-as-external-address,omitempty"`
 	ServicePerPodLabelName       string `yaml:"service-per-pod-label-name,omitempty"`
 	ServicePerPodLabelValue      string `yaml:"service-per-pod-label-value,omitempty"`
+	ServicePort                  uint   `yaml:"service-port,omitempty"`
 }
 
 type RestAPI struct {
