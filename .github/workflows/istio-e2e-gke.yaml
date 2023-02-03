@@ -8,6 +8,9 @@ on:
 env:
   GCP_PROJECT_ID: hazelcast-33
   GKE_ZONE: europe-west1-b
+  GAR_REGION: us-east1
+  GAR_PROJECT: hazelcast-33
+  GAR_REPO: hazelcast-platform-operator
 
 jobs:
   create-gke-cluster:
