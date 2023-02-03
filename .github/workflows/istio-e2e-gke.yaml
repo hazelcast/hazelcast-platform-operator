@@ -1,7 +1,6 @@
 name: E2E tests with Istio on GCP
 on:
   workflow_dispatch:
-  pull_request:
   schedule:
     - cron: "0 9 */3 * *"
 
