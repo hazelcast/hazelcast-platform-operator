@@ -31,7 +31,7 @@ type AdvancedNetwork struct {
 	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `yaml:"member-server-socket-endpoint-config,omitempty"`
 	ClientServerSocketEndpointConfig ClientServerSocketEndpointConfig `yaml:"client-server-socket-endpoint-config,omitempty"`
 	RestServerSocketEndpointConfig   RestServerSocketEndpointConfig   `yaml:"rest-server-socket-endpoint-config,omitempty"`
-	WanServerSocketEndpointConfig    WanServerSocketEndpointConfig    `yaml:"wan-server-socket-endpoint-config,omitempty"`
+	WanServerSocketEndpointConfig    map[string]WanPort               `yaml:"wan-server-socket-endpoint-config,omitempty"`
 }
 
 type MemberServerSocketEndpointConfig struct {
@@ -48,8 +48,8 @@ type RestServerSocketEndpointConfig struct {
 	EndpointGroups EndpointGroups   `yaml:"endpoint-groups,omitempty"`
 }
 
-type WanServerSocketEndpointConfig struct {
-	WanConfig map[string]PortAndPortCount
+type WanPort struct {
+	PortAndPortCount PortAndPortCount `yaml:"port,omitempty"`
 }
 
 type PortAndPortCount struct {

@@ -1442,9 +1442,9 @@ var _ = Describe("Hazelcast controller", func() {
 							Persistence:  config.EndpointGroup{Enabled: pointer.Bool(true)},
 						},
 					},
-					WanServerSocketEndpointConfig: config.WanServerSocketEndpointConfig{
-						WanConfig: map[string]config.PortAndPortCount{
-							"tokyo": {
+					WanServerSocketEndpointConfig: map[string]config.WanPort{
+						"tokyo": {
+							PortAndPortCount: config.PortAndPortCount{
 								Port:      5710,
 								PortCount: 5,
 							},

@@ -742,11 +742,13 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	// Wan Network
 	if len(h.Spec.AdvancedNetwork.Wan) > 0 {
-		cfg.AdvancedNetwork.WanServerSocketEndpointConfig.WanConfig = make(map[string]config.PortAndPortCount)
+		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
 		for _, w := range h.Spec.AdvancedNetwork.Wan {
-			cfg.AdvancedNetwork.WanServerSocketEndpointConfig.WanConfig[w.Name] = config.PortAndPortCount{
-				Port:      w.Port,
-				PortCount: w.PortCount,
+			cfg.AdvancedNetwork.WanServerSocketEndpointConfig[w.Name] = config.WanPort{
+				PortAndPortCount: config.PortAndPortCount{
+					Port:      w.Port,
+					PortCount: w.PortCount,
+				},
 			}
 		}
 	}
