@@ -1409,10 +1409,12 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 
 				p := config.AdvancedNetwork{
+					Enabled: true,
 					Join: config.Join{
 						Kubernetes: config.Kubernetes{
 							Enabled:     pointer.Bool(true),
 							ServiceName: hz.Name,
+							ServicePort: 5702,
 						},
 					},
 					MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{
@@ -1433,7 +1435,7 @@ var _ = Describe("Hazelcast controller", func() {
 					},
 					RestServerSocketEndpointConfig: config.RestServerSocketEndpointConfig{
 						Port: config.PortAndPortCount{
-							Port:      8080,
+							Port:      8081,
 							PortCount: 1,
 						},
 						EndpointGroups: config.EndpointGroups{
