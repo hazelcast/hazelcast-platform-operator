@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -12,12 +11,9 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -66,61 +62,6 @@ func assertExists(name types.NamespacedName, obj client.Object) {
 		err := k8sClient.Get(context.Background(), name, obj)
 		return err == nil
 	}, 20*Second, interval).Should(BeTrue())
-}
-
-func waitForDSPods(ds *appsv1.DaemonSet, lb client.MatchingLabels) *corev1.PodList {
-	pods := &corev1.PodList{}
-	podLabels := lb
-	Eventually(func() bool {
-		err := k8sClient.Get(context.Background(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, ds)
-		if err != nil {
-			return false
-		}
-		return ds.Status.DesiredNumberScheduled != 0
-	}, 1*Minute, interval).Should(BeTrue())
-	Eventually(func() bool {
-		err := k8sClient.List(context.Background(), pods, client.InNamespace(ds.Namespace), podLabels)
-		if err != nil {
-			return false
-		}
-		return int(ds.Status.DesiredNumberScheduled) == len(pods.Items)
-	}, 2*Minute, interval).Should(BeTrue())
-	return pods
-}
-
-func assertRunningOrFailedMount(p v1.Pod, hostPath string) bool {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
-	config, err := kubeConfig.ClientConfig()
-	if err != nil {
-		panic(err)
-	}
-	clientset := kubernetes.NewForConfigOrDie(config)
-
-	running := false
-	Eventually(func() bool {
-		ev := metav1.ListOptions{FieldSelector: fmt.Sprintf("involvedObject.name=%s", p.Name), TypeMeta: metav1.TypeMeta{Kind: "Pod"}}
-		events, err := clientset.CoreV1().Events(p.Namespace).List(context.TODO(), ev)
-		if err != nil {
-			return false
-		}
-		for _, event := range events.Items {
-			if event.Message == fmt.Sprintf("MountVolume.SetUp failed for volume \"hostpath-hazelcast\" : hostPath type check failed: %s is not a directory", hostPath) {
-				return true
-			}
-		}
-		pod := &v1.Pod{}
-		err = k8sClient.Get(context.Background(), types.NamespacedName{Name: p.Name, Namespace: p.Namespace}, pod)
-		if err != nil {
-			return false
-		}
-		if pod.Status.Phase == v1.PodRunning {
-			running = true
-			return true
-		}
-		return false
-	}, 1*Minute, interval).Should(BeTrue())
-	return running
 }
 
 func deletePVCs(lk types.NamespacedName) {
@@ -184,8 +125,6 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 			objListVal = objListVal.Elem()
 		}
 		items := objListVal.FieldByName("Items")
-		len := items.Len()
-		return len
-
+		return items.Len()
 	}, 10*Minute, interval).Should(Equal(int(0)))
 }
