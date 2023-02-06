@@ -61,7 +61,7 @@ func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *
 //+kubebuilder:rbac:groups=hazelcast.com,resources=wanreplications/finalizers,verbs=update,namespace=watched
 
 func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := r.WithValues("name", req.Name, "namespace", req.NamespacedName)
+	logger := r.WithValues("name", req.Name, "namespace", req.NamespacedName, "seq", util.RandString(5))
 
 	wan := &hazelcastv1alpha1.WanReplication{}
 	if err := r.Get(ctx, req.NamespacedName, wan); err != nil {
@@ -528,9 +528,11 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 			publisherId, err := r.applyWanReplication(ctx, cl, wan, m.MapName(), mapWanKey)
 			if err != nil {
 				mapWanStatus[mapWanKey] = wanFailedStatus(err).withMessage(err.Error())
+				log.Info("Wan configuration failed for ", "mapKey", mapWanKey)
 				continue
 			}
 			mapWanStatus[mapWanKey] = wanPersistingStatus(0).withPublisherId(publisherId).withResourceName(m.Name)
+			log.Info("Wan configuration successful for ", "mapKey", mapWanKey)
 		}
 	}
 
