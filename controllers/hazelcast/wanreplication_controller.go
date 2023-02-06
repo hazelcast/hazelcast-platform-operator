@@ -84,7 +84,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if !wan.GetDeletionTimestamp().IsZero() {
 		if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
-			if err := r.deleteTerminatingMapsFromStatus(ctx, wan); err != nil {
+			if err := r.deleteLeftoverMapsFromStatus(ctx, wan); err != nil {
 				return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 			}
 			if err := r.stopWanReplicationAllMaps(ctx, wan); err != nil {
@@ -98,7 +98,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.deleteTerminatingMapsFromStatus(ctx, wan); err != nil {
+	if err := r.deleteLeftoverMapsFromStatus(ctx, wan); err != nil {
 		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 	}
 
@@ -166,7 +166,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{}, nil
 }
 
-func (r *WanReplicationReconciler) deleteTerminatingMapsFromStatus(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) error {
+func (r *WanReplicationReconciler) deleteLeftoverMapsFromStatus(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) error {
 	for mapWanKey, mapStatus := range wan.Status.WanReplicationMapsStatus {
 		if mapStatus.PublisherId == "" {
 			continue
@@ -199,12 +199,21 @@ func (r *WanReplicationReconciler) deleteTerminatingMapsFromStatus(ctx context.C
 }
 
 func (r *WanReplicationReconciler) stopWanReplicationAllMaps(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) error {
-	hzMaps, err := r.getMapsFromStatus(ctx, wan)
+	publishedMaps, err := r.getPublishedMapsFromStatus(ctx, wan)
 	if err != nil {
 		return err
 	}
 
-	for _, m := range hzMaps {
+	for mapWanKey := range wan.Status.WanReplicationMapsStatus {
+		m, ok := publishedMaps[mapWanKey]
+		if !ok {
+			// Delete map without publisherID from status
+			if err := deleteWanMapStatus(ctx, r.Client, wan, mapWanKey); err != nil {
+				return err
+			}
+			continue
+		}
+		// Finalize and delete map with publisherID
 		cli, err := getHazelcastClient(ctx, r.clientRegistry, m.Spec.HazelcastResourceName, m.Namespace)
 		if err != nil {
 			return err
@@ -223,12 +232,24 @@ func (r *WanReplicationReconciler) stopWanReplicationAllMaps(ctx context.Context
 func (r *WanReplicationReconciler) stopWanReplicationMap(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, m *hazelcastv1alpha1.Map, cli hzclient.Client) error {
 	log := getLogger(ctx)
 	mapWanKey := wanMapKey(m.Spec.HazelcastResourceName, m.MapName())
+
 	// Check publisherId is registered to the status
-	publisherId := wan.Status.WanReplicationMapsStatus[mapWanKey].PublisherId
-	if publisherId == "" {
-		log.V(util.DebugLevel).Info("publisherId is empty, will skip stopping WAN replication", "mapKey", mapWanKey)
+	mapStatus, ok := wan.Status.WanReplicationMapsStatus[mapWanKey]
+	if !ok {
+		log.V(util.DebugLevel).Info("no key in the Wan status for", "mapKey", mapWanKey)
 		return nil
 	}
+
+	publisherId := mapStatus.PublisherId
+	if publisherId == "" {
+		log.V(util.DebugLevel).Info("publisherId is empty, will remove map from Wan status", "mapKey", mapWanKey)
+		if err := deleteWanMapStatus(ctx, r.Client, wan, mapWanKey); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	log.V(util.DebugLevel).Info("stopping Wan replication for", "mapKey", mapWanKey)
 	ws := hzclient.NewWanService(cli, wanName(m.MapName()), publisherId)
 
 	if err := ws.ChangeWanState(ctx, codecTypes.WanReplicationStateStopped); err != nil {
@@ -255,9 +276,9 @@ func (r *WanReplicationReconciler) stopWanReplicationMap(ctx context.Context, wa
 	return nil
 }
 
-func (r *WanReplicationReconciler) getMapsFromStatus(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) ([]hazelcastv1alpha1.Map, error) {
-	hzMaps := make([]hazelcastv1alpha1.Map, 0)
-	for _, status := range wan.Status.WanReplicationMapsStatus {
+func (r *WanReplicationReconciler) getPublishedMapsFromStatus(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) (map[string]hazelcastv1alpha1.Map, error) {
+	hzMaps := make(map[string]hazelcastv1alpha1.Map, 0)
+	for mapWanKey, status := range wan.Status.WanReplicationMapsStatus {
 		if status.PublisherId == "" {
 			continue
 		}
@@ -265,7 +286,7 @@ func (r *WanReplicationReconciler) getMapsFromStatus(ctx context.Context, wan *h
 		if err != nil {
 			return nil, err
 		}
-		hzMaps = append(hzMaps, *m)
+		hzMaps[mapWanKey] = *m
 	}
 
 	return hzMaps, nil
@@ -604,7 +625,7 @@ func splitWanMapKey(key string) (hzName string, mapName string) {
 
 func findMapInSlice(slice []hazelcastv1alpha1.Map, mapName string) (*hazelcastv1alpha1.Map, bool) {
 	for i, mp := range slice {
-		if mp.Name == mapName {
+		if mp.MapName() == mapName {
 			return &slice[i], true
 		}
 	}
