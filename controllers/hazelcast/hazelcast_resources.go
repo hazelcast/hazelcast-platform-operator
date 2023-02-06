@@ -666,12 +666,12 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
-		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
+		cfg.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
 	}
 
 	if h.Spec.ExposeExternally.IsEnabled() {
-		cfg.Network.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
-		cfg.Network.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
+		cfg.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
+		cfg.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
 	}
 
 	if h.Spec.ClusterName != "" {

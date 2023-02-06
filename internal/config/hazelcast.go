@@ -6,7 +6,6 @@ type HazelcastWrapper struct {
 
 type Hazelcast struct {
 	Jet                      Jet                                 `yaml:"jet,omitempty"`
-	Network                  Network                             `yaml:"network,omitempty"`
 	ClusterName              string                              `yaml:"cluster-name,omitempty"`
 	Persistence              Persistence                         `yaml:"persistence,omitempty"`
 	Map                      map[string]Map                      `yaml:"map,omitempty"`
@@ -279,12 +278,12 @@ type BatchPublisherConfig struct {
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
 	return Hazelcast{
 		ClusterName: hz.ClusterName,
-		Network: Network{
+		AdvancedNetwork: AdvancedNetwork{
 			Join: Join{
 				Kubernetes: Kubernetes{
-					ServicePerPodLabelName:       hz.Network.Join.Kubernetes.ServicePerPodLabelName,
-					ServicePerPodLabelValue:      hz.Network.Join.Kubernetes.ServicePerPodLabelValue,
-					UseNodeNameAsExternalAddress: hz.Network.Join.Kubernetes.UseNodeNameAsExternalAddress,
+					ServicePerPodLabelName:       hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName,
+					ServicePerPodLabelValue:      hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue,
+					UseNodeNameAsExternalAddress: hz.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress,
 				},
 			},
 		},
