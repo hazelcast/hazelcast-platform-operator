@@ -2,12 +2,12 @@ name: Pull Request Label Checker
 
 on:
   pull_request_target:
-    types: [opened, labeled, unlabeled, synchronize]
+    types: [opened, labeled, unlabeled]
     branches:
       - main
       - 'release/**'
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize]
+    types: [opened, labeled, unlabeled]
     branches:
       - main
       - 'release/**'
@@ -16,6 +16,21 @@ jobs:
   label-checker:
     name: Run Label Checker
     runs-on: ubuntu-latest
+    if: >-
+      ( !cancelled()
+      && ((github.event_name == 'pull_request_target'
+            && github.event.action == 'labeled'
+            && github.event.action == 'opened'
+            && github.event.action == 'unlabeled'
+            && github.event.label.name == 'safe-to-test'
+            && github.event.pull_request.head.repo.full_name != github.repository)
+          ||
+          (github.event_name == 'pull_request'
+            && github.event.action == 'labeled'
+            && github.event.action == 'opened'
+            && github.event.action == 'unlabeled'
+            && github.event.pull_request.head.repo.full_name == github.repository))
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@v3
