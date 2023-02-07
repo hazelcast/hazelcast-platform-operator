@@ -20,15 +20,15 @@ jobs:
       ( !cancelled()
       && ((github.event_name == 'pull_request_target'
             && github.event.action == 'labeled'
-            && github.event.action == 'opened'
-            && github.event.action == 'unlabeled'
+            || github.event.action == 'opened'
+            || github.event.action == 'unlabeled'
             && github.event.label.name == 'safe-to-test'
             && github.event.pull_request.head.repo.full_name != github.repository)
           ||
           (github.event_name == 'pull_request'
             && github.event.action == 'labeled'
-            && github.event.action == 'opened'
-            && github.event.action == 'unlabeled'
+            || github.event.action == 'opened'
+            || github.event.action == 'unlabeled'
             && github.event.pull_request.head.repo.full_name == github.repository))
       )
     steps:
