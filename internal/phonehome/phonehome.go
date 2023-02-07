@@ -94,6 +94,7 @@ type PhoneHomeData struct {
 	CronHotBackupCount            int                `json:"chbc"`
 	TopicCount                    int                `json:"tc"`
 	HighAvailabilityMode          []string           `json:"ha"`
+	NativeMemoryCount             int                `json:"nmc"`
 }
 
 type ExposeExternally struct {
@@ -163,6 +164,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	executorServiceCount := 0
 	clusterUUIDs := []string{}
 	highAvailabilityModes := []string{}
+	nativeMemoryCount := 0
 
 	hzl := &hazelcastv1alpha1.HazelcastList{}
 	err := cl.List(context.Background(), hzl, listOptions()...)
@@ -175,6 +177,10 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 			createdEnterpriseClusterCount += 1
 		} else {
 			createdClusterCount += 1
+		}
+
+		if hz.Spec.NativeMemory.IsEnabled() {
+			nativeMemoryCount++
 		}
 
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
@@ -195,6 +201,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.ExecutorServiceCount = executorServiceCount
 	phm.ClusterUUIDs = clusterUUIDs
 	phm.HighAvailabilityMode = highAvailabilityModes
+	phm.NativeMemoryCount = nativeMemoryCount
 }
 
 func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
