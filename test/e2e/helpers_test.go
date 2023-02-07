@@ -868,6 +868,14 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzName, Namespace: ns}, ee, labels)
 		hz.Spec.ClusterName = hzName
 		hz.Spec.ClusterSize = pointer.Int32(1)
+		hz.Spec.AdvancedNetwork.Wan = []hazelcastcomv1alpha1.WanConfig{
+			{
+				Port:        5710,
+				PortCount:   0,
+				ServiceType: "NodePort",
+				Name:        "tokyo",
+			},
+		}
 		hzCrs[hzName] = hz
 		CreateHazelcastCRWithoutCheck(hz)
 	}
@@ -899,7 +907,7 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 	wan := hazelcastconfig.WanReplication(
 		lk,
 		target.Spec.ClusterName,
-		hzclient.HazelcastUrl(target),
+		hzclient.HazelcastUrlForWanConfig(target),
 		resources,
 		labels,
 	)
