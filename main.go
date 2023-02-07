@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"os"
-	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -82,7 +81,7 @@ func main() {
 		setupLog.Info("No namespace specified in the NAMESPACE env variable! Operator might be running locally")
 	}
 
-	setManagerWathedNamespaces(&mgrOptions, operatorNamespace)
+	watchedNamespaceType := setManagerWathedNamespaces(&mgrOptions, operatorNamespace)
 
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, mgrOptions)
@@ -105,19 +104,20 @@ func main() {
 	cr := &hzclient.HazelcastClientRegistry{K8sClient: mgr.GetClient()}
 	ssm := &hzclient.HzStatusServiceRegistry{}
 
-	var metrics *phonehome.Metrics
+	var operatorInfo *phonehome.OperatorInfo
 	var phoneHomeTrigger chan struct{}
 	if util.IsPhoneHomeEnabled() {
 		phoneHomeTrigger = make(chan struct{}, 10)
-		metrics = &phonehome.Metrics{
-			UID:             util.GetOperatorID(cfg),
-			CreatedAt:       time.Now(),
-			PardotID:        util.GetPardotID(),
-			Version:         util.GetOperatorVersion(),
-			K8sDistribution: platform.GetDistribution(),
-			K8sVersion:      platform.GetVersion(),
-			Trigger:         phoneHomeTrigger,
-			ClientRegistry:  cr,
+		operatorInfo = &phonehome.OperatorInfo{
+			UID:                  util.OperatorID(cfg),
+			CreatedAt:            time.Now(),
+			PardotID:             util.PardotID(),
+			Version:              util.OperatorVersion(),
+			K8sDistribution:      platform.GetDistribution(),
+			K8sVersion:           platform.GetVersion(),
+			Trigger:              phoneHomeTrigger,
+			ClientRegistry:       cr,
+			WatchedNamespaceType: watchedNamespaceType,
 		}
 	}
 
@@ -261,7 +261,7 @@ func main() {
 	}
 
 	if util.IsPhoneHomeEnabled() {
-		phonehome.Start(mgr.GetClient(), metrics)
+		phonehome.Start(mgr.GetClient(), operatorInfo)
 	}
 
 	setupLog.Info("starting manager")
@@ -328,18 +328,24 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 	}
 }
 
-func setManagerWathedNamespaces(mgrOptions *ctrl.Options, operatorNamespace string) {
-	watchedNamespaces := strings.Split(os.Getenv(n.WatchedNamespacesEnv), ",")
-	switch {
-	case len(watchedNamespaces) == 1 && util.IsWatchingAllNamespaces(watchedNamespaces[0]):
+func setManagerWathedNamespaces(mgrOptions *ctrl.Options, operatorNamespace string) util.WatchedNsType {
+	watchedNamespaces := util.WatchedNamespaces()
+	watchedNamespaceType := util.WatchedNamespaceType()
+
+	switch watchedNamespaceType {
+	case util.WatchedNsTypeAll:
 		setupLog.Info("Watching all namespaces")
-	case len(watchedNamespaces) == 1 && watchedNamespaces[0] == operatorNamespace:
-		setupLog.Info("Watching a single namespace", "namespace", watchedNamespaces[0])
+	case util.WatchedNsTypeOwn:
+		setupLog.Info("Watching own namespace", "namespace", watchedNamespaces[0])
 		mgrOptions.Namespace = watchedNamespaces[0]
-	default:
+	case util.WatchedNsTypeSingle, util.WatchedNsTypeMulti:
 		setupLog.Info("Watching namespaces", "watched_namespaces", watchedNamespaces, "operator_namespace", operatorNamespace)
 		// Operator should be able watch resources in its own namespace
 		watchedNamespaces = append(watchedNamespaces, operatorNamespace)
 		mgrOptions.NewCache = cache.MultiNamespacedCacheBuilder(watchedNamespaces)
+	default:
+		setupLog.Info("Watching all namespaces by default")
 	}
+
+	return watchedNamespaceType
 }
