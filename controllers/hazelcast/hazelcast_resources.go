@@ -751,6 +751,16 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				},
 			}
 		}
+	} else { //Default WAN Configuration
+		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
+		for _, w := range h.Spec.AdvancedNetwork.Wan {
+			cfg.AdvancedNetwork.WanServerSocketEndpointConfig[w.Name] = config.WanPort{
+				PortAndPortCount: config.PortAndPortCount{
+					Port:      5710,
+					PortCount: 1,
+				},
+			}
+		}
 	}
 
 	return cfg
