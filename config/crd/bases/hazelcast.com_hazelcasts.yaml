@@ -256,9 +256,6 @@ spec:
                       (for each step: validation and data-load).'
                     format: int32
                     type: integer
-                  hostPath:
-                    description: Host Path directory.
-                    type: string
                   pvc:
                     description: Configuration of PersistenceVolumeClaim.
                     properties:

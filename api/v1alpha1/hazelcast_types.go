@@ -338,10 +338,6 @@ type HazelcastPersistenceConfiguration struct {
 	// +optional
 	Pvc PersistencePvcConfiguration `json:"pvc,omitempty"`
 
-	// Host Path directory.
-	// +optional
-	HostPath string `json:"hostPath,omitempty"`
-
 	// Restore configuration
 	// +kubebuilder:default:={}
 	// +optional
@@ -356,11 +352,6 @@ func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 // Returns true if Persistence configuration is specified.
 func (p *HazelcastPersistenceConfiguration) IsEnabled() bool {
 	return p != nil && p.BaseDir != ""
-}
-
-// Returns true if hostPath is enabled.
-func (p *HazelcastPersistenceConfiguration) UseHostPath() bool {
-	return p.HostPath != ""
 }
 
 // IsRestoreEnabled returns true if Restore configuration is specified

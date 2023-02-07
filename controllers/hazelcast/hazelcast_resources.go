@@ -1166,11 +1166,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
-	if h.Spec.Persistence.IsEnabled() {
-		if !h.Spec.Persistence.UseHostPath() {
-			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
-		}
-	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
@@ -1338,10 +1333,6 @@ func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContex
 		return sec
 	}
 
-	if !h.Spec.Persistence.UseHostPath() {
-		return sec
-	}
-
 	// We do not support these parameters for Openshift clusters
 	// OpenShift environments with HostPath enabled fail in Webhook validation.
 	sec.RunAsNonRoot = pointer.Bool(false)
@@ -1405,10 +1396,6 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
 	commandName := "restore_pvc"
 
-	if h.Spec.Persistence.UseHostPath() {
-		commandName = "restore_hostpath"
-	}
-
 	return v1.Container{
 		Name:            n.RestoreAgent,
 		Image:           h.AgentDockerImage(),
@@ -1453,10 +1440,6 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 
 func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
 	commandName := "restore_pvc_local"
-
-	if h.Spec.Persistence.UseHostPath() {
-		commandName = "restore_hostpath_local"
-	}
 
 	return v1.Container{
 		Name:            n.RestoreLocalAgent,

@@ -104,10 +104,6 @@ func validatePersistence(h *Hazelcast) error {
 		return nil
 	}
 
-	if p.UseHostPath() {
-		return errors.New("use of \"hostPath\" is no longer supported, please use \"pvc\" instead")
-	}
-
 	// if hostPath and PVC are both empty or set
 	if p.Pvc.IsEmpty() {
 		return errors.New("when persistence is enabled \"pvc\" field must be set")
