@@ -338,7 +338,7 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName 
 					Args:  []string{"/maploader", "-address", hzAddress, "-clusterName", clusterName, "-size", size, "-mapName", mapName},
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceMemory: resource.MustParse(size + "Gi")}},
+							corev1.ResourceMemory: resource.MustParse(size + "Mi")}},
 				},
 			},
 			RestartPolicy: corev1.RestartPolicyNever,

@@ -64,7 +64,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "M")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
@@ -75,7 +75,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
 		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "M")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
@@ -130,7 +130,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "M")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
@@ -141,7 +141,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
 		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "M")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
@@ -264,7 +264,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "M")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
@@ -277,7 +277,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
 		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "M")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
@@ -339,7 +339,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "M")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
@@ -352,7 +352,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
 		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "M")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
