@@ -97,6 +97,12 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 
+	if m.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
+		if err := requireNativeMemory(h); err != nil {
+			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+		}
+	}
+
 	s, createdBefore := m.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 
 	if createdBefore {
@@ -413,4 +419,22 @@ func (r *MapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Map{}).
 		Complete(r)
+}
+
+func requireNativeMemory(h *hazelcastv1alpha1.Hazelcast) error {
+	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
+	}
+
+	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
+	if err := json.Unmarshal([]byte(s), lastSpec); err != nil {
+		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
+	}
+
+	if !lastSpec.NativeMemory.IsEnabled() {
+		return fmt.Errorf("native memory is not enabled for the Hazelcast resource %s", h.Name)
+	}
+
+	return nil
 }

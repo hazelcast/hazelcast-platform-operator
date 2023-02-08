@@ -137,6 +137,11 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	JVM *JVMConfiguration `json:"jvm,omitempty"`
+
+	// Hazelcast Native Memory (HD Memory) configuration
+	// +optional
+	// +kubebuilder:default:={}
+	NativeMemory *NativeMemoryConfiguration `json:"nativeMemory,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE
@@ -613,6 +618,53 @@ func (c *JVMMemoryConfiguration) GetMaxRAMPercentage() string {
 		return *c.MaxRAMPercentage
 	}
 	return ""
+}
+
+// NativeMemoryAllocatorType is one of 2 types of mechanism for allocating HD Memory
+// +kubebuilder:validation:Enum=STANDARD;POOLED
+type NativeMemoryAllocatorType string
+
+const (
+	// NativeMemoryStandard allocate memory using default OS memory manager
+	NativeMemoryStandard NativeMemoryAllocatorType = "STANDARD"
+
+	// NativeMemoryPooled is Hazelcast own pooling memory allocator
+	NativeMemoryPooled NativeMemoryAllocatorType = "POOLED"
+)
+
+// NativeMemoryConfiguration is a Hazelcast HD memory configuration
+type NativeMemoryConfiguration struct {
+	// AllocatorType specifies one of 2 types of mechanism for allocating memory to HD
+	// +kubebuilder:default:="STANDARD"
+	// +optional
+	AllocatorType NativeMemoryAllocatorType `json:"allocatorType,omitempty"`
+
+	// Size of the total native memory to allocate
+	// +kubebuilder:default:="512M"
+	// +optional
+	Size resource.Quantity `json:"size,omitempty"`
+
+	// MinBlockSize is the size of smallest block that will be allocated.
+	// It is used only by the POOLED memory allocator.
+	// +optional
+	MinBlockSize int32 `json:"minBlockSize,omitempty"`
+
+	// PageSize is the size of the page in bytes to allocate memory as a block.
+	// It is used only by the POOLED memory allocator.
+	// +kubebuilder:default:=4194304
+	// +optional
+	PageSize int32 `json:"pageSize,omitempty"`
+
+	// MetadataSpacePercentage defines percentage of the allocated native memory
+	// that is used for the metadata of other map components such as index
+	// (for predicates), offset, etc.
+	// +kubebuilder:default:=12
+	// +optional
+	MetadataSpacePercentage int32 `json:"metadataSpacePercentage,omitempty"`
+}
+
+func (c *NativeMemoryConfiguration) IsEnabled() bool {
+	return c != nil && !(*c == (NativeMemoryConfiguration{}))
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
