@@ -110,14 +110,14 @@ func main() {
 	if util.IsPhoneHomeEnabled() {
 		phoneHomeTrigger = make(chan struct{}, 10)
 		metrics = &phonehome.Metrics{
-			UID:            util.GetOperatorID(cfg),
-			CreatedAt:      time.Now(),
-			PardotID:       util.GetPardotID(),
-			Version:        util.GetOperatorVersion(),
-			K8sDistibution: platform.GetDistribution(),
-			K8sVersion:     platform.GetVersion(),
-			Trigger:        phoneHomeTrigger,
-			ClientRegistry: cr,
+			UID:             util.GetOperatorID(cfg),
+			CreatedAt:       time.Now(),
+			PardotID:        util.GetPardotID(),
+			Version:         util.GetOperatorVersion(),
+			K8sDistribution: platform.GetDistribution(),
+			K8sVersion:      platform.GetVersion(),
+			Trigger:         phoneHomeTrigger,
+			ClientRegistry:  cr,
 		}
 	}
 

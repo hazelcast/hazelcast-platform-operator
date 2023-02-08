@@ -20,14 +20,14 @@ import (
 )
 
 type Metrics struct {
-	UID            types.UID
-	PardotID       string
-	Version        string
-	CreatedAt      time.Time
-	K8sDistibution string
-	K8sVersion     string
-	Trigger        chan struct{}
-	ClientRegistry hzclient.ClientRegistry
+	UID             types.UID
+	PardotID        string
+	Version         string
+	CreatedAt       time.Time
+	K8sDistribution string
+	K8sVersion      string
+	Trigger         chan struct{}
+	ClientRegistry  hzclient.ClientRegistry
 }
 
 func Start(cl client.Client, m *Metrics) {
@@ -72,29 +72,30 @@ func PhoneHome(cl client.Client, m *Metrics) {
 }
 
 type PhoneHomeData struct {
-	OperatorID                    types.UID          `json:"oid"`
-	PardotID                      string             `json:"p"`
-	Version                       string             `json:"v"`
-	Uptime                        int64              `json:"u"` // In milliseconds
-	K8sDistibution                string             `json:"kd"`
-	K8sVersion                    string             `json:"kv"`
-	CreatedClusterCount           int                `json:"ccc"`
-	CreatedEnterpriseClusterCount int                `json:"cecc"`
-	CreatedMCcount                int                `json:"cmcc"`
-	CreatedMemberCount            int                `json:"cmc"`
-	ClusterUUIDs                  []string           `json:"cuids"`
-	ExposeExternally              ExposeExternally   `json:"xe"`
-	Map                           Map                `json:"m"`
-	WanReplicationCount           int                `json:"wrc"`
-	BackupAndRestore              BackupAndRestore   `json:"br"`
-	UserCodeDeployment            UserCodeDeployment `json:"ucd"`
-	ExecutorServiceCount          int                `json:"esc"`
-	MultiMapCount                 int                `json:"mmc"`
-	ReplicatedMapCount            int                `json:"rmc"`
-	CronHotBackupCount            int                `json:"chbc"`
-	TopicCount                    int                `json:"tc"`
-	HighAvailabilityMode          []string           `json:"ha"`
-	NativeMemoryCount             int                `json:"nmc"`
+	OperatorID                    types.UID              `json:"oid"`
+	PardotID                      string                 `json:"p"`
+	Version                       string                 `json:"v"`
+	Uptime                        int64                  `json:"u"` // In milliseconds
+	K8sDistribution               string                 `json:"kd"`
+	K8sVersion                    string                 `json:"kv"`
+	CreatedClusterCount           int                    `json:"ccc"`
+	CreatedEnterpriseClusterCount int                    `json:"cecc"`
+	CreatedMCcount                int                    `json:"cmcc"`
+	CreatedMemberCount            int                    `json:"cmc"`
+	ClusterUUIDs                  []string               `json:"cuids"`
+	ExposeExternally              ExposeExternally       `json:"xe"`
+	Map                           Map                    `json:"m"`
+	WanReplicationCount           int                    `json:"wrc"`
+	BackupAndRestore              BackupAndRestore       `json:"br"`
+	UserCodeDeployment            UserCodeDeployment     `json:"ucd"`
+	McExternalConnectivity        McExternalConnectivity `json:"mcec"`
+	ExecutorServiceCount          int                    `json:"esc"`
+	MultiMapCount                 int                    `json:"mmc"`
+	ReplicatedMapCount            int                    `json:"rmc"`
+	CronHotBackupCount            int                    `json:"chbc"`
+	TopicCount                    int                    `json:"tc"`
+	HighAvailabilityMode          []string               `json:"ha"`
+	NativeMemoryCount             int                    `json:"nmc"`
 }
 
 type ExposeExternally struct {
@@ -130,14 +131,21 @@ type UserCodeDeployment struct {
 	FromConfigMap int `json:"fcm"`
 }
 
+type McExternalConnectivity struct {
+	ServiceTypeClusterIP    int `json:"stci"`
+	ServiceTypeNodePort     int `json:"stnp"`
+	ServiceTypeLoadBalancer int `json:"stlb"`
+	IngressEnabledCount     int `json:"iec"`
+}
+
 func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd := PhoneHomeData{
-		OperatorID:     m.UID,
-		PardotID:       m.PardotID,
-		Version:        m.Version,
-		Uptime:         upTime(m.CreatedAt).Milliseconds(),
-		K8sDistibution: m.K8sDistibution,
-		K8sVersion:     m.K8sVersion,
+		OperatorID:      m.UID,
+		PardotID:        m.PardotID,
+		Version:         m.Version,
+		Uptime:          upTime(m.CreatedAt).Milliseconds(),
+		K8sDistribution: m.K8sDistribution,
+		K8sVersion:      m.K8sVersion,
 	}
 
 	phd.fillHazelcastMetrics(cl, m.ClientRegistry)
@@ -288,8 +296,25 @@ func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
 		if mc.Status.Phase == hazelcastv1alpha1.Running {
 			successfullyCreatedMCCount += 1
 		}
+		phm.McExternalConnectivity.addUsageMetrics(&mc.Spec.ExternalConnectivity)
 	}
 	phm.CreatedMCcount = createdMCCount
+}
+
+func (mec *McExternalConnectivity) addUsageMetrics(ec *hazelcastv1alpha1.ExternalConnectivityConfiguration) {
+	if ec.IsEnabled() {
+		switch ec.Type {
+		case hazelcastv1alpha1.ExternalConnectivityTypeClusterIP:
+			mec.ServiceTypeClusterIP++
+		case hazelcastv1alpha1.ExternalConnectivityTypeNodePort:
+			mec.ServiceTypeNodePort++
+		case hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer:
+			mec.ServiceTypeLoadBalancer++
+		}
+		if ec.Ingress.IsEnabled() {
+			mec.IngressEnabledCount++
+		}
+	}
 }
 
 func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
