@@ -42,9 +42,11 @@ func NewManagementCenterReconciler(c client.Client, log logr.Logger, s *runtime.
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/status,verbs=get;update;patch,namespace=watched
 //+kubebuilder:rbac:groups=hazelcast.com,resources=managementcenters/finalizers,verbs=update,namespace=watched
+// Role related to Reconcile() duplicated in hazelcast_controller.go
+//+kubebuilder:rbac:groups="",resources=events;services;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 // Role related to Reconcile()
-// duplicated in hazelcast_contoller.go +kubebuilder:rbac:groups="",resources=events;services;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-// duplicated in hazelcast_contoller.go +kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups="networking.k8s.io",resources=ingresses,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 
 func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("management-center", req.NamespacedName)
@@ -76,6 +78,11 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	err = r.reconcileService(ctx, mc, logger)
+	if err != nil {
+		return update(ctx, r.Status(), mc, failedPhase(err))
+	}
+
+	err = r.reconcileIngress(ctx, mc, logger)
 	if err != nil {
 		return update(ctx, r.Status(), mc, failedPhase(err))
 	}

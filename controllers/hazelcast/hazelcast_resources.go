@@ -1284,7 +1284,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							SuccessThreshold:    1,
 							FailureThreshold:    10,
 						},
-						SecurityContext: containerSecurityContext(h),
+						SecurityContext: containerSecurityContext(),
 					}},
 					TerminationGracePeriodSeconds: pointer.Int64(600),
 				},
@@ -1296,9 +1296,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
-		if !h.Spec.Persistence.UseHostPath() {
-			sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
-		}
+		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -1421,7 +1419,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				MountPath: n.MTLSCertPath,
 			},
 		},
-		SecurityContext: containerSecurityContext(h),
+		SecurityContext: containerSecurityContext(),
 	}
 
 	if h.Spec.Persistence.IsEnabled() {
@@ -1468,8 +1466,8 @@ func podSecurityContext() *v1.PodSecurityContext {
 	}
 }
 
-func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContext {
-	sec := &v1.SecurityContext{
+func containerSecurityContext() *v1.SecurityContext {
+	return &v1.SecurityContext{
 		RunAsNonRoot:             pointer.Bool(true),
 		Privileged:               pointer.Bool(false),
 		ReadOnlyRootFilesystem:   pointer.Bool(true),
@@ -1478,21 +1476,6 @@ func containerSecurityContext(h *hazelcastv1alpha1.Hazelcast) *v1.SecurityContex
 			Drop: []v1.Capability{"ALL"},
 		},
 	}
-
-	if !h.Spec.Persistence.IsEnabled() {
-		return sec
-	}
-
-	if !h.Spec.Persistence.UseHostPath() {
-		return sec
-	}
-
-	// We do not support these parameters for Openshift clusters
-	// OpenShift environments with HostPath enabled fail in Webhook validation.
-	sec.RunAsNonRoot = pointer.Bool(false)
-	sec.RunAsUser = pointer.Int64(0)
-
-	return sec
 }
 
 func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
@@ -1550,10 +1533,6 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
 	commandName := "restore_pvc"
 
-	if h.Spec.Persistence.UseHostPath() {
-		commandName = "restore_hostpath"
-	}
-
 	return v1.Container{
 		Name:            n.RestoreAgent,
 		Image:           h.AgentDockerImage(),
@@ -1592,16 +1571,12 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
 		}},
-		SecurityContext: containerSecurityContext(h),
+		SecurityContext: containerSecurityContext(),
 	}
 }
 
 func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
 	commandName := "restore_pvc_local"
-
-	if h.Spec.Persistence.UseHostPath() {
-		commandName = "restore_hostpath_local"
-	}
 
 	return v1.Container{
 		Name:            n.RestoreLocalAgent,
@@ -1619,7 +1594,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 			},
 			{
 				Name:  "RESTORE_LOCAL_ID",
-				Value: string(h.Spec.Persistence.Restore.Hash()),
+				Value: h.Spec.Persistence.Restore.Hash(),
 			},
 			{
 				Name: "RESTORE_LOCAL_HOSTNAME",
@@ -1637,7 +1612,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
 		}},
-		SecurityContext: containerSecurityContext(h),
+		SecurityContext: containerSecurityContext(),
 	}
 }
 
@@ -1700,10 +1675,6 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	// when it tries to write to /tmp dir.
 	vols = append(vols, tmpDirVolume())
 
-	if h.Spec.Persistence.UseHostPath() {
-		vols = append(vols, hostPathVolume(h))
-	}
-
 	return vols
 }
 
@@ -1712,18 +1683,6 @@ func userCodeAgentVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
 		Name: n.UserCodeBucketVolumeName,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
-	return v1.Volume{
-		Name: n.PersistenceVolumeName,
-		VolumeSource: v1.VolumeSource{
-			HostPath: &v1.HostPathVolumeSource{
-				Path: h.Spec.Persistence.HostPath,
-				Type: &[]v1.HostPathType{v1.HostPathDirectoryOrCreate}[0],
-			},
 		},
 	}
 }

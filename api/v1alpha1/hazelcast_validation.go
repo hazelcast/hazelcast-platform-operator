@@ -14,7 +14,6 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -110,16 +109,12 @@ func validatePersistence(h *Hazelcast) error {
 	}
 
 	// if hostPath and PVC are both empty or set
-	if (p.HostPath == "") == p.Pvc.IsEmpty() {
-		return errors.New("when persistence is set either of \"hostPath\" or \"pvc\" fields must be set")
+	if p.Pvc.IsEmpty() {
+		return errors.New("when persistence is enabled \"pvc\" field must be set")
 	}
 
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
 		return errors.New("startupAction PartialStart can be used only with Partial* clusterDataRecoveryPolicy")
-	}
-
-	if p.HostPath != "" && platform.GetType() == platform.OpenShift {
-		return errors.New("HostPath persistence is not supported in OpenShift environments")
 	}
 	return nil
 }

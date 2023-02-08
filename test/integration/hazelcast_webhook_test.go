@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -58,7 +60,9 @@ var _ = Describe("Hazelcast webhook", func() {
 				BaseDir:                   "/baseDir/",
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 				StartupAction:             hazelcastv1alpha1.PartialStart,
-				HostPath:                  "/host/path",
+				Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
 			}
 
 			hz := &hazelcastv1alpha1.Hazelcast{
@@ -69,7 +73,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Should(MatchError(ContainSubstring("startupAction PartialStart can be used only with Partial* clusterDataRecoveryPolicy")))
 		})
 
-		It("should not create HZ if none of hostPath and pvc are specified", Label("fast"), func() {
+		It("should not create HZ if pvc is specified", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				BaseDir: "/baseDir/",
@@ -80,7 +84,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("when persistence is set either of \"hostPath\" or \"pvc\" fields must be set")))
+				Should(MatchError(ContainSubstring("when persistence is enabled \"pvc\" field must be set")))
 		})
 	})
 

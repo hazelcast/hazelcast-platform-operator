@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.14"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.15"}
 	// +optional
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
@@ -306,7 +306,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.14"
+	// +kubebuilder:default:="0.1.15"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
@@ -348,10 +348,6 @@ type HazelcastPersistenceConfiguration struct {
 	// +optional
 	Pvc PersistencePvcConfiguration `json:"pvc,omitempty"`
 
-	// Host Path directory.
-	// +optional
-	HostPath string `json:"hostPath,omitempty"`
-
 	// Restore configuration
 	// +kubebuilder:default:={}
 	// +optional
@@ -366,11 +362,6 @@ func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 // Returns true if Persistence configuration is specified.
 func (p *HazelcastPersistenceConfiguration) IsEnabled() bool {
 	return p != nil && p.BaseDir != ""
-}
-
-// Returns true if hostPath is enabled.
-func (p *HazelcastPersistenceConfiguration) UseHostPath() bool {
-	return p.HostPath != ""
 }
 
 // IsRestoreEnabled returns true if Restore configuration is specified

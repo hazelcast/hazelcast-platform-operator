@@ -42,9 +42,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	if ee {
 		err := platform.FindAndSetPlatform(cfg)
 		Expect(err).NotTo(HaveOccurred())
-		if platform.GetType() == platform.OpenShift {
-			cleanUpHostPath("default", "/tmp", "hazelcast")
-		}
 	}
 
 	return []byte{}
@@ -59,11 +56,6 @@ var _ = AfterSuite(func() {
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
-	if ee {
-		if platform.GetType() == platform.OpenShift {
-			cleanUpHostPath("default", "/tmp", "hazelcast")
-		}
-	}
 })
 
 func setupEnv() *rest.Config {
