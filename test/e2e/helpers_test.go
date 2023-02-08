@@ -290,16 +290,16 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 }
 
 /*
-1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+1.28 (entries per single goroutine) = 1048576 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
 */
-func FillTheMapWithHugeData(ctx context.Context, mapName string, sizeInGb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
-	By(fmt.Sprintf("filling the map '%s' with '%d' GB data", mapName, sizeInGb), func() {
+func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
+	By(fmt.Sprintf("filling the map '%s' with '%d' MB data", mapName, sizeInMb), func() {
 		hzAddress := fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzConfig.Name, hzConfig.Namespace, n.DefaultHzPort)
 		clientHz := GetHzClient(ctx, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace}, true)
-		mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInGb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
+		mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInMb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
 		Eventually(func() int {
 			return countKeySet(ctx, clientHz, mapName, hzConfig)
-		}, 15*Minute, interval).Should(Equal(int(float64(sizeInGb) * math.Round(1310.72) * 100)))
+		}, 15*Minute, interval).Should(Equal(int(float64(sizeInMb) * math.Round(1.28) * 100)))
 		defer func() {
 			err := clientHz.Shutdown(ctx)
 			Expect(err).ToNot(HaveOccurred())
@@ -334,7 +334,7 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName 
 			Containers: []corev1.Container{
 				{
 					Name:  "maploader-container",
-					Image: "cheels/docker-backup:latest",
+					Image: "us-east1-docker.pkg.dev/hazelcast-33/hazelcast-platform-operator/wan-replication-maploader:700d",
 					Args:  []string{"/maploader", "-address", hzAddress, "-clusterName", clusterName, "-size", size, "-mapName", mapName},
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{

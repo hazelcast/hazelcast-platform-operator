@@ -21,7 +21,7 @@ func main() {
 	var wg sync.WaitGroup
 	flag.StringVar(&address, "address", "localhost", "Pod address")
 	flag.StringVar(&clusterName, "clusterName", "dev", "Cluster Name")
-	flag.StringVar(&size, "size", "1", "Desired map size")
+	flag.StringVar(&size, "size", "1024", "Desired map size")
 	flag.StringVar(&mapName, "mapName", "map", "Map name")
 	flag.Parse()
 
@@ -41,7 +41,7 @@ func main() {
 	fmt.Printf("Successfully connected to '%s' and cluster '%s'!\nStarting to fill the map '%s' with entries.", address, clusterName, mapName)
 	m, err := client.GetMap(ctx, mapName)
 	mapSize, err := strconv.ParseFloat(size, 64)
-	entriesPerThread := int(mapSize * math.Round(1310.72))
+	entriesPerThread := int(mapSize * math.Round(1.28))
 	if err != nil {
 		log.Fatal(err)
 	}

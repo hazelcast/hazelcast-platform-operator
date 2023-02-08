@@ -57,14 +57,14 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hwap-1")
-		var mapSizeInGb = 1
-		expectedTrgMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
+		var mapSizeInMb = 1024
+		expectedTrgMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
 
 		By("creating source Hazelcast cluster")
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*2) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "M")},
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
@@ -75,7 +75,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
 		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*2) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "M")},
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
@@ -108,7 +108,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
 		By("filling the Map")
-		FillTheMapWithHugeData(context.Background(), m.Name, mapSizeInGb, hazelcastSource)
+		FillTheMapWithData(context.Background(), m.Name, mapSizeInMb, hazelcastSource)
 
 		By("checking the target Map size")
 		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
@@ -118,19 +118,19 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		var mapSizeInGb = 1
+		var mapSizeInMb = 1024
 		/**
-		1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		1.28 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 100 (goroutines)
 		*/
-		expectedTrgMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
-		expectedSrcMapSize := int(float64(mapSizeInGb*2) * math.Round(1310.72) * 100)
+		expectedTrgMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
+		expectedSrcMapSize := int(float64(mapSizeInMb*2) * math.Round(1.28) * 100)
 		setLabelAndCRName("hwaa-1")
 
 		By("creating source Hazelcast cluster")
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*4) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "M")},
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
@@ -141,7 +141,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
 		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*4) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "M")},
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
@@ -223,10 +223,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
 		By("filling the first source Map")
-		FillTheMapWithHugeData(context.Background(), mapSrc1.Spec.Name, mapSizeInGb, hazelcastSource)
+		FillTheMapWithData(context.Background(), mapSrc1.Spec.Name, mapSizeInMb, hazelcastSource)
 
 		By("filling the second source Map")
-		FillTheMapWithHugeData(context.Background(), mapSrc2.Spec.Name, mapSizeInGb, hazelcastSource)
+		FillTheMapWithData(context.Background(), mapSrc2.Spec.Name, mapSizeInMb, hazelcastSource)
 
 		By("checking the first target Map size")
 		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 30*Minute)
@@ -235,10 +235,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 30*Minute)
 
 		By("filling the first target Map")
-		FillTheMapWithHugeData(context.Background(), mapTrg1.Spec.Name, mapSizeInGb, hazelcastTarget)
+		FillTheMapWithData(context.Background(), mapTrg1.Spec.Name, mapSizeInMb, hazelcastTarget)
 
 		By("filling the second target Map")
-		FillTheMapWithHugeData(context.Background(), mapTrg2.Spec.Name, mapSizeInGb, hazelcastTarget)
+		FillTheMapWithData(context.Background(), mapTrg2.Spec.Name, mapSizeInMb, hazelcastTarget)
 
 		By("checking the first source Map size")
 		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg1.Spec.Name, expectedSrcMapSize, 30*Minute)
@@ -252,11 +252,11 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hwapdc-1")
-		var mapSizeInGb = 1
+		var mapSizeInMb = 1024
 		/**
-		1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		1.28 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 100 (goroutines)
 		*/
-		expectedTrgMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
+		expectedTrgMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
 
 		By("creating source Hazelcast cluster")
 		SwitchContext(context1)
@@ -264,7 +264,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*2) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "M")},
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
@@ -277,7 +277,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
 		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*2) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "M")},
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
@@ -312,7 +312,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
 		By("filling the Map")
-		FillTheMapWithHugeData(context.Background(), m.Name, mapSizeInGb, hazelcastSource)
+		FillTheMapWithData(context.Background(), m.Name, mapSizeInMb, hazelcastSource)
 
 		By("checking the target Map size")
 		SwitchContext(context2)
@@ -324,12 +324,12 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		var mapSizeInGb = 1
+		var mapSizeInMb = 1024
 		/**
-		1310.72 (entries per single goroutine) = 1073741824 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		1.28 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 100 (goroutines)
 		*/
-		expectedTrgMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
-		expectedSrcMapSize := int(float64(mapSizeInGb*2) * math.Round(1310.72) * 100)
+		expectedTrgMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
+		expectedSrcMapSize := int(float64(mapSizeInMb*2) * math.Round(1.28) * 100)
 
 		setLabelAndCRName("hwaadc-1")
 
@@ -339,7 +339,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*4) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "M")},
 		}
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
@@ -352,7 +352,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
 		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInGb*4) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "M")},
 		}
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
@@ -444,10 +444,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		By("filling the first source Map")
 		SwitchContext(context1)
 		setupEnv()
-		FillTheMapWithHugeData(context.Background(), mapSrc1.Spec.Name, mapSizeInGb, hazelcastSource)
+		FillTheMapWithData(context.Background(), mapSrc1.Spec.Name, mapSizeInMb, hazelcastSource)
 
 		By("filling the second source Map")
-		FillTheMapWithHugeData(context.Background(), mapSrc2.Spec.Name, mapSizeInGb, hazelcastSource)
+		FillTheMapWithData(context.Background(), mapSrc2.Spec.Name, mapSizeInMb, hazelcastSource)
 
 		By("checking the first target Map size")
 		SwitchContext(context2)
@@ -458,10 +458,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 30*Minute)
 
 		By("filling the first target Map")
-		FillTheMapWithHugeData(context.Background(), mapTrg1.Spec.Name, mapSizeInGb, hazelcastTarget)
+		FillTheMapWithData(context.Background(), mapTrg1.Spec.Name, mapSizeInMb, hazelcastTarget)
 
 		By("filling the second target Map")
-		FillTheMapWithHugeData(context.Background(), mapTrg2.Spec.Name, mapSizeInGb, hazelcastTarget)
+		FillTheMapWithData(context.Background(), mapTrg2.Spec.Name, mapSizeInMb, hazelcastTarget)
 
 		By("checking the first source Map size")
 		SwitchContext(context1)

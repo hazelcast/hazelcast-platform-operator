@@ -119,7 +119,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		dm := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		assertMapStatus(dm, hazelcastv1alpha1.MapSuccess)
-		FillTheMapWithHugeData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
+		FillTheMapWithData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
 
 		By("creating HotBackup CR")
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
@@ -192,7 +192,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(dm, hazelcastv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapWithHugeData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
+		FillTheMapWithData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
 
 		By("triggering the backup")
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
@@ -262,7 +262,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapWithHugeData(ctx, m.MapName(), mapSizeInGb, hazelcast)
+		FillTheMapWithData(ctx, m.MapName(), mapSizeInGb, hazelcast)
 
 		t := Now()
 
