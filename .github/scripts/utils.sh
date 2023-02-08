@@ -190,6 +190,25 @@ wait_for_eks_stack_deleted()
         done
     done
 }
+
+# The function delete/dissociate the identity provider
+clean_open_id_connect_providers()
+{
+    local AWS_REGION=$1
+    local CLUSTER_NAME=$2
+    LIST_ARNS=$(aws iam list-open-id-connect-providers | jq -r '[.OpenIDConnectProviderList[] | select( .Arn | contains("'${AWS_REGION}'"))]')
+    TOTAL_ARNS=$(echo $LIST_ARNS | jq -r 'length')
+    for ((i=0;i<$TOTAL_ARNS;i++));
+        do
+        PROVIDER_ARN=$(echo $LIST_ARNS | jq -r '.['$i'].Arn')
+        size=$(aws iam list-open-id-connect-provider-tags --open-id-connect-provider-arn $PROVIDER_ARN | jq -e '[(.Tags[]| select(.Key=="alpha.eksctl.io/cluster-name" and (.Value | contains("'$CLUSTER_NAME'")))|.Value)]|length')
+            if [[ $size -eq 1 ]];then
+                echo "Deleting open-id-connect-provider with ARN '$PROVIDER_ARN' and cluster name: '$CLUSTER_NAME'"
+                aws iam delete-open-id-connect-provider --open-id-connect-provider-arn $PROVIDER_ARN
+            fi
+    done
+}
+
 # The function waits until all Elastic Load Balancers attached to EC2 instances (under the current Kubernetes context) are deleted. Takes a single argument - timeout.
 wait_for_elb_deleted()
 {

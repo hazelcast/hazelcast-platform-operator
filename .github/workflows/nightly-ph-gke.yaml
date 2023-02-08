@@ -57,6 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       IMG: ${{ steps.get-image-tag.outputs.IMG }}
+      VERSION: ${{ steps.get-image-tag.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v3
 
@@ -78,9 +79,11 @@ jobs:
         run: |
           if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
             echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
+            echo "VERSION=${{github.sha}}" >> $GITHUB_OUTPUT
           else
             IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
             echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+            echo "VERSION=latest-snapshot" >> $GITHUB_OUTPUT
           fi
 
       - name: Build Image
