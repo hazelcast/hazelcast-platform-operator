@@ -44,7 +44,7 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast, logger hzlogger.Logger) hazelca
 }
 
 func RestUrl(h *hazelcastv1alpha1.Hazelcast) string {
-	return fmt.Sprintf("http://%s", HazelcastUrl(h))
+	return fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.RestServerSocketPort)
 }
 
 func HazelcastUrl(h *hazelcastv1alpha1.Hazelcast) string {
