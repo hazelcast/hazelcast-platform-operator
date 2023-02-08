@@ -23,6 +23,9 @@ func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) error {
 	if current.HazelcastResourceName != last.HazelcastResourceName {
 		return errors.New("hazelcastResourceName cannot be updated")
 	}
+	if current.InMemoryFormat != last.InMemoryFormat {
+		return errors.New("inMemoryFormat cannot be updated")
+	}
 	return nil
 }
 

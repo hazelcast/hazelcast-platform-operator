@@ -21,6 +21,7 @@ type Hazelcast struct {
 	Queue                    map[string]Queue                    `yaml:"queue,omitempty"`
 	Cache                    map[string]Cache                    `yaml:"cache,omitempty"`
 	PartitionGroup           PartitionGroup                      `yaml:"partition-group,omitempty"`
+	NativeMemory             NativeMemory                        `yaml:"native-memory,omitempty"`
 	AdvancedNetwork          AdvancedNetwork                     `yaml:"advanced-network,omitempty"`
 }
 
@@ -273,6 +274,20 @@ type BatchPublisherConfig struct {
 	QueueFullBehavior     string `yaml:"queue-full-behavior,omitempty"`
 	QueueCapacity         int32  `yaml:"queue-capacity,omitempty"`
 	TargetEndpoints       string `yaml:"target-endpoints,omitempty"`
+}
+
+type NativeMemory struct {
+	Enabled                 bool             `yaml:"enabled"`
+	AllocatorType           string           `yaml:"allocator-type"`
+	Size                    NativeMemorySize `yaml:"size,omitempty"`
+	MinBlockSize            int32            `yaml:"min-block-size,omitempty"`
+	PageSize                int32            `yaml:"page-size,omitempty"`
+	MetadataSpacePercentage int32            `yaml:"metadata-space-percentage,omitempty"`
+}
+
+type NativeMemorySize struct {
+	Value int64  `yaml:"value"`
+	Unit  string `yaml:"unit"`
 }
 
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {

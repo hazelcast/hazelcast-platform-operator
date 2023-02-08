@@ -97,14 +97,8 @@ jobs:
     uses: ./.github/workflows/e2e-gke.yaml
     secrets: inherit
 
-  run-ocp:
-    needs: decide-run-tests
-    if: needs.decide-run-tests.outputs.RUN_TESTS == 'true' 
-    uses: ./.github/workflows/e2e-ocp.yaml
-    secrets: inherit
-
   update-test-run-status-badges:
-    needs: [run-aks, run-eks, run-gke, run-ocp]
+    needs: [run-aks, run-eks, run-gke]
     if: always() && needs.decide-run-tests.outputs.RUN_TESTS == 'true'
     runs-on: ubuntu-latest
     steps:

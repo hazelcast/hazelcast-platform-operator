@@ -660,13 +660,52 @@ func skipCleanup() bool {
 func printDebugState() {
 	GinkgoWriter.Printf("Started aftereach function for hzLookupkey : '%s'\n", hzLookupKey)
 
-	GinkgoWriter.Println("kubectl get all:")
-	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter,node,pvc,topic,queue,cache,multimap,replicatedmap,validatingwebhookconfigurations", "-o=wide")
-	byt, err := cmd.Output()
-	Expect(err).To(BeNil())
-	GinkgoWriter.Println(string(byt))
-
+	printed := false
+	for _, context := range []string{context1, context2} {
+		if context == "" {
+			continue
+		}
+		printed = true
+		SwitchContext(context)
+		setupEnv()
+		printDebugStateForContext()
+	}
+	if printed {
+		GinkgoWriter.Printf("Current Ginkgo Spec Report State is: %+v\n", CurrentSpecReport().State)
+		return
+	}
+	// print in the default context
+	printDebugStateForContext()
 	GinkgoWriter.Printf("Current Ginkgo Spec Report State is: %+v\n", CurrentSpecReport().State)
+}
+
+func printDebugStateForContext() {
+	allCRs := "hazelcast,map,hotbackup,wanreplication,managementcenter,pvc,topic,queue,cache,multimap,replicatedmap"
+	printKubectlCommand("KUBECTL GET CLUSTER WIDE RESOURCES", "kubectl", "get", "node,validatingwebhookconfigurations")
+	printKubectlCommand("KUBECTL GET CRS RELATED TO TEST OUTPUT WIDE", "kubectl", "get", allCRs, "-o=wide", "-l="+labelsString(), "-A")
+	for _, ns := range []string{hzNamespace, sourceNamespace, targetNamespace} {
+		if ns != "" {
+			printKubectlCommand("KUBECTL GET ALL IN NAMESPACE "+ns, "kubectl", "get", "all", "-o=wide", "-n="+ns)
+		}
+	}
+	printKubectlCommand("KUBECTL GET CRS RELATED TO TEST OUTPUT YAML", "kubectl", "get", allCRs, "-o=yaml", "-l="+labelsString(), "-A")
+
+}
+
+func printKubectlCommand(title, cmd string, args ...string) {
+	GinkgoWriter.Println("## " + title)
+	cmdCRs := exec.Command(cmd, args...)
+	bytCRs, err := cmdCRs.Output()
+	Expect(err).To(BeNil())
+	GinkgoWriter.Println(" ", strings.ReplaceAll(string(bytCRs), "\n", "\n  "))
+}
+
+func labelsString() string {
+	list := make([]string, 0, len(labels))
+	for key, val := range labels {
+		list = append(list, key+"="+val)
+	}
+	return strings.Join(list, ",")
 }
 
 func getExecutorServiceConfigFromMemberConfig(memberConfigXML string) codecTypes.ExecutorServices {

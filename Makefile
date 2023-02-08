@@ -83,6 +83,11 @@ ifeq (,$(NAMESPACE))
 override NAMESPACE = default
 endif
 
+ifeq (,$(WATCHED_NAMESPACES))
+override WATCHED_NAMESPACES := $(NAMESPACE)
+endif
+
+
 # Path to the kubectl command, if it is not in $PATH
 KUBECTL ?= kubectl
 
@@ -97,7 +102,7 @@ DEBUG_ENABLED ?= false
 RELEASE_NAME ?= v1
 CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
 DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
-STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespace='{$(NAMESPACE)}',debug.enabled=$(DEBUG_ENABLED)
+STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespaces='{$(WATCHED_NAMESPACES)}',debug.enabled=$(DEBUG_ENABLED)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -136,7 +141,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 fmt: ## Run go fmt against code.
 	go fmt ./...
@@ -312,6 +317,23 @@ bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and met
 	sed -i  "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
+
+olm-deploy: operator-sdk ## Deploying Operator with OLM bundle. Available modes are AllNamespace|OwnNamespace|SingleNamespace
+	@$(eval CONTAINER_IMAGE=ttl.sh/$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
+	@$(eval BUNDLE_IMAGE=ttl.sh/$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
+	@$(eval VERSION=1.0.0)
+	$(MAKE) docker-build-ci IMG=$(CONTAINER_IMAGE) VERSION=$(VERSION)
+	$(MAKE) docker-push IMG=$(CONTAINER_IMAGE)
+	$(MAKE) bundle IMG=${CONTAINER_IMAGE} VERSION=$(VERSION)
+	@printf "  com.redhat.openshift.versions: v4.8\n  operators.operatorframework.io.bundle.channel.default.v1: alpha" >> ./bundle/metadata/annotations.yaml
+	docker build -f bundle.Dockerfile -t ${BUNDLE_IMAGE} .
+	docker push ${BUNDLE_IMAGE}
+	$(KUBECTL) create namespace $(NS)
+	operator-sdk run bundle ${BUNDLE_IMAGE} --namespace=$(NS) --timeout=10m --install-mode=$(MODE)
+
+cleanup-olm: operator-sdk ## Clean up an Operator deployed with OLM
+	operator-sdk cleanup hazelcast-platform-operator --namespace=$(NS)
+	$(KUBECTL) delete namespace $(NS) --wait=true --timeout 5m
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.

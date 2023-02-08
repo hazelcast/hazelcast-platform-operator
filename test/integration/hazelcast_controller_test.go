@@ -1473,4 +1473,35 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
+
+	Context("Native Memory configuration", func() {
+		When("Native Memory property is configured", func() {
+			It("should be enabled", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
+					AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				EnsureStatus(hz)
+
+				Eventually(func() bool {
+					configMap := getConfigMap(hz)
+
+					config := &config.HazelcastWrapper{}
+					if err := yaml.Unmarshal([]byte(configMap.Data["hazelcast.yaml"]), config); err != nil {
+						return false
+					}
+
+					return config.Hazelcast.NativeMemory.Enabled
+				}, timeout, interval).Should(BeTrue())
+
+				Delete(hz)
+			})
+		})
+	})
 })
