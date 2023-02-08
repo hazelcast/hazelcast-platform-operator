@@ -42,7 +42,6 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
@@ -399,44 +398,6 @@ func evaluateReadyMembers(lookupKey types.NamespacedName) {
 			return hz.Status.Cluster.ReadyMembers
 		}, 6*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
 	})
-}
-
-func getFirstWorkerNodeName() string {
-	nodes := &corev1.NodeList{}
-	labelMatcher := client.MatchingLabels{}
-	err := k8sClient.List(context.Background(), nodes)
-	if err != nil {
-		panic(err)
-	}
-	for _, node := range nodes.Items {
-		if strings.Contains(node.Name, "worker") {
-			node.Labels["node-role.kubernetes.io/worker"] = ""
-			err := k8sClient.Update(context.Background(), &node)
-			if err != nil {
-				panic(err)
-			}
-			labelMatcher = client.MatchingLabels{
-				"node-role.kubernetes.io/worker": "",
-			}
-		}
-	}
-	if platform.GetType() == platform.OpenShift {
-		labelMatcher = client.MatchingLabels{
-			"node-role.kubernetes.io/worker": "",
-		}
-	}
-	Expect(k8sClient.List(context.Background(), nodes, labelMatcher)).Should(Succeed())
-loop1:
-	for _, node := range nodes.Items {
-		for _, taint := range node.Spec.Taints {
-			if taint.Key == "node.kubernetes.io/unreachable" {
-				continue loop1
-			}
-		}
-		return node.ObjectMeta.Name
-	}
-	Fail("Could not find a reachable working node.")
-	return ""
 }
 
 func waitForReadyChannel(readyChan chan struct{}, dur Duration) error {

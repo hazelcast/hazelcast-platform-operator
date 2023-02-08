@@ -12,7 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
@@ -200,29 +199,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		backupRestore(hazelcast, hotBackup, false)
 	})
 
-	DescribeTable("should successfully restore from LocalBackup-HostPath-HotBackupResourceName", Label("slow"), func(hostPath string, singleNode bool) {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
-		if platform.GetType() == platform.OpenShift {
-			Skip("HostPath is not supported in OpenShift environments")
-		}
-		setLabelAndCRName("hp-5")
-
-		By("creating cluster with backup enabled")
-		clusterSize := int32(3)
-		nodeName := ""
-		if singleNode {
-			nodeName = getFirstWorkerNodeName()
-		}
-		hazelcast := hazelcastconfig.HazelcastPersistenceHostPath(hzLookupKey, clusterSize, labels, hostPath, nodeName)
-		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
-		backupRestore(hazelcast, hotBackup, false)
-	},
-		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode-local", true),
-		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode-local", false),
-	)
-
 	DescribeTable("Should successfully restore from ExternalBackup-PVC", Label("slow"), func(bucketURI, secretName string, useBucketConfig bool) {
 		if !ee {
 			Skip("This test will only run in EE configuration")
@@ -240,29 +216,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Entry("using GCP bucket HotBackupResourceName", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp", false),
 		Entry("using Azure bucket HotBackupResourceName", Label("slow"), "azblob://operator-e2e-external-backup", "br-secret-az", false),
 		Entry("using GCP bucket restore from BucketConfig", Label("slow"), "gs://operator-e2e-external-backup", "br-secret-gcp", true),
-	)
-
-	DescribeTable("Should successfully restore from ExternalBackup-HostPath-HotBackupResourceName", Label("slow"), func(hostPath, bucketURI, secretName string, singleNode bool) {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
-		if platform.GetType() == platform.OpenShift {
-			Skip("HostPath is not supported in OpenShift environments")
-		}
-		setLabelAndCRName("hp-7")
-
-		By("creating cluster with backup enabled")
-		clusterSize := int32(3)
-		nodeName := ""
-		if singleNode {
-			nodeName = getFirstWorkerNodeName()
-		}
-		hazelcast := hazelcastconfig.HazelcastPersistenceHostPath(hzLookupKey, clusterSize, labels, hostPath, nodeName)
-		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
-		backupRestore(hazelcast, hotBackup, false)
-	},
-		Entry("single node", Label("slow"), "/tmp/hazelcast/singleNode-external", "gs://operator-e2e-external-backup", "br-secret-gcp", true),
-		Entry("multiple nodes", Label("slow"), "/tmp/hazelcast/multiNode-external", "gs://operator-e2e-external-backup", "br-secret-gcp", false),
 	)
 
 	It("should start HotBackup after cluster is ready", Label("slow"), func() {

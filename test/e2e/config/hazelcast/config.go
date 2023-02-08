@@ -133,57 +133,6 @@ var (
 		}
 	}
 
-	HazelcastPersistenceHostPath = func(lk types.NamespacedName, clusterSize int32, lbls map[string]string, hostPath, nodeName string) *hazelcastv1alpha1.Hazelcast {
-		hz := &hazelcastv1alpha1.Hazelcast{
-			ObjectMeta: v1.ObjectMeta{
-				Name:      lk.Name,
-				Namespace: lk.Namespace,
-				Labels:    lbls,
-			},
-			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{clusterSize}[0],
-				Repository:       repo(true),
-				Version:          naming.HazelcastVersion,
-				LicenseKeySecret: licenseKey(true),
-				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
-				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart",
-					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					HostPath:                  hostPath,
-				},
-			},
-		}
-
-		// multiNode case
-		if nodeName == "" {
-			hz.Spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
-				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-					{
-						MaxSkew:           int32(1),
-						TopologyKey:       "kubernetes.io/hostname",
-						WhenUnsatisfiable: corev1.DoNotSchedule,
-						LabelSelector: &v1.LabelSelector{
-							MatchLabels: map[string]string{
-								naming.ApplicationNameLabel:         naming.Hazelcast,
-								naming.ApplicationInstanceNameLabel: hz.Name,
-								naming.ApplicationManagedByLabel:    naming.OperatorName,
-							},
-						},
-					},
-				},
-			}
-			return hz
-		}
-
-		// singleNode case
-		hz.Spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
-			NodeSelector: map[string]string{
-				"kubernetes.io/hostname": nodeName,
-			},
-		}
-		return hz
-	}
-
 	HazelcastPersistencePVC = func(lk types.NamespacedName, clusterSize int32, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
