@@ -205,6 +205,7 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 			clusterName = hz.Spec.ClusterName
 		}
 		c := hzClient.Config{}
+		c.Labels = []string{"e2e-test=true"}
 		c.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", addr))
 		c.Cluster.Unisocket = unisocket
 		c.Cluster.Name = clusterName
