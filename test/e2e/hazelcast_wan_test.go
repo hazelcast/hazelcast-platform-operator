@@ -95,7 +95,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	//When("Multiple WanReplication resources with multiple maps exist",
-	FIt("should replicate maps to target cluster including maps with names different from map CR name ", Label("slow"), func() {
+	It("should replicate maps to target cluster including maps with names different from map CR name ", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
