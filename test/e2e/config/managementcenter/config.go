@@ -60,6 +60,25 @@ var (
 		}
 	}
 
+	WithClusterConfig = func(lk types.NamespacedName, ee bool, clusterConfigs []hazelcastv1alpha1.HazelcastClusterConfig, lbls map[string]string) *hazelcastv1alpha1.ManagementCenter {
+		return &hazelcastv1alpha1.ManagementCenter{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.ManagementCenterSpec{
+				Repository:       naming.MCRepo,
+				Version:          naming.MCVersion,
+				LicenseKeySecret: licenseKey(ee),
+				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
+					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
+				},
+				HazelcastClusters: clusterConfigs,
+			},
+		}
+	}
+
 	Faulty = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.ManagementCenter {
 		return &hazelcastv1alpha1.ManagementCenter{
 			ObjectMeta: v1.ObjectMeta{

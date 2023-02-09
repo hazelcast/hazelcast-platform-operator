@@ -602,7 +602,7 @@ func splitWanMapKey(key string) (hzName string, mapName string) {
 
 func findMapInSlice(slice []hazelcastv1alpha1.Map, mapName string) (*hazelcastv1alpha1.Map, bool) {
 	for i, mp := range slice {
-		if mp.Name == mapName {
+		if mp.MapName() == mapName {
 			return &slice[i], true
 		}
 	}
