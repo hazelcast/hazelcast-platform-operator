@@ -253,7 +253,6 @@ var _ = Describe("ManagementCenter controller", func() {
 			assertExistsAndBeAsExpected(lookupKey(mc), ing, func(ing *networkingv1.Ingress) bool {
 				return *ing.Spec.IngressClassName == updatedExternalConnectivityIngress.IngressClassName
 			})
-			Expect(*ing.Spec.IngressClassName).Should(Equal(updatedExternalConnectivityIngress.IngressClassName))
 			Expect(ing.Annotations).Should(Equal(updatedExternalConnectivityIngress.Annotations))
 			Expect(ing.Spec.Rules).Should(HaveLen(1))
 			Expect(ing.Spec.Rules[0].Host).Should(Equal(updatedExternalConnectivityIngress.Hostname))
