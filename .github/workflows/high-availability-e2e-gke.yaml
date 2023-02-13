@@ -1,4 +1,4 @@
-name: High Availability tests on GKE
+name: (E2E) High Availability Tests on GKE
 on:
   workflow_dispatch:
   schedule:

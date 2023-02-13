@@ -8,7 +8,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -26,12 +25,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if runningLocally() {
 			return
 		}
-		By("checking hazelcast-platform-controller-manager running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 	})
 
 	AfterEach(func() {

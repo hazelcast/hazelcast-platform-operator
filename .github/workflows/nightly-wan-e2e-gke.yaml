@@ -1,4 +1,4 @@
-name: Nightly Wan Replication Tests on GKE
+name: (E2E) Wan Replication Tests on GKE
 on:
   workflow_dispatch:
   schedule:

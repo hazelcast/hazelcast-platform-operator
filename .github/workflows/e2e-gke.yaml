@@ -1,4 +1,4 @@
-name: E2E tests on GCP
+name: (E2E) GCP Tests
 on:
   workflow_dispatch:
   workflow_call:

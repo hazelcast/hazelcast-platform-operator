@@ -1,4 +1,4 @@
-name: E2E tests on AWS
+name: (E2E) AWS Tests
 on:
   workflow_dispatch:
   workflow_call:

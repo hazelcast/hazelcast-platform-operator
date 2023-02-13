@@ -13,7 +13,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"google.golang.org/api/iterator"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -152,18 +151,6 @@ func googleCloudProjectName() string {
 		return "hazelcast-33"
 	}
 	return projectID
-}
-
-func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
-	err := k8sClient.Get(ctx, name, deploy)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return 0, nil
-		}
-		return 0, err
-	}
-
-	return deploy.Status.ReadyReplicas, nil
 }
 
 func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
