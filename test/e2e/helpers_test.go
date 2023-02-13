@@ -41,11 +41,11 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
+	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
 
 type UpdateFn func(*hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast
@@ -294,17 +294,18 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 */
 func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
 	By(fmt.Sprintf("filling the map '%s' with '%d' MB data", mapName, sizeInMb), func() {
-		hzAddress := fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzConfig.Name, hzConfig.Namespace, n.DefaultHzPort)
+		hzAddress := hzclient.HazelcastUrl(hzConfig)
 		clientHz := GetHzClient(ctx, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace}, true)
-		mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInMb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
-		Eventually(func() int {
-			return countKeySet(ctx, clientHz, mapName, hzConfig)
-		}, 15*Minute, interval).Should(Equal(int(float64(sizeInMb) * math.Round(1.28) * 100)))
 		defer func() {
 			err := clientHz.Shutdown(ctx)
 			Expect(err).ToNot(HaveOccurred())
-			DeletePod(mapLoaderPod.Name, 0, types.NamespacedName{Namespace: hzConfig.Namespace})
 		}()
+		mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInMb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
+		defer DeletePod(mapLoaderPod.Name, 0, types.NamespacedName{Namespace: hzConfig.Namespace})
+		Eventually(func() int {
+			return countKeySet(ctx, clientHz, mapName, hzConfig)
+		}, 15*Minute, interval).Should(Equal(int(float64(sizeInMb) * math.Round(1.28) * 100)))
+
 	})
 }
 
@@ -351,14 +352,6 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName 
 		Namespace: lk.Namespace,
 	}, clientPod)
 	Expect(err).ToNot(HaveOccurred())
-	Eventually(func() bool {
-		pod, err := getClientSet().CoreV1().Pods(lk.Namespace).Get(context.Background(), clientPod.Name, metav1.GetOptions{})
-		Expect(err).ToNot(HaveOccurred())
-		if len(pod.Status.ContainerStatuses) < 1 {
-			return false
-		}
-		return pod.Status.ContainerStatuses[0].Ready
-	}, 5*Minute, interval).Should(Equal(true))
 	return clientPod
 }
 
@@ -864,11 +857,11 @@ func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bo
 func createWanResources(ctx context.Context, hzMapResources map[string][]string, ns string, labels map[string]string) (map[string]*hazelcastcomv1alpha1.Hazelcast, map[string]*hazelcastcomv1alpha1.Map) {
 	hzCrs := map[string]*hazelcastcomv1alpha1.Hazelcast{}
 
-	for hzName := range hzMapResources {
-		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzName, Namespace: ns}, ee, labels)
-		hz.Spec.ClusterName = hzName
+	for hzCrName := range hzMapResources {
+		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzCrName, Namespace: ns}, ee, labels)
+		hz.Spec.ClusterName = hzCrName
 		hz.Spec.ClusterSize = pointer.Int32(1)
-		hzCrs[hzName] = hz
+		hzCrs[hzCrName] = hz
 		CreateHazelcastCRWithoutCheck(hz)
 	}
 
@@ -878,11 +871,10 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 
 	mapCrs := map[string]*hazelcastcomv1alpha1.Map{}
 
-	for hzName, mapNames := range hzMapResources {
-		for _, mapName := range mapNames {
-			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapName, Namespace: ns}, hzName, labels)
-			m.Name = mapName
-			mapCrs[mapName] = m
+	for hzCrName, mapCrNames := range hzMapResources {
+		for _, mapCrName := range mapCrNames {
+			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: ns}, hzCrName, labels)
+			mapCrs[mapCrName] = m
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		}
 	}
@@ -907,4 +899,21 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 	wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	wan = assertWanStatusMapCount(wan, mapCount)
 	return wan
+}
+
+func CreateMcForClusters(ctx context.Context, hzCrs ...*hazelcastcomv1alpha1.Hazelcast) {
+	clusters := []hazelcastcomv1alpha1.HazelcastClusterConfig{}
+	for _, hz := range hzCrs {
+		clusters = append(clusters, hazelcastcomv1alpha1.HazelcastClusterConfig{Name: hz.Spec.ClusterName, Address: hzclient.HazelcastUrl(hz)})
+	}
+	mc := mcconfig.WithClusterConfig(mcLookupKey, ee, clusters, labels)
+	Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
+}
+
+func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLookupKey types.NamespacedName) *hazelcastcomv1alpha1.Map {
+	m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: hzLookupKey.Namespace}, hzLookupKey.Name, labels)
+	m.Spec.Name = mapName
+	Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+	assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+	return m
 }
