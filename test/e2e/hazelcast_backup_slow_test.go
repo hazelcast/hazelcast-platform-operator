@@ -411,7 +411,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 
-	It("should not start repartitioning after planned shutdown", Label("slow"), func() {
+	FIt("should not start repartitioning after planned shutdown", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
