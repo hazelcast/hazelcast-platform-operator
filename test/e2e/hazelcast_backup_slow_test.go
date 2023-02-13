@@ -95,9 +95,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hbs-2")
-		var mapSizeInGb = 3
-		var pvcSizeInGb = mapSizeInGb * 2 // Taking backup duplicates the used storage
-		var expectedMapSize = int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
+		var mapSizeInMb = 3072
+		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
+		var expectedMapSize = int(float64(mapSizeInMb) * math.Round(1.28) * 100)
 		ctx := context.Background()
 		clusterSize := int32(3)
 
@@ -110,16 +110,16 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the map config and putting entries")
 		dm := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		assertMapStatus(dm, hazelcastv1alpha1.MapSuccess)
-		FillTheMapWithData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
+		FillTheMapWithData(ctx, dm.MapName(), mapSizeInMb, hazelcast)
 
 		By("creating HotBackup CR")
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
@@ -144,9 +144,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -163,11 +163,11 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		setLabelAndCRName("hbs-3")
 
 		ctx := context.Background()
-		var mapSizeInGb = 3
-		var pvcSizeInGb = mapSizeInGb * 2 // Taking backup duplicates the used storage
+		var mapSizeInMb = 3072
+		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
 		var bucketURI = "gs://operator-e2e-external-backup"
 		var secretName = "br-secret-gcp"
-		expectedMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
+		expectedMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
 		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
@@ -179,9 +179,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
@@ -192,7 +192,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(dm, hazelcastv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapWithData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
+		FillTheMapWithData(ctx, dm.MapName(), mapSizeInMb, hazelcast)
 
 		By("triggering the backup")
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
@@ -217,9 +217,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -237,8 +237,8 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		ctx := context.Background()
 		bucketURI := "gs://operator-e2e-external-backup"
 		secretName := "br-secret-gcp"
-		mapSizeInGb := 1
-		pvcSizeInGb := mapSizeInGb * 2 // Taking backup duplicates the used storage
+		mapSizeInMb := 1024
+		pvcSizeInMb := mapSizeInMb * 2 // Taking backup duplicates the used storage
 		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
@@ -250,9 +250,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -262,7 +262,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapWithData(ctx, m.MapName(), mapSizeInGb, hazelcast)
+		FillTheMapWithData(ctx, m.MapName(), mapSizeInMb, hazelcast)
 
 		t := Now()
 
@@ -401,9 +401,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
 
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=2"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=2"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
@@ -462,9 +462,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("cluster state: PASSIVE"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Expected-Size: 3, Actual-Size: 1"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("cluster state: PASSIVE"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("Expected-Size: 3, Actual-Size: 1"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
