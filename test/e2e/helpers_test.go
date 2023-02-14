@@ -340,6 +340,7 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInMb int, mapName 
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{
 							corev1.ResourceMemory: resource.MustParse(size + "Mi")}},
+					ImagePullPolicy: corev1.PullAlways,
 				},
 			},
 			RestartPolicy: corev1.RestartPolicyNever,
