@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -40,12 +39,12 @@ func main() {
 	}()
 	fmt.Printf("Successfully connected to '%s' and cluster '%s'!\nStarting to fill the map '%s' with entries.", address, clusterName, mapName)
 	m, err := client.GetMap(ctx, mapName)
-	mapSize, err := strconv.ParseFloat(size, 64)
-	entriesPerThread := int(mapSize * math.Round(1.28))
+	mapSizeInMb, err := strconv.ParseFloat(size, 64)
+	entriesPerThread := int(mapSizeInMb * 2)
 	if err != nil {
 		log.Fatal(err)
 	}
-	for i := 1; i <= 100; i++ {
+	for i := 1; i <= 64; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -57,7 +56,7 @@ func main() {
 	}
 	wg.Wait()
 	finalSize, _ := m.Size(ctx)
-	fmt.Printf("Finished to fill the map with entries. Total entries were added %d. Current map size is %d ", entriesPerThread*100, finalSize)
+	fmt.Printf("Finished to fill the map with entries. Total entries were added %d. Current map size is %d ", entriesPerThread*64, finalSize)
 
 }
 

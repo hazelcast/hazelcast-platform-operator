@@ -3,7 +3,6 @@ package e2e
 import (
 	"bufio"
 	"context"
-	"math"
 	"strconv"
 	. "time"
 
@@ -97,7 +96,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		setLabelAndCRName("hbs-2")
 		var mapSizeInMb = 3072
 		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
-		var expectedMapSize = int(float64(mapSizeInMb) * math.Round(1.28) * 100)
+		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
 		clusterSize := int32(3)
 
@@ -167,7 +166,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
 		var bucketURI = "gs://operator-e2e-external-backup"
 		var secretName = "br-secret-gcp"
-		expectedMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
+		expectedMapSize := int(float64(mapSizeInMb) * 128)
 		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
