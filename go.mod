@@ -10,6 +10,7 @@ require (
 	github.com/hazelcast/platform-operator-agent v0.1.13
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
+	github.com/openshift/api v0.0.0-20220715133027-dab5b363ebd1
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/mod v0.7.0
 	golang.org/x/sync v0.1.0

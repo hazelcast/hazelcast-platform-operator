@@ -47,6 +47,9 @@ func NewManagementCenterReconciler(c client.Client, log logr.Logger, s *runtime.
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 // Role related to Reconcile()
 //+kubebuilder:rbac:groups="networking.k8s.io",resources=ingresses,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups="route.openshift.io",resources=routes,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups="route.openshift.io",resources=routes/custom-host,verbs=create,namespace=watched
+//+kubebuilder:rbac:groups="route.openshift.io",resources=routes/status,verbs=get,namespace=watched
 
 func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("management-center", req.NamespacedName)
@@ -77,12 +80,22 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
+	err = hazelcastv1alpha1.ValidateManagementCenterSpec(mc)
+	if err != nil {
+		return update(ctx, r.Status(), mc, failedPhase(err))
+	}
+
 	err = r.reconcileService(ctx, mc, logger)
 	if err != nil {
 		return update(ctx, r.Status(), mc, failedPhase(err))
 	}
 
 	err = r.reconcileIngress(ctx, mc, logger)
+	if err != nil {
+		return update(ctx, r.Status(), mc, failedPhase(err))
+	}
+
+	err = r.reconcileRoute(ctx, mc, logger)
 	if err != nil {
 		return update(ctx, r.Status(), mc, failedPhase(err))
 	}

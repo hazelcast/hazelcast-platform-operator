@@ -136,6 +136,7 @@ type McExternalConnectivity struct {
 	ServiceTypeNodePort     int `json:"stnp"`
 	ServiceTypeLoadBalancer int `json:"stlb"`
 	IngressEnabledCount     int `json:"iec"`
+	RouteEnabledCount       int `json:"rec"`
 }
 
 func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
@@ -311,6 +312,9 @@ func (mec *McExternalConnectivity) addUsageMetrics(ec *hazelcastv1alpha1.Externa
 		}
 		if ec.Ingress.IsEnabled() {
 			mec.IngressEnabledCount++
+		}
+		if ec.Route.IsEnabled() {
+			mec.RouteEnabledCount++
 		}
 	}
 }
