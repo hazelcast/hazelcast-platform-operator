@@ -55,6 +55,8 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		SwitchContext(context1)
+		setupEnv()
 		setLabelAndCRName("hwap-1")
 		var mapSizeInMb = 1024
 		expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
@@ -117,6 +119,8 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
+		SwitchContext(context1)
+		setupEnv()
 		var mapSizeInMb = 1024
 		/**
 		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
