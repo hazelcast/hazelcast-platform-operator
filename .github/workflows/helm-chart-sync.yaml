@@ -9,14 +9,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
 
       - name: Commit And Push Changes To 'Hazelcast Charts' Repository
         run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
           git subtree add --prefix=charts https://github.com/hazelcast/charts.git master --squash
           git rm -r charts/stable/hazelcast-platform-operator/*
           cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
