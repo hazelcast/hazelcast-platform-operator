@@ -12,6 +12,8 @@ jobs:
 
       - name: Commit And Push Changes To 'Hazelcast Charts' Repository
         run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
           git subtree add --prefix=charts https://github.com/hazelcast/charts.git master --squash
           git rm -r charts/stable/hazelcast-platform-operator/*
           cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
