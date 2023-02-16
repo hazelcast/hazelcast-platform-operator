@@ -13,7 +13,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
-const charset = "abcdefghijklmnopqrstuvwxyz" + "0123456789"
+const valueLen = 8192
 
 func main() {
 	var address, clusterName, size, mapName string
@@ -25,7 +25,6 @@ func main() {
 	flag.Parse()
 
 	ctx := context.Background()
-	value := string(make([]byte, 8192))
 	config := hazelcast.Config{}
 	config.Cluster.Network.SetAddresses(address)
 	config.Cluster.Name = clusterName
@@ -37,41 +36,51 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
-	fmt.Printf("Successfully connected to '%s' and cluster '%s'!\nStarting to fill the map '%s' with entries.", address, clusterName, mapName)
+	log.Printf("Successfully connected to '%s' and cluster '%s'.", address, clusterName)
+	log.Printf("Starting to fill the map '%s' with entries.", mapName)
+
 	m, err := client.GetMap(ctx, mapName)
 	mapSizeInMb, err := strconv.ParseFloat(size, 64)
-	entriesPerThread := int(mapSizeInMb * 2)
+	entriesPerGoroutine := int(mapSizeInMb * 2)
 	if err != nil {
 		log.Fatal(err)
 	}
-	for i := 1; i <= 64; i++ {
+	goroutineCount := 64
+	log.Printf("Goroutine count: %d", goroutineCount)
+	log.Printf("Entries per goroutine: %d", entriesPerGoroutine)
+
+	for i := 1; i <= goroutineCount; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for j := 1; j <= entriesPerThread; j++ {
-				key := fmt.Sprintf("%s-%s-%s-%s", clusterName, randString(5), randString(5), randString(5))
+			var r = rand.New(rand.NewSource(rand.Int63()))
+			for j := 1; j <= entriesPerGoroutine; j++ {
+				key := fmt.Sprintf("%s-%s-%s-%s", clusterName, randString(r, 5), randString(r, 5), randString(r, 5))
+				value := randString(r, valueLen)
 				mapInjector(ctx, m, key, value)
 			}
 		}()
 	}
 	wg.Wait()
 	finalSize, _ := m.Size(ctx)
-	fmt.Printf("Finished to fill the map with entries. Total entries were added %d. Current map size is %d ", entriesPerThread*64, finalSize)
-
+	log.Printf("Finished to fill the map with entries. Total entries were added %d. Current map size is %d ", entriesPerGoroutine*goroutineCount, finalSize)
 }
 
 func mapInjector(ctx context.Context, m *hazelcast.Map, key, value string) {
-	fmt.Printf("Key: %s is putting into map.\n", key)
+	log.Printf("Key: %s is putting into map.", key)
 	_, err := m.Put(ctx, key, value)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func randString(length int) string {
+const charset = "abcdefghijklmnopqrstuvwxyz" + "0123456789"
+const charsetLen = len(charset)
+
+func randString(r *rand.Rand, length int) string {
 	b := make([]byte, length)
 	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
+		b[i] = charset[r.Intn(charsetLen)]
 	}
 	return string(b)
 }

@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -26,7 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -304,8 +304,7 @@ func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzCon
 		defer DeletePod(mapLoaderPod.Name, 0, types.NamespacedName{Namespace: hzConfig.Namespace})
 		Eventually(func() int {
 			return countKeySet(ctx, clientHz, mapName, hzConfig)
-		}, 15*Minute, interval).Should(Equal(int(float64(sizeInMb) * 128))) // 128 entries/Mb = 2 (entries) * 64 (goroutines)
-
+		}, 15*Minute, interval).Should(Equal(sizeInMb * 128)) // 128 entries/Mb = 2 (entries) * 64 (goroutines)
 	})
 }
 
@@ -335,11 +334,14 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInMb int, mapName 
 			Containers: []corev1.Container{
 				{
 					Name:  "maploader-container",
-					Image: "us-east1-docker.pkg.dev/hazelcast-33/hazelcast-platform-operator/wan-replication-maploader:700d",
-					Args:  []string{"/maploader", "-address", hzAddress, "-clusterName", clusterName, "-size", size, "-mapName", mapName},
-					Resources: corev1.ResourceRequirements{
-						Limits: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceMemory: resource.MustParse(size + "Mi")}},
+					Image: mapLoaderImage(),
+					Args: []string{
+						"/maploader",
+						"-address", hzAddress,
+						"-clusterName", clusterName,
+						"-size", size,
+						"-mapName", mapName,
+					},
 					ImagePullPolicy: corev1.PullAlways,
 				},
 			},
@@ -354,6 +356,14 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInMb int, mapName 
 	}, clientPod)
 	Expect(err).ToNot(HaveOccurred())
 	return clientPod
+}
+
+func mapLoaderImage() string {
+	img, ok := os.LookupEnv("MAPLOADER_IMAGE")
+	if ok {
+		return img
+	}
+	return "us-east1-docker.pkg.dev/hazelcast-33/hazelcast-platform-operator/wan-replication-maploader:700d"
 }
 
 func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
