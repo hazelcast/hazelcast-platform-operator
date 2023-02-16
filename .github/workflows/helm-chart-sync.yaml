@@ -19,7 +19,7 @@ jobs:
           cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
           git add charts/
           if [[ ${{ github.event_name }} == 'workflow_dispatch' ]]; then
-            last_commit=$(git log -1 --pretty=format:"%B")
+            last_commit=$(git log -1 --pretty=format:"%B" origin/main)
             echo $last_commit
           else
             git commit --signoff -m "${{github.event.head_commit.message}}"
