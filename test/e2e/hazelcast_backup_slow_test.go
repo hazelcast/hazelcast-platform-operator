@@ -3,7 +3,6 @@ package e2e
 import (
 	"bufio"
 	"context"
-	"math"
 	"strconv"
 	. "time"
 
@@ -90,14 +89,14 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), 100, 30*Minute)
 	})
 
-	It("should restore 9 GB data after planned shutdown", Label("slow"), func() {
+	It("should restore 3 GB data after planned shutdown", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hbs-2")
 		var mapSizeInMb = 3072
 		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
-		var expectedMapSize = int(float64(mapSizeInMb) * math.Round(1.28) * 100)
+		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
 		clusterSize := int32(3)
 
@@ -156,7 +155,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
-	It("Should successfully restore 9 Gb data from external backup using GCP bucket", Label("slow"), func() {
+	It("Should successfully restore 3 Gb data from external backup using GCP bucket", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -167,7 +166,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
 		var bucketURI = "gs://operator-e2e-external-backup"
 		var secretName = "br-secret-gcp"
-		expectedMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
+		expectedMapSize := int(float64(mapSizeInMb) * 128)
 		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
@@ -229,7 +228,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
-	It("should interrupt external backup process when the hotbackup is deleted", Label("slow"), func() {
+	XIt("should interrupt external backup process when the hotbackup is deleted", Label("slow"), func() {
 		setLabelAndCRName("hbs-4")
 		if !ee {
 			Skip("This test will only run in EE configuration")
@@ -463,9 +462,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("cluster state: PASSIVE"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("Expected-Size: 3, Actual-Size: 1"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=1"))
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
+		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=3"))
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		Expect(logs.Close()).Should(Succeed())

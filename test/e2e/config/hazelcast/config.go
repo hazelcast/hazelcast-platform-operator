@@ -5,6 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -324,6 +325,7 @@ var (
 			Spec: hazelcastv1alpha1.MapSpec{
 				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 					HazelcastResourceName: hzName,
+					BackupCount:           pointer.Int32(0),
 				},
 				PersistenceEnabled: true,
 			},

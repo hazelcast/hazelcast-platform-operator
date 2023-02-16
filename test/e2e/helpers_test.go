@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -27,7 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -290,8 +289,9 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 }
 
 /*
-1.28 (entries per single goroutine) = 1048576 (Bytes per 1Gb)  / 8192 (Bytes per entry) / 100 (goroutines)
+2 (entries per single goroutine) = 1048576 (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
 */
+
 func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
 	By(fmt.Sprintf("filling the map '%s' with '%d' MB data", mapName, sizeInMb), func() {
 		hzAddress := hzclient.HazelcastUrl(hzConfig)
@@ -304,8 +304,7 @@ func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzCon
 		defer DeletePod(mapLoaderPod.Name, 0, types.NamespacedName{Namespace: hzConfig.Namespace})
 		Eventually(func() int {
 			return countKeySet(ctx, clientHz, mapName, hzConfig)
-		}, 15*Minute, interval).Should(Equal(int(float64(sizeInMb) * math.Round(1.28) * 100)))
-
+		}, 15*Minute, interval).Should(Equal(sizeInMb * 128)) // 128 entries/Mb = 2 (entries) * 64 (goroutines)
 	})
 }
 
@@ -321,8 +320,8 @@ func countKeySet(ctx context.Context, clientHz *hzClient.Client, mapName string,
 	return keyCount
 }
 
-func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName string, lk types.NamespacedName) *corev1.Pod {
-	size := strconv.Itoa(mapSizeInGb)
+func createMapLoaderPod(hzAddress, clusterName string, mapSizeInMb int, mapName string, lk types.NamespacedName) *corev1.Pod {
+	size := strconv.Itoa(mapSizeInMb)
 	clientPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
@@ -335,11 +334,15 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName 
 			Containers: []corev1.Container{
 				{
 					Name:  "maploader-container",
-					Image: "us-east1-docker.pkg.dev/hazelcast-33/hazelcast-platform-operator/wan-replication-maploader:700d",
-					Args:  []string{"/maploader", "-address", hzAddress, "-clusterName", clusterName, "-size", size, "-mapName", mapName},
-					Resources: corev1.ResourceRequirements{
-						Limits: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceMemory: resource.MustParse(size + "Mi")}},
+					Image: mapLoaderImage(),
+					Args: []string{
+						"/maploader",
+						"-address", hzAddress,
+						"-clusterName", clusterName,
+						"-size", size,
+						"-mapName", mapName,
+					},
+					ImagePullPolicy: corev1.PullAlways,
 				},
 			},
 			RestartPolicy: corev1.RestartPolicyNever,
@@ -353,6 +356,14 @@ func createMapLoaderPod(hzAddress, clusterName string, mapSizeInGb int, mapName 
 	}, clientPod)
 	Expect(err).ToNot(HaveOccurred())
 	return clientPod
+}
+
+func mapLoaderImage() string {
+	img, ok := os.LookupEnv("MAPLOADER_IMAGE")
+	if ok {
+		return img
+	}
+	return "us-east1-docker.pkg.dev/hazelcast-33/hazelcast-platform-operator/wan-replication-maploader:700d"
 }
 
 func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {

@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"math"
 	"strconv"
 	. "time"
 
@@ -58,7 +57,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		setLabelAndCRName("hwap-1")
 		var mapSizeInMb = 1024
-		expectedTrgMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
+		expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
 
 		By("creating source Hazelcast cluster")
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
@@ -120,10 +119,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		var mapSizeInMb = 1024
 		/**
-		1.28 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
 		*/
-		expectedTrgMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
-		expectedSrcMapSize := int(float64(mapSizeInMb*2) * math.Round(1.28) * 100)
+		expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
+		expectedSrcMapSize := int(float64(mapSizeInMb*2) * 128)
 		setLabelAndCRName("hwaa-1")
 
 		By("creating source Hazelcast cluster")
@@ -254,9 +253,9 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		setLabelAndCRName("hwapdc-1")
 		var mapSizeInMb = 1024
 		/**
-		1.28 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
 		*/
-		expectedTrgMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
+		expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
 
 		By("creating source Hazelcast cluster")
 		SwitchContext(context1)
@@ -326,10 +325,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		}
 		var mapSizeInMb = 1024
 		/**
-		1.28 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 100 (goroutines)
+		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
 		*/
-		expectedTrgMapSize := int(float64(mapSizeInMb) * math.Round(1.28) * 100)
-		expectedSrcMapSize := int(float64(mapSizeInMb*2) * math.Round(1.28) * 100)
+		expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
+		expectedSrcMapSize := int(float64(mapSizeInMb*2) * 128)
 
 		setLabelAndCRName("hwaadc-1")
 
