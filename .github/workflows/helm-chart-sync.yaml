@@ -27,7 +27,8 @@ jobs:
           cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
           git add charts/
           if [[ ${{ github.event_name }} == 'workflow_dispatch' ]]; then
-            git commit --signoff -m "manual sync"          
+            last_commit=$(git log -1 --pretty=format:"%s")
+            git commit --signoff -m "$last_commit"
           else
             git commit --signoff -m "${{github.event.head_commit.message}}"
           fi
