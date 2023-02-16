@@ -269,8 +269,21 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(ctx, hotBackup)).Should(Succeed())
 
-		By("wait for backup to start")
-		Sleep(5 * Second)
+		By("checking hazelcast logs if backup started")
+		hzLogs := InitLogs(t, hzLookupKey)
+		defer hzLogs.Close()
+		scanner := bufio.NewScanner(hzLogs)
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp(`Backup of hot restart store (.*?) finished in [0-9]* ms`))
+
+		By("checking agent logs if upload is started")
+		agentLogs := SidecarAgentLogs(t, hzLookupKey)
+		defer agentLogs.Close()
+		scanner = bufio.NewScanner(agentLogs)
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new task"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("task is started"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("task successfully read secret"))
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("task is in progress"))
 
 		By("get hotbackup object")
 		hb := &hazelcastv1alpha1.HotBackup{}
@@ -282,20 +295,8 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		err = k8sClient.Delete(ctx, hb)
 		Expect(err).ToNot(HaveOccurred())
 
-		// hazelcast logs
-		hzLogs := InitLogs(t, hzLookupKey)
-		defer hzLogs.Close()
-		scanner := bufio.NewScanner(hzLogs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp(`Backup of hot restart store (.*?) finished in [0-9]* ms`))
-
-		// agent logs
-		agentLogs := SidecarAgentLogs(t, hzLookupKey)
-		defer agentLogs.Close()
-		scanner = bufio.NewScanner(agentLogs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("POST /upload"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Uploading"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("DELETE"))
+		By("checking agent logs if upload canceled")
+		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("canceling task"))
 	})
 
 	It("Should successfully restore multiple times from HotBackupResourceName", Label("slow"), func() {
