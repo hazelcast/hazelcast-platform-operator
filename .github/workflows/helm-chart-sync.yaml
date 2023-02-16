@@ -1,6 +1,7 @@
 name: Helm Chart Sync
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'helm-charts/**'
@@ -25,5 +26,9 @@ jobs:
           git rm -r charts/stable/hazelcast-platform-operator/*
           cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
           git add charts/
-          git commit --signoff -m "${{github.event.head_commit.message}}"
+          if [[ ${{ github.event_name }} == 'workflow_dispatch' ]]; then
+            git commit --signoff -m "manual sync"          
+          else
+            git commit --signoff -m "${{github.event.head_commit.message}}"
+          fi
           git subtree push --prefix=charts https://github.com/hazelcast/charts.git master
