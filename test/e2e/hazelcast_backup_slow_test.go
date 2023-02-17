@@ -228,7 +228,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
-	XIt("should interrupt external backup process when the hotbackup is deleted", Label("slow"), func() {
+	It("should interrupt external backup process when the hotbackup is deleted", Label("slow"), func() {
 		setLabelAndCRName("hbs-4")
 		if !ee {
 			Skip("This test will only run in EE configuration")
