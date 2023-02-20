@@ -112,18 +112,23 @@ type HazelcastSpec struct {
 	// +optional
 	UserCodeDeployment UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
 
+	// Java Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/executor-service
 	// +optional
 	ExecutorServices []ExecutorServiceConfiguration `json:"executorServices,omitempty"`
 
+	// Durable Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/durable-executor-service
 	// +optional
 	DurableExecutorServices []DurableExecutorServiceConfiguration `json:"durableExecutorServices,omitempty"`
 
+	// Scheduled Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/scheduled-executor-service
 	// +optional
 	ScheduledExecutorServices []ScheduledExecutorServiceConfiguration `json:"scheduledExecutorServices,omitempty"`
 
+	// Hazelcast system properties, see https://docs.hazelcast.com/hazelcast/latest/system-properties
 	// +optional
 	Properties map[string]string `json:"properties,omitempty"`
 
+	// Logging level for Hazelcast members
 	// +kubebuilder:default:="INFO"
 	// +optional
 	LoggingLevel LoggingLevel `json:"loggingLevel,omitempty"`
@@ -259,7 +264,12 @@ type BucketConfiguration struct {
 	// +required
 	Secret string `json:"secret"`
 
-	// Full path to blob storage bucket.
+	// URL of the bucket to download HotBackup folders.
+	// AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
+	// Example bucket URIs:
+	// - AWS S3     -> s3://bucket-name/path/to/folder
+	// - GCP Bucket -> gs://bucket-name/path/to/folder
+	// - Azure Blob -> azblob://bucket-name/path/to/folder
 	// +kubebuilder:validation:MinLength:=6
 	// +required
 	BucketURI string `json:"bucketURI"`
@@ -271,7 +281,7 @@ type UserCodeDeploymentConfig struct {
 	// +optional
 	ClientEnabled *bool `json:"clientEnabled,omitempty"`
 
-	// Jar files in the bucket will be put under CLASSPATH.
+	// Bucket config where JAR files will be downloaded into Java CLASSPATH.
 	// +optional
 	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
 
@@ -279,7 +289,7 @@ type UserCodeDeploymentConfig struct {
 	// +optional
 	TriggerSequence string `json:"triggerSequence,omitempty"`
 
-	// Files in the ConfigMaps will be put under CLASSPATH.
+	// Names of the list of ConfigMaps. Files in each ConfigMap will be put under Java CLASSPATH.
 	// +optional
 	ConfigMaps []string `json:"configMaps,omitempty"`
 }
@@ -305,18 +315,6 @@ type AgentConfiguration struct {
 	// +optional
 	Version string `json:"version,omitempty"`
 }
-
-// BackupType represents the storage options for the HotBackup
-// +kubebuilder:validation:Enum=External;Local
-type BackupType string
-
-const (
-	// External backups to the provided cloud provider storage
-	External BackupType = "External"
-
-	// Local backups to local storage inside the cluster
-	Local BackupType = "Local"
-)
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
 type HazelcastPersistenceConfiguration struct {

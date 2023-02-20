@@ -167,7 +167,7 @@ type IndexConfig struct {
 	// +optional
 	Name string `json:"name,omitempty"`
 
-	// Type of the index.
+	// Type of the index. See https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps#index-types
 	// +required
 	Type IndexType `json:"type"`
 
@@ -175,7 +175,7 @@ type IndexConfig struct {
 	// +optional
 	Attributes []string `json:"attributes,omitempty"`
 
-	// Options for "BITMAP" index type.
+	// Options for "BITMAP" index type. See https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps#configuring-bitmap-indexes
 	// +kubebuilder:default:={}
 	// +optional
 	BitmapIndexOptions *BitmapIndexOptionsConfig `json:"bitMapIndexOptions,omitempty"`
