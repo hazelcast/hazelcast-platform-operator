@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bufio"
 	"context"
 	"strconv"
 	. "time"
@@ -69,10 +68,10 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		By("checking the HotBackup creation sequence")
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 15*Second, logInterval).
+		logsChan := ReaderToChanByLine(logs)
+		test.EventuallyInLogs(logsChan, 15*Second, logInterval).
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
-		test.EventuallyInLogsUnordered(scanner, 15*Second, logInterval).
+		test.EventuallyInLogsUnordered(logsChan, 15*Second, logInterval).
 			Should(ContainElements(
 				ContainSubstring("Starting new hot backup with sequence"),
 				ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"),

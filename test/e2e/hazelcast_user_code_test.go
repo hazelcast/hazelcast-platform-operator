@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"strconv"
@@ -103,15 +102,15 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - Properties are"))
-		line := scanner.Text()
+		logsChan := ReaderToChanByLine(logs)
+		test.EventuallyInLogs(logsChan, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - Properties are"))
+		line := <-logsChan
 		for k, v := range secretData {
 			Expect(line).To(ContainSubstring(k + "=" + v))
 		}
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
+		test.EventuallyInLogs(logsChan, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
+		test.EventuallyInLogs(logsChan, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
+		test.EventuallyInLogs(logsChan, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
 
 	})
 
@@ -231,12 +230,12 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
+		logsChan := ReaderToChanByLine(logs)
 		var logEl []interface{}
 		for _, e := range entries {
 			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
 		}
-		test.EventuallyInLogsUnordered(scanner, 10*Second, logInterval).
+		test.EventuallyInLogsUnordered(logsChan, 10*Second, logInterval).
 			Should(ContainElements(logEl...))
 	})
 })

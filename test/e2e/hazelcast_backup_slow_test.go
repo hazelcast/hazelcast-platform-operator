@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bufio"
 	"context"
 	"strconv"
 	. "time"
@@ -82,8 +81,8 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
+		logsChan := ReaderToChanByLine(logs)
+		test.EventuallyInLogs(logsChan, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 		Expect(logs.Close()).Should(Succeed())
 
 		WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), 100, 30*Minute)
@@ -272,18 +271,18 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		By("checking hazelcast logs if backup started")
 		hzLogs := InitLogs(t, hzLookupKey)
 		defer hzLogs.Close()
-		scanner := bufio.NewScanner(hzLogs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp(`Backup of hot restart store (.*?) finished in [0-9]* ms`))
+		hzLogsChan := ReaderToChanByLine(hzLogs)
+		test.EventuallyInLogs(hzLogsChan, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
+		test.EventuallyInLogs(hzLogsChan, 10*Second, logInterval).Should(MatchRegexp(`Backup of hot restart store (.*?) finished in [0-9]* ms`))
 
 		By("checking agent logs if upload is started")
 		agentLogs := SidecarAgentLogs(t, hzLookupKey)
 		defer agentLogs.Close()
-		scanner = bufio.NewScanner(agentLogs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new task"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("task is started"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("task successfully read secret"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("task is in progress"))
+		agentLogsChan := ReaderToChanByLine(agentLogs)
+		test.EventuallyInLogs(agentLogsChan, 10*Second, logInterval).Should(ContainSubstring("Starting new task"))
+		test.EventuallyInLogs(agentLogsChan, 10*Second, logInterval).Should(ContainSubstring("task is started"))
+		test.EventuallyInLogs(agentLogsChan, 10*Second, logInterval).Should(ContainSubstring("task successfully read secret"))
+		test.EventuallyInLogs(agentLogsChan, 10*Second, logInterval).Should(ContainSubstring("task is in progress"))
 
 		By("get hotbackup object")
 		hb := &hazelcastv1alpha1.HotBackup{}
@@ -296,7 +295,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		By("checking agent logs if upload canceled")
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("canceling task"))
+		test.EventuallyInLogs(agentLogsChan, 10*Second, logInterval).Should(ContainSubstring("canceling task"))
 	})
 
 	It("Should successfully restore multiple times from HotBackupResourceName", Label("slow"), func() {
@@ -399,14 +398,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=2"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		logsChan := ReaderToChanByLine(logs)
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=2"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		Expect(logs.Close()).Should(Succeed())
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
@@ -461,13 +459,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("cluster state: PASSIVE"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=1"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=3"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		logsChan := ReaderToChanByLine(logs)
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).Should(MatchRegexp("cluster state: PASSIVE"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=1"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=3"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
+		test.EventuallyInLogs(logsChan, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		Expect(logs.Close()).Should(Succeed())
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})

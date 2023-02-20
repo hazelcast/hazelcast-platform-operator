@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"bufio"
 	"context"
+	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -127,4 +129,16 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 		items := objListVal.FieldByName("Items")
 		return items.Len()
 	}, 10*Minute, interval).Should(Equal(int(0)))
+}
+
+func ReaderToChanByLine(r io.Reader) <-chan string {
+	c := make(chan string)
+	go func() {
+		defer close(c)
+		s := bufio.NewScanner(r)
+		for s.Scan() {
+			c <- s.Text()
+		}
+	}()
+	return c
 }

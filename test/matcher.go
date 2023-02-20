@@ -1,7 +1,6 @@
 package test
 
 import (
-	"bufio"
 	"fmt"
 
 	. "github.com/onsi/gomega"
@@ -59,22 +58,25 @@ func (matcher HazelcastSpecEqual) NegatedFailureMessage(actual interface{}) (mes
 	return format.Message(actual, "not to equal", matcher.Expected)
 }
 
-func EventuallyInLogs(logs *bufio.Scanner, intervals ...interface{}) AsyncAssertion {
+func EventuallyInLogs(logs <-chan string, intervals ...interface{}) AsyncAssertion {
 	return Eventually(func() string {
-		if logs.Scan() {
-			text := logs.Text()
-			return text
+		select {
+		case log := <-logs:
+			return log
+		default:
+			return ""
 		}
-		return ""
 	}, intervals...)
 }
 
-func EventuallyInLogsUnordered(logs *bufio.Scanner, intervals ...interface{}) AsyncAssertion {
+func EventuallyInLogsUnordered(logs <-chan string, intervals ...interface{}) AsyncAssertion {
 	l := make([]string, 0)
 	return Eventually(func() []string {
-		if logs.Scan() {
-			l = append(l, logs.Text())
+		select {
+		case log := <-logs:
+			return append(l, log)
+		default:
+			return l
 		}
-		return l
 	}, intervals...)
 }
