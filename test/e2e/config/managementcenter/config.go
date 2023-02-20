@@ -1,6 +1,8 @@
 package managementcenter
 
 import (
+	"flag"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -8,6 +10,11 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+)
+
+var (
+	mcVersion = flag.String("mc-version", naming.MCVersion, "Default Management Center version used in e2e tests")
+	mcRepo    = flag.String("mc-repo", naming.MCRepo, "Management Center repository used in e2e tests")
 )
 
 var (
@@ -19,8 +26,8 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       naming.MCRepo,
-				Version:          naming.MCVersion,
+				Repository:       *mcRepo,
+				Version:          *mcVersion,
 				LicenseKeySecret: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
@@ -41,8 +48,8 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       naming.MCRepo,
-				Version:          naming.MCVersion,
+				Repository:       *mcRepo,
+				Version:          *mcVersion,
 				LicenseKeySecret: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
@@ -68,8 +75,8 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       naming.MCRepo,
-				Version:          naming.MCVersion,
+				Repository:       *mcRepo,
+				Version:          *mcVersion,
 				LicenseKeySecret: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
@@ -87,8 +94,8 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       naming.MCRepo,
-				Version:          naming.MCVersion,
+				Repository:       *mcRepo,
+				Version:          *mcVersion,
 				LicenseKeySecret: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 
@@ -118,7 +125,7 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       naming.MCRepo,
+				Repository:       *mcRepo,
 				Version:          "not-exists",
 				LicenseKeySecret: licenseKey(ee),
 			},
