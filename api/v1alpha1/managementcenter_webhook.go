@@ -1,6 +1,9 @@
 package v1alpha1
 
 import (
+	"errors"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -36,6 +39,15 @@ func (r *ManagementCenter) ValidateUpdate(old runtime.Object) error {
 	managementcenterlog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
+	return nil
+}
+
+func ValidateManagementCenterSpec(mc *ManagementCenter) error {
+	if mc.Spec.ExternalConnectivity.Route.IsEnabled() {
+		if platform.GetType() != platform.OpenShift {
+			return errors.New("Route can only be enabled in OpenShift environments.")
+		}
+	}
 	return nil
 }
 

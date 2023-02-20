@@ -3,16 +3,19 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"net/http"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
 
@@ -127,6 +130,23 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 			setLabelAndCRName("mc-3")
 			createWithoutCheck(mcconfig.Faulty(mcLookupKey, ee, labels))
 			assertStatusEventually(hazelcastcomv1alpha1.Failed)
+		})
+	})
+
+	Describe("ManagementCenter CR with Route", func() {
+		It("Should be able to access route", Label("fast"), func() {
+			if platform.GetType() != platform.OpenShift {
+				Skip("This test will only run in OpenShift environments")
+			}
+			setLabelAndCRName("mc-4")
+			mc := mcconfig.RouteEnabled(mcLookupKey, ee, labels)
+			create(mc)
+
+			route := &routev1.Route{}
+			Expect(k8sClient.Get(context.Background(), mcLookupKey, route)).Should(BeNil())
+			resp, err := http.Get("http://" + route.Spec.Host)
+			Expect(err).To(BeNil())
+			Expect(resp.StatusCode).To(Equal(200))
 		})
 	})
 })
