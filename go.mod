@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/bigquery v1.43.0
 	github.com/go-logr/logr v1.2.3
 	github.com/google/uuid v1.3.0
-	github.com/hazelcast/hazelcast-go-client v1.3.1
+	github.com/hazelcast/hazelcast-go-client v1.3.2
 	github.com/hazelcast/platform-operator-agent v0.1.13
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
