@@ -101,17 +101,16 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
-		defer logs.Close()
-		logsChan := ReaderToChanByLine(logs)
-		test.EventuallyInLogs(logsChan, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - Properties are"))
-		line := <-logsChan
+		logReader := test.NewLogReader(logs)
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - Properties are"))
+		line := logReader.History[len(logReader.History)-1]
 		for k, v := range secretData {
 			Expect(line).To(ContainSubstring(k + "=" + v))
 		}
-		test.EventuallyInLogs(logsChan, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
-		test.EventuallyInLogs(logsChan, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
-		test.EventuallyInLogs(logsChan, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
-
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
+		Expect(logReader.Close()).NotTo(HaveOccurred())
 	})
 
 	It("should add executor services both initially and dynamically", Label("fast"), func() {
@@ -229,13 +228,12 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
-		defer logs.Close()
-		logsChan := ReaderToChanByLine(logs)
+		logReader := test.NewLogReader(logs)
 		var logEl []interface{}
 		for _, e := range entries {
 			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
 		}
-		test.EventuallyInLogsUnordered(logsChan, 10*Second, logInterval).
-			Should(ContainElements(logEl...))
+		test.EventuallyInLogsUnordered(logReader, 10*Second, logInterval).Should(ContainElements(logEl...))
+		Expect(logReader.Close()).NotTo(HaveOccurred())
 	})
 })
