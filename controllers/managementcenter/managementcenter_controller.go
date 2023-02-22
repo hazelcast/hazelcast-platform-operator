@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -128,7 +130,8 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	externalAddrs := util.GetExternalAddresses(ctx, r.Client, mc, logger)
-	return update(ctx, r.Status(), mc, runningPhase().withExternalAddresses(externalAddrs))
+	enrichedAddrs := enrichPublicAddresses(ctx, r.Client, mc, externalAddrs)
+	return update(ctx, r.Status(), mc, runningPhase().withExternalAddresses(enrichedAddrs))
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -157,4 +160,21 @@ func (r *ManagementCenterReconciler) updateLastSuccessfulConfiguration(ctx conte
 		logger.Info("Operation result", "Management Center Annotation", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func enrichPublicAddresses(ctx context.Context, cli client.Client, mc *hazelcastv1alpha1.ManagementCenter, externalAddresses []string) []string {
+	if mc.Spec.ExternalConnectivity.Ingress.IsEnabled() {
+		externalAddresses = append(externalAddresses, mc.Spec.ExternalConnectivity.Ingress.Hostname+":80")
+	}
+
+	if mc.Spec.ExternalConnectivity.Route.IsEnabled() {
+		route := &routev1.Route{}
+		err := cli.Get(ctx, types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, route)
+		if err != nil {
+			return externalAddresses
+		}
+		externalAddresses = append(externalAddresses, route.Spec.Host+":80")
+	}
+
+	return externalAddresses
 }

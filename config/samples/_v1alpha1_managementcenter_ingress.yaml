@@ -1,0 +1,21 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: ManagementCenter
+metadata:
+  name: managementcenter
+spec:
+  repository: 'hazelcast/management-center'
+  version: '5.2.0'
+  licenseKeySecret: hazelcast-license-key
+  externalConnectivity:
+    type: ClusterIP
+    ingress:
+      hostname: "example.hostname"
+      ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+  hazelcastClusters:
+    - address: hazelcast
+      name: dev
+  persistence:
+    enabled: true
+    size: 10Gi
