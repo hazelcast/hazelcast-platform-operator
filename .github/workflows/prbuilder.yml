@@ -18,5 +18,5 @@ jobs:
         exit 1   # Exit with a failure status code
 
     - name: Add comment to failed pull request
-      if: ${{ github.event.pull_request.mergeable != true }}
+      if: always() && ${{ github.event.pull_request.mergeable != true }} 
       run: gh pr review -c "${{ github.event.pull_request.head.sha }}" -b "https://hazelcast.github.io/hazelcast-platform-operator/"
