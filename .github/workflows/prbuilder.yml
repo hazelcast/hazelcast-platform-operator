@@ -13,10 +13,9 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Build and Test
-      run: |
-        # Run build and test commands here
-        exit 1   # Exit with a failure status code
+      run: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native2323.yaml
+          
 
     - name: Add comment to failed pull request
-      if: always() && ${{ github.event.pull_request.mergeable != true }} 
+      if: ${{ github.event.pull_request.mergeable != true }}
       run: gh pr review -c "${{ github.event.pull_request.head.sha }}" -b "https://hazelcast.github.io/hazelcast-platform-operator/"
