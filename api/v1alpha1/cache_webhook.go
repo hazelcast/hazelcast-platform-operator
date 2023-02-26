@@ -1,6 +1,9 @@
 package v1alpha1
 
 import (
+	"encoding/json"
+	"fmt"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -32,10 +35,19 @@ func (r *Cache) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Cache) ValidateUpdate(old runtime.Object) error {
+func (r *Cache) ValidateUpdate(runtime.Object) error {
 	cachelog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	// use last successfully applied spec
+	if last, ok := r.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
+		var parsed CacheSpec
+		if err := json.Unmarshal([]byte(last), &parsed); err != nil {
+			return fmt.Errorf("error parsing last map spec: %w", err)
+		}
+
+		return ValidateNotUpdatableCacheFields(&r.Spec, &parsed)
+	}
+
 	return nil
 }
 
