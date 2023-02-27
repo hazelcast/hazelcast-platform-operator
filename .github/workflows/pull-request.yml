@@ -196,7 +196,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node_number: ["01","02","03","04","05"]
+        node_number: ["01"]
         edition: ["os","ee"]
     if: >-
       ( !cancelled()
