@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	"reflect"
 	"time"
 
@@ -121,6 +122,10 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if !persisted {
 		return updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Waiting for Cache Config to be persisted."))
+	}
+
+	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(c) {
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, c, logger)

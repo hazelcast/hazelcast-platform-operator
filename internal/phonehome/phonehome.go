@@ -160,6 +160,7 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillHazelcastMetrics(cl, opInfo.ClientRegistry)
 	phd.fillMCMetrics(cl)
 	phd.fillMapMetrics(cl)
+	phd.fillCacheMetrics(cl)
 	phd.fillWanReplicationMetrics(cl)
 	phd.fillHotBackupMetrics(cl)
 	phd.fillMultiMapMetrics(cl)
