@@ -47,6 +47,7 @@ jobs:
         run: |-
           source .github/scripts/utils.sh
           merge_xml_test_reports ${{ inputs.WORKFLOW_ID }}
+          
 
       - name: Removing A First Run Attempt
         if: always()
@@ -128,9 +129,11 @@ jobs:
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
           
       - name: Add Test Report
-        if: ${{ inputs.WORKFLOW_ID }} == 'pr' && ${{ github.event.pull_request.status == 'failure' }}
+        if: ${{ inputs.WORKFLOW_ID }} == 'pr'
         run: |
           sudo apt-get install libxml2-utils
+          failures_exist=false
+          errors_exist=false
           # Define an associative array to map report names to suite IDs
           declare -A suite_ids=(
               ["test-report-ee-01.xml"]="fb850ba25ceb06c7b2b56dd821744585"
@@ -148,6 +151,10 @@ jobs:
               failures=$(xmllint --xpath 'string(//testsuites/@failures)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
               errors=$(xmllint --xpath 'string(//testsuites/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
               skipped=$(xmllint --xpath 'string(//testsuites/@disabled)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+              
+              # Save status of the test run
+              failures_exist=$((failures > 0 ? true : false))
+              errors_exist=$((errors > 0 ? true : false))
 
               # Get the suite ID from the array
               suite_id=${suite_ids[$report]}
@@ -165,4 +172,6 @@ jobs:
           done
 
           # Send the output as a comment on the pull request using gh
-          echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
+          if [ "$failures_exist" = true ] || [ "$errors_exist" = true ]; then
+            echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
+          fi  
