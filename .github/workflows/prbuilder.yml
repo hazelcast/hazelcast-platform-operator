@@ -9,12 +9,28 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Build and Test
-      id: build
-      run: |
-        gh pr review -c "${{ github.event.pull_request.head.sha }}" -b "https://hazelcast.github.io/hazelcast-platform-operator/"
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Add Test Report
+        run: mkdir -p allure-results/pr
+        
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report-pr
+          path: |
+            test-report-ee-01.xml
+            test-report-os-01.xml
+          retention-days: 5
+                
+  report-generation:
+    needs: ["build-and-test"]
+    if: always() 
+    uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
+    with:
+      WORKFLOW_ID: pr
+      CLUSTER_NAME: kind
