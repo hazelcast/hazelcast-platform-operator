@@ -153,8 +153,8 @@ jobs:
               skipped=$(xmllint --xpath 'string(//testsuites/@disabled)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
               
               # Save status of the test run
-              failures_exist=$((failures > 0 ? true : false))
-              errors_exist=$((errors > 0 ? true : false))
+              failures_exist=$([ "$failures" -gt 0 ] && echo "true" || echo "false")
+              errors_exist=$([ "$errors" -gt 0 ] && echo "true" || echo "false")
 
               # Get the suite ID from the array
               suite_id=${suite_ids[$report]}
