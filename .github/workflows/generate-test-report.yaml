@@ -171,6 +171,6 @@ jobs:
           done
 
           # Send the output as a comment on the pull request using gh
-          if [[ " ${test_run_status[*]} " == *"true"* ]]; then
+          if [[ "${test_run_status[*]}" == *"true"* ]]; then
              echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
           fi
