@@ -151,7 +151,9 @@ jobs:
               failures=$(xmllint --xpath 'string(//testsuites/testsuite/@failures)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
               errors=$(xmllint --xpath 'string(//testsuites/testsuite/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
               skipped=$(xmllint --xpath 'string(//testsuites/testsuite/@skipped)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-          
+              cat ${GITHUB_WORKSPACE}/allure-results/pr/${report}
+              echo $failures
+              echo $errors
               # Save status of the test run
               test_run_status+=("$([ "$failures" -gt 0 ] && echo true || echo false)" "$([ "$errors" -gt 0 ] && echo true || echo false)")
 
@@ -169,8 +171,8 @@ jobs:
               # Append the row to the output
               comment+="$row"
           done
-
+          echo "${test_run_status[*]}"
           # Send the output as a comment on the pull request using gh
-          if [[ " ${test_run_status[*]} " == *"true"* ]]; then
+          if [[ "${test_run_status[*]}" == *"true"* ]]; then
              echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
           fi
