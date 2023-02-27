@@ -53,7 +53,7 @@ jobs:
         run: |
           sleep 10
           sed -i 's/<system-err>\[BeforeEach\].*Retrying...&#xA;/<system-err>/' ${GITHUB_WORKSPACE}/allure-results/${{ inputs.WORKFLOW_ID }}/test-report-*.xml
-
+          
       - name: Create environment.properties
         run: |-
           echo "GKE=$GITHUB_PAGES_URL/gke" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
@@ -126,3 +126,42 @@ jobs:
         run: |
           source .github/scripts/utils.sh
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
+          
+      - name: Add Test Report
+        if: ${{ inputs.WORKFLOW_ID }} == 'pr'
+        run: |
+          sudo apt-get install libxml2-utils
+          # Define an associative array to map report names to suite IDs
+          declare -A suite_ids=(
+              ["test-report-ee-01.xml"]="fb850ba25ceb06c7b2b56dd821744585"
+              ["test-report-os-01.xml"]="0b301d038a17885b818e60273771cfeb"
+          )
+
+          # Initialize the table header
+          comment="|| Total tests | Skipped | Failures |\n| ----- | ----- | -------- | -------- |\n"
+
+          # Loop through the test reports and generate a table row for each one
+          for report in "${!suite_ids[@]}"
+          do
+              # Extract the relevant data from the test report using xmllint
+              tests=$(xmllint --xpath 'string(//testsuites/@tests)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+              skipped=$(xmllint --xpath 'string(//testsuites/@disabled)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+              failures=$(xmllint --xpath 'string(//testsuites/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+
+              # Get the suite ID from the associative array
+              suite_id=${suite_ids[$report]}
+
+              # Extract the substring "EE" or "OS" from the report name
+              type="${report#test-report-}"
+              type="${type%-01.xml}"
+
+              # Construct a table row with a link to the test report
+              link="https://cheels.github.io/hazelcast-platform-operator/pr/${{ github.run_number }}/#suites/${suite_id}"
+              row="| [${type^^}](${link}) | $tests | $skipped | $failures |\n"
+
+              # Append the row to the output
+              comment+="$row"
+          done
+
+          # Send the output as a comment on the pull request using gh
+          echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
