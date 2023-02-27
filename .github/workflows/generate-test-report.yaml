@@ -138,15 +138,16 @@ jobs:
           )
 
           # Initialize the table header
-          comment="|| Total tests | Skipped | Failures |\n| ----- | ----- | -------- | -------- |\n"
+          comment="|| Total tests | Failures | Errors | Skipped |\n| -------- | -------- | -------- | -------- | -------- |\n"
 
           # Loop through the test reports and generate a table row for each one
           for report in "${!suite_ids[@]}"
           do
               # Extract the relevant data from the test report using xmllint
               tests=$(xmllint --xpath 'string(//testsuites/@tests)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+              failures=$(xmllint --xpath 'string(//testsuites/@failures)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+              errors=$(xmllint --xpath 'string(//testsuites/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
               skipped=$(xmllint --xpath 'string(//testsuites/@disabled)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-              failures=$(xmllint --xpath 'string(//testsuites/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
 
               # Get the suite ID from the associative array
               suite_id=${suite_ids[$report]}
@@ -157,7 +158,7 @@ jobs:
 
               # Construct a table row with a link to the test report
               link="https://cheels.github.io/hazelcast-platform-operator/pr/${{ github.run_number }}/#suites/${suite_id}"
-              row="| [${type^^}](${link}) | $tests | $skipped | $failures |\n"
+              row="| [${type^^}](${link}) | $tests | $failures | $errors| $skipped |\n"
 
               # Append the row to the output
               comment+="$row"
