@@ -566,11 +566,22 @@ type JVMConfiguration struct {
 	// Memory is a JVM memory configuration
 	// +optional
 	Memory *JVMMemoryConfiguration `json:"memory,omitempty"`
+
+	// GC is for configuring JVM Garbage Collector
+	// +optional
+	GC *JVMGCConfiguration `json:"gc,omitempty"`
 }
 
 func (c *JVMConfiguration) GetMemory() *JVMMemoryConfiguration {
 	if c != nil {
 		return c.Memory
+	}
+	return nil
+}
+
+func (c *JVMConfiguration) GCConfig() *JVMGCConfiguration {
+	if c != nil {
+		return c.GC
 	}
 	return nil
 }
@@ -610,6 +621,65 @@ func (c *JVMMemoryConfiguration) GetMaxRAMPercentage() string {
 	}
 	return ""
 }
+
+// JVMGCConfiguration is for configuring JVM Garbage Collector
+type JVMGCConfiguration struct {
+	// Logging enables logging when set to true
+	// +optional
+	Logging *bool `json:"logging,omitempty"`
+
+	// Collector is the Garbage Collector type
+	// +optional
+	Collector *string `json:"collector,omitempty"`
+
+	// Args is for arbitrary garbage collection arguments
+	// +optional
+	Args []string `json:"args,omitempty"`
+}
+
+func (j *JVMGCConfiguration) IsLoggingEnabled() bool {
+	if j != nil && j.Logging != nil {
+		return *j.Logging
+	}
+	return false
+}
+
+func (j *JVMGCConfiguration) GetCollector() GCType {
+	if j != nil && j.Collector != nil {
+		switch *j.Collector {
+		case string(GCTypeSerial):
+			return GCTypeSerial
+		case string(GCTypeParallel):
+			return GCTypeParallel
+		case string(GCTypeCMS):
+			return GCTypeCMS
+		case string(GCTypeG1):
+			return GCTypeG1
+		case string(GCTypeZ):
+			return GCTypeZ
+		}
+	}
+	return ""
+}
+
+func (j *JVMGCConfiguration) GetArgs() []string {
+	if j != nil && j.Args != nil {
+		return j.Args
+	}
+	return []string{}
+}
+
+// GCType is Garbage Collector type
+// +kubebuilder:validation:Enum=Serial;Parallel;CMS;G1;Z
+type GCType string
+
+const (
+	GCTypeSerial   GCType = "Serial"
+	GCTypeParallel GCType = "Parallel"
+	GCTypeCMS      GCType = "CMS"
+	GCTypeG1       GCType = "G1"
+	GCTypeZ        GCType = "Z"
+)
 
 // NativeMemoryAllocatorType is one of 2 types of mechanism for allocating HD Memory
 // +kubebuilder:validation:Enum=STANDARD;POOLED

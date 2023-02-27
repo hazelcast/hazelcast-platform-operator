@@ -1773,17 +1773,50 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 
 	jvmMemory := h.Spec.JVM.GetMemory()
 
-	// in addition we allow user to set explicit memory limits
-	if value := jvmMemory.GetInitialRAMPercentage(); value != "" {
-		b.WriteString(" -XX:InitialRAMPercentage=" + value)
+	// in addition, we allow user to set explicit memory limits
+	if v := jvmMemory.GetInitialRAMPercentage(); v != "" {
+		b.WriteString(" -XX:InitialRAMPercentage=" + v)
 	}
 
-	if value := jvmMemory.GetMinRAMPercentage(); value != "" {
-		b.WriteString(" -XX:MinRAMPercentage=" + value)
+	if v := jvmMemory.GetMinRAMPercentage(); v != "" {
+		b.WriteString(" -XX:MinRAMPercentage=" + v)
 	}
 
-	if value := jvmMemory.GetMaxRAMPercentage(); value != "" {
-		b.WriteString(" -XX:MaxRAMPercentage=" + value)
+	if v := jvmMemory.GetMaxRAMPercentage(); v != "" {
+		b.WriteString(" -XX:MaxRAMPercentage=" + v)
+	}
+
+	jvmGC := h.Spec.JVM.GCConfig()
+
+	if jvmGC.IsLoggingEnabled() {
+		b.WriteString(" -verbose:gc")
+		b.WriteString(" -XX:+PrintGCDetails")
+		b.WriteString(" -XX:+PrintGCTimeStamps")
+		b.WriteString(" -XX:+PrintHeapAtGC")
+		b.WriteString(" -XX:+PrintTenuringDistribution")
+		b.WriteString(" -XX:+PrintGCApplicationStoppedTime")
+		b.WriteString(" -XX:+PrintGCApplicationConcurrentTime")
+	}
+
+	if v := jvmGC.GetCollector(); v != "" {
+		switch v {
+		case hazelcastv1alpha1.GCTypeSerial:
+			b.WriteString(" -XX:+UseSerialGC")
+		case hazelcastv1alpha1.GCTypeParallel:
+			b.WriteString(" -XX:+UseParallelGC")
+		case hazelcastv1alpha1.GCTypeCMS:
+			b.WriteString(" -XX:+UseParNewGC")
+		case hazelcastv1alpha1.GCTypeG1:
+			b.WriteString(" -XX:+UseG1GC")
+		case hazelcastv1alpha1.GCTypeZ:
+			b.WriteString(" -XX:+UnlockExperimentalVMOptions -XX:+UseZGC")
+		}
+	}
+
+	if v := jvmGC.GetArgs(); len(v) > 0 {
+		for _, a := range v {
+			b.WriteString(fmt.Sprintf(" %s", a))
+		}
 	}
 
 	return b.String()
