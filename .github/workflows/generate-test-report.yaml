@@ -128,7 +128,7 @@ jobs:
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
           
       - name: Add Test Report
-        if: ${{ inputs.WORKFLOW_ID }} == 'pr'
+        if: ${{ inputs.WORKFLOW_ID }} == 'pr' && ${{ github.event.pull_request.status == 'failure' }}
         run: |
           sudo apt-get install libxml2-utils
           # Define an associative array to map report names to suite IDs
@@ -149,7 +149,7 @@ jobs:
               errors=$(xmllint --xpath 'string(//testsuites/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
               skipped=$(xmllint --xpath 'string(//testsuites/@disabled)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
 
-              # Get the suite ID from the associative array
+              # Get the suite ID from the array
               suite_id=${suite_ids[$report]}
 
               # Extract the substring "EE" or "OS" from the report name
