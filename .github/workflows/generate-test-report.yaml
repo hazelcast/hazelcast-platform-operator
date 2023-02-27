@@ -132,8 +132,9 @@ jobs:
         if: ${{ inputs.WORKFLOW_ID }} == 'pr'
         run: |
           sudo apt-get install libxml2-utils
-          failures_exist=false
-          errors_exist=false
+          # Define an array to store test run status
+          declare -a test_run_status
+          
           # Define an associative array to map report names to suite IDs
           declare -A suite_ids=(
               ["test-report-ee-01.xml"]="fb850ba25ceb06c7b2b56dd821744585"
@@ -153,8 +154,7 @@ jobs:
               skipped=$(xmllint --xpath 'string(//testsuites/@disabled)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
               
               # Save status of the test run
-              failures_exist=$([ "$failures" -gt 0 ] && echo "true" || echo "false")
-              errors_exist=$([ "$errors" -gt 0 ] && echo "true" || echo "false")
+              test_run_status+=("$([ "$failures" -gt 0 ] && echo true || echo false)" "$([ "$errors" -gt 0 ] && echo true || echo false)")
 
               # Get the suite ID from the array
               suite_id=${suite_ids[$report]}
@@ -172,6 +172,6 @@ jobs:
           done
 
           # Send the output as a comment on the pull request using gh
-          if [ "$failures_exist" = true ] || [ "$errors_exist" = true ]; then
-            echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
-          fi  
+          if [[ " ${test_run_status[*]} " == *"true"* ]]; then
+             echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
+          fi
