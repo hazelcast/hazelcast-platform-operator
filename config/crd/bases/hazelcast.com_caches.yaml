@@ -65,6 +65,15 @@ spec:
                   resource.
                 minLength: 1
                 type: string
+              inMemoryFormat:
+                default: BINARY
+                description: InMemoryFormat specifies in which format data will be
+                  stored in your cache
+                enum:
+                - BINARY
+                - OBJECT
+                - NATIVE
+                type: string
               keyType:
                 description: Class name of the key type
                 type: string
