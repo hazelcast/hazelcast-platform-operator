@@ -18,7 +18,7 @@ on:
 
 env:
   GO_VERSION: '1.19.0'
-  NR_OF_SUITES: 5
+  NR_OF_SUITES: 10
   GOBIN: ${{ github.workspace }}/bin
   GINKGO_VERSION: v2.1.6
   GAR_REGION: us-east1
@@ -196,7 +196,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node_number: ["01", "02"]
+        node_number: ["01"]
         edition: ["os","ee"]
     if: >-
       ( !cancelled()
