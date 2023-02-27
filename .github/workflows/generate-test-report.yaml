@@ -138,7 +138,7 @@ jobs:
           )
 
           # Initialize the table header
-          comment="|| Total tests | Failures | Errors | Skipped |\n| -------- | -------- | -------- | -------- | -------- |\n"
+          comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
 
           # Loop through the test reports and generate a table row for each one
           for report in "${!suite_ids[@]}"
