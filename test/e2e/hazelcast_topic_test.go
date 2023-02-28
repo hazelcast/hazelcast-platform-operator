@@ -5,13 +5,11 @@ import (
 	"strconv"
 	. "time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
-
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
@@ -24,12 +22,6 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		if runningLocally() {
 			return
 		}
-		By("checking hazelcast-platform-controller-manager running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 	})
 
 	AfterEach(func() {

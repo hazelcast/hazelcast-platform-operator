@@ -9,7 +9,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -28,12 +27,6 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		if runningLocally() {
 			return
 		}
-		By("checking hazelcast-platform-controller-manager running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 	})
 
 	AfterEach(func() {

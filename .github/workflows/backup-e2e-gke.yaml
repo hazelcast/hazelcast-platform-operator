@@ -1,4 +1,4 @@
-name: Backup E2E tests on GKE
+name: (E2E) Backup Tests on GKE
 on:
   workflow_dispatch:
   schedule:

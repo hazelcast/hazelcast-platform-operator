@@ -1,4 +1,4 @@
-name: K8s distribution tests
+name: (E2E) K8s Distribution Tests
 
 on:
   workflow_dispatch:

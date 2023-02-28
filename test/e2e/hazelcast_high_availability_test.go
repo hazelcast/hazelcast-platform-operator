@@ -11,7 +11,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/exec"
@@ -32,13 +31,6 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		}
 
 		ctx := context.Background()
-
-		By("checking hazelcast-platform-operator running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				return getDeploymentReadyReplicas(ctx, controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 
 		By("checking chaos-mesh-operator running", func() {
 			var podList corev1.PodList

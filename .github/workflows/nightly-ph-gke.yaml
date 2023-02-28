@@ -1,4 +1,4 @@
-name: Nightly PhoneHome tests on GKE
+name: (E2E) Phone Home Tests on GKE
 on:
   workflow_dispatch:
   schedule:

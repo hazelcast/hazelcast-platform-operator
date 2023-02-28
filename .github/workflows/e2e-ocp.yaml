@@ -1,4 +1,4 @@
-name: E2E tests on OCP
+name: (E2E) OCP Tests
 on:
   workflow_dispatch:
   workflow_call:

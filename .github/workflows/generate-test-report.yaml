@@ -64,6 +64,7 @@ jobs:
           echo "BACKUP=$GITHUB_PAGES_URL/backup" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "PHONE_HOME=$GITHUB_PAGES_URL/ph" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
           echo "KIND=$GITHUB_PAGES_URL/pr" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "CLUSTER_SCOPE=$GITHUB_PAGES_URL/cluster_scope" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
 
       - name: Create Custom Defects Classification
         run: |-

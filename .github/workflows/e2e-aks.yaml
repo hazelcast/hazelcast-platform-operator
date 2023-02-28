@@ -1,4 +1,4 @@
-name: E2E tests on Azure
+name: (E2E) Azure Tests
 on:
   workflow_dispatch:
   workflow_call:

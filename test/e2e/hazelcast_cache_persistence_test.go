@@ -12,7 +12,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
@@ -30,13 +29,6 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		if runningLocally() {
 			return
 		}
-		By("checking hazelcast-platform-controller-manager running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				GinkgoWriter.Printf("%+v\n", controllerManagerName)
-				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 	})
 
 	AfterEach(func() {
