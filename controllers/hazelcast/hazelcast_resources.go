@@ -1790,12 +1790,6 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 
 	if jvmGC.IsLoggingEnabled() {
 		b.WriteString(" -verbose:gc")
-		b.WriteString(" -XX:+PrintGCDetails")
-		b.WriteString(" -XX:+PrintGCTimeStamps")
-		b.WriteString(" -XX:+PrintHeapAtGC")
-		b.WriteString(" -XX:+PrintTenuringDistribution")
-		b.WriteString(" -XX:+PrintGCApplicationStoppedTime")
-		b.WriteString(" -XX:+PrintGCApplicationConcurrentTime")
 	}
 
 	if v := jvmGC.GetCollector(); v != "" {
