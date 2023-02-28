@@ -651,12 +651,8 @@ func (j *JVMGCConfiguration) GetCollector() GCType {
 			return GCTypeSerial
 		case string(GCTypeParallel):
 			return GCTypeParallel
-		case string(GCTypeCMS):
-			return GCTypeCMS
 		case string(GCTypeG1):
 			return GCTypeG1
-		case string(GCTypeZ):
-			return GCTypeZ
 		}
 	}
 	return ""
@@ -676,9 +672,7 @@ type GCType string
 const (
 	GCTypeSerial   GCType = "Serial"
 	GCTypeParallel GCType = "Parallel"
-	GCTypeCMS      GCType = "CMS"
 	GCTypeG1       GCType = "G1"
-	GCTypeZ        GCType = "Z"
 )
 
 // NativeMemoryAllocatorType is one of 2 types of mechanism for allocating HD Memory

@@ -1798,12 +1798,8 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 			b.WriteString(" -XX:+UseSerialGC")
 		case hazelcastv1alpha1.GCTypeParallel:
 			b.WriteString(" -XX:+UseParallelGC")
-		case hazelcastv1alpha1.GCTypeCMS:
-			b.WriteString(" -XX:+UseParNewGC")
 		case hazelcastv1alpha1.GCTypeG1:
 			b.WriteString(" -XX:+UseG1GC")
-		case hazelcastv1alpha1.GCTypeZ:
-			b.WriteString(" -XX:+UnlockExperimentalVMOptions -XX:+UseZGC")
 		}
 	}
 
