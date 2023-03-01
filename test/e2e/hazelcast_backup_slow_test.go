@@ -81,8 +81,8 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		logs := InitLogs(t, hzLookupKey)
 		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
 		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
-		Expect(logReader.Close()).Should(Succeed())
 
 		WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), 100, 30*Minute)
 	})
@@ -270,13 +270,14 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		By("checking hazelcast logs if backup started")
 		hzLogs := InitLogs(t, hzLookupKey)
 		hzLogReader := test.NewLogReader(hzLogs)
+		defer hzLogReader.Close()
 		test.EventuallyInLogs(hzLogReader, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
 		test.EventuallyInLogs(hzLogReader, 10*Second, logInterval).Should(MatchRegexp(`Backup of hot restart store (.*?) finished in [0-9]* ms`))
-		Expect(hzLogReader.Close()).ToNot(HaveOccurred())
 
 		By("checking agent logs if upload is started")
 		agentLogs := SidecarAgentLogs(t, hzLookupKey)
 		agentLogReader := test.NewLogReader(agentLogs)
+		defer agentLogReader.Close()
 		test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("Starting new task"))
 		test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("task is started"))
 		test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("task successfully read secret"))
@@ -294,7 +295,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("checking agent logs if upload canceled")
 		test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("canceling task"))
-		Expect(agentLogReader.Close()).ToNot(HaveOccurred())
 	})
 
 	It("Should successfully restore multiple times from HotBackupResourceName", Label("slow"), func() {
@@ -397,13 +397,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 		logs := InitLogs(t, hzLookupKey)
 		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=2"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		Expect(logReader.Close()).Should(Succeed())
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 
@@ -457,13 +457,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 		logs := InitLogs(t, hzLookupKey)
 		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("cluster state: PASSIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=1"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=3"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		Expect(logReader.Close()).Should(Succeed())
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 })

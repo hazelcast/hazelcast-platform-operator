@@ -68,6 +68,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		By("checking the HotBackup creation sequence")
 		logs := InitLogs(t, hzLookupKey)
 		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
 		test.EventuallyInLogs(logReader, 15*Second, logInterval).
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
 		test.EventuallyInLogsUnordered(logReader, 15*Second, logInterval).
@@ -75,7 +76,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 				ContainSubstring("Starting new hot backup with sequence"),
 				ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"),
 				MatchRegexp(`(.*) Backup of hot restart store (.*?) finished in [0-9]* ms`)))
-		Expect(logReader.Close()).Should(Succeed())
 
 		assertHotBackupSuccess(hotBackup, 1*Minute)
 	})

@@ -102,6 +102,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
 		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
 		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - Properties are"))
 		line := logReader.History[len(logReader.History)-1]
 		for k, v := range secretData {
@@ -110,7 +111,6 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
 		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
 		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
-		Expect(logReader.Close()).NotTo(HaveOccurred())
 	})
 
 	It("should add executor services both initially and dynamically", Label("fast"), func() {
@@ -229,11 +229,11 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
 		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
 		var logEl []interface{}
 		for _, e := range entries {
 			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
 		}
 		test.EventuallyInLogsUnordered(logReader, 10*Second, logInterval).Should(ContainElements(logEl...))
-		Expect(logReader.Close()).NotTo(HaveOccurred())
 	})
 })

@@ -54,9 +54,9 @@ func GetBackupSequence(t Time, lk types.NamespacedName) string {
 	By("finding Backup sequence", func() {
 		logs := InitLogs(t, lk)
 		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
 		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
 		line := logReader.History[len(logReader.History)-1]
-		Expect(logReader.Close()).Should(Succeed())
 		compRegEx := regexp.MustCompile(`Starting new hot backup with sequence (?P<seq>\d+)`)
 		match := compRegEx.FindStringSubmatch(line)
 
