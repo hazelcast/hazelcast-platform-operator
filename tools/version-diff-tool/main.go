@@ -28,7 +28,7 @@ const (
 	bundleDownloadLink = `https://repository.hazelcast.com/operator/` + bundleFileName
 
 	// Helm related
-	helmInstall      = `helm install operator hazelcast/hazelcast-platform-operator --dry-run --set installCRDs=true > ` + bundleFileName
+	helmInstall      = `helm template operator hazelcast/hazelcast-platform-operator-crds --version=%s > ` + bundleFileName
 	helmChartVersion = "5.6"
 
 	// yq commands
@@ -135,7 +135,7 @@ func downloadBundleYAML(v string) (string, error) {
 	vv, _ := version.NewVersion(v) // versions already validated, so ignore error
 
 	if vv.GreaterThanOrEqual(helmVersion) {
-		cmd := exec.Command("bash", "-c", fmt.Sprintf(helmInstall, v))
+		cmd := exec.Command("bash", "-c", fmt.Sprintf(helmInstall, v, v))
 		_, err := cmd.CombinedOutput()
 		if err != nil {
 			return "", err
