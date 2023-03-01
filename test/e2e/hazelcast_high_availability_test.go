@@ -70,11 +70,6 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		}
 		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 
-		By("deleting all ChaosMesh GCPChaos resources", func() {
-			err := deleteChaosMeshAllGCPChaosResources(context.Background(), "chaos-mesh")
-			Expect(err).To(BeNil())
-		})
-
 		By("waiting for all nodes are ready", func() {
 			waitForDroppedNodes(context.Background(), 0)
 		})
@@ -252,7 +247,7 @@ spec:
   project: {{ .project }}
   zone: {{ .zone }}
   instance: {{ .instance }}
-  duration: '3m'
+  duration: '30s'
 `
 
 func chaosMeshNodeStopYaml(parameters map[string]string) (string, error) {
@@ -272,40 +267,24 @@ func kubectlApply(ctx context.Context, yaml string) error {
 	return cmd.Run()
 }
 
-func deleteChaosMeshAllGCPChaosResources(ctx context.Context, namespace string) error {
-	cmd := exec.New().CommandContext(ctx,
-		"kubectl", "delete", "GCPChaos", "--all", fmt.Sprintf("-n=%s", namespace))
-	return cmd.Run()
-}
-
-func appendYamls(yamls ...string) string {
-	sb := strings.Builder{}
-	for i, yaml := range yamls {
-		sb.WriteString(yaml)
-		if i < len(yamls)-1 {
-			sb.WriteString("\n---\n")
-		}
-	}
-	return sb.String()
-}
-
 func dropNodes(ctx context.Context, zone string, nodeNames ...string) error {
 	parameters := make(map[string]string)
 	parameters["zone"] = zone
 	parameters["project"] = gcpProject
 	parameters["namespace"] = chaosMeshNamespace
 	parameters["secretName"] = cloudKeySecretName
-	yamls := make([]string, 0, len(nodeNames))
+	allYamls := make([]string, 0, len(nodeNames))
 	for _, nodeName := range nodeNames {
 		parameters["instance"] = nodeName
-		parameters["name"] = fmt.Sprintf("node-stop-%s", nodeName)
+		parameters["name"] = fmt.Sprintf("ha-%s-node-stop-%s", hzLookupKey.Name, nodeName)
 		yaml, err := chaosMeshNodeStopYaml(parameters)
 		if err != nil {
 			return err
 		}
-		yamls = append(yamls, yaml)
+		allYamls = append(allYamls, yaml)
 	}
-	return kubectlApply(ctx, appendYamls(yamls...))
+	yaml := strings.Join(allYamls, "\n---\n")
+	return kubectlApply(ctx, yaml)
 }
 
 func nodeNameWhichOperatorRunningOn(ctx context.Context) (string, error) {
