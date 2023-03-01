@@ -3,6 +3,7 @@ package test
 import (
 	"bufio"
 	"fmt"
+	"io"
 
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
@@ -59,22 +60,56 @@ func (matcher HazelcastSpecEqual) NegatedFailureMessage(actual interface{}) (mes
 	return format.Message(actual, "not to equal", matcher.Expected)
 }
 
-func EventuallyInLogs(logs *bufio.Scanner, intervals ...interface{}) AsyncAssertion {
+func EventuallyInLogs(lr *LogReader, intervals ...interface{}) AsyncAssertion {
 	return Eventually(func() string {
-		if logs.Scan() {
-			text := logs.Text()
-			return text
-		}
-		return ""
+		return lr.Read()
 	}, intervals...)
 }
 
-func EventuallyInLogsUnordered(logs *bufio.Scanner, intervals ...interface{}) AsyncAssertion {
-	l := make([]string, 0)
+func EventuallyInLogsUnordered(lr *LogReader, intervals ...interface{}) AsyncAssertion {
 	return Eventually(func() []string {
-		if logs.Scan() {
-			l = append(l, logs.Text())
-		}
-		return l
+		lr.Read()
+		return lr.History
 	}, intervals...)
+}
+
+type LogReader struct {
+	reader  io.ReadCloser
+	lines   chan string
+	History []string
+}
+
+func NewLogReader(r io.ReadCloser) *LogReader {
+	lr := &LogReader{
+		reader:  r,
+		lines:   make(chan string),
+		History: make([]string, 0),
+	}
+	go startLogReader(lr)
+	return lr
+}
+
+// Read returns the new line of the logs in a non-blocking fashion.
+// It polls the next line and returns it.
+// If the next line doesn't exist, it returns empty string.
+func (lr *LogReader) Read() string {
+	select {
+	case l := <-lr.lines:
+		lr.History = append(lr.History, l)
+		return l
+	default:
+		return ""
+	}
+}
+
+func (lr *LogReader) Close() error {
+	return lr.reader.Close()
+}
+
+func startLogReader(lr *LogReader) {
+	s := bufio.NewScanner(lr.reader)
+	for s.Scan() {
+		lr.lines <- s.Text()
+	}
+	close(lr.lines)
 }

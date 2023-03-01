@@ -53,10 +53,10 @@ func GetBackupSequence(t Time, lk types.NamespacedName) string {
 	var seq string
 	By("finding Backup sequence", func() {
 		logs := InitLogs(t, lk)
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
-		line := scanner.Text()
-		Expect(logs.Close()).Should(Succeed())
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
+		line := logReader.History[len(logReader.History)-1]
 		compRegEx := regexp.MustCompile(`Starting new hot backup with sequence (?P<seq>\d+)`)
 		match := compRegEx.FindStringSubmatch(line)
 
