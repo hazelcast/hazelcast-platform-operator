@@ -14,13 +14,13 @@ type TopicSpec struct {
 	// +optional
 	Name string `json:"name,omitempty"`
 
-	// When true all nodes listening to the same topic get their messages in
+	// globalOrderingEnabled allows all nodes listening to the same topic get their messages in the same order
 	// the same order
 	// +kubebuilder:default:=false
 	// +optional
 	GlobalOrderingEnabled bool `json:"globalOrderingEnabled"`
 
-	// When true enables multi-threaded processing of incoming messages, otherwise
+	// multiThreadingEnabled enables multi-threaded processing of incoming messages
 	// a single thread will handle all topic messages
 	// +kubebuilder:default:=false
 	// +optional

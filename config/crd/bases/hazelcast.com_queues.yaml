@@ -69,7 +69,7 @@ spec:
                 type: integer
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
-                  resource.
+                  resource that this resource is created for.
                 minLength: 1
                 type: string
               maxSize:
@@ -102,10 +102,13 @@ spec:
                   - Persisting
                   - Terminating
                   type: string
+                description: Holds status of data structure for each Hazelcast member
                 type: object
               message:
+                description: Message explaining the current state
                 type: string
               state:
+                description: State of the data structure
                 enum:
                 - Success
                 - Failed

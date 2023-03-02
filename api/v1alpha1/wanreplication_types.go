@@ -16,7 +16,7 @@ type WanReplicationSpec struct {
 	// +required
 	TargetClusterName string `json:"targetClusterName"`
 
-	// Endpoints is the target cluster endpoints.
+	// Endpoints is the target cluster comma separated endpoint list .
 	// +kubebuilder:validation:MinLength:=1
 	// +required
 	Endpoints string `json:"endpoints"`
@@ -113,8 +113,10 @@ type AcknowledgementSetting struct {
 type AcknowledgementType string
 
 const (
+	// Replication event is considered successful as soon as it is received by target cluster.
 	AckOnReceipt AcknowledgementType = "ACK_ON_RECEIPT"
 
+	// Replication event is considered successful when it is received and applied by the target cluster.
 	AckOnOperationComplete AcknowledgementType = "ACK_ON_OPERATION_COMPLETE"
 )
 
@@ -139,12 +141,14 @@ type WanReplicationStatus struct {
 	// +optional
 	Message string `json:"message,omitempty"`
 
+	// WanReplicationMapsStatus is the Wan Replication status of the Maps given in the spec
+	// directly or indirectly by Hazelcast resource.
 	// +optional
 	WanReplicationMapsStatus map[string]WanReplicationMapStatus `json:"wanReplicationMapsStatus,omitempty"`
 }
 
 type WanReplicationMapStatus struct {
-	// ResourceName is the name of the Map CR
+	// ResourceName is the name of the Map Custom Resource.
 	// +optional
 	ResourceName string `json:"resourceName,omitempty"`
 

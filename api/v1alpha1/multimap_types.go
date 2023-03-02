@@ -12,7 +12,7 @@ import (
 type MultiMapSpec struct {
 	DataStructureSpec `json:",inline"`
 
-	// Specifies in which format data will be stored in your multiMap.
+	// Specifies in which format data will be stored in your MultiMap.
 	// false: OBJECT true: BINARY
 	// +kubebuilder:default:=false
 	// +optional
