@@ -846,7 +846,7 @@ func (in *JVMGCConfiguration) DeepCopyInto(out *JVMGCConfiguration) {
 	}
 	if in.Collector != nil {
 		in, out := &in.Collector, &out.Collector
-		*out = new(string)
+		*out = new(GCType)
 		**out = **in
 	}
 	if in.Args != nil {

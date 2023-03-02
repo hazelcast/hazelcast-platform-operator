@@ -212,6 +212,10 @@ spec:
                         type: array
                       collector:
                         description: Collector is the Garbage Collector type
+                        enum:
+                        - Serial
+                        - Parallel
+                        - G1
                         type: string
                       logging:
                         description: Logging enables logging when set to true

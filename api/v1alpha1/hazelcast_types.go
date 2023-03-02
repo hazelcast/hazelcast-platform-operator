@@ -630,7 +630,7 @@ type JVMGCConfiguration struct {
 
 	// Collector is the Garbage Collector type
 	// +optional
-	Collector *string `json:"collector,omitempty"`
+	Collector *GCType `json:"collector,omitempty"`
 
 	// Args is for arbitrary garbage collection arguments
 	// +optional
@@ -646,14 +646,7 @@ func (j *JVMGCConfiguration) IsLoggingEnabled() bool {
 
 func (j *JVMGCConfiguration) GetCollector() GCType {
 	if j != nil && j.Collector != nil {
-		switch *j.Collector {
-		case string(GCTypeSerial):
-			return GCTypeSerial
-		case string(GCTypeParallel):
-			return GCTypeParallel
-		case string(GCTypeG1):
-			return GCTypeG1
-		}
+		return *j.Collector
 	}
 	return ""
 }
@@ -666,7 +659,7 @@ func (j *JVMGCConfiguration) GetArgs() []string {
 }
 
 // GCType is Garbage Collector type
-// +kubebuilder:validation:Enum=Serial;Parallel;CMS;G1;Z
+// +kubebuilder:validation:Enum=Serial;Parallel;G1
 type GCType string
 
 const (
