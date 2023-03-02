@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	"reflect"
 	"time"
 
@@ -71,30 +70,6 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			withMessage(err.Error()))
 	}
 
-	ms, err := r.ReconcileCacheConfig(ctx, c, cl, logger)
-	if err != nil {
-		return updateDSStatus(ctx, r.Client, c, dsPendingStatus(retryAfterForDataStructures).
-			withError(err).
-			withMessage(err.Error()).
-			withMemberStatuses(ms))
-	}
-
-	requeue, err := updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
-	if err != nil {
-		return requeue, err
-	}
-
-	persisted, err := r.validateCacheConfigPersistence(ctx, c)
-	if err != nil {
-		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
-	}
-
-	if c.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
-		if err := requireNativeMemory(h); err != nil {
-			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
-		}
-	}
-
 	s, createdBefore := c.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 
 	if createdBefore {
@@ -120,12 +95,26 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	if !persisted {
-		return updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Waiting for Cache Config to be persisted."))
+	ms, err := r.ReconcileCacheConfig(ctx, c, cl, logger)
+	if err != nil {
+		return updateDSStatus(ctx, r.Client, c, dsPendingStatus(retryAfterForDataStructures).
+			withError(err).
+			withMessage(err.Error()).
+			withMemberStatuses(ms))
 	}
 
-	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(c) {
-		go func() { r.phoneHomeTrigger <- struct{}{} }()
+	requeue, err := updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
+	if err != nil {
+		return requeue, err
+	}
+
+	persisted, err := r.validateCacheConfigPersistence(ctx, c)
+	if err != nil {
+		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+	}
+
+	if !persisted {
+		return updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Waiting for Cache Config to be persisted."))
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, c, logger)

@@ -97,8 +97,6 @@ type PhoneHomeData struct {
 	TopicCount                    int                    `json:"tc"`
 	HighAvailabilityMode          []string               `json:"ha"`
 	NativeMemoryCount             int                    `json:"nmc"`
-	NativeMemoryMapCount          int                    `json:"nmmc"`
-	NativeMemoryCacheCount        int                    `json:"nmcc"`
 }
 
 type ExposeExternally struct {
@@ -112,13 +110,16 @@ type ExposeExternally struct {
 }
 
 type Map struct {
-	Count            int `json:"c"`
-	PersistenceCount int `json:"pc"`
-	MapStoreCount    int `json:"msc"`
+	Count             int `json:"c"`
+	PersistenceCount  int `json:"pc"`
+	MapStoreCount     int `json:"msc"`
+	NativeMemoryCount int `json:"nmc"`
 }
 
 type Cache struct {
-	Count int `json:"c"`
+	Count             int `json:"c"`
+	PersistenceCount  int `json:"pc"`
+	NativeMemoryCount int `json:"nmc"`
 }
 
 type BackupAndRestore struct {
@@ -355,12 +356,13 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 	phm.Map.Count = createdMapCount
 	phm.Map.PersistenceCount = persistedMapCount
 	phm.Map.MapStoreCount = mapStoreMapCount
-	phm.NativeMemoryMapCount = nativeMemoryMapCount
+	phm.Map.NativeMemoryCount = nativeMemoryMapCount
 }
 
 func (phm *PhoneHomeData) fillCacheMetrics(cl client.Client) {
 	createdCacheCount := 0
 	nativeMemoryCacheCount := 0
+	persistedCacheCount := 0
 
 	l := &hazelcastv1alpha1.CacheList{}
 	err := cl.List(context.Background(), l, listOptions()...)
@@ -373,10 +375,14 @@ func (phm *PhoneHomeData) fillCacheMetrics(cl client.Client) {
 		if c.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
 			nativeMemoryCacheCount += 1
 		}
+		if c.Spec.PersistenceEnabled {
+			persistedCacheCount += 1
+		}
 	}
 
 	phm.Cache.Count = createdCacheCount
-	phm.NativeMemoryCacheCount = nativeMemoryCacheCount
+	phm.Cache.PersistenceCount = persistedCacheCount
+	phm.Cache.NativeMemoryCount = nativeMemoryCacheCount
 }
 
 func (phm *PhoneHomeData) fillWanReplicationMetrics(cl client.Client) {
