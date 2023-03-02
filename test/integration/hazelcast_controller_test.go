@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"github.com/aws/smithy-go/ptr"
 	"path"
 	"strconv"
 	"strings"
@@ -827,6 +828,60 @@ var _ = Describe("Hazelcast controller", func() {
 						Verbs:     []string{"watch", "list"},
 					}))
 				})
+			})
+		})
+	})
+
+	Context("JVM configuration", func() {
+		When("Memory is configured", func() {
+			It("should set memory with percentages", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				p := ptr.String("10")
+				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+					Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+						InitialRAMPercentage: p,
+						MinRAMPercentage:     p,
+						MaxRAMPercentage:     p,
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+
+				Expect(*fetchedCR.Spec.JVM.Memory.InitialRAMPercentage).Should(Equal(*p))
+				Expect(*fetchedCR.Spec.JVM.Memory.MinRAMPercentage).Should(Equal(*p))
+				Expect(*fetchedCR.Spec.JVM.Memory.MaxRAMPercentage).Should(Equal(*p))
+
+				Delete(hz)
+			})
+			FIt("should set GC params", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				s := hazelcastv1alpha1.GCTypeSerial
+				gcArg := "-XX:MaxGCPauseMillis=200"
+				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+					GC: &hazelcastv1alpha1.JVMGCConfiguration{
+						Logging:   ptr.Bool(true),
+						Collector: &s,
+						Args:      []string{gcArg},
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+
+				Expect(*fetchedCR.Spec.JVM.GC.Logging).Should(Equal(true))
+				Expect(*fetchedCR.Spec.JVM.GC.Collector).Should(Equal(s))
+				Expect(fetchedCR.Spec.JVM.GC.Args[0]).Should(Equal(gcArg))
+
+				Delete(hz)
 			})
 		})
 	})
