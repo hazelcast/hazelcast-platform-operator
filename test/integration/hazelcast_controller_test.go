@@ -858,7 +858,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 				Delete(hz)
 			})
-			FIt("should set GC params", Label("fast"), func() {
+			It("should set GC params", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				s := hazelcastv1alpha1.GCTypeSerial
 				gcArg := "-XX:MaxGCPauseMillis=200"
