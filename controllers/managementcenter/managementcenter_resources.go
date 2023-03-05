@@ -58,7 +58,6 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 		ObjectMeta: metadata(mc),
 		Spec: corev1.ServiceSpec{
 			Selector: labels(mc),
-			Ports:    ports(),
 		},
 	}
 
@@ -69,6 +68,7 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 		service.Spec.Type = mc.Spec.ExternalConnectivity.ManagementCenterServiceType()
+		service.Spec.Ports = util.EnrichServiceNodePorts(ports(), service.Spec.Ports)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
