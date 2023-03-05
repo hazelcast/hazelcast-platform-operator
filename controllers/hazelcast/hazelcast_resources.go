@@ -666,9 +666,11 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			Enabled: true,
 			Join: config.Join{
 				Kubernetes: config.Kubernetes{
-					Enabled:     pointer.Bool(true),
-					ServiceName: h.Name,
-					ServicePort: n.MemberServerSocketPort,
+					Enabled:                 pointer.Bool(true),
+					ServiceName:             h.Name,
+					ServicePort:             n.MemberServerSocketPort,
+					ServicePerPodLabelName:  n.ServicePerPodLabelName,
+					ServicePerPodLabelValue: n.LabelValueTrue,
 				},
 			},
 		},
@@ -686,11 +688,6 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
 		cfg.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
-	}
-
-	if h.Spec.ExposeExternally.IsEnabled() {
-		cfg.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
-		cfg.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
 	}
 
 	if h.Spec.ClusterName != "" {
@@ -2103,7 +2100,10 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 	}
 	if h.Spec.ExposeExternally.IsSmart() {
 		annotations[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccessType())
+	} else {
+		delete(annotations, n.ExposeExternallyAnnotation)
 	}
+
 	cfg := config.HazelcastWrapper{Hazelcast: configForcingRestart(hazelcastBasicConfig(h))}
 	cfgYaml, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -2115,17 +2115,9 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 }
 
 func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
+	// Apart from these changes, any change in the statefulset spec, labels, annotation can force a restart.
 	return config.Hazelcast{
-		ClusterName: hz.ClusterName,
-		AdvancedNetwork: config.AdvancedNetwork{
-			Join: config.Join{
-				Kubernetes: config.Kubernetes{
-					ServicePerPodLabelName:       hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName,
-					ServicePerPodLabelValue:      hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue,
-					UseNodeNameAsExternalAddress: hz.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress,
-				},
-			},
-		},
+		ClusterName:        hz.ClusterName,
 		Jet:                hz.Jet,
 		UserCodeDeployment: hz.UserCodeDeployment,
 		Properties:         hz.Properties,
