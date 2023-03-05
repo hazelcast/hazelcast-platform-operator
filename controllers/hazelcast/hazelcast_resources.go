@@ -1368,20 +1368,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					SecurityContext:    podSecurityContext(),
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
-						Ports: []v1.ContainerPort{{
-							ContainerPort: n.DefaultHzPort,
-							Name:          n.Hazelcast,
-							Protocol:      v1.ProtocolTCP,
-						}, {
-							ContainerPort: n.MemberServerSocketPort,
-							Name:          n.MemberPortName,
-							Protocol:      v1.ProtocolTCP,
-						}, {
-							ContainerPort: n.RestServerSocketPort,
-							Name:          n.RestPortName,
-							Protocol:      v1.ProtocolTCP,
-						},
-						},
 						LivenessProbe: &v1.Probe{
 							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
@@ -1418,8 +1404,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
-	sts.Spec.Template.Spec.Containers[0].Ports = append(sts.Spec.Template.Spec.Containers[0].Ports, wanRepContainers(h)...)
-
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
 		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
@@ -1442,6 +1426,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
 		sts.Spec.Template.Spec.Containers[0].Resources = h.Spec.Resources
+		sts.Spec.Template.Spec.Containers[0].Ports = hazelcastContainerPorts(h)
 
 		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
 		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
@@ -1558,7 +1543,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return c
 }
 
-func wanRepContainers(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
+func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
 	var c []v1.ContainerPort
 
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
@@ -2112,6 +2097,26 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 	annotations[n.CurrentHazelcastConfigForcingRestartChecksum] = fmt.Sprint(crc32.ChecksumIEEE(cfgYaml))
 
 	return annotations, nil
+}
+
+func hazelcastContainerPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
+	ports := []v1.ContainerPort{{
+		ContainerPort: n.DefaultHzPort,
+		Name:          n.Hazelcast,
+		Protocol:      v1.ProtocolTCP,
+	}, {
+		ContainerPort: n.MemberServerSocketPort,
+		Name:          n.MemberPortName,
+		Protocol:      v1.ProtocolTCP,
+	}, {
+		ContainerPort: n.RestServerSocketPort,
+		Name:          n.RestPortName,
+		Protocol:      v1.ProtocolTCP,
+	},
+	}
+
+	ports = append(ports, hazelcastContainerWanRepPorts(h)...)
+	return ports
 }
 
 func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
