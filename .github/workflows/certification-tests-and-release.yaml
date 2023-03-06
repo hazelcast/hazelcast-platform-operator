@@ -116,7 +116,7 @@ jobs:
 
       - name: Run OpenSCAP Vulnerability Scan
         id: vulnerabilityScan
-        uses: appleboy/ssh-action@v0.1.6
+        uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ secrets.SCANHOST }}
           username: ec2-user
@@ -307,7 +307,7 @@ jobs:
             bundle-artifacts
 
       - name: Delete Test Image For Security Scan
-        uses: appleboy/ssh-action@v0.1.6
+        uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ secrets.SCANHOST }}
           username: ec2-user
