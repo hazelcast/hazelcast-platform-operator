@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -56,24 +57,31 @@ func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	ms, err := r.ReconcileMultiMapConfig(ctx, mm, cl, logger)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, mm, dsPendingStatus(retryAfterForDataStructures).
-			withError(err).
-			withMessage(err.Error()).
-			withMemberStatuses(ms))
+		return updateDSStatus(ctx, r.Client, mm, recoptions.RetryAfter(retryAfterForDataStructures),
+			withDSState(hazelcastv1alpha1.DataStructurePending),
+			withDSMessage(err.Error()),
+			withDSMemberStatuses(ms))
 	}
 
-	requeue, err := updateDSStatus(ctx, r.Client, mm, dsPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
+	requeue, err := updateDSStatus(ctx, r.Client, mm, recoptions.RetryAfter(1*time.Second),
+		withDSState(hazelcastv1alpha1.DataStructurePersisting),
+		withDSMessage("Persisting the applied MultiMap config."),
+		withDSMemberStatuses(ms))
 	if err != nil {
 		return requeue, err
 	}
 
 	persisted, err := r.validateMultiMapConfigPersistence(ctx, mm)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, mm, dsFailedStatus(err).withMessage(err.Error()))
+		return updateDSStatus(ctx, r.Client, mm, recoptions.Error(err),
+			withDSFailedState(err.Error()))
 	}
 
 	if !persisted {
-		return updateDSStatus(ctx, r.Client, mm, dsPersistingStatus(1*time.Second).withMessage("Waiting for MultiMap Config to be persisted."))
+		return updateDSStatus(ctx, r.Client, mm, recoptions.RetryAfter(1*time.Second),
+			withDSState(hazelcastv1alpha1.DataStructurePersisting),
+			withDSMessage("Waiting for MultiMap Config to be persisted."),
+			withDSMemberStatuses(ms))
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, mm, logger)

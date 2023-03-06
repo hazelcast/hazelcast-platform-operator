@@ -2,76 +2,52 @@ package hazelcast
 
 import (
 	"context"
-	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 )
 
-type mapOptionsBuilder struct {
-	status         hazelcastv1alpha1.MapConfigState
-	err            error
-	message        string
-	retryAfter     time.Duration
-	memberStatuses map[string]hazelcastv1alpha1.MapConfigState
+type MapStatusApplier interface {
+	MapStatusApply(ms *hazelcastv1alpha1.MapStatus)
 }
 
-func failedStatus(err error) mapOptionsBuilder {
-	return mapOptionsBuilder{
-		status: hazelcastv1alpha1.MapFailed,
-		err:    err,
+type withMapState hazelcastv1alpha1.MapConfigState
+
+func (w withMapState) MapStatusApply(ms *hazelcastv1alpha1.MapStatus) {
+	ms.State = hazelcastv1alpha1.MapConfigState(w)
+	if hazelcastv1alpha1.MapConfigState(w) == hazelcastv1alpha1.MapSuccess {
+		ms.Message = ""
 	}
 }
 
-func successStatus() mapOptionsBuilder {
-	return mapOptionsBuilder{
-		status: hazelcastv1alpha1.MapSuccess,
+type withMapFailedState string
+
+func (w withMapFailedState) MapStatusApply(ms *hazelcastv1alpha1.MapStatus) {
+	ms.State = hazelcastv1alpha1.MapFailed
+	ms.Message = string(w)
+}
+
+type withMapMessage string
+
+func (w withMapMessage) MapStatusApply(ms *hazelcastv1alpha1.MapStatus) {
+	ms.Message = string(w)
+}
+
+type withMapMemberStatuses map[string]hazelcastv1alpha1.MapConfigState
+
+func (w withMapMemberStatuses) MapStatusApply(ms *hazelcastv1alpha1.MapStatus) {
+	ms.MemberStatuses = w
+}
+
+func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1alpha1.Map, recOption controllers.ReconcilerOption, options ...MapStatusApplier) (ctrl.Result, error) {
+	for _, applier := range options {
+		applier.MapStatusApply(&m.Status)
 	}
-}
 
-func pendingStatus(retryAfter time.Duration) mapOptionsBuilder {
-	return mapOptionsBuilder{
-		status:     hazelcastv1alpha1.MapPending,
-		retryAfter: retryAfter,
-	}
-}
-
-func persistingStatus(retryAfter time.Duration) mapOptionsBuilder {
-	return mapOptionsBuilder{
-		status:     hazelcastv1alpha1.MapPersisting,
-		retryAfter: retryAfter,
-	}
-}
-
-func terminatingStatus(err error) mapOptionsBuilder {
-	return mapOptionsBuilder{
-		status: hazelcastv1alpha1.MapTerminating,
-		err:    err,
-	}
-}
-
-func (o mapOptionsBuilder) withMessage(m string) mapOptionsBuilder {
-	o.message = m
-	return o
-}
-
-func (o mapOptionsBuilder) withError(err error) mapOptionsBuilder {
-	o.err = err
-	return o
-}
-
-func (o mapOptionsBuilder) withMemberStatuses(m map[string]hazelcastv1alpha1.MapConfigState) mapOptionsBuilder {
-	o.memberStatuses = m
-	return o
-}
-
-func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1alpha1.Map, options mapOptionsBuilder) (ctrl.Result, error) {
-	m.Status.State = options.status
-	m.Status.Message = options.message
-	m.Status.MemberStatuses = options.memberStatuses
 	if err := c.Status().Update(ctx, m); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
@@ -79,11 +55,11 @@ func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1alpha1.
 		}
 		return ctrl.Result{}, err
 	}
-	if options.status == hazelcastv1alpha1.MapFailed {
-		return ctrl.Result{}, options.err
+	if recOption.Err != nil {
+		return ctrl.Result{}, recOption.Err
 	}
-	if options.status == hazelcastv1alpha1.MapPending || options.status == hazelcastv1alpha1.MapPersisting {
-		return ctrl.Result{Requeue: true, RequeueAfter: options.retryAfter}, nil
+	if m.Status.State == hazelcastv1alpha1.MapPending || m.Status.State == hazelcastv1alpha1.MapPersisting {
+		return ctrl.Result{Requeue: true, RequeueAfter: recOption.RetryAfter}, nil
 	}
 	return ctrl.Result{}, nil
 }
