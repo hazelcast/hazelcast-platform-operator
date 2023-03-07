@@ -482,6 +482,7 @@ var (
 				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 					HazelcastResourceName: hzName,
 				},
+				InMemoryFormat: hazelcastv1alpha1.InMemoryFormatBinary,
 			},
 		}
 	}

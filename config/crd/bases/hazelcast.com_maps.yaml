@@ -135,6 +135,7 @@ spec:
                 enum:
                 - BINARY
                 - OBJECT
+                - NATIVE
                 type: string
               indexes:
                 description: Indexes to be created for the map data. You can learn

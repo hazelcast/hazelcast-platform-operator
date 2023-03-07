@@ -25,6 +25,11 @@ type CacheSpec struct {
 	// +kubebuilder:default:=false
 	// +optional
 	PersistenceEnabled bool `json:"persistenceEnabled"`
+
+	// InMemoryFormat specifies in which format data will be stored in your cache
+	// +kubebuilder:default:=BINARY
+	// +optional
+	InMemoryFormat InMemoryFormatType `json:"inMemoryFormat,omitempty"`
 }
 
 // CacheStatus defines the observed state of Cache

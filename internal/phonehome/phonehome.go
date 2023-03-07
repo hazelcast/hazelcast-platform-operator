@@ -85,6 +85,7 @@ type PhoneHomeData struct {
 	ClusterUUIDs                  []string               `json:"cuids"`
 	ExposeExternally              ExposeExternally       `json:"xe"`
 	Map                           Map                    `json:"m"`
+	Cache                         Cache                  `json:"c"`
 	WanReplicationCount           int                    `json:"wrc"`
 	BackupAndRestore              BackupAndRestore       `json:"br"`
 	UserCodeDeployment            UserCodeDeployment     `json:"ucd"`
@@ -96,7 +97,6 @@ type PhoneHomeData struct {
 	TopicCount                    int                    `json:"tc"`
 	HighAvailabilityMode          []string               `json:"ha"`
 	NativeMemoryCount             int                    `json:"nmc"`
-	NativeMemoryMapCount          int                    `json:"nmmc"`
 }
 
 type ExposeExternally struct {
@@ -110,9 +110,16 @@ type ExposeExternally struct {
 }
 
 type Map struct {
-	Count            int `json:"c"`
-	PersistenceCount int `json:"pc"`
-	MapStoreCount    int `json:"msc"`
+	Count             int `json:"c"`
+	PersistenceCount  int `json:"pc"`
+	MapStoreCount     int `json:"msc"`
+	NativeMemoryCount int `json:"nmc"`
+}
+
+type Cache struct {
+	Count             int `json:"c"`
+	PersistenceCount  int `json:"pc"`
+	NativeMemoryCount int `json:"nmc"`
 }
 
 type BackupAndRestore struct {
@@ -154,6 +161,7 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillHazelcastMetrics(cl, opInfo.ClientRegistry)
 	phd.fillMCMetrics(cl)
 	phd.fillMapMetrics(cl)
+	phd.fillCacheMetrics(cl)
 	phd.fillWanReplicationMetrics(cl)
 	phd.fillHotBackupMetrics(cl)
 	phd.fillMultiMapMetrics(cl)
@@ -348,7 +356,33 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 	phm.Map.Count = createdMapCount
 	phm.Map.PersistenceCount = persistedMapCount
 	phm.Map.MapStoreCount = mapStoreMapCount
-	phm.NativeMemoryMapCount = nativeMemoryMapCount
+	phm.Map.NativeMemoryCount = nativeMemoryMapCount
+}
+
+func (phm *PhoneHomeData) fillCacheMetrics(cl client.Client) {
+	createdCacheCount := 0
+	nativeMemoryCacheCount := 0
+	persistedCacheCount := 0
+
+	l := &hazelcastv1alpha1.CacheList{}
+	err := cl.List(context.Background(), l, listOptions()...)
+	if err != nil {
+		return
+	}
+
+	for _, c := range l.Items {
+		createdCacheCount += 1
+		if c.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
+			nativeMemoryCacheCount += 1
+		}
+		if c.Spec.PersistenceEnabled {
+			persistedCacheCount += 1
+		}
+	}
+
+	phm.Cache.Count = createdCacheCount
+	phm.Cache.PersistenceCount = persistedCacheCount
+	phm.Cache.NativeMemoryCount = nativeMemoryCacheCount
 }
 
 func (phm *PhoneHomeData) fillWanReplicationMetrics(cl client.Client) {

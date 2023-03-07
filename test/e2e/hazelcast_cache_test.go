@@ -66,6 +66,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		Expect(cacheConfig.BackupCount).Should(Equal(n.DefaultCacheBackupCount))
 		Expect(cacheConfig.AsyncBackupCount).Should(Equal(n.DefaultCacheAsyncBackupCount))
 		Expect(cacheConfig.StatisticsEnabled).Should(Equal(n.DefaultCacheStatisticsEnabled))
+		Expect(string(cacheConfig.InMemoryFormat)).Should(Equal(string(c.Spec.InMemoryFormat)))
 	})
 
 	It("should fail to update Cache Config", Label("fast"), func() {

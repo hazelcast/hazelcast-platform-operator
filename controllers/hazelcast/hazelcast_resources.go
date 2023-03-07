@@ -1039,7 +1039,7 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 		ManagementEnabled: n.DefaultCacheManagementEnabled,
 		ReadThrough:       n.DefaultCacheReadThrough,
 		WriteThrough:      n.DefaultCacheWriteThrough,
-		InMemoryFormat:    n.DefaultCacheInMemoryFormat,
+		InMemoryFormat:    string(cs.InMemoryFormat),
 		MergePolicy: config.MergePolicy{
 			ClassName: n.DefaultCacheMergePolicy,
 			BatchSize: n.DefaultCacheMergeBatchSize,

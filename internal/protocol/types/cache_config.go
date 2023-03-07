@@ -23,7 +23,7 @@ type CacheConfigInput struct {
 	CacheWriterFactory                string
 	CacheLoader                       string
 	CacheWriter                       string
-	InMemoryFormat                    InMemoryFormat
+	InMemoryFormat                    InMemoryFormat `xml:"in-memory-format"`
 	SplitBrainProtectionName          string
 	PartitionLostListenerConfigs      []ListenerConfigHolder
 	ExpiryPolicyFactoryClassName      string

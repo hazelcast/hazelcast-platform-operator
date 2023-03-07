@@ -871,6 +871,24 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(ms.EntryListeners).To(BeNil())
 				Delete(m)
 			})
+			It("should create Map CR with native memory configuration", Label("fast"), func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.MapSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+					},
+				}
+				By("creating Map CR successfully")
+				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+				ms := m.Spec
+
+				By("checking the CR values with native memory")
+				Expect(ms.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
+				Delete(m)
+			})
 		})
 	})
 
@@ -1368,6 +1386,7 @@ var _ = Describe("Hazelcast controller", func() {
 						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 							HazelcastResourceName: "hazelcast",
 						},
+						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
 					},
 				}
 				By("creating Cache CR successfully")
@@ -1381,6 +1400,23 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
 				Expect(qs.KeyType).To(Equal(""))
 				Expect(qs.ValueType).To(Equal(""))
+			})
+			It("should create Cache CR with native memory configuration", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Cache{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.CacheSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+					},
+				}
+				By("creating Cache CR successfully")
+				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
+				qs := q.Spec
+
+				By("checking the CR values with native memory")
+				Expect(qs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
 			})
 		})
 	})

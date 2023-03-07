@@ -192,29 +192,6 @@ func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alph
 	return nil
 }
 
-func ValidatePersistence(pe bool, h *hazelcastv1alpha1.Hazelcast) error {
-	if !pe {
-		return nil
-	}
-	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-
-	if !ok {
-		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
-	}
-
-	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
-	err := json.Unmarshal([]byte(s), lastSpec)
-	if err != nil {
-		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
-	}
-
-	if !lastSpec.Persistence.IsEnabled() {
-		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
-	}
-
-	return nil
-}
-
 func getHazelcastClient(ctx context.Context, cs hzclient.ClientRegistry, hzName, hzNamespace string) (hzclient.Client, error) {
 	hzcl, err := cs.GetOrCreate(ctx, types.NamespacedName{Name: hzName, Namespace: hzNamespace})
 	if err != nil {
@@ -419,22 +396,4 @@ func (r *MapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Map{}).
 		Complete(r)
-}
-
-func requireNativeMemory(h *hazelcastv1alpha1.Hazelcast) error {
-	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-	if !ok {
-		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
-	}
-
-	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
-	if err := json.Unmarshal([]byte(s), lastSpec); err != nil {
-		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
-	}
-
-	if !lastSpec.NativeMemory.IsEnabled() {
-		return fmt.Errorf("native memory is not enabled for the Hazelcast resource %s", h.Name)
-	}
-
-	return nil
 }
