@@ -336,8 +336,12 @@ merge_xml_test_reports()
       done
       # count 'total' and 'skipped' number of tests and update the values in the final report
       local TOTAL_TESTS=$(xmlstarlet sel -t -v 'count(//testcase)' $PARENT_TEST_REPORT_FILE)
+      local FAILED_TESTS=$(xmlstarlet sel -t -v 'count(//testcase[@status="failed"])' $PARENT_TEST_REPORT_FILE)
+      local BROKEN_TESTS=$(xmlstarlet sel -t -v 'count(//testcase[@status="broken"])' $PARENT_TEST_REPORT_FILE)
       local SKIPPED_TESTS=$(xmlstarlet sel -t -v 'count(//testcase[@status="skipped"])' $PARENT_TEST_REPORT_FILE)
       sed -i 's/tests="[^"]*/tests="'$TOTAL_TESTS'/g' $PARENT_TEST_REPORT_FILE
+      sed -i 's/failures="[^"]*/failures="'$FAILED_TESTS'/g' $PARENT_TEST_REPORT_FILE
+      sed -i 's/errors="[^"]*/errors="'$FAILED_TESTS'/g' $PARENT_TEST_REPORT_FILE
       sed -i 's/skipped="[^"]*/skipped="'$SKIPPED_TESTS'/g' $PARENT_TEST_REPORT_FILE
       # remove all test report files except parent one for further processing
       find ${GITHUB_WORKSPACE}/allure-results/$1 -type f -name 'test-report-'$hz_version'-?[0-9].xml' ! -name 'test-report-'$hz_version'-01.xml' -delete

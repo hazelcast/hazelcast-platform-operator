@@ -127,3 +127,51 @@ jobs:
         run: |
           source .github/scripts/utils.sh
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
+
+      - name: Add Test Report Summary To PR
+        if: ${{ inputs.WORKFLOW_ID }} == 'pr'
+        run: |
+          sudo apt-get install libxml2-utils
+          # Define an array to store test run status
+          declare -a test_run_status
+          
+          # Define an associative array to map report names to suite IDs
+          declare -A suite_ids=(
+              ["test-report-ee-01.xml"]="fb850ba25ceb06c7b2b56dd821744585"
+              ["test-report-os-01.xml"]="0b301d038a17885b818e60273771cfeb"
+          )
+
+          # Initialize the table header
+          comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
+
+          # Loop through the test reports and generate a table row for each one
+          for report in "${!suite_ids[@]}"
+          do
+              # Extract the relevant data from the test report using xmllint
+              tests=$(xmllint --xpath 'string(//testsuites/testsuite/@tests)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+              failures=$(xmllint --xpath 'string(//testsuites/testsuite/@failures)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+              errors=$(xmllint --xpath 'string(//testsuites/testsuite/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+              skipped=$(xmllint --xpath 'string(//testsuites/testsuite/@skipped)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+          
+              # Save status of the test run
+              test_run_status+=("$([ "$failures" -gt 0 ] && echo true || echo false)" "$([ "$errors" -gt 0 ] && echo true || echo false)")
+
+              # Get the suite ID from the array
+              suite_id=${suite_ids[$report]}
+
+              # Extract the substring "EE" or "OS" from the report name
+              type="${report#test-report-}"
+              type="${type%-01.xml}"
+
+              # Construct a table row with a link to the test report
+              link="$GITHUB_PAGES_URL/pr/${{ github.run_number }}/#suites/${suite_id}"
+              row="| [${type^^}](${link}) | $tests | $failures | $errors| $skipped |\n"
+
+              # Append the row to the output
+              comment+="$row"
+          done
+
+          # Send the output as a comment on the pull request using gh
+          if [[ "${test_run_status[*]}" == *"true"* ]]; then
+             echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
+          fi
