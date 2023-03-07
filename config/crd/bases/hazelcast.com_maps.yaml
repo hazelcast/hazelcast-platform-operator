@@ -125,7 +125,7 @@ spec:
                 type: object
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
-                  resource.
+                  resource that this resource is created for.
                 minLength: 1
                 type: string
               inMemoryFormat:
@@ -135,6 +135,7 @@ spec:
                 enum:
                 - BINARY
                 - OBJECT
+                - NATIVE
                 type: string
               indexes:
                 description: Indexes to be created for the map data. You can learn
@@ -148,7 +149,7 @@ spec:
                         type: string
                       type: array
                     bitMapIndexOptions:
-                      description: Options for "BITMAP" index type.
+                      description: Options for "BITMAP" index type. See https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps#configuring-bitmap-indexes
                       properties:
                         uniqueKey:
                           type: string
@@ -166,7 +167,7 @@ spec:
                       description: Name of the index config.
                       type: string
                     type:
-                      description: Type of the index.
+                      description: Type of the index. See https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps#index-types
                       enum:
                       - SORTED
                       - HASH

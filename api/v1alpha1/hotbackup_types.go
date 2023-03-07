@@ -80,6 +80,11 @@ type HotBackupSpec struct {
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 
 	// URL of the bucket to download HotBackup folders.
+	// AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
+	// Example bucket URIs:
+	// - AWS S3     -> s3://bucket-name/path/to/folder
+	// - GCP Bucket -> gs://bucket-name/path/to/folder
+	// - Azure Blob -> azblob://bucket-name/path/to/folder
 	// +optional
 	BucketURI string `json:"bucketURI,omitempty"`
 

@@ -3,7 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE_VERSION:
-        description: "Version in the form of X.Y[.Z]"
+        description: "Version in the form of X.Y"
+        required: true
+      UPCOMING_RELEASE_VERSION:
+        description: "Version in the form of X.Y"
         required: true
       LATEST_SUPPORTED_HAZELCAST:
         description: "Latest supported Hazelcast Version in the form of X.Y[.Z]"
@@ -18,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VERSION }}
+      UPCOMING_RELEASE_VERSION: ${{ github.event.inputs.UPCOMING_RELEASE_VERSION }}
     outputs:
       MAJOR_MINOR_VERSION: ${{ steps.set-version.outputs.MAJOR_MINOR_VERSION }}
     steps:
@@ -25,10 +29,16 @@ jobs:
         id: set-version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+          # Currently we are only releasing MAJOR.MINOR versions. 
+          # After deciding and starting to release patch versions, following validations and the workflow needed to be updated
+          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER$"
+          echo ${UPCOMING_RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER$"
 
           MAJOR_MINOR_VERSION=$(echo ${RELEASE_VERSION} | sed 's|\([0-9]*\.[0-9]*\)\.[0-9]*|\1|')
+          UPCOMING_MAJOR_MINOR_VERSION=$(echo ${UPCOMING_RELEASE_VERSION} | sed 's|\([0-9]*\.[0-9]*\)\.[0-9]*|\1|')
+
           echo "MAJOR_MINOR_VERSION=${MAJOR_MINOR_VERSION}" >> $GITHUB_ENV
+          echo "UPCOMING_MAJOR_MINOR_VERSION=${UPCOMING_MAJOR_MINOR_VERSION}" >> $GITHUB_ENV
           echo "MAJOR_MINOR_VERSION=${MAJOR_MINOR_VERSION}" >> $GITHUB_OUTPUT
 
           if [[ ${MAJOR_MINOR_VERSION} == ${RELEASE_VERSION} ]] ;then
@@ -73,6 +83,7 @@ jobs:
           sed -i "s/page-latest-supported-hazelcast:.*/page-latest-supported-hazelcast: '${{ github.event.inputs.LATEST_SUPPORTED_HAZELCAST }}'/" docs/antora.yml
           sed -i "s/page-latest-supported-mc:.*/page-latest-supported-mc: '${{ github.event.inputs.LATEST_SUPPORTED_MC }}'/" docs/antora.yml
           sed -i "s/release-notes.adoc.*/release-notes.adoc[${RELEASE_VERSION}]/" docs/modules/ROOT/nav.adoc
+          sed -i "s/operator-chart-version: .*/operator-chart-version: '${MAJOR_MINOR_VERSION}.0'/" docs/antora.yml
 
       - name: Generate API Reference Docs
         working-directory: operator-repo
@@ -101,6 +112,18 @@ jobs:
           git add docs/antora.yml docs/modules/ROOT/pages/api-ref.adoc docs/modules/ROOT/nav.adoc
           git commit --signoff -m "Update docs to ${RELEASE_VERSION}"
           git push -u origin $BRANCH_NAME
+
+      - name: Update snapshot version for Operator chart
+        run: |
+          git checkout main
+          git pull origin main
+          
+          sed -i "s/operator-chart-version: .*/operator-chart-version: '${UPCOMING_MAJOR_MINOR_VERSION}.0-snapshot'/" docs/antora.yml
+          
+          # Commit and push changes
+          git add docs/antora.yml
+          git commit --signoff -m "Update operator-chart-version in latest-snapshot docs to ${UPCOMING_MAJOR_MINOR_VERSION}.0-snapshot"
+          git push -u origin main
 
   publish_hz_docs:
     name: Publish Hz Docs Site

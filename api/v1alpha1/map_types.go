@@ -167,7 +167,7 @@ type IndexConfig struct {
 	// +optional
 	Name string `json:"name,omitempty"`
 
-	// Type of the index.
+	// Type of the index. See https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps#index-types
 	// +required
 	Type IndexType `json:"type"`
 
@@ -175,7 +175,7 @@ type IndexConfig struct {
 	// +optional
 	Attributes []string `json:"attributes,omitempty"`
 
-	// Options for "BITMAP" index type.
+	// Options for "BITMAP" index type. See https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps#configuring-bitmap-indexes
 	// +kubebuilder:default:={}
 	// +optional
 	BitmapIndexOptions *BitmapIndexOptionsConfig `json:"bitMapIndexOptions,omitempty"`
@@ -270,22 +270,6 @@ const (
 	InitialModeLazy InitialModeType = "LAZY"
 	// Loading is blocked until all partitions are loaded.
 	InitialModeEager InitialModeType = "EAGER"
-)
-
-// InMemoryFormatType represents the format options for storing the data in the map.
-// For now, we are not exposing NATIVE format type since currently there is no support for High-Density Memory Store feature in the operator.
-// +kubebuilder:validation:Enum=BINARY;OBJECT
-type InMemoryFormatType string
-
-const (
-	// InMemoryFormatBinary Data will be stored in serialized binary format.
-	InMemoryFormatBinary InMemoryFormatType = "BINARY"
-
-	// InMemoryFormatObject Data will be stored in deserialized form.
-	InMemoryFormatObject InMemoryFormatType = "OBJECT"
-
-	// InMemoryFormatNative Data will be stored in the map that uses Hazelcast's High-Density Memory Store feature.
-	InMemoryFormatNative InMemoryFormatType = "NATIVE"
 )
 
 //+kubebuilder:object:root=true

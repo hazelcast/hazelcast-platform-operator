@@ -90,7 +90,8 @@ spec:
                     type: integer
                 type: object
               endpoints:
-                description: Endpoints is the target cluster endpoints.
+                description: Endpoints is the target cluster comma separated endpoint
+                  list .
                 minLength: 1
                 type: string
               queue:
@@ -167,12 +168,15 @@ spec:
                       description: PublisherId is the ID used for WAN publisher ID
                       type: string
                     resourceName:
-                      description: ResourceName is the name of the Map CR
+                      description: ResourceName is the name of the Map Custom Resource.
                       type: string
                     status:
                       description: Status is the status of WAN replication
                       type: string
                   type: object
+                description: WanReplicationMapsStatus is the Wan Replication status
+                  of the Maps given in the spec directly or indirectly by Hazelcast
+                  resource.
                 type: object
             type: object
         required:

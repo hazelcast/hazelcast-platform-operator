@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"strconv"
@@ -9,7 +8,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -29,12 +27,6 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		if runningLocally() {
 			return
 		}
-		By("checking hazelcast-platform-controller-manager running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 	})
 
 	AfterEach(func() {
@@ -102,17 +94,16 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
-		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - Properties are"))
-		line := scanner.Text()
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - Properties are"))
+		line := logReader.History[len(logReader.History)-1]
 		for k, v := range secretData {
 			Expect(line).To(ContainSubstring(k + "=" + v))
 		}
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
-
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
 	})
 
 	It("should add executor services both initially and dynamically", Label("fast"), func() {
@@ -230,13 +221,12 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
-		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
 		var logEl []interface{}
 		for _, e := range entries {
 			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
 		}
-		test.EventuallyInLogsUnordered(scanner, 10*Second, logInterval).
-			Should(ContainElements(logEl...))
+		test.EventuallyInLogsUnordered(logReader, 10*Second, logInterval).Should(ContainElements(logEl...))
 	})
 })

@@ -10,7 +10,6 @@ import (
 	hzCluster "github.com/hazelcast/hazelcast-go-client/cluster"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -27,12 +26,6 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		if runningLocally() {
 			return
 		}
-		By("checking hazelcast-platform-controller-manager running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 	})
 
 	AfterEach(func() {
@@ -143,13 +136,14 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 					Expect(svcLoadBalancerIngress.IP).Should(Equal(clientPublicIp))
 				} else {
 					hostname := svcLoadBalancerIngress.Hostname
-					var addressMatched bool
-					Eventually(func() error {
+					Eventually(func() bool {
 						matched, err := DnsLookupAddressMatched(ctx, hostname, clientPublicIp)
-						addressMatched = matched
-						return err
-					}, 3*Minute, interval).Should(BeNil())
-					Expect(addressMatched).Should(BeTrue())
+						if err != nil {
+							return false
+						}
+						return matched
+					}, 3*Minute, interval).Should(BeTrue())
+
 				}
 				continue memberLoop
 			}

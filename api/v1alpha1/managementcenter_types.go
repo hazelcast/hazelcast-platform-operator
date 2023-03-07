@@ -84,6 +84,10 @@ type ExternalConnectivityConfiguration struct {
 	// Ingress configuration of Management Center
 	// +optional
 	Ingress *ExternalConnectivityIngress `json:"ingress,omitempty"`
+
+	// OpenShift Route configuration of Management Center
+	// +optional
+	Route *ExternalConnectivityRoute `json:"route,omitempty"`
 }
 
 // ManagementCenterServiceType returns service type that is used by Management Center (LoadBalancer by default).
@@ -138,9 +142,21 @@ type ExternalConnectivityIngress struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// ExternalConnectivityRoute defines OpenShift route configuration of Management Center
+type ExternalConnectivityRoute struct {
+	// Hostname of Management Center exposed by route.
+	// Openshift routers will use this hostname to route inbound traffic.
+	Hostname string `json:"hostname"`
+}
+
 // IsEnabled returns true if external connectivity ingress is enabled.
 func (eci *ExternalConnectivityIngress) IsEnabled() bool {
 	return eci != nil
+}
+
+// IsEnabled returns true if external connectivity ingress is enabled.
+func (ecr *ExternalConnectivityRoute) IsEnabled() bool {
+	return ecr != nil
 }
 
 type PersistenceConfiguration struct {

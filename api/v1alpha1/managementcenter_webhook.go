@@ -1,6 +1,9 @@
 package v1alpha1
 
 import (
+	"errors"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -26,16 +29,27 @@ var _ webhook.Validator = &ManagementCenter{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *ManagementCenter) ValidateCreate() error {
 	managementcenterlog.Info("validate create", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object creation.
+	if err := ValidateManagementCenterSpec(r); err != nil {
+		return err
+	}
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *ManagementCenter) ValidateUpdate(old runtime.Object) error {
 	managementcenterlog.Info("validate update", "name", r.Name)
+	if err := ValidateManagementCenterSpec(r); err != nil {
+		return err
+	}
+	return nil
+}
 
-	// TODO(user): fill in your validation logic upon object update.
+func ValidateManagementCenterSpec(mc *ManagementCenter) error {
+	if mc.Spec.ExternalConnectivity.Route.IsEnabled() {
+		if platform.GetType() != platform.OpenShift {
+			return errors.New("Route can only be enabled in OpenShift environments.")
+		}
+	}
 	return nil
 }
 

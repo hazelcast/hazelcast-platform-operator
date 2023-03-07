@@ -29,6 +29,16 @@ func assertExists(name types.NamespacedName, obj client.Object) {
 	}, timeout, interval).Should(Succeed())
 }
 
+func assertExistsAndBeAsExpected[o client.Object](name types.NamespacedName, obj o, predicate func(o) bool) {
+	Eventually(func() bool {
+		err := k8sClient.Get(context.Background(), name, obj)
+		if err != nil {
+			return false
+		}
+		return predicate(obj)
+	}, timeout, interval).Should(BeTrue())
+}
+
 func deleteIfExists(name types.NamespacedName, obj client.Object) {
 	Eventually(func() error {
 		err := k8sClient.Get(context.Background(), name, obj)

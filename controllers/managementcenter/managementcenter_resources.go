@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -124,6 +125,51 @@ func (r *ManagementCenterReconciler) reconcileIngress(ctx context.Context, mc *h
 	return err
 }
 
+func (r *ManagementCenterReconciler) reconcileRoute(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	if platform.GetType() != platform.OpenShift {
+		return nil
+	}
+
+	route := &routev1.Route{
+		ObjectMeta: metadata(mc),
+		Spec:       routev1.RouteSpec{},
+	}
+
+	if !mc.Spec.ExternalConnectivity.Route.IsEnabled() {
+		err := r.Client.Delete(ctx, route)
+		if err != nil && !kerrors.IsNotFound(err) {
+			return err
+		}
+		if err == nil {
+			logger.Info("Deleting route", "Route", mc.Name)
+		}
+		return nil
+	}
+
+	err := controllerutil.SetControllerReference(mc, route, r.Scheme)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on Route: %w", err)
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, route, func() error {
+		route.Spec = routev1.RouteSpec{
+			Host: mc.Spec.ExternalConnectivity.Route.Hostname,
+			To: routev1.RouteTargetReference{
+				Kind: "Service",
+				Name: metadata(mc).Name,
+			},
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString("http"),
+			},
+		}
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Route", mc.Name, "result", opResult)
+	}
+	return err
+}
+
 func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:      mc.Name,
@@ -145,13 +191,13 @@ func ports() []v1.ServicePort {
 			Name:       "http",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       8080,
-			TargetPort: intstr.FromString(n.Mancenter),
+			TargetPort: intstr.FromString(n.MancenterPort),
 		},
 		{
 			Name:       "https",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       443,
-			TargetPort: intstr.FromString(n.Mancenter),
+			TargetPort: intstr.FromString(n.MancenterPort),
 		},
 	}
 }
@@ -175,7 +221,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 						Name: n.ManagementCenter,
 						Ports: []v1.ContainerPort{{
 							ContainerPort: 8080,
-							Name:          n.Mancenter,
+							Name:          n.MancenterPort,
 							Protocol:      v1.ProtocolTCP,
 						}},
 						VolumeMounts: []corev1.VolumeMount{},
@@ -364,7 +410,7 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 			},
 			v1.EnvVar{
 				Name: javaOpts,
-				Value: fmt.Sprintf("-XX:+UseContainerSupport -Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true"+
+				Value: fmt.Sprintf("-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true"+
 					" -Dhazelcast.mc.lock.skip=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
 			},
 		)
@@ -372,7 +418,7 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: javaOpts,
-				Value: fmt.Sprintf("-XX:+UseContainerSupport -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"+
+				Value: fmt.Sprintf("-Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"+
 					" -Dhazelcast.mc.lock.skip=true -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
 			},
 		)

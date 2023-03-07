@@ -109,6 +109,7 @@ spec:
                 minimum: 0
                 type: integer
               durableExecutorServices:
+                description: Durable Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/durable-executor-service
                 items:
                   properties:
                     capacity:
@@ -135,6 +136,7 @@ spec:
                   type: object
                 type: array
               executorServices:
+                description: Java Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/executor-service
                 items:
                   properties:
                     name:
@@ -228,6 +230,25 @@ spec:
               jvm:
                 description: Hazelcast JVM configuration
                 properties:
+                  gc:
+                    description: GC is for configuring JVM Garbage Collector
+                    properties:
+                      args:
+                        description: Args is for arbitrary garbage collection arguments
+                        items:
+                          type: string
+                        type: array
+                      collector:
+                        description: Collector is the Garbage Collector type
+                        enum:
+                        - Serial
+                        - Parallel
+                        - G1
+                        type: string
+                      logging:
+                        description: Logging enables logging when set to true
+                        type: boolean
+                    type: object
                   memory:
                     description: Memory is a JVM memory configuration
                     properties:
@@ -251,7 +272,7 @@ spec:
                 type: string
               loggingLevel:
                 default: INFO
-                description: LoggingLevel controlls log verbosity for Hazelcast.
+                description: Logging level for Hazelcast members
                 enum:
                 - "OFF"
                 - FATAL
@@ -350,7 +371,11 @@ spec:
                           be downloaded.
                         properties:
                           bucketURI:
-                            description: Full path to blob storage bucket.
+                            description: 'URL of the bucket to download HotBackup
+                              folders. AWS S3, GCP Bucket and Azure Blob storage buckets
+                              are supported. Example bucket URIs: - AWS S3     ->
+                              s3://bucket-name/path/to/folder - GCP Bucket -> gs://bucket-name/path/to/folder
+                              - Azure Blob -> azblob://bucket-name/path/to/folder'
                             minLength: 6
                             type: string
                           secret:
@@ -380,6 +405,7 @@ spec:
               properties:
                 additionalProperties:
                   type: string
+                description: Hazelcast system properties, see https://docs.hazelcast.com/hazelcast/latest/system-properties
                 type: object
               repository:
                 default: docker.io/hazelcast/hazelcast
@@ -412,6 +438,7 @@ spec:
                     type: object
                 type: object
               scheduledExecutorServices:
+                description: Scheduled Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/scheduled-executor-service
                 items:
                   properties:
                     capacity:
@@ -1537,10 +1564,15 @@ spec:
                 description: User Codes to Download into CLASSPATH
                 properties:
                   bucketConfig:
-                    description: Jar files in the bucket will be put under CLASSPATH.
+                    description: Bucket config where JAR files will be downloaded
+                      into Java CLASSPATH.
                     properties:
                       bucketURI:
-                        description: Full path to blob storage bucket.
+                        description: 'URL of the bucket to download HotBackup folders.
+                          AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
+                          Example bucket URIs: - AWS S3     -> s3://bucket-name/path/to/folder
+                          - GCP Bucket -> gs://bucket-name/path/to/folder - Azure
+                          Blob -> azblob://bucket-name/path/to/folder'
                         minLength: 6
                         type: string
                       secret:
@@ -1556,7 +1588,8 @@ spec:
                     description: When true, allows user code deployment from clients.
                     type: boolean
                   configMaps:
-                    description: Files in the ConfigMaps will be put under CLASSPATH.
+                    description: Names of the list of ConfigMaps. Files in each ConfigMap
+                      will be put under Java CLASSPATH.
                     items:
                       type: string
                     type: array

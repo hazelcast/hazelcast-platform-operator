@@ -75,8 +75,8 @@ func (o optionsBuilder) withMessage(m string) optionsBuilder {
 	return o
 }
 
-func (o optionsBuilder) withExternalAddresses(addrs string) optionsBuilder {
-	o.externalAddresses = addrs
+func (o optionsBuilder) withExternalAddresses(addrs []string) optionsBuilder {
+	o.externalAddresses = strings.Join(addrs, ",")
 	return o
 }
 

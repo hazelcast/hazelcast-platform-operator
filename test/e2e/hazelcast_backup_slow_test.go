@@ -1,15 +1,12 @@
 package e2e
 
 import (
-	"bufio"
 	"context"
-	"math"
 	"strconv"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -30,12 +27,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		if runningLocally() {
 			return
 		}
-		By("checking hazelcast-platform-controller-manager running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 	})
 
 	AfterEach(func() {
@@ -82,22 +73,21 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		logs := InitLogs(t, hzLookupKey)
-		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
-		Expect(logs.Close()).Should(Succeed())
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 
 		WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), 100, 30*Minute)
 	})
 
-	It("should restore 9 GB data after planned shutdown", Label("slow"), func() {
+	It("should restore 3 GB data after planned shutdown", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hbs-2")
-		var mapSizeInGb = 3
-		var pvcSizeInGb = mapSizeInGb * 2 // Taking backup duplicates the used storage
-		var expectedMapSize = int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
+		var mapSizeInMb = 3072
+		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
+		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
 		clusterSize := int32(3)
 
@@ -110,16 +100,16 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the map config and putting entries")
 		dm := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		assertMapStatus(dm, hazelcastv1alpha1.MapSuccess)
-		FillTheMapWithHugeData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
+		FillTheMapWithData(ctx, dm.MapName(), mapSizeInMb, hazelcast)
 
 		By("creating HotBackup CR")
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
@@ -144,9 +134,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -156,18 +146,18 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
-	It("Should successfully restore 9 Gb data from external backup using GCP bucket", Label("slow"), func() {
+	It("Should successfully restore 3 Gb data from external backup using GCP bucket", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
 		setLabelAndCRName("hbs-3")
 
 		ctx := context.Background()
-		var mapSizeInGb = 3
-		var pvcSizeInGb = mapSizeInGb * 2 // Taking backup duplicates the used storage
+		var mapSizeInMb = 3072
+		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
 		var bucketURI = "gs://operator-e2e-external-backup"
 		var secretName = "br-secret-gcp"
-		expectedMapSize := int(float64(mapSizeInGb) * math.Round(1310.72) * 100)
+		expectedMapSize := int(float64(mapSizeInMb) * 128)
 		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
@@ -179,9 +169,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
@@ -192,7 +182,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(dm, hazelcastv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapWithHugeData(ctx, dm.MapName(), mapSizeInGb, hazelcast)
+		FillTheMapWithData(ctx, dm.MapName(), mapSizeInMb, hazelcast)
 
 		By("triggering the backup")
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
@@ -217,9 +207,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -237,8 +227,8 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		ctx := context.Background()
 		bucketURI := "gs://operator-e2e-external-backup"
 		secretName := "br-secret-gcp"
-		mapSizeInGb := 1
-		pvcSizeInGb := mapSizeInGb * 2 // Taking backup duplicates the used storage
+		mapSizeInMb := 1024
+		pvcSizeInMb := mapSizeInMb * 2 // Taking backup duplicates the used storage
 		clusterSize := int32(3)
 
 		By("creating cluster with external backup enabled")
@@ -250,9 +240,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")},
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInGb) + "Gi")}[0]
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -262,7 +252,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 
 		By("filling the Map")
-		FillTheMapWithHugeData(ctx, m.MapName(), mapSizeInGb, hazelcast)
+		FillTheMapWithData(ctx, m.MapName(), mapSizeInMb, hazelcast)
 
 		t := Now()
 
@@ -270,8 +260,21 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(ctx, hotBackup)).Should(Succeed())
 
-		By("wait for backup to start")
-		Sleep(5 * Second)
+		By("checking hazelcast logs if backup started")
+		hzLogs := InitLogs(t, hzLookupKey)
+		hzLogReader := test.NewLogReader(hzLogs)
+		defer hzLogReader.Close()
+		test.EventuallyInLogs(hzLogReader, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
+		test.EventuallyInLogs(hzLogReader, 10*Second, logInterval).Should(MatchRegexp(`Backup of hot restart store (.*?) finished in [0-9]* ms`))
+
+		By("checking agent logs if upload is started")
+		agentLogs := SidecarAgentLogs(t, hzLookupKey)
+		agentLogReader := test.NewLogReader(agentLogs)
+		defer agentLogReader.Close()
+		test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("Starting new task"))
+		test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("task is started"))
+		test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("task successfully read secret"))
+		test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("task is in progress"))
 
 		By("get hotbackup object")
 		hb := &hazelcastv1alpha1.HotBackup{}
@@ -283,20 +286,8 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		err = k8sClient.Delete(ctx, hb)
 		Expect(err).ToNot(HaveOccurred())
 
-		// hazelcast logs
-		hzLogs := InitLogs(t, hzLookupKey)
-		defer hzLogs.Close()
-		scanner := bufio.NewScanner(hzLogs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Starting new hot backup with sequence"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp(`Backup of hot restart store (.*?) finished in [0-9]* ms`))
-
-		// agent logs
-		agentLogs := SidecarAgentLogs(t, hzLookupKey)
-		defer agentLogs.Close()
-		scanner = bufio.NewScanner(agentLogs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("POST /upload"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Uploading"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("DELETE"))
+		By("checking agent logs if upload canceled")
+		test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("canceling task"))
 	})
 
 	It("Should successfully restore multiple times from HotBackupResourceName", Label("slow"), func() {
@@ -398,16 +389,14 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		DeletePod(hazelcast.Name+"-2", 10, hzLookupKey)
 		evaluateReadyMembers(hzLookupKey)
 		logs := InitLogs(t, hzLookupKey)
-		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=2"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		Expect(logs.Close()).Should(Succeed())
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=2"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 
@@ -460,15 +449,14 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 		logs := InitLogs(t, hzLookupKey)
-		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("cluster state: PASSIVE"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Expected-Size: 3, Actual-Size: 1"))
-		test.EventuallyInLogs(scanner, 10*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
-		test.EventuallyInLogs(scanner, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		Expect(logs.Close()).Should(Succeed())
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("cluster state: PASSIVE"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=1"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=3"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
+		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 })

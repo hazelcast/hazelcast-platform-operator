@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -15,45 +14,45 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
-type Metrics struct {
-	UID             types.UID
-	PardotID        string
-	Version         string
-	CreatedAt       time.Time
-	K8sDistribution string
-	K8sVersion      string
-	Trigger         chan struct{}
-	ClientRegistry  hzclient.ClientRegistry
+type OperatorInfo struct {
+	UID                  types.UID
+	PardotID             string
+	Version              string
+	CreatedAt            time.Time
+	K8sDistribution      string
+	K8sVersion           string
+	Trigger              chan struct{}
+	ClientRegistry       hzclient.ClientRegistry
+	WatchedNamespaceType util.WatchedNsType
 }
 
-func Start(cl client.Client, m *Metrics) {
+func Start(cl client.Client, opInfo *OperatorInfo) {
 	ticker := time.NewTicker(24 * time.Hour)
 	go func() {
 		for {
 			select {
-			case <-m.Trigger:
+			case <-opInfo.Trigger:
 				// a resource triggered phone home, wait for other possible triggers
 				time.Sleep(30 * time.Second)
 				// empty other triggers
-				for len(m.Trigger) > 0 {
-					<-m.Trigger
+				for len(opInfo.Trigger) > 0 {
+					<-opInfo.Trigger
 				}
-				PhoneHome(cl, m)
+				PhoneHome(cl, opInfo)
 			case <-ticker.C:
-				PhoneHome(cl, m)
+				PhoneHome(cl, opInfo)
 			}
 		}
 	}()
 }
 
-func PhoneHome(cl client.Client, m *Metrics) {
+func PhoneHome(cl client.Client, opInfo *OperatorInfo) {
 	phUrl := "http://phonehome.hazelcast.com/pingOp"
 
-	phd := newPhoneHomeData(cl, m)
+	phd := newPhoneHomeData(cl, opInfo)
 	jsn, err := json.Marshal(phd)
 	if err != nil {
 		return
@@ -78,6 +77,7 @@ type PhoneHomeData struct {
 	Uptime                        int64                  `json:"u"` // In milliseconds
 	K8sDistribution               string                 `json:"kd"`
 	K8sVersion                    string                 `json:"kv"`
+	WatchedNamespaceType          util.WatchedNsType     `json:"wnt"`
 	CreatedClusterCount           int                    `json:"ccc"`
 	CreatedEnterpriseClusterCount int                    `json:"cecc"`
 	CreatedMCcount                int                    `json:"cmcc"`
@@ -85,6 +85,7 @@ type PhoneHomeData struct {
 	ClusterUUIDs                  []string               `json:"cuids"`
 	ExposeExternally              ExposeExternally       `json:"xe"`
 	Map                           Map                    `json:"m"`
+	Cache                         Cache                  `json:"c"`
 	WanReplicationCount           int                    `json:"wrc"`
 	BackupAndRestore              BackupAndRestore       `json:"br"`
 	UserCodeDeployment            UserCodeDeployment     `json:"ucd"`
@@ -114,9 +115,16 @@ type ExposeExternally struct {
 }
 
 type Map struct {
-	Count            int `json:"c"`
-	PersistenceCount int `json:"pc"`
-	MapStoreCount    int `json:"msc"`
+	Count             int `json:"c"`
+	PersistenceCount  int `json:"pc"`
+	MapStoreCount     int `json:"msc"`
+	NativeMemoryCount int `json:"nmc"`
+}
+
+type Cache struct {
+	Count             int `json:"c"`
+	PersistenceCount  int `json:"pc"`
+	NativeMemoryCount int `json:"nmc"`
 }
 
 type BackupAndRestore struct {
@@ -141,21 +149,24 @@ type McExternalConnectivity struct {
 	ServiceTypeNodePort     int `json:"stnp"`
 	ServiceTypeLoadBalancer int `json:"stlb"`
 	IngressEnabledCount     int `json:"iec"`
+	RouteEnabledCount       int `json:"rec"`
 }
 
-func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
+func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd := PhoneHomeData{
-		OperatorID:      m.UID,
-		PardotID:        m.PardotID,
-		Version:         m.Version,
-		Uptime:          upTime(m.CreatedAt).Milliseconds(),
-		K8sDistribution: m.K8sDistribution,
-		K8sVersion:      m.K8sVersion,
+		OperatorID:           opInfo.UID,
+		PardotID:             opInfo.PardotID,
+		Version:              opInfo.Version,
+		Uptime:               upTime(opInfo.CreatedAt).Milliseconds(),
+		K8sDistribution:      opInfo.K8sDistribution,
+		K8sVersion:           opInfo.K8sVersion,
+		WatchedNamespaceType: opInfo.WatchedNamespaceType,
 	}
 
-	phd.fillHazelcastMetrics(cl, m.ClientRegistry)
+	phd.fillHazelcastMetrics(cl, opInfo.ClientRegistry)
 	phd.fillMCMetrics(cl)
 	phd.fillMapMetrics(cl)
+	phd.fillCacheMetrics(cl)
 	phd.fillWanReplicationMetrics(cl)
 	phd.fillHotBackupMetrics(cl)
 	phd.fillMultiMapMetrics(cl)
@@ -324,6 +335,9 @@ func (mec *McExternalConnectivity) addUsageMetrics(ec *hazelcastv1alpha1.Externa
 		if ec.Ingress.IsEnabled() {
 			mec.IngressEnabledCount++
 		}
+		if ec.Route.IsEnabled() {
+			mec.RouteEnabledCount++
+		}
 	}
 }
 
@@ -331,6 +345,7 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 	createdMapCount := 0
 	persistedMapCount := 0
 	mapStoreMapCount := 0
+	nativeMemoryMapCount := 0
 
 	ml := &hazelcastv1alpha1.MapList{}
 	err := cl.List(context.Background(), ml, listOptions()...)
@@ -346,10 +361,40 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 		if m.Spec.MapStore != nil {
 			mapStoreMapCount += 1
 		}
+		if m.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
+			nativeMemoryMapCount += 1
+		}
 	}
 	phm.Map.Count = createdMapCount
 	phm.Map.PersistenceCount = persistedMapCount
 	phm.Map.MapStoreCount = mapStoreMapCount
+	phm.Map.NativeMemoryCount = nativeMemoryMapCount
+}
+
+func (phm *PhoneHomeData) fillCacheMetrics(cl client.Client) {
+	createdCacheCount := 0
+	nativeMemoryCacheCount := 0
+	persistedCacheCount := 0
+
+	l := &hazelcastv1alpha1.CacheList{}
+	err := cl.List(context.Background(), l, listOptions()...)
+	if err != nil {
+		return
+	}
+
+	for _, c := range l.Items {
+		createdCacheCount += 1
+		if c.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
+			nativeMemoryCacheCount += 1
+		}
+		if c.Spec.PersistenceEnabled {
+			persistedCacheCount += 1
+		}
+	}
+
+	phm.Cache.Count = createdCacheCount
+	phm.Cache.PersistenceCount = persistedCacheCount
+	phm.Cache.NativeMemoryCount = nativeMemoryCacheCount
 }
 
 func (phm *PhoneHomeData) fillWanReplicationMetrics(cl client.Client) {
@@ -424,12 +469,12 @@ func (phm *PhoneHomeData) fillReplicatedMapMetrics(cl client.Client) {
 
 func listOptions() []client.ListOption {
 	lo := []client.ListOption{}
-	watchedNamespaces := strings.Split(os.Getenv(n.WatchedNamespacesEnv), ",")
-	if len(watchedNamespaces) == 1 && util.IsWatchingAllNamespaces(watchedNamespaces[0]) {
+	if util.WatchedNamespaceType() == util.WatchedNsTypeAll {
 		// Watching all namespaces, no need to filter
 		return lo
 	}
 
+	watchedNamespaces := util.WatchedNamespaces()
 	for _, watchedNamespace := range watchedNamespaces {
 		lo = append(lo, client.InNamespace(watchedNamespace))
 	}

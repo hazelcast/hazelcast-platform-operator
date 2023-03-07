@@ -1,14 +1,12 @@
 package e2e
 
 import (
-	"bufio"
 	"context"
 	"strconv"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -26,12 +24,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		if runningLocally() {
 			return
 		}
-		By("checking hazelcast-platform-controller-manager running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 	})
 
 	AfterEach(func() {
@@ -68,17 +60,15 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 		By("checking the HotBackup creation sequence")
 		logs := InitLogs(t, hzLookupKey)
-		defer logs.Close()
-		scanner := bufio.NewScanner(logs)
-		test.EventuallyInLogs(scanner, 15*Second, logInterval).
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		test.EventuallyInLogs(logReader, 15*Second, logInterval).
 			Should(ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=PASSIVE}"))
-		test.EventuallyInLogsUnordered(scanner, 15*Second, logInterval).
+		test.EventuallyInLogsUnordered(logReader, 15*Second, logInterval).
 			Should(ContainElements(
 				ContainSubstring("Starting new hot backup with sequence"),
 				ContainSubstring("ClusterStateChange{type=class com.hazelcast.cluster.ClusterState, newState=ACTIVE}"),
 				MatchRegexp(`(.*) Backup of hot restart store (.*?) finished in [0-9]* ms`)))
-
-		Expect(logs.Close()).Should(Succeed())
 
 		assertHotBackupSuccess(hotBackup, 1*Minute)
 	})

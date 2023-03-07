@@ -2,6 +2,7 @@ package managementcenter
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,8 +44,8 @@ func (o optionsBuilder) withMessage(message string) optionsBuilder {
 	return o
 }
 
-func (o optionsBuilder) withExternalAddresses(externalAddrs string) optionsBuilder {
-	o.externalAddresses = externalAddrs
+func (o optionsBuilder) withExternalAddresses(externalAddrs []string) optionsBuilder {
+	o.externalAddresses = strings.Join(externalAddrs, ",")
 	return o
 }
 

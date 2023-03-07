@@ -13,9 +13,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -174,49 +171,6 @@ func IsDeveloperModeEnabled() bool {
 	return strings.ToLower(value) == "true"
 }
 
-func GetOperatorVersion() string {
-	return os.Getenv(n.OperatorVersionEnv)
-}
-
-func GetPardotID() string {
-	return os.Getenv(n.PardotIDEnv)
-}
-
-func GetOperatorID(c *rest.Config) types.UID {
-	uid, err := getOperatorDeploymentUID(c)
-	if err == nil {
-		return uid
-	}
-
-	return uuid.NewUUID()
-}
-
-func getOperatorDeploymentUID(c *rest.Config) (types.UID, error) {
-	ns, okNS := os.LookupEnv(n.NamespaceEnv)
-	podName, okPN := os.LookupEnv(n.PodNameEnv)
-
-	if !okNS || !okPN {
-		return "", fmt.Errorf("%s or %s is not defined", n.NamespaceEnv, n.PodNameEnv)
-	}
-	client, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		return "", err
-	}
-
-	var d *appsv1.Deployment
-	d, err = client.AppsV1().Deployments(ns).Get(context.TODO(), DeploymentName(podName), metav1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
-
-	return d.UID, nil
-}
-
-func DeploymentName(podName string) string {
-	s := strings.Split(podName, "-")
-	return strings.Join(s[:len(s)-2], "-")
-}
-
 type ExternalAddresser interface {
 	metav1.Object
 	ExternalAddressEnabled() bool
@@ -227,19 +181,19 @@ func GetExternalAddresses(
 	cli client.Client,
 	cr ExternalAddresser,
 	logger logr.Logger,
-) string {
+) []string {
 	if !cr.ExternalAddressEnabled() {
-		return ""
+		return nil
 	}
 
 	svc, err := getDiscoveryService(ctx, cli, cr)
 	if err != nil {
 		logger.Error(err, "Could not get the service")
-		return ""
+		return nil
 	}
 	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
 		logger.Error(errors.New("unexpected service type"), "Service type is not LoadBalancer")
-		return ""
+		return nil
 	}
 
 	externalAddrs := make([]string, 0, len(svc.Status.LoadBalancer.Ingress)*len(svc.Spec.Ports))
@@ -253,12 +207,11 @@ func GetExternalAddresses(
 		}
 	}
 
-	result := strings.Join(externalAddrs, ",")
-	if result == "" {
-		logger.Info("LoadBalancer external IP is not ready")
-		return ""
+	if len(externalAddrs) == 0 {
+		logger.Info("Load Balancer external IP is not ready.")
 	}
-	return result
+	return externalAddrs
+
 }
 
 func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.Service, error) {
@@ -295,10 +248,6 @@ func IsApplied(obj client.Object) bool {
 func IsSuccessfullyApplied(obj client.Object) bool {
 	_, ok := obj.GetAnnotations()[n.LastSuccessfulSpecAnnotation]
 	return ok
-}
-
-func IsWatchingAllNamespaces(ns string) bool {
-	return ns == "" || ns == "*"
 }
 
 func NodeDiscoveryEnabled() bool {

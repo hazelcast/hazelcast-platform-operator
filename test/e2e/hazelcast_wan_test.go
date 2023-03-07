@@ -7,7 +7,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -23,12 +22,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		if runningLocally() {
 			return
 		}
-		By("checking hazelcast-platform-controller-manager running", func() {
-			controllerDep := &appsv1.Deployment{}
-			Eventually(func() (int32, error) {
-				return getDeploymentReadyReplicas(context.Background(), controllerManagerName, controllerDep)
-			}, 90*Second, interval).Should(Equal(int32(1)))
-		})
 	})
 
 	AfterEach(func() {
@@ -66,7 +59,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	//When("All pods are deleted",
-	It("should send data to another cluster using ConfigMap configuration", Label("slow"), func() {
+	It("should send data using WanReplication configuration in ConfigMap", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -95,7 +88,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	//When("Multiple WanReplication resources with multiple maps exist",
-	It("should replicate maps to target cluster ", Label("slow"), func() {
+	It("should replicate maps to target cluster including maps with names different from map CR name ", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -104,7 +97,8 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		// Hazelcast and Map CRs
 		hzSource1 := "hz1-source" + suffix
 		map11 := "map11" + suffix
-		map12 := "map12" + suffix
+		map12CrName := "map12" + suffix
+		map12MapName := map12CrName + "-mapName"
 
 		hzSource2 := "hz2-source" + suffix
 		map21 := "map21" + suffix
@@ -112,34 +106,36 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		hzTarget1 := "hz1-target" + suffix
 
 		hzCrs, _ := createWanResources(context.Background(), map[string][]string{
-			hzSource1: {map11, map12},
+			hzSource1: {map11},
 			hzSource2: {map21},
 			hzTarget1: nil,
-		}, hzSrcLookupKey.Namespace, labels)
+		}, hzNamespace, labels)
+		// Create the map with CRName != mapName
+		createMapCRWithMapName(context.Background(), map12CrName, map12MapName, types.NamespacedName{Name: hzSource1, Namespace: hzNamespace})
 
 		By("creating first WAN configuration")
 		createWanConfig(context.Background(), types.NamespacedName{Name: "wan1" + suffix, Namespace: hzNamespace}, hzCrs[hzTarget1],
 			[]hazelcastcomv1alpha1.ResourceSpec{
-				{Name: map11, Kind: hazelcastcomv1alpha1.ResourceKindMap},
+				{Name: map12CrName, Kind: hazelcastcomv1alpha1.ResourceKindMap},
 				{Name: hzSource2, Kind: hazelcastcomv1alpha1.ResourceKindHZ},
 			}, 2, labels)
 
 		By("creating second WAN configuration")
 		createWanConfig(context.Background(), types.NamespacedName{Name: "wan2" + suffix, Namespace: hzNamespace}, hzCrs[hzTarget1],
 			[]hazelcastcomv1alpha1.ResourceSpec{
-				{Name: map12},
+				{Name: map11},
 			}, 1, labels)
 
 		By("filling the maps in the source clusters")
 		mapSize := 10
 		fillTheMapDataPortForward(context.Background(), hzCrs[hzSource1], localPort, map11, mapSize)
-		fillTheMapDataPortForward(context.Background(), hzCrs[hzSource1], localPort, map12, mapSize)
+		fillTheMapDataPortForward(context.Background(), hzCrs[hzSource1], localPort, map12MapName, mapSize)
 		fillTheMapDataPortForward(context.Background(), hzCrs[hzSource2], localPort, map21, mapSize)
 
 		By("checking the size of the maps in the target cluster")
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTarget1], localPort, map11, mapSize, 1*Minute)
+		waitForMapSizePortForward(context.Background(), hzCrs[hzTarget1], localPort, map12MapName, mapSize, 1*Minute)
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTarget1], localPort, map21, mapSize, 1*Minute)
-		waitForMapSizePortForward(context.Background(), hzCrs[hzTarget1], localPort, map12, mapSize, 1*Minute)
 	})
 
 	//When("Wan replicated Map CR is deleted which was given as a Map resource in Wan spec",

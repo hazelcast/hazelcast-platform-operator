@@ -45,6 +45,8 @@ const (
 	ManagementCenter = "management-center"
 	// Mancenter MC short name
 	Mancenter = "mancenter"
+	// MancenterPort MC short name
+	MancenterPort = Mancenter + "-port"
 	// MancenterStorageName storage name for MC
 	MancenterStorageName = Mancenter + "-storage"
 

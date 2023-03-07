@@ -1,0 +1,217 @@
+name: (E2E) Cluster Scope Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *"
+
+env:
+  GO_VERSION: '1.19.0'
+  GOBIN: ${{ github.workspace }}/bin
+  GINKGO_VERSION: v2.1.6
+  GAR_REGION: us-east1
+  GAR_PROJECT: hazelcast-33
+  GAR_REPO: hazelcast-platform-operator
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  get-image:
+    name: Get Image
+    runs-on: ubuntu-latest
+    permissions: {}
+    timeout-minutes: 10
+    outputs:
+      IMG: ${{ steps.get-image-tag.outputs.IMG }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set Up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2.4.1
+        with:
+          install: true
+
+      - name: Login to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Generate Image Name
+        id: get-image-tag
+        run: |
+          echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
+      - name: Build Image
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: .
+          builder: ${{ steps.buildx.outputs.name }}
+          build-args: |
+            version=${{github.sha}}
+            pardotID=dockerhub
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.get-image-tag.outputs.IMG }}
+          cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+          cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+
+  kind-e2e-tests:
+    name: Run E2E tests
+    runs-on: ubuntu-latest
+    needs: get-image
+    env:
+      NAMESPACE: kind-test-operator-ee
+      RELEASE_NAME: hp-ee-${{ github.run_id }}
+      CLUSTER_NAME: kind
+      IMG: ${{ needs.get-image.outputs.IMG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{steps.decide-ref.outputs.ref}}
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ format('>={0}', env.GO_VERSION) }}
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Create Kind Config
+        run: |
+          cat <<EOT >> ./kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+          - role: worker
+          EOT
+      - name: Create Kind Cluster
+        uses: helm/kind-action@v1.5.0
+        with:
+          config: ./kind-config.yaml
+          cluster_name: ${{ env.CLUSTER_NAME }}
+
+      - name: Install Grafana Agent
+        env:
+          CLUSTER_TYPE: kind
+          GH_RUN_ID: ${{ github.run_id }}
+          GH_RUN_NUMBER: ${{ github.run_number }}
+          GH_SHA: ${{ github.sha }}
+          GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
+          LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+          GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
+          GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
+          GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
+          NAMESPACES: ${{ env.NAMESPACE }}
+          GRAFANA_NS: grafana
+        run: |
+          kubectl create namespace ${GRAFANA_NS}
+          NAMESPACE=${GRAFANA_NS} envsubst < .github/grafana/metrics-cm.yaml | /bin/sh -c 'kubectl apply -f -'
+          NAMESPACE=${GRAFANA_NS} envsubst < .github/grafana/logs-cm.yaml | /bin/sh -c 'kubectl apply -f -'
+          MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-bare.yaml NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && helm repo update && \
+          helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.4.2 -n ${GRAFANA_NS}
+          MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-loki.yaml NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+      - name: Install metallb
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_on: error
+          command: |
+            kubectl create namespace ${NAMESPACE}
+            kubectl config set-context --current --namespace=$NAMESPACE
+            kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
+            kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
+            HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
+            HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
+            IP_RANGE=$HOST_MIN-$HOST_MAX
+            
+            cat <<EOF | kubectl apply -f -
+            apiVersion: metallb.io/v1beta1
+            kind: IPAddressPool
+            metadata:
+              name: kind-pool
+              namespace: metallb-system
+            spec:
+              addresses:
+              - $IP_RANGE
+            ---
+            apiVersion: metallb.io/v1beta1
+            kind: L2Advertisement
+            metadata:
+              name: l2
+              namespace: metallb-system
+            spec:
+              ipAddressPools:
+              - kind-pool
+            EOF
+      - name: Create Secrets
+        run: |
+          kubectl create secret generic hazelcast-license-key \
+             --namespace ${{ env.NAMESPACE }} \
+             --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+          kubectl create secret generic br-secret-s3 \
+            --namespace ${{ env.NAMESPACE }} \
+            --from-literal=region=us-east-1 \
+            --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          kubectl create secret generic br-secret-az \
+            --namespace ${{ env.NAMESPACE }} \
+            --from-literal=storage-account=operatortest \
+            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
+      - name: Create Secret For Both OS and EE Tests
+        run: |
+          kubectl create secret generic br-secret-gcp \
+          --namespace ${{ env.NAMESPACE }} \
+          --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+      - name: Authenticate to GAR
+        uses: docker/login-action@v2
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Load Image
+        run: |
+          docker pull $IMG
+          kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
+      - name: Deploy Operator to Kind Cluster
+        run: |
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
+          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES="*" NAMESPACE=${{ env.NAMESPACE }}
+          kubectl rollout status deployment $DEPLOY_NAME
+      - name: Run Tests
+        id: e2e-test
+        run: |
+          make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee-01 WORKFLOW_ID=cluster_scope NAMESPACE=${{ env.NAMESPACE }}
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report-cluster_scope
+          path: allure-results/cluster_scope/
+          retention-days: 5
+
+  report-generation:
+    needs: ["kind-e2e-tests"]
+    if: always() && (needs.kind-e2e-tests.result == 'success' || needs.kind-e2e-tests.result == 'failure')
+    uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
+    with:
+      WORKFLOW_ID: cluster_scope
+      CLUSTER_NAME: kind

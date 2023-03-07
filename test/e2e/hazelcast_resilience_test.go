@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Resilience", Serial, func() {
+var _ = Describe("Resilience", Label("resilience"), Serial, func() {
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
@@ -33,7 +33,8 @@ var _ = Describe("Resilience", Serial, func() {
 	})
 
 	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Label("slow"), func() {
-		By("creating source Hazelcast cluster")
+		By("clone existing operator")
+		setLabelAndCRName("res-1")
 		hazelcastSource := hazelcastconfig.Default(hzSrcLookupKey, ee, labels)
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)

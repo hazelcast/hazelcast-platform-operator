@@ -47,8 +47,8 @@ spec:
             properties:
               globalOrderingEnabled:
                 default: false
-                description: When true all nodes listening to the same topic get their
-                  messages in the same order
+                description: globalOrderingEnabled allows all nodes listening to the
+                  same topic get their messages in the same order the same order
                 type: boolean
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
@@ -57,8 +57,8 @@ spec:
                 type: string
               multiThreadingEnabled:
                 default: false
-                description: When true enables multi-threaded processing of incoming
-                  messages, otherwise a single thread will handle all topic messages
+                description: multiThreadingEnabled enables multi-threaded processing
+                  of incoming messages a single thread will handle all topic messages
                 type: boolean
               name:
                 description: Name of the topic config to be created. If empty, CR
@@ -79,10 +79,13 @@ spec:
                   - Persisting
                   - Terminating
                   type: string
+                description: Holds status of data structure for each Hazelcast member
                 type: object
               message:
+                description: Message explaining the current state
                 type: string
               state:
+                description: State of the data structure
                 enum:
                 - Success
                 - Failed

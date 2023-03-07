@@ -1,4 +1,4 @@
-name: Nightly PhoneHome tests on GKE
+name: (E2E) Phone Home Tests on GKE
 on:
   workflow_dispatch:
   schedule:
@@ -63,7 +63,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2.4.0
+        uses: docker/setup-buildx-action@v2.4.1
         with:
           install: true
 

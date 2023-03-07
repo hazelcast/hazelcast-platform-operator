@@ -2,7 +2,9 @@ package hazelcast
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"reflect"
 	"time"
 
@@ -55,10 +57,42 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return res, nil
 	}
 
+	h := &hazelcastv1alpha1.Hazelcast{}
+	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: c.Spec.HazelcastResourceName}, h)
+	if err != nil {
+		err = fmt.Errorf("could not create/update Map config: Hazelcast resource not found: %w", err)
+		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+	}
+
 	err = r.validateCachePersistence(ctx, req, c)
 	if err != nil {
 		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).
 			withMessage(err.Error()))
+	}
+
+	s, createdBefore := c.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+
+	if createdBefore {
+		cs, err := json.Marshal(c.Spec)
+		if err != nil {
+			err = fmt.Errorf("error marshaling Cache as JSON: %w", err)
+			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+		}
+		if s == string(cs) {
+			logger.Info("Cache Config was already applied.", "name", c.Name, "namespace", c.Namespace)
+			return updateDSStatus(ctx, r.Client, c, dsSuccessStatus())
+		}
+		lastSpec := &hazelcastv1alpha1.CacheSpec{}
+		err = json.Unmarshal([]byte(s), lastSpec)
+		if err != nil {
+			err = fmt.Errorf("error unmarshaling Last Cache Spec: %w", err)
+			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+		}
+
+		err = hazelcastv1alpha1.ValidateNotUpdatableCacheFields(&c.Spec, lastSpec)
+		if err != nil {
+			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+		}
 	}
 
 	ms, err := r.ReconcileCacheConfig(ctx, c, cl, logger)
@@ -123,6 +157,7 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 	cacheInput.KeyType = cs.KeyType
 	cacheInput.ValueType = cs.ValueType
 	cacheInput.HotRestartConfig.Enabled = cs.PersistenceEnabled
+	cacheInput.InMemoryFormat = codecTypes.InMemoryFormat(cs.InMemoryFormat)
 }
 
 func (r *CacheReconciler) validateCacheConfigPersistence(ctx context.Context, c *hazelcastv1alpha1.Cache) (bool, error) {

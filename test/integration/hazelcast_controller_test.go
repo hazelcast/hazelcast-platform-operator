@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"github.com/aws/smithy-go/ptr"
 	"path"
 	"strconv"
 	"strings"
@@ -831,6 +832,60 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
+	Context("JVM configuration", func() {
+		When("Memory is configured", func() {
+			It("should set memory with percentages", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				p := ptr.String("10")
+				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+					Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+						InitialRAMPercentage: p,
+						MinRAMPercentage:     p,
+						MaxRAMPercentage:     p,
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+
+				Expect(*fetchedCR.Spec.JVM.Memory.InitialRAMPercentage).Should(Equal(*p))
+				Expect(*fetchedCR.Spec.JVM.Memory.MinRAMPercentage).Should(Equal(*p))
+				Expect(*fetchedCR.Spec.JVM.Memory.MaxRAMPercentage).Should(Equal(*p))
+
+				Delete(hz)
+			})
+			It("should set GC params", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				s := hazelcastv1alpha1.GCTypeSerial
+				gcArg := "-XX:MaxGCPauseMillis=200"
+				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+					GC: &hazelcastv1alpha1.JVMGCConfiguration{
+						Logging:   ptr.Bool(true),
+						Collector: &s,
+						Args:      []string{gcArg},
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				fetchedCR := EnsureStatus(hz)
+
+				Expect(*fetchedCR.Spec.JVM.GC.Logging).Should(Equal(true))
+				Expect(*fetchedCR.Spec.JVM.GC.Collector).Should(Equal(s))
+				Expect(fetchedCR.Spec.JVM.GC.Args[0]).Should(Equal(gcArg))
+
+				Delete(hz)
+			})
+		})
+	})
+
 	Context("Map CR configuration", func() {
 		When("Using empty configuration", func() {
 			It("should fail to create", Label("fast"), func() {
@@ -869,6 +924,24 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
 				Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
 				Expect(ms.EntryListeners).To(BeNil())
+				Delete(m)
+			})
+			It("should create Map CR with native memory configuration", Label("fast"), func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.MapSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+					},
+				}
+				By("creating Map CR successfully")
+				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+				ms := m.Spec
+
+				By("checking the CR values with native memory")
+				Expect(ms.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
 				Delete(m)
 			})
 		})
@@ -1368,6 +1441,7 @@ var _ = Describe("Hazelcast controller", func() {
 						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 							HazelcastResourceName: "hazelcast",
 						},
+						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
 					},
 				}
 				By("creating Cache CR successfully")
@@ -1381,6 +1455,23 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
 				Expect(qs.KeyType).To(Equal(""))
 				Expect(qs.ValueType).To(Equal(""))
+			})
+			It("should create Cache CR with native memory configuration", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Cache{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.CacheSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+					},
+				}
+				By("creating Cache CR successfully")
+				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
+				qs := q.Spec
+
+				By("checking the CR values with native memory")
+				Expect(qs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
 			})
 		})
 	})

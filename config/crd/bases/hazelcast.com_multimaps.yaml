@@ -62,7 +62,7 @@ spec:
               binary:
                 default: false
                 description: 'Specifies in which format data will be stored in your
-                  multiMap. false: OBJECT true: BINARY'
+                  MultiMap. false: OBJECT true: BINARY'
                 type: boolean
               collectionType:
                 default: SET
@@ -73,7 +73,7 @@ spec:
                 type: string
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
-                  resource.
+                  resource that this resource is created for.
                 minLength: 1
                 type: string
               name:
@@ -96,10 +96,13 @@ spec:
                   - Persisting
                   - Terminating
                   type: string
+                description: Holds status of data structure for each Hazelcast member
                 type: object
               message:
+                description: Message explaining the current state
                 type: string
               state:
+                description: State of the data structure
                 enum:
                 - Success
                 - Failed
