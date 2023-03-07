@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.2.1"
+	// +kubebuilder:default:="latest-snapshot"
 	// +optional
 	Version string `json:"version,omitempty"`
 
