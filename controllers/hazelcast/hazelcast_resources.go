@@ -417,7 +417,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			},
 			Spec: corev1.ServiceSpec{
 				Selector:                 servicePerPodSelector(i, h),
-				Ports:                    hazelcastPort(),
+				Ports:                    []corev1.ServicePort{clientPort()},
 				PublishNotReadyAddresses: true,
 			},
 		}
@@ -507,13 +507,7 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 
 func hazelcastPort() []v1.ServicePort {
 	return []corev1.ServicePort{
-		{
-			Name:        n.HazelcastPortName,
-			Protocol:    corev1.ProtocolTCP,
-			Port:        n.DefaultHzPort,
-			TargetPort:  intstr.FromString(n.Hazelcast),
-			AppProtocol: pointer.String("tcp"),
-		},
+		clientPort(),
 		{
 			Name:        "member-port",
 			Protocol:    v1.ProtocolTCP,
@@ -528,6 +522,16 @@ func hazelcastPort() []v1.ServicePort {
 			TargetPort:  intstr.FromInt(n.RestServerSocketPort),
 			AppProtocol: pointer.String("tcp"),
 		},
+	}
+}
+
+func clientPort() corev1.ServicePort {
+	return corev1.ServicePort{
+		Name:        n.HazelcastPortName,
+		Protocol:    corev1.ProtocolTCP,
+		Port:        n.DefaultHzPort,
+		TargetPort:  intstr.FromString(n.Hazelcast),
+		AppProtocol: pointer.String("tcp"),
 	}
 }
 
