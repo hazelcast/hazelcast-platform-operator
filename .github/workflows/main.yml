@@ -1,0 +1,19 @@
+name: auto-discovery-tests
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  call-auto-discovery-workflow:
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-latest
+    steps:
+      - name: AWS Tests
+        uses: hazelcast/auto-discovery-test-suite/.github/workflows/aws-terraform-integration-tests.yml@main
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
