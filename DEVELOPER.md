@@ -4,7 +4,7 @@ In this document, you will find the required information/steps to ease your cont
 
 ## Deploying the operator to Kubernetes
 
-To deploy the operator from the source, you can run the command below:
+To deploy the operator from the source, you can run the command below:22
 
 ```shell
 make deploy IMG=hazelcast/hazelcast-platform-operator:latest
