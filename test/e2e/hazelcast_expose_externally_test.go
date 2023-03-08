@@ -81,7 +81,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 				}
 				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
-				Expect(service.Spec.Ports).Should(HaveLen(3))
+				Expect(service.Spec.Ports).Should(HaveLen(1))
 				nodePort := service.Spec.Ports[0].NodePort
 				node := getNodeOfMember(ctx, hzLookupKey.Namespace, member)
 				externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
