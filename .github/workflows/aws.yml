@@ -10,6 +10,3 @@ jobs:
     uses: hazelcast/auto-discovery-test-suite/.github/workflows/aws-terraform-integration-tests.yml@main
     with:
       pr-number: ${{ github.event.pull_request.number }}
-
-
-
