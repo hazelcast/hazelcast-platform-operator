@@ -528,8 +528,8 @@ func hazelcastPort() []v1.ServicePort {
 func clientPort() corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:        n.HazelcastPortName,
-		Protocol:    corev1.ProtocolTCP,
 		Port:        n.DefaultHzPort,
+		Protocol:    corev1.ProtocolTCP,
 		TargetPort:  intstr.FromString(n.Hazelcast),
 		AppProtocol: pointer.String("tcp"),
 	}
