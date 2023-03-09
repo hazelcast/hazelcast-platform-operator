@@ -71,7 +71,8 @@ func validateClusterSize(h *Hazelcast) error {
 }
 
 func validateJVMConfig(h *Hazelcast) error {
-	if jvm, args := h.Spec.JVM, h.Spec.JVM.Args; jvm != nil {
+	if jvm := h.Spec.JVM; jvm != nil {
+		args := h.Spec.JVM.Args
 		if m := jvm.Memory; m != nil {
 			if m.InitialRAMPercentage != nil {
 				return validateArg(args, InitialRamPerArg)
