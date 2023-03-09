@@ -92,15 +92,9 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
 	}
 
-	err = hazelcastv1alpha1.ValidateAppliedPersistence(m.Spec.PersistenceEnabled, h)
+	err = hazelcastv1alpha1.ValidateMapSpec(m, h)
 	if err != nil {
-		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
-	}
-
-	if m.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
-		if err := requireNativeMemory(h); err != nil {
-			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
-		}
+		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
 	}
 
 	s, createdBefore := m.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]

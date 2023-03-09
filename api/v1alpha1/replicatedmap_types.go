@@ -22,7 +22,7 @@ type ReplicatedMapSpec struct {
 	// InMemoryFormat specifies in which format data will be stored in the ReplicatedMap
 	// +kubebuilder:default:=OBJECT
 	// +optional
-	InMemoryFormat InMemoryFormatType `json:"inMemoryFormat,omitempty"`
+	InMemoryFormat RMInMemoryFormatType `json:"inMemoryFormat,omitempty"`
 
 	// HazelcastResourceName defines the name of the Hazelcast resource.
 	// +kubebuilder:validation:MinLength:=1
@@ -34,6 +34,18 @@ type ReplicatedMapSpec struct {
 type ReplicatedMapStatus struct {
 	DataStructureStatus `json:",inline"`
 }
+
+// RMInMemoryFormatType represents the format options for storing the data in the ReplicatedMap.
+// +kubebuilder:validation:Enum=BINARY;OBJECT
+type RMInMemoryFormatType string
+
+const (
+	// RMInMemoryFormatBinary Data will be stored in serialized binary format.
+	RMInMemoryFormatBinary RMInMemoryFormatType = "BINARY"
+
+	// RMInMemoryFormatObject Data will be stored in deserialized form.
+	RMInMemoryFormatObject RMInMemoryFormatType = "OBJECT"
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
