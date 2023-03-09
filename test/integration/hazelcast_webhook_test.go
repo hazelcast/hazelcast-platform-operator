@@ -127,8 +127,12 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.InitialRamPerArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.JVM.Memory.InitialRAMPercentage = ptr.String("10")
-			spec.JVM.Args = []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.InitialRamPerArg)}
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+					InitialRAMPercentage: ptr.String("10"),
+				},
+				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.InitialRamPerArg)},
+			}
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
@@ -141,8 +145,12 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MinRamPerArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.JVM.Memory.MinRAMPercentage = ptr.String("10")
-			spec.JVM.Args = []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MinRamPerArg)}
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+					MinRAMPercentage: ptr.String("10"),
+				},
+				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MinRamPerArg)},
+			}
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
@@ -155,8 +163,12 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MaxRamPerArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.JVM.Memory.MaxRAMPercentage = ptr.String("10")
-			spec.JVM.Args = []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MaxRamPerArg)}
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+					MaxRAMPercentage: ptr.String("10"),
+				},
+				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MaxRamPerArg)},
+			}
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
@@ -169,8 +181,12 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.GCLoggingArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.JVM.GC.Logging = ptr.Bool(true)
-			spec.JVM.Args = []string{fmt.Sprintf(hazelcastv1alpha1.GCLoggingArg)}
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				GC: &hazelcastv1alpha1.JVMGCConfiguration{
+					Logging: ptr.Bool(true),
+				},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.GCLoggingArg)},
+			}
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
@@ -183,8 +199,14 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.SerialGCArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			*spec.JVM.GC.Collector = hazelcastv1alpha1.GCTypeSerial
-			spec.JVM.Args = []string{fmt.Sprintf(hazelcastv1alpha1.SerialGCArg)}
+			c := hazelcastv1alpha1.GCTypeSerial
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: nil,
+				GC: &hazelcastv1alpha1.JVMGCConfiguration{
+					Collector: &c,
+				},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.SerialGCArg)},
+			}
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
@@ -197,8 +219,12 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.ParallelGCArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			*spec.JVM.GC.Collector = hazelcastv1alpha1.GCTypeParallel
-			spec.JVM.Args = []string{fmt.Sprintf(hazelcastv1alpha1.ParallelGCArg)}
+			c := hazelcastv1alpha1.GCTypeParallel
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				GC:   &hazelcastv1alpha1.JVMGCConfiguration{},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.ParallelGCArg)},
+			}
+			spec.JVM.GC.Collector = &c
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
@@ -211,8 +237,12 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.G1GCArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			*spec.JVM.GC.Collector = hazelcastv1alpha1.G1GCArg
-			spec.JVM.Args = []string{fmt.Sprintf(hazelcastv1alpha1.G1GCArg)}
+			c := hazelcastv1alpha1.GCTypeG1
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				GC:   &hazelcastv1alpha1.JVMGCConfiguration{},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.G1GCArg)},
+			}
+			spec.JVM.GC.Collector = &c
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
