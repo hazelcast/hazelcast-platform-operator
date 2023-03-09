@@ -1786,6 +1786,12 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 		b.WriteString(" -XX:MaxRAMPercentage=" + v)
 	}
 
+	if args := h.Spec.JVM.GetArgs(); len(args) > 0 {
+		for _, a := range args {
+			b.WriteString(fmt.Sprintf(" %s", a))
+		}
+	}
+
 	jvmGC := h.Spec.JVM.GCConfig()
 
 	if jvmGC.IsLoggingEnabled() {
@@ -1800,12 +1806,6 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 			b.WriteString(" -XX:+UseParallelGC")
 		case hazelcastv1alpha1.GCTypeG1:
 			b.WriteString(" -XX:+UseG1GC")
-		}
-	}
-
-	if v := jvmGC.GetArgs(); len(v) > 0 {
-		for _, a := range v {
-			b.WriteString(fmt.Sprintf(" %s", a))
 		}
 	}
 

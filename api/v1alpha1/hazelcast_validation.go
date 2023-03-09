@@ -17,6 +17,16 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
+const (
+	InitialRamPerArg = "-XX:InitialRAMPercentage"
+	MaxRamPerArg     = "-XX:MaxRAMPercentage"
+	MinRamPerArg     = "-XX:MinRAMPercentage"
+	GCLoggingArg     = "-verbose:gc"
+	SerialGCArg      = "-XX:+UseSerialGC"
+	ParallelGCArg    = "-XX:+UseParallelGC"
+	G1GCArg          = "-XX:+UseG1GC"
+)
+
 var BlackListProperties = map[string]struct{}{
 	// TODO: Add properties which should not be exposed.
 	"": {},
@@ -46,12 +56,59 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 		return err
 	}
 
+	if err := validateJVMConfig(h); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func validateClusterSize(h *Hazelcast) error {
 	if *h.Spec.ClusterSize > naming.ClusterSizeLimit {
 		return fmt.Errorf("cluster size limit is exceeded. Requested: %d, Limit: %d", *h.Spec.ClusterSize, naming.ClusterSizeLimit)
+	}
+	return nil
+}
+
+func validateJVMConfig(h *Hazelcast) error {
+	if jvm, args := h.Spec.JVM, h.Spec.JVM.Args; jvm != nil {
+		if m := jvm.Memory; m != nil {
+			if m.InitialRAMPercentage != nil {
+				return validateArg(args, InitialRamPerArg)
+			}
+			if m.MaxRAMPercentage != nil {
+				return validateArg(args, MaxRamPerArg)
+			}
+			if m.MinRAMPercentage != nil {
+				return validateArg(args, MinRamPerArg)
+			}
+		}
+		if gc := jvm.GC; gc != nil {
+			if gc.Logging != nil {
+				return validateArg(args, GCLoggingArg)
+			}
+			if c := gc.Collector; c != nil {
+				if *c == GCTypeSerial {
+					return validateArg(args, SerialGCArg)
+				}
+
+				if *c == GCTypeParallel {
+					return validateArg(args, ParallelGCArg)
+				}
+				if *c == GCTypeG1 {
+					return validateArg(args, G1GCArg)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func validateArg(args []string, arg string) error {
+	for _, s := range args {
+		if strings.Contains(s, arg) {
+			return fmt.Errorf(`argument %s is configured twice, please check "Configuring JVM Parameters" document`, arg)
+		}
 	}
 	return nil
 }
