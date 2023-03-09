@@ -8,8 +8,8 @@ spec:
   version: '5.2.1'
   licenseKeySecret: hazelcast-license-key
   jvm:
+    args:
+      - "-XX:MaxGCPauseMillis=200"
     gc:
       logging: true
       collector: "G1"
-      args:
-        - "-XX:MaxGCPauseMillis=200"
