@@ -151,7 +151,7 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
 }
 
 func validateAdvancedNetwork(h *Hazelcast) error {
-	if h.Spec.AdvancedNetwork == nil && h.Spec.AdvancedNetwork.Wan == nil {
+	if h.Spec.AdvancedNetwork == nil {
 		return nil
 	}
 
