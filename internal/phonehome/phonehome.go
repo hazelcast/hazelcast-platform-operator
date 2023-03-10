@@ -97,7 +97,7 @@ type PhoneHomeData struct {
 	TopicCount                    int                    `json:"tc"`
 	HighAvailabilityMode          []string               `json:"ha"`
 	NativeMemoryCount             int                    `json:"nmc"`
-	AdvancedNetwork               AdvancedNetwork    `json:"an"`
+	AdvancedNetwork               AdvancedNetwork        `json:"an"`
 }
 
 type AdvancedNetwork struct {

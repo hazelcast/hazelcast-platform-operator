@@ -169,4 +169,51 @@ var _ = Describe("Hazelcast webhook", func() {
 			assertDoesNotExist(lookupKey(hz), hz)
 		})
 	})
+
+	Context("Hazelcast Advanced Network", func() {
+		It("should validate overlap each other", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
+				Wan: []hazelcastv1alpha1.WanConfig{
+					{
+						Port:      5001,
+						PortCount: 3,
+					},
+					{
+						Port:      5002,
+						PortCount: 3,
+					},
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).Should(MatchError(
+				ContainSubstring("wan replications ports are overlapping, please check and re-apply")))
+		})
+
+		It("should validate overlap with other sockets", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
+				Wan: []hazelcastv1alpha1.WanConfig{
+					{
+						Port:      5702,
+						PortCount: 3,
+					},
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("following port numbers are not in use for wan replication")))
+		})
+	})
+
 })

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -150,23 +151,63 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
 }
 
 func validateAdvancedNetwork(h *Hazelcast) error {
+	if h.Spec.AdvancedNetwork == nil && h.Spec.AdvancedNetwork.Wan == nil {
+		return nil
+	}
+
+	return validateWANPorts(h)
+}
+
+func validateWANPorts(h *Hazelcast) error {
+	err := isOverlapWithEachOther(h)
+	if err != nil {
+		return err
+	}
+
+	err = isOverlapWithOtherSockets(h)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func isOverlapWithEachOther(h *Hazelcast) error {
+	type portRange struct {
+		min uint
+		max uint
+	}
+
+	var portRanges []portRange
 	for _, w := range h.Spec.AdvancedNetwork.Wan {
-		if err := isPortInRange(w.Port, w.PortCount); err != nil {
-			return err
+		portRanges = append(portRanges, struct {
+			min uint
+			max uint
+		}{min: w.Port, max: w.Port + w.PortCount})
+	}
+
+	sort.Slice(portRanges, func(r1, r2 int) bool {
+		return portRanges[r1].min < portRanges[r2].min
+	})
+
+	for i := 1; i < len(portRanges); i++ {
+		if portRanges[i-1].max > portRanges[i].min {
+			return fmt.Errorf("wan replications ports are overlapping, please check and re-apply")
 		}
 	}
 	return nil
 }
 
-func isPortInRange(port, portCount uint) error {
-	//TODO: check if there is overlapping port numbers between wan replication configurations
-	if (n.MemberServerSocketPort >= port && n.MemberServerSocketPort < port+portCount) ||
-		(n.ClientServerSocketPort >= port && n.ClientServerSocketPort < port+portCount) ||
-		(n.RestServerSocketPort >= port && n.RestServerSocketPort < port+portCount) {
-		return fmt.Errorf("following port number are not in use for wan replication: %d, %d, %d",
-			n.MemberServerSocketPort,
-			n.ClientServerSocketPort,
-			n.RestServerSocketPort)
+func isOverlapWithOtherSockets(h *Hazelcast) error {
+	for _, w := range h.Spec.AdvancedNetwork.Wan {
+		min, max := w.Port, w.Port+w.PortCount
+		if (n.MemberServerSocketPort >= min && n.MemberServerSocketPort < max) ||
+			(n.ClientServerSocketPort >= min && n.ClientServerSocketPort < max) ||
+			(n.RestServerSocketPort >= min && n.RestServerSocketPort < max) {
+			return fmt.Errorf("following port numbers are not in use for wan replication: %d, %d, %d",
+				n.MemberServerSocketPort,
+				n.ClientServerSocketPort,
+				n.RestServerSocketPort)
+		}
 	}
 	return nil
 }
