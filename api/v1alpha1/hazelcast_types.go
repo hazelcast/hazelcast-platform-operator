@@ -151,7 +151,7 @@ type HazelcastSpec struct {
 	// Hazelcast Advanced Network configuration
 	// +optional
 	// +kubebuilder:default:={}
-	AdvancedNetwork *AdvancedNetwork `json:"advancedNetwork,omitempty"`
+	AdvancedNetwork AdvancedNetwork `json:"advancedNetwork,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE
@@ -720,7 +720,7 @@ func (c *NativeMemoryConfiguration) IsEnabled() bool {
 
 type AdvancedNetwork struct {
 	// +optional
-	MemberServerSocketEndpointConfig *MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
+	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
 	// +optional
 	Wan []WanConfig `json:"wan,omitempty"`
 }

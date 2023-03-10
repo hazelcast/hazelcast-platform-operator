@@ -1482,8 +1482,8 @@ var _ = Describe("Hazelcast controller", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						AdvancedNetwork: &hazelcastv1alpha1.AdvancedNetwork{
-							MemberServerSocketEndpointConfig: &hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
+						AdvancedNetwork: hazelcastv1alpha1.AdvancedNetwork{
+							MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
 							Wan: []hazelcastv1alpha1.WanConfig{
 								{
 									Port:        5710,
