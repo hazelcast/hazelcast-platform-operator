@@ -284,7 +284,7 @@ const (
 	MapFailed  MapConfigState = "Failed"
 	MapSuccess MapConfigState = "Success"
 	MapPending MapConfigState = "Pending"
-	// Map config is added into all members but waiting for map to be persisten into ConfigMap
+	// Map config is added into all members but waiting for map to be persistent into ConfigMap
 	MapPersisting  MapConfigState = "Persisting"
 	MapTerminating MapConfigState = "Terminating"
 )

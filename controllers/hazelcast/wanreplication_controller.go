@@ -18,9 +18,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -785,8 +788,73 @@ func getLogger(ctx context.Context) logr.Logger {
 func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.WanReplication{}).
+		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.beingSuccessfulMapUpdates),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(createEvent event.CreateEvent) bool {
+					return false
+				},
+				UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+					// to run handler 'beingSuccessfulMapUpdates' function after the map is ready
+					oldMap, ok := updateEvent.ObjectOld.(*hazelcastv1alpha1.Map)
+					if !ok {
+						return false
+					}
+					newMap, ok := updateEvent.ObjectNew.(*hazelcastv1alpha1.Map)
+					if !ok {
+						return false
+					}
+					return oldMap.Status.State != hazelcastv1alpha1.MapSuccess && newMap.Status.State == hazelcastv1alpha1.MapSuccess
+				},
+				DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+					return false
+				},
+				GenericFunc: func(genericEvent event.GenericEvent) bool {
+					return false
+				},
+			}),
+		).
 		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.terminatingMapUpdates)).
 		Complete(r)
+}
+
+func (r *WanReplicationReconciler) beingSuccessfulMapUpdates(m client.Object) []reconcile.Request {
+	mp, ok := m.(*hazelcastv1alpha1.Map)
+	if !ok || mp.Status.State != hazelcastv1alpha1.MapSuccess {
+		return []reconcile.Request{}
+	}
+
+	wanList := hazelcastv1alpha1.WanReplicationList{}
+	nsMatcher := client.InNamespace(mp.Namespace)
+	err := r.List(context.Background(), &wanList, nsMatcher)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+	reqs := []reconcile.Request{}
+	for _, wan := range wanList.Items {
+		for _, resource := range wan.Spec.Resources {
+			switch resource.Kind {
+			case hazelcastv1alpha1.ResourceKindMap:
+				if resource.Name == mp.Name {
+					reqs = append(reqs, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      wan.Name,
+							Namespace: wan.Namespace,
+						},
+					})
+					break
+				}
+			case hazelcastv1alpha1.ResourceKindHZ:
+				reqs = append(reqs, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      wan.Name,
+						Namespace: wan.Namespace,
+					},
+				})
+				break
+			}
+		}
+	}
+	return reqs
 }
 
 func (r *WanReplicationReconciler) terminatingMapUpdates(m client.Object) []reconcile.Request {
