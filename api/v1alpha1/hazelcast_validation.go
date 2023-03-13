@@ -146,7 +146,7 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
 }
 
 func ValidateAppliedNativeMemory(inMemoryFormat InMemoryFormatType, h *Hazelcast) error {
-	if inMemoryFormat == InMemoryFormatNative {
+	if inMemoryFormat != InMemoryFormatNative {
 		return nil
 	}
 	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
