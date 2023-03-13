@@ -850,7 +850,6 @@ func (r *WanReplicationReconciler) beingSuccessfulMapUpdates(m client.Object) []
 						Namespace: wan.Namespace,
 					},
 				})
-				break
 			}
 		}
 	}
