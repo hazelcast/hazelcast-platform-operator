@@ -359,7 +359,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 }
 
 func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	for _, w := range h.Spec.AdvancedNetwork.Wan {
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      h.Name + "-wan-rep-svc-" + w.Name,
@@ -760,10 +760,10 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.HealthCheck.Enabled = pointer.Bool(true)
 	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.ClusterWrite.Enabled = pointer.Bool(true)
 
-	// Wan Network
-	if len(h.Spec.AdvancedNetwork.Wan) > 0 {
+	// WAN Network
+	if len(h.Spec.AdvancedNetwork.WAN) > 0 {
 		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
-		for _, w := range h.Spec.AdvancedNetwork.Wan {
+		for _, w := range h.Spec.AdvancedNetwork.WAN {
 			cfg.AdvancedNetwork.WanServerSocketEndpointConfig[w.Name] = config.WanPort{
 				PortAndPortCount: config.PortAndPortCount{
 					Port:      w.Port,
@@ -773,7 +773,7 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	} else { //Default WAN Configuration
 		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
-		for _, w := range h.Spec.AdvancedNetwork.Wan {
+		for _, w := range h.Spec.AdvancedNetwork.WAN {
 			cfg.AdvancedNetwork.WanServerSocketEndpointConfig[w.Name] = config.WanPort{
 				PortAndPortCount: config.PortAndPortCount{
 					Port:      5710,
@@ -1439,7 +1439,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 func wanRepContainers(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
 	var c []v1.ContainerPort
 
-	for _, w := range h.Spec.AdvancedNetwork.Wan {
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		for i := 0; i < int(w.PortCount); i++ {
 			c = append(c, v1.ContainerPort{
 				ContainerPort: int32(int(w.Port) + i),

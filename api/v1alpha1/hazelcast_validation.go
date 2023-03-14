@@ -174,7 +174,7 @@ func isOverlapWithEachOther(h *Hazelcast) error {
 	}
 
 	var portRanges []portRange
-	for _, w := range h.Spec.AdvancedNetwork.Wan {
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		portRanges = append(portRanges, struct {
 			min uint
 			max uint
@@ -194,7 +194,7 @@ func isOverlapWithEachOther(h *Hazelcast) error {
 }
 
 func isOverlapWithOtherSockets(h *Hazelcast) error {
-	for _, w := range h.Spec.AdvancedNetwork.Wan {
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		min, max := w.Port, w.Port+w.PortCount
 		if (n.MemberServerSocketPort >= min && n.MemberServerSocketPort < max) ||
 			(n.ClientServerSocketPort >= min && n.ClientServerSocketPort < max) ||

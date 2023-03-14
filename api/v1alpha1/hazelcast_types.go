@@ -722,10 +722,10 @@ type AdvancedNetwork struct {
 	// +optional
 	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
 	// +optional
-	Wan []WanConfig `json:"wan,omitempty"`
+	WAN []WANConfig `json:"wan,omitempty"`
 }
 
-type WanConfig struct {
+type WANConfig struct {
 	Port        uint               `json:"port,omitempty"`
 	PortCount   uint               `json:"portCount,omitempty"`
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`

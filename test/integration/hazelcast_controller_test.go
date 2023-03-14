@@ -1484,7 +1484,7 @@ var _ = Describe("Hazelcast controller", func() {
 					Spec: hazelcastv1alpha1.HazelcastSpec{
 						AdvancedNetwork: hazelcastv1alpha1.AdvancedNetwork{
 							MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
-							Wan: []hazelcastv1alpha1.WanConfig{
+							WAN: []hazelcastv1alpha1.WANConfig{
 								{
 									Port:        5710,
 									PortCount:   5,
@@ -1560,7 +1560,7 @@ var _ = Describe("Hazelcast controller", func() {
 				err := k8sClient.List(context.Background(), svcList, client.InNamespace(hz.Namespace), labelFilter(hz))
 				Expect(err).Should(BeNil())
 
-				Expect(len(svcList.Items)).Should(Equal(len(hz.Spec.AdvancedNetwork.Wan)))
+				Expect(len(svcList.Items)).Should(Equal(len(hz.Spec.AdvancedNetwork.WAN)))
 			})
 		})
 	})

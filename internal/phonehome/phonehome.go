@@ -208,7 +208,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		}
 
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
-		phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.Wan)
+		phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
@@ -241,7 +241,7 @@ func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (strin
 	return cid.String(), true
 }
 
-func (an *AdvancedNetwork) addUsageMetrics(wc []hazelcastv1alpha1.WanConfig) {
+func (an *AdvancedNetwork) addUsageMetrics(wc []hazelcastv1alpha1.WANConfig) {
 	for _, w := range wc {
 		an.WANEndpointCount += int(w.PortCount)
 	}

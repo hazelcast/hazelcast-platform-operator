@@ -174,7 +174,7 @@ var _ = Describe("Hazelcast webhook", func() {
 		It("should validate overlap each other", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
-				Wan: []hazelcastv1alpha1.WanConfig{
+				WAN: []hazelcastv1alpha1.WANConfig{
 					{
 						Port:      5001,
 						PortCount: 3,
@@ -198,7 +198,7 @@ var _ = Describe("Hazelcast webhook", func() {
 		It("should validate overlap with other sockets", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
-				Wan: []hazelcastv1alpha1.WanConfig{
+				WAN: []hazelcastv1alpha1.WANConfig{
 					{
 						Port:      5702,
 						PortCount: 3,
