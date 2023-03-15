@@ -7,6 +7,9 @@ import (
 
 	iserialization "github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	clientTypes "github.com/hazelcast/hazelcast-go-client/types"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 // Encoder for ClientMessage and value
@@ -285,4 +288,37 @@ func DecodeListMultiFrameForDataContainsNullable(frameIterator *proto.ForwardFra
 	}
 	frameIterator.Next()
 	return result
+}
+
+func DecodeListMultiFrameForJobAndSqlSummary(frameIterator *proto.ForwardFrameIterator) []types.JobAndSqlSummary {
+	var result []types.JobAndSqlSummary
+	frameIterator.Next()
+	for !NextFrameIsDataStructureEndFrame(frameIterator) {
+		result = append(result, DecodeJobAndSqlSummary(frameIterator))
+	}
+	frameIterator.Next()
+	return result
+}
+
+func EncodeUUID(buffer []byte, offset int32, uuid clientTypes.UUID) {
+	isNullEncode := uuid.Default()
+	EncodeBoolean(buffer, offset, isNullEncode)
+	if isNullEncode {
+		return
+	}
+	bufferOffset := offset + proto.BooleanSizeInBytes
+	EncodeLong(buffer, bufferOffset, int64(uuid.MostSignificantBits()))
+	EncodeLong(buffer, bufferOffset+proto.LongSizeInBytes, int64(uuid.LeastSignificantBits()))
+}
+
+func EncodeByteArray(message *proto.ClientMessage, value []byte) {
+	message.AddFrame(proto.NewFrame(value))
+}
+
+func DecodeNullableForSqlSummary(it *proto.ForwardFrameIterator) (types.SqlSummary, bool) {
+	if NextFrameIsNullFrame(it) {
+		return types.SqlSummary{}, false
+	}
+	ss := DecodeSqlSummary(it)
+	return ss, true
 }
