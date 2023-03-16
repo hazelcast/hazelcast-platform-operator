@@ -38,7 +38,7 @@ func NewDialer(config *Config) (*Dialer, error) {
 	}, nil
 }
 
-func (p *Dialer) TryDial(ctx context.Context, endpoints string) error {
+func (p *Dialer) TryDial(ctx context.Context, endpoints []string) error {
 	dialResp, _, err := p.service.TryDial(ctx, &sidecar.DialRequest{
 		Endpoints: endpoints,
 	})
