@@ -114,6 +114,7 @@ type Map struct {
 	PersistenceCount  int `json:"pc"`
 	MapStoreCount     int `json:"msc"`
 	NativeMemoryCount int `json:"nmc"`
+	NearCacheCount    int `json:"ncc"`
 }
 
 type Cache struct {
@@ -334,6 +335,7 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 	persistedMapCount := 0
 	mapStoreMapCount := 0
 	nativeMemoryMapCount := 0
+	nearCacheCount := 0
 
 	ml := &hazelcastv1alpha1.MapList{}
 	err := cl.List(context.Background(), ml, listOptions()...)
@@ -352,11 +354,15 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 		if m.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
 			nativeMemoryMapCount += 1
 		}
+		if m.Spec.NearCache != nil {
+			nearCacheCount += 1
+		}
 	}
 	phm.Map.Count = createdMapCount
 	phm.Map.PersistenceCount = persistedMapCount
 	phm.Map.MapStoreCount = mapStoreMapCount
 	phm.Map.NativeMemoryCount = nativeMemoryMapCount
+	phm.Map.NearCacheCount = nearCacheCount
 }
 
 func (phm *PhoneHomeData) fillCacheMetrics(cl client.Client) {

@@ -1,7 +1,7 @@
 apiVersion: hazelcast.com/v1alpha1
 kind: Map
 metadata:
-  name: mostly-read-map4
+  name: mostly-read-map
 spec:
   hazelcastResourceName: hazelcast
   nearCache:
