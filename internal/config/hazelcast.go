@@ -92,6 +92,7 @@ type Map struct {
 	WanReplicationReference map[string]WanReplicationReference `yaml:"wan-replication-ref,omitempty"`
 	MapStoreConfig          MapStoreConfig                     `yaml:"map-store,omitempty"`
 	EntryListeners          []EntryListener                    `yaml:"entry-listeners,omitempty"`
+	NearCache               NearCacheConfig                    `yaml:"near-cache,omitempty"`
 }
 
 type EntryListener struct {
@@ -155,6 +156,21 @@ type MapStoreConfig struct {
 	ClassName         string            `yaml:"class-name"`
 	Properties        map[string]string `yaml:"properties"`
 	InitialLoadMode   string            `yaml:"initial-mode"`
+}
+
+type NearCacheConfig struct {
+	InMemoryFormat     string            `yaml:"in-memory-format"`
+	InvalidateOnChange bool              `yaml:"invalidate-on-change"`
+	TimeToLiveSeconds  uint              `yaml:"time-to-live-seconds"`
+	MaxIdleSeconds     uint              `yaml:"max-idle-seconds"`
+	CacheLocalEntries  bool              `yaml:"cache-local-entries"`
+	Eviction           NearCacheEviction `yaml:"eviction"`
+}
+
+type NearCacheEviction struct {
+	Size           uint32 `yaml:"size"`
+	MaxSizePolicy  string `yaml:"max-size-policy,omitempty"`
+	EvictionPolicy string `yaml:"eviction-policy,omitempty"`
 }
 
 type Topic struct {

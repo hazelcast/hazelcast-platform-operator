@@ -57,6 +57,62 @@ type MapSpec struct {
 	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/events/object-events.
 	// +optional
 	EntryListeners []EntryListenerConfiguration `json:"entryListeners,omitempty"`
+
+	// InMemoryFormat specifies near cache configuration for map
+	// +optional
+	NearCache *NearCache `json:"nearCache"`
+}
+
+type NearCache struct {
+	// Name is name of the near cache
+	// +kubebuilder:default:=default
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// InMemoryFormat specifies in which format data will be stored in your near cache
+	// +kubebuilder:default:=BINARY
+	// +optional
+	InMemoryFormat InMemoryFormatType `json:"inMemoryFormat,omitempty"`
+
+	// InvalidateOnChange specifies whether the cached entries are evicted when the entries are updated or removed
+	// +kubebuilder:default:=true
+	// +optional
+	InvalidateOnChange *bool `json:"invalidateOnChange,omitempty"`
+
+	// TimeToLiveSeconds maximum number of seconds for each entry to stay in the Near Cache
+	// +kubebuilder:default:=0
+	// +optional
+	TimeToLiveSeconds uint `json:"timeToLiveSeconds,omitempty"`
+
+	// MaxIdleSeconds Maximum number of seconds each entry can stay in the Near Cache as untouched (not read)
+	// +kubebuilder:default:=0
+	// +optional
+	MaxIdleSeconds uint `json:"maxIdleSeconds,omitempty"`
+
+	// NearCacheEviction specifies the eviction behavior in Near Cache
+	// +optional
+	NearCacheEviction *NearCacheEviction `json:"eviction,omitempty"`
+
+	// CacheLocalEntries specifies whether the local entries are cached
+	// +kubebuilder:default:=true
+	// +optional
+	CacheLocalEntries *bool `json:"cacheLocalEntries,omitempty"`
+}
+
+type NearCacheEviction struct {
+	// EvictionPolicy to be applied when near cache reaches its max size according to the max size policy.
+	// +kubebuilder:default:="NONE"
+	// +optional
+	EvictionPolicy EvictionPolicyType `json:"evictionPolicy,omitempty"`
+
+	// MaxSizePolicy for deciding if the maxSize is reached.
+	// +kubebuilder:default:="ENTRY_COUNT"
+	// +optional
+	MaxSizePolicy MaxSizePolicyType `json:"maxSizePolicy,omitempty"`
+
+	// Size is maximum size of the Near Cache used for max-size-policy
+	// +optional
+	Size uint32 `json:"size,omitempty"`
 }
 
 type EntryListenerConfiguration struct {
@@ -102,7 +158,7 @@ type EvictionConfig struct {
 	MaxSizePolicy MaxSizePolicyType `json:"maxSizePolicy,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=PER_NODE;PER_PARTITION;USED_HEAP_SIZE;USED_HEAP_PERCENTAGE;FREE_HEAP_SIZE;FREE_HEAP_PERCENTAGE;USED_NATIVE_MEMORY_SIZE;USED_NATIVE_MEMORY_PERCENTAGE;FREE_NATIVE_MEMORY_SIZE;FREE_NATIVE_MEMORY_PERCENTAGE
+// +kubebuilder:validation:Enum=PER_NODE;PER_PARTITION;USED_HEAP_SIZE;USED_HEAP_PERCENTAGE;FREE_HEAP_SIZE;FREE_HEAP_PERCENTAGE;USED_NATIVE_MEMORY_SIZE;USED_NATIVE_MEMORY_PERCENTAGE;FREE_NATIVE_MEMORY_SIZE;FREE_NATIVE_MEMORY_PERCENTAGE;ENTRY_COUNT
 type MaxSizePolicyType string
 
 const (
@@ -143,6 +199,10 @@ const (
 	// Minimum free native memory size percentage for each Hazelcast instance. It is available only in
 	// Hazelcast Enterprise HD.
 	MaxSizePolicyFreeNativeMemoryPercentage MaxSizePolicyType = "FREE_NATIVE_MEMORY_PERCENTAGE"
+
+	// Maximum size based on the entry count in the Near Cache
+	// Warning: This policy is specific to near cache.
+	MaxSizePolicyEntryCount MaxSizePolicyType = "ENTRY_COUNT"
 )
 
 // +kubebuilder:validation:Enum=NONE;LRU;LFU;RANDOM
@@ -325,6 +385,7 @@ var (
 		MaxSizePolicyUsedNativeMemoryPercentage: 7,
 		MaxSizePolicyFreeNativeMemorySize:       8,
 		MaxSizePolicyFreeNativeMemoryPercentage: 9,
+		MaxSizePolicyEntryCount:                 10,
 	}
 
 	EncodeEvictionPolicyType = map[EvictionPolicyType]int32{

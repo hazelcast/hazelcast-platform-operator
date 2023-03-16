@@ -945,6 +945,58 @@ var _ = Describe("Hazelcast controller", func() {
 				Delete(m)
 			})
 		})
+
+		When("Using near cache configuration", func() {
+			FIt("should create Map CR with near cache configuration", Label("fast"), func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.MapSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+						NearCache: &hazelcastv1alpha1.NearCache{
+							Name:               "mostly-used-map",
+							InMemoryFormat:     "OBJECT",
+							InvalidateOnChange: ptr.Bool(false),
+							TimeToLiveSeconds:  300,
+							MaxIdleSeconds:     300,
+							NearCacheEviction: &hazelcastv1alpha1.NearCacheEviction{
+								EvictionPolicy: "NONE",
+								MaxSizePolicy:  "ENTRY_COUNT",
+								Size:           10,
+							},
+							CacheLocalEntries: ptr.Bool(false),
+						},
+					},
+				}
+				By("creating Map CR successfully")
+				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+				ms := m.Spec
+
+				By("checking the CR values with default ones")
+				Expect(ms.Name).To(Equal(""))
+				Expect(*ms.BackupCount).To(Equal(n.DefaultMapBackupCount))
+				Expect(ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
+				Expect(ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
+				Expect(ms.Eviction.EvictionPolicy).To(Equal(hazelcastv1alpha1.EvictionPolicyType(n.DefaultMapEvictionPolicy)))
+				Expect(ms.Eviction.MaxSize).To(Equal(n.DefaultMapMaxSize))
+				Expect(ms.Eviction.MaxSizePolicy).To(Equal(hazelcastv1alpha1.MaxSizePolicyType(n.DefaultMapMaxSizePolicy)))
+				Expect(ms.Indexes).To(BeNil())
+				Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
+				Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
+				Expect(ms.EntryListeners).To(BeNil())
+				Expect(ms.NearCache.Name).To(Equal(m.Spec.NearCache.Name))
+				Expect(ms.NearCache.CacheLocalEntries).To(Equal(m.Spec.NearCache.CacheLocalEntries))
+				Expect(ms.NearCache.InvalidateOnChange).To(Equal(m.Spec.NearCache.InvalidateOnChange))
+				Expect(ms.NearCache.MaxIdleSeconds).To(Equal(m.Spec.NearCache.MaxIdleSeconds))
+				Expect(ms.NearCache.InMemoryFormat).To(Equal(m.Spec.NearCache.InMemoryFormat))
+				Expect(ms.NearCache.TimeToLiveSeconds).To(Equal(m.Spec.NearCache.TimeToLiveSeconds))
+				Expect(ms.NearCache.NearCacheEviction.EvictionPolicy).To(Equal(m.Spec.NearCache.NearCacheEviction.EvictionPolicy))
+				Expect(ms.NearCache.NearCacheEviction.Size).To(Equal(m.Spec.NearCache.NearCacheEviction.Size))
+				Expect(ms.NearCache.NearCacheEviction.MaxSizePolicy).To(Equal(m.Spec.NearCache.NearCacheEviction.MaxSizePolicy))
+				Delete(m)
+			})
+		})
 	})
 
 	Context("Resources context", func() {

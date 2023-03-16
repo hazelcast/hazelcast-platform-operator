@@ -26,6 +26,47 @@ func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) error {
 	if current.InMemoryFormat != last.InMemoryFormat {
 		return errors.New("inMemoryFormat cannot be updated")
 	}
+
+	err := isNearCacheUpdated(current, last)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func isNearCacheUpdated(current *MapSpec, last *MapSpec) error {
+	updated := false
+	if current.NearCache != nil && last.NearCache != nil {
+		if *current.NearCache.InvalidateOnChange != *last.NearCache.InvalidateOnChange ||
+			current.NearCache.Name != last.NearCache.Name ||
+			*current.NearCache.CacheLocalEntries != *last.NearCache.CacheLocalEntries ||
+			current.NearCache.TimeToLiveSeconds != last.NearCache.TimeToLiveSeconds ||
+			current.NearCache.MaxIdleSeconds != last.NearCache.MaxIdleSeconds ||
+			current.NearCache.InMemoryFormat != last.NearCache.InMemoryFormat {
+			updated = true
+		}
+
+		if current.NearCache.NearCacheEviction != nil && last.NearCache.NearCacheEviction != nil {
+			if current.NearCache.NearCacheEviction.EvictionPolicy != last.NearCache.NearCacheEviction.EvictionPolicy ||
+				current.NearCache.NearCacheEviction.Size != last.NearCache.NearCacheEviction.Size ||
+				current.NearCache.NearCacheEviction.MaxSizePolicy != current.NearCache.NearCacheEviction.MaxSizePolicy {
+				updated = true
+			}
+		}
+
+		if current.NearCache.NearCacheEviction == nil && last.NearCache.NearCacheEviction != nil {
+			updated = true
+		}
+	}
+
+	if current.NearCache == nil && last.NearCache != nil {
+		updated = true
+	}
+
+	if updated {
+		return errors.New("near cache configuration cannot be updated")
+	}
 	return nil
 }
 
