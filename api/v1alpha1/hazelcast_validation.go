@@ -10,7 +10,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -31,58 +33,66 @@ func ValidateNotUpdatableHazelcastFields(current *HazelcastSpec, last *Hazelcast
 }
 
 func ValidateHazelcastSpec(h *Hazelcast) error {
+	var allErrs field.ErrorList
 	if err := validateExposeExternally(h); err != nil {
-		return err
+		allErrs = append(allErrs, err)
 	}
 
 	if err := validateLicense(h); err != nil {
-		return err
+		allErrs = append(allErrs, err)
 	}
 
 	if err := validatePersistence(h); err != nil {
-		return err
+		allErrs = append(allErrs, err...)
 	}
 
 	if err := validateClusterSize(h); err != nil {
-		return err
+		allErrs = append(allErrs, err)
 	}
 
 	if err := validateAdvancedNetwork(h); err != nil {
-		return err
+		allErrs = append(allErrs, err...)
 	}
 
-	return nil
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Hazelcast"}, h.Name, allErrs)
 }
 
-func validateClusterSize(h *Hazelcast) error {
+func validateClusterSize(h *Hazelcast) *field.Error {
 	if *h.Spec.ClusterSize > naming.ClusterSizeLimit {
-		return fmt.Errorf("cluster size limit is exceeded. Requested: %d, Limit: %d", *h.Spec.ClusterSize, naming.ClusterSizeLimit)
+		return field.Invalid(field.NewPath("spec").Child("clusterSize"), h.Spec.ClusterSize,
+			fmt.Sprintf("may not be greater than %d", naming.ClusterSizeLimit))
 	}
 	return nil
 }
 
-func validateExposeExternally(h *Hazelcast) error {
+func validateExposeExternally(h *Hazelcast) *field.Error {
 	ee := h.Spec.ExposeExternally
 	if ee == nil {
 		return nil
 	}
 
 	if ee.Type == ExposeExternallyTypeUnisocket && ee.MemberAccess != "" {
-		return errors.New("when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set")
+		return field.Forbidden(field.NewPath("spec").Child("exposeExternally").Child("memberAccess"),
+			"can't be set when exposeExternally.type is set to \"Unisocket\"")
 	}
 
 	if ee.Type == ExposeExternallyTypeSmart && ee.MemberAccess == MemberAccessNodePortExternalIP {
 		if !util.NodeDiscoveryEnabled() {
-			return errors.New("when Hazelcast node discovery is not enabled, exposeExternally.MemberAccess cannot be set to `NodePortExternalIP`")
+			return field.Invalid(field.NewPath("spec").Child("exposeExternally").Child("memberAccess"),
+				ee.MemberAccess, "value not supported when Hazelcast node discovery is not enabled")
 		}
 	}
 
 	return nil
 }
 
-func validateLicense(h *Hazelcast) error {
+func validateLicense(h *Hazelcast) *field.Error {
 	if checkEnterprise(h.Spec.Repository) && len(h.Spec.LicenseKeySecret) == 0 {
-		return errors.New("when Hazelcast Enterprise is deployed, licenseKeySecret must be set")
+		return field.Required(field.NewPath("spec").Child("licenseKeySecret"),
+			"must be set when Hazelcast Enterprise is deployed")
 	}
 
 	// make sure secret exists
@@ -96,28 +106,36 @@ func validateLicense(h *Hazelcast) error {
 		err := kubeclient.Get(context.Background(), secretName, &secret)
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
-			return errors.New("Hazelcast Enterprise licenseKeySecret is not found")
+			return field.NotFound(field.NewPath("spec").Child("licenseKeySecret"),
+				"Hazelcast Enterprise licenseKeySecret is not found")
 		}
 	}
 
 	return nil
 }
 
-func validatePersistence(h *Hazelcast) error {
+func validatePersistence(h *Hazelcast) []*field.Error {
 	p := h.Spec.Persistence
 	if !p.IsEnabled() {
 		return nil
 	}
+	var allErrs field.ErrorList
 
 	// if hostPath and PVC are both empty or set
 	if p.Pvc.IsEmpty() {
-		return errors.New("when persistence is enabled \"pvc\" field must be set")
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("persistence").Child("pvc"),
+			"must be set when persistence is enabled"))
 	}
 
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
-		return errors.New("startupAction PartialStart can be used only with Partial* clusterDataRecoveryPolicy")
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("persistence").Child("startupAction"),
+			"PartialStart can be used only with Partial* clusterDataRecoveryPolicy"))
 	}
-	return nil
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return allErrs
 }
 
 func checkEnterprise(repo string) bool {
@@ -150,24 +168,28 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
 	return nil
 }
 
-func validateAdvancedNetwork(h *Hazelcast) error {
+func validateAdvancedNetwork(h *Hazelcast) []*field.Error {
 	return validateWANPorts(h)
 }
 
-func validateWANPorts(h *Hazelcast) error {
+func validateWANPorts(h *Hazelcast) []*field.Error {
+	var allErrs field.ErrorList
 	err := isOverlapWithEachOther(h)
 	if err != nil {
-		return err
+		allErrs = append(allErrs, err)
 	}
 
 	err = isOverlapWithOtherSockets(h)
 	if err != nil {
-		return err
+		allErrs = append(allErrs, err)
 	}
-	return nil
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return allErrs
 }
 
-func isOverlapWithEachOther(h *Hazelcast) error {
+func isOverlapWithEachOther(h *Hazelcast) *field.Error {
 	type portRange struct {
 		min uint
 		max uint
@@ -187,22 +209,19 @@ func isOverlapWithEachOther(h *Hazelcast) error {
 
 	for i := 1; i < len(portRanges); i++ {
 		if portRanges[i-1].max > portRanges[i].min {
-			return fmt.Errorf("wan replications ports are overlapping, please check and re-apply")
+			return field.Duplicate(field.NewPath("spec").Child("advancedNetwork").Child("wan"), fmt.Sprintf("%d", portRanges[i].min))
 		}
 	}
 	return nil
 }
 
-func isOverlapWithOtherSockets(h *Hazelcast) error {
+func isOverlapWithOtherSockets(h *Hazelcast) *field.Error {
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		min, max := w.Port, w.Port+w.PortCount
 		if (n.MemberServerSocketPort >= min && n.MemberServerSocketPort < max) ||
 			(n.ClientServerSocketPort >= min && n.ClientServerSocketPort < max) ||
 			(n.RestServerSocketPort >= min && n.RestServerSocketPort < max) {
-			return fmt.Errorf("following port numbers are not in use for wan replication: %d, %d, %d",
-				n.MemberServerSocketPort,
-				n.ClientServerSocketPort,
-				n.RestServerSocketPort)
+			return field.Duplicate(field.NewPath("spec").Child("advancedNetwork").Child("wan"), fmt.Sprintf("%d", min))
 		}
 	}
 	return nil

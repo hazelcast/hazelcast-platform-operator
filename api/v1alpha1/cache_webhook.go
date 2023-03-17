@@ -3,11 +3,16 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 // log is for logging in this package.
@@ -38,6 +43,7 @@ func (r *Cache) ValidateCreate() error {
 func (r *Cache) ValidateUpdate(runtime.Object) error {
 	cachelog.Info("validate update", "name", r.Name)
 
+	var allErrs field.ErrorList
 	// use last successfully applied spec
 	if last, ok := r.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
 		var parsed CacheSpec
@@ -45,10 +51,15 @@ func (r *Cache) ValidateUpdate(runtime.Object) error {
 			return fmt.Errorf("error parsing last map spec: %w", err)
 		}
 
-		return ValidateNotUpdatableCacheFields(&r.Spec, &parsed)
+		if r.Spec.InMemoryFormat != parsed.InMemoryFormat {
+			allErrs = append(allErrs,
+				field.Forbidden(field.NewPath("spec").Child("inMemoryFormat"), "field cannot be updated"))
+		}
 	}
-
-	return nil
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Cache"}, r.Name, allErrs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
