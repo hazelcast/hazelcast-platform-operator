@@ -947,7 +947,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		When("Using near cache configuration", func() {
-			FIt("should create Map CR with near cache configuration", Label("fast"), func() {
+			It("should create Map CR with near cache configuration", Label("fast"), func() {
 				m := &hazelcastv1alpha1.Map{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.MapSpec{
