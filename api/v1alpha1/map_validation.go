@@ -50,7 +50,7 @@ func isNearCacheUpdated(current *MapSpec, last *MapSpec) error {
 		if current.NearCache.NearCacheEviction != nil && last.NearCache.NearCacheEviction != nil {
 			if current.NearCache.NearCacheEviction.EvictionPolicy != last.NearCache.NearCacheEviction.EvictionPolicy ||
 				current.NearCache.NearCacheEviction.Size != last.NearCache.NearCacheEviction.Size ||
-				current.NearCache.NearCacheEviction.MaxSizePolicy != current.NearCache.NearCacheEviction.MaxSizePolicy {
+				current.NearCache.NearCacheEviction.MaxSizePolicy != last.NearCache.NearCacheEviction.MaxSizePolicy {
 				updated = true
 			}
 		}
