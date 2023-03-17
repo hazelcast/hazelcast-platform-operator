@@ -190,7 +190,7 @@ func (r *WanReplicationReconciler) deleteLeftoverMapsFromStatus(ctx context.Cont
 			// Finalizer will be removed in further steps in the reconciler
 			return nil
 		}
-		// Finalizer was deleted from the map, we can safely remove map from Wan status.
+		// Finalizer was deleted from the map, we can safely remove map from WAN status.
 		if err := deleteWanMapStatus(ctx, r.Client, wan, mapWanKey); err != nil {
 			return err
 		}
@@ -236,20 +236,20 @@ func (r *WanReplicationReconciler) stopWanReplicationMap(ctx context.Context, wa
 	// Check publisherId is registered to the status
 	mapStatus, ok := wan.Status.WanReplicationMapsStatus[mapWanKey]
 	if !ok {
-		log.V(util.DebugLevel).Info("no key in the Wan status for", "mapKey", mapWanKey)
+		log.V(util.DebugLevel).Info("no key in the WAN status for", "mapKey", mapWanKey)
 		return nil
 	}
 
 	publisherId := mapStatus.PublisherId
 	if publisherId == "" {
-		log.V(util.DebugLevel).Info("publisherId is empty, will remove map from Wan status", "mapKey", mapWanKey)
+		log.V(util.DebugLevel).Info("publisherId is empty, will remove map from WAN status", "mapKey", mapWanKey)
 		if err := deleteWanMapStatus(ctx, r.Client, wan, mapWanKey); err != nil {
 			return err
 		}
 		return nil
 	}
 
-	log.V(util.DebugLevel).Info("stopping Wan replication for", "mapKey", mapWanKey)
+	log.V(util.DebugLevel).Info("stopping WAN replication for", "mapKey", mapWanKey)
 	ws := hzclient.NewWanService(cli, wanName(m.MapName()), publisherId)
 
 	if err := ws.ChangeWanState(ctx, codecTypes.WanReplicationStateStopped); err != nil {
@@ -262,14 +262,14 @@ func (r *WanReplicationReconciler) stopWanReplicationMap(ctx context.Context, wa
 		return err
 	}
 	// Finalizer removal from map and status deletion of map from WanReplication must be atomic
-	// Marking Wan map status as terminating gives us chance to delete it from status if deletion in the following statements fails anyhow
+	// Marking WAN map status as terminating gives us chance to delete it from status if deletion in the following statements fails anyhow
 	if err := updateWanMapStatus(ctx, r.Client, wan, mapWanKey, hazelcastv1alpha1.WanStatusTerminating); err != nil {
 		return err
 	}
 	if err := r.removeWanRepFinalizerFromMap(ctx, wan, m, cli); err != nil {
 		return err
 	}
-	// Now map is safe to delete from Wan status. If following statement fails, status cleanup should be done in next trigger
+	// Now map is safe to delete from WAN status. If following statement fails, status cleanup should be done in next trigger
 	if err := deleteWanMapStatus(ctx, r.Client, wan, mapWanKey); err != nil {
 		return err
 	}
@@ -549,11 +549,11 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 			publisherId, err := r.applyWanReplication(ctx, cl, wan, m.MapName(), mapWanKey)
 			if err != nil {
 				mapWanStatus[mapWanKey] = wanFailedStatus(err).withMessage(err.Error())
-				log.Info("Wan configuration failed for ", "mapKey", mapWanKey)
+				log.Info("WAN configuration failed for ", "mapKey", mapWanKey)
 				continue
 			}
 			mapWanStatus[mapWanKey] = wanPersistingStatus(0).withPublisherId(publisherId).withResourceName(m.Name)
-			log.Info("Wan configuration successful for ", "mapKey", mapWanKey)
+			log.Info("WAN configuration successful for ", "mapKey", mapWanKey)
 		}
 	}
 
@@ -605,7 +605,7 @@ func (r *WanReplicationReconciler) addWanRepFinalizerToReplicatedMaps(ctx contex
 		}
 
 		// Set owner reference for reconciler to get triggered when map is marked to be deleted
-		// Wan Reconciler watches maps and filters map with owner references.
+		// WAN Reconciler watches maps and filters map with owner references.
 		if err := controllerutil.SetOwnerReference(wan, m, r.Scheme); err != nil {
 			return err
 		}
@@ -648,7 +648,7 @@ func (r *WanReplicationReconciler) addWanRepFinalizerToMap(ctx context.Context, 
 func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, hzClientMap map[string][]hazelcastv1alpha1.Map) (bool, error) {
 	cmMap := map[string]config.WanReplicationConfig{}
 
-	// Fill map with Wan configs for each map wan key
+	// Fill map with WAN configs for each map wan key
 	for hz := range hzClientMap {
 		cm := &corev1.ConfigMap{}
 		err := r.Client.Get(ctx, types.NamespacedName{Name: hz, Namespace: wan.Namespace}, cm)
@@ -676,13 +676,13 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 			continue
 		}
 
-		// Wan is not in ConfigMap yet
+		// WAN is not in ConfigMap yet
 		wanRep, ok := cmMap[mapWanKey]
 		if !ok {
 			continue
 		}
 
-		// Wan is in ConfigMap but is not correct
+		// WAN is in ConfigMap but is not correct
 		realWan := createWanReplicationConfig(v.PublisherId, *wan)
 		if !reflect.DeepEqual(realWan, wanRep) {
 			continue
@@ -696,7 +696,7 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 	}
 
 	if wan.Status.Status == hazelcastv1alpha1.WanStatusFailed {
-		return false, fmt.Errorf("Wan replication for some maps failed")
+		return false, fmt.Errorf("WAN replication for some maps failed")
 	}
 
 	if wan.Status.Status != hazelcastv1alpha1.WanStatusSuccess {

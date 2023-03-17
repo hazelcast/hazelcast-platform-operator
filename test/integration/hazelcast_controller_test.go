@@ -1476,6 +1476,95 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
+	Context("Advanced Network configuration", func() {
+		When("Full Configuration", func() {
+			It("should create Advanced Network configuration", Label("fast"), func() {
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.HazelcastSpec{
+						AdvancedNetwork: hazelcastv1alpha1.AdvancedNetwork{
+							MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
+							WAN: []hazelcastv1alpha1.WANConfig{
+								{
+									Port:        5710,
+									PortCount:   5,
+									ServiceType: "NodePort",
+									Name:        "tokyo",
+								},
+							},
+						},
+					},
+				}
+
+				By("creating Hazelcast with Advanced Network Configuration successfully")
+				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+
+				p := config.AdvancedNetwork{
+					Enabled: true,
+					Join: config.Join{
+						Kubernetes: config.Kubernetes{
+							Enabled:     pointer.Bool(true),
+							ServiceName: hz.Name,
+							ServicePort: 5702,
+						},
+					},
+					MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{
+						Port: config.PortAndPortCount{
+							Port:      5702,
+							PortCount: 1,
+						},
+						Interfaces: config.EnabledAndInterfaces{
+							Enabled:    true,
+							Interfaces: []string{"10.10.1.*"},
+						},
+					},
+					ClientServerSocketEndpointConfig: config.ClientServerSocketEndpointConfig{
+						Port: config.PortAndPortCount{
+							Port:      5701,
+							PortCount: 1,
+						},
+					},
+					RestServerSocketEndpointConfig: config.RestServerSocketEndpointConfig{
+						Port: config.PortAndPortCount{
+							Port:      8081,
+							PortCount: 1,
+						},
+						EndpointGroups: config.EndpointGroups{
+							HealthCheck:  config.EndpointGroup{Enabled: pointer.Bool(true)},
+							ClusterWrite: config.EndpointGroup{Enabled: pointer.Bool(true)},
+							Persistence:  config.EndpointGroup{Enabled: pointer.Bool(true)},
+						},
+					},
+					WanServerSocketEndpointConfig: map[string]config.WanPort{
+						"tokyo": {
+							PortAndPortCount: config.PortAndPortCount{
+								Port:      5710,
+								PortCount: 5,
+							},
+						},
+					},
+				}
+
+				Eventually(func() config.AdvancedNetwork {
+					cfg := getConfigMap(hz)
+					a := &config.HazelcastWrapper{}
+
+					if err := yaml.Unmarshal([]byte(cfg.Data["hazelcast.yaml"]), a); err != nil {
+						return config.AdvancedNetwork{}
+					}
+
+					return a.Hazelcast.AdvancedNetwork
+				}, timeout, interval).Should(Equal(p))
+
+				svcList := &corev1.ServiceList{}
+				err := k8sClient.List(context.Background(), svcList, client.InNamespace(hz.Namespace), labelFilter(hz))
+				Expect(err).Should(BeNil())
+
+				Expect(len(svcList.Items)).Should(Equal(len(hz.Spec.AdvancedNetwork.WAN)))
+			})
+		})
+	})
+
 	Context("Native Memory configuration", func() {
 		When("Native Memory property is configured", func() {
 			It("should be enabled", Label("fast"), func() {

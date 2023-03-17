@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -43,6 +44,10 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 	}
 
 	if err := validateClusterSize(h); err != nil {
+		return err
+	}
+
+	if err := validateAdvancedNetwork(h); err != nil {
 		return err
 	}
 
@@ -142,5 +147,63 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
 		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
 	}
 
+	return nil
+}
+
+func validateAdvancedNetwork(h *Hazelcast) error {
+	return validateWANPorts(h)
+}
+
+func validateWANPorts(h *Hazelcast) error {
+	err := isOverlapWithEachOther(h)
+	if err != nil {
+		return err
+	}
+
+	err = isOverlapWithOtherSockets(h)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func isOverlapWithEachOther(h *Hazelcast) error {
+	type portRange struct {
+		min uint
+		max uint
+	}
+
+	var portRanges []portRange
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
+		portRanges = append(portRanges, struct {
+			min uint
+			max uint
+		}{min: w.Port, max: w.Port + w.PortCount})
+	}
+
+	sort.Slice(portRanges, func(r1, r2 int) bool {
+		return portRanges[r1].min < portRanges[r2].min
+	})
+
+	for i := 1; i < len(portRanges); i++ {
+		if portRanges[i-1].max > portRanges[i].min {
+			return fmt.Errorf("wan replications ports are overlapping, please check and re-apply")
+		}
+	}
+	return nil
+}
+
+func isOverlapWithOtherSockets(h *Hazelcast) error {
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
+		min, max := w.Port, w.Port+w.PortCount
+		if (n.MemberServerSocketPort >= min && n.MemberServerSocketPort < max) ||
+			(n.ClientServerSocketPort >= min && n.ClientServerSocketPort < max) ||
+			(n.RestServerSocketPort >= min && n.RestServerSocketPort < max) {
+			return fmt.Errorf("following port numbers are not in use for wan replication: %d, %d, %d",
+				n.MemberServerSocketPort,
+				n.ClientServerSocketPort,
+				n.RestServerSocketPort)
+		}
+	}
 	return nil
 }
