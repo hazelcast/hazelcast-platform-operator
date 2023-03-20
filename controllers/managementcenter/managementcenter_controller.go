@@ -68,7 +68,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	err = util.AddFinalizer(ctx, r.Client, mc, logger)
 	if err != nil {
-		return update(ctx, r.Client, mc, failedPhase(err))
+		return update(ctx, r.Client.Status(), mc, failedPhase(err))
 	}
 
 	//Check if the ManagementCenter CR is marked to be deleted
@@ -76,7 +76,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		// Execute finalizer's pre-delete function to delete MC metric
 		err = r.executeFinalizer(ctx, mc)
 		if err != nil {
-			return update(ctx, r.Client, mc, failedPhase(err))
+			return update(ctx, r.Client.Status(), mc, failedPhase(err))
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
