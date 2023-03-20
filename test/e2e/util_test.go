@@ -2,6 +2,8 @@ package e2e
 
 import (
 	"context"
+	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"os"
 	"reflect"
 	"strings"
@@ -30,10 +32,19 @@ func GetControllerManagerName() string {
 }
 
 func GetSuiteName() string {
-	if !ee {
-		return "Operator Suite OS"
+	edition := "OS"
+	if ee {
+		edition = "EE"
 	}
-	return "Operator Suite EE"
+	hazelcastVersion := os.Getenv("HZ_VERSION")
+	if hazelcastVersion == "" {
+		hazelcastVersion = naming.HazelcastVersion
+	}
+	managementCenterVersion := os.Getenv("MC_VERSION")
+	if managementCenterVersion == "" {
+		managementCenterVersion = naming.MCVersion
+	}
+	return fmt.Sprintf("Operator Suite %s (HZ:%s; MC:%s)", edition, hazelcastVersion, managementCenterVersion)
 }
 
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
