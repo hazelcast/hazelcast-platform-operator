@@ -754,7 +754,6 @@ func (r *WanReplicationReconciler) checkWanEndpoint(ctx context.Context, wan *ha
 	for i, endpoint := range endpoints {
 		_, _, err := net.SplitHostPort(endpoint)
 		if err != nil {
-			//TODO update default port after advanced network -> 5710
 			endpoint = net.JoinHostPort(endpoint, "5701")
 		}
 		endpoints[i] = endpoint
