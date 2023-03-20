@@ -87,7 +87,6 @@ ifeq (,$(WATCHED_NAMESPACES))
 override WATCHED_NAMESPACES := $(NAMESPACE)
 endif
 
-
 # Path to the kubectl command, if it is not in $PATH
 KUBECTL ?= kubectl
 
