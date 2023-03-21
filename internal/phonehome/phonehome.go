@@ -98,11 +98,12 @@ type PhoneHomeData struct {
 	HighAvailabilityMode          []string               `json:"ha"`
 	NativeMemoryCount             int                    `json:"nmc"`
 	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
+	AdvancedNetwork               AdvancedNetwork        `json:"an"`
 }
 
 type JVMConfigUsage struct {
-	Count int `json:"c"`
-	AdvancedNetwork               AdvancedNetwork        `json:"an"`
+	Count           int             `json:"c"`
+	AdvancedNetwork AdvancedNetwork `json:"an"`
 }
 
 type AdvancedNetwork struct {
