@@ -32,5 +32,5 @@ jobs:
         uses: jesusvasquez333/verify-pr-label-action@v1.4.0
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
-          valid-labels: 'feature, enhancement, fix, non-release'
+          valid-labels: 'feature, enhancement, fix, non-release, dependencies'
           invalid-labels: 'bug, invalid'

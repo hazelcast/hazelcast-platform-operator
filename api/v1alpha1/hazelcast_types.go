@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.2.1"
+	// +kubebuilder:default:="latest-snapshot"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -147,6 +147,11 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	NativeMemory *NativeMemoryConfiguration `json:"nativeMemory,omitempty"`
+
+	// Hazelcast Advanced Network configuration
+	// +optional
+	// +kubebuilder:default:={}
+	AdvancedNetwork AdvancedNetwork `json:"advancedNetwork,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE
@@ -311,7 +316,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.15"
+	// +kubebuilder:default:="0.1.16"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
@@ -711,6 +716,29 @@ type NativeMemoryConfiguration struct {
 
 func (c *NativeMemoryConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (NativeMemoryConfiguration{}))
+}
+
+type AdvancedNetwork struct {
+	// +optional
+	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
+	// +optional
+	WAN []WANConfig `json:"wan,omitempty"`
+}
+
+type WANConfig struct {
+	Port        uint               `json:"port,omitempty"`
+	PortCount   uint               `json:"portCount,omitempty"`
+	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+	Name        string             `json:"name,omitempty"`
+}
+
+type MemberServerSocketEndpointConfig struct {
+	Interfaces []string `json:"interfaces,omitempty"`
+}
+
+type ClientServerSocketEndpointConfig struct {
+	Port       uint     `json:"port,omitempty"`
+	Interfaces []string `json:"interfaces,omitempty"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
