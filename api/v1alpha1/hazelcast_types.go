@@ -316,7 +316,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.15"
+	// +kubebuilder:default:="0.1.16"
 	// +optional
 	Version string `json:"version,omitempty"`
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"time"
@@ -119,6 +120,10 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 		}
+	}
+
+	if err := r.checkWanEndpoint(ctx, wan); err != nil {
+		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
 	}
 
 	err = r.stopWanRepForRemovedResources(ctx, wan, hzClientMap, r.clientRegistry)
@@ -337,13 +342,28 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 				return err
 			}
 
-			err = p.TryDial(ctx, wan.Spec.Endpoints)
+			err = p.TryDial(ctx, splitEndpoints(wan.Spec.Endpoints))
 			if err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func splitEndpoints(endpointsStr string) []string {
+	endpoints := make([]string, 0)
+	for _, endpoint := range strings.Split(endpointsStr, ",") {
+		endpoint = strings.TrimSpace(endpoint)
+		if len(endpoint) != 0 {
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+	return endpoints
+}
+
+func joinEndpoints(endpoints []string) string {
+	return strings.Join(endpoints, ",")
 }
 
 func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) (map[string][]hazelcastv1alpha1.Map, error) {
@@ -638,11 +658,8 @@ func (r *WanReplicationReconciler) addWanRepFinalizerToMap(ctx context.Context, 
 	}
 
 	controllerutil.AddFinalizer(m, n.WanRepMapFinalizer)
-	if err := r.Update(ctx, m); err != nil {
-		return err
-	}
 
-	return nil
+	return r.Update(ctx, m)
 }
 
 func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, hzClientMap map[string][]hazelcastv1alpha1.Map) (bool, error) {
@@ -729,6 +746,24 @@ func (r *WanReplicationReconciler) updateLastSuccessfulConfiguration(ctx context
 		r.Logger.Info("Operation result", "WanReplication Annotation", wan.Name, "result", opResult)
 	}
 	return err
+}
+
+// mutating function
+func (r *WanReplicationReconciler) checkWanEndpoint(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) error {
+	endpoints := splitEndpoints(wan.Spec.Endpoints)
+	for i, endpoint := range endpoints {
+		_, _, err := net.SplitHostPort(endpoint)
+		if err != nil {
+			endpoint = net.JoinHostPort(endpoint, "5701")
+		}
+		endpoints[i] = endpoint
+	}
+	endpointsStr := joinEndpoints(endpoints)
+	if wan.Spec.Endpoints == endpointsStr {
+		return nil
+	}
+	wan.Spec.Endpoints = endpointsStr
+	return r.Client.Update(ctx, wan)
 }
 
 type LogKey string
