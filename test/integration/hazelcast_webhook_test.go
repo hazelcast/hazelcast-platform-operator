@@ -123,7 +123,7 @@ var _ = Describe("Hazelcast webhook", func() {
 	})
 
 	Context("JVM Configuration", func() {
-		expectedErrStr := `argument %s is configured twice, please check "Configuring JVM Parameters" document`
+		expectedErrStr := `argument %s is configured twice`
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.InitialRamPerArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
