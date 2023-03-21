@@ -113,7 +113,7 @@ func validateJVMConfig(h *Hazelcast) error {
 func validateArg(args []string, arg string) error {
 	for _, s := range args {
 		if strings.Contains(s, arg) {
-			return fmt.Errorf(`argument %s is configured twice, please check "Configuring JVM Parameters" document`, arg)
+			return fmt.Errorf(`argument %s is configured twice`, arg)
 		}
 	}
 	return nil
