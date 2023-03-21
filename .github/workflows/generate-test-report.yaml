@@ -129,7 +129,7 @@ jobs:
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
 
       - name: Add Test Report Summary To PR
-        if: ${{ inputs.WORKFLOW_ID }} == 'pr'
+        if: github.event.inputs.WORKFLOW_ID == 'pr'
         run: |
           sudo apt-get install libxml2-utils
           # Define an array to store test run status

@@ -204,6 +204,7 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 			clusterName = hz.Spec.ClusterName
 		}
 		c := hzClient.Config{}
+		c.Labels = []string{"e2e-test=true"}
 		c.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", addr))
 		c.Cluster.Unisocket = unisocket
 		c.Cluster.Name = clusterName
@@ -438,7 +439,7 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 
 func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1alpha1.WanStatus) *hazelcastcomv1alpha1.WanReplication {
 	checkWan := &hazelcastcomv1alpha1.WanReplication{}
-	By("waiting for Wan CR status", func() {
+	By("waiting for WAN CR status", func() {
 		Eventually(func() hazelcastcomv1alpha1.WanStatus {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      wr.Name,
@@ -455,7 +456,7 @@ func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1a
 
 func assertWanStatusMapCount(wr *hazelcastcomv1alpha1.WanReplication, mapLen int) *hazelcastcomv1alpha1.WanReplication {
 	checkWan := &hazelcastcomv1alpha1.WanReplication{}
-	By("waiting for Wan CR status map length", func() {
+	By("waiting for WAN CR status map length", func() {
 		Eventually(func() int {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      wr.Name,
@@ -872,6 +873,14 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzCrName, Namespace: ns}, ee, labels)
 		hz.Spec.ClusterName = hzCrName
 		hz.Spec.ClusterSize = pointer.Int32(1)
+		hz.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
+			{
+				Port:        5710,
+				PortCount:   0,
+				ServiceType: "NodePort",
+				Name:        "tokyo",
+			},
+		}
 		hzCrs[hzCrName] = hz
 		CreateHazelcastCRWithoutCheck(hz)
 	}
@@ -902,7 +911,7 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 	wan := hazelcastconfig.WanReplication(
 		lk,
 		target.Spec.ClusterName,
-		hzclient.HazelcastUrl(target),
+		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, 5710),
 		resources,
 		labels,
 	)

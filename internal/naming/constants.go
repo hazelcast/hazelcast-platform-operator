@@ -82,7 +82,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.2.1"
+	HazelcastVersion = "latest-snapshot"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
@@ -199,4 +199,16 @@ const (
 
 const (
 	WebhookServerPath = "/tmp/k8s-webhook-server/serving-certs"
+)
+
+// Advanced Network Constants
+const (
+	MemberPortName = "member-port"
+	ClientPortName = "client-port"
+	RestPortName   = "rest-port"
+	WanPortName    = "wan-port"
+
+	MemberServerSocketPort = 5702
+	ClientServerSocketPort = 5701
+	RestServerSocketPort   = 8081
 )

@@ -141,7 +141,7 @@ type WanReplicationStatus struct {
 	// +optional
 	Message string `json:"message,omitempty"`
 
-	// WanReplicationMapsStatus is the Wan Replication status of the Maps given in the spec
+	// WanReplicationMapsStatus is the WAN Replication status of the Maps given in the spec
 	// directly or indirectly by Hazelcast resource.
 	// +optional
 	WanReplicationMapsStatus map[string]WanReplicationMapStatus `json:"wanReplicationMapsStatus,omitempty"`
