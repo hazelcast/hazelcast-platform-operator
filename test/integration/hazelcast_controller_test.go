@@ -184,7 +184,8 @@ var _ = Describe("Hazelcast controller", func() {
 		return hz
 	}
 
-	Context("Hazelcast CustomResource with default specs", func() {
+	// Hazelcast CR configuration and controller tests
+	Context("Hazelcast CR with default specs", func() {
 		It("should handle CR and sub resources correctly", Label("fast"), func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
@@ -233,11 +234,10 @@ var _ = Describe("Hazelcast controller", func() {
 			By("expecting to ClusterRole and ClusterRoleBinding removed via finalizer")
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRole{})
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRoleBinding{})
-
 		})
 	})
 
-	Context("Hazelcast CustomResource with expose externally", func() {
+	Context("Hazelcast CR with expose externally", func() {
 		FetchServices := func(hz *hazelcastv1alpha1.Hazelcast, waitForN int) *corev1.ServiceList {
 			serviceList := &corev1.ServiceList{}
 			Eventually(func() bool {
@@ -310,6 +310,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			Delete(fetchedCR)
 		})
+
 		It("should scale Hazelcast cluster exposed for smart client", Label("fast"), func() {
 			By("creating the cluster of size 3")
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
@@ -401,7 +402,8 @@ var _ = Describe("Hazelcast controller", func() {
 			Delete(fetchedCR)
 		})
 	})
-	Context("Hazelcast CustomResource with default values", func() {
+
+	Context("Hazelcast CR with default values", func() {
 		defaultHzSpecs := &test.HazelcastSpecValues{
 			ClusterSize:     n.DefaultClusterSize,
 			Repository:      n.HazelcastRepo,
@@ -409,6 +411,7 @@ var _ = Describe("Hazelcast controller", func() {
 			LicenseKey:      "",
 			ImagePullPolicy: n.HazelcastImagePullPolicy,
 		}
+
 		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
@@ -418,6 +421,7 @@ var _ = Describe("Hazelcast controller", func() {
 			EnsureSpecEquals(fetchedCR, defaultHzSpecs)
 			Delete(hz)
 		})
+
 		It("should update the CR with the default values when updating the empty specs are applied", Label("fast"), func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
@@ -439,7 +443,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Hazelcast CustomResource with properties", func() {
+	Context("Hazelcast CR with properties", func() {
 		It("should pass the values to ConfigMap", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			sampleProperties := map[string]string{
@@ -471,7 +475,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Pod scheduling parameters", func() {
+	Context("Hazelcast CR Pod scheduling parameters", func() {
 		When("NodeSelector is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
@@ -574,7 +578,8 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
-	Context("Hazelcast Image configuration", func() {
+
+	Context("Hazelcast CR Image configuration", func() {
 		When("ImagePullSecrets are defined", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				pullSecrets := []corev1.LocalObjectReference{
@@ -597,7 +602,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Jet Engine configuration", func() {
+	Context("Hazelcast CR Jet Engine configuration", func() {
 		When("Jet is not configured", func() {
 			It("should be enabled by default", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
@@ -625,7 +630,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("HighAvailabilityMode Configuration", func() {
+	Context("Hazelcast CR HighAvailabilityMode Configuration", func() {
 		When("HighAvailabilityMode is configured as NODE", func() {
 			It("should create topologySpreadConstraints", Label("fast"), func() {
 				s := test.HazelcastSpec(defaultSpecValues, ee)
@@ -744,7 +749,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Hot Restart Persistence configuration", func() {
+	Context("Hazelcast CR HotRestart Persistence configuration", func() {
 		When("Persistence is configured", func() {
 			It("should create volumeClaimTemplates", Label("fast"), func() {
 				s := test.HazelcastSpec(defaultSpecValues, ee)
@@ -832,7 +837,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("JVM configuration", func() {
+	Context("Hazelcast CR JVM configuration", func() {
 		When("Memory is configured", func() {
 			It("should set memory with percentages", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
@@ -886,99 +891,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Map CR configuration", func() {
-		When("Using empty configuration", func() {
-			It("should fail to create", Label("fast"), func() {
-				m := &hazelcastv1alpha1.Map{
-					ObjectMeta: GetRandomObjectMeta(),
-				}
-				By("failing to create Map CR")
-				Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
-				Delete(m)
-
-			})
-		})
-		When("Using default configuration", func() {
-			It("should create Map CR with default configurations", Label("fast"), func() {
-				m := &hazelcastv1alpha1.Map{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.MapSpec{
-						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-							HazelcastResourceName: "hazelcast",
-						},
-					},
-				}
-				By("creating Map CR successfully")
-				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-				ms := m.Spec
-
-				By("checking the CR values with default ones")
-				Expect(ms.Name).To(Equal(""))
-				Expect(*ms.BackupCount).To(Equal(n.DefaultMapBackupCount))
-				Expect(ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
-				Expect(ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
-				Expect(ms.Eviction.EvictionPolicy).To(Equal(hazelcastv1alpha1.EvictionPolicyType(n.DefaultMapEvictionPolicy)))
-				Expect(ms.Eviction.MaxSize).To(Equal(n.DefaultMapMaxSize))
-				Expect(ms.Eviction.MaxSizePolicy).To(Equal(hazelcastv1alpha1.MaxSizePolicyType(n.DefaultMapMaxSizePolicy)))
-				Expect(ms.Indexes).To(BeNil())
-				Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
-				Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
-				Expect(ms.EntryListeners).To(BeNil())
-				Delete(m)
-			})
-			It("should create Map CR with native memory configuration", Label("fast"), func() {
-				m := &hazelcastv1alpha1.Map{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.MapSpec{
-						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-							HazelcastResourceName: "hazelcast",
-						},
-						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
-					},
-				}
-				By("creating Map CR successfully")
-				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-				ms := m.Spec
-
-				By("checking the CR values with native memory")
-				Expect(ms.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
-				Delete(m)
-			})
-		})
-	})
-
-	Context("WanReplication CR configuration", func() {
-		When("endpoints are configured without port", func() {
-			It("should set default port to endpoints", Label("fast"), func() {
-				endpoints := "10.0.0.1,10.0.0.2,10.0.0.3"
-				wan := &hazelcastv1alpha1.WanReplication{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.WanReplicationSpec{
-						Resources: []hazelcastv1alpha1.ResourceSpec{
-							{
-								Name: "hazelcast",
-								Kind: hazelcastv1alpha1.ResourceKindHZ,
-							},
-						},
-						TargetClusterName: "dev",
-						Endpoints:         endpoints,
-					},
-				}
-				By("creating WanReplication CR successfully")
-				Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
-				Eventually(func() string {
-					newWan := hazelcastv1alpha1.WanReplication{}
-					err := k8sClient.Get(context.Background(), types.NamespacedName{Name: wan.Name, Namespace: wan.Namespace}, &newWan)
-					if err != nil {
-						return ""
-					}
-					return newWan.Spec.Endpoints
-				}, timeout, interval).Should(Equal("10.0.0.1:5701,10.0.0.2:5701,10.0.0.3:5701"))
-			})
-		})
-	})
-
-	Context("Resources context", func() {
+	Context("Hazelcast CR Resources configuration", func() {
 		When("Resources are used", func() {
 			It("should be set to Container spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
@@ -1019,7 +932,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Sidecar Agent configuration", func() {
+	Context("Hazelcast CR Sidecar Agent configuration", func() {
 		When("Sidecar Agent is configured with Persistence", func() {
 			It("should be deployed as a sidecar container", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
@@ -1052,7 +965,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Statefulset Updates", func() {
+	Context("Hazelcast CR Statefulset updates", func() {
 		firstSpec := hazelcastv1alpha1.HazelcastSpec{
 			ClusterSize:      pointer.Int32(2),
 			Repository:       "hazelcast/hazelcast-enterprise",
@@ -1062,6 +975,7 @@ var _ = Describe("Hazelcast controller", func() {
 			ExposeExternally: nil,
 			LicenseKeySecret: "key-secret",
 		}
+
 		secondSpec := hazelcastv1alpha1.HazelcastSpec{
 			ClusterSize:     pointer.Int32(3),
 			Repository:      "hazelcast/hazelcast",
@@ -1097,6 +1011,7 @@ var _ = Describe("Hazelcast controller", func() {
 				},
 			},
 		}
+
 		When("Hazelcast Spec is updated", func() {
 			It("Should forward changes to StatefulSet", Label("fast"), func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
@@ -1155,7 +1070,8 @@ var _ = Describe("Hazelcast controller", func() {
 			})
 		})
 	})
-	Context("Hazelcast User Code Deployment with ConfigMap", func() {
+
+	Context("Hazelcast CR User Code Deployment with ConfigMap", func() {
 		When("Two Configmaps are given in userCode field", func() {
 			It("Should put correct fields in StatefulSet", Label("fast"), func() {
 				cms := []string{
@@ -1223,184 +1139,6 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("MultiMap CR configuration", func() {
-		When("Using empty configuration", func() {
-			It("should fail to create", Label("fast"), func() {
-				mm := &hazelcastv1alpha1.MultiMap{
-					ObjectMeta: GetRandomObjectMeta(),
-				}
-				By("failing to create MultiMap CR")
-				Expect(k8sClient.Create(context.Background(), mm)).ShouldNot(Succeed())
-
-			})
-		})
-		When("Using default configuration", func() {
-			It("should create MultiMap CR with default configurations", Label("fast"), func() {
-				mm := &hazelcastv1alpha1.MultiMap{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.MultiMapSpec{
-						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-							HazelcastResourceName: "hazelcast",
-						},
-					},
-				}
-				By("creating MultiMap CR successfully")
-				Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
-				mms := mm.Spec
-
-				By("checking the CR values with default ones")
-				Expect(mms.Name).To(Equal(""))
-				Expect(*mms.BackupCount).To(Equal(n.DefaultMultiMapBackupCount))
-				Expect(mms.Binary).To(Equal(n.DefaultMultiMapBinary))
-				Expect(string(mms.CollectionType)).To(Equal(n.DefaultMultiMapCollectionType))
-				Expect(mms.HazelcastResourceName).To(Equal("hazelcast"))
-			})
-		})
-	})
-	Context("Hazelcast CronHotBackup", func() {
-		When("CronJob With Empty Spec is created", func() {
-			It("Should fail to create", Label("fast"), func() {
-				chb := &hazelcastv1alpha1.CronHotBackup{
-					ObjectMeta: GetRandomObjectMeta(),
-				}
-				By("failing to create CronHotBackup CR")
-				Expect(k8sClient.Create(context.Background(), chb)).ShouldNot(Succeed())
-				Delete(chb)
-			})
-		})
-		When("Using default configuration", func() {
-			It("should create CronHotBackup with default values", Label("fast"), func() {
-				chb := &hazelcastv1alpha1.CronHotBackup{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.CronHotBackupSpec{
-						Schedule: "* * * * *",
-						HotBackupTemplate: hazelcastv1alpha1.HotBackupTemplateSpec{
-							Spec: hazelcastv1alpha1.HotBackupSpec{},
-						},
-					},
-				}
-				By("creating CronHotBackup CR successfully")
-				Expect(k8sClient.Create(context.Background(), chb)).Should(Succeed())
-				chbs := chb.Spec
-
-				By("checking the CR values with default ones")
-				Expect(*chbs.SuccessfulHotBackupsHistoryLimit).To(Equal(n.DefaultSuccessfulHotBackupsHistoryLimit))
-				Expect(*chbs.FailedHotBackupsHistoryLimit).To(Equal(n.DefaultFailedHotBackupsHistoryLimit))
-				Delete(chb)
-			})
-		})
-		When("Giving labels and annotations to HotBackup Template", func() {
-			It("should HotBackup with those labels", Label("fast"), func() {
-				ans := map[string]string{
-					"annotation1": "val",
-					"annotation2": "val2",
-				}
-				labels := map[string]string{
-					"label1": "val",
-					"label2": "val2",
-				}
-				chb := &hazelcastv1alpha1.CronHotBackup{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.CronHotBackupSpec{
-						Schedule: "*/1 * * * * *",
-						HotBackupTemplate: hazelcastv1alpha1.HotBackupTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: ans,
-								Labels:      labels,
-							},
-							Spec: hazelcastv1alpha1.HotBackupSpec{},
-						},
-					},
-				}
-				By("creating CronHotBackup CR successfully")
-				Expect(k8sClient.Create(context.Background(), chb)).Should(Succeed())
-
-				Expect(k8sClient.Get(context.Background(), types.NamespacedName{Name: chb.Name, Namespace: chb.Namespace}, chb)).Should(Succeed())
-				// Wait for at least two HotBackups to get created
-				time.Sleep(2 * time.Second)
-				hbl := &hazelcastv1alpha1.HotBackupList{}
-				Eventually(func() string {
-					err := k8sClient.List(context.Background(), hbl, client.InNamespace(namespace), client.MatchingLabels(labels))
-					if err != nil {
-						return ""
-					}
-					if len(hbl.Items) < 1 {
-						return ""
-					}
-					return hbl.Items[0].Name
-				}, timeout, interval).Should(ContainSubstring(chb.Name))
-
-				Expect(hbl.Items[0].Annotations).To(Equal(ans))
-				Expect(hbl.Items[0].Labels).To(Equal(labels))
-
-				// Foreground deletion does not work in integration tests, should delete CronHotBackup without waiting
-				DeleteWithoutWaiting(chb)
-				Expect(k8sClient.DeleteAllOf(context.Background(), &hazelcastv1alpha1.HotBackup{}, client.InNamespace(namespace))).Should(Succeed())
-			})
-		})
-	})
-	Context("Topic CR configuration", func() {
-		When("Using empty configuration", func() {
-			It("should fail to create", Label("fast"), func() {
-				t := &hazelcastv1alpha1.Topic{
-					ObjectMeta: GetRandomObjectMeta(),
-				}
-				By("failing to create Topic CR")
-				Expect(k8sClient.Create(context.Background(), t)).ShouldNot(Succeed())
-			})
-		})
-		When("Using default configuration", func() {
-			It("should create Topic CR with default configurations", Label("fast"), func() {
-				t := &hazelcastv1alpha1.Topic{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.TopicSpec{
-						HazelcastResourceName: "hazelcast",
-					},
-				}
-				By("creating Topic CR successfully")
-				Expect(k8sClient.Create(context.Background(), t)).Should(Succeed())
-				ts := t.Spec
-
-				By("checking the CR values with default ones")
-				Expect(ts.Name).To(Equal(""))
-				Expect(ts.GlobalOrderingEnabled).To(Equal(n.DefaultTopicGlobalOrderingEnabled))
-				Expect(ts.MultiThreadingEnabled).To(Equal(n.DefaultTopicMultiThreadingEnabled))
-				Expect(ts.HazelcastResourceName).To(Equal("hazelcast"))
-			})
-		})
-	})
-
-	Context("ReplicatedMap CR configuration", func() {
-		When("Using empty configuration", func() {
-			It("should fail to create", Label("fast"), func() {
-				t := &hazelcastv1alpha1.ReplicatedMap{
-					ObjectMeta: GetRandomObjectMeta(),
-				}
-				By("failing to create ReplicatedMap CR")
-				Expect(k8sClient.Create(context.Background(), t)).ShouldNot(Succeed())
-			})
-		})
-		When("Using default configuration", func() {
-			It("should create ReplicatedMap CR with default configurations", Label("fast"), func() {
-				rm := &hazelcastv1alpha1.ReplicatedMap{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.ReplicatedMapSpec{
-						HazelcastResourceName: "hazelcast",
-					},
-				}
-				By("creating ReplicatedMap CR successfully")
-				Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
-				rms := rm.Spec
-
-				By("checking the CR values with default ones")
-				Expect(rms.Name).To(Equal(""))
-				Expect(string(rms.InMemoryFormat)).To(Equal(n.DefaultReplicatedMapInMemoryFormat))
-				Expect(*rms.AsyncFillup).To(Equal(n.DefaultReplicatedMapAsyncFillup))
-				Expect(rms.HazelcastResourceName).To(Equal("hazelcast"))
-			})
-		})
-	})
-
 	Context("Hazelcast CR mutation", func() {
 		When("License key with OS repo is given", func() {
 			It("should use EE repo", Label("fast"), func() {
@@ -1418,96 +1156,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Queue CR configuration", func() {
-		When("Using empty configuration", func() {
-			It("should fail to create", Label("fast"), func() {
-				q := &hazelcastv1alpha1.Queue{
-					ObjectMeta: GetRandomObjectMeta(),
-				}
-				By("failing to create Queue CR")
-				Expect(k8sClient.Create(context.Background(), q)).ShouldNot(Succeed())
-			})
-		})
-		When("Using default configuration", func() {
-			It("should create Queue CR with default configurations", Label("fast"), func() {
-				q := &hazelcastv1alpha1.Queue{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.QueueSpec{
-						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-							HazelcastResourceName: "hazelcast",
-						},
-					},
-				}
-				By("creating Queue CR successfully")
-				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-				qs := q.Spec
-
-				By("checking the CR values with default ones")
-				Expect(qs.Name).To(Equal(""))
-				Expect(*qs.BackupCount).To(Equal(n.DefaultQueueBackupCount))
-				Expect(qs.AsyncBackupCount).To(Equal(n.DefaultQueueAsyncBackupCount))
-				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
-				Expect(*qs.EmptyQueueTtlSeconds).To(Equal(n.DefaultQueueEmptyQueueTtl))
-				Expect(qs.MaxSize).To(Equal(n.DefaultMapMaxSize))
-				Expect(qs.PriorityComparatorClassName).To(Equal(""))
-			})
-		})
-	})
-
-	Context("Cache CR configuration", func() {
-		When("Using empty configuration", func() {
-			It("should fail to create", Label("fast"), func() {
-				q := &hazelcastv1alpha1.Cache{
-					ObjectMeta: GetRandomObjectMeta(),
-				}
-				By("failing to create Cache CR")
-				Expect(k8sClient.Create(context.Background(), q)).ShouldNot(Succeed())
-			})
-		})
-		When("Using default configuration", func() {
-			It("should create Cache CR with default configurations", Label("fast"), func() {
-				q := &hazelcastv1alpha1.Cache{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.CacheSpec{
-						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-							HazelcastResourceName: "hazelcast",
-						},
-						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
-					},
-				}
-				By("creating Cache CR successfully")
-				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-				qs := q.Spec
-
-				By("checking the CR values with default ones")
-				Expect(qs.Name).To(Equal(""))
-				Expect(*qs.BackupCount).To(Equal(n.DefaultCacheBackupCount))
-				Expect(qs.AsyncBackupCount).To(Equal(n.DefaultCacheAsyncBackupCount))
-				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
-				Expect(qs.KeyType).To(Equal(""))
-				Expect(qs.ValueType).To(Equal(""))
-			})
-			It("should create Cache CR with native memory configuration", Label("fast"), func() {
-				q := &hazelcastv1alpha1.Cache{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.CacheSpec{
-						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-							HazelcastResourceName: "hazelcast",
-						},
-						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
-					},
-				}
-				By("creating Cache CR successfully")
-				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-				qs := q.Spec
-
-				By("checking the CR values with native memory")
-				Expect(qs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
-			})
-		})
-	})
-
-	Context("Advanced Network configuration", func() {
+	Context("Hazelcast CR Advanced Network configuration", func() {
 		When("Full Configuration", func() {
 			It("should create Advanced Network configuration", Label("fast"), func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
@@ -1596,7 +1245,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
-	Context("Native Memory configuration", func() {
+	Context("Hazelcast CR Native Memory configuration", func() {
 		When("Native Memory property is configured", func() {
 			It("should be enabled", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
@@ -1623,6 +1272,382 @@ var _ = Describe("Hazelcast controller", func() {
 				}, timeout, interval).Should(BeTrue())
 
 				Delete(hz)
+			})
+		})
+	})
+
+	// Map CR configuration and controller tests
+	Context("Map CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create Map CR")
+				Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+				Delete(m)
+
+			})
+		})
+		When("Using default configuration", func() {
+			It("should create Map CR with default configurations", Label("fast"), func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.MapSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+					},
+				}
+				By("creating Map CR successfully")
+				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+				ms := m.Spec
+
+				By("checking the CR values with default ones")
+				Expect(ms.Name).To(Equal(""))
+				Expect(*ms.BackupCount).To(Equal(n.DefaultMapBackupCount))
+				Expect(ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
+				Expect(ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
+				Expect(ms.Eviction.EvictionPolicy).To(Equal(hazelcastv1alpha1.EvictionPolicyType(n.DefaultMapEvictionPolicy)))
+				Expect(ms.Eviction.MaxSize).To(Equal(n.DefaultMapMaxSize))
+				Expect(ms.Eviction.MaxSizePolicy).To(Equal(hazelcastv1alpha1.MaxSizePolicyType(n.DefaultMapMaxSizePolicy)))
+				Expect(ms.Indexes).To(BeNil())
+				Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
+				Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
+				Expect(ms.EntryListeners).To(BeNil())
+				Delete(m)
+			})
+			It("should create Map CR with native memory configuration", Label("fast"), func() {
+				m := &hazelcastv1alpha1.Map{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.MapSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+					},
+				}
+				By("creating Map CR successfully")
+				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+				ms := m.Spec
+
+				By("checking the CR values with native memory")
+				Expect(ms.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
+				Delete(m)
+			})
+		})
+	})
+
+	// MultiMap CR configuration and controller tests
+	Context("MultiMap CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				mm := &hazelcastv1alpha1.MultiMap{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create MultiMap CR")
+				Expect(k8sClient.Create(context.Background(), mm)).ShouldNot(Succeed())
+
+			})
+		})
+		When("Using default configuration", func() {
+			It("should create MultiMap CR with default configurations", Label("fast"), func() {
+				mm := &hazelcastv1alpha1.MultiMap{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.MultiMapSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+					},
+				}
+				By("creating MultiMap CR successfully")
+				Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
+				mms := mm.Spec
+
+				By("checking the CR values with default ones")
+				Expect(mms.Name).To(Equal(""))
+				Expect(*mms.BackupCount).To(Equal(n.DefaultMultiMapBackupCount))
+				Expect(mms.Binary).To(Equal(n.DefaultMultiMapBinary))
+				Expect(string(mms.CollectionType)).To(Equal(n.DefaultMultiMapCollectionType))
+				Expect(mms.HazelcastResourceName).To(Equal("hazelcast"))
+			})
+		})
+	})
+
+	// CronHotBackup CR configuration and controller tests
+	Context("CronHotBackup CR configuration", func() {
+		When("CronJob With Empty Spec is created", func() {
+			It("Should fail to create", Label("fast"), func() {
+				chb := &hazelcastv1alpha1.CronHotBackup{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create CronHotBackup CR")
+				Expect(k8sClient.Create(context.Background(), chb)).ShouldNot(Succeed())
+				Delete(chb)
+			})
+		})
+
+		When("Using default configuration", func() {
+			It("should create CronHotBackup with default values", Label("fast"), func() {
+				chb := &hazelcastv1alpha1.CronHotBackup{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.CronHotBackupSpec{
+						Schedule: "* * * * *",
+						HotBackupTemplate: hazelcastv1alpha1.HotBackupTemplateSpec{
+							Spec: hazelcastv1alpha1.HotBackupSpec{},
+						},
+					},
+				}
+				By("creating CronHotBackup CR successfully")
+				Expect(k8sClient.Create(context.Background(), chb)).Should(Succeed())
+				chbs := chb.Spec
+
+				By("checking the CR values with default ones")
+				Expect(*chbs.SuccessfulHotBackupsHistoryLimit).To(Equal(n.DefaultSuccessfulHotBackupsHistoryLimit))
+				Expect(*chbs.FailedHotBackupsHistoryLimit).To(Equal(n.DefaultFailedHotBackupsHistoryLimit))
+				Delete(chb)
+			})
+		})
+
+		When("Giving labels and annotations to HotBackup Template", func() {
+			It("should HotBackup with those labels", Label("fast"), func() {
+				ans := map[string]string{
+					"annotation1": "val",
+					"annotation2": "val2",
+				}
+				labels := map[string]string{
+					"label1": "val",
+					"label2": "val2",
+				}
+				chb := &hazelcastv1alpha1.CronHotBackup{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.CronHotBackupSpec{
+						Schedule: "*/1 * * * * *",
+						HotBackupTemplate: hazelcastv1alpha1.HotBackupTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Annotations: ans,
+								Labels:      labels,
+							},
+							Spec: hazelcastv1alpha1.HotBackupSpec{},
+						},
+					},
+				}
+				By("creating CronHotBackup CR successfully")
+				Expect(k8sClient.Create(context.Background(), chb)).Should(Succeed())
+
+				Expect(k8sClient.Get(context.Background(), types.NamespacedName{Name: chb.Name, Namespace: chb.Namespace}, chb)).Should(Succeed())
+				// Wait for at least two HotBackups to get created
+				time.Sleep(2 * time.Second)
+				hbl := &hazelcastv1alpha1.HotBackupList{}
+				Eventually(func() string {
+					err := k8sClient.List(context.Background(), hbl, client.InNamespace(namespace), client.MatchingLabels(labels))
+					if err != nil {
+						return ""
+					}
+					if len(hbl.Items) < 1 {
+						return ""
+					}
+					return hbl.Items[0].Name
+				}, timeout, interval).Should(ContainSubstring(chb.Name))
+
+				Expect(hbl.Items[0].Annotations).To(Equal(ans))
+				Expect(hbl.Items[0].Labels).To(Equal(labels))
+
+				// Foreground deletion does not work in integration tests, should delete CronHotBackup without waiting
+				DeleteWithoutWaiting(chb)
+				Expect(k8sClient.DeleteAllOf(context.Background(), &hazelcastv1alpha1.HotBackup{}, client.InNamespace(namespace))).Should(Succeed())
+			})
+		})
+	})
+
+	// Topic CR configuration and controller tests
+	Context("Topic CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				t := &hazelcastv1alpha1.Topic{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create Topic CR")
+				Expect(k8sClient.Create(context.Background(), t)).ShouldNot(Succeed())
+			})
+		})
+
+		When("Using default configuration", func() {
+			It("should create Topic CR with default configurations", Label("fast"), func() {
+				t := &hazelcastv1alpha1.Topic{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.TopicSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+				}
+				By("creating Topic CR successfully")
+				Expect(k8sClient.Create(context.Background(), t)).Should(Succeed())
+				ts := t.Spec
+
+				By("checking the CR values with default ones")
+				Expect(ts.Name).To(Equal(""))
+				Expect(ts.GlobalOrderingEnabled).To(Equal(n.DefaultTopicGlobalOrderingEnabled))
+				Expect(ts.MultiThreadingEnabled).To(Equal(n.DefaultTopicMultiThreadingEnabled))
+				Expect(ts.HazelcastResourceName).To(Equal("hazelcast"))
+			})
+		})
+	})
+
+	// ReplicatedMap CR configuration and controller tests
+	Context("ReplicatedMap CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				t := &hazelcastv1alpha1.ReplicatedMap{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create ReplicatedMap CR")
+				Expect(k8sClient.Create(context.Background(), t)).ShouldNot(Succeed())
+			})
+		})
+
+		When("Using default configuration", func() {
+			It("should create ReplicatedMap CR with default configurations", Label("fast"), func() {
+				rm := &hazelcastv1alpha1.ReplicatedMap{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.ReplicatedMapSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+				}
+				By("creating ReplicatedMap CR successfully")
+				Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
+				rms := rm.Spec
+
+				By("checking the CR values with default ones")
+				Expect(rms.Name).To(Equal(""))
+				Expect(string(rms.InMemoryFormat)).To(Equal(n.DefaultReplicatedMapInMemoryFormat))
+				Expect(*rms.AsyncFillup).To(Equal(n.DefaultReplicatedMapAsyncFillup))
+				Expect(rms.HazelcastResourceName).To(Equal("hazelcast"))
+			})
+		})
+	})
+
+	// Queue CR configuration and controller tests
+	Context("Queue CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Queue{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create Queue CR")
+				Expect(k8sClient.Create(context.Background(), q)).ShouldNot(Succeed())
+			})
+		})
+
+		When("Using default configuration", func() {
+			It("should create Queue CR with default configurations", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Queue{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.QueueSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+					},
+				}
+				By("creating Queue CR successfully")
+				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
+				qs := q.Spec
+
+				By("checking the CR values with default ones")
+				Expect(qs.Name).To(Equal(""))
+				Expect(*qs.BackupCount).To(Equal(n.DefaultQueueBackupCount))
+				Expect(qs.AsyncBackupCount).To(Equal(n.DefaultQueueAsyncBackupCount))
+				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
+				Expect(*qs.EmptyQueueTtlSeconds).To(Equal(n.DefaultQueueEmptyQueueTtl))
+				Expect(qs.MaxSize).To(Equal(n.DefaultMapMaxSize))
+				Expect(qs.PriorityComparatorClassName).To(Equal(""))
+			})
+		})
+	})
+
+	// Cache CR configuration and controller tests
+	Context("Cache CR configuration", func() {
+		When("Using empty configuration", func() {
+			It("should fail to create", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Cache{
+					ObjectMeta: GetRandomObjectMeta(),
+				}
+				By("failing to create Cache CR")
+				Expect(k8sClient.Create(context.Background(), q)).ShouldNot(Succeed())
+			})
+		})
+
+		When("Using default configuration", func() {
+			It("should create Cache CR with default configurations", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Cache{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.CacheSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+					},
+				}
+				By("creating Cache CR successfully")
+				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
+				qs := q.Spec
+
+				By("checking the CR values with default ones")
+				Expect(qs.Name).To(Equal(""))
+				Expect(*qs.BackupCount).To(Equal(n.DefaultCacheBackupCount))
+				Expect(qs.AsyncBackupCount).To(Equal(n.DefaultCacheAsyncBackupCount))
+				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
+				Expect(qs.KeyType).To(Equal(""))
+				Expect(qs.ValueType).To(Equal(""))
+			})
+
+			It("should create Cache CR with native memory configuration", Label("fast"), func() {
+				q := &hazelcastv1alpha1.Cache{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.CacheSpec{
+						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+							HazelcastResourceName: "hazelcast",
+						},
+						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+					},
+				}
+				By("creating Cache CR successfully")
+				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
+				qs := q.Spec
+
+				By("checking the CR values with native memory")
+				Expect(qs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
+			})
+		})
+	})
+
+	// WanReplication CR configuration and controller tests
+	Context("WanReplication CR configuration", func() {
+		When("endpoints are configured without port", func() {
+			It("should set default port to endpoints", Label("fast"), func() {
+				endpoints := "10.0.0.1,10.0.0.2,10.0.0.3"
+				wan := &hazelcastv1alpha1.WanReplication{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.WanReplicationSpec{
+						Resources: []hazelcastv1alpha1.ResourceSpec{
+							{
+								Name: "hazelcast",
+								Kind: hazelcastv1alpha1.ResourceKindHZ,
+							},
+						},
+						TargetClusterName: "dev",
+						Endpoints:         endpoints,
+					},
+				}
+				By("creating WanReplication CR successfully")
+				Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+				Eventually(func() string {
+					newWan := hazelcastv1alpha1.WanReplication{}
+					err := k8sClient.Get(context.Background(), types.NamespacedName{Name: wan.Name, Namespace: wan.Namespace}, &newWan)
+					if err != nil {
+						return ""
+					}
+					return newWan.Spec.Endpoints
+				}, timeout, interval).Should(Equal("10.0.0.1:5701,10.0.0.2:5701,10.0.0.3:5701"))
 			})
 		})
 	})

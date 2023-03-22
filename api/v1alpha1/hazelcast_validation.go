@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -55,8 +54,8 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 }
 
 func validateClusterSize(h *Hazelcast) error {
-	if *h.Spec.ClusterSize > naming.ClusterSizeLimit {
-		return fmt.Errorf("cluster size limit is exceeded. Requested: %d, Limit: %d", *h.Spec.ClusterSize, naming.ClusterSizeLimit)
+	if *h.Spec.ClusterSize > n.ClusterSizeLimit {
+		return fmt.Errorf("cluster size limit is exceeded. Requested: %d, Limit: %d", *h.Spec.ClusterSize, n.ClusterSizeLimit)
 	}
 	return nil
 }
