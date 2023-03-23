@@ -68,8 +68,24 @@ type PartitionGroup struct {
 }
 
 type Jet struct {
-	Enabled               *bool `yaml:"enabled,omitempty"`
-	ResourceUploadEnabled *bool `yaml:"resource-upload-enabled,omitempty"`
+	Enabled               *bool       `yaml:"enabled,omitempty"`
+	ResourceUploadEnabled *bool       `yaml:"resource-upload-enabled,omitempty"`
+	Instance              JetInstance `yaml:"instance,omitempty"`
+}
+
+type JetInstance struct {
+	CooperativeThreadCount         int  `yaml:"cooperative-thread-count,omitempty"`
+	FlowControlPeriodMS            int  `yaml:"flow-control-period-ms,omitempty"`
+	BackupCount                    int  `yaml:"backup-count,omitempty"`
+	ScaleUpDelayMS                 int  `yaml:"scale-up-delay-millis,omitempty"`
+	LosslessRestartEnabled         bool `yaml:"lossless-restart-enabled,omitempty"`
+	MaxProcessorAccumulatedRecords int  `yaml:"max-processor-accumulated-records,omitempty"`
+}
+
+type JetEdgeDefaults struct {
+	QueueSize               int `yaml:"queue-size,omitempty"`
+	PacketSizeLimit         int `yaml:"packet-size-limit,omitempty"`
+	ReceiveWindowMultiplier int `yaml:"receive-window-multiplier,omitempty"`
 }
 
 type Network struct {

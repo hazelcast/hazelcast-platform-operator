@@ -173,6 +173,61 @@ type JetEngineConfiguration struct {
 	// +kubebuilder:default:=false
 	// +optional
 	ResourceUploadEnabled bool `json:"resourceUploadEnabled"`
+
+	// Jet Instance Configuration
+	// +kubebuilder:default:={}
+	// +optional
+	Instance JetInstance `json:"instance"`
+
+	// Jet Edge Defaults Configuration
+	// +kubebuilder:default:={}
+	// +optional
+	EdgeDefaults JetEdgeDefaults `json:"edgeDefaults"`
+}
+
+type JetInstance struct {
+	// The number of threads Jet creates in its cooperative multithreading pool.
+	// +optional
+	CooperativeThreadCount int `json:"cooperativeThreadCount"`
+
+	// The duration of the interval between flow-control packets.
+	// +kubebuilder:default:=100
+	// +optional
+	FlowControlPeriodMS int `json:"flowControlPeriodMS"`
+
+	// The number of synchronous backups to configure on the IMap that Jet needs internally to store job metadata and snapshots.
+	// +kubebuilder:default:=1
+	// +optional
+	BackupCount int `json:"backupCount"`
+
+	// The delay after which the auto-scaled jobs restart if a new member joins the cluster.
+	// +kubebuilder:default:=10000
+	// +optional
+	ScaleUpDelayMS int `json:"scaleUpDelayMS"`
+
+	// Specifies whether the Lossless Cluster Restart feature is enabled.
+	// +kubebuilder:default:=false
+	// +optional
+	LosslessRestartEnabled bool `json:"losslessRestartEnabled"`
+
+	// Specifies the maximum number of records that can be accumulated by any single processor instance.
+	// +kubebuilder:default:=false
+	// +optional
+	MaxProcessorAccumulatedRecords int `json:"maxProcessorAccumulatedRecords"`
+}
+
+type JetEdgeDefaults struct {
+	// Sets the capacity of processor-to-processor concurrent queues.
+	// +optional
+	QueueSize int `json:"queueSize"`
+
+	// Limits the size of the packet in bytes.
+	// +optional
+	PacketSizeLimit int `json:"packetSizeLimit"`
+
+	// Sets the scaling factor used by the adaptive receive window sizing function.
+	// +optional
+	ReceiveWindowMultiplier int `json:"receiveWindowMultiplier"`
 }
 
 // Returns true if Jet section is configured.
