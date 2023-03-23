@@ -85,4 +85,11 @@ jobs:
         run: |-
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
 
-      # TODO: run .github/scripts/cleanup-namespace.sh
+      - name: Cleaning up Namespaces
+        timeout-minutes: 10
+        run: |-
+          for ns in $(echo ${NAMESPACES} | sed "s/,/ /g")
+          do
+            echo "cleaning up %ns" 
+            sh .github/scripts/cleanup-namespace.sh "$ns"
+          done

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 numberOfAllResources() {
   # number of all resources excepting `kubernetes` svc
   kubectl get all --namespace="$1" -o json | \
