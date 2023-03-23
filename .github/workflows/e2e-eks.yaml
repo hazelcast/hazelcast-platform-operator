@@ -163,12 +163,9 @@ jobs:
           username: _json_key
           password: ${{ secrets.GKE_SA_KEY }}
 
-      - name: Deploy CRDs
-        if: matrix.edition == 'ee'
-        run: make install-crds
-
       - name: Deploy Operator to EKS
         run: |
+          make install-crds
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
