@@ -110,6 +110,9 @@ func checkPodsForFailure(ctx context.Context, cl client.Client, sts *appsv1.Stat
 // AsPodErrors tries to transform err to PodErrors and return it with true.
 // If it is not possible nil and false is returned.
 func AsPodErrors(err error) (PodErrors, bool) {
+	if err == nil {
+		return nil, false
+	}
 	t := new(PodErrors)
 	if errors.As(err, t) {
 		return *t, true
@@ -211,7 +214,6 @@ func GetExternalAddresses(
 		logger.Info("Load Balancer external IP is not ready.")
 	}
 	return externalAddrs
-
 }
 
 func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.Service, error) {

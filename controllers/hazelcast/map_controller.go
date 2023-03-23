@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -68,14 +69,17 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	err = util.AddFinalizer(ctx, r.Client, m, logger)
 	if err != nil {
-		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+		return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+			withMapFailedState(err.Error()))
 	}
 
 	if m.GetDeletionTimestamp() != nil {
-		updateMapStatus(ctx, r.Client, m, terminatingStatus(nil)) //nolint:errcheck
+		updateMapStatus(ctx, r.Client, m, recoptions.Empty(), withMapState(hazelcastv1alpha1.MapTerminating)) //nolint:errcheck
 		err = r.executeFinalizer(ctx, m)
 		if err != nil {
-			return updateMapStatus(ctx, r.Client, m, terminatingStatus(err).withMessage(err.Error()))
+			return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+				withMapState(hazelcastv1alpha1.MapTerminating),
+				withMapMessage(err.Error()))
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
@@ -85,21 +89,25 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: m.Spec.HazelcastResourceName}, h)
 	if err != nil {
 		err = fmt.Errorf("could not create/update Map config: Hazelcast resource not found: %w", err)
-		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+		return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+			withMapFailedState(err.Error()))
 	}
 	if h.Status.Phase != hazelcastv1alpha1.Running {
 		err = errors.NewServiceUnavailable("Hazelcast CR is not ready")
-		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+		return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+			withMapFailedState(err.Error()))
 	}
 
 	err = hazelcastv1alpha1.ValidateAppliedPersistence(m.Spec.PersistenceEnabled, h)
 	if err != nil {
-		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+		return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+			withMapFailedState(err.Error()))
 	}
 
 	if m.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
 		if err := requireNativeMemory(h); err != nil {
-			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+			return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+				withMapFailedState(err.Error()))
 		}
 	}
 
@@ -109,37 +117,43 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		ms, err := json.Marshal(m.Spec)
 		if err != nil {
 			err = fmt.Errorf("error marshaling Map as JSON: %w", err)
-			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+			return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+				withMapFailedState(err.Error()))
 		}
 		if s == string(ms) {
 			logger.Info("Map Config was already applied.", "name", m.Name, "namespace", m.Namespace)
-			return updateMapStatus(ctx, r.Client, m, successStatus())
+			return updateMapStatus(ctx, r.Client, m, recoptions.Empty(), withMapState(hazelcastv1alpha1.MapSuccess))
 		}
 		lastSpec := &hazelcastv1alpha1.MapSpec{}
 		err = json.Unmarshal([]byte(s), lastSpec)
 		if err != nil {
 			err = fmt.Errorf("error unmarshaling Last Map Spec: %w", err)
-			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+			return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+				withMapFailedState(err.Error()))
 		}
 
 		err = hazelcastv1alpha1.ValidateNotUpdatableMapFields(&m.Spec, lastSpec)
 		if err != nil {
-			return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+			return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+				withMapFailedState(err.Error()))
 		}
 	}
 
 	cl, err := getHazelcastClient(ctx, r.clientRegistry, m.Spec.HazelcastResourceName, m.Namespace)
 	if err != nil {
 		if errors.IsInternalError(err) {
-			return updateMapStatus(ctx, r.Client, m, failedStatus(err).
-				withMessage(err.Error()))
+			return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+				withMapFailedState(err.Error()))
 		}
-		return updateMapStatus(ctx, r.Client, m, pendingStatus(retryAfterForMap).
-			withMessage(err.Error()))
+		return updateMapStatus(ctx, r.Client, m, recoptions.RetryAfter(retryAfterForMap),
+			withMapState(hazelcastv1alpha1.MapPending),
+			withMapMessage(err.Error()))
 	}
 
 	if m.Status.State != hazelcastv1alpha1.MapPersisting {
-		requeue, err := updateMapStatus(ctx, r.Client, m, pendingStatus(0).withMessage("Applying new map configuration."))
+		requeue, err := updateMapStatus(ctx, r.Client, m, recoptions.Empty(),
+			withMapState(hazelcastv1alpha1.MapPending),
+			withMapMessage("Applying new map configuration."))
 		if err != nil {
 			return requeue, err
 		}
@@ -147,24 +161,29 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	ms, err := r.ReconcileMapConfig(ctx, m, h, cl, createdBefore)
 	if err != nil {
-		return updateMapStatus(ctx, r.Client, m, pendingStatus(retryAfterForMap).
-			withError(err).
-			withMessage(err.Error()).
-			withMemberStatuses(ms))
+		return updateMapStatus(ctx, r.Client, m, recoptions.RetryAfter(retryAfterForMap),
+			withMapState(hazelcastv1alpha1.MapPending),
+			withMapMessage(err.Error()),
+			withMapMemberStatuses(ms))
 	}
 
-	requeue, err := updateMapStatus(ctx, r.Client, m, persistingStatus(1*time.Second).withMessage("Persisting the applied map config."))
+	requeue, err := updateMapStatus(ctx, r.Client, m, recoptions.RetryAfter(1*time.Second),
+		withMapState(hazelcastv1alpha1.MapPersisting),
+		withMapMessage("Persisting the applied map config."))
 	if err != nil {
 		return requeue, err
 	}
 
 	persisted, err := r.validateMapConfigPersistence(ctx, h, m)
 	if err != nil {
-		return updateMapStatus(ctx, r.Client, m, failedStatus(err).withMessage(err.Error()))
+		return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+			withMapFailedState(err.Error()))
 	}
 
 	if !persisted {
-		return updateMapStatus(ctx, r.Client, m, persistingStatus(1*time.Second).withMessage("Waiting for Map Config to be persisted."))
+		return updateMapStatus(ctx, r.Client, m, recoptions.RetryAfter(1*time.Second),
+			withMapState(hazelcastv1alpha1.MapPersisting),
+			withMapMessage("Waiting for Map Config to be persisted."))
 	}
 
 	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(m) {
@@ -176,8 +195,10 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
 
-	return updateMapStatus(ctx, r.Client, m, successStatus().
-		withMemberStatuses(nil))
+	return updateMapStatus(ctx, r.Client, m, recoptions.Empty(),
+		withMapState(hazelcastv1alpha1.MapSuccess),
+		withMapMessage(""),
+		withMapMemberStatuses{})
 }
 
 func (r *MapReconciler) executeFinalizer(ctx context.Context, m *hazelcastv1alpha1.Map) error {

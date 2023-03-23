@@ -2,51 +2,123 @@ package hazelcast
 
 import (
 	"context"
-	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 )
 
-type wanOptionsBuilder struct {
-	publisherId  string
-	err          error
-	status       hazelcastv1alpha1.WanStatus
-	message      string
-	resourceName string
-	retryAfter   time.Duration
+type WanRepStatusApplier interface {
+	WanRepStatusApply(ms *hazelcastv1alpha1.WanReplicationStatus)
 }
 
-func wanFailedStatus(err error) wanOptionsBuilder {
-	return wanOptionsBuilder{
-		status: hazelcastv1alpha1.WanStatusFailed,
-		err:    err,
+type withWanRepState hazelcastv1alpha1.WanStatus
+
+func (w withWanRepState) WanRepStatusApply(ms *hazelcastv1alpha1.WanReplicationStatus) {
+	ms.Status = hazelcastv1alpha1.WanStatus(w)
+}
+
+type withWanRepFailedState string
+
+func (w withWanRepFailedState) WanRepStatusApply(ms *hazelcastv1alpha1.WanReplicationStatus) {
+	ms.Status = hazelcastv1alpha1.WanStatusFailed
+	ms.Message = string(w)
+}
+
+type withWanRepMessage string
+
+func (w withWanRepMessage) WanRepStatusApply(ms *hazelcastv1alpha1.WanReplicationStatus) {
+	ms.Message = string(w)
+}
+
+func updateWanStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, recOption controllers.ReconcilerOption, options ...WanRepStatusApplier) (ctrl.Result, error) {
+	for _, applier := range options {
+		applier.WanRepStatusApply(&wan.Status)
 	}
-}
 
-func wanSuccessStatus() wanOptionsBuilder {
-	return wanOptionsBuilder{
-		status: hazelcastv1alpha1.WanStatusSuccess,
+	if err := c.Status().Update(ctx, wan); err != nil {
+		if errors.IsConflict(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
 	}
-}
 
-func wanPersistingStatus(retryAfter time.Duration) wanOptionsBuilder {
-	return wanOptionsBuilder{
-		status:     hazelcastv1alpha1.WanStatusPersisting,
-		retryAfter: retryAfter,
+	if recOption.Err != nil {
+		return ctrl.Result{}, recOption.Err
 	}
-}
-
-func wanTerminatingStatus() wanOptionsBuilder {
-	return wanOptionsBuilder{
-		status: hazelcastv1alpha1.WanStatusTerminating,
+	if wan.Status.Status == hazelcastv1alpha1.WanStatusPending || wan.Status.Status == hazelcastv1alpha1.WanStatusPersisting {
+		return ctrl.Result{Requeue: true, RequeueAfter: recOption.RetryAfter}, nil
 	}
+	return ctrl.Result{}, nil
 }
 
-func wanStatus(statuses map[string]hazelcastv1alpha1.WanReplicationMapStatus) hazelcastv1alpha1.WanStatus {
+type WanMapStatusApplier interface {
+	WanMapStatusApply(ms *hazelcastv1alpha1.WanReplicationMapStatus)
+}
+
+type wanMapFailedStatus string
+
+func (w wanMapFailedStatus) WanMapStatusApply(ms *hazelcastv1alpha1.WanReplicationMapStatus) {
+	ms.Status = hazelcastv1alpha1.WanStatusFailed
+	ms.Message = string(w)
+}
+
+type wanMapPersistingStatus struct {
+	publisherId, resourceName string
+}
+
+func (w wanMapPersistingStatus) WanMapStatusApply(ms *hazelcastv1alpha1.WanReplicationMapStatus) {
+	ms.Status = hazelcastv1alpha1.WanStatusPersisting
+	ms.PublisherId = w.publisherId
+	ms.Message = ""
+	ms.ResourceName = w.resourceName
+}
+
+type wanMapSuccessStatus struct{}
+
+func (w wanMapSuccessStatus) WanMapStatusApply(ms *hazelcastv1alpha1.WanReplicationMapStatus) {
+	ms.Status = hazelcastv1alpha1.WanStatusSuccess
+}
+
+type wanMapTerminatingStatus struct{}
+
+func (w wanMapTerminatingStatus) WanMapStatusApply(ms *hazelcastv1alpha1.WanReplicationMapStatus) {
+	ms.Status = hazelcastv1alpha1.WanStatusTerminating
+}
+
+func patchWanMapStatuses(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, options map[string]WanMapStatusApplier) error {
+	if wan.Status.WanReplicationMapsStatus == nil {
+		wan.Status.WanReplicationMapsStatus = make(map[string]hazelcastv1alpha1.WanReplicationMapStatus)
+	}
+
+	for mapWanKey, applier := range options {
+		if _, ok := wan.Status.WanReplicationMapsStatus[mapWanKey]; !ok {
+			wan.Status.WanReplicationMapsStatus[mapWanKey] = hazelcastv1alpha1.WanReplicationMapStatus{}
+		}
+		status := wan.Status.WanReplicationMapsStatus[mapWanKey]
+		applier.WanMapStatusApply(&status)
+		wan.Status.WanReplicationMapsStatus[mapWanKey] = status
+	}
+
+	wan.Status.Status = wanStatusFromMapStatuses(wan.Status.WanReplicationMapsStatus)
+	if wan.Status.Status == hazelcastv1alpha1.WanStatusSuccess {
+		wan.Status.Message = ""
+	}
+
+	if err := c.Status().Update(ctx, wan); err != nil {
+		if errors.IsConflict(err) {
+			return nil
+		}
+		return err
+	}
+
+	return nil
+}
+
+func wanStatusFromMapStatuses(statuses map[string]hazelcastv1alpha1.WanReplicationMapStatus) hazelcastv1alpha1.WanStatus {
 	set := wanStatusSet(statuses, hazelcastv1alpha1.WanStatusSuccess)
 
 	_, successOk := set[hazelcastv1alpha1.WanStatusSuccess]
@@ -78,70 +150,6 @@ func wanStatusSet(statusMap map[string]hazelcastv1alpha1.WanReplicationMapStatus
 	return statusSet
 }
 
-func (o wanOptionsBuilder) withPublisherId(hz string) wanOptionsBuilder {
-	o.publisherId = hz
-	return o
-}
-
-func (o wanOptionsBuilder) withResourceName(rn string) wanOptionsBuilder {
-	o.resourceName = rn
-	return o
-}
-
-func (o wanOptionsBuilder) withMessage(msg string) wanOptionsBuilder {
-	o.message = msg
-	return o
-}
-
-func updateWanStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, options wanOptionsBuilder) (ctrl.Result, error) {
-	wan.Status.Status = options.status
-	wan.Status.Message = options.message
-
-	if err := c.Status().Update(ctx, wan); err != nil {
-		if errors.IsConflict(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
-	}
-
-	if options.status == hazelcastv1alpha1.WanStatusFailed {
-		return ctrl.Result{}, options.err
-	}
-	if options.status == hazelcastv1alpha1.WanStatusPending || options.status == hazelcastv1alpha1.WanStatusPersisting {
-		return ctrl.Result{Requeue: true, RequeueAfter: options.retryAfter}, nil
-	}
-	return ctrl.Result{}, nil
-}
-
-func putWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, options map[string]wanOptionsBuilder) error {
-	if wan.Status.WanReplicationMapsStatus == nil {
-		wan.Status.WanReplicationMapsStatus = make(map[string]hazelcastv1alpha1.WanReplicationMapStatus)
-	}
-
-	for mapWanKey, builder := range options {
-		wan.Status.WanReplicationMapsStatus[mapWanKey] = hazelcastv1alpha1.WanReplicationMapStatus{
-			PublisherId:  builder.publisherId,
-			Message:      builder.message,
-			Status:       builder.status,
-			ResourceName: builder.resourceName,
-		}
-	}
-
-	wan.Status.Status = wanStatus(wan.Status.WanReplicationMapsStatus)
-	if wan.Status.Status == hazelcastv1alpha1.WanStatusSuccess {
-		wan.Status.Message = ""
-	}
-
-	if err := c.Status().Update(ctx, wan); err != nil {
-		if errors.IsConflict(err) {
-			return nil
-		}
-		return err
-	}
-
-	return nil
-}
-
 func deleteWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, mapWanKey string) error {
 	if wan.Status.WanReplicationMapsStatus == nil {
 		return nil
@@ -156,16 +164,17 @@ func deleteWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1al
 	return nil
 }
 
-func updateWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, mapWanKey string, status hazelcastv1alpha1.WanStatus) error {
+func updateWanMapStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, mapWanKey string, applier WanMapStatusApplier) error {
 	if wan.Status.WanReplicationMapsStatus == nil {
 		return nil
 	}
 
-	val, ok := wan.Status.WanReplicationMapsStatus[mapWanKey]
-	if !ok {
-		return nil
+	if _, ok := wan.Status.WanReplicationMapsStatus[mapWanKey]; !ok {
+		wan.Status.WanReplicationMapsStatus[mapWanKey] = hazelcastv1alpha1.WanReplicationMapStatus{}
 	}
-	val.Status = status
+	status := wan.Status.WanReplicationMapsStatus[mapWanKey]
+	applier.WanMapStatusApply(&status)
+	wan.Status.WanReplicationMapsStatus[mapWanKey] = status
 
 	if err := c.Status().Update(ctx, wan); err != nil {
 		return err

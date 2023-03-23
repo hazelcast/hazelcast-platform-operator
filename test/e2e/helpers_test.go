@@ -16,10 +16,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	. "time"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
+	"github.com/hazelcast/hazelcast-go-client/cluster"
+	"github.com/hazelcast/hazelcast-go-client/logger"
 	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
+	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
@@ -524,11 +528,20 @@ func portForwardPod(sName, sNamespace, port string) chan struct{} {
 func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
 	clientWithConfig := &hzClient.Client{}
 	By(fmt.Sprintf("creating Hazelcast client using address '%s'", "localhost:"+localPort), func() {
-		c := hzClient.Config{}
-		cc := &c.Cluster
-		cc.Unisocket = true
-		cc.Name = h.Spec.ClusterName
-		cc.Network.SetAddresses("localhost:" + localPort)
+		c := hzClient.Config{
+			Logger: logger.Config{
+				Level: logger.DebugLevel,
+			},
+			Cluster: cluster.Config{
+				Unisocket: true,
+				Name:      h.Spec.ClusterName,
+				ConnectionStrategy: cluster.ConnectionStrategyConfig{
+					Timeout:       hztypes.Duration(2 * time.Second),
+					ReconnectMode: cluster.ReconnectModeOff,
+				},
+			},
+		}
+		c.Cluster.Network.SetAddresses("localhost:" + localPort)
 		Eventually(func() (err error) {
 			clientWithConfig, err = hzClient.StartNewClientWithConfig(ctx, c)
 			return err
@@ -742,7 +755,7 @@ func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1alpha1.
 			if err != nil {
 				return ""
 			}
-			return obj.(hazelcast.DataStructure).GetStatus()
+			return obj.(hazelcast.DataStructure).GetStatus().State
 		}, 1*Minute, interval).Should(Equal(st))
 	})
 	return obj

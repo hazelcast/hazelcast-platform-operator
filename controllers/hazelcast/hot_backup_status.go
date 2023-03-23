@@ -1,30 +1,66 @@
 package hazelcast
 
 import (
+	"context"
+	"time"
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-type hotBackupOptionsBuilder struct {
-	status      hazelcastv1alpha1.HotBackupState
-	err         error
-	message     string
-	backupUUIDs []string
+type HotBackupStatusApplier interface {
+	HotBackupStatusApply(ms *hazelcastv1alpha1.HotBackupStatus)
 }
 
-func hbWithStatus(s hazelcastv1alpha1.HotBackupState) *hotBackupOptionsBuilder {
-	return &hotBackupOptionsBuilder{
-		status: s,
+type withHotBackupState hazelcastv1alpha1.HotBackupState
+
+func (w withHotBackupState) HotBackupStatusApply(ms *hazelcastv1alpha1.HotBackupStatus) {
+	ms.State = hazelcastv1alpha1.HotBackupState(w)
+	if hazelcastv1alpha1.HotBackupState(w) == hazelcastv1alpha1.HotBackupSuccess {
+		ms.Message = ""
 	}
 }
 
-func (hb *hotBackupOptionsBuilder) withBackupUUIDs(bs []string) *hotBackupOptionsBuilder {
-	hb.backupUUIDs = bs
-	return hb
+type withHotBackupFailedState string
+
+func (w withHotBackupFailedState) HotBackupStatusApply(ms *hazelcastv1alpha1.HotBackupStatus) {
+	ms.State = hazelcastv1alpha1.HotBackupFailure
+	ms.Message = string(w)
 }
-func failedHbStatus(err error) *hotBackupOptionsBuilder {
-	return &hotBackupOptionsBuilder{
-		status:  hazelcastv1alpha1.HotBackupFailure,
-		err:     err,
-		message: err.Error(),
+
+type withHotBackupMessage string
+
+func (w withHotBackupMessage) HotBackupStatusApply(ms *hazelcastv1alpha1.HotBackupStatus) {
+	ms.Message = string(w)
+}
+
+type withHotBackupBackupUUIDs []string
+
+func (w withHotBackupBackupUUIDs) HotBackupStatusApply(ms *hazelcastv1alpha1.HotBackupStatus) {
+	ms.BackupUUIDs = w
+}
+
+func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.NamespacedName, recOption controllers.ReconcilerOption, options ...HotBackupStatusApplier) (ctrl.Result, error) {
+	hb := &hazelcastv1alpha1.HotBackup{}
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Always fetch the new version of the resource
+		if err := r.Get(ctx, name, hb); err != nil {
+			return err
+		}
+		for _, applier := range options {
+			applier.HotBackupStatusApply(&hb.Status)
+		}
+		return r.Status().Update(ctx, hb)
+	})
+
+	if recOption.Err != nil {
+		return ctrl.Result{}, recOption.Err
 	}
+	if hb.Status.State == hazelcastv1alpha1.HotBackupPending {
+		return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Second}, nil
+	}
+	return ctrl.Result{}, err
 }

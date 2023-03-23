@@ -70,18 +70,8 @@ func (mm *Topic) GetHZResourceName() string {
 	return mm.Spec.HazelcastResourceName
 }
 
-func (mm *Topic) GetStatus() DataStructureConfigState {
-	return mm.Status.State
-}
-
-func (mm *Topic) GetMemberStatuses() map[string]DataStructureConfigState {
-	return mm.Status.MemberStatuses
-}
-
-func (mm *Topic) SetStatus(status DataStructureConfigState, msg string, memberStatues map[string]DataStructureConfigState) {
-	mm.Status.State = status
-	mm.Status.Message = msg
-	mm.Status.MemberStatuses = memberStatues
+func (mm *Topic) GetStatus() *DataStructureStatus {
+	return &mm.Status.DataStructureStatus
 }
 
 func (mm *Topic) GetSpec() (string, error) {
