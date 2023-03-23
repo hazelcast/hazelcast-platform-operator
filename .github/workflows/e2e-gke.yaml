@@ -216,6 +216,16 @@ jobs:
       WORKFLOW_ID: gke
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
+  cleanup-namespaces:
+    if: always()
+    needs: [ gke-e2e-tests ]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      cluster_type: gke
+      namespaces: "test-operator-os,test-operator-ee,grafana"
+
   delete-cluster:
     name: Delete GKE cluster
     runs-on: ubuntu-latest

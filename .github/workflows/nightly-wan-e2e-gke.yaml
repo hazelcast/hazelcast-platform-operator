@@ -296,6 +296,12 @@ jobs:
         run: |
           make clean-up-namespace NAMESPACE=${{ matrix.namespace }} RELEASE_NAME=${{ matrix.namespace }}
 
+      - name: Clean up Grafana namespace
+        if: always()
+        run: |
+          sh .github/scripts/cleanup-namespace.sh grafana
+          sh .github/scripts/cleanup-namespace.sh ${{ matrix.namespace }}
+
   delete-gke-cluster:
     name: Delete GKE Cluster
     if: always()

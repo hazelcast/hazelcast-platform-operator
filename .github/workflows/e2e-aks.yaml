@@ -217,6 +217,16 @@ jobs:
       WORKFLOW_ID: aks
       CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
 
+  cleanup-namespaces:
+    if: always()
+    needs: [ aks-e2e-tests ]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+      cluster_type: aks
+      namespaces: "test-operator-os,test-operator-ee,grafana"
+
   delete-cluster:
     name: Delete AKS cluster
     runs-on: ubuntu-latest
