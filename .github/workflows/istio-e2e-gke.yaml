@@ -143,12 +143,9 @@ jobs:
           helm install istiod istio/istiod -n istio-system --wait
           helm status istiod -n istio-system
 
-      - name: Deploy CRDs
-        if: matrix.edition == 'ee'
-        run: make install-crds
-
       - name: Deploy Operator to GKE
         run: |
+          make install-crds
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=$NAMESPACE
 
