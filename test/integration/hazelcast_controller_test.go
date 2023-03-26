@@ -1278,7 +1278,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hazelcast CR Management Center configuration", func() {
 		When("Management Center property is configured", func() {
-			FIt("should be enabled", Label("fast"), func() {
+			It("should be enabled", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.ManagementCenterConfig = hazelcastv1alpha1.ManagementCenterConfig{
 					ScriptingEnabled:  true,
