@@ -1,0 +1,15 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  clusterSize: 3
+  repository: 'docker.io/hazelcast/hazelcast-enterprise'
+  version: '5.2.1'
+  licenseKeySecret: hazelcast-license-key
+  managementCenter:
+    scriptingEnabled: true
+    consoleEnabled: true
+    dataAccessEnabled: true
+    trustedInterfaces:
+      - 192.168.1.*
