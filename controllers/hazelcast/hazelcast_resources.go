@@ -783,6 +783,13 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
+	cfg.ManagementCenter = config.ManagementCenterConfig{
+		ScriptingEnabled:  h.Spec.ManagementCenterConfig.ScriptingEnabled,
+		ConsoleEnabled:    h.Spec.ManagementCenterConfig.ConsoleEnabled,
+		DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
+		TrustedInterfaces: h.Spec.ManagementCenterConfig.TrustedInterfaces,
+	}
+
 	return cfg
 }
 

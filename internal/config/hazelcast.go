@@ -23,6 +23,14 @@ type Hazelcast struct {
 	PartitionGroup           PartitionGroup                      `yaml:"partition-group,omitempty"`
 	NativeMemory             NativeMemory                        `yaml:"native-memory,omitempty"`
 	AdvancedNetwork          AdvancedNetwork                     `yaml:"advanced-network,omitempty"`
+	ManagementCenter         ManagementCenterConfig              `yaml:"management-center,omitempty"`
+}
+
+type ManagementCenterConfig struct {
+	ScriptingEnabled  bool     `yaml:"scripting-enabled,omitempty"`
+	ConsoleEnabled    bool     `yaml:"console-enabled,omitempty"`
+	DataAccessEnabled bool     `yaml:"data-access-enabled,omitempty"`
+	TrustedInterfaces []string `yaml:"trusted-interfaces,omitempty"`
 }
 
 type AdvancedNetwork struct {
