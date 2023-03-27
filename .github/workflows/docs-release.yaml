@@ -184,7 +184,7 @@ jobs:
     if: always() &&  needs.publish_hz_docs.result != 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
+      - uses: 8398a7/action-slack@bdc6f9de222d3b7518e6cf99c4f3410f653cfde3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure

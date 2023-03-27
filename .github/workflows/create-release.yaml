@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && needs.create_release.result != 'success' 
     steps:
-      - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
+      - uses: 8398a7/action-slack@bdc6f9de222d3b7518e6cf99c4f3410f653cfde3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
