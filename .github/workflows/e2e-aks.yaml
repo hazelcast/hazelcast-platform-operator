@@ -216,7 +216,7 @@ jobs:
 
   cleanup-namespaces:
     if: always()
-    needs: [ aks-e2e-tests ]
+    needs: ["prepare-env", "aks-e2e-tests"]
     uses: ./.github/workflows/cleanup-namespace.yaml
     secrets: inherit
     with:

@@ -2,10 +2,10 @@ name: Cleanup namespaces
 on:
   workflow_call:
     inputs:
-      cluster_name:
+      cluster_type:
         type: string
         required: true
-      cluster_type:
+      cluster_name:
         type: string
         required: true
       namespaces:
@@ -32,8 +32,8 @@ on:
       GKE_SA_KEY:
         required: true
 jobs:
-  grafana-setup:
-    name: Setup Grafana agent
+  cleanup-namespaces:
+    name: Cleanup namespaces
     env:
       CLUSTER_TYPE: ${{ inputs.cluster_type }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}

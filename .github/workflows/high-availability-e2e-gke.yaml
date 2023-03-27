@@ -167,7 +167,7 @@ jobs:
 
   cleanup-namespaces:
     if: always()
-    needs: [ gke-high-availability-tests ]
+    needs: ["create-gke-cluster", "gke-high-availability-tests"]
     uses: ./.github/workflows/cleanup-namespace.yaml
     secrets: inherit
     with:

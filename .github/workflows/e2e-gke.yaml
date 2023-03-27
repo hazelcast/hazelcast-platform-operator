@@ -215,7 +215,7 @@ jobs:
 
   cleanup-namespaces:
     if: always()
-    needs: [ gke-e2e-tests ]
+    needs: ["create-gke-cluster", "gke-e2e-tests"]
     uses: ./.github/workflows/cleanup-namespace.yaml
     secrets: inherit
     with:
