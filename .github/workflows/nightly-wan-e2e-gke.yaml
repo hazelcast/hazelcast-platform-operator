@@ -299,8 +299,9 @@ jobs:
       - name: Clean up Grafana namespace
         if: always()
         run: |
-          sh .github/scripts/cleanup-namespace.sh grafana
-          sh .github/scripts/cleanup-namespace.sh ${{ matrix.namespace }}
+          source .github/scripts/utils.sh
+          cleanup_namespace grafana
+          cleanup_namespace ${{ matrix.namespace }}
 
   delete-gke-cluster:
     name: Delete GKE Cluster

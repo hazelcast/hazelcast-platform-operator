@@ -1,4 +1,4 @@
-name: Install Grafana Agent
+name: Cleanup namespaces
 on:
   workflow_call:
     inputs:
@@ -88,8 +88,9 @@ jobs:
       - name: Cleaning up Namespaces
         timeout-minutes: 10
         run: |-
+          source .github/scripts/utils.sh
           for ns in $(echo ${NAMESPACES} | sed "s/,/ /g")
           do
-            echo "cleaning up %ns" 
-            sh .github/scripts/cleanup-namespace.sh "$ns"
+            echo "running the script to cleanup '$ns'"
+            cleanup_namespace "$ns"
           done
