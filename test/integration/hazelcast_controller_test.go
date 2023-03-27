@@ -1654,7 +1654,7 @@ var _ = Describe("Hazelcast controller", func() {
 	})
 
 	// WanReplication CR configuration and controller tests
-	FContext("Hazelcast RBAC Permission updates", func() {
+	Context("Hazelcast RBAC Permission updates", func() {
 		When("RBAC permissions are overridden by a client", func() {
 			It("should override changes with operator ones", Label("fast"), func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
