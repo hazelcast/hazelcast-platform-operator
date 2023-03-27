@@ -194,7 +194,7 @@ jobs:
 
   cleanup-namespaces:
     if: always()
-    needs: [ gke-ph-tests ]
+    needs: ["create-gke-cluster", "gke-ph-tests"]
     uses: ./.github/workflows/cleanup-namespace.yaml
     secrets: inherit
     with:
