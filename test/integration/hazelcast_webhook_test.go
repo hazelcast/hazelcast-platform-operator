@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/pointer"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -238,13 +237,6 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It("should validate if lossless restart enabled without enabling persistence", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "/",
-				Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
-					AccessModes:    []corev1.PersistentVolumeAccessMode{"ReadWriteOnce"},
-					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
-				},
-			}
 			spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
 				Enabled: pointer.Bool(true),
 				Instance: &hazelcastv1alpha1.JetInstance{
@@ -261,5 +253,4 @@ var _ = Describe("Hazelcast webhook", func() {
 				Should(MatchError(ContainSubstring("persistence must be enabled to enable lossless restart")))
 		})
 	})
-
 })
