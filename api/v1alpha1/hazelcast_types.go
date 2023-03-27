@@ -211,7 +211,6 @@ type JetInstance struct {
 	LosslessRestartEnabled bool `json:"losslessRestartEnabled"`
 
 	// Specifies the maximum number of records that can be accumulated by any single processor instance.
-	// +kubebuilder:default:=false
 	// +optional
 	MaxProcessorAccumulatedRecords int `json:"maxProcessorAccumulatedRecords"`
 }
