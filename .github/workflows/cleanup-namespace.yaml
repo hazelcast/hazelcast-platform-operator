@@ -1,4 +1,4 @@
-name: Install Grafana Agent
+name: Cleanup namespaces
 on:
   workflow_call:
     inputs:
@@ -9,16 +9,7 @@ on:
         type: string
         required: true
       namespaces:
-        description: 'Coma-separated namespaces names for Grafana logs scraping'
-        type: string
-        required: true
-      gh_run_id:
-        type: string
-        required: true
-      gh_run_number:
-        type: string
-        required: true
-      gh_sha:
+        description: 'Coma-separated namespaces to be cleaned up'
         type: string
         required: true
       gke_zone:
@@ -40,39 +31,17 @@ on:
     secrets:
       GKE_SA_KEY:
         required: true
-      GRAFANA_REMOTE_WRITE_URL:
-        required: true
-      LOKI_USERNAME:
-        required: true
-      LOKI_PASSWORD:
-        required: true
-      GRAFANA_PROM_REMOTE_WRITE_URL:
-        required: true
-      GRAFANA_PROM_USERNAME:
-        required: true
-      GRAFANA_PROM_PASSWORD:
-        required: true
 jobs:
   grafana-setup:
     name: Setup Grafana agent
     env:
       CLUSTER_TYPE: ${{ inputs.cluster_type }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
-      GH_RUN_ID: ${{ inputs.gh_run_id }}
-      GH_RUN_NUMBER: ${{ inputs.gh_run_number }}
-      GH_SHA: ${{ inputs.gh_sha }}
+      NAMESPACES: ${{ inputs.namespaces }}
       GKE_ZONE: ${{ inputs.gke_zone }}
+      GCP_PROJECT_ID: ${{ inputs.gcp_project_id }}
       AWS_REGION: ${{ inputs.aws_region }}
       AZURE_RESOURCE_GROUP: ${{ inputs.azure_resource_group }}
-      GCP_PROJECT_ID: ${{ inputs.gcp_project_id }}
-      GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
-      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
-      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-      GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
-      GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
-      GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
-      NAMESPACE: grafana
-      NAMESPACES: ${{ inputs.namespaces }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -116,23 +85,12 @@ jobs:
         run: |-
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${{ env.CLUSTER_NAME }}"
 
-      - name: Install Grafana Agent metrics
-        env:
-          MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-bare.yaml"
-        run: |
-          kubectl create namespace $NAMESPACE
-          envsubst < .github/grafana/metrics-cm.yaml | /bin/sh -c 'kubectl apply -f -'
-          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
-
-      - name: Deploy kube-state-metrics
-        run: |
-          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && \
-          helm repo update && \
-          helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.4.2 -n ${NAMESPACE}
-
-      - name: Install Grafana Agent logs
-        env:
-          MANIFEST_URL: "https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-loki.yaml"
-        run: |
-          envsubst < .github/grafana/logs-cm.yaml | /bin/sh -c 'kubectl apply -f -'
-          /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+      - name: Cleaning up Namespaces
+        timeout-minutes: 10
+        run: |-
+          source .github/scripts/utils.sh
+          for ns in $(echo ${NAMESPACES} | sed "s/,/ /g")
+          do
+            echo "running the script to cleanup '$ns'"
+            cleanup_namespace "$ns"
+          done

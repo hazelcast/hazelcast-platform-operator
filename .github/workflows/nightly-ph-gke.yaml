@@ -192,6 +192,16 @@ jobs:
       WORKFLOW_ID: ph
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
+  cleanup-namespaces:
+    if: always()
+    needs: [ gke-ph-tests ]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      cluster_type: gke-phone-home
+      namespaces: "test-operator-ph-nightly-ee,grafana"
+
   delete-cluster:
     name: Delete PhoneHome cluster
     runs-on: ubuntu-latest

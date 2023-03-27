@@ -503,3 +503,58 @@ update_status_badges()
        exit 1
      fi
 }
+
+# It cleans up resources (all, PVCs and their bounded PVs) in the given namespace.
+cleanup_namespace(){
+
+  # number of all resources excepting `kubernetes` svc
+  number_of_all_resources() {
+    kubectl get all --namespace="$1" -o json | \
+      jq '.items | map(select((.kind | contains("Service")) and (.metadata.name | contains("kubernetes")) | not)) | length'
+  }
+
+  # number of PVCs
+  number_of_pvc() {
+    kubectl get pvc --namespace="$1" -o json | \
+      jq '.items | length'
+  }
+
+  # space separated list of PVs which are bounded to PVCs in given namespace
+  list_of_bounded_pv(){
+    kubectl get pvc --namespace="$1" -o json | \
+      jq -r '.items[].spec.volumeName' | \
+      tr '\n' ' '
+  }
+
+  ns="$1"
+
+  if [ -z "$ns" ];
+  then
+      echo "namespace is not passed"
+      exit 1
+  fi
+
+  yellow='\033[1;33m'
+  cyan='\033[0;36m'
+  green='\033[1;32m'
+
+  echo "${yellow}namespace: '$ns'"
+
+  while [ "$(number_of_all_resources "$ns")" -gt 0 ]
+  do
+    echo "${cyan}kubectl delete all${green}"
+    kubectl delete all --all --namespace="$ns"
+    sleep 3
+  done
+
+  if [ "$(number_of_pvc "$ns")" -gt 0 ];
+  then
+    pvList="$(list_of_bounded_pv "$ns")"
+    echo "${cyan}kubectl delete PVCs${green}"
+    kubectl delete pvc --all --namespace="$ns"
+    echo "${cyan}kubectl delete PV $pvList${green}"
+    kubectl delete pv $pvList || true
+  fi
+
+  echo '\033[0m'
+}

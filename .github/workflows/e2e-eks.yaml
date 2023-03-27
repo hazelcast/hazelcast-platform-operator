@@ -238,6 +238,16 @@ jobs:
       WORKFLOW_ID: eks
       CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
 
+  cleanup-namespaces:
+    if: always()
+    needs: [ eks-e2e-tests ]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+      cluster_type: eks
+      namespaces: "test-operator-os,test-operator-ee,grafana"
+
   delete-cluster:
     name: Delete EKS cluster
     runs-on: ubuntu-latest
