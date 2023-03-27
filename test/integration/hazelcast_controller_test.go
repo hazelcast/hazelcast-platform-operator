@@ -3,11 +3,12 @@ package integration
 import (
 	"context"
 	"fmt"
-	"github.com/aws/smithy-go/ptr"
 	"path"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aws/smithy-go/ptr"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -1648,6 +1649,44 @@ var _ = Describe("Hazelcast controller", func() {
 					}
 					return newWan.Spec.Endpoints
 				}, timeout, interval).Should(Equal("10.0.0.1:5701,10.0.0.2:5701,10.0.0.3:5701"))
+			})
+		})
+	})
+
+	// WanReplication CR configuration and controller tests
+	FContext("Hazelcast RBAC Permission updates", func() {
+		When("RBAC permissions are overridden by a client", func() {
+			It("should override changes with operator ones", Label("fast"), func() {
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       test.HazelcastSpec(defaultSpecValues, ee),
+				}
+
+				Create(hz)
+				EnsureStatus(hz)
+
+				rbac := &rbacv1.Role{}
+				Expect(k8sClient.Get(
+					context.Background(), client.ObjectKey{Name: hz.Name, Namespace: hz.Namespace}, rbac)).
+					Should(Succeed())
+
+				rules := rbac.Rules
+
+				// Update rules with empty rules
+				newRules := []rbacv1.PolicyRule{}
+				rbac.Rules = newRules
+				Expect(k8sClient.Update(context.Background(), rbac)).Should(Succeed())
+
+				// Wait for operator to override the client changes
+				Eventually(func() []rbacv1.PolicyRule {
+					rbac := &rbacv1.Role{}
+					Expect(k8sClient.Get(
+						context.Background(), client.ObjectKey{Name: hz.Name, Namespace: hz.Namespace}, rbac)).
+						Should(Succeed())
+
+					return rbac.Rules
+				}, timeout, interval).Should(Equal(rules))
+
 			})
 		})
 	})
