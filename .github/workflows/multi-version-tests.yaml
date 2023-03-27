@@ -2,8 +2,6 @@ name: Multi Version Tests
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 */3 * *"
 
 env:
   GO_VERSION: '1.19.0'
