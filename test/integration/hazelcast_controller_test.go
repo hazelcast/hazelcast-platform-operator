@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/smithy-go/ptr"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -842,7 +840,7 @@ var _ = Describe("Hazelcast controller", func() {
 		When("Memory is configured", func() {
 			It("should set memory with percentages", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				p := ptr.String("10")
+				p := pointer.String("10")
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
 					Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
 						InitialRAMPercentage: p,
@@ -870,7 +868,7 @@ var _ = Describe("Hazelcast controller", func() {
 				gcArg := "-XX:MaxGCPauseMillis=200"
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
 					GC: &hazelcastv1alpha1.JVMGCConfiguration{
-						Logging:   ptr.Bool(true),
+						Logging:   pointer.Bool(true),
 						Collector: &s,
 						Args:      []string{gcArg},
 					},
