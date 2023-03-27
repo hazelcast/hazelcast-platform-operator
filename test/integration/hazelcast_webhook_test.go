@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/utils/pointer"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -213,6 +214,46 @@ var _ = Describe("Hazelcast webhook", func() {
 
 			Expect(k8sClient.Create(context.Background(), hz)).
 				Should(MatchError(ContainSubstring("following port numbers are not in use for wan replication")))
+		})
+	})
+
+	Context("Hazelcast Jet Engine Configuration", func() {
+		It("should validate backup count", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				Enabled: pointer.Bool(true),
+				Instance: &hazelcastv1alpha1.JetInstance{
+					BackupCount: 7,
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).Should(MatchError(
+				ContainSubstring("the max value allowed for the backup-count is 6")))
+		})
+
+		It("should validate if lossless restart enabled without enabling persistence", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				BaseDir: "/",
+			}
+			spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				Enabled: pointer.Bool(true),
+				Instance: &hazelcastv1alpha1.JetInstance{
+					LosslessRestartEnabled: true,
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("persistence must be enabled to enable lossless restart")))
 		})
 	})
 

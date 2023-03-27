@@ -50,6 +50,10 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 		return err
 	}
 
+	if err := validateJetConfig(h); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -202,6 +206,23 @@ func isOverlapWithOtherSockets(h *Hazelcast) error {
 				n.MemberServerSocketPort,
 				n.ClientServerSocketPort,
 				n.RestServerSocketPort)
+		}
+	}
+	return nil
+}
+
+func validateJetConfig(h *Hazelcast) error {
+	j := h.Spec.JetEngineConfiguration
+	p := h.Spec.Persistence
+
+	if j.IsConfigured() {
+		if j.Instance.IsConfigured() {
+			if j.Instance.BackupCount > 6 {
+				return fmt.Errorf("the max value allowed for the backup-count is 6")
+			}
+			if j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
+				return fmt.Errorf("persistence must be enabled to enable lossless restart")
+			}
 		}
 	}
 	return nil

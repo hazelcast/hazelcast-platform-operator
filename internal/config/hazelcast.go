@@ -68,9 +68,10 @@ type PartitionGroup struct {
 }
 
 type Jet struct {
-	Enabled               *bool       `yaml:"enabled,omitempty"`
-	ResourceUploadEnabled *bool       `yaml:"resource-upload-enabled,omitempty"`
-	Instance              JetInstance `yaml:"instance,omitempty"`
+	Enabled               *bool           `yaml:"enabled,omitempty"`
+	ResourceUploadEnabled *bool           `yaml:"resource-upload-enabled,omitempty"`
+	Instance              JetInstance     `yaml:"instance,omitempty"`
+	EdgeDefaults          JetEdgeDefaults `yaml:"edge_defaults,omitempty"`
 }
 
 type JetInstance struct {

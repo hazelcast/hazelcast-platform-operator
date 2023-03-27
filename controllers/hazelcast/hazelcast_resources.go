@@ -668,6 +668,27 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			Enabled:               h.Spec.JetEngineConfiguration.Enabled,
 			ResourceUploadEnabled: pointer.Bool(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
 		}
+
+		if h.Spec.JetEngineConfiguration.Instance.IsConfigured() {
+			i := h.Spec.JetEngineConfiguration.Instance
+			cfg.Jet.Instance = config.JetInstance{
+				CooperativeThreadCount:         i.CooperativeThreadCount,
+				FlowControlPeriodMS:            i.FlowControlPeriodMS,
+				BackupCount:                    i.BackupCount,
+				ScaleUpDelayMS:                 i.ScaleUpDelayMS,
+				LosslessRestartEnabled:         i.LosslessRestartEnabled,
+				MaxProcessorAccumulatedRecords: i.MaxProcessorAccumulatedRecords,
+			}
+		}
+
+		if h.Spec.JetEngineConfiguration.EdgeDefaults.IsConfigured() {
+			e := h.Spec.JetEngineConfiguration.EdgeDefaults
+			cfg.Jet.EdgeDefaults = config.JetEdgeDefaults{
+				QueueSize:               e.QueueSize,
+				PacketSizeLimit:         e.PacketSizeLimit,
+				ReceiveWindowMultiplier: e.ReceiveWindowMultiplier,
+			}
+		}
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {

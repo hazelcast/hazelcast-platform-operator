@@ -177,12 +177,12 @@ type JetEngineConfiguration struct {
 	// Jet Instance Configuration
 	// +kubebuilder:default:={}
 	// +optional
-	Instance JetInstance `json:"instance"`
+	Instance *JetInstance `json:"instance"`
 
 	// Jet Edge Defaults Configuration
 	// +kubebuilder:default:={}
 	// +optional
-	EdgeDefaults JetEdgeDefaults `json:"edgeDefaults"`
+	EdgeDefaults *JetEdgeDefaults `json:"edgeDefaults"`
 }
 
 type JetInstance struct {
@@ -216,6 +216,11 @@ type JetInstance struct {
 	MaxProcessorAccumulatedRecords int `json:"maxProcessorAccumulatedRecords"`
 }
 
+// Returns true if Jet Instance section is configured.
+func (j *JetInstance) IsConfigured() bool {
+	return j != nil && !(*j == (JetInstance{}))
+}
+
 type JetEdgeDefaults struct {
 	// Sets the capacity of processor-to-processor concurrent queues.
 	// +optional
@@ -228,6 +233,11 @@ type JetEdgeDefaults struct {
 	// Sets the scaling factor used by the adaptive receive window sizing function.
 	// +optional
 	ReceiveWindowMultiplier int `json:"receiveWindowMultiplier"`
+}
+
+// Returns true if Jet Instance Edge Defaults is configured.
+func (j *JetEdgeDefaults) IsConfigured() bool {
+	return j != nil && !(*j == (JetEdgeDefaults{}))
 }
 
 // Returns true if Jet section is configured.
