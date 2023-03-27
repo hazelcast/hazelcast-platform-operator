@@ -6,6 +6,7 @@
 package client
 
 import (
+	"crypto/x509"
 	"fmt"
 	"time"
 
@@ -22,7 +23,7 @@ const (
 	AgentPort = 8080
 )
 
-func BuildConfig(h *hazelcastv1alpha1.Hazelcast, logger hzlogger.Logger) hazelcast.Config {
+func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, logger hzlogger.Logger) hazelcast.Config {
 	config := hazelcast.Config{
 		Logger: hzlogger.Config{
 			CustomLogger: logger,

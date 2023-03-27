@@ -101,7 +101,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)
 	})
 
-	It("should persist the cache successfully created configs into the configmap", Label("fast"), func() {
+	It("should persist the cache successfully created configs into the config", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -127,7 +127,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 			assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureSuccess, c)
 		}
 
-		By("checking if the caches are in the ConfigMap", func() {
+		By("checking if the caches are in the Config", func() {
 			assertCacheConfigsPersisted(hazelcast, "cache1", "cache2", "cache3")
 		})
 
@@ -135,7 +135,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		Expect(k8sClient.Delete(context.Background(),
 			&hazelcastv1alpha1.Cache{ObjectMeta: v1.ObjectMeta{Name: "cache2", Namespace: hazelcast.Namespace}})).Should(Succeed())
 
-		By("checking if cache2 is not persisted in the configmap", func() {
+		By("checking if cache2 is not persisted in the Config", func() {
 			assertCacheConfigsPersisted(hazelcast, "cache1", "cache3")
 		})
 	})

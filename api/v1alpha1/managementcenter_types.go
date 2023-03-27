@@ -68,6 +68,11 @@ type HazelcastClusterConfig struct {
 	// If the cluster is exposed with a service name in a different namespace, use the following syntax "<service-name>.<service-namespace>".
 	// +required
 	Address string `json:"address"`
+
+	// TLS client configuration.
+	// +kubebuilder:default:={}
+	// +optional
+	TLS TLS `json:"tls,omitempty"`
 }
 
 // ExternalConnectivityConfiguration defines how to expose Management Center pod.

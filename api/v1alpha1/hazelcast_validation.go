@@ -48,6 +48,10 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 		return err
 	}
 
+	if err := validateTLS(h); err != nil {
+		return err
+	}
+
 	if err := validatePersistence(h); err != nil {
 		return err
 	}
@@ -154,6 +158,29 @@ func validateLicense(h *Hazelcast) error {
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
 			return errors.New("Hazelcast Enterprise licenseKeySecret is not found")
+		}
+	}
+
+	return nil
+}
+
+func validateTLS(h *Hazelcast) error {
+	if h.Spec.TLS.SecretName != "" && !checkEnterprise(h.Spec.Repository) {
+		return errors.New("TLS requires Hazelcast Enterprise version")
+	}
+
+	// make sure secret exists
+	if h.Spec.TLS.SecretName != "" {
+		secretName := types.NamespacedName{
+			Name:      h.Spec.TLS.SecretName,
+			Namespace: h.Namespace,
+		}
+
+		var secret corev1.Secret
+		err := kubeclient.Get(context.Background(), secretName, &secret)
+		if kerrors.IsNotFound(err) {
+			// we care only about not found error
+			return errors.New("Hazelcast Enterprise TLS Secret is not found")
 		}
 	}
 

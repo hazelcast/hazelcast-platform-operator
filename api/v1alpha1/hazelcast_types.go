@@ -157,6 +157,10 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	ManagementCenterConfig ManagementCenterConfig `json:"managementCenter,omitempty"`
+
+	// Hazelcast TLS configuration
+	// +optional
+	TLS TLS `json:"tls,omitempty"`
 }
 
 type ManagementCenterConfig struct {
@@ -761,6 +765,11 @@ type MemberServerSocketEndpointConfig struct {
 type ClientServerSocketEndpointConfig struct {
 	Port       uint     `json:"port,omitempty"`
 	Interfaces []string `json:"interfaces,omitempty"`
+}
+
+type TLS struct {
+	// Name of the secret with TLS certificate and key.
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

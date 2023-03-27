@@ -59,7 +59,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	//When("All pods are deleted",
-	It("should send data using WanReplication configuration in ConfigMap", Label("slow"), func() {
+	It("should send data using WanReplication configuration in Config", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}

@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -39,9 +40,9 @@ var _ = Describe("ManagementCenter controller", func() {
 		}
 	}
 
-	Create := func(mc *hazelcastv1alpha1.ManagementCenter) {
+	Create := func(obj client.Object) {
 		By("creating the CR with specs successfully")
-		Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
+		Expect(k8sClient.Create(context.Background(), obj)).Should(Succeed())
 	}
 
 	Update := func(mc *hazelcastv1alpha1.ManagementCenter) {
@@ -49,14 +50,12 @@ var _ = Describe("ManagementCenter controller", func() {
 		Expect(k8sClient.Update(context.Background(), mc)).Should(Succeed())
 	}
 
-	Delete := func(mc *hazelcastv1alpha1.ManagementCenter) {
+	Delete := func(obj client.Object) {
 		By("expecting to delete CR successfully")
-		fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
-
-		deleteIfExists(lookupKey(mc), fetchedCR)
+		deleteIfExists(lookupKey(obj), obj)
 
 		By("expecting to CR delete finish")
-		assertDoesNotExist(lookupKey(mc), fetchedCR)
+		assertDoesNotExist(lookupKey(obj), obj)
 	}
 
 	Fetch := func(mc *hazelcastv1alpha1.ManagementCenter) *hazelcastv1alpha1.ManagementCenter {
@@ -469,6 +468,37 @@ var _ = Describe("ManagementCenter controller", func() {
 		})
 	})
 
+	Context("ManagementCenter cluster TLS configuration", func() {
+		When("TLS property is configured", func() {
+			It("should be enabled", Label("fast"), func() {
+				secret := &corev1.Secret{
+					ObjectMeta: GetRandomObjectMeta(),
+					Data: map[string][]byte{
+						"tls.crt": []byte(exampleCert),
+						"tls.key": []byte(exampleKey),
+					},
+				}
+				Create(secret)
+				defer Delete(secret)
+
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				}
+				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+					Name:    "dev",
+					Address: "dummy",
+					TLS: hazelcastv1alpha1.TLS{
+						SecretName: secret.GetName(),
+					},
+				}}
+				Create(mc)
+				EnsureStatus(mc)
+				Delete(mc)
+			})
+		})
+	})
+
 	Context("Statefulset Updates", func() {
 		firstSpec := hazelcastv1alpha1.ManagementCenterSpec{
 			Repository:        "hazelcast/management-center-1",
@@ -546,7 +576,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				for _, env := range el {
 					if env.Name == "MC_INIT_CMD" {
 						for _, cl := range hzcl {
-							Expect(env.Value).To(ContainSubstring(fmt.Sprintf("-cn %s -ma %s", cl.Name, cl.Address)))
+							Expect(env.Value).To(ContainSubstring(fmt.Sprintf("--client-config /config/%s.xml", cl.Name)))
 
 						}
 					}

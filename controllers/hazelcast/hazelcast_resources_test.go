@@ -17,12 +17,12 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
-func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
+func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 	meta := metav1.ObjectMeta{
 		Name:      "hazelcast",
 		Namespace: "default",
 	}
-	cm := &corev1.ConfigMap{
+	cm := &corev1.Secret{
 		ObjectMeta: meta,
 	}
 	h := &hazelcastv1alpha1.Hazelcast{
@@ -170,12 +170,12 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 			}
 			objects = append(objects, cm, h)
 			c := fakeK8sClient(objects...)
-			data, err := hazelcastConfigMapData(context.Background(), c, h)
+			data, err := hazelcastConfig(context.Background(), c, h)
 			if err != nil {
-				t.Errorf("Error retreiving ConfigMap data")
+				t.Errorf("Error retreiving Secret data")
 			}
 			actualConfig := &config.HazelcastWrapper{}
-			err = yaml.Unmarshal([]byte(data["hazelcast.yaml"]), actualConfig)
+			err = yaml.Unmarshal(data, actualConfig)
 			if err != nil {
 				t.Errorf("Error unmarshaling actial Hazelcast config YAML")
 			}

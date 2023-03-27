@@ -5,6 +5,7 @@ import (
 	. "time"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -168,6 +169,36 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 				err = k8sClient.Get(context.Background(), topicLookupKey, topic)
 				Expect(errors.IsNotFound(err)).To(BeTrue())
+			})
+		})
+	})
+
+	Describe("Hazelcast CR TLS configuration", func() {
+		When("TLS property is configured", func() {
+			It("should form a cluster and be able to connect", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				setLabelAndCRName("h-8")
+				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
+
+				secret := &corev1.Secret{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      hz.Spec.TLS.SecretName,
+						Namespace: hz.Namespace,
+					},
+					Data: map[string][]byte{
+						"tls.crt": []byte(hazelcastconfig.ExampleCert),
+						"tls.key": []byte(hazelcastconfig.ExampleKey),
+					},
+				}
+
+				By("creating TLS secret", func() {
+					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+				})
+
+				CreateHazelcastCR(hz)
+				evaluateReadyMembers(hzLookupKey)
 			})
 		})
 	})

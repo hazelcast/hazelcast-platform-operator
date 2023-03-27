@@ -44,15 +44,18 @@ type AdvancedNetwork struct {
 type MemberServerSocketEndpointConfig struct {
 	Port       PortAndPortCount     `yaml:"port,omitempty"`
 	Interfaces EnabledAndInterfaces `yaml:"interfaces,omitempty"`
+	SSL        SSL                  `yaml:"ssl,omitempty"`
 }
 
 type ClientServerSocketEndpointConfig struct {
 	Port PortAndPortCount `yaml:"port,omitempty"`
+	SSL  SSL              `yaml:"ssl,omitempty"`
 }
 
 type RestServerSocketEndpointConfig struct {
 	Port           PortAndPortCount `yaml:"port,omitempty"`
 	EndpointGroups EndpointGroups   `yaml:"endpoint-groups,omitempty"`
+	SSL            SSL              `yaml:"ssl,omitempty"`
 }
 
 type WanPort struct {
@@ -313,20 +316,19 @@ type NativeMemorySize struct {
 	Unit  string `yaml:"unit"`
 }
 
-func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
-	return Hazelcast{
-		ClusterName: hz.ClusterName,
-		AdvancedNetwork: AdvancedNetwork{
-			Join: Join{
-				Kubernetes: Kubernetes{
-					ServicePerPodLabelName:       hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName,
-					ServicePerPodLabelValue:      hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue,
-					UseNodeNameAsExternalAddress: hz.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress,
-				},
-			},
-		},
-		Jet:                hz.Jet,
-		UserCodeDeployment: hz.UserCodeDeployment,
-		Properties:         hz.Properties,
-	}
+type SSL struct {
+	Enabled          *bool         `yaml:"enabled,omitempty"`
+	FactoryClassName string        `yaml:"factory-class-name,omitempty"`
+	Properties       SSLProperties `yaml:"properties,omitempty"`
+}
+
+type SSLProperties struct {
+	Protocol             string `yaml:"protocol,omitempty"`
+	MutualAuthentication string `yaml:"mutualAuthentication,omitempty"`
+	KeyStore             string `yaml:"keyStore,omitempty"`
+	KeyStorePassword     string `yaml:"keyStorePassword,omitempty"`
+	KeyStoreType         string `yaml:"keyStoreType,omitempty"`
+	TrustStore           string `yaml:"trustStore,omitempty"`
+	TrustStorePassword   string `yaml:"trustStorePassword,omitempty"`
+	TrustStoreType       string `yaml:"trustStoreType,omitempty"`
 }
