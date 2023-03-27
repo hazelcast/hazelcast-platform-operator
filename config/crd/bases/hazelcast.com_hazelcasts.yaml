@@ -261,7 +261,6 @@ spec:
                           feature is enabled.
                         type: boolean
                       maxProcessorAccumulatedRecords:
-                        default: false
                         description: Specifies the maximum number of records that
                           can be accumulated by any single processor instance.
                         type: integer
