@@ -554,12 +554,6 @@ spec:
                     description: Allows you to execute scripts that can automate interactions
                       with the cluster.
                     type: boolean
-                  trustedInterfaces:
-                    description: To restrict access only to trusted instances of Management
-                      Center, you can define the trusted IP addresses.
-                    items:
-                      type: string
-                    type: array
                 type: object
               nativeMemory:
                 description: Hazelcast Native Memory (HD Memory) configuration
