@@ -1284,7 +1284,6 @@ var _ = Describe("Hazelcast controller", func() {
 					ScriptingEnabled:  true,
 					ConsoleEnabled:    true,
 					DataAccessEnabled: true,
-					TrustedInterfaces: []string{"192.168.1.*"},
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
@@ -1303,8 +1302,7 @@ var _ = Describe("Hazelcast controller", func() {
 					}
 
 					mc := config.Hazelcast.ManagementCenter
-					return mc.DataAccessEnabled && mc.ScriptingEnabled && mc.ConsoleEnabled &&
-						len(mc.TrustedInterfaces) == 1
+					return mc.DataAccessEnabled && mc.ScriptingEnabled && mc.ConsoleEnabled
 				}, timeout, interval).Should(BeTrue())
 
 				Delete(hz)

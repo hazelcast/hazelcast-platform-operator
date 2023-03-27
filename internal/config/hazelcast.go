@@ -27,10 +27,9 @@ type Hazelcast struct {
 }
 
 type ManagementCenterConfig struct {
-	ScriptingEnabled  bool     `yaml:"scripting-enabled,omitempty"`
-	ConsoleEnabled    bool     `yaml:"console-enabled,omitempty"`
-	DataAccessEnabled bool     `yaml:"data-access-enabled,omitempty"`
-	TrustedInterfaces []string `yaml:"trusted-interfaces,omitempty"`
+	ScriptingEnabled  bool `yaml:"scripting-enabled,omitempty"`
+	ConsoleEnabled    bool `yaml:"console-enabled,omitempty"`
+	DataAccessEnabled bool `yaml:"data-access-enabled,omitempty"`
 }
 
 type AdvancedNetwork struct {

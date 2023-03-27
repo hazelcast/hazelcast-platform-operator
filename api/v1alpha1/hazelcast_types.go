@@ -174,10 +174,6 @@ type ManagementCenterConfig struct {
 	// +kubebuilder:default:=false
 	// +optional
 	DataAccessEnabled bool `json:"dataAccessEnabled,omitempty"`
-
-	// To restrict access only to trusted instances of Management Center, you can define the trusted IP addresses.
-	// +optional
-	TrustedInterfaces []string `json:"trustedInterfaces,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE

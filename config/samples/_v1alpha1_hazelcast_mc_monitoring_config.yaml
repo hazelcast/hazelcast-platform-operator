@@ -11,5 +11,3 @@ spec:
     scriptingEnabled: true
     consoleEnabled: true
     dataAccessEnabled: true
-    trustedInterfaces:
-      - 192.168.1.*
