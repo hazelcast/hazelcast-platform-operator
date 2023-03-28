@@ -228,7 +228,7 @@ jobs:
     name: Delete AKS cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: ["prepare-env", "aks-e2e-tests"]
+    needs: ["prepare-env", "aks-e2e-tests", "cleanup-namespaces"]
     steps:
       - name: Azure login
         uses: azure/login@v1

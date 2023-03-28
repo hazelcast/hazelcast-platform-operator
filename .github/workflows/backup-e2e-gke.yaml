@@ -203,7 +203,7 @@ jobs:
     name: Cleanup the environment
     runs-on: ubuntu-latest
     if: always()
-    needs: [ create-gke-cluster, gke-e2e-backup-tests ]
+    needs: [ create-gke-cluster, gke-e2e-backup-tests, cleanup-namespaces ]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:

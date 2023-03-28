@@ -298,6 +298,7 @@ jobs:
 
       - name: Clean up Grafana namespace
         if: always()
+        timeout-minutes: 10
         run: |
           source .github/scripts/utils.sh
           cleanup_namespace grafana
