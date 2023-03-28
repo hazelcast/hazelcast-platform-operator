@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-version v1.6.0
-	github.com/hazelcast/hazelcast-go-client v1.3.2
+	github.com/hazelcast/hazelcast-go-client v1.4.0
 	github.com/hazelcast/platform-operator-agent v0.1.16
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
