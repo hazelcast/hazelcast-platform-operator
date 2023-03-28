@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/dialer"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
@@ -63,6 +64,7 @@ func NewWanReplicationReconciler(client client.Client, log logr.Logger, scheme *
 
 func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.WithValues("name", req.Name, "namespace", req.NamespacedName, "seq", util.RandString(5))
+	ctx = context.WithValue(ctx, LogKey("logger"), logger)
 
 	wan := &hazelcastv1alpha1.WanReplication{}
 	if err := r.Get(ctx, req.NamespacedName, wan); err != nil {
@@ -73,7 +75,6 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 	}
-	ctx = context.WithValue(ctx, LogKey("logger"), logger)
 
 	if !controllerutil.ContainsFinalizer(wan, n.Finalizer) && wan.GetDeletionTimestamp().IsZero() {
 		controllerutil.AddFinalizer(wan, n.Finalizer)
@@ -84,12 +85,17 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if !wan.GetDeletionTimestamp().IsZero() {
+		updateWanStatus(ctx, r.Client, wan, recoptions.Empty(), withWanRepState(hazelcastv1alpha1.WanStatusTerminating)) //nolint:errcheck
 		if controllerutil.ContainsFinalizer(wan, n.Finalizer) {
 			if err := r.deleteLeftoverMapsFromStatus(ctx, wan); err != nil {
-				return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+				return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err),
+					withWanRepState(hazelcastv1alpha1.WanStatusTerminating),
+					withWanRepMessage(err.Error()))
 			}
 			if err := r.stopWanReplicationAllMaps(ctx, wan); err != nil {
-				return updateWanStatus(ctx, r.Client, wan, wanTerminatingStatus().withMessage(err.Error()))
+				return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err),
+					withWanRepState(hazelcastv1alpha1.WanStatusTerminating),
+					withWanRepMessage(err.Error()))
 			}
 			controllerutil.RemoveFinalizer(wan, n.Finalizer)
 			if err := r.Update(ctx, wan); err != nil {
@@ -100,12 +106,14 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if err := r.deleteLeftoverMapsFromStatus(ctx, wan); err != nil {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err),
+			withWanRepFailedState(err.Error()))
 	}
 
 	hzClientMap, err := r.getMapsGroupByHazelcastName(ctx, wan)
 	if err != nil {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err),
+			withWanRepFailedState(err.Error()))
 	}
 
 	if s, successfullyAppliedBefore := wan.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; successfullyAppliedBefore {
@@ -113,32 +121,32 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		err = json.Unmarshal([]byte(s), lastSpec)
 		if err != nil {
 			err = fmt.Errorf("error unmarshaling Last WanReplication Spec: %w", err)
-			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+			return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 		}
 
 		err = validateNotUpdatableFields(&wan.Spec, lastSpec)
 		if err != nil {
-			return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+			return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 		}
 	}
 
 	if err := r.checkWanEndpoint(ctx, wan); err != nil {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 	}
 
 	err = r.stopWanRepForRemovedResources(ctx, wan, hzClientMap, r.clientRegistry)
 	if err != nil {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 	}
 
 	err = r.cleanupTerminatingMapCRs(ctx, wan, hzClientMap)
 	if err != nil {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 	}
 
 	err = r.checkConnectivity(ctx, req, wan, logger)
 	if err != nil {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 	}
 
 	if err := r.startWanReplication(ctx, wan, hzClientMap); err != nil {
@@ -151,7 +159,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	persisted, err := r.validateWanConfigPersistence(ctx, wan, hzClientMap)
 	if err != nil {
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 	}
 
 	if !persisted {
@@ -165,7 +173,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	err = r.updateLastSuccessfulConfiguration(ctx, wan)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
-		return updateWanStatus(ctx, r.Client, wan, wanFailedStatus(err).withMessage(err.Error()))
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 	}
 
 	return ctrl.Result{}, nil
@@ -267,8 +275,8 @@ func (r *WanReplicationReconciler) stopWanReplicationMap(ctx context.Context, wa
 		return err
 	}
 	// Finalizer removal from map and status deletion of map from WanReplication must be atomic
-	// Marking WAN map status as terminating gives us chance to delete it from status if deletion in the following statements fails anyhow
-	if err := updateWanMapStatus(ctx, r.Client, wan, mapWanKey, hazelcastv1alpha1.WanStatusTerminating); err != nil {
+	// Marking Wan map status as terminating gives us chance to delete it from status if deletion in the following statements fails anyhow
+	if err := updateWanMapStatus(ctx, r.Client, wan, mapWanKey, wanMapTerminatingStatus{}); err != nil {
 		return err
 	}
 	if err := r.removeWanRepFinalizerFromMap(ctx, wan, m, cli); err != nil {
@@ -541,7 +549,7 @@ func (r *WanReplicationReconciler) cleanupTerminatingMapCRs(ctx context.Context,
 func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, hzClientMap map[string][]hazelcastv1alpha1.Map) error {
 	log := getLogger(ctx)
 
-	mapWanStatus := make(map[string]wanOptionsBuilder)
+	mapWanStatus := make(map[string]WanMapStatusApplier)
 	for hzResourceName, maps := range hzClientMap {
 		cl, err := getHazelcastClient(ctx, r.clientRegistry, hzResourceName, wan.Namespace)
 		if err != nil {
@@ -568,16 +576,16 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 			log.Info("Applying WAN configuration for ", "mapKey", mapWanKey)
 			publisherId, err := r.applyWanReplication(ctx, cl, wan, m.MapName(), mapWanKey)
 			if err != nil {
-				mapWanStatus[mapWanKey] = wanFailedStatus(err).withMessage(err.Error())
-				log.Info("WAN configuration failed for ", "mapKey", mapWanKey)
+				mapWanStatus[mapWanKey] = wanMapFailedStatus(err.Error())
+				log.Info("Wan configuration failed for ", "mapKey", mapWanKey)
 				continue
 			}
-			mapWanStatus[mapWanKey] = wanPersistingStatus(0).withPublisherId(publisherId).withResourceName(m.Name)
-			log.Info("WAN configuration successful for ", "mapKey", mapWanKey)
+			mapWanStatus[mapWanKey] = wanMapPersistingStatus{publisherId: publisherId, resourceName: m.Name}
+			log.Info("Wan configuration successful for ", "mapKey", mapWanKey)
 		}
 	}
 
-	if err := putWanMapStatus(ctx, r.Client, wan, mapWanStatus); err != nil {
+	if err := patchWanMapStatuses(ctx, r.Client, wan, mapWanStatus); err != nil {
 		return err
 	}
 	return nil
@@ -686,7 +694,7 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 		}
 	}
 
-	mapWanStatus := make(map[string]wanOptionsBuilder)
+	mapWanStatus := make(map[string]WanMapStatusApplier)
 	for mapWanKey, v := range wan.Status.WanReplicationMapsStatus {
 		// Status is not equal to persisting, do nothing
 		if v.Status != hazelcastv1alpha1.WanStatusPersisting {
@@ -704,11 +712,10 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 		if !reflect.DeepEqual(realWan, wanRep) {
 			continue
 		}
-
-		mapWanStatus[mapWanKey] = wanSuccessStatus().withPublisherId(v.PublisherId).withResourceName(v.ResourceName)
+		mapWanStatus[mapWanKey] = wanMapSuccessStatus{}
 	}
 
-	if err := putWanMapStatus(ctx, r.Client, wan, mapWanStatus); err != nil {
+	if err := patchWanMapStatuses(ctx, r.Client, wan, mapWanStatus); err != nil {
 		return false, err
 	}
 

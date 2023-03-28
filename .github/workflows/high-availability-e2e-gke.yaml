@@ -165,6 +165,17 @@ jobs:
       WORKFLOW_ID: high-availability
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
+  cleanup-namespaces:
+    if: always()
+    needs: ["create-gke-cluster", "gke-high-availability-tests"]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      cluster_type: gke-high-availability
+      gke_zone: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
+      namespaces: "test-operator-high-availability,grafana"
+
   delete-cluster:
     name: Delete High Availability cluster
     runs-on: ubuntu-latest

@@ -140,12 +140,9 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
-      - name: Deploy CRDs
-        if: matrix.edition == 'ee'
-        run: make install-crds
-
       - name: Deploy Operator to GKE
         run: |
+          make install-crds
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=$NAMESPACE
 
@@ -215,6 +212,16 @@ jobs:
     with:
       WORKFLOW_ID: gke
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+
+  cleanup-namespaces:
+    if: always()
+    needs: ["create-gke-cluster", "gke-e2e-tests"]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      cluster_type: gke
+      namespaces: "test-operator-os,test-operator-ee,grafana"
 
   delete-cluster:
     name: Delete GKE cluster

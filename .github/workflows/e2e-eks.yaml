@@ -163,12 +163,9 @@ jobs:
           username: _json_key
           password: ${{ secrets.GKE_SA_KEY }}
 
-      - name: Deploy CRDs
-        if: matrix.edition == 'ee'
-        run: make install-crds
-
       - name: Deploy Operator to EKS
         run: |
+          make install-crds
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
@@ -240,6 +237,16 @@ jobs:
     with:
       WORKFLOW_ID: eks
       CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+
+  cleanup-namespaces:
+    if: always()
+    needs: ["prepare-env", "eks-e2e-tests"]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+      cluster_type: eks
+      namespaces: "test-operator-os,test-operator-ee,grafana"
 
   delete-cluster:
     name: Delete EKS cluster

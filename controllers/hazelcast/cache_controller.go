@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"reflect"
 	"time"
 
@@ -17,7 +16,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -61,12 +62,15 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: c.Spec.HazelcastResourceName}, h)
 	if err != nil {
 		err = fmt.Errorf("could not create/update Cache config: Hazelcast resource not found: %w", err)
-		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+		return updateDSStatus(ctx, r.Client, c, recoptions.Error(err),
+			withDSFailedState(err.Error()))
 	}
 
 	err = hazelcastv1alpha1.ValidateCacheSpec(c, h)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
+		return updateDSStatus(ctx, r.Client, c, recoptions.Error(err),
+			withDSState(hazelcastv1alpha1.DataStructureFailed),
+			withDSMessage(fmt.Sprintf("error validating new Spec: %s", err)))
 	}
 
 	s, createdBefore := c.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
@@ -75,45 +79,54 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		cs, err := json.Marshal(c.Spec)
 		if err != nil {
 			err = fmt.Errorf("error marshaling Cache as JSON: %w", err)
-			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+			return updateDSStatus(ctx, r.Client, c, recoptions.Error(err),
+				withDSFailedState(err.Error()))
 		}
 		if s == string(cs) {
 			logger.Info("Cache Config was already applied.", "name", c.Name, "namespace", c.Namespace)
-			return updateDSStatus(ctx, r.Client, c, dsSuccessStatus())
+			return ctrl.Result{}, nil
 		}
 		lastSpec := &hazelcastv1alpha1.CacheSpec{}
 		err = json.Unmarshal([]byte(s), lastSpec)
 		if err != nil {
 			err = fmt.Errorf("error unmarshaling Last Cache Spec: %w", err)
-			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+			return updateDSStatus(ctx, r.Client, c, recoptions.Error(err),
+				withDSFailedState(err.Error()))
 		}
 
 		err = hazelcastv1alpha1.ValidateNotUpdatableCacheFields(&c.Spec, lastSpec)
 		if err != nil {
-			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+			return updateDSStatus(ctx, r.Client, c, recoptions.Error(err),
+				withDSFailedState(err.Error()))
 		}
 	}
 
 	ms, err := r.ReconcileCacheConfig(ctx, c, cl, logger)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, c, dsPendingStatus(retryAfterForDataStructures).
-			withError(err).
-			withMessage(err.Error()).
-			withMemberStatuses(ms))
+		return updateDSStatus(ctx, r.Client, c, recoptions.RetryAfter(retryAfterForDataStructures),
+			withDSState(hazelcastv1alpha1.DataStructurePending),
+			withDSMessage(err.Error()),
+			withDSMemberStatuses(ms))
 	}
-
-	requeue, err := updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
+	requeue, err := updateDSStatus(ctx, r.Client, c, recoptions.RetryAfter(1*time.Second),
+		withDSState(hazelcastv1alpha1.DataStructurePersisting),
+		withDSMessage("Persisting the applied cache config."),
+		withDSMemberStatuses(ms))
 	if err != nil {
 		return requeue, err
 	}
 
 	persisted, err := r.validateCacheConfigPersistence(ctx, c)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+		return updateDSStatus(ctx, r.Client, c, recoptions.Error(err),
+			withDSFailedState(err.Error()))
 	}
 
 	if !persisted {
-		return updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Waiting for Cache Config to be persisted."))
+		return updateDSStatus(ctx, r.Client, c, recoptions.RetryAfter(1*time.Second),
+			withDSState(hazelcastv1alpha1.DataStructurePersisting),
+			withDSMessage("Waiting for Cache Config to be persisted."),
+			withDSMemberStatuses(ms))
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, c, logger)

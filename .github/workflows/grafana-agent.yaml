@@ -1,4 +1,4 @@
-name: Install Grafana Agent on GKE
+name: Install Grafana Agent
 on:
   workflow_call:
     inputs:
@@ -136,4 +136,3 @@ jobs:
         run: |
           envsubst < .github/grafana/logs-cm.yaml | /bin/sh -c 'kubectl apply -f -'
           /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
-

@@ -80,18 +80,8 @@ func (mm *ReplicatedMap) GetHZResourceName() string {
 	return mm.Spec.HazelcastResourceName
 }
 
-func (mm *ReplicatedMap) GetStatus() DataStructureConfigState {
-	return mm.Status.State
-}
-
-func (mm *ReplicatedMap) GetMemberStatuses() map[string]DataStructureConfigState {
-	return mm.Status.MemberStatuses
-}
-
-func (mm *ReplicatedMap) SetStatus(status DataStructureConfigState, msg string, memberStatues map[string]DataStructureConfigState) {
-	mm.Status.State = status
-	mm.Status.Message = msg
-	mm.Status.MemberStatuses = memberStatues
+func (mm *ReplicatedMap) GetStatus() *DataStructureStatus {
+	return &mm.Status.DataStructureStatus
 }
 
 func (mm *ReplicatedMap) GetSpec() (string, error) {
