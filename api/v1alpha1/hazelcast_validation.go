@@ -215,15 +215,18 @@ func validateJetConfig(h *Hazelcast) error {
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
 
-	if j.IsConfigured() {
-		if j.Instance.IsConfigured() {
-			if j.Instance.BackupCount > 6 {
-				return fmt.Errorf("the max value allowed for the backup-count is 6")
-			}
-			if j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
-				return fmt.Errorf("persistence must be enabled to enable lossless restart")
-			}
-		}
+	if !j.IsConfigured() {
+		return nil
 	}
+	if !j.Instance.IsConfigured() {
+		return nil
+	}
+	if j.Instance.BackupCount > 6 {
+		return fmt.Errorf("the max value allowed for the backup-count is 6")
+	}
+	if j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
+		return fmt.Errorf("persistence must be enabled to enable lossless restart")
+	}
+
 	return nil
 }
