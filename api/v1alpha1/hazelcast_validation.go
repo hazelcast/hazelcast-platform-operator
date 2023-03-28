@@ -149,6 +149,26 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
 	return nil
 }
 
+func ValidateAppliedNativeMemory(inMemoryFormat InMemoryFormatType, h *Hazelcast) error {
+	if inMemoryFormat != InMemoryFormatNative {
+		return nil
+	}
+	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
+	}
+
+	lastSpec := &HazelcastSpec{}
+	if err := json.Unmarshal([]byte(s), lastSpec); err != nil {
+		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
+	}
+
+	if !lastSpec.NativeMemory.IsEnabled() {
+		return fmt.Errorf("native memory is not enabled for the Hazelcast resource %s", h.Name)
+	}
+	return nil
+}
+
 func validateAdvancedNetwork(h *Hazelcast) error {
 	return validateWANPorts(h)
 }

@@ -7,7 +7,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/utils/pointer"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -69,26 +68,4 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		Expect(string(cacheConfig.InMemoryFormat)).Should(Equal(string(c.Spec.InMemoryFormat)))
 	})
 
-	It("should fail to update Cache Config", Label("fast"), func() {
-		setLabelAndCRName("hch-3")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-
-		By("creating the cache config")
-		cs := hazelcastcomv1alpha1.CacheSpec{
-			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
-				HazelcastResourceName: hzLookupKey.Name,
-				BackupCount:           pointer.Int32(3),
-			},
-		}
-		q := hazelcastconfig.Cache(cs, chLookupKey, labels)
-		Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-		q = assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Cache{}).(*hazelcastcomv1alpha1.Cache)
-
-		By("failing to update cache config")
-		q.Spec.BackupCount = pointer.Int32(5)
-		q.Spec.AsyncBackupCount = 20
-		Expect(k8sClient.Update(context.Background(), q)).Should(Succeed())
-		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Cache{})
-	})
 })

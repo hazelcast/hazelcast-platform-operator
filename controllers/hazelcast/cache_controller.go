@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"time"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -20,6 +18,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -62,16 +61,16 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: c.Spec.HazelcastResourceName}, h)
 	if err != nil {
-		err = fmt.Errorf("could not create/update Map config: Hazelcast resource not found: %w", err)
+		err = fmt.Errorf("could not create/update Cache config: Hazelcast resource not found: %w", err)
 		return updateDSStatus(ctx, r.Client, c, recoptions.Error(err),
 			withDSFailedState(err.Error()))
 	}
 
-	err = r.validateCachePersistence(ctx, req, c)
+	err = hazelcastv1alpha1.ValidateCacheSpec(c, h)
 	if err != nil {
 		return updateDSStatus(ctx, r.Client, c, recoptions.Error(err),
 			withDSState(hazelcastv1alpha1.DataStructureFailed),
-			withDSMessage(err.Error()))
+			withDSMessage(fmt.Sprintf("error validating new Spec: %s", err)))
 	}
 
 	s, createdBefore := c.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
@@ -131,19 +130,6 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, c, logger)
-}
-
-func (r *CacheReconciler) validateCachePersistence(ctx context.Context, req ctrl.Request, c *hazelcastv1alpha1.Cache) error {
-	h := &hazelcastv1alpha1.Hazelcast{}
-	err := r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: c.Spec.HazelcastResourceName}, h)
-	if err != nil {
-		return fmt.Errorf("could not create/update Cache config: Hazelcast resource not found: %w", err)
-	}
-	err = hazelcastv1alpha1.ValidateAppliedPersistence(c.Spec.PersistenceEnabled, h)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *CacheReconciler) ReconcileCacheConfig(

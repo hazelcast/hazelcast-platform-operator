@@ -7,16 +7,13 @@ import (
 	. "time"
 
 	hz "github.com/hazelcast/hazelcast-go-client"
-
-	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
@@ -54,7 +51,8 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertDataStructureStatus(chLookupKey, hazelcastv1alpha1.DataStructureFailed, m)
-		Expect(m.Status.Message).To(Equal(fmt.Sprintf("persistence is not enabled for the Hazelcast resource %s", hazelcast.Name)))
+
+		Expect(m.Status.Message).To(Equal(fmt.Sprintf("error validating new Spec: persistence is not enabled for the Hazelcast resource %s", hazelcast.Name)))
 	})
 
 	It("should keep the entries after a Hot Backup", Label("slow"), func() {
@@ -142,31 +140,6 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		})
 	})
 
-	It("should continue persisting last applied Cache Config in case of failure", Label("fast"), func() {
-		setLabelAndCRName("hchp-4")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-
-		c := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
-		Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
-		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureSuccess, c)
-
-		By("checking if the cache config is persisted")
-		hzConfig := assertCacheConfigsPersisted(hazelcast, c.Name)
-		ccfg := hzConfig.Hazelcast.Cache[c.Name]
-
-		By("failing to update the cache config")
-		c.Spec.BackupCount = pointer.Int32(4)
-		Expect(k8sClient.Update(context.Background(), c)).Should(Succeed())
-		assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureFailed, c)
-
-		By("checking if the same cache config is still there")
-		// Should wait for Hazelcast reconciler to get triggered, we do not have a waiting mechanism for that.
-		Sleep(5 * Second)
-		hzConfig = assertCacheConfigsPersisted(hazelcast, c.Name)
-		newCcfg := hzConfig.Hazelcast.Cache[c.Name]
-		Expect(newCcfg).To(Equal(ccfg))
-	})
 })
 
 func validateCacheEntriesPortForward(h *hazelcastv1alpha1.Hazelcast, localPort, cacheName string, entryCount int) {

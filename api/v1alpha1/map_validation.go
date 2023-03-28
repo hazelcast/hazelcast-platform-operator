@@ -4,6 +4,20 @@ import (
 	"errors"
 )
 
+func ValidateMapSpec(m *Map, h *Hazelcast) error {
+	err := ValidateAppliedPersistence(m.Spec.PersistenceEnabled, h)
+	if err != nil {
+		return err
+	}
+
+	err = ValidateAppliedNativeMemory(m.Spec.InMemoryFormat, h)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) error {
 	if current.Name != last.Name {
 		return errors.New("name cannot be updated")

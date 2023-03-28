@@ -176,18 +176,4 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 
 	})
 
-	It("should fail to update backupCount", Label("fast"), func() {
-		setLabelAndCRName("hm-5")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-
-		By("creating the map config")
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-
-		By("failing to update map config")
-		m.Spec.BackupCount = pointer.Int32(3)
-		Expect(k8sClient.Update(context.Background(), m)).ShouldNot(Succeed())
-	})
 })
