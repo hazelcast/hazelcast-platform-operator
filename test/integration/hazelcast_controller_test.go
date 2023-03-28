@@ -1276,6 +1276,40 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 
+	Context("Hazelcast CR Management Center configuration", func() {
+		When("Management Center property is configured", func() {
+			It("should be enabled", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.ManagementCenterConfig = hazelcastv1alpha1.ManagementCenterConfig{
+					ScriptingEnabled:  true,
+					ConsoleEnabled:    true,
+					DataAccessEnabled: true,
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				EnsureStatus(hz)
+
+				Eventually(func() bool {
+					configMap := getConfigMap(hz)
+
+					config := &config.HazelcastWrapper{}
+					if err := yaml.Unmarshal([]byte(configMap.Data["hazelcast.yaml"]), config); err != nil {
+						return false
+					}
+
+					mc := config.Hazelcast.ManagementCenter
+					return mc.DataAccessEnabled && mc.ScriptingEnabled && mc.ConsoleEnabled
+				}, timeout, interval).Should(BeTrue())
+
+				Delete(hz)
+			})
+		})
+	})
+
 	// Map CR configuration and controller tests
 	Context("Map CR configuration", func() {
 		When("Using empty configuration", func() {

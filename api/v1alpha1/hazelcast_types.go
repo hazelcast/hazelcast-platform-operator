@@ -152,6 +152,28 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	AdvancedNetwork AdvancedNetwork `json:"advancedNetwork,omitempty"`
+
+	// Hazelcast Management Center Configuration
+	// +optional
+	// +kubebuilder:default:={}
+	ManagementCenterConfig ManagementCenterConfig `json:"managementCenter,omitempty"`
+}
+
+type ManagementCenterConfig struct {
+	// Allows you to execute scripts that can automate interactions with the cluster.
+	// +kubebuilder:default:=false
+	// +optional
+	ScriptingEnabled bool `json:"scriptingEnabled,omitempty"`
+
+	// Allows you to execute commands from a built-in console in the user interface.
+	// +kubebuilder:default:=false
+	// +optional
+	ConsoleEnabled bool `json:"consoleEnabled,omitempty"`
+
+	// Allows you to access contents of Hazelcast data structures via SQL Browser or Map Browser.
+	// +kubebuilder:default:=false
+	// +optional
+	DataAccessEnabled bool `json:"dataAccessEnabled,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE
