@@ -252,7 +252,7 @@ jobs:
     name: Delete EKS cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: ["prepare-env", "eks-e2e-tests"]
+    needs: ["prepare-env", "eks-e2e-tests", "cleanup-namespaces"]
     steps:
       - name: Checkout
         uses: actions/checkout@v3

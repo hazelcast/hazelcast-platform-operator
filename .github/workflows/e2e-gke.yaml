@@ -227,7 +227,7 @@ jobs:
     name: Delete GKE cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: [create-gke-cluster, gke-e2e-tests]
+    needs: [create-gke-cluster, gke-e2e-tests, cleanup-namespaces]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:

@@ -206,7 +206,7 @@ jobs:
     name: Delete PhoneHome cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: [create-gke-cluster, gke-ph-tests]
+    needs: [create-gke-cluster, gke-ph-tests, cleanup-namespaces]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:

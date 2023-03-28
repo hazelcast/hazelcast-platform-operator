@@ -534,15 +534,11 @@ cleanup_namespace(){
       exit 1
   fi
 
-  yellow='\033[1;33m'
-  cyan='\033[0;36m'
-  green='\033[1;32m'
-
-  echo "${yellow}namespace: '$ns'"
+  echo "namespace: '$ns'"
 
   while [ "$(number_of_all_resources "$ns")" -gt 0 ]
   do
-    echo "${cyan}kubectl delete all${green}"
+    echo "kubectl delete all"
     kubectl delete all --all --namespace="$ns"
     sleep 3
   done
@@ -550,11 +546,10 @@ cleanup_namespace(){
   if [ "$(number_of_pvc "$ns")" -gt 0 ];
   then
     pvList="$(list_of_bounded_pv "$ns")"
-    echo "${cyan}kubectl delete PVCs${green}"
+    echo "kubectl delete PVCs"
     kubectl delete pvc --all --namespace="$ns"
-    echo "${cyan}kubectl delete PV $pvList${green}"
+    echo "kubectl delete PV $pvList"
     kubectl delete pv $pvList || true
   fi
 
-  echo '\033[0m'
 }

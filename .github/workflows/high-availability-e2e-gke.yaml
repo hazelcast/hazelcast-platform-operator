@@ -180,7 +180,7 @@ jobs:
     name: Delete High Availability cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: [ create-gke-cluster, gke-high-availability-tests ]
+    needs: [ create-gke-cluster, gke-high-availability-tests, cleanup-namespaces ]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
