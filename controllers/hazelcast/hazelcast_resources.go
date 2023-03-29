@@ -172,18 +172,19 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 			Name:   h.ClusterScopedName(),
 			Labels: labels(h),
 		},
-		Rules: []rbacv1.PolicyRule{
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
+		clusterRole.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
 				Resources: []string{"nodes"},
 				Verbs:     []string{"get"},
 			},
-		},
-	}
-
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
+		}
 		return nil
 	})
+
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "ClusterRole", h.ClusterScopedName(), "result", opResult)
 	}
@@ -198,7 +199,15 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 			Namespace: h.Namespace,
 			Labels:    labels(h),
 		},
-		Rules: []rbacv1.PolicyRule{
+	}
+
+	err := controllerutil.SetControllerReference(h, role, r.Scheme)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on Role: %w", err)
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
+		role.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
 				Resources: []string{"secrets"},
@@ -209,25 +218,17 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 				Resources: []string{"endpoints", "pods", "services"},
 				Verbs:     []string{"get", "list"},
 			},
-		},
-	}
-
-	if h.Spec.Persistence.IsEnabled() {
-		role.Rules = append(role.Rules, rbacv1.PolicyRule{
-			APIGroups: []string{"apps"},
-			Resources: []string{"statefulsets"},
-			Verbs:     []string{"watch", "list"},
-		})
-	}
-
-	err := controllerutil.SetControllerReference(h, role, r.Scheme)
-	if err != nil {
-		return fmt.Errorf("failed to set owner reference on Role: %w", err)
-	}
-
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
+		}
+		if h.Spec.Persistence.IsEnabled() {
+			role.Rules = append(role.Rules, rbacv1.PolicyRule{
+				APIGroups: []string{"apps"},
+				Resources: []string{"statefulsets"},
+				Verbs:     []string{"watch", "list"},
+			})
+		}
 		return nil
 	})
+
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Role", h.Name, "result", opResult)
 	}
@@ -330,7 +331,6 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		ObjectMeta: metadata(h),
 		Spec: corev1.ServiceSpec{
 			Selector: labels(h),
-			Ports:    hazelcastPort(),
 		},
 	}
 
@@ -345,6 +345,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+		service.Spec.Ports = hazelcastPort()
 		service.Spec.Type = serviceType(h)
 		if serviceType(h) == corev1.ServiceTypeClusterIP {
 			// dirty hack to prevent the error when changing the service type
@@ -372,8 +373,9 @@ func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h 
 		}
 
 		var i uint
+		ports := make([]corev1.ServicePort, w.PortCount)
 		for i = 0; i < w.PortCount; i++ {
-			service.Spec.Ports = append(service.Spec.Ports,
+			ports = append(ports,
 				corev1.ServicePort{
 					Name:        w.Name + strconv.Itoa(int(i)),
 					Protocol:    corev1.ProtocolTCP,
@@ -384,6 +386,7 @@ func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h 
 		}
 
 		opResult, _ := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+			service.Spec.Ports = ports
 			service.Spec.Type = w.ServiceType
 			return nil
 		})
@@ -417,7 +420,6 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			},
 			Spec: corev1.ServiceSpec{
 				Selector:                 servicePerPodSelector(i, h),
-				Ports:                    []corev1.ServicePort{clientPort()},
 				PublishNotReadyAddresses: true,
 			},
 		}
@@ -428,6 +430,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		}
 
 		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+			service.Spec.Ports = []corev1.ServicePort{clientPort()}
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 			return nil
 		})
