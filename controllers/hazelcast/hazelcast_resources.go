@@ -673,9 +673,9 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			i := h.Spec.JetEngineConfiguration.Instance
 			cfg.Jet.Instance = config.JetInstance{
 				CooperativeThreadCount:         i.CooperativeThreadCount,
-				FlowControlPeriodMS:            i.FlowControlPeriodMS,
+				FlowControlPeriodMS:            i.FlowControlPeriodMillis,
 				BackupCount:                    i.BackupCount,
-				ScaleUpDelayMS:                 i.ScaleUpDelayMS,
+				ScaleUpDelayMS:                 i.ScaleUpDelayMillis,
 				LosslessRestartEnabled:         i.LosslessRestartEnabled,
 				MaxProcessorAccumulatedRecords: i.MaxProcessorAccumulatedRecords,
 			}

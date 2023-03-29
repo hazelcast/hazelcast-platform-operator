@@ -193,7 +193,7 @@ type JetInstance struct {
 	// The duration of the interval between flow-control packets.
 	// +kubebuilder:default:=100
 	// +optional
-	FlowControlPeriodMS int `json:"flowControlPeriodMS,omitempty"`
+	FlowControlPeriodMillis int `json:"flowControlPeriodMillis,omitempty"`
 
 	// The number of synchronous backups to configure on the IMap that Jet needs internally to store job metadata and snapshots.
 	// +kubebuilder:default:=1
@@ -203,7 +203,7 @@ type JetInstance struct {
 	// The delay after which the auto-scaled jobs restart if a new member joins the cluster.
 	// +kubebuilder:default:=10000
 	// +optional
-	ScaleUpDelayMS int `json:"scaleUpDelayMS,omitempty"`
+	ScaleUpDelayMillis int `json:"scaleUpDelayMillis,omitempty"`
 
 	// Specifies whether the Lossless Cluster Restart feature is enabled.
 	// +kubebuilder:default:=false
