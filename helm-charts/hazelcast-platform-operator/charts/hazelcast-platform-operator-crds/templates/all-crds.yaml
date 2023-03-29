@@ -503,7 +503,7 @@ spec:
                         description: The number of threads Jet creates in its cooperative
                           multithreading pool.
                         type: integer
-                      flowControlPeriodMS:
+                      flowControlPeriodMillis:
                         default: 100
                         description: The duration of the interval between flow-control
                           packets.
@@ -517,7 +517,7 @@ spec:
                         description: Specifies the maximum number of records that
                           can be accumulated by any single processor instance.
                         type: integer
-                      scaleUpDelayMS:
+                      scaleUpDelayMillis:
                         default: 10000
                         description: The delay after which the auto-scaled jobs restart
                           if a new member joins the cluster.

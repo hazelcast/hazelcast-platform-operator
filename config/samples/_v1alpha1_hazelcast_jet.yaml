@@ -1,7 +1,7 @@
 apiVersion: hazelcast.com/v1alpha1
 kind: Hazelcast
 metadata:
-  name: hazelcast
+  name: hazelcast2
 spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
@@ -10,9 +10,9 @@ spec:
     resourceUploadEnabled: false
     instance:
       cooperativeThreadCount: 4
-      flowControlPeriodMS: 100
+      flowControlPeriodMillis: 100
       backupCount: 1
-      scaleUpDelayMS: 10000
+      scaleUpDelayMillis: 10000
       losslessRestartEnabled: false
       maxProcessorAccumulatedRecords: 1000000000
     edgeDefaults:
