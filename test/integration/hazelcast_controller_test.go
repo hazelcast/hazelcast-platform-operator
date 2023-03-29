@@ -865,12 +865,10 @@ var _ = Describe("Hazelcast controller", func() {
 			It("should set GC params", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				s := hazelcastv1alpha1.GCTypeSerial
-				gcArg := "-XX:MaxGCPauseMillis=200"
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
 					GC: &hazelcastv1alpha1.JVMGCConfiguration{
 						Logging:   pointer.Bool(true),
 						Collector: &s,
-						Args:      []string{gcArg},
 					},
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
@@ -883,7 +881,6 @@ var _ = Describe("Hazelcast controller", func() {
 
 				Expect(*fetchedCR.Spec.JVM.GC.Logging).Should(Equal(true))
 				Expect(*fetchedCR.Spec.JVM.GC.Collector).Should(Equal(s))
-				Expect(fetchedCR.Spec.JVM.GC.Args[0]).Should(Equal(gcArg))
 
 				Delete(hz)
 			})

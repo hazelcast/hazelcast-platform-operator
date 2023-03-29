@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/aws/smithy-go/ptr"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -118,6 +119,138 @@ var _ = Describe("Hazelcast webhook", func() {
 
 			Expect(k8sClient.Create(context.Background(), hz)).
 				Should(MatchError(ContainSubstring("cluster size limit is exceeded")))
+		})
+	})
+
+	Context("JVM Configuration", func() {
+		expectedErrStr := `argument %s is configured twice`
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.InitialRamPerArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+					InitialRAMPercentage: ptr.String("10"),
+				},
+				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.InitialRamPerArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.InitialRamPerArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MinRamPerArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+					MinRAMPercentage: ptr.String("10"),
+				},
+				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MinRamPerArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.MinRamPerArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MaxRamPerArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+					MaxRAMPercentage: ptr.String("10"),
+				},
+				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MaxRamPerArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.MaxRamPerArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.GCLoggingArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				GC: &hazelcastv1alpha1.JVMGCConfiguration{
+					Logging: ptr.Bool(true),
+				},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.GCLoggingArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.GCLoggingArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.SerialGCArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			c := hazelcastv1alpha1.GCTypeSerial
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: nil,
+				GC: &hazelcastv1alpha1.JVMGCConfiguration{
+					Collector: &c,
+				},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.SerialGCArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.SerialGCArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.ParallelGCArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			c := hazelcastv1alpha1.GCTypeParallel
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				GC:   &hazelcastv1alpha1.JVMGCConfiguration{},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.ParallelGCArg)},
+			}
+			spec.JVM.GC.Collector = &c
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.ParallelGCArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.G1GCArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			c := hazelcastv1alpha1.GCTypeG1
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				GC:   &hazelcastv1alpha1.JVMGCConfiguration{},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.G1GCArg)},
+			}
+			spec.JVM.GC.Collector = &c
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.G1GCArg))))
 		})
 	})
 

@@ -97,7 +97,13 @@ type PhoneHomeData struct {
 	TopicCount                    int                    `json:"tc"`
 	HighAvailabilityMode          []string               `json:"ha"`
 	NativeMemoryCount             int                    `json:"nmc"`
+	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
 	AdvancedNetwork               AdvancedNetwork        `json:"an"`
+}
+
+type JVMConfigUsage struct {
+	Count           int             `json:"c"`
+	AdvancedNetwork AdvancedNetwork `json:"an"`
 }
 
 type AdvancedNetwork struct {
@@ -211,6 +217,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
+		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -299,6 +306,20 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 	}
 	if hucd.IsConfigMapEnabled() {
 		ucd.FromConfigMap++
+	}
+}
+
+func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration) {
+	isMemoryConfigured := jc.Memory != nil &&
+		(jc.Memory.MaxRAMPercentage != nil || jc.Memory.MinRAMPercentage != nil || jc.Memory.InitialRAMPercentage != nil)
+
+	isGCConfigured := jc.GC != nil &&
+		(jc.GC.Logging != nil || jc.GC.Collector != nil)
+
+	isArgsConfigured := len(jc.Args) > 0
+
+	if isMemoryConfigured || isGCConfigured || isArgsConfigured {
+		j.Count += 1
 	}
 }
 

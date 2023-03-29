@@ -595,6 +595,10 @@ type JVMConfiguration struct {
 	// GC is for configuring JVM Garbage Collector
 	// +optional
 	GC *JVMGCConfiguration `json:"gc,omitempty"`
+
+	// Args is for arbitrary JVM arguments
+	// +optional
+	Args []string `json:"args,omitempty"`
 }
 
 func (c *JVMConfiguration) GetMemory() *JVMMemoryConfiguration {
@@ -607,6 +611,13 @@ func (c *JVMConfiguration) GetMemory() *JVMMemoryConfiguration {
 func (c *JVMConfiguration) GCConfig() *JVMGCConfiguration {
 	if c != nil {
 		return c.GC
+	}
+	return nil
+}
+
+func (c *JVMConfiguration) GetArgs() []string {
+	if c != nil {
+		return c.Args
 	}
 	return nil
 }
@@ -656,10 +667,6 @@ type JVMGCConfiguration struct {
 	// Collector is the Garbage Collector type
 	// +optional
 	Collector *GCType `json:"collector,omitempty"`
-
-	// Args is for arbitrary garbage collection arguments
-	// +optional
-	Args []string `json:"args,omitempty"`
 }
 
 func (j *JVMGCConfiguration) IsLoggingEnabled() bool {
@@ -674,13 +681,6 @@ func (j *JVMGCConfiguration) GetCollector() GCType {
 		return *j.Collector
 	}
 	return ""
-}
-
-func (j *JVMGCConfiguration) GetArgs() []string {
-	if j != nil && j.Args != nil {
-		return j.Args
-	}
-	return []string{}
 }
 
 // GCType is Garbage Collector type
