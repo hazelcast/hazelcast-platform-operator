@@ -1051,6 +1051,20 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			})
 		}
 	}
+
+	if ms.NearCache != nil {
+		mc.NearCache.InMemoryFormat = string(ms.NearCache.InMemoryFormat)
+		mc.NearCache.InvalidateOnChange = *ms.NearCache.InvalidateOnChange
+		mc.NearCache.TimeToLiveSeconds = ms.NearCache.TimeToLiveSeconds
+		mc.NearCache.MaxIdleSeconds = ms.NearCache.MaxIdleSeconds
+		mc.NearCache.Eviction = config.NearCacheEviction{
+			Size:           ms.NearCache.NearCacheEviction.Size,
+			MaxSizePolicy:  string(ms.NearCache.NearCacheEviction.MaxSizePolicy),
+			EvictionPolicy: string(ms.NearCache.NearCacheEviction.EvictionPolicy),
+		}
+		mc.NearCache.CacheLocalEntries = *ms.NearCache.CacheLocalEntries
+	}
+
 	return mc, nil
 }
 

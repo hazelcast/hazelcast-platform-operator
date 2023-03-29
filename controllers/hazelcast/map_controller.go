@@ -318,6 +318,29 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 		}
 		mapInput.ListenerConfigs = lch
 	}
+
+	if m.Spec.NearCache != nil {
+		mapInput.NearCacheConfig.Name = ms.NearCache.Name
+		mapInput.NearCacheConfig.InMemoryFormat = string(ms.NearCache.InMemoryFormat)
+		mapInput.NearCacheConfig.InvalidateOnChange = *ms.NearCache.InvalidateOnChange
+		mapInput.NearCacheConfig.TimeToLiveSeconds = int32(ms.NearCache.TimeToLiveSeconds)
+		mapInput.NearCacheConfig.MaxIdleSeconds = int32(ms.NearCache.MaxIdleSeconds)
+		mapInput.NearCacheConfig.CacheLocalEntries = *ms.NearCache.CacheLocalEntries
+		//TODO: We should remove this assignment after the fix: https://github.com/hazelcast/hazelcast/issues/23978
+		mapInput.NearCacheConfig.LocalUpdatePolicy = "INVALIDATE"
+		//TODO: We should remove this assignment after the fix: https://github.com/hazelcast/hazelcast/issues/23979
+		mapInput.NearCacheConfig.PreloaderConfig =
+			codecTypes.NearCachePreloaderConfig{
+				Enabled:                  false,
+				Directory:                "",
+				StoreInitialDelaySeconds: 600,
+				StoreIntervalSeconds:     600,
+			}
+		mapInput.NearCacheConfig.EvictionConfigHolder.EvictionPolicy = string(ms.NearCache.NearCacheEviction.EvictionPolicy)
+		mapInput.NearCacheConfig.EvictionConfigHolder.MaxSizePolicy = string(ms.NearCache.NearCacheEviction.MaxSizePolicy)
+		mapInput.NearCacheConfig.EvictionConfigHolder.Size = int32(ms.NearCache.NearCacheEviction.Size)
+	}
+
 	return nil
 }
 
