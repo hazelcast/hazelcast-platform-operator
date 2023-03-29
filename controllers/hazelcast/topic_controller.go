@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -56,24 +57,31 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	ms, err := r.ReconcileTopicConfig(ctx, t, cl, logger)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, t, dsPendingStatus(retryAfterForDataStructures).
-			withError(err).
-			withMessage(err.Error()).
-			withMemberStatuses(ms))
+		return updateDSStatus(ctx, r.Client, t, recoptions.RetryAfter(retryAfterForDataStructures),
+			withDSState(hazelcastv1alpha1.DataStructurePending),
+			withDSMessage(err.Error()),
+			withDSMemberStatuses(ms))
 	}
 
-	requeue, err := updateDSStatus(ctx, r.Client, t, dsPersistingStatus(1*time.Second).withMessage("Persisting the applied topic config."))
+	requeue, err := updateDSStatus(ctx, r.Client, t, recoptions.RetryAfter(1*time.Second),
+		withDSState(hazelcastv1alpha1.DataStructurePersisting),
+		withDSMessage("Persisting the applied multiMap config."),
+		withDSMemberStatuses(ms))
 	if err != nil {
 		return requeue, err
 	}
 
 	persisted, err := r.validateTopicConfigPersistence(ctx, t)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, t, dsFailedStatus(err).withMessage(err.Error()))
+		return updateDSStatus(ctx, r.Client, t, recoptions.Error(err),
+			withDSFailedState(err.Error()))
 	}
 
 	if !persisted {
-		return updateDSStatus(ctx, r.Client, t, dsPersistingStatus(1*time.Second).withMessage("Waiting for Topic Config to be persisted."))
+		return updateDSStatus(ctx, r.Client, t, recoptions.RetryAfter(1*time.Second),
+			withDSState(hazelcastv1alpha1.DataStructurePersisting),
+			withDSMessage("Waiting for Cache Config to be persisted."),
+			withDSMemberStatuses(ms))
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, t, logger)

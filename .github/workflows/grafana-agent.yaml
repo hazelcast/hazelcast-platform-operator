@@ -1,4 +1,4 @@
-name: Install Grafana Agent on GKE
+name: Install Grafana Agent
 on:
   workflow_call:
     inputs:
@@ -93,7 +93,7 @@ jobs:
           location: ${{ env.GKE_ZONE }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1.7.0
+        uses: aws-actions/configure-aws-credentials@v2.0.0
         if: ${{ contains(inputs.cluster_type, 'eks') }}
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -136,4 +136,3 @@ jobs:
         run: |
           envsubst < .github/grafana/logs-cm.yaml | /bin/sh -c 'kubectl apply -f -'
           /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
-

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -12,9 +13,18 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
+)
+
+const (
+	InitialRamPerArg = "-XX:InitialRAMPercentage"
+	MaxRamPerArg     = "-XX:MaxRAMPercentage"
+	MinRamPerArg     = "-XX:MinRAMPercentage"
+	GCLoggingArg     = "-verbose:gc"
+	SerialGCArg      = "-XX:+UseSerialGC"
+	ParallelGCArg    = "-XX:+UseParallelGC"
+	G1GCArg          = "-XX:+UseG1GC"
 )
 
 var BlackListProperties = map[string]struct{}{
@@ -46,12 +56,64 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 		return err
 	}
 
+	if err := validateAdvancedNetwork(h); err != nil {
+		return err
+	}
+
+	if err := validateJVMConfig(h); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func validateClusterSize(h *Hazelcast) error {
-	if *h.Spec.ClusterSize > naming.ClusterSizeLimit {
-		return fmt.Errorf("cluster size limit is exceeded. Requested: %d, Limit: %d", *h.Spec.ClusterSize, naming.ClusterSizeLimit)
+	if *h.Spec.ClusterSize > n.ClusterSizeLimit {
+		return fmt.Errorf("cluster size limit is exceeded. Requested: %d, Limit: %d", *h.Spec.ClusterSize, n.ClusterSizeLimit)
+	}
+	return nil
+}
+
+func validateJVMConfig(h *Hazelcast) error {
+	if jvm := h.Spec.JVM; jvm != nil {
+		args := h.Spec.JVM.Args
+		if m := jvm.Memory; m != nil {
+			if m.InitialRAMPercentage != nil {
+				return validateArg(args, InitialRamPerArg)
+			}
+			if m.MaxRAMPercentage != nil {
+				return validateArg(args, MaxRamPerArg)
+			}
+			if m.MinRAMPercentage != nil {
+				return validateArg(args, MinRamPerArg)
+			}
+		}
+		if gc := jvm.GC; gc != nil {
+			if gc.Logging != nil {
+				return validateArg(args, GCLoggingArg)
+			}
+			if c := gc.Collector; c != nil {
+				if *c == GCTypeSerial {
+					return validateArg(args, SerialGCArg)
+				}
+
+				if *c == GCTypeParallel {
+					return validateArg(args, ParallelGCArg)
+				}
+				if *c == GCTypeG1 {
+					return validateArg(args, G1GCArg)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func validateArg(args []string, arg string) error {
+	for _, s := range args {
+		if strings.Contains(s, arg) {
+			return fmt.Errorf(`argument %s is configured twice`, arg)
+		}
 	}
 	return nil
 }
@@ -142,5 +204,83 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) error {
 		return fmt.Errorf("persistence is not enabled for the Hazelcast resource %s", h.Name)
 	}
 
+	return nil
+}
+
+func ValidateAppliedNativeMemory(inMemoryFormat InMemoryFormatType, h *Hazelcast) error {
+	if inMemoryFormat != InMemoryFormatNative {
+		return nil
+	}
+	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		return fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name)
+	}
+
+	lastSpec := &HazelcastSpec{}
+	if err := json.Unmarshal([]byte(s), lastSpec); err != nil {
+		return fmt.Errorf("last successful spec for Hazelcast resource %s is not formatted correctly", h.Name)
+	}
+
+	if !lastSpec.NativeMemory.IsEnabled() {
+		return fmt.Errorf("native memory is not enabled for the Hazelcast resource %s", h.Name)
+	}
+	return nil
+}
+
+func validateAdvancedNetwork(h *Hazelcast) error {
+	return validateWANPorts(h)
+}
+
+func validateWANPorts(h *Hazelcast) error {
+	err := isOverlapWithEachOther(h)
+	if err != nil {
+		return err
+	}
+
+	err = isOverlapWithOtherSockets(h)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func isOverlapWithEachOther(h *Hazelcast) error {
+	type portRange struct {
+		min uint
+		max uint
+	}
+
+	var portRanges []portRange
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
+		portRanges = append(portRanges, struct {
+			min uint
+			max uint
+		}{min: w.Port, max: w.Port + w.PortCount})
+	}
+
+	sort.Slice(portRanges, func(r1, r2 int) bool {
+		return portRanges[r1].min < portRanges[r2].min
+	})
+
+	for i := 1; i < len(portRanges); i++ {
+		if portRanges[i-1].max > portRanges[i].min {
+			return fmt.Errorf("wan replications ports are overlapping, please check and re-apply")
+		}
+	}
+	return nil
+}
+
+func isOverlapWithOtherSockets(h *Hazelcast) error {
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
+		min, max := w.Port, w.Port+w.PortCount
+		if (n.MemberServerSocketPort >= min && n.MemberServerSocketPort < max) ||
+			(n.ClientServerSocketPort >= min && n.ClientServerSocketPort < max) ||
+			(n.RestServerSocketPort >= min && n.RestServerSocketPort < max) {
+			return fmt.Errorf("following port numbers are not in use for wan replication: %d, %d, %d",
+				n.MemberServerSocketPort,
+				n.ClientServerSocketPort,
+				n.RestServerSocketPort)
+		}
+	}
 	return nil
 }

@@ -100,8 +100,8 @@ var _ = BeforeSuite(func() {
 		nil,
 		cs,
 		ssm,
-		mtls.NewHttpClientRegistry()).
-		SetupWithManager(k8sManager)
+		mtls.NewHttpClientRegistry(),
+	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = managementcenter.NewManagementCenterReconciler(
@@ -136,6 +136,17 @@ var _ = BeforeSuite(func() {
 		controllerLogger.WithName("Cron Hot Backup"),
 		k8sManager.GetScheme(),
 		nil,
+	).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = hazelcast.NewWanReplicationReconciler(
+		k8sManager.GetClient(),
+		controllerLogger.WithName("WanReplication"),
+		k8sManager.GetScheme(),
+		nil,
+		mtls.NewHttpClientRegistry(),
+		cs,
+		ssm,
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

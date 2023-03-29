@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -63,12 +64,12 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			logger.Info("Management Center resource not found. Ignoring since object must be deleted.")
 			return ctrl.Result{}, nil
 		}
-		return update(ctx, r.Status(), mc, failedPhase(err))
+		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 	}
 
 	err = util.AddFinalizer(ctx, r.Client, mc, logger)
 	if err != nil {
-		return update(ctx, r.Client, mc, failedPhase(err))
+		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 	}
 
 	//Check if the ManagementCenter CR is marked to be deleted
@@ -76,7 +77,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		// Execute finalizer's pre-delete function to delete MC metric
 		err = r.executeFinalizer(ctx, mc)
 		if err != nil {
-			return update(ctx, r.Client, mc, failedPhase(err))
+			return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
@@ -84,22 +85,22 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	err = hazelcastv1alpha1.ValidateManagementCenterSpec(mc)
 	if err != nil {
-		return update(ctx, r.Status(), mc, failedPhase(err))
+		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 	}
 
 	err = r.reconcileService(ctx, mc, logger)
 	if err != nil {
-		return update(ctx, r.Status(), mc, failedPhase(err))
+		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 	}
 
 	err = r.reconcileIngress(ctx, mc, logger)
 	if err != nil {
-		return update(ctx, r.Status(), mc, failedPhase(err))
+		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 	}
 
 	err = r.reconcileRoute(ctx, mc, logger)
 	if err != nil {
-		return update(ctx, r.Status(), mc, failedPhase(err))
+		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 	}
 
 	err = r.reconcileStatefulset(ctx, mc, logger)
@@ -108,15 +109,15 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, nil
 		} else {
-			return update(ctx, r.Status(), mc, failedPhase(err))
+			return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 		}
 	}
 
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, 1); !ok {
 		if err == nil {
-			return update(ctx, r.Status(), mc, pendingPhase(retryAfter))
+			return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.Pending))
 		} else {
-			return update(ctx, r.Status(), mc, failedPhase(err).withMessage(err.Error()))
+			return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 		}
 	}
 
@@ -128,10 +129,9 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
-
 	externalAddrs := util.GetExternalAddresses(ctx, r.Client, mc, logger)
 	enrichedAddrs := enrichPublicAddresses(ctx, r.Client, mc, externalAddrs)
-	return update(ctx, r.Status(), mc, runningPhase().withExternalAddresses(enrichedAddrs))
+	return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.Running), withMcExternalAddresses(enrichedAddrs))
 }
 
 // SetupWithManager sets up the controller with the Manager.

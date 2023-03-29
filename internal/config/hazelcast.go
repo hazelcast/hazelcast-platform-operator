@@ -6,7 +6,6 @@ type HazelcastWrapper struct {
 
 type Hazelcast struct {
 	Jet                      Jet                                 `yaml:"jet,omitempty"`
-	Network                  Network                             `yaml:"network,omitempty"`
 	ClusterName              string                              `yaml:"cluster-name,omitempty"`
 	Persistence              Persistence                         `yaml:"persistence,omitempty"`
 	Map                      map[string]Map                      `yaml:"map,omitempty"`
@@ -23,6 +22,51 @@ type Hazelcast struct {
 	Cache                    map[string]Cache                    `yaml:"cache,omitempty"`
 	PartitionGroup           PartitionGroup                      `yaml:"partition-group,omitempty"`
 	NativeMemory             NativeMemory                        `yaml:"native-memory,omitempty"`
+	AdvancedNetwork          AdvancedNetwork                     `yaml:"advanced-network,omitempty"`
+	ManagementCenter         ManagementCenterConfig              `yaml:"management-center,omitempty"`
+}
+
+type ManagementCenterConfig struct {
+	ScriptingEnabled  bool `yaml:"scripting-enabled,omitempty"`
+	ConsoleEnabled    bool `yaml:"console-enabled,omitempty"`
+	DataAccessEnabled bool `yaml:"data-access-enabled,omitempty"`
+}
+
+type AdvancedNetwork struct {
+	Enabled                          bool                             `yaml:"enabled,omitempty"`
+	Join                             Join                             `yaml:"join,omitempty"`
+	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `yaml:"member-server-socket-endpoint-config,omitempty"`
+	ClientServerSocketEndpointConfig ClientServerSocketEndpointConfig `yaml:"client-server-socket-endpoint-config,omitempty"`
+	RestServerSocketEndpointConfig   RestServerSocketEndpointConfig   `yaml:"rest-server-socket-endpoint-config,omitempty"`
+	WanServerSocketEndpointConfig    map[string]WanPort               `yaml:"wan-server-socket-endpoint-config,omitempty"`
+}
+
+type MemberServerSocketEndpointConfig struct {
+	Port       PortAndPortCount     `yaml:"port,omitempty"`
+	Interfaces EnabledAndInterfaces `yaml:"interfaces,omitempty"`
+}
+
+type ClientServerSocketEndpointConfig struct {
+	Port PortAndPortCount `yaml:"port,omitempty"`
+}
+
+type RestServerSocketEndpointConfig struct {
+	Port           PortAndPortCount `yaml:"port,omitempty"`
+	EndpointGroups EndpointGroups   `yaml:"endpoint-groups,omitempty"`
+}
+
+type WanPort struct {
+	PortAndPortCount PortAndPortCount `yaml:"port,omitempty"`
+}
+
+type PortAndPortCount struct {
+	Port      uint `yaml:"port,omitempty"`
+	PortCount uint `yaml:"port-count,omitempty"`
+}
+
+type EnabledAndInterfaces struct {
+	Enabled    bool     `yaml:"enabled,omitempty"`
+	Interfaces []string `yaml:"interfaces,omitempty"`
 }
 
 type PartitionGroup struct {
@@ -61,6 +105,7 @@ type Kubernetes struct {
 	UseNodeNameAsExternalAddress *bool  `yaml:"use-node-name-as-external-address,omitempty"`
 	ServicePerPodLabelName       string `yaml:"service-per-pod-label-name,omitempty"`
 	ServicePerPodLabelValue      string `yaml:"service-per-pod-label-value,omitempty"`
+	ServicePort                  uint   `yaml:"service-port,omitempty"`
 }
 
 type RestAPI struct {
@@ -271,12 +316,12 @@ type NativeMemorySize struct {
 func (hz Hazelcast) HazelcastConfigForcingRestart() Hazelcast {
 	return Hazelcast{
 		ClusterName: hz.ClusterName,
-		Network: Network{
+		AdvancedNetwork: AdvancedNetwork{
 			Join: Join{
 				Kubernetes: Kubernetes{
-					ServicePerPodLabelName:       hz.Network.Join.Kubernetes.ServicePerPodLabelName,
-					ServicePerPodLabelValue:      hz.Network.Join.Kubernetes.ServicePerPodLabelValue,
-					UseNodeNameAsExternalAddress: hz.Network.Join.Kubernetes.UseNodeNameAsExternalAddress,
+					ServicePerPodLabelName:       hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName,
+					ServicePerPodLabelValue:      hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue,
+					UseNodeNameAsExternalAddress: hz.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress,
 				},
 			},
 		},

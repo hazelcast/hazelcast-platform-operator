@@ -198,7 +198,7 @@ jobs:
       - name: Run Tests
         id: e2e-test
         run: |
-          make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee-01 WORKFLOW_ID=cluster_scope NAMESPACE=${{ env.NAMESPACE }}
+          make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=cluster_scope NAMESPACE=${{ env.NAMESPACE }}
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v3

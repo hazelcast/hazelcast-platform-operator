@@ -166,7 +166,7 @@ jobs:
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
         run: |
-          make test-e2e NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME E2E_TEST_SUITE=backup_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=backup
+          make test-e2e NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME E2E_TEST_SUITE=backup_slow REPORT_SUFFIX=ee_01 WORKFLOW_ID=backup
 
       - name: Clean up after Tests
         if: always()
@@ -189,11 +189,21 @@ jobs:
       WORKFLOW_ID: backup
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
+  cleanup-namespaces:
+    if: always()
+    needs: ["create-gke-cluster", "gke-e2e-backup-tests" ]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      cluster_type: gke-hot-backup
+      namespaces: "test-operator-backup-ee,grafana"
+
   delete-cluster:
     name: Cleanup the environment
     runs-on: ubuntu-latest
     if: always()
-    needs: [ create-gke-cluster, gke-e2e-backup-tests ]
+    needs: [ create-gke-cluster, gke-e2e-backup-tests, cleanup-namespaces ]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:

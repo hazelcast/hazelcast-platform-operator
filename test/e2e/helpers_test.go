@@ -16,10 +16,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	. "time"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
+	"github.com/hazelcast/hazelcast-go-client/cluster"
+	"github.com/hazelcast/hazelcast-go-client/logger"
 	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
+	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
@@ -204,6 +208,7 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 			clusterName = hz.Spec.ClusterName
 		}
 		c := hzClient.Config{}
+		c.Labels = []string{"e2e-test=true"}
 		c.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", addr))
 		c.Cluster.Unisocket = unisocket
 		c.Cluster.Name = clusterName
@@ -438,7 +443,7 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 
 func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1alpha1.WanStatus) *hazelcastcomv1alpha1.WanReplication {
 	checkWan := &hazelcastcomv1alpha1.WanReplication{}
-	By("waiting for Wan CR status", func() {
+	By("waiting for WAN CR status", func() {
 		Eventually(func() hazelcastcomv1alpha1.WanStatus {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      wr.Name,
@@ -455,7 +460,7 @@ func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1a
 
 func assertWanStatusMapCount(wr *hazelcastcomv1alpha1.WanReplication, mapLen int) *hazelcastcomv1alpha1.WanReplication {
 	checkWan := &hazelcastcomv1alpha1.WanReplication{}
-	By("waiting for Wan CR status map length", func() {
+	By("waiting for WAN CR status map length", func() {
 		Eventually(func() int {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      wr.Name,
@@ -523,11 +528,20 @@ func portForwardPod(sName, sNamespace, port string) chan struct{} {
 func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
 	clientWithConfig := &hzClient.Client{}
 	By(fmt.Sprintf("creating Hazelcast client using address '%s'", "localhost:"+localPort), func() {
-		c := hzClient.Config{}
-		cc := &c.Cluster
-		cc.Unisocket = true
-		cc.Name = h.Spec.ClusterName
-		cc.Network.SetAddresses("localhost:" + localPort)
+		c := hzClient.Config{
+			Logger: logger.Config{
+				Level: logger.DebugLevel,
+			},
+			Cluster: cluster.Config{
+				Unisocket: true,
+				Name:      h.Spec.ClusterName,
+				ConnectionStrategy: cluster.ConnectionStrategyConfig{
+					Timeout:       hztypes.Duration(2 * time.Second),
+					ReconnectMode: cluster.ReconnectModeOff,
+				},
+			},
+		}
+		c.Cluster.Network.SetAddresses("localhost:" + localPort)
 		Eventually(func() (err error) {
 			clientWithConfig, err = hzClient.StartNewClientWithConfig(ctx, c)
 			return err
@@ -741,7 +755,7 @@ func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1alpha1.
 			if err != nil {
 				return ""
 			}
-			return obj.(hazelcast.DataStructure).GetStatus()
+			return obj.(hazelcast.DataStructure).GetStatus().State
 		}, 1*Minute, interval).Should(Equal(st))
 	})
 	return obj
@@ -872,6 +886,14 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzCrName, Namespace: ns}, ee, labels)
 		hz.Spec.ClusterName = hzCrName
 		hz.Spec.ClusterSize = pointer.Int32(1)
+		hz.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
+			{
+				Port:        5710,
+				PortCount:   0,
+				ServiceType: "NodePort",
+				Name:        "tokyo",
+			},
+		}
 		hzCrs[hzCrName] = hz
 		CreateHazelcastCRWithoutCheck(hz)
 	}
@@ -902,7 +924,7 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 	wan := hazelcastconfig.WanReplication(
 		lk,
 		target.Spec.ClusterName,
-		hzclient.HazelcastUrl(target),
+		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, 5710),
 		resources,
 		labels,
 	)

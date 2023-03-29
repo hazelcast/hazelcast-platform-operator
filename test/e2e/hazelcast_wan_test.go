@@ -138,8 +138,8 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTarget1], localPort, map21, mapSize, 1*Minute)
 	})
 
-	//When("Wan replicated Map CR is deleted which was given as a Map resource in Wan spec",
-	It("should delete the map from status and Wan status should be failed", Label("slow"), func() {
+	//When("WAN replicated Map CR is deleted which was given as a Map resource in WAN spec",
+	It("should delete the map from status and WAN status should be failed", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -171,8 +171,8 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		assertObjectDoesNotExist(wan)
 	})
 
-	//When("Wan replicated Map CR is deleted which was given as a Hazelcast resource in Wan spec",
-	It("should delete the map from status and Wan status should be Pending", Label("slow"), func() {
+	//When("WAN replicated Map CR is deleted which was given as a Hazelcast resource in WAN spec",
+	It("should delete the map from status and WAN status should be Pending", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -204,7 +204,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		assertObjectDoesNotExist(wan)
 	})
 
-	//When("Wan replicated Hazelcast CR is first deleted and then removed from the Wan spec",
+	//When("WAN replicated Hazelcast CR is first deleted and then removed from the WAN spec",
 	It("should fail first and after spec removal, should succeed ", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
@@ -249,7 +249,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		_ = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	})
 
-	//When("Wan replicated maps are removed from Wan spec",
+	//When("WAN replicated maps are removed from WAN spec",
 	It("should stop replicating to target cluster", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
@@ -318,7 +318,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTarget1], localPort, map21, currentSize, 1*Minute)
 	})
 
-	//When("Map is given twice in the Wan spec",
+	//When("Map is given twice in the WAN spec",
 	It("should continue replication if one reference is deleted ", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")

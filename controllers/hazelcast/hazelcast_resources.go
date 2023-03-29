@@ -172,18 +172,19 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 			Name:   h.ClusterScopedName(),
 			Labels: labels(h),
 		},
-		Rules: []rbacv1.PolicyRule{
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
+		clusterRole.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
 				Resources: []string{"nodes"},
 				Verbs:     []string{"get"},
 			},
-		},
-	}
-
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
+		}
 		return nil
 	})
+
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "ClusterRole", h.ClusterScopedName(), "result", opResult)
 	}
@@ -198,7 +199,15 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 			Namespace: h.Namespace,
 			Labels:    labels(h),
 		},
-		Rules: []rbacv1.PolicyRule{
+	}
+
+	err := controllerutil.SetControllerReference(h, role, r.Scheme)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on Role: %w", err)
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
+		role.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
 				Resources: []string{"secrets"},
@@ -209,25 +218,17 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 				Resources: []string{"endpoints", "pods", "services"},
 				Verbs:     []string{"get", "list"},
 			},
-		},
-	}
-
-	if h.Spec.Persistence.IsEnabled() {
-		role.Rules = append(role.Rules, rbacv1.PolicyRule{
-			APIGroups: []string{"apps"},
-			Resources: []string{"statefulsets"},
-			Verbs:     []string{"watch", "list"},
-		})
-	}
-
-	err := controllerutil.SetControllerReference(h, role, r.Scheme)
-	if err != nil {
-		return fmt.Errorf("failed to set owner reference on Role: %w", err)
-	}
-
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
+		}
+		if h.Spec.Persistence.IsEnabled() {
+			role.Rules = append(role.Rules, rbacv1.PolicyRule{
+				APIGroups: []string{"apps"},
+				Resources: []string{"statefulsets"},
+				Verbs:     []string{"watch", "list"},
+			})
+		}
 		return nil
 	})
+
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Role", h.Name, "result", opResult)
 	}
@@ -321,11 +322,15 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 }
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	err := r.createServicesForWanConfig(ctx, h, logger)
+	if err != nil {
+		return err
+	}
+
 	service := &corev1.Service{
 		ObjectMeta: metadata(h),
 		Spec: corev1.ServiceSpec{
 			Selector: labels(h),
-			Ports:    hazelcastPort(),
 		},
 	}
 
@@ -334,12 +339,13 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		service.Spec.ClusterIP = "None"
 	}
 
-	err := controllerutil.SetControllerReference(h, service, r.Scheme)
+	err = controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+		service.Spec.Ports = hazelcastPort()
 		service.Spec.Type = serviceType(h)
 		if serviceType(h) == corev1.ServiceTypeClusterIP {
 			// dirty hack to prevent the error when changing the service type
@@ -351,6 +357,45 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		logger.Info("Operation result", "Service", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      h.Name + "-wan-rep-svc-" + w.Name,
+				Namespace: h.Namespace,
+				Labels:    labels(h),
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: labels(h),
+			},
+		}
+
+		var i uint
+		ports := make([]corev1.ServicePort, w.PortCount)
+		for i = 0; i < w.PortCount; i++ {
+			ports = append(ports,
+				corev1.ServicePort{
+					Name:        w.Name + strconv.Itoa(int(i)),
+					Protocol:    corev1.ProtocolTCP,
+					Port:        int32(w.Port + i),
+					TargetPort:  intstr.FromInt(int(w.Port + i)),
+					AppProtocol: pointer.String("tcp"),
+				})
+		}
+
+		opResult, _ := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+			service.Spec.Ports = ports
+			service.Spec.Type = w.ServiceType
+			return nil
+		})
+		if opResult != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Service", h.Name, "result", opResult)
+		}
+	}
+
+	return nil
 }
 
 func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
@@ -375,7 +420,6 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			},
 			Spec: corev1.ServiceSpec{
 				Selector:                 servicePerPodSelector(i, h),
-				Ports:                    hazelcastPort(),
 				PublishNotReadyAddresses: true,
 			},
 		}
@@ -386,6 +430,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		}
 
 		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+			service.Spec.Ports = []corev1.ServicePort{clientPort()}
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 			return nil
 		})
@@ -465,13 +510,31 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 
 func hazelcastPort() []v1.ServicePort {
 	return []corev1.ServicePort{
+		clientPort(),
 		{
-			Name:        n.HazelcastPortName,
-			Protocol:    corev1.ProtocolTCP,
-			Port:        n.DefaultHzPort,
-			TargetPort:  intstr.FromString(n.Hazelcast),
+			Name:        "member-port",
+			Protocol:    v1.ProtocolTCP,
+			Port:        n.MemberServerSocketPort,
+			TargetPort:  intstr.FromInt(n.MemberServerSocketPort),
 			AppProtocol: pointer.String("tcp"),
 		},
+		{
+			Name:        "rest-port",
+			Protocol:    v1.ProtocolTCP,
+			Port:        n.RestServerSocketPort,
+			TargetPort:  intstr.FromInt(n.RestServerSocketPort),
+			AppProtocol: pointer.String("tcp"),
+		},
+	}
+}
+
+func clientPort() corev1.ServicePort {
+	return corev1.ServicePort{
+		Name:        n.HazelcastPortName,
+		Port:        n.DefaultHzPort,
+		Protocol:    corev1.ProtocolTCP,
+		TargetPort:  intstr.FromString(n.Hazelcast),
+		AppProtocol: pointer.String("tcp"),
 	}
 }
 
@@ -588,25 +651,13 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 
 func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	cfg := config.Hazelcast{
-		Network: config.Network{
+		AdvancedNetwork: config.AdvancedNetwork{
+			Enabled: true,
 			Join: config.Join{
 				Kubernetes: config.Kubernetes{
 					Enabled:     pointer.Bool(true),
 					ServiceName: h.Name,
-				},
-			},
-			RestAPI: config.RestAPI{
-				Enabled: pointer.Bool(true),
-				EndpointGroups: config.EndpointGroups{
-					HealthCheck: config.EndpointGroup{
-						Enabled: pointer.Bool(true),
-					},
-					ClusterWrite: config.EndpointGroup{
-						Enabled: pointer.Bool(true),
-					},
-					Persistence: config.EndpointGroup{
-						Enabled: pointer.Bool(true),
-					},
+					ServicePort: n.MemberServerSocketPort,
 				},
 			},
 		},
@@ -623,12 +674,12 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
-		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
+		cfg.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
 	}
 
 	if h.Spec.ExposeExternally.IsEnabled() {
-		cfg.Network.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
-		cfg.Network.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
+		cfg.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
+		cfg.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
 	}
 
 	if h.Spec.ClusterName != "" {
@@ -678,6 +729,67 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				Unit:  "MEGABYTES",
 			},
 		}
+	}
+
+	// Member Network
+	cfg.AdvancedNetwork.MemberServerSocketEndpointConfig = config.MemberServerSocketEndpointConfig{
+		Port: config.PortAndPortCount{
+			Port:      n.MemberServerSocketPort,
+			PortCount: 1,
+		},
+	}
+
+	if len(h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces) != 0 {
+		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces = config.EnabledAndInterfaces{
+			Enabled:    true,
+			Interfaces: h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces,
+		}
+	}
+
+	// Client Network
+	cfg.AdvancedNetwork.ClientServerSocketEndpointConfig = config.ClientServerSocketEndpointConfig{
+		Port: config.PortAndPortCount{
+			Port:      n.ClientServerSocketPort,
+			PortCount: 1,
+		},
+	}
+
+	// Rest Network
+	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.Port = config.PortAndPortCount{
+		Port:      n.RestServerSocketPort,
+		PortCount: 1,
+	}
+	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.Persistence.Enabled = pointer.Bool(true)
+	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.HealthCheck.Enabled = pointer.Bool(true)
+	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.ClusterWrite.Enabled = pointer.Bool(true)
+
+	// WAN Network
+	if len(h.Spec.AdvancedNetwork.WAN) > 0 {
+		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
+		for _, w := range h.Spec.AdvancedNetwork.WAN {
+			cfg.AdvancedNetwork.WanServerSocketEndpointConfig[w.Name] = config.WanPort{
+				PortAndPortCount: config.PortAndPortCount{
+					Port:      w.Port,
+					PortCount: w.PortCount,
+				},
+			}
+		}
+	} else { //Default WAN Configuration
+		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
+		for _, w := range h.Spec.AdvancedNetwork.WAN {
+			cfg.AdvancedNetwork.WanServerSocketEndpointConfig[w.Name] = config.WanPort{
+				PortAndPortCount: config.PortAndPortCount{
+					Port:      5710,
+					PortCount: 1,
+				},
+			}
+		}
+	}
+
+	cfg.ManagementCenter = config.ManagementCenterConfig{
+		ScriptingEnabled:  h.Spec.ManagementCenterConfig.ScriptingEnabled,
+		ConsoleEnabled:    h.Spec.ManagementCenterConfig.ConsoleEnabled,
+		DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
 	}
 
 	return cfg
@@ -1161,12 +1273,21 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							ContainerPort: n.DefaultHzPort,
 							Name:          n.Hazelcast,
 							Protocol:      v1.ProtocolTCP,
-						}},
+						}, {
+							ContainerPort: n.MemberServerSocketPort,
+							Name:          n.MemberPortName,
+							Protocol:      v1.ProtocolTCP,
+						}, {
+							ContainerPort: n.RestServerSocketPort,
+							Name:          n.RestPortName,
+							Protocol:      v1.ProtocolTCP,
+						},
+						},
 						LivenessProbe: &v1.Probe{
 							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
-									Port:   intstr.FromInt(n.DefaultHzPort),
+									Port:   intstr.FromInt(n.RestServerSocketPort),
 									Scheme: corev1.URISchemeHTTP,
 								},
 							},
@@ -1180,7 +1301,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
-									Port:   intstr.FromInt(n.DefaultHzPort),
+									Port:   intstr.FromInt(n.RestServerSocketPort),
 									Scheme: corev1.URISchemeHTTP,
 								},
 							},
@@ -1197,6 +1318,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			},
 		},
 	}
+
+	sts.Spec.Template.Spec.Containers[0].Ports = append(sts.Spec.Template.Spec.Containers[0].Ports, wanRepContainers(h)...)
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
@@ -1331,6 +1454,22 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
 		})
+	}
+
+	return c
+}
+
+func wanRepContainers(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
+	var c []v1.ContainerPort
+
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
+		for i := 0; i < int(w.PortCount); i++ {
+			c = append(c, v1.ContainerPort{
+				ContainerPort: int32(int(w.Port) + i),
+				Name:          n.WanPortName + strconv.Itoa(i),
+				Protocol:      v1.ProtocolTCP,
+			})
+		}
 	}
 
 	return c
@@ -1800,6 +1939,12 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 		b.WriteString(" -XX:MaxRAMPercentage=" + v)
 	}
 
+	if args := h.Spec.JVM.GetArgs(); len(args) > 0 {
+		for _, a := range args {
+			b.WriteString(fmt.Sprintf(" %s", a))
+		}
+	}
+
 	jvmGC := h.Spec.JVM.GCConfig()
 
 	if jvmGC.IsLoggingEnabled() {
@@ -1814,12 +1959,6 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 			b.WriteString(" -XX:+UseParallelGC")
 		case hazelcastv1alpha1.GCTypeG1:
 			b.WriteString(" -XX:+UseG1GC")
-		}
-	}
-
-	if v := jvmGC.GetArgs(); len(v) > 0 {
-		for _, a := range v {
-			b.WriteString(fmt.Sprintf(" %s", a))
 		}
 	}
 

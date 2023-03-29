@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.2.1"
+	// +kubebuilder:default:="5.2.3"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -147,6 +147,33 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	NativeMemory *NativeMemoryConfiguration `json:"nativeMemory,omitempty"`
+
+	// Hazelcast Advanced Network configuration
+	// +optional
+	// +kubebuilder:default:={}
+	AdvancedNetwork AdvancedNetwork `json:"advancedNetwork,omitempty"`
+
+	// Hazelcast Management Center Configuration
+	// +optional
+	// +kubebuilder:default:={}
+	ManagementCenterConfig ManagementCenterConfig `json:"managementCenter,omitempty"`
+}
+
+type ManagementCenterConfig struct {
+	// Allows you to execute scripts that can automate interactions with the cluster.
+	// +kubebuilder:default:=false
+	// +optional
+	ScriptingEnabled bool `json:"scriptingEnabled,omitempty"`
+
+	// Allows you to execute commands from a built-in console in the user interface.
+	// +kubebuilder:default:=false
+	// +optional
+	ConsoleEnabled bool `json:"consoleEnabled,omitempty"`
+
+	// Allows you to access contents of Hazelcast data structures via SQL Browser or Map Browser.
+	// +kubebuilder:default:=false
+	// +optional
+	DataAccessEnabled bool `json:"dataAccessEnabled,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE
@@ -311,7 +338,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.15"
+	// +kubebuilder:default:="0.1.16"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
@@ -568,6 +595,10 @@ type JVMConfiguration struct {
 	// GC is for configuring JVM Garbage Collector
 	// +optional
 	GC *JVMGCConfiguration `json:"gc,omitempty"`
+
+	// Args is for arbitrary JVM arguments
+	// +optional
+	Args []string `json:"args,omitempty"`
 }
 
 func (c *JVMConfiguration) GetMemory() *JVMMemoryConfiguration {
@@ -580,6 +611,13 @@ func (c *JVMConfiguration) GetMemory() *JVMMemoryConfiguration {
 func (c *JVMConfiguration) GCConfig() *JVMGCConfiguration {
 	if c != nil {
 		return c.GC
+	}
+	return nil
+}
+
+func (c *JVMConfiguration) GetArgs() []string {
+	if c != nil {
+		return c.Args
 	}
 	return nil
 }
@@ -629,10 +667,6 @@ type JVMGCConfiguration struct {
 	// Collector is the Garbage Collector type
 	// +optional
 	Collector *GCType `json:"collector,omitempty"`
-
-	// Args is for arbitrary garbage collection arguments
-	// +optional
-	Args []string `json:"args,omitempty"`
 }
 
 func (j *JVMGCConfiguration) IsLoggingEnabled() bool {
@@ -647,13 +681,6 @@ func (j *JVMGCConfiguration) GetCollector() GCType {
 		return *j.Collector
 	}
 	return ""
-}
-
-func (j *JVMGCConfiguration) GetArgs() []string {
-	if j != nil && j.Args != nil {
-		return j.Args
-	}
-	return []string{}
 }
 
 // GCType is Garbage Collector type
@@ -711,6 +738,29 @@ type NativeMemoryConfiguration struct {
 
 func (c *NativeMemoryConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (NativeMemoryConfiguration{}))
+}
+
+type AdvancedNetwork struct {
+	// +optional
+	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
+	// +optional
+	WAN []WANConfig `json:"wan,omitempty"`
+}
+
+type WANConfig struct {
+	Port        uint               `json:"port,omitempty"`
+	PortCount   uint               `json:"portCount,omitempty"`
+	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+	Name        string             `json:"name,omitempty"`
+}
+
+type MemberServerSocketEndpointConfig struct {
+	Interfaces []string `json:"interfaces,omitempty"`
+}
+
+type ClientServerSocketEndpointConfig struct {
+	Port       uint     `json:"port,omitempty"`
+	Interfaces []string `json:"interfaces,omitempty"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

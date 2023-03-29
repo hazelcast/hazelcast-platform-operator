@@ -22,7 +22,7 @@ type ReplicatedMapSpec struct {
 	// InMemoryFormat specifies in which format data will be stored in the ReplicatedMap
 	// +kubebuilder:default:=OBJECT
 	// +optional
-	InMemoryFormat InMemoryFormatType `json:"inMemoryFormat,omitempty"`
+	InMemoryFormat RMInMemoryFormatType `json:"inMemoryFormat,omitempty"`
 
 	// HazelcastResourceName defines the name of the Hazelcast resource.
 	// +kubebuilder:validation:MinLength:=1
@@ -34,6 +34,18 @@ type ReplicatedMapSpec struct {
 type ReplicatedMapStatus struct {
 	DataStructureStatus `json:",inline"`
 }
+
+// RMInMemoryFormatType represents the format options for storing the data in the ReplicatedMap.
+// +kubebuilder:validation:Enum=BINARY;OBJECT
+type RMInMemoryFormatType string
+
+const (
+	// RMInMemoryFormatBinary Data will be stored in serialized binary format.
+	RMInMemoryFormatBinary RMInMemoryFormatType = "BINARY"
+
+	// RMInMemoryFormatObject Data will be stored in deserialized form.
+	RMInMemoryFormatObject RMInMemoryFormatType = "OBJECT"
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
@@ -68,18 +80,8 @@ func (mm *ReplicatedMap) GetHZResourceName() string {
 	return mm.Spec.HazelcastResourceName
 }
 
-func (mm *ReplicatedMap) GetStatus() DataStructureConfigState {
-	return mm.Status.State
-}
-
-func (mm *ReplicatedMap) GetMemberStatuses() map[string]DataStructureConfigState {
-	return mm.Status.MemberStatuses
-}
-
-func (mm *ReplicatedMap) SetStatus(status DataStructureConfigState, msg string, memberStatues map[string]DataStructureConfigState) {
-	mm.Status.State = status
-	mm.Status.Message = msg
-	mm.Status.MemberStatuses = memberStatues
+func (mm *ReplicatedMap) GetStatus() *DataStructureStatus {
+	return &mm.Status.DataStructureStatus
 }
 
 func (mm *ReplicatedMap) GetSpec() (string, error) {

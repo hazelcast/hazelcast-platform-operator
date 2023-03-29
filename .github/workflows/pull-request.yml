@@ -374,7 +374,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e-split-kind REPORT_SUFFIX=${{ matrix.edition }}-${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr FOCUSED_TESTS="$(cat suite_files/test_suite_${{ matrix.node_number }})"
+          make test-e2e-split-kind REPORT_SUFFIX=${{ matrix.edition }}_${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr FOCUSED_TESTS="$(cat suite_files/test_suite_${{ matrix.node_number }})"
 
       - name: Upload Test Report
         if: always()

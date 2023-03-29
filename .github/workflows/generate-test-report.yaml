@@ -44,7 +44,7 @@ jobs:
           path: allure-results/${{ inputs.WORKFLOW_ID }}
 
       - name: Merge test-report.xml files
-        run: |-
+        run: |
           source .github/scripts/utils.sh
           merge_xml_test_reports ${{ inputs.WORKFLOW_ID }}
 
@@ -52,7 +52,7 @@ jobs:
         if: always()
         run: |
           sleep 10
-          sed -i 's/<system-err>\[BeforeEach\].*Retrying...&#xA;/<system-err>/' ${GITHUB_WORKSPACE}/allure-results/${{ inputs.WORKFLOW_ID }}/test-report-*.xml
+          sed -i 's/<system-err>\[BeforeEach\].*Retrying...&#xA;/<system-err>/' ${GITHUB_WORKSPACE}/allure-results/${{ inputs.WORKFLOW_ID }}/test_report_*.xml
 
       - name: Create environment.properties
         run: |-
@@ -129,7 +129,7 @@ jobs:
           cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
 
       - name: Add Test Report Summary To PR
-        if: github.event.inputs.WORKFLOW_ID == 'pr'
+        if: ${{ contains(inputs.WORKFLOW_ID, 'pr') }}
         run: |
           sudo apt-get install libxml2-utils
           # Define an array to store test run status
@@ -137,8 +137,8 @@ jobs:
           
           # Define an associative array to map report names to suite IDs
           declare -A suite_ids=(
-              ["test-report-ee-01.xml"]="fb850ba25ceb06c7b2b56dd821744585"
-              ["test-report-os-01.xml"]="0b301d038a17885b818e60273771cfeb"
+              ["test_report_ee_01.xml"]="fb850ba25ceb06c7b2b56dd821744585"
+              ["test_report_os_01.xml"]="0b301d038a17885b818e60273771cfeb"
           )
 
           # Initialize the table header
@@ -160,8 +160,8 @@ jobs:
               suite_id=${suite_ids[$report]}
 
               # Extract the substring "EE" or "OS" from the report name
-              type="${report#test-report-}"
-              type="${type%-01.xml}"
+              type="${report#test_report_}"
+              type="${type%_01.xml}"
 
               # Construct a table row with a link to the test report
               link="$GITHUB_PAGES_URL/pr/${{ github.run_number }}/#suites/${suite_id}"

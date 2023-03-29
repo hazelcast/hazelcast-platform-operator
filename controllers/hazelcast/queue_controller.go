@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -55,24 +56,31 @@ func (r *QueueReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	ms, err := r.ReconcileQueueConfig(ctx, q, cl, logger)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, q, dsPendingStatus(retryAfterForDataStructures).
-			withError(err).
-			withMessage(err.Error()).
-			withMemberStatuses(ms))
+		return updateDSStatus(ctx, r.Client, q, recoptions.RetryAfter(retryAfterForDataStructures),
+			withDSState(hazelcastv1alpha1.DataStructurePending),
+			withDSMessage(err.Error()),
+			withDSMemberStatuses(ms))
 	}
 
-	requeue, err := updateDSStatus(ctx, r.Client, q, dsPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
+	requeue, err := updateDSStatus(ctx, r.Client, q, recoptions.RetryAfter(1*time.Second),
+		withDSState(hazelcastv1alpha1.DataStructurePersisting),
+		withDSMessage("Persisting the applied multiMap config."),
+		withDSMemberStatuses(ms))
 	if err != nil {
 		return requeue, err
 	}
 
 	persisted, err := r.validateQueueConfigPersistence(ctx, q)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, q, dsFailedStatus(err).withMessage(err.Error()))
+		return updateDSStatus(ctx, r.Client, q, recoptions.Error(err),
+			withDSFailedState(err.Error()))
 	}
 
 	if !persisted {
-		return updateDSStatus(ctx, r.Client, q, dsPersistingStatus(1*time.Second).withMessage("Waiting for Queue Config to be persisted."))
+		return updateDSStatus(ctx, r.Client, q, recoptions.RetryAfter(1*time.Second),
+			withDSState(hazelcastv1alpha1.DataStructurePersisting),
+			withDSMessage("Waiting for Queue Config to be persisted."),
+			withDSMemberStatuses(ms))
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, q, logger)
