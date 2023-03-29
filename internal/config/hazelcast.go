@@ -71,12 +71,12 @@ type Jet struct {
 	Enabled               *bool           `yaml:"enabled,omitempty"`
 	ResourceUploadEnabled *bool           `yaml:"resource-upload-enabled,omitempty"`
 	Instance              JetInstance     `yaml:"instance,omitempty"`
-	EdgeDefaults          JetEdgeDefaults `yaml:"edge_defaults,omitempty"`
+	EdgeDefaults          JetEdgeDefaults `yaml:"edge-defaults,omitempty"`
 }
 
 type JetInstance struct {
 	CooperativeThreadCount         int  `yaml:"cooperative-thread-count,omitempty"`
-	FlowControlPeriodMS            int  `yaml:"flow-control-period-ms,omitempty"`
+	FlowControlPeriodMS            int  `yaml:"flow-control-period,omitempty"`
 	BackupCount                    int  `yaml:"backup-count,omitempty"`
 	ScaleUpDelayMS                 int  `yaml:"scale-up-delay-millis,omitempty"`
 	LosslessRestartEnabled         bool `yaml:"lossless-restart-enabled,omitempty"`
