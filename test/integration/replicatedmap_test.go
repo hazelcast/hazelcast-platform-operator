@@ -2,33 +2,21 @@ package integration
 
 import (
 	"context"
-	"fmt"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 var _ = Describe("ReplicatedMap CR", func() {
-	const (
-		namespace = "default"
-	)
-
-	GetRandomObjectMeta := func() metav1.ObjectMeta {
-		return metav1.ObjectMeta{
-			Name:      fmt.Sprintf("hazelcast-test-%s", uuid.NewUUID()),
-			Namespace: namespace,
-		}
-	}
+	const namespace = "default"
 
 	//todo: rename
 	Context("ReplicatedMap CR configuration", func() {
 		When("Using empty configuration", func() {
 			It("should fail to create", Label("fast"), func() {
 				t := &hazelcastv1alpha1.ReplicatedMap{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 				}
 				By("failing to create ReplicatedMap CR")
 				Expect(k8sClient.Create(context.Background(), t)).ShouldNot(Succeed())
@@ -38,7 +26,7 @@ var _ = Describe("ReplicatedMap CR", func() {
 		When("Using default configuration", func() {
 			It("should create ReplicatedMap CR with default configurations", Label("fast"), func() {
 				rm := &hazelcastv1alpha1.ReplicatedMap{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ReplicatedMapSpec{
 						HazelcastResourceName: "hazelcast",
 					},

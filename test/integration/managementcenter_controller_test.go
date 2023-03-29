@@ -499,7 +499,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		})
 	})
 
-	Context("Statefulset Updates", func() {
+	Context("StatefulSet Updates", func() {
 		firstSpec := hazelcastv1alpha1.ManagementCenterSpec{
 			Repository:        "hazelcast/management-center-1",
 			Version:           "5.2",

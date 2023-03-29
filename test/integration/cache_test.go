@@ -3,64 +3,25 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Cache CR", func() {
-	const (
-		namespace = "default"
-	)
+	const namespace = "default"
 
-	GetRandomObjectMeta := func() metav1.ObjectMeta {
-		return metav1.ObjectMeta{
-			Name:      fmt.Sprintf("hazelcast-test-%s", uuid.NewUUID()),
-			Namespace: namespace,
-		}
-	}
-
-	repository := n.HazelcastRepo
-	if ee {
-		repository = n.HazelcastEERepo
-	}
-
-	defaultSpecValues := &test.HazelcastSpecValues{
-		ClusterSize:     n.DefaultClusterSize,
-		Repository:      repository,
-		Version:         n.HazelcastVersion,
-		LicenseKey:      n.LicenseKeySecret,
-		ImagePullPolicy: n.HazelcastImagePullPolicy,
-	}
-
-	Cache := func(cacheSpec hazelcastv1alpha1.CacheSpec) *hazelcastv1alpha1.Cache {
+	cacheOf := func(cacheSpec hazelcastv1alpha1.CacheSpec) *hazelcastv1alpha1.Cache {
 		cs, _ := json.Marshal(cacheSpec)
 		return &hazelcastv1alpha1.Cache{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("cache-test-%s", uuid.NewUUID()),
-				Namespace: namespace,
-				Annotations: map[string]string{
-					n.LastSuccessfulSpecAnnotation: string(cs),
-				},
-			},
-			Spec: cacheSpec,
+			ObjectMeta: randomObjectMeta(namespace, n.LastSuccessfulSpecAnnotation, string(cs)),
+			Spec:       cacheSpec,
 		}
-	}
-
-	Delete := func(obj client.Object) {
-		By("expecting to delete CR successfully")
-		deleteIfExists(lookupKey(obj), obj)
-		By("expecting to CR delete finish")
-		assertDoesNotExist(lookupKey(obj), obj)
 	}
 
 	//todo: rename
@@ -68,7 +29,7 @@ var _ = Describe("Cache CR", func() {
 		When("Using empty configuration", func() {
 			It("should fail to create", Label("fast"), func() {
 				q := &hazelcastv1alpha1.Cache{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 				}
 				By("failing to create Cache CR")
 				Expect(k8sClient.Create(context.Background(), q)).ShouldNot(Succeed())
@@ -78,7 +39,7 @@ var _ = Describe("Cache CR", func() {
 		When("Using default configuration", func() {
 			It("should create Cache CR with default configurations", Label("fast"), func() {
 				q := &hazelcastv1alpha1.Cache{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.CacheSpec{
 						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 							HazelcastResourceName: "hazelcast",
@@ -101,7 +62,7 @@ var _ = Describe("Cache CR", func() {
 
 			It("should create Cache CR with native memory configuration", Label("fast"), func() {
 				q := &hazelcastv1alpha1.Cache{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.CacheSpec{
 						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 							HazelcastResourceName: "hazelcast",
@@ -117,18 +78,19 @@ var _ = Describe("Cache CR", func() {
 				Expect(qs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
 			})
 		})
+
 		It("should fail to update", Label("fast"), func() {
-			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 
 			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: GetRandomObjectMeta(),
+				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       spec,
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			test.CheckHazelcastCR(hz, defaultSpecValues, ee)
+			test.CheckHazelcastCR(hz, defaultHazelcastSpecValues(), ee)
 
-			cache := Cache(hazelcastv1alpha1.CacheSpec{
+			cache := cacheOf(hazelcastv1alpha1.CacheSpec{
 				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 					HazelcastResourceName: hz.Name,
 					BackupCount:           pointer.Int32(3),
@@ -151,8 +113,8 @@ var _ = Describe("Cache CR", func() {
 			}
 			Expect(err).Should(MatchError(ContainSubstring("backupCount cannot be updated")))
 
-			Delete(cache)
-			Delete(hz)
+			deleteResource(lookupKey(cache), cache)
+			deleteResource(lookupKey(hz), hz)
 		})
 	})
 })
