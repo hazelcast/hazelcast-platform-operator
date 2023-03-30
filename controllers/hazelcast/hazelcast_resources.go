@@ -101,7 +101,7 @@ func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcas
 		return fmt.Errorf("could not get Hazelcast dependent %v resources %w", crKind, err)
 	}
 
-	dsItems := objList.(CRLister).GetItems()
+	dsItems := objList.(hazelcastv1alpha1.CRLister).GetItems()
 	if len(dsItems) == 0 {
 		return nil
 	}
@@ -125,7 +125,7 @@ func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcas
 		return fmt.Errorf("hazelcast dependent %v resources are not deleted yet %w", crKind, err)
 	}
 
-	dsItems = objList.(CRLister).GetItems()
+	dsItems = objList.(hazelcastv1alpha1.CRLister).GetItems()
 	if len(dsItems) != 0 {
 		return fmt.Errorf("hazelcast dependent %v resources are not deleted yet", crKind)
 	}
@@ -628,7 +628,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		if len(filteredDSList) == 0 {
 			continue
 		}
-		switch filteredDSList[0].(Type).GetKind() {
+		switch hazelcastv1alpha1.GetKind(filteredDSList[0]) {
 		case "MultiMap":
 			fillHazelcastConfigWithMultiMaps(&cfg, filteredDSList)
 		case "Topic":
@@ -856,7 +856,7 @@ func filterPersistedDS(ctx context.Context, c client.Client, h *hazelcastv1alpha
 		return nil, err
 	}
 	l := make([]client.Object, 0)
-	for _, obj := range objList.(CRLister).GetItems() {
+	for _, obj := range objList.(hazelcastv1alpha1.CRLister).GetItems() {
 		if isDSPersisted(obj) {
 			l = append(l, obj)
 		}

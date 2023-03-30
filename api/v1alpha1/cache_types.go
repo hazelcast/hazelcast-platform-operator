@@ -94,7 +94,7 @@ func (c *Cache) ValidateSpecCurrent(h *Hazelcast) error {
 }
 
 func (c *Cache) ValidateSpecUpdate() error {
-	return ValidateCacheSpecUpdate(c)
+	return validateDSSpecUnchanged(c)
 }
 
 //+kubebuilder:object:root=true

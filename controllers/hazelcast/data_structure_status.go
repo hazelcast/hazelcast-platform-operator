@@ -47,7 +47,7 @@ func (w withDSMemberStatuses) DSStatusApply(ds *hazelcastv1alpha1.DataStructureS
 }
 
 func updateDSStatus(ctx context.Context, c client.Client, obj client.Object, recOption controllers.ReconcilerOption, options ...DSStatusApplier) (ctrl.Result, error) {
-	status := obj.(DataStructure).GetStatus()
+	status := obj.(hazelcastv1alpha1.DataStructure).GetStatus()
 	for _, applier := range options {
 		applier.DSStatusApply(status)
 	}
@@ -58,7 +58,7 @@ func updateDSStatus(ctx context.Context, c client.Client, obj client.Object, rec
 		}
 		return ctrl.Result{}, err
 	}
-	dsStatus := obj.(DataStructure).GetStatus().State
+	dsStatus := obj.(hazelcastv1alpha1.DataStructure).GetStatus().State
 	if recOption.Err != nil {
 		return ctrl.Result{}, recOption.Err
 	}

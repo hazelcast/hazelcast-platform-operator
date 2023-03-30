@@ -31,7 +31,7 @@ func (c *Cache) ValidateCreate() error {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (c *Cache) ValidateUpdate(runtime.Object) error {
 	cachelog.Info("validate update", "name", c.Name)
-	return ValidateCacheSpecUpdate(c)
+	return c.ValidateSpecUpdate()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

@@ -2,10 +2,14 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func ValidateAppliedNativeMemory(inMemoryFormat InMemoryFormatType, h *Hazelcast) *field.Error {
@@ -52,6 +56,43 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) *field.Er
 	}
 
 	return nil
+}
+
+func validateDSSpecUnchanged(obj client.Object) error {
+	var allErrs field.ErrorList
+
+	ok, err := isDSSpecUnchanged(obj)
+	if err != nil {
+		allErrs = append(allErrs, field.InternalError(field.NewPath("spec"), err))
+		return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: GetKind(obj)}, obj.GetName(), allErrs)
+	}
+	if !ok {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec"),
+			"cannot be updated"+err.Error()))
+	}
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: GetKind(obj)}, obj.GetName(), allErrs)
+}
+
+func isDSSpecUnchanged(obj client.Object) (bool, error) {
+	lastSpec, ok := obj.GetAnnotations()[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		return true, nil
+	}
+	ds, ok := obj.(DataStructure)
+	if !ok {
+		return false, errors.New("Object is not a data structure")
+	}
+	newSpec, err := ds.GetSpec()
+	if err != nil {
+		return false, errors.New("Could not get spec of the data structure")
+	}
+	if newSpec != lastSpec {
+		return false, errors.New("Data structure new spec is not equal to old spec")
+	}
+	return true, nil
 }
 
 func appendIfNotNil(errs []*field.Error, err *field.Error) []*field.Error {

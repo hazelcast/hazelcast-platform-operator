@@ -4,10 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -96,9 +93,7 @@ func (q *Queue) ValidateSpecCurrent(_ *Hazelcast) error {
 }
 
 func (q *Queue) ValidateSpecUpdate() error {
-	err := field.Forbidden(field.NewPath("spec"),
-		"cannot be updated")
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Queue"}, q.Name, field.ErrorList{err})
+	return validateDSSpecUnchanged(q)
 }
 
 //+kubebuilder:object:root=true

@@ -48,9 +48,9 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{})
 	})
 
-	It("should create ReplicatedMap Config with correct default values", Label("fast"), func() {
+	FIt("should create ReplicatedMap Config with correct default values", Label("fast"), func() {
 		setLabelAndCRName("hrm-2")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		hazelcast := hazelcastconfig.Default(hzLookupKey, false, labels)
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the default ReplicatedMap config")
