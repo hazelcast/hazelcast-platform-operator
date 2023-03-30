@@ -90,7 +90,7 @@ func isDSSpecUnchanged(obj client.Object) (bool, error) {
 		return false, errors.New("Could not get spec of the data structure")
 	}
 	if newSpec != lastSpec {
-		return false, errors.New("Data structure new spec is not equal to old spec")
+		return false, nil
 	}
 	return true, nil
 }
