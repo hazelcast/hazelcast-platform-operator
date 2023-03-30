@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -350,4 +351,43 @@ var _ = Describe("Hazelcast webhook", func() {
 		})
 	})
 
+	Context("Hazelcast Validation Multiple Errors", func() {
+		It("should return multiple errors", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			}
+			spec.ClusterSize = pointer.Int32(5000)
+			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+				WAN: []hazelcastv1alpha1.WANConfig{
+					{
+						Port:      5701,
+						PortCount: 20,
+					},
+					{
+						Port:      5709,
+						PortCount: 1,
+					},
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+			err := k8sClient.Create(context.Background(), hz)
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.exposeExternally.memberAccess:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.clusterSize:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.advancedNetwork.wan:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.advancedNetwork.wan[0]:")))
+
+		})
+
+	})
 })
