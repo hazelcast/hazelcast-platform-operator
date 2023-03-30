@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"k8s.io/utils/pointer"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -78,7 +79,7 @@ var _ = Describe("Webhook", func() {
 		assertDoesNotExist(lookupKey(obj), obj)
 	}
 
-	Context("Cache Validation", func() {
+	FContext("Cache Validation", func() {
 		It("should fail to update", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 
@@ -111,7 +112,7 @@ var _ = Describe("Webhook", func() {
 				}
 				break
 			}
-			Expect(err).Should(MatchError(ContainSubstring("backupCount cannot be updated")))
+			Expect(err).Should(MatchError(ContainSubstring("spec: Forbidden: cannot be updated")))
 
 			Delete(cache)
 			Delete(hz)
@@ -143,6 +144,7 @@ var _ = Describe("Webhook", func() {
 			for {
 				Expect(k8sClient.Get(
 					context.Background(), types.NamespacedName{Namespace: m.Namespace, Name: m.Name}, m)).Should(Succeed())
+
 				m.Spec.BackupCount = pointer.Int32(5)
 
 				err = k8sClient.Update(context.Background(), m)
@@ -151,7 +153,7 @@ var _ = Describe("Webhook", func() {
 				}
 				break
 			}
-			Expect(err).Should(MatchError(ContainSubstring("backupCount cannot be updated")))
+			Expect(err).Should(MatchError(ContainSubstring("spec.backupCount: Forbidden: field cannot be updated")))
 
 			Delete(m)
 			Delete(hz)

@@ -105,7 +105,6 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	s, createdBefore := m.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-
 	if createdBefore {
 		ms, err := json.Marshal(m.Spec)
 		if err != nil {
@@ -116,19 +115,6 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		if s == string(ms) {
 			logger.Info("Map Config was already applied.", "name", m.Name, "namespace", m.Namespace)
 			return updateMapStatus(ctx, r.Client, m, recoptions.Empty(), withMapState(hazelcastv1alpha1.MapSuccess))
-		}
-		lastSpec := &hazelcastv1alpha1.MapSpec{}
-		err = json.Unmarshal([]byte(s), lastSpec)
-		if err != nil {
-			err = fmt.Errorf("error unmarshaling Last Map Spec: %w", err)
-			return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
-				withMapFailedState(err.Error()))
-		}
-
-		err = hazelcastv1alpha1.ValidateNotUpdatableMapFields(&m.Spec, lastSpec)
-		if err != nil {
-			return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
-				withMapFailedState(err.Error()))
 		}
 	}
 

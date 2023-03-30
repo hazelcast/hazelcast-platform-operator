@@ -1,12 +1,17 @@
 package v1alpha1
 
 import (
-	"errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-func ValidateTopicSpec(t *Topic) error {
+func ValidateTopicSpecCurrent(t *Topic) error {
+	var allErrs field.ErrorList
+
 	if t.Spec.GlobalOrderingEnabled && t.Spec.MultiThreadingEnabled {
-		return errors.New("multi threading can not be enabled when global ordering is used.")
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("multiThreadingEnabled"), t.Spec.MultiThreadingEnabled,
+			"multi threading can not be enabled when global ordering is used."))
 	}
-	return nil
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Topic"}, t.Name, allErrs)
 }

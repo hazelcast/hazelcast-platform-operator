@@ -38,6 +38,8 @@ type DataStructure interface {
 	GetStatus() *hazelcastv1alpha1.DataStructureStatus
 	GetSpec() (string, error)
 	SetSpec(string) error
+	ValidateSpecCurrent(h *hazelcastv1alpha1.Hazelcast) error
+	ValidateSpecUpdate() error
 }
 
 type Update func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error
@@ -85,17 +87,41 @@ func initialSetupDS(ctx context.Context,
 		return nil, ctrl.Result{}, nil
 	}
 
+	// Get Hazelcast
+	ds := obj.(DataStructure)
+	hzLookupKey := types.NamespacedName{Name: ds.GetHZResourceName(), Namespace: nn.Namespace}
+	h := &hazelcastv1alpha1.Hazelcast{}
+	err := c.Get(ctx, hzLookupKey, h)
+	if err != nil {
+		err = fmt.Errorf("could not create/update %v config: Hazelcast resource not found: %w", obj.(Type).GetKind(), err)
+		res, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+			withDSFailedState(err.Error()))
+		return nil, res, err
+	}
+
 	cont, res, err := handleCreatedBefore(ctx, c, obj, logger)
 	if !cont {
 		return nil, res, err
 	}
 
-	cl, res, err := getHZClient(ctx, c, obj, nn.Namespace, obj.(DataStructure).GetHZResourceName(), cs)
+	if err := ds.ValidateSpecCurrent(h); err != nil {
+		res, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+			withDSFailedState(fmt.Sprintf("could not validate spec: %s", err.Error())))
+		return nil, res, err
+	}
+
+	if err := ds.ValidateSpecUpdate(); err != nil {
+		res, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+			withDSFailedState(fmt.Sprintf("could not validate spec: %s", err.Error())))
+		return nil, res, err
+	}
+
+	cl, res, err := getHZClient(ctx, c, obj, h, cs)
 	if cl == nil {
 		return nil, res, err
 	}
 
-	if obj.(DataStructure).GetStatus().State != hazelcastv1alpha1.DataStructurePersisting {
+	if ds.GetStatus().State != hazelcastv1alpha1.DataStructurePersisting {
 		requeue, err := updateDSStatus(ctx, c, obj, recoptions.Empty(),
 			withDSState(hazelcastv1alpha1.Pending),
 			withDSMessage(fmt.Sprintf("Applying new %v configuration.", objKind)))
@@ -155,41 +181,27 @@ func handleCreatedBefore(ctx context.Context, c client.Client, obj client.Object
 			result, err := updateDSStatus(ctx, c, obj, recoptions.Empty(), withDSState(hazelcastv1alpha1.DataStructureSuccess))
 			return false, result, err
 		}
-
-		returnErr := fmt.Errorf("%v is not updatable", objKind)
-		result, err := updateDSStatus(ctx, c, obj, recoptions.Error(returnErr),
-			withDSFailedState(returnErr.Error()))
-		return false, result, err
 	}
 	return true, ctrl.Result{}, nil
 }
 
-func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hzResourceName string, cs hzclient.ClientRegistry) (hzclient.Client, ctrl.Result, error) {
-	h := &hazelcastv1alpha1.Hazelcast{}
-	hzLookup := types.NamespacedName{Namespace: ns, Name: hzResourceName}
-	err := c.Get(ctx, hzLookup, h)
-	if err != nil {
-		err = fmt.Errorf("could not create/update %v config: Hazelcast resource not found: %w", obj.(Type).GetKind(), err)
-		result, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
-			withDSFailedState(err.Error()))
-		return nil, result, err
-	}
+func getHZClient(ctx context.Context, c client.Client, obj client.Object, h *hazelcastv1alpha1.Hazelcast, cs hzclient.ClientRegistry) (hzclient.Client, ctrl.Result, error) {
 	if h.Status.Phase != hazelcastv1alpha1.Running {
-		err = errors.NewServiceUnavailable("Hazelcast CR is not ready")
-		result, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+		err := errors.NewServiceUnavailable("Hazelcast CR is not ready")
+		result, newErr := updateDSStatus(ctx, c, obj, recoptions.Error(err),
 			withDSFailedState(err.Error()))
-		return nil, result, err
+		return nil, result, newErr
 	}
 
-	hzcl, err := cs.GetOrCreate(ctx, hzLookup)
+	hzcl, err := cs.GetOrCreate(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 	if err != nil {
-		err = errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", hzResourceName))
+		err = errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", h.Name))
 		result, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
 			withDSFailedState(err.Error()))
 		return nil, result, err
 	}
 	if !hzcl.Running() {
-		err = fmt.Errorf("trying to connect to the cluster %s", hzResourceName)
+		err = fmt.Errorf("trying to connect to the cluster %s", h.Name)
 		result, err := updateDSStatus(ctx, c, obj, recoptions.RetryAfter(retryAfterForDataStructures),
 			withDSState(hazelcastv1alpha1.Pending),
 			withDSMessage(err.Error()))

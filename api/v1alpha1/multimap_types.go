@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -89,6 +92,16 @@ func (mm *MultiMap) SetSpec(spec string) error {
 		return err
 	}
 	return nil
+}
+
+func (mm *MultiMap) ValidateSpecCurrent(_ *Hazelcast) error {
+	return nil
+}
+
+func (mm *MultiMap) ValidateSpecUpdate() error {
+	err := field.Forbidden(field.NewPath("spec"),
+		"cannot be updated")
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "MultiMap"}, mm.Name, field.ErrorList{err})
 }
 
 //+kubebuilder:object:root=true

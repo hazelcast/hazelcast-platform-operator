@@ -89,6 +89,14 @@ func (c *Cache) SetSpec(spec string) error {
 	return nil
 }
 
+func (c *Cache) ValidateSpecCurrent(h *Hazelcast) error {
+	return ValidateCacheSpecCurrent(c, h)
+}
+
+func (c *Cache) ValidateSpecUpdate() error {
+	return ValidateCacheSpecUpdate(c)
+}
+
 //+kubebuilder:object:root=true
 
 // CacheList contains a list of Cache
