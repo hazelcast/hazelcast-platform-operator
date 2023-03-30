@@ -3,14 +3,15 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/test"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
 var _ = Describe("Cache CR", func() {
@@ -24,9 +25,31 @@ var _ = Describe("Cache CR", func() {
 		}
 	}
 
-	//todo: rename
-	Context("Cache CR configuration", func() {
-		When("Using empty configuration", func() {
+	Context("with default configuration", func() {
+		It("should create successfully", Label("fast"), func() {
+			c := &hazelcastv1alpha1.Cache{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.CacheSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+				},
+			}
+			By("creating Cache CR successfully")
+			Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
+			cs := c.Spec
+
+			By("checking the CR values with default ones")
+			Expect(cs.Name).To(Equal(""))
+			Expect(*cs.BackupCount).To(Equal(n.DefaultCacheBackupCount))
+			Expect(cs.AsyncBackupCount).To(Equal(n.DefaultCacheAsyncBackupCount))
+			Expect(cs.HazelcastResourceName).To(Equal("hazelcast"))
+			Expect(cs.KeyType).To(Equal(""))
+			Expect(cs.ValueType).To(Equal(""))
+			Expect(cs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatBinary))
+		})
+
+		When("using empty spec", func() {
 			It("should fail to create", Label("fast"), func() {
 				q := &hazelcastv1alpha1.Cache{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -35,86 +58,66 @@ var _ = Describe("Cache CR", func() {
 				Expect(k8sClient.Create(context.Background(), q)).ShouldNot(Succeed())
 			})
 		})
+	})
 
-		When("Using default configuration", func() {
-			It("should create Cache CR with default configurations", Label("fast"), func() {
-				q := &hazelcastv1alpha1.Cache{
+	Context("with BackupCount value", func() {
+		When("updating BackupCount", func() {
+			It("should fail to update", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+
+				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
-					Spec: hazelcastv1alpha1.CacheSpec{
-						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-							HazelcastResourceName: "hazelcast",
-						},
-						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
-					},
+					Spec:       spec,
 				}
-				By("creating Cache CR successfully")
-				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-				qs := q.Spec
 
-				By("checking the CR values with default ones")
-				Expect(qs.Name).To(Equal(""))
-				Expect(*qs.BackupCount).To(Equal(n.DefaultCacheBackupCount))
-				Expect(qs.AsyncBackupCount).To(Equal(n.DefaultCacheAsyncBackupCount))
-				Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
-				Expect(qs.KeyType).To(Equal(""))
-				Expect(qs.ValueType).To(Equal(""))
-			})
+				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+				test.CheckHazelcastCR(hz, defaultHazelcastSpecValues(), ee)
 
-			It("should create Cache CR with native memory configuration", Label("fast"), func() {
-				q := &hazelcastv1alpha1.Cache{
-					ObjectMeta: randomObjectMeta(namespace),
-					Spec: hazelcastv1alpha1.CacheSpec{
-						DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-							HazelcastResourceName: "hazelcast",
-						},
-						InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+				cache := cacheOf(hazelcastv1alpha1.CacheSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: hz.Name,
+						BackupCount:           pointer.Int32(3),
 					},
-				}
-				By("creating Cache CR successfully")
-				Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-				qs := q.Spec
+				})
 
-				By("checking the CR values with native memory")
-				Expect(qs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
+				Expect(k8sClient.Create(context.Background(), cache)).Should(Succeed())
+
+				var err error
+				for {
+					Expect(k8sClient.Get(context.Background(), lookupKey(cache), cache)).Should(Succeed())
+					cache.Spec.BackupCount = pointer.Int32(5)
+
+					err = k8sClient.Update(context.Background(), cache)
+					if errors.IsConflict(err) {
+						continue
+					}
+					break
+				}
+				Expect(err).Should(MatchError(ContainSubstring("backupCount cannot be updated")))
+
+				deleteResource(lookupKey(cache), cache)
+				deleteResource(lookupKey(hz), hz)
 			})
 		})
+	})
 
-		It("should fail to update", Label("fast"), func() {
-			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-
-			hz := &hazelcastv1alpha1.Hazelcast{
+	Context("with InMemoryFormat value", func() {
+		It("should create successfully with NativeMemory", Label("fast"), func() {
+			c := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       spec,
-			}
-
-			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			test.CheckHazelcastCR(hz, defaultHazelcastSpecValues(), ee)
-
-			cache := cacheOf(hazelcastv1alpha1.CacheSpec{
-				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-					HazelcastResourceName: hz.Name,
-					BackupCount:           pointer.Int32(3),
+				Spec: hazelcastv1alpha1.CacheSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+					InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
 				},
-			})
-
-			Expect(k8sClient.Create(context.Background(), cache)).Should(Succeed())
-
-			var err error
-			for {
-				Expect(k8sClient.Get(
-					context.Background(), types.NamespacedName{Namespace: cache.Namespace, Name: cache.Name}, cache)).Should(Succeed())
-				cache.Spec.BackupCount = pointer.Int32(5)
-
-				err = k8sClient.Update(context.Background(), cache)
-				if errors.IsConflict(err) {
-					continue
-				}
-				break
 			}
-			Expect(err).Should(MatchError(ContainSubstring("backupCount cannot be updated")))
+			By("creating Cache CR successfully")
+			Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
+			cs := c.Spec
 
-			deleteResource(lookupKey(cache), cache)
-			deleteResource(lookupKey(hz), hz)
+			By("checking the CR value with native memory")
+			Expect(cs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
 		})
 	})
 })

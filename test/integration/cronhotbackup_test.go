@@ -17,9 +17,29 @@ import (
 var _ = Describe("CronHotBackup CR", func() {
 	const namespace = "default"
 
-	Context("CronHotBackup CR configuration", func() {
-		When("CronJob With Empty Spec is created", func() {
-			It("Should fail to create", Label("fast"), func() {
+	Context("with default configuration", func() {
+		It("should create successfully", Label("fast"), func() {
+			chb := &hazelcastv1alpha1.CronHotBackup{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.CronHotBackupSpec{
+					Schedule: "* * * * *",
+					HotBackupTemplate: hazelcastv1alpha1.HotBackupTemplateSpec{
+						Spec: hazelcastv1alpha1.HotBackupSpec{},
+					},
+				},
+			}
+			By("creating CronHotBackup CR successfully")
+			Expect(k8sClient.Create(context.Background(), chb)).Should(Succeed())
+			chbs := chb.Spec
+
+			By("checking the CR values with default ones")
+			Expect(*chbs.SuccessfulHotBackupsHistoryLimit).To(Equal(n.DefaultSuccessfulHotBackupsHistoryLimit))
+			Expect(*chbs.FailedHotBackupsHistoryLimit).To(Equal(n.DefaultFailedHotBackupsHistoryLimit))
+			deleteResource(lookupKey(chb), chb)
+		})
+
+		When("using empty spec", func() {
+			It("should fail to create", Label("fast"), func() {
 				chb := &hazelcastv1alpha1.CronHotBackup{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
@@ -29,30 +49,8 @@ var _ = Describe("CronHotBackup CR", func() {
 			})
 		})
 
-		When("Using default configuration", func() {
-			It("should create CronHotBackup with default values", Label("fast"), func() {
-				chb := &hazelcastv1alpha1.CronHotBackup{
-					ObjectMeta: randomObjectMeta(namespace),
-					Spec: hazelcastv1alpha1.CronHotBackupSpec{
-						Schedule: "* * * * *",
-						HotBackupTemplate: hazelcastv1alpha1.HotBackupTemplateSpec{
-							Spec: hazelcastv1alpha1.HotBackupSpec{},
-						},
-					},
-				}
-				By("creating CronHotBackup CR successfully")
-				Expect(k8sClient.Create(context.Background(), chb)).Should(Succeed())
-				chbs := chb.Spec
-
-				By("checking the CR values with default ones")
-				Expect(*chbs.SuccessfulHotBackupsHistoryLimit).To(Equal(n.DefaultSuccessfulHotBackupsHistoryLimit))
-				Expect(*chbs.FailedHotBackupsHistoryLimit).To(Equal(n.DefaultFailedHotBackupsHistoryLimit))
-				deleteResource(lookupKey(chb), chb)
-			})
-		})
-
-		When("Giving labels and annotations to HotBackup Template", func() {
-			It("should HotBackup with those labels", Label("fast"), func() {
+		When("giving labels and annotations to HotBackup Template", func() {
+			It("should create successfully with those labels", Label("fast"), func() {
 				ans := map[string]string{
 					"annotation1": "val",
 					"annotation2": "val2",
@@ -95,8 +93,7 @@ var _ = Describe("CronHotBackup CR", func() {
 				Expect(hbl.Items[0].Annotations).To(Equal(ans))
 				Expect(hbl.Items[0].Labels).To(Equal(labels))
 
-				// Foreground deletion does not work in integration tests, should delete CronHotBackup without waiting
-				deleteIfExists(lookupKey(chb), chb)
+				deleteResource(lookupKey(chb), chb)
 				Expect(k8sClient.DeleteAllOf(context.Background(), &hazelcastv1alpha1.HotBackup{}, client.InNamespace(namespace))).Should(Succeed())
 			})
 		})

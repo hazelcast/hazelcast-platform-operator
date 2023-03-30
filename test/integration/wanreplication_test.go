@@ -11,8 +11,7 @@ import (
 var _ = Describe("WanReplication CR", func() {
 	const namespace = "default"
 
-	//todo: rename
-	Context("WanReplication CR configuration", func() {
+	Context("with Endpoints configuration", func() {
 		When("endpoints are configured without port", func() {
 			It("should set default port to endpoints", Label("fast"), func() {
 				endpoints := "10.0.0.1,10.0.0.2,10.0.0.3"
