@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -21,10 +20,8 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
-var _ = Describe("ManagementCenter controller", func() {
-	const (
-		namespace = "default"
-	)
+var _ = Describe("ManagementCenter CR", func() {
+	const namespace = "default"
 
 	defaultSpecValues := &test.MCSpecValues{
 		Repository:      n.MCRepo,
@@ -33,14 +30,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		ImagePullPolicy: n.MCImagePullPolicy,
 	}
 
-	GetRandomObjectMeta := func() metav1.ObjectMeta {
-		return metav1.ObjectMeta{
-			Name:      fmt.Sprintf("mc-test-%s", uuid.NewUUID()),
-			Namespace: namespace,
-		}
-	}
-
-	Create := func(obj client.Object) {
+	Create := func(mc *hazelcastv1alpha1.ManagementCenter) {
 		By("creating the CR with specs successfully")
 		Expect(k8sClient.Create(context.Background(), obj)).Should(Succeed())
 	}
@@ -84,20 +74,10 @@ var _ = Describe("ManagementCenter controller", func() {
 		return svc
 	}
 
-	Context("ManagementCenter CustomResource with default specs", func() {
-		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
-			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
-			}
-			Create(mc)
-			fetchedCR := EnsureStatus(mc)
-			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues, false)
-			Delete(mc)
-		})
-
+	Context("with default configuration", func() {
 		It("Should handle CR and sub resources correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
+				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
 			}
 
@@ -151,34 +131,36 @@ var _ = Describe("ManagementCenter controller", func() {
 			Delete(mc)
 
 		})
-		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
-			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
-				Spec: hazelcastv1alpha1.ManagementCenterSpec{
-					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
-				},
-			}
-			Create(mc)
 
-			fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
-			Eventually(func() string {
-				err := k8sClient.Get(context.Background(), lookupKey(mc), fetchedCR)
-				if err != nil {
-					return ""
+		When("applying empty spec", func() {
+			It("should create CR with default values", Label("fast"), func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec: hazelcastv1alpha1.ManagementCenterSpec{
+						HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
+					},
 				}
-				return fetchedCR.Spec.Repository
-			}, timeout, interval).Should(Equal(n.MCRepo))
-			Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
+				Create(mc)
 
-			Delete(mc)
+				fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
+				Eventually(func() string {
+					err := k8sClient.Get(context.Background(), lookupKey(mc), fetchedCR)
+					if err != nil {
+						return ""
+					}
+					return fetchedCR.Spec.Repository
+				}, timeout, interval).Should(Equal(n.MCRepo))
+				Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
+
+				Delete(mc)
+			})
 		})
 	})
 
-	Context("ManagementCenter CustomResource with ExternalConnectivity", func() {
-
+	Context("with ExternalConnectivity configuration", func() {
 		It("should create and update service correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
+				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
 			}
 
@@ -200,7 +182,7 @@ var _ = Describe("ManagementCenter controller", func() {
 
 		It("should handle ingress correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
+				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
 			}
 
@@ -265,11 +247,11 @@ var _ = Describe("ManagementCenter controller", func() {
 		})
 	})
 
-	Context("ManagementCenter CustomResource with Persistence", func() {
+	Context("with Persistence configuration", func() {
 		When("persistence is enabled with existing Volume Claim", func() {
 			It("should add existing Volume Claim to statefulset", Label("fast"), func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
 						Persistence: hazelcastv1alpha1.PersistenceConfiguration{
 							Enabled:                 pointer.Bool(true),
@@ -300,7 +282,8 @@ var _ = Describe("ManagementCenter controller", func() {
 			})
 		})
 	})
-	Context("ManagementCenter Image configuration", func() {
+
+	Context("with Image configuration", func() {
 		When("ImagePullSecrets are defined", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				pullSecrets := []corev1.LocalObjectReference{
@@ -308,7 +291,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					{Name: "mc-secret2"},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
 						ImagePullSecrets: pullSecrets,
 					},
@@ -323,7 +306,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		})
 	})
 
-	Context("Pod scheduling parameters", func() {
+	Context("with PodScheduling parameters", func() {
 		When("NodeSelector is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
@@ -333,7 +316,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
 				Create(mc)
@@ -386,7 +369,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
 				Create(mc)
@@ -412,7 +395,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
 				Create(mc)
@@ -427,7 +410,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		})
 	})
 
-	Context("Resources context", func() {
+	Context("with Resources parameters", func() {
 		When("Resources are used", func() {
 			It("should be set to Container spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
@@ -442,7 +425,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
 				Create(mc)
@@ -499,7 +482,7 @@ var _ = Describe("ManagementCenter controller", func() {
 		})
 	})
 
-	Context("StatefulSet Updates", func() {
+	Context("StatefulSet", func() {
 		firstSpec := hazelcastv1alpha1.ManagementCenterSpec{
 			Repository:        "hazelcast/management-center-1",
 			Version:           "5.2",
@@ -544,10 +527,11 @@ var _ = Describe("ManagementCenter controller", func() {
 				},
 			},
 		}
-		When("Management Center Spec is updated", func() {
-			It("Should forward changes to StatefulSet", Label("fast"), func() {
+
+		When("updating", func() {
+			It("should forward changes to StatefulSet", Label("fast"), func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       firstSpec,
 				}
 

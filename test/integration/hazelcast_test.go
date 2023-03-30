@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
+
 	"github.com/aws/smithy-go/ptr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -16,10 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-	"path"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strconv"
-	"strings"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
@@ -202,7 +203,7 @@ var _ = Describe("Hazelcast CR", func() {
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRoleBinding{})
 		})
 
-		When("using empty spec", func() {
+		When("applying empty spec", func() {
 			It("should create CR with default values", Label("fast"), func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -462,7 +463,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
-	Context("with Scheduling configuration", func() {
+	Context("with PodScheduling parameters", func() {
 		When("NodeSelector is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHzSpecValues, ee)
@@ -943,7 +944,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
-	Context("with Resources configuration", func() {
+	Context("with Resources parameters", func() {
 		When("resources are used", func() {
 			It("should be set to Container spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHzSpecValues, ee)

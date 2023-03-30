@@ -63,7 +63,7 @@ var _ = Describe("Map CR", func() {
 			deleteResource(lookupKey(m), m)
 		})
 
-		When("using empty spec", func() {
+		When("applying empty spec", func() {
 			It("should fail to create", Label("fast"), func() {
 				m := &hazelcastv1alpha1.Map{
 					ObjectMeta: randomObjectMeta(namespace),

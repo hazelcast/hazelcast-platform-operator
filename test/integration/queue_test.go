@@ -2,10 +2,12 @@ package integration
 
 import (
 	"context"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 var _ = Describe("Queue CR", func() {
@@ -35,7 +37,7 @@ var _ = Describe("Queue CR", func() {
 			Expect(qs.PriorityComparatorClassName).To(Equal(""))
 		})
 
-		When("using empty configuration", func() {
+		When("applying empty spec", func() {
 			It("should fail to create", Label("fast"), func() {
 				q := &hazelcastv1alpha1.Queue{
 					ObjectMeta: randomObjectMeta(namespace),

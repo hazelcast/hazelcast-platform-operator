@@ -49,7 +49,7 @@ var _ = Describe("Cache CR", func() {
 			Expect(cs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatBinary))
 		})
 
-		When("using empty spec", func() {
+		When("applying empty spec", func() {
 			It("should fail to create", Label("fast"), func() {
 				q := &hazelcastv1alpha1.Cache{
 					ObjectMeta: randomObjectMeta(namespace),

@@ -38,7 +38,7 @@ var _ = Describe("CronHotBackup CR", func() {
 			deleteResource(lookupKey(chb), chb)
 		})
 
-		When("using empty spec", func() {
+		When("applying empty spec", func() {
 			It("should fail to create", Label("fast"), func() {
 				chb := &hazelcastv1alpha1.CronHotBackup{
 					ObjectMeta: randomObjectMeta(namespace),

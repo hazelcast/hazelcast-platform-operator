@@ -2,10 +2,12 @@ package integration
 
 import (
 	"context"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 var _ = Describe("ReplicatedMap CR", func() {
@@ -30,7 +32,7 @@ var _ = Describe("ReplicatedMap CR", func() {
 			Expect(rms.HazelcastResourceName).To(Equal("hazelcast"))
 		})
 
-		When("using empty spec", func() {
+		When("applying empty spec", func() {
 			It("should fail to create", Label("fast"), func() {
 				t := &hazelcastv1alpha1.ReplicatedMap{
 					ObjectMeta: randomObjectMeta(namespace),
