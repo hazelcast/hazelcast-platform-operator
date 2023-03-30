@@ -788,13 +788,13 @@ func getLogger(ctx context.Context) logr.Logger {
 func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.WanReplication{}).
-		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.beingSuccessfulMapUpdates),
+		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForSuccessfulMap),
 			builder.WithPredicates(predicate.Funcs{
 				CreateFunc: func(createEvent event.CreateEvent) bool {
 					return false
 				},
 				UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-					// to run handler 'beingSuccessfulMapUpdates' function after the map is ready
+					// to run handler 'wanRequestsForSuccessfulMap' function after the map is ready
 					oldMap, ok := updateEvent.ObjectOld.(*hazelcastv1alpha1.Map)
 					if !ok {
 						return false
@@ -813,11 +813,11 @@ func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			}),
 		).
-		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.terminatingMapUpdates)).
+		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForTerminationCandidateMap)).
 		Complete(r)
 }
 
-func (r *WanReplicationReconciler) beingSuccessfulMapUpdates(m client.Object) []reconcile.Request {
+func (r *WanReplicationReconciler) wanRequestsForSuccessfulMap(m client.Object) []reconcile.Request {
 	mp, ok := m.(*hazelcastv1alpha1.Map)
 	if !ok || mp.Status.State != hazelcastv1alpha1.MapSuccess {
 		return []reconcile.Request{}
@@ -831,6 +831,7 @@ func (r *WanReplicationReconciler) beingSuccessfulMapUpdates(m client.Object) []
 	}
 	reqs := []reconcile.Request{}
 	for _, wan := range wanList.Items {
+	resourcesLoop:
 		for _, resource := range wan.Spec.Resources {
 			switch resource.Kind {
 			case hazelcastv1alpha1.ResourceKindMap:
@@ -841,22 +842,25 @@ func (r *WanReplicationReconciler) beingSuccessfulMapUpdates(m client.Object) []
 							Namespace: wan.Namespace,
 						},
 					})
-					break
+					break resourcesLoop
 				}
 			case hazelcastv1alpha1.ResourceKindHZ:
-				reqs = append(reqs, reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      wan.Name,
-						Namespace: wan.Namespace,
-					},
-				})
+				if resource.Name == mp.Spec.HazelcastResourceName {
+					reqs = append(reqs, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      wan.Name,
+							Namespace: wan.Namespace,
+						},
+					})
+					break resourcesLoop
+				}
 			}
 		}
 	}
 	return reqs
 }
 
-func (r *WanReplicationReconciler) terminatingMapUpdates(m client.Object) []reconcile.Request {
+func (r *WanReplicationReconciler) wanRequestsForTerminationCandidateMap(m client.Object) []reconcile.Request {
 	mp, ok := m.(*hazelcastv1alpha1.Map)
 	if !ok {
 		return []reconcile.Request{}

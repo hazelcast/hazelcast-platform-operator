@@ -357,7 +357,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		_ = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	})
 
-	It("should make WanReplication enabled for the maps which are created after the wan", Label("slow"), func() {
+	It("should start WanReplication for the maps which are created after the Wan CR", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -469,13 +469,14 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
 		wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusFailed)
 
+		assertWanStatusMapCount(wan, 2)
+
 		// Creating the map after the WanReplication CR
 		mapCr = hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapAfterWanCR, Namespace: mapLookupKey.Namespace}, hzSource, labels)
 		Expect(k8sClient.Create(context.Background(), mapCr)).Should(Succeed())
 		assertMapStatus(mapCr, hazelcastcomv1alpha1.MapSuccess)
 
 		wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
-		assertWanStatusMapCount(wan, 2)
 	})
 
 })
