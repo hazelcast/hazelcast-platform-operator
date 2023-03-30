@@ -79,7 +79,7 @@ var _ = Describe("Webhook", func() {
 		assertDoesNotExist(lookupKey(obj), obj)
 	}
 
-	FContext("Cache Validation", func() {
+	Context("Cache Validation", func() {
 		It("should fail to update", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 

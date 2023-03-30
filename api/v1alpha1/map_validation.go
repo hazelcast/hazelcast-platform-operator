@@ -80,12 +80,12 @@ func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) []*field.Err
 	}
 	if current.InMemoryFormat != last.InMemoryFormat {
 		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("inMemoryFormat"), fmt.Sprintf("field cannot be updated")))
+			field.Forbidden(field.NewPath("spec").Child("inMemoryFormat"), "field cannot be updated"))
 	}
 
 	if isNearCacheUpdated(current, last) {
 		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("nearCache"), fmt.Sprintf("field cannot be updated")))
+			field.Forbidden(field.NewPath("spec").Child("nearCache"), "field cannot be updated"))
 	}
 
 	if len(allErrs) == 0 {
