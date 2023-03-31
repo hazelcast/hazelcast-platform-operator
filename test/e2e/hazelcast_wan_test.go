@@ -468,15 +468,14 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		)
 		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
 		wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusFailed)
-
-		assertWanStatusMapCount(wan, 2)
-
+		
 		// Creating the map after the WanReplication CR
 		mapCr = hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapAfterWanCR, Namespace: mapLookupKey.Namespace}, hzSource, labels)
 		Expect(k8sClient.Create(context.Background(), mapCr)).Should(Succeed())
 		assertMapStatus(mapCr, hazelcastcomv1alpha1.MapSuccess)
 
 		wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
+		assertWanStatusMapCount(wan, 2)
 	})
 
 })
