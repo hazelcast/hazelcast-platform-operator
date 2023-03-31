@@ -675,19 +675,19 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 
 	// Fill map with WAN configs for each map wan key
 	for hz := range hzClientMap {
-		cm := &corev1.ConfigMap{}
+		cm := &corev1.Secret{}
 		err := r.Client.Get(ctx, types.NamespacedName{Name: hz, Namespace: wan.Namespace}, cm)
 		if err != nil {
-			return false, fmt.Errorf("could not find ConfigMap for wan config persistence")
+			return false, fmt.Errorf("could not find Secret for wan config persistence")
 		}
 
 		hzConfig := &config.HazelcastWrapper{}
-		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 		if err != nil {
-			return false, fmt.Errorf("persisted ConfigMap is not formatted correctly")
+			return false, fmt.Errorf("persisted Secret is not formatted correctly")
 		}
 
-		// Add all map wan configs in Hazelcast ConfigMap
+		// Add all map wan configs in Hazelcast Secret
 		for wanName, wanConfig := range hzConfig.Hazelcast.WanReplication {
 			mapName := splitWanName(wanName)
 			cmMap[wanMapKey(hz, mapName)] = wanConfig
@@ -701,13 +701,13 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 			continue
 		}
 
-		// WAN is not in ConfigMap yet
+		// WAN is not in Config yet
 		wanRep, ok := cmMap[mapWanKey]
 		if !ok {
 			continue
 		}
 
-		// WAN is in ConfigMap but is not correct
+		// WAN is in Config but is not correct
 		realWan := createWanReplicationConfig(v.PublisherId, *wan)
 		if !reflect.DeepEqual(realWan, wanRep) {
 			continue

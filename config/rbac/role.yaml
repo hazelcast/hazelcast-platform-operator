@@ -73,6 +73,7 @@ rules:
   - configmaps
   - events
   - pods
+  - secrets
   - serviceaccounts
   - services
   verbs:
@@ -114,6 +115,7 @@ rules:
   - create
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - apps

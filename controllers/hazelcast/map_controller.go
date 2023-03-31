@@ -401,16 +401,16 @@ func (r *MapReconciler) updateLastSuccessfulConfiguration(ctx context.Context, m
 }
 
 func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (bool, error) {
-	cm := &corev1.ConfigMap{}
+	cm := &corev1.Secret{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace}, cm)
 	if err != nil {
-		return false, fmt.Errorf("could not find ConfigMap for map config persistence")
+		return false, fmt.Errorf("could not find Secret for map config persistence")
 	}
 
 	hzConfig := &config.HazelcastWrapper{}
-	err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+	err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 	if err != nil {
-		return false, fmt.Errorf("persisted ConfigMap is not formatted correctly")
+		return false, fmt.Errorf("persisted Secret is not formatted correctly")
 	}
 
 	mcfg, ok := hzConfig.Hazelcast.Map[m.MapName()]

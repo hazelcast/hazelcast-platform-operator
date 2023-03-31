@@ -71,9 +71,9 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 // Role related to Reconcile() to be able to give Hazelcast Role permissions
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 // Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;secrets;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;watch;get;list,namespace=watched
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;update;watch;get;list,namespace=watched
 
 func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast", req.NamespacedName)
@@ -184,12 +184,12 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	err = r.reconcileConfigMap(ctx, h, logger)
+	err = r.reconcileSecret(ctx, h, logger)
 	if err != nil {
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
-	err = r.reconcileMtlsSecret(ctx, h)
+	err = r.reconcileMTLSSecret(ctx, h)
 	if err != nil {
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}

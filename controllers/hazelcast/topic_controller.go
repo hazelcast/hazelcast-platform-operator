@@ -112,7 +112,7 @@ func fillTopicConfigInput(topicInput *codecTypes.TopicConfig, t *hazelcastv1alph
 }
 
 func (r *TopicReconciler) validateTopicConfigPersistence(ctx context.Context, t *hazelcastv1alpha1.Topic) (bool, error) {
-	hzConfig, err := getHazelcastConfigMap(ctx, r.Client, t)
+	hzConfig, err := getHazelcastConfig(ctx, r.Client, t)
 	if err != nil {
 		return false, err
 	}

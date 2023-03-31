@@ -1,17 +1,21 @@
 package hazelcast
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"hash/crc32"
 	"net"
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	keystore "github.com/pavlo-v-chernykh/keystore-go/v4"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -573,28 +577,39 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	return true
 }
 
-func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	cm := &corev1.ConfigMap{
+func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	cm := &corev1.Secret{
 		ObjectMeta: metadata(h),
 	}
 
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
 	if err != nil {
-		return fmt.Errorf("failed to set owner reference on ConfigMap: %w", err)
+		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
-		cm.Data, err = hazelcastConfigMapData(ctx, r.Client, h)
-		return err
+		config, err := hazelcastConfig(ctx, r.Client, h)
+		if err != nil {
+			return err
+		}
+		keystore, err := hazelcastKeystore(ctx, r.Client, h)
+		if err != nil {
+			return err
+		}
+		cm.Data = map[string][]byte{
+			"hazelcast.yaml": config,
+			"hazelcast.jks":  keystore,
+		}
+		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "ConfigMap", h.Name, "result", opResult)
+		logger.Info("Operation result", "Secret", h.Name, "result", opResult)
 	}
 	return err
 }
 
-func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
-	cfg := hazelcastConfigMapStruct(h)
+func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
+	cfg := hazelcastBasicConfig(h)
 
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
@@ -642,14 +657,10 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		}
 	}
 
-	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
-	if err != nil {
-		return nil, err
-	}
-	return map[string]string{"hazelcast.yaml": string(yml)}, nil
+	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 }
 
-func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
+func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	cfg := config.Hazelcast{
 		AdvancedNetwork: config.AdvancedNetwork{
 			Enabled: true,
@@ -792,7 +803,98 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
 	}
 
+	if h.Spec.TLS.SecretName != "" {
+		var (
+			jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
+			password = "hazelcast"
+		)
+		// require MTLS for member-member communication
+		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
+			Enabled:          pointer.Bool(true),
+			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+			Properties: config.SSLProperties{
+				Protocol:             "TLSv1.2",
+				MutualAuthentication: "REQUIRED",
+				// server cert + key
+				KeyStoreType:     "JKS",
+				KeyStore:         jksPath,
+				KeyStorePassword: password,
+				// trusted cert pool (we use the same file for convince)
+				TrustStoreType:     "JKS",
+				TrustStore:         jksPath,
+				TrustStorePassword: password,
+			},
+		}
+		// for client-server configuration use only server TLS
+		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
+			Enabled:          pointer.Bool(true),
+			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+			Properties: config.SSLProperties{
+				Protocol:         "TLS",
+				KeyStoreType:     "JKS",
+				KeyStore:         jksPath,
+				KeyStorePassword: password,
+			},
+		}
+	}
 	return cfg
+}
+
+func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
+	var (
+		store    = keystore.New()
+		password = []byte("hazelcast")
+	)
+	if h.Spec.TLS.SecretName != "" {
+		cert, key, err := loadTLSKeyPair(ctx, c, h)
+		if err != nil {
+			return nil, err
+		}
+		err = store.SetPrivateKeyEntry("hazelcast", keystore.PrivateKeyEntry{
+			CreationTime: time.Now(),
+			PrivateKey:   key,
+			CertificateChain: []keystore.Certificate{{
+				Type:    "X509",
+				Content: cert,
+			}},
+		}, password)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var b bytes.Buffer
+	if err := store.Store(&b, password); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+func loadTLSKeyPair(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (cert []byte, key []byte, err error) {
+	var s v1.Secret
+	err = c.Get(ctx, types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}, &s)
+	if err != nil {
+		return
+	}
+	cert, err = decodePEM(s.Data["tls.crt"], "CERTIFICATE")
+	if err != nil {
+		return
+	}
+	key, err = decodePEM(s.Data["tls.key"], "PRIVATE KEY")
+	if err != nil {
+		return
+	}
+	return
+}
+
+func decodePEM(data []byte, typ string) ([]byte, error) {
+	b, _ := pem.Decode(data)
+	if b == nil {
+		return nil, fmt.Errorf("expected at least one pem block")
+	}
+	if b.Type != typ {
+		return nil, fmt.Errorf("expected type %v, got %v", typ, b.Type)
+	}
+	return b.Bytes, nil
 }
 
 func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {
@@ -1229,7 +1331,7 @@ func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanRepl
 	return cfg
 }
 
-func (r *HazelcastReconciler) reconcileMtlsSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
 	_, err := r.mtlsClientRegistry.Create(ctx, r.Client, h.Namespace)
 	if err != nil {
 		return err
@@ -1678,11 +1780,9 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		{
 			Name: n.HazelcastStorageName,
 			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: h.Name,
-					},
-					DefaultMode: &[]int32{420}[0],
+				Secret: &v1.SecretVolumeSource{
+					SecretName:  h.Name,
+					DefaultMode: pointer.Int32(420),
 				},
 			},
 		},
@@ -2004,7 +2104,7 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 	if h.Spec.ExposeExternally.IsSmart() {
 		annotations[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccessType())
 	}
-	cfg := config.HazelcastWrapper{Hazelcast: hazelcastConfigMapStruct(h).HazelcastConfigForcingRestart()}
+	cfg := config.HazelcastWrapper{Hazelcast: configForcingRestart(hazelcastBasicConfig(h))}
 	cfgYaml, err := yaml.Marshal(cfg)
 	if err != nil {
 		return nil, err
@@ -2012,6 +2112,24 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 	annotations[n.CurrentHazelcastConfigForcingRestartChecksum] = fmt.Sprint(crc32.ChecksumIEEE(cfgYaml))
 
 	return annotations, nil
+}
+
+func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
+	return config.Hazelcast{
+		ClusterName: hz.ClusterName,
+		AdvancedNetwork: config.AdvancedNetwork{
+			Join: config.Join{
+				Kubernetes: config.Kubernetes{
+					ServicePerPodLabelName:       hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName,
+					ServicePerPodLabelValue:      hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue,
+					UseNodeNameAsExternalAddress: hz.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress,
+				},
+			},
+		},
+		Jet:                hz.Jet,
+		UserCodeDeployment: hz.UserCodeDeployment,
+		Properties:         hz.Properties,
+	}
 }
 
 func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {

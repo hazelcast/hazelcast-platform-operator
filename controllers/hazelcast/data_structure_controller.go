@@ -265,17 +265,17 @@ func sendCodecRequest(
 	return memberStatuses, nil
 }
 
-func getHazelcastConfigMap(ctx context.Context, c client.Client, obj client.Object) (*config.HazelcastWrapper, error) {
-	cm := &corev1.ConfigMap{}
+func getHazelcastConfig(ctx context.Context, c client.Client, obj client.Object) (*config.HazelcastWrapper, error) {
+	cm := &corev1.Secret{}
 	err := c.Get(ctx, types.NamespacedName{Name: obj.(DataStructure).GetHZResourceName(), Namespace: obj.GetNamespace()}, cm)
 	if err != nil {
-		return nil, fmt.Errorf("could not find ConfigMap for %v config persistence", obj.(Type).GetKind())
+		return nil, fmt.Errorf("could not find Secret for %v config persistence", obj.(Type).GetKind())
 	}
 
 	hzConfig := &config.HazelcastWrapper{}
-	err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+	err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 	if err != nil {
-		return nil, fmt.Errorf("persisted ConfigMap is not formatted correctly")
+		return nil, fmt.Errorf("persisted Secret is not formatted correctly")
 	}
 	return hzConfig, nil
 }
