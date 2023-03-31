@@ -395,10 +395,22 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		assertMapStatus(mapCr, hazelcastcomv1alpha1.MapSuccess)
 
 		By("creating WAN configuration")
-		wan := createWanConfig(context.Background(), wanLookupKey, hzTargetCr,
+		wan := hazelcastconfig.WanReplication(
+			wanLookupKey,
+			hzTargetCr.Spec.ClusterName,
+			hzclient.HazelcastUrl(hzTargetCr),
 			[]hazelcastcomv1alpha1.ResourceSpec{
-				{Name: hzSource, Kind: hazelcastcomv1alpha1.ResourceKindHZ},
-			}, 1, labels)
+				{
+					Name: hzSource,
+					Kind: hazelcastcomv1alpha1.ResourceKindHZ,
+				},
+			},
+			labels,
+		)
+		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+		wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
+
+		assertWanStatusMapCount(wan, 1)
 
 		mapSize := 1024
 
@@ -468,7 +480,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		)
 		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
 		wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusFailed)
-		
+
 		// Creating the map after the WanReplication CR
 		mapCr = hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapAfterWanCR, Namespace: mapLookupKey.Namespace}, hzSource, labels)
 		Expect(k8sClient.Create(context.Background(), mapCr)).Should(Succeed())
