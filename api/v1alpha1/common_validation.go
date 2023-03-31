@@ -67,8 +67,7 @@ func validateDSSpecUnchanged(obj client.Object) error {
 		return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: GetKind(obj)}, obj.GetName(), allErrs)
 	}
 	if !ok {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec"),
-			"cannot be updated"+err.Error()))
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec"), "cannot be updated"))
 	}
 	if len(allErrs) == 0 {
 		return nil

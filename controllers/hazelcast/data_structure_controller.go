@@ -88,13 +88,13 @@ func initialSetupDS(ctx context.Context,
 
 	if err := ds.ValidateSpecCurrent(h); err != nil {
 		res, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
-			withDSFailedState(fmt.Sprintf("could not validate spec: %s", err.Error())))
+			withDSFailedState(fmt.Sprintf("could not validate current spec: %s", err.Error())))
 		return nil, res, err
 	}
 
 	if err := ds.ValidateSpecUpdate(); err != nil {
 		res, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
-			withDSFailedState(fmt.Sprintf("could not validate spec: %s", err.Error())))
+			withDSFailedState(fmt.Sprintf("could not validate update in spec: %s", err.Error())))
 		return nil, res, err
 	}
 

@@ -13,5 +13,8 @@ func ValidateTopicSpecCurrent(t *Topic) error {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("multiThreadingEnabled"), t.Spec.MultiThreadingEnabled,
 			"multi threading can not be enabled when global ordering is used."))
 	}
+	if len(allErrs) == 0 {
+		return nil
+	}
 	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Topic"}, t.Name, allErrs)
 }
