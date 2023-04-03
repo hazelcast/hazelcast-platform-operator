@@ -183,6 +183,7 @@ func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		Sleep(1 * Minute)
 	})
 }
 
