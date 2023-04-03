@@ -10,6 +10,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,6 +36,34 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 		return controllerutil.CreateOrUpdate(ctx, c, obj, f)
 	}
 	return opResult, err
+}
+
+func Update(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+	key := client.ObjectKeyFromObject(obj)
+	existing := obj.DeepCopyObject() //nolint
+	if err := mutate(f, key, obj); err != nil {
+		return controllerutil.OperationResultNone, err
+	}
+
+	if equality.Semantic.DeepEqual(existing, obj) {
+		return controllerutil.OperationResultNone, nil
+	}
+
+	if err := c.Update(ctx, obj); err != nil {
+		return controllerutil.OperationResultNone, err
+	}
+	return controllerutil.OperationResultUpdated, nil
+}
+
+// mutate wraps a MutateFn and applies validation to its result.
+func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) error {
+	if err := f(); err != nil {
+		return err
+	}
+	if newKey := client.ObjectKeyFromObject(obj); key != newKey {
+		return fmt.Errorf("MutateFn cannot mutate object name and/or object namespace")
+	}
+	return nil
 }
 
 func CreateOrGet(ctx context.Context, c client.Client, key client.ObjectKey, obj client.Object) error {

@@ -373,7 +373,7 @@ func (r *MapReconciler) updateLastSuccessfulConfiguration(ctx context.Context, m
 		return err
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, m, func() error {
+	opResult, err := util.Update(ctx, r.Client, m, func() error {
 		if m.ObjectMeta.Annotations == nil {
 			m.ObjectMeta.Annotations = map[string]string{}
 		}

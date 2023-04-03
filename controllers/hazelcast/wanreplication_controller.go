@@ -741,7 +741,7 @@ func (r *WanReplicationReconciler) updateLastSuccessfulConfiguration(ctx context
 		return err
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, wan, func() error {
+	opResult, err := util.Update(ctx, r.Client, wan, func() error {
 		if wan.ObjectMeta.Annotations == nil {
 			wan.ObjectMeta.Annotations = map[string]string{}
 		}

@@ -214,7 +214,7 @@ func updateLastSuccessfulConfigurationDS(ctx context.Context, c client.Client, o
 	if err != nil {
 		return err
 	}
-	opResult, err := util.CreateOrUpdate(ctx, c, obj, func() error {
+	opResult, err := util.Update(ctx, c, obj, func() error {
 		annotations := obj.GetAnnotations()
 		if annotations == nil {
 			annotations = map[string]string{}
