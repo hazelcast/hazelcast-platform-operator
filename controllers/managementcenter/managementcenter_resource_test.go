@@ -33,7 +33,7 @@ func Test_clusterAddCommand(t *testing.T) {
 					},
 				},
 			},
-			want: "./bin/mc-conf.sh cluster add --lenient=true -H /data -cn dev -ma hazelcast",
+			want: "./bin/mc-conf.sh cluster add --lenient=true -H /data --client-config /config/dev.xml",
 		},
 		{
 			name: "Two Clusters Defined",
@@ -51,7 +51,7 @@ func Test_clusterAddCommand(t *testing.T) {
 					},
 				},
 			},
-			want: "./bin/mc-conf.sh cluster add --lenient=true -H /data -cn dev -ma hazelcast && ./bin/mc-conf.sh cluster add --lenient=true -H /data -cn prod -ma hazelcast-prod",
+			want: "./bin/mc-conf.sh cluster add --lenient=true -H /data --client-config /config/dev.xml && ./bin/mc-conf.sh cluster add --lenient=true -H /data --client-config /config/prod.xml",
 		},
 	}
 	for _, tt := range tests {

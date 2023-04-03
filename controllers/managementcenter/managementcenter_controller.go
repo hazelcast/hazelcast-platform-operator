@@ -103,6 +103,11 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 	}
 
+	err = r.reconcileSecret(ctx, mc, logger)
+	if err != nil {
+		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
+	}
+
 	err = r.reconcileStatefulset(ctx, mc, logger)
 	if err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here

@@ -29,7 +29,7 @@ import (
 func fakeK8sClient(initObjs ...client.Object) client.Client {
 	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
 		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{},
-			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.ConfigMap{}).
+			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.Secret{}).
 		Build()
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 }

@@ -68,11 +68,11 @@ func getStatefulSet(cr metav1.Object) *appsv1.StatefulSet {
 	return sts
 }
 
-func getConfigMap(cr metav1.Object) *v1.ConfigMap {
-	cfg := &v1.ConfigMap{}
+func getSecret(cr metav1.Object) *v1.Secret {
+	s := &v1.Secret{}
 	Eventually(func() error {
-		return k8sClient.Get(context.Background(), lookupKey(cr), cfg)
+		return k8sClient.Get(context.Background(), lookupKey(cr), s)
 	}, timeout, interval).Should(Succeed())
 
-	return cfg
+	return s
 }

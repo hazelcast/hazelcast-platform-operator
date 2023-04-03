@@ -112,7 +112,7 @@ func fillReplicatedConfigInput(replicatedMapInput *codecTypes.ReplicatedMapConfi
 }
 
 func (r *ReplicatedMapReconciler) validateReplicatedMapConfigPersistence(ctx context.Context, rm *hazelcastv1alpha1.ReplicatedMap) (bool, error) {
-	hzConfig, err := getHazelcastConfigMap(ctx, r.Client, rm)
+	hzConfig, err := getHazelcastConfig(ctx, r.Client, rm)
 	if err != nil {
 		return false, err
 	}

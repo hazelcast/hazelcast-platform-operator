@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/x509"
 	"sync"
 
 	"github.com/hazelcast/hazelcast-go-client/logger"
@@ -9,6 +10,7 @@ import (
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -29,7 +31,6 @@ func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.Nam
 	if err != nil {
 		return nil, err
 	}
-
 	client, ok := cr.Get(nn)
 	if ok {
 		return client, nil
@@ -38,7 +39,19 @@ func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.Nam
 	if err != nil {
 		return nil, err
 	}
-	c, err := NewClient(ctx, BuildConfig(h, hzLogger))
+	var pool *x509.CertPool
+	if h.Spec.TLS.SecretName != "" {
+		var s v1.Secret
+		err = cr.K8sClient.Get(ctx, types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}, &s)
+		if err != nil {
+			return nil, err
+		}
+		pool = x509.NewCertPool()
+		if ok := pool.AppendCertsFromPEM(s.Data[v1.TLSCertKey]); !ok {
+			return nil, err
+		}
+	}
+	c, err := NewClient(ctx, BuildConfig(h, pool, hzLogger))
 	if err != nil {
 		return nil, err
 	}

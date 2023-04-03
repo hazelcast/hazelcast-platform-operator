@@ -575,7 +575,7 @@ func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcas
 }
 
 func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, caches ...string) *config.HazelcastWrapper {
-	cm := &corev1.ConfigMap{}
+	cm := &corev1.Secret{}
 	returnConfig := &config.HazelcastWrapper{}
 	Eventually(func() []string {
 		hzConfig := &config.HazelcastWrapper{}
@@ -586,7 +586,7 @@ func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, cach
 		if err != nil {
 			return nil
 		}
-		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 		if err != nil {
 			return nil
 		}
@@ -601,7 +601,7 @@ func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, cach
 }
 
 func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps ...string) *config.HazelcastWrapper {
-	cm := &corev1.ConfigMap{}
+	cm := &corev1.Secret{}
 	returnConfig := &config.HazelcastWrapper{}
 	Eventually(func() []string {
 		hzConfig := &config.HazelcastWrapper{}
@@ -612,7 +612,7 @@ func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps .
 		if err != nil {
 			return nil
 		}
-		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 		if err != nil {
 			return nil
 		}
