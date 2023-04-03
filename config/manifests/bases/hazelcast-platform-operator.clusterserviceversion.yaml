@@ -35,6 +35,11 @@ spec:
       kind: HotBackup
       name: hotbackups.hazelcast.com
       version: v1alpha1
+    - description: JetJob is the Schema for the jetjobs API
+      displayName: Jet Job
+      kind: JetJob
+      name: jetjobs.hazelcast.com
+      version: v1alpha1
     - description: ManagementCenter is the Schema for the managementcenters API
       displayName: Management Center
       kind: ManagementCenter

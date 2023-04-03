@@ -250,6 +250,19 @@ func main() {
 
 	setupWithWebhookOrDie(mgr)
 
+	if err = hazelcast.NewJetJobReconciler(
+		mgr.GetClient(),
+		controllerLogger.WithName("JetJob"),
+		cr,
+		phoneHomeTrigger,
+	).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "JetJob")
+		os.Exit(1)
+	}
+	if err = (&hazelcastcomv1alpha1.JetJob{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "JetJob")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
