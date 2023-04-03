@@ -1,0 +1,48 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  clusterSize: 3
+  repository: 'docker.io/hazelcast/hazelcast-enterprise'
+  jet:
+    enabled: true
+    resourceUploadEnabled: true
+  userCodeDeployment:
+    bucketConfig:
+      secret: br-secret-gcp
+      bucketURI: "gs://operator-user-code/jetJobs"
+  version: '5.3.0-SNAPSHOT'
+  licenseKeySecret: hazelcast-license-key
+---
+apiVersion: hazelcast.com/v1alpha1
+kind: JetJob
+metadata:
+  labels:
+    app.kubernetes.io/name: jetjob
+    app.kubernetes.io/instance: jetjob-sample
+    app.kubernetes.io/part-of: hazelcast-platform-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: hazelcast-platform-operator
+  name: jet-job-sample
+spec:
+  name: my-test-jet-job
+  hazelcastResourceName: hazelcast
+  state: Running
+  jarName: jet-pipeline-1.0.2.jar
+---
+apiVersion: hazelcast.com/v1alpha1
+kind: JetJob
+metadata:
+  labels:
+    app.kubernetes.io/name: jetjob
+    app.kubernetes.io/instance: jetjob-sample
+    app.kubernetes.io/part-of: hazelcast-platform-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: hazelcast-platform-operator
+  name: jet-job-sample-2
+spec:
+  name: slow-job
+  hazelcastResourceName: hazelcast
+  state: Running
+  jarName: jet-slow-pipeline-1.0.0.jar

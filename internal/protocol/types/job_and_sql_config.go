@@ -46,3 +46,11 @@ type JobMetaData struct {
 	MainClass     string
 	JobParameters []string
 }
+
+func DefaultExistingJarJobMetaData(jobName string, jarName string) JobMetaData {
+	return JobMetaData{
+		JobName:     jobName,
+		FileName:    jarName,
+		JarOnMember: true,
+	}
+}

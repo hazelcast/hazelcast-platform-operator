@@ -91,6 +91,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-hazelcast-com-v1alpha1-jetjob
+  failurePolicy: Fail
+  name: vjetjob.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - jetjobs
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-hazelcast-com-v1alpha1-managementcenter
   failurePolicy: Ignore
   name: vmanagementcenter.kb.io
