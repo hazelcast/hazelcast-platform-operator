@@ -311,18 +311,27 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 }
 
 func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration) {
-	if jc != nil {
-		isMemoryConfigured := jc.Memory != nil &&
-			(jc.Memory.MaxRAMPercentage != nil || jc.Memory.MinRAMPercentage != nil || jc.Memory.InitialRAMPercentage != nil)
+	if jc == nil {
+		return
+	}
 
-		isGCConfigured := jc.GC != nil &&
-			(jc.GC.Logging != nil || jc.GC.Collector != nil)
+	if jc.Memory != nil &&
+		(jc.Memory.MaxRAMPercentage != nil ||
+			jc.Memory.MinRAMPercentage != nil ||
+			jc.Memory.InitialRAMPercentage != nil) {
+		j.Count += 1
+		return
+	}
 
-		isArgsConfigured := len(jc.Args) > 0
+	if jc.GC != nil &&
+		(jc.GC.Logging != nil || jc.GC.Collector != nil) {
+		j.Count += 1
+		return
+	}
 
-		if isMemoryConfigured || isGCConfigured || isArgsConfigured {
-			j.Count += 1
-		}
+	if len(jc.Args) > 0 {
+		j.Count += 1
+		return
 	}
 }
 
