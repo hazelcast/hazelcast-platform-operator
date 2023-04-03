@@ -150,7 +150,13 @@ func indexConfigEquals(a, b IndexConfig) bool {
 		return false
 	}
 
-	if a.BitmapIndexOptions != b.BitmapIndexOptions {
+	// if both a and b not nil
+	if (a.BitmapIndexOptions != nil) && (b.BitmapIndexOptions != nil) {
+		return *a.BitmapIndexOptions != *b.BitmapIndexOptions
+	}
+
+	// If one of a and b not nil
+	if (a.BitmapIndexOptions != nil) || (b.BitmapIndexOptions != nil) {
 		return false
 	}
 	return true
