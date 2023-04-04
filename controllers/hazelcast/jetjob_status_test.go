@@ -99,3 +99,11 @@ func (f fakeJetService) JobSummary(ctx context.Context, job *hazelcastv1alpha1.J
 func (f fakeJetService) JobSummaries(_ context.Context) ([]codecTypes.JobAndSqlSummary, error) {
 	return f.jobs, nil
 }
+
+func (f fakeJetService) UpdateJobState(_ context.Context, _ codecTypes.JetTerminateJob) error {
+	return nil
+}
+
+func (f fakeJetService) ResumeJob(_ context.Context, _ int64) error {
+	return nil
+}

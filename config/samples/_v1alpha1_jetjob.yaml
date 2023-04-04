@@ -40,9 +40,9 @@ metadata:
     app.kubernetes.io/part-of: hazelcast-platform-operator
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: hazelcast-platform-operator
-  name: jet-job-sample-2
+  name: jet-job-longrun
 spec:
-  name: slow-job
+  name: jet-job-longrun
   hazelcastResourceName: hazelcast
   state: Running
-  jarName: jet-slow-pipeline-1.0.0.jar
+  jarName: jet-pipeline-longrun-2.0.0.jar

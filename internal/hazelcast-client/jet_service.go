@@ -12,6 +12,8 @@ type JetService interface {
 	RunJob(ctx context.Context, jobMetadata types.JobMetaData) error
 	JobSummary(ctx context.Context, job *hazelcastv1alpha1.JetJob) (types.JobAndSqlSummary, error)
 	JobSummaries(ctx context.Context) ([]types.JobAndSqlSummary, error)
+	UpdateJobState(ctx context.Context, job types.JetTerminateJob) error
+	ResumeJob(ctx context.Context, jobId int64) error
 }
 
 type HzJetService struct {
@@ -22,6 +24,18 @@ func NewJetService(client Client) JetService {
 	return &HzJetService{
 		client: client,
 	}
+}
+
+func (h HzJetService) ResumeJob(ctx context.Context, jobId int64) error {
+	request := codec.EncodeJetResumeJobRequest(jobId)
+	_, err := h.client.InvokeOnRandomTarget(ctx, request, nil)
+	return err
+}
+
+func (h HzJetService) UpdateJobState(ctx context.Context, job types.JetTerminateJob) error {
+	request := codec.EncodeJetTerminateJobRequest(job)
+	_, err := h.client.InvokeOnRandomTarget(ctx, request, nil)
+	return err
 }
 
 func (h HzJetService) RunJob(ctx context.Context, jobMetadata types.JobMetaData) error {
