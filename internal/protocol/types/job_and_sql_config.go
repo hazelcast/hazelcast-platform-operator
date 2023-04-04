@@ -18,6 +18,23 @@ package types
 
 import "github.com/hazelcast/hazelcast-go-client/types"
 
+type TerminateMode int32
+
+const (
+	RestartGracefully TerminateMode = iota
+	RestartForcefully
+	SuspendGracefully
+	SuspendForcefully
+	CancelGracefully
+	CancelForcefully
+)
+
+type JetTerminateJob struct {
+	JobId               int64
+	TerminateMode       TerminateMode
+	LightJobCoordinator types.UUID
+}
+
 type JobAndSqlSummary struct {
 	LightJob        bool
 	JobId           int64

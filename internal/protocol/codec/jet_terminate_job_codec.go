@@ -18,7 +18,8 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
-	"github.com/hazelcast/hazelcast-go-client/types"
+
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 const (
@@ -31,14 +32,14 @@ const (
 	JetTerminateJobCodecRequestInitialFrameSize          = JetTerminateJobCodecRequestLightJobCoordinatorOffset + proto.UuidSizeInBytes
 )
 
-func EncodeJetTerminateJobRequest(jobId int64, terminateMode int32, lightJobCoordinator types.UUID) *proto.ClientMessage {
+func EncodeJetTerminateJobRequest(job codecTypes.JetTerminateJob) *proto.ClientMessage {
 	clientMessage := proto.NewClientMessageForEncode()
 	clientMessage.SetRetryable(false)
 
 	initialFrame := proto.NewFrameWith(make([]byte, JetTerminateJobCodecRequestInitialFrameSize), proto.UnfragmentedMessage)
-	EncodeLong(initialFrame.Content, JetTerminateJobCodecRequestJobIdOffset, jobId)
-	EncodeInt(initialFrame.Content, JetTerminateJobCodecRequestTerminateModeOffset, terminateMode)
-	EncodeUUID(initialFrame.Content, JetTerminateJobCodecRequestLightJobCoordinatorOffset, lightJobCoordinator)
+	EncodeLong(initialFrame.Content, JetTerminateJobCodecRequestJobIdOffset, job.JobId)
+	EncodeInt(initialFrame.Content, JetTerminateJobCodecRequestTerminateModeOffset, int32(job.TerminateMode))
+	EncodeUUID(initialFrame.Content, JetTerminateJobCodecRequestLightJobCoordinatorOffset, job.LightJobCoordinator)
 	clientMessage.AddFrame(initialFrame)
 	clientMessage.SetMessageType(JetTerminateJobCodecRequestMessageType)
 	clientMessage.SetPartitionId(-1)

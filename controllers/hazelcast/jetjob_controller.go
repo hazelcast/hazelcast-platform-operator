@@ -55,10 +55,10 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	err = r.Client.Get(ctx, req.NamespacedName, jj)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
-			logger.Info("HotBackup resource not found. Ignoring since object must be deleted")
+			logger.Info("JetJob resource not found. Ignoring since object must be deleted")
 			return result, nil
 		}
-		logger.Error(err, "Failed to get HotBackup")
+		logger.Error(err, "Failed to get JetJob")
 		return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
 	}
 
@@ -67,7 +67,7 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
 	}
 
-	//Check if the HotBackup CR is marked to be deleted
+	//Check if the JetJob CR is marked to be deleted
 	if jj.GetDeletionTimestamp() != nil {
 		err = r.executeFinalizer(ctx, jj)
 		if err != nil {
@@ -77,7 +77,7 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return
 	}
 
-	if jj.Status.Phase.IsRunning() {
+	if jj.Status.Phase.IsRunning() && jj.Spec.State == hazelcastv1alpha1.RunningJobState {
 		logger.Info("JetJob is already running.",
 			"name", jj.Name, "namespace", jj.Namespace, "state", jj.Status.Phase)
 		return
@@ -118,12 +118,12 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 		return
 	}
-	return r.startJetJob(ctx, jj, hazelcastName, logger)
+	return r.applyJetJob(ctx, jj, hazelcastName, logger)
 }
 
-func (r *JetJobReconciler) startJetJob(ctx context.Context, job *hazelcastv1alpha1.JetJob, hazelcastName types.NamespacedName, logger logr.Logger) (ctrl.Result, error) {
-	logger.Info("Starting Jet Job")
-	defer logger.Info("Jet Job triggered")
+func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alpha1.JetJob, hazelcastName types.NamespacedName, logger logr.Logger) (ctrl.Result, error) {
+	logger.Info("Applying Jet Job")
+	defer logger.Info("Jet Job applied")
 
 	jjnn := types.NamespacedName{Name: job.Name, Namespace: job.Namespace}
 	c, err := r.ClientRegistry.GetOrCreate(ctx, hazelcastName)
@@ -136,18 +136,51 @@ func (r *JetJobReconciler) startJetJob(ctx context.Context, job *hazelcastv1alph
 	if !ok {
 		logger.Error(fmt.Errorf("unable to cast jetJobStatusChecker"), "wrong type")
 	}
+	js := hzclient.NewJetService(c)
+	if job.Spec.State != hazelcastv1alpha1.RunningJobState {
+		err = r.changeJobState(ctx, job, js)
+		return ctrl.Result{}, err
+	}
+	if job.Status.Phase.IsSuspended() && job.Spec.State == hazelcastv1alpha1.RunningJobState {
+		err = js.ResumeJob(ctx, job.Status.Id)
+		return ctrl.Result{}, err
+	}
+
 	checker.storeJob(job.JobName(), jjnn)
 
-	js := hzclient.NewJetService(c)
 	metaData := codecTypes.DefaultExistingJarJobMetaData(job.JobName(), path.Join(n.UserCodeBucketPath, job.Spec.JarName))
 	if job.Spec.MainClass != "" {
 		metaData.MainClass = job.Spec.MainClass
 	}
-	if err = js.RunJob(ctx, metaData); err != nil {
-		return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
-	}
+	go func(ctx context.Context, metaData codecTypes.JobMetaData, jjnn types.NamespacedName, logger logr.Logger) {
+		if err = js.RunJob(ctx, metaData); err != nil {
+			logger.Error(err, "Error running JetJob")
+			_, _ = r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+		}
+	}(ctx, metaData, jjnn, logger)
 	checker.runChecker(ctx, js, r.updateJob, logger)
 	return r.updateStatus(ctx, jjnn, jetJobWithStatus(hazelcastv1alpha1.JetJobStarting))
+}
+
+func (r *JetJobReconciler) changeJobState(ctx context.Context, jj *hazelcastv1alpha1.JetJob, js hzclient.JetService) error {
+	jtj := codecTypes.JetTerminateJob{
+		JobId:         jj.Status.Id,
+		TerminateMode: jetJobTerminateMode(jj.Spec.State),
+	}
+	return js.UpdateJobState(ctx, jtj)
+}
+
+func jetJobTerminateMode(jjs hazelcastv1alpha1.JetJobState) codecTypes.TerminateMode {
+	switch jjs {
+	case hazelcastv1alpha1.SuspendedJobState:
+		return codecTypes.SuspendGracefully
+	case hazelcastv1alpha1.CanceledJobState:
+		return codecTypes.CancelGracefully
+	case hazelcastv1alpha1.RestartedJobState:
+		return codecTypes.RestartGracefully
+	default:
+		return codecTypes.CancelGracefully
+	}
 }
 
 func (r *JetJobReconciler) updateJob(ctx context.Context, summary codecTypes.JobAndSqlSummary, name types.NamespacedName) {
@@ -165,7 +198,9 @@ func (r *JetJobReconciler) updateJob(ctx context.Context, summary codecTypes.Job
 	job.Status.Phase = jobStatusPhase(summary.Status)
 	job.Status.Id = summary.JobId
 	job.Status.SubmissionTime = &metav1.Time{Time: time.Unix(0, summary.SubmissionTime*int64(time.Millisecond))}
-	job.Status.CompletionTime = &metav1.Time{Time: time.Unix(0, summary.CompletionTime*int64(time.Millisecond))}
+	if summary.CompletionTime != 0 {
+		job.Status.CompletionTime = &metav1.Time{Time: time.Unix(0, summary.CompletionTime*int64(time.Millisecond))}
+	}
 	job.Status.SuspensionCause = summary.SuspensionCause
 	job.Status.FailureText = summary.FailureText
 	err = r.Status().Update(ctx, job)
