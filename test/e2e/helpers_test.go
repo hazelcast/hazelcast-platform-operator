@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/watch"
 	"log"
 	"net"
 	"net/http"
@@ -184,6 +185,38 @@ func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 			log.Fatal(err)
 		}
 	})
+}
+
+func WaitForPodReady(podName string, lk types.NamespacedName, timeout time.Duration) {
+	watcher, err := getClientSet().CoreV1().Pods(lk.Namespace).Watch(context.Background(), metav1.ListOptions{FieldSelector: "metadata.name=" + podName})
+	if err != nil {
+		log.Fatalf("failed to create pod watcher: %v", err)
+	}
+	defer watcher.Stop()
+	timeoutCh := time.After(timeout)
+
+	for {
+		select {
+		case event, eventOk := <-watcher.ResultChan():
+			if !eventOk {
+				log.Fatal("watch channel closed before pod became ready")
+			}
+			if event.Type == watch.Modified {
+				pod, ok := event.Object.(*corev1.Pod)
+				if !ok {
+					log.Fatalf("unexpected object type: %v", event.Object)
+				}
+				for _, c := range pod.Status.Conditions {
+					if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
+						return
+					}
+				}
+			}
+		case <-timeoutCh:
+			watcher.Stop()
+			log.Fatalf("timed out waiting for pod %s to become ready in namespace %s", podName, lk.Namespace)
+		}
+	}
 }
 
 func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *hzClient.Client {

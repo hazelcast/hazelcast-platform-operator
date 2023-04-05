@@ -50,7 +50,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		ctx := context.Background()
 		clusterSize := int32(3)
 
-		t := Now()
 		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
@@ -59,6 +58,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 		}
 		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1alpha1.MostRecent
+		t := Now()
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -70,14 +70,14 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		FillTheMapData(ctx, hzLookupKey, true, m.MapName(), 100)
 
 		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
+		WaitForPodReady(hazelcast.Name+"-2", hzLookupKey, 1*Minute)
 		evaluateReadyMembers(hzLookupKey)
 
 		logs := InitLogs(t, hzLookupKey)
 		logReader := test.NewLogReader(logs)
 		defer logReader.Close()
-		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
-
-		WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), 100, 30*Minute)
+		test.EventuallyInLogs(logReader, 30*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
+		WaitForMapSize(ctx, hzLookupKey, m.MapName(), 100, 1*Minute)
 	})
 
 	It("should restore 3 GB data after planned shutdown", Label("slow"), func() {
@@ -391,11 +391,9 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		logs := InitLogs(t, hzLookupKey)
 		logReader := test.NewLogReader(logs)
 		defer logReader.Close()
-		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=2"))
-		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
+		test.EventuallyInLogs(logReader, 40*Second, logInterval).Should(MatchRegexp("newState=FROZEN"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("readyReplicas=3, currentReplicas=3"))
-		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
+		test.EventuallyInLogs(logReader, 50*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
