@@ -908,7 +908,7 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		for _, mapCrName := range mapCrNames {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: ns}, hzCrName, labels)
 			mapCrs[mapCrName] = m
-			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 		}
 	}
 
@@ -928,7 +928,7 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 		resources,
 		labels,
 	)
-	Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
 	wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	wan = assertWanStatusMapCount(wan, mapCount)
 	return wan
@@ -940,13 +940,13 @@ func CreateMcForClusters(ctx context.Context, hzCrs ...*hazelcastcomv1alpha1.Haz
 		clusters = append(clusters, hazelcastcomv1alpha1.HazelcastClusterConfig{Name: hz.Spec.ClusterName, Address: hzclient.HazelcastUrl(hz)})
 	}
 	mc := mcconfig.WithClusterConfig(mcLookupKey, ee, clusters, labels)
-	Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
+	Expect(k8sClient.Create(ctx, mc)).Should(Succeed())
 }
 
 func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLookupKey types.NamespacedName) *hazelcastcomv1alpha1.Map {
 	m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: hzLookupKey.Namespace}, hzLookupKey.Name, labels)
 	m.Spec.Name = mapName
-	Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+	Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 	assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 	return m
 }
