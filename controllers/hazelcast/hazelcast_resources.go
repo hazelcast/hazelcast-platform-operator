@@ -349,12 +349,8 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
-		service.Spec.Ports = hazelcastPort()
 		service.Spec.Type = serviceType(h)
-		if serviceType(h) == corev1.ServiceTypeClusterIP {
-			// dirty hack to prevent the error when changing the service type
-			service.Spec.Ports[0].NodePort = 0
-		}
+		service.Spec.Ports = util.EnrichServiceNodePorts(hazelcastPort(), service.Spec.Ports)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -390,7 +386,7 @@ func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h 
 		}
 
 		opResult, _ := util.CreateOrUpdate(ctx, r.Client, service, func() error {
-			service.Spec.Ports = ports
+			service.Spec.Ports = util.EnrichServiceNodePorts(ports, service.Spec.Ports)
 			service.Spec.Type = w.ServiceType
 			return nil
 		})
@@ -434,7 +430,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		}
 
 		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
-			service.Spec.Ports = []corev1.ServicePort{clientPort()}
+			service.Spec.Ports = util.EnrichServiceNodePorts([]corev1.ServicePort{clientPort()}, service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 			return nil
 		})
@@ -666,9 +662,11 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			Enabled: true,
 			Join: config.Join{
 				Kubernetes: config.Kubernetes{
-					Enabled:     pointer.Bool(true),
-					ServiceName: h.Name,
-					ServicePort: n.MemberServerSocketPort,
+					Enabled:                 pointer.Bool(true),
+					ServiceName:             h.Name,
+					ServicePort:             n.MemberServerSocketPort,
+					ServicePerPodLabelName:  n.ServicePerPodLabelName,
+					ServicePerPodLabelValue: n.LabelValueTrue,
 				},
 			},
 		},
@@ -686,11 +684,6 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
 		cfg.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress = pointer.Bool(true)
-	}
-
-	if h.Spec.ExposeExternally.IsEnabled() {
-		cfg.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
-		cfg.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
 	}
 
 	if h.Spec.ClusterName != "" {
@@ -1371,20 +1364,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					SecurityContext:    podSecurityContext(),
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
-						Ports: []v1.ContainerPort{{
-							ContainerPort: n.DefaultHzPort,
-							Name:          n.Hazelcast,
-							Protocol:      v1.ProtocolTCP,
-						}, {
-							ContainerPort: n.MemberServerSocketPort,
-							Name:          n.MemberPortName,
-							Protocol:      v1.ProtocolTCP,
-						}, {
-							ContainerPort: n.RestServerSocketPort,
-							Name:          n.RestPortName,
-							Protocol:      v1.ProtocolTCP,
-						},
-						},
 						LivenessProbe: &v1.Probe{
 							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
@@ -1421,8 +1400,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
-	sts.Spec.Template.Spec.Containers[0].Ports = append(sts.Spec.Template.Spec.Containers[0].Ports, wanRepContainers(h)...)
-
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
 		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
@@ -1445,6 +1422,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
 		sts.Spec.Template.Spec.Containers[0].Resources = h.Spec.Resources
+		sts.Spec.Template.Spec.Containers[0].Ports = hazelcastContainerPorts(h)
 
 		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
 		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
@@ -1561,7 +1539,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return c
 }
 
-func wanRepContainers(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
+func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
 	var c []v1.ContainerPort
 
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
@@ -2103,7 +2081,10 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 	}
 	if h.Spec.ExposeExternally.IsSmart() {
 		annotations[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccessType())
+	} else {
+		delete(annotations, n.ExposeExternallyAnnotation)
 	}
+
 	cfg := config.HazelcastWrapper{Hazelcast: configForcingRestart(hazelcastBasicConfig(h))}
 	cfgYaml, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -2114,18 +2095,30 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 	return annotations, nil
 }
 
+func hazelcastContainerPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
+	ports := []v1.ContainerPort{{
+		ContainerPort: n.DefaultHzPort,
+		Name:          n.Hazelcast,
+		Protocol:      v1.ProtocolTCP,
+	}, {
+		ContainerPort: n.MemberServerSocketPort,
+		Name:          n.MemberPortName,
+		Protocol:      v1.ProtocolTCP,
+	}, {
+		ContainerPort: n.RestServerSocketPort,
+		Name:          n.RestPortName,
+		Protocol:      v1.ProtocolTCP,
+	},
+	}
+
+	ports = append(ports, hazelcastContainerWanRepPorts(h)...)
+	return ports
+}
+
 func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
+	// Apart from these changes, any change in the statefulset spec, labels, annotation can force a restart.
 	return config.Hazelcast{
-		ClusterName: hz.ClusterName,
-		AdvancedNetwork: config.AdvancedNetwork{
-			Join: config.Join{
-				Kubernetes: config.Kubernetes{
-					ServicePerPodLabelName:       hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelName,
-					ServicePerPodLabelValue:      hz.AdvancedNetwork.Join.Kubernetes.ServicePerPodLabelValue,
-					UseNodeNameAsExternalAddress: hz.AdvancedNetwork.Join.Kubernetes.UseNodeNameAsExternalAddress,
-				},
-			},
-		},
+		ClusterName:        hz.ClusterName,
 		Jet:                hz.Jet,
 		UserCodeDeployment: hz.UserCodeDeployment,
 		Properties:         hz.Properties,
