@@ -70,6 +70,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		FillTheMapData(ctx, hzLookupKey, true, m.MapName(), 100)
 
 		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
+		WaitForPodReady(hazelcast.Name+"-2", hzLookupKey, 1*Minute)
 		evaluateReadyMembers(hzLookupKey)
 
 		logs := InitLogs(t, hzLookupKey)
