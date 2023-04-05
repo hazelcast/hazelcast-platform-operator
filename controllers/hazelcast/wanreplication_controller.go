@@ -818,46 +818,46 @@ func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *WanReplicationReconciler) wanRequestsForSuccessfulMap(m client.Object) []reconcile.Request {
-	mp, ok := m.(*hazelcastv1alpha1.Map)
-	if !ok || mp.Status.State != hazelcastv1alpha1.MapSuccess {
+	hzMap, ok := m.(*hazelcastv1alpha1.Map)
+	if !ok || hzMap.Status.State != hazelcastv1alpha1.MapSuccess {
 		return []reconcile.Request{}
 	}
 
 	wanList := hazelcastv1alpha1.WanReplicationList{}
-	nsMatcher := client.InNamespace(mp.Namespace)
+	nsMatcher := client.InNamespace(hzMap.Namespace)
 	err := r.List(context.Background(), &wanList, nsMatcher)
 	if err != nil {
 		return []reconcile.Request{}
 	}
-	reqs := []reconcile.Request{}
+	var requests []reconcile.Request
 	for _, wan := range wanList.Items {
-	resourcesLoop:
-		for _, resource := range wan.Spec.Resources {
-			switch resource.Kind {
+	wanResourcesLoop:
+		for _, wanResource := range wan.Spec.Resources {
+			switch wanResource.Kind {
 			case hazelcastv1alpha1.ResourceKindMap:
-				if resource.Name == mp.Name {
-					reqs = append(reqs, reconcile.Request{
+				if wanResource.Name == hzMap.Name {
+					requests = append(requests, reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Name:      wan.Name,
 							Namespace: wan.Namespace,
 						},
 					})
-					break resourcesLoop
+					break wanResourcesLoop
 				}
 			case hazelcastv1alpha1.ResourceKindHZ:
-				if resource.Name == mp.Spec.HazelcastResourceName {
-					reqs = append(reqs, reconcile.Request{
+				if wanResource.Name == hzMap.Spec.HazelcastResourceName {
+					requests = append(requests, reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Name:      wan.Name,
 							Namespace: wan.Namespace,
 						},
 					})
-					break resourcesLoop
+					break wanResourcesLoop
 				}
 			}
 		}
 	}
-	return reqs
+	return requests
 }
 
 func (r *WanReplicationReconciler) wanRequestsForTerminationCandidateMap(m client.Object) []reconcile.Request {
