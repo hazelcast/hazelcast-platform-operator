@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/watch"
 	"log"
 	"net"
 	"net/http"
@@ -184,6 +185,38 @@ func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 			log.Fatal(err)
 		}
 	})
+}
+
+func WaitForPodReady(podName string, lk types.NamespacedName, timeout time.Duration) {
+	watcher, err := getClientSet().CoreV1().Pods(lk.Namespace).Watch(context.Background(), metav1.ListOptions{FieldSelector: "metadata.name=" + podName})
+	if err != nil {
+		log.Fatalf("failed to create pod watcher: %v", err)
+	}
+	defer watcher.Stop()
+	timeoutCh := time.After(timeout)
+
+	for {
+		select {
+		case event, eventOk := <-watcher.ResultChan():
+			if !eventOk {
+				log.Fatal("watch channel closed before pod became ready")
+			}
+			if event.Type == watch.Modified {
+				pod, ok := event.Object.(*corev1.Pod)
+				if !ok {
+					log.Fatalf("unexpected object type: %v", event.Object)
+				}
+				for _, c := range pod.Status.Conditions {
+					if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
+						return
+					}
+				}
+			}
+		case <-timeoutCh:
+			watcher.Stop()
+			log.Fatalf("timed out waiting for pod %s to become ready in namespace %s", podName, lk.Namespace)
+		}
+	}
 }
 
 func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *hzClient.Client {
@@ -900,7 +933,7 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		for _, mapCrName := range mapCrNames {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: ns}, hzCrName, labels)
 			mapCrs[mapCrName] = m
-			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 		}
 	}
 
@@ -920,7 +953,7 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 		resources,
 		labels,
 	)
-	Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
 	wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	wan = assertWanStatusMapCount(wan, mapCount)
 	return wan
@@ -932,13 +965,13 @@ func CreateMcForClusters(ctx context.Context, hzCrs ...*hazelcastcomv1alpha1.Haz
 		clusters = append(clusters, hazelcastcomv1alpha1.HazelcastClusterConfig{Name: hz.Spec.ClusterName, Address: hzclient.HazelcastUrl(hz)})
 	}
 	mc := mcconfig.WithClusterConfig(mcLookupKey, ee, clusters, labels)
-	Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
+	Expect(k8sClient.Create(ctx, mc)).Should(Succeed())
 }
 
 func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLookupKey types.NamespacedName) *hazelcastcomv1alpha1.Map {
 	m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: hzLookupKey.Namespace}, hzLookupKey.Name, labels)
 	m.Spec.Name = mapName
-	Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+	Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 	assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 	return m
 }

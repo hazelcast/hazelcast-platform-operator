@@ -378,7 +378,7 @@ update_test_files()
                                |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
                                |.testStage.steps[].name |= sub(" Duration.*";"")
                                |.testStage.steps[].time.duration |= sub(".*Duration:";"")
-                               |.testStage.steps[].time.duration |= (if contains("ms") then split("ms") | .[0]|tonumber elif contains("CR_ID") then . elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
+                               |.testStage.steps[].time.duration |= (if contains("CR_ID") then . elif contains("ms") then split("ms") | .[0]|tonumber elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
                                |.testStage.steps[]+={status: "passed"}
                                |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
                                |to_entries

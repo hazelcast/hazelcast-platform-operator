@@ -1187,9 +1187,11 @@ var _ = Describe("Hazelcast controller", func() {
 					Enabled: true,
 					Join: config.Join{
 						Kubernetes: config.Kubernetes{
-							Enabled:     pointer.Bool(true),
-							ServiceName: hz.Name,
-							ServicePort: 5702,
+							Enabled:                 pointer.Bool(true),
+							ServiceName:             hz.Name,
+							ServicePort:             5702,
+							ServicePerPodLabelName:  n.ServicePerPodLabelName,
+							ServicePerPodLabelValue: n.LabelValueTrue,
 						},
 					},
 					MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{

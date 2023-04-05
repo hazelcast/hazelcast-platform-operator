@@ -18,9 +18,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -785,11 +788,79 @@ func getLogger(ctx context.Context) logr.Logger {
 func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.WanReplication{}).
-		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.terminatingMapUpdates)).
+		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForSuccessfulMap),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(createEvent event.CreateEvent) bool {
+					return false
+				},
+				UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+					// to run handler 'wanRequestsForSuccessfulMap' function after the map is ready
+					oldMap, ok := updateEvent.ObjectOld.(*hazelcastv1alpha1.Map)
+					if !ok {
+						return false
+					}
+					newMap, ok := updateEvent.ObjectNew.(*hazelcastv1alpha1.Map)
+					if !ok {
+						return false
+					}
+					return oldMap.Status.State != hazelcastv1alpha1.MapSuccess && newMap.Status.State == hazelcastv1alpha1.MapSuccess
+				},
+				DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+					return false
+				},
+				GenericFunc: func(genericEvent event.GenericEvent) bool {
+					return false
+				},
+			}),
+		).
+		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForTerminationCandidateMap)).
 		Complete(r)
 }
 
-func (r *WanReplicationReconciler) terminatingMapUpdates(m client.Object) []reconcile.Request {
+func (r *WanReplicationReconciler) wanRequestsForSuccessfulMap(m client.Object) []reconcile.Request {
+	hzMap, ok := m.(*hazelcastv1alpha1.Map)
+	if !ok || hzMap.Status.State != hazelcastv1alpha1.MapSuccess {
+		return []reconcile.Request{}
+	}
+
+	wanList := hazelcastv1alpha1.WanReplicationList{}
+	nsMatcher := client.InNamespace(hzMap.Namespace)
+	err := r.List(context.Background(), &wanList, nsMatcher)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+	var requests []reconcile.Request
+	for _, wan := range wanList.Items {
+	wanResourcesLoop:
+		for _, wanResource := range wan.Spec.Resources {
+			switch wanResource.Kind {
+			case hazelcastv1alpha1.ResourceKindMap:
+				if wanResource.Name == hzMap.Name {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      wan.Name,
+							Namespace: wan.Namespace,
+						},
+					})
+					break wanResourcesLoop
+				}
+			case hazelcastv1alpha1.ResourceKindHZ:
+				if wanResource.Name == hzMap.Spec.HazelcastResourceName {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      wan.Name,
+							Namespace: wan.Namespace,
+						},
+					})
+					break wanResourcesLoop
+				}
+			}
+		}
+	}
+	return requests
+}
+
+func (r *WanReplicationReconciler) wanRequestsForTerminationCandidateMap(m client.Object) []reconcile.Request {
 	mp, ok := m.(*hazelcastv1alpha1.Map)
 	if !ok {
 		return []reconcile.Request{}
