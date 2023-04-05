@@ -1192,7 +1192,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		When("Default Configuration", func() {
-			FIt("should create default Advanced Network configuration", Label("fast"), func() {
+			It("should create default Advanced Network configuration", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
