@@ -346,6 +346,12 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 		service.Spec.Type = serviceType(h)
 		service.Spec.Ports = util.EnrichServiceNodePorts(hazelcastPort(), service.Spec.Ports)
+
+		// append default wan port to HZ Discovery Service if use did not configure
+		if len(h.Spec.AdvancedNetwork.WAN) == 0 {
+			service.Spec.Ports = append(service.Spec.Ports, defaultWANPort())
+		}
+
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
