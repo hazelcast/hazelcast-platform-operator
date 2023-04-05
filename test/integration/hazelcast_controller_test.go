@@ -1156,22 +1156,28 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hazelcast CR Advanced Network configuration", func() {
 		When("Full Configuration", func() {
-			It("should create Advanced Network configuration", Label("fast"), func() {
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec: hazelcastv1alpha1.HazelcastSpec{
-						AdvancedNetwork: hazelcastv1alpha1.AdvancedNetwork{
-							MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
-							WAN: []hazelcastv1alpha1.WANConfig{
-								{
-									Port:        5710,
-									PortCount:   5,
-									ServiceType: "NodePort",
-									Name:        "tokyo",
-								},
-							},
+			FIt("should create Advanced Network configuration", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+					MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
+					WAN: []hazelcastv1alpha1.WANConfig{
+						{
+							Port:        5710,
+							PortCount:   5,
+							ServiceType: corev1.ServiceTypeClusterIP,
+							Name:        "tokyo",
+						},
+						{
+							Port:      5720,
+							PortCount: 5,
+							Name:      "istanbul",
 						},
 					},
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
 				}
 
 				By("creating Hazelcast with Advanced Network Configuration successfully")
@@ -1220,6 +1226,12 @@ var _ = Describe("Hazelcast controller", func() {
 								PortCount: 5,
 							},
 						},
+						"istanbul": {
+							PortAndPortCount: config.PortAndPortCount{
+								Port:      5720,
+								PortCount: 5,
+							},
+						},
 					},
 				}
 
@@ -1238,7 +1250,79 @@ var _ = Describe("Hazelcast controller", func() {
 				err := k8sClient.List(context.Background(), svcList, client.InNamespace(hz.Namespace), labelFilter(hz))
 				Expect(err).Should(BeNil())
 
-				Expect(len(svcList.Items)).Should(Equal(len(hz.Spec.AdvancedNetwork.WAN)))
+				Expect(len(svcList.Items)).Should(Equal(3)) // just the HZ Discovery Service
+			})
+		})
+
+		When("Default Configuration", func() {
+			It("should create default Advanced Network configuration", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				p := config.AdvancedNetwork{
+					Enabled: true,
+					Join: config.Join{
+						Kubernetes: config.Kubernetes{
+							Enabled:     pointer.Bool(true),
+							ServiceName: hz.Name,
+							ServicePort: 5702,
+						},
+					},
+					MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{
+						Port: config.PortAndPortCount{
+							Port:      5702,
+							PortCount: 1,
+						},
+					},
+					ClientServerSocketEndpointConfig: config.ClientServerSocketEndpointConfig{
+						Port: config.PortAndPortCount{
+							Port:      5701,
+							PortCount: 1,
+						},
+					},
+					RestServerSocketEndpointConfig: config.RestServerSocketEndpointConfig{
+						Port: config.PortAndPortCount{
+							Port:      8081,
+							PortCount: 1,
+						},
+						EndpointGroups: config.EndpointGroups{
+							HealthCheck:  config.EndpointGroup{Enabled: pointer.Bool(true)},
+							ClusterWrite: config.EndpointGroup{Enabled: pointer.Bool(true)},
+							Persistence:  config.EndpointGroup{Enabled: pointer.Bool(true)},
+						},
+					},
+					WanServerSocketEndpointConfig: map[string]config.WanPort{
+						"default": {
+							PortAndPortCount: config.PortAndPortCount{
+								Port:      5710,
+								PortCount: 1,
+							},
+						},
+					},
+				}
+
+				By("creating Hazelcast successfully")
+				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+
+				Eventually(func() config.AdvancedNetwork {
+					cfg := getSecret(hz)
+					a := &config.HazelcastWrapper{}
+
+					if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+						return config.AdvancedNetwork{}
+					}
+
+					return a.Hazelcast.AdvancedNetwork
+				}, timeout, interval).Should(Equal(p))
+
+				svcList := &corev1.ServiceList{}
+				err := k8sClient.List(context.Background(), svcList, client.InNamespace(hz.Namespace), labelFilter(hz))
+				Expect(err).Should(BeNil())
+
+				Expect(len(svcList.Items)).Should(Equal(1)) // just the HZ Discovery Service
 			})
 		})
 	})

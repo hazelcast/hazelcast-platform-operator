@@ -326,11 +326,6 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 }
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	err := r.createServicesForWanConfig(ctx, h, logger)
-	if err != nil {
-		return err
-	}
-
 	service := &corev1.Service{
 		ObjectMeta: metadata(h),
 		Spec: corev1.ServiceSpec{
@@ -343,13 +338,19 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		service.Spec.ClusterIP = "None"
 	}
 
-	err = controllerutil.SetControllerReference(h, service, r.Scheme)
+	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 		service.Spec.Ports = hazelcastPort()
+
+		// append default wan port to HZ Discovery Service if use did not configure
+		if len(h.Spec.AdvancedNetwork.WAN) == 0 {
+			service.Spec.Ports = append(service.Spec.Ports, defaultWANPort())
+		}
+
 		service.Spec.Type = serviceType(h)
 		if serviceType(h) == corev1.ServiceTypeClusterIP {
 			// dirty hack to prevent the error when changing the service type
@@ -363,7 +364,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	return err
 }
 
-func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
@@ -377,7 +378,7 @@ func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h 
 		}
 
 		var i uint
-		ports := make([]corev1.ServicePort, w.PortCount)
+		var ports []corev1.ServicePort
 		for i = 0; i < w.PortCount; i++ {
 			ports = append(ports,
 				corev1.ServicePort{
@@ -391,7 +392,11 @@ func (r *HazelcastReconciler) createServicesForWanConfig(ctx context.Context, h 
 
 		opResult, _ := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 			service.Spec.Ports = ports
-			service.Spec.Type = w.ServiceType
+			if w.ServiceType == "" {
+				service.Spec.Type = v1.ServiceTypeLoadBalancer
+			} else {
+				service.Spec.Type = w.ServiceType
+			}
 			return nil
 		})
 		if opResult != controllerutil.OperationResultNone {
@@ -539,6 +544,16 @@ func clientPort() corev1.ServicePort {
 		Protocol:    corev1.ProtocolTCP,
 		TargetPort:  intstr.FromString(n.Hazelcast),
 		AppProtocol: pointer.String("tcp"),
+	}
+}
+
+func defaultWANPort() corev1.ServicePort {
+	return corev1.ServicePort{
+		Name:        "default-wan-rep-port",
+		Protocol:    corev1.ProtocolTCP,
+		AppProtocol: pointer.String("tcp"),
+		Port:        5710,
+		TargetPort:  intstr.FromInt(5710),
 	}
 }
 
@@ -1566,7 +1581,7 @@ func wanRepContainers(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
 		for i := 0; i < int(w.PortCount); i++ {
 			c = append(c, v1.ContainerPort{
 				ContainerPort: int32(int(w.Port) + i),
-				Name:          n.WanPortName + strconv.Itoa(i),
+				Name:          w.Name + "-" + strconv.Itoa(int(w.Port)+i),
 				Protocol:      v1.ProtocolTCP,
 			})
 		}

@@ -150,6 +150,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
+	err = r.reconcileWANServices(ctx, h, logger)
+	if err != nil {
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+	}
+
 	err = r.reconcileServicePerPod(ctx, h, logger)
 	if err != nil {
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
