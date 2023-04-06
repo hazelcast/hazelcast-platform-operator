@@ -602,6 +602,7 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	cm := &corev1.Secret{
 		ObjectMeta: metadata(h),
+		Data:       make(map[string][]byte),
 	}
 
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
@@ -614,21 +615,26 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 		if err != nil {
 			return err
 		}
-		keystore, err := hazelcastKeystore(ctx, r.Client, h)
-		if err != nil {
-			return err
+		cm.Data["hazelcast.yaml"] = config
+
+		if _, ok := cm.Data["hazelcast.jks"]; !ok {
+			keystore, err := hazelcastKeystore(ctx, r.Client, h)
+			if err != nil {
+				return err
+			}
+			cm.Data["hazelcast.jks"] = keystore
 		}
-		mtlsCert, mtlsKey, err := mtls.NewCertificateAuthority()
-		if err != nil {
-			return err
+
+		if _, ok := cm.Data["ca.crt"]; !ok {
+			mtlsCert, mtlsKey, err := mtls.NewCertificateAuthority()
+			if err != nil {
+				return err
+			}
+			cm.Data["ca.crt"] = mtlsCert
+			cm.Data["tls.crt"] = mtlsCert
+			cm.Data["tls.key"] = mtlsKey
 		}
-		cm.Data = map[string][]byte{
-			"hazelcast.yaml": config,
-			"hazelcast.jks":  keystore,
-			"ca.crt":         mtlsCert,
-			"tls.crt":        mtlsCert,
-			"tls.key":        mtlsKey,
-		}
+
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

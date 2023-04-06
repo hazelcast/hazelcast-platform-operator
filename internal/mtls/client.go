@@ -76,15 +76,6 @@ func NewClient(ctx context.Context, kubeClient client.Client, secretName types.N
 }
 
 func NewCertificateAuthority() (cert []byte, key []byte, err error) {
-	return crtPEM.Bytes(), keyPEM.Bytes(), nil
-}
-
-var (
-	crtPEM bytes.Buffer
-	keyPEM bytes.Buffer
-)
-
-func init() {
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
@@ -101,27 +92,31 @@ func init() {
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
 	rawCrt, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
+	var crtPEM bytes.Buffer
 	err = pem.Encode(&crtPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: rawCrt,
 	})
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
+	var keyPEM bytes.Buffer
 	err = pem.Encode(&keyPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	})
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
+
+	return crtPEM.Bytes(), keyPEM.Bytes(), nil
 }

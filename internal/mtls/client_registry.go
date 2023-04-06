@@ -33,7 +33,7 @@ func (cr *httpClientRegistry) Get(ctx context.Context, name types.NamespacedName
 			return nil, false
 		}
 		cr.clients.Store(name, c)
-		return v.(*http.Client), true
+		return c, true
 	}
 	return v.(*http.Client), true
 }
