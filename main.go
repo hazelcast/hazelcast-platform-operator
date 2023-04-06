@@ -124,7 +124,7 @@ func main() {
 
 	controllerLogger := ctrl.Log.WithName("controllers")
 
-	mtlsRegistry := mtls.NewHttpClientRegistry()
+	mtlsRegistry := mtls.NewHttpClientRegistry(mgr.GetClient())
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),
 		controllerLogger.WithName("Hazelcast"),
