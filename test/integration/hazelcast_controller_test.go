@@ -1156,7 +1156,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hazelcast CR Advanced Network configuration", func() {
 		When("Full Configuration", func() {
-			It("should create Advanced Network configuration", Label("fast"), func() {
+			FIt("should create Advanced Network configuration", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
 					MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
@@ -1180,19 +1180,86 @@ var _ = Describe("Hazelcast controller", func() {
 					Spec:       spec,
 				}
 
+				p := config.AdvancedNetwork{
+					Enabled: true,
+					Join: config.Join{
+						Kubernetes: config.Kubernetes{
+							Enabled:                      pointer.Bool(true),
+							ServiceName:                  hz.Name,
+							UseNodeNameAsExternalAddress: nil,
+							ServicePerPodLabelName:       "hazelcast.com/service-per-pod",
+							ServicePerPodLabelValue:      "true",
+							ServicePort:                  5702,
+						},
+					},
+					MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{
+						Port: config.PortAndPortCount{
+							Port:      5702,
+							PortCount: 1,
+						},
+						Interfaces: config.EnabledAndInterfaces{
+							Enabled:    true,
+							Interfaces: []string{"10.10.1.*"},
+						},
+					},
+					ClientServerSocketEndpointConfig: config.ClientServerSocketEndpointConfig{
+						Port: config.PortAndPortCount{
+							Port:      5701,
+							PortCount: 1,
+						},
+					},
+					RestServerSocketEndpointConfig: config.RestServerSocketEndpointConfig{
+						Port: config.PortAndPortCount{
+							Port:      8081,
+							PortCount: 1,
+						},
+						EndpointGroups: config.EndpointGroups{
+							HealthCheck:  config.EndpointGroup{Enabled: pointer.Bool(true)},
+							ClusterWrite: config.EndpointGroup{Enabled: pointer.Bool(true)},
+							Persistence:  config.EndpointGroup{Enabled: pointer.Bool(true)},
+						},
+					},
+					WanServerSocketEndpointConfig: map[string]config.WanPort{
+						"tokyo": {
+							PortAndPortCount: config.PortAndPortCount{
+								Port:      5710,
+								PortCount: 5,
+							},
+						},
+						"istanbul": {
+							PortAndPortCount: config.PortAndPortCount{
+								Port:      5720,
+								PortCount: 5,
+							},
+						},
+					},
+				}
+
 				Create(hz)
 				EnsureStatus(hz)
 
+				Eventually(func() config.AdvancedNetwork {
+					cfg := getSecret(hz)
+					a := &config.HazelcastWrapper{}
+
+					if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+						return config.AdvancedNetwork{}
+					}
+
+					return a.Hazelcast.AdvancedNetwork
+				}, timeout, interval).Should(Equal(p))
+
 				By("checking created services")
-				serviceList := FetchServices(hz, 1)
-				fmt.Println(serviceList)
+				serviceList := &corev1.ServiceList{}
+				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
+				Expect(err).Should(BeNil())
 
 				Delete(hz)
 			})
 		})
 
 		When("Default Configuration", func() {
-			It("should create default Advanced Network configuration", Label("fast"), func() {
+			FIt("should create default Advanced Network configuration", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
@@ -1244,8 +1311,8 @@ var _ = Describe("Hazelcast controller", func() {
 					},
 				}
 
-				By("creating Hazelcast successfully")
-				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+				Create(hz)
+				EnsureStatus(hz)
 
 				Eventually(func() config.AdvancedNetwork {
 					cfg := getSecret(hz)

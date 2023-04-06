@@ -178,7 +178,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 		},
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
+	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, clusterRole, func() error {
 		clusterRole.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
@@ -210,7 +210,7 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 		return fmt.Errorf("failed to set owner reference on Role: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, role, func() error {
+	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, role, func() error {
 		role.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
@@ -249,7 +249,7 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 		return fmt.Errorf("failed to set owner reference on ServiceAccount: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
+	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, serviceAccount, func() error {
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -267,7 +267,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 		},
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, crb, func() error {
+	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, crb, func() error {
 		crb.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
@@ -303,7 +303,7 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 		return fmt.Errorf("failed to set owner reference on RoleBinding: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, rb, func() error {
+	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, rb, func() error {
 		rb.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
@@ -343,7 +343,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
 		service.Spec.Type = serviceType(h)
 		service.Spec.Ports = util.EnrichServiceNodePorts(hazelcastPort(), service.Spec.Ports)
 
@@ -364,7 +364,7 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      h.Name + "-wan-rep-svc-" + w.Name,
+				Name:      h.Name + "-" + w.Name,
 				Namespace: h.Namespace,
 				Labels:    labels(h),
 			},
@@ -386,7 +386,7 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 				})
 		}
 
-		opResult, _ := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 			service.Spec.Ports = util.EnrichServiceNodePorts(ports, service.Spec.Ports)
 			if w.ServiceType == "" {
 				service.Spec.Type = v1.ServiceTypeLoadBalancer
@@ -395,6 +395,9 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			}
 			return nil
 		})
+		if err != nil {
+			return err
+		}
 		if opResult != controllerutil.OperationResultNone {
 			logger.Info("Operation result", "Service", h.Name, "result", opResult)
 		}
@@ -434,7 +437,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			return err
 		}
 
-		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+		opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
 			service.Spec.Ports = util.EnrichServiceNodePorts([]corev1.ServicePort{clientPort()}, service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 			return nil
@@ -598,7 +601,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
+	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, cm, func() error {
 		config, err := hazelcastConfig(ctx, r.Client, h)
 		if err != nil {
 			return err
@@ -1352,7 +1355,7 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 	if err != nil {
 		return err
 	}
-	_, err = util.CreateOrUpdate(ctx, r.Client, secret, func() error {
+	_, err = util.CreateOrUpdateForce(ctx, r.Client, secret, func() error {
 		return nil
 	})
 	return err
@@ -1423,7 +1426,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		return fmt.Errorf("failed to set owner reference on Statefulset: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdate(ctx, r.Client, sts, func() error {
+	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, sts, func() error {
 		sts.Spec.Replicas = h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
 		sts.Spec.Template.Annotations, err = podAnnotations(sts.Spec.Template.Annotations, h)
