@@ -374,14 +374,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}, ee, labels)
 		hzSourceCr.Spec.ClusterName = hzSource
 		hzSourceCr.Spec.ClusterSize = pointer.Int32(1)
-		hzSourceCr.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		CreateHazelcastCRWithoutCheck(hzSourceCr)
 		evaluateReadyMembers(types.NamespacedName{Name: hzSource, Namespace: hzSrcLookupKey.Namespace})
 
@@ -391,14 +383,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}, ee, labels)
 		hzTargetCr.Spec.ClusterName = hzTarget
 		hzTargetCr.Spec.ClusterSize = pointer.Int32(1)
-		hzTargetCr.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		CreateHazelcastCRWithoutCheck(hzTargetCr)
 		evaluateReadyMembers(types.NamespacedName{Name: hzTarget, Namespace: hzTrgLookupKey.Namespace})
 
@@ -463,14 +447,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}, ee, labels)
 		hzSourceCr.Spec.ClusterName = hzSource
 		hzSourceCr.Spec.ClusterSize = pointer.Int32(1)
-		hzSourceCr.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		CreateHazelcastCRWithoutCheck(hzSourceCr)
 		evaluateReadyMembers(types.NamespacedName{Name: hzSource, Namespace: hzSrcLookupKey.Namespace})
 
@@ -480,14 +456,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}, ee, labels)
 		hzTargetCr.Spec.ClusterName = hzTarget
 		hzTargetCr.Spec.ClusterSize = pointer.Int32(1)
-		hzTargetCr.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		CreateHazelcastCRWithoutCheck(hzTargetCr)
 		evaluateReadyMembers(types.NamespacedName{Name: hzTarget, Namespace: hzTrgLookupKey.Namespace})
 
