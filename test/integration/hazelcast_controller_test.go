@@ -1254,6 +1254,16 @@ var _ = Describe("Hazelcast controller", func() {
 				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
 				Expect(err).Should(BeNil())
 
+				for _, s := range serviceList.Items {
+					if strings.Contains(s.Name, "tokyo") {
+						Expect(true).Should(Equal(s.Spec.Type == corev1.ServiceTypeClusterIP))
+					}
+
+					if strings.Contains(s.Name, "istanbul") {
+						Expect(true).Should(Equal(s.Spec.Type == corev1.ServiceTypeLoadBalancer))
+					}
+				}
+
 				Delete(hz)
 			})
 		})
@@ -1330,6 +1340,8 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(err).Should(BeNil())
 
 				Expect(len(svcList.Items)).Should(Equal(1)) // just the HZ Discovery Service
+
+				Delete(hz)
 			})
 		})
 	})
