@@ -101,6 +101,9 @@ var _ = Describe("Hazelcast", func() {
 		)
 	})
 	Describe("Phone Home table with installed Management Center", func() {
+		BeforeEach(func() {
+			assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		})
 		AfterEach(func() {
 			DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, &hazelcastcomv1alpha1.ManagementCenterList{}, hzNamespace, labels)
 			assertDoesNotExist(mcLookupKey, &hazelcastcomv1alpha1.ManagementCenter{})
