@@ -764,7 +764,7 @@ func (r *WanReplicationReconciler) checkWanEndpoint(ctx context.Context, wan *ha
 	for i, endpoint := range endpoints {
 		_, _, err := net.SplitHostPort(endpoint)
 		if err != nil {
-			endpoint = net.JoinHostPort(endpoint, "5701")
+			endpoint = net.JoinHostPort(endpoint, "5710")
 		}
 		endpoints[i] = endpoint
 	}
