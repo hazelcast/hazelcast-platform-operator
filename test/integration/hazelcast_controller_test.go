@@ -1156,7 +1156,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hazelcast CR Advanced Network configuration", func() {
 		When("Full Configuration", func() {
-			FIt("should create Advanced Network configuration", Label("fast"), func() {
+			It("should create Advanced Network configuration", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
 					MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
@@ -1259,7 +1259,7 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 
 		When("Default Configuration", func() {
-			FIt("should create default Advanced Network configuration", Label("fast"), func() {
+			It("should create default Advanced Network configuration", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
