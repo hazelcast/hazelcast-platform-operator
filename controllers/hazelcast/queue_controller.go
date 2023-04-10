@@ -12,7 +12,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -45,7 +45,7 @@ func NewQueueReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht
 func (r *QueueReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-queue", req.NamespacedName)
 
-	q := &hazelcastv1alpha1.Queue{}
+	q := &hazelcastv1beta1.Queue{}
 	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, q, r.Update, r.clientRegistry, logger)
 	if cl == nil {
 		if errors.IsNotFound(err) {
@@ -57,13 +57,13 @@ func (r *QueueReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	ms, err := r.ReconcileQueueConfig(ctx, q, cl, logger)
 	if err != nil {
 		return updateDSStatus(ctx, r.Client, q, recoptions.RetryAfter(retryAfterForDataStructures),
-			withDSState(hazelcastv1alpha1.DataStructurePending),
+			withDSState(hazelcastv1beta1.DataStructurePending),
 			withDSMessage(err.Error()),
 			withDSMemberStatuses(ms))
 	}
 
 	requeue, err := updateDSStatus(ctx, r.Client, q, recoptions.RetryAfter(1*time.Second),
-		withDSState(hazelcastv1alpha1.DataStructurePersisting),
+		withDSState(hazelcastv1beta1.DataStructurePersisting),
 		withDSMessage("Persisting the applied multiMap config."),
 		withDSMemberStatuses(ms))
 	if err != nil {
@@ -78,7 +78,7 @@ func (r *QueueReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if !persisted {
 		return updateDSStatus(ctx, r.Client, q, recoptions.RetryAfter(1*time.Second),
-			withDSState(hazelcastv1alpha1.DataStructurePersisting),
+			withDSState(hazelcastv1beta1.DataStructurePersisting),
 			withDSMessage("Waiting for Queue Config to be persisted."),
 			withDSMemberStatuses(ms))
 	}
@@ -86,7 +86,7 @@ func (r *QueueReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, q, logger)
 }
 
-func (r *QueueReconciler) validateQueueConfigPersistence(ctx context.Context, q *hazelcastv1alpha1.Queue) (bool, error) {
+func (r *QueueReconciler) validateQueueConfigPersistence(ctx context.Context, q *hazelcastv1beta1.Queue) (bool, error) {
 	hzConfig, err := getHazelcastConfig(ctx, r.Client, q)
 	if err != nil {
 		return false, err
@@ -106,10 +106,10 @@ func (r *QueueReconciler) validateQueueConfigPersistence(ctx context.Context, q 
 
 func (r *QueueReconciler) ReconcileQueueConfig(
 	ctx context.Context,
-	q *hazelcastv1alpha1.Queue,
+	q *hazelcastv1beta1.Queue,
 	cl hzclient.Client,
 	logger logr.Logger,
-) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
+) (map[string]hazelcastv1beta1.DataStructureConfigState, error) {
 	var req *hazelcast.ClientMessage
 
 	queueInput := codecTypes.DefaultQueueConfigInput()
@@ -120,7 +120,7 @@ func (r *QueueReconciler) ReconcileQueueConfig(
 	return sendCodecRequest(ctx, cl, q, req, logger)
 }
 
-func fillQueueConfigInput(queueInput *codecTypes.QueueConfigInput, q *hazelcastv1alpha1.Queue) {
+func fillQueueConfigInput(queueInput *codecTypes.QueueConfigInput, q *hazelcastv1beta1.Queue) {
 	queueInput.Name = q.GetDSName()
 	qs := q.Spec
 	queueInput.BackupCount = *qs.BackupCount
@@ -133,6 +133,6 @@ func fillQueueConfigInput(queueInput *codecTypes.QueueConfigInput, q *hazelcastv
 // SetupWithManager sets up the controller with the Manager.
 func (r *QueueReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastv1alpha1.Queue{}).
+		For(&hazelcastv1beta1.Queue{}).
 		Complete(r)
 }

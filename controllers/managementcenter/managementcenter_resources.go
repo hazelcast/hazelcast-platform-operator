@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -40,7 +40,7 @@ const (
 	javaOpts  = "JAVA_OPTS"
 )
 
-func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter) error {
+func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1beta1.ManagementCenter) error {
 	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
 		return nil
 	}
@@ -53,7 +53,7 @@ func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *h
 	return nil
 }
 
-func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1beta1.ManagementCenter, logger logr.Logger) error {
 	service := &corev1.Service{
 		ObjectMeta: metadata(mc),
 		Spec: corev1.ServiceSpec{
@@ -77,7 +77,7 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 	return err
 }
 
-func (r *ManagementCenterReconciler) reconcileIngress(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+func (r *ManagementCenterReconciler) reconcileIngress(ctx context.Context, mc *hazelcastv1beta1.ManagementCenter, logger logr.Logger) error {
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metadata(mc),
 		Spec:       networkingv1.IngressSpec{},
@@ -133,7 +133,7 @@ func (r *ManagementCenterReconciler) reconcileIngress(ctx context.Context, mc *h
 	return err
 }
 
-func (r *ManagementCenterReconciler) reconcileRoute(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+func (r *ManagementCenterReconciler) reconcileRoute(ctx context.Context, mc *hazelcastv1beta1.ManagementCenter, logger logr.Logger) error {
 	if platform.GetType() != platform.OpenShift {
 		return nil
 	}
@@ -178,14 +178,14 @@ func (r *ManagementCenterReconciler) reconcileRoute(ctx context.Context, mc *haz
 	return err
 }
 
-func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
+func metadata(mc *hazelcastv1beta1.ManagementCenter) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:      mc.Name,
 		Namespace: mc.Namespace,
 		Labels:    labels(mc),
 	}
 }
-func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
+func labels(mc *hazelcastv1beta1.ManagementCenter) map[string]string {
 	return map[string]string{
 		n.ApplicationNameLabel:         n.ManagementCenter,
 		n.ApplicationInstanceNameLabel: mc.Name,
@@ -210,7 +210,7 @@ func ports() []v1.ServicePort {
 	}
 }
 
-func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, mc *hazelcastv1beta1.ManagementCenter, logger logr.Logger) error {
 	ls := labels(mc)
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metadata(mc),
@@ -311,7 +311,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 	return err
 }
 
-func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *hazelcastv1beta1.ManagementCenter, logger logr.Logger) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metadata(mc),
 	}
@@ -391,7 +391,7 @@ func tmpDirMount() corev1.VolumeMount {
 	}
 }
 
-func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.PersistentVolumeClaim {
+func persistentVolumeClaim(mc *hazelcastv1beta1.ManagementCenter) corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      n.MancenterStorageName,
@@ -439,7 +439,7 @@ func tmpDir() v1.Volume {
 	}
 }
 
-func configVolume(mc *hazelcastv1alpha1.ManagementCenter) v1.Volume {
+func configVolume(mc *hazelcastv1beta1.ManagementCenter) v1.Volume {
 	return v1.Volume{
 		Name: "config",
 		VolumeSource: v1.VolumeSource{
@@ -458,7 +458,7 @@ func configMount() corev1.VolumeMount {
 	}
 }
 
-func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
+func env(mc *hazelcastv1beta1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{{Name: mcInitCmd, Value: clusterAddCommand(mc)}}
 
 	if mc.Spec.LicenseKeySecret != "" {
@@ -492,7 +492,7 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	return envs
 }
 
-func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
+func clusterAddCommand(mc *hazelcastv1beta1.ManagementCenter) string {
 	var commands []string
 	for _, cluster := range mc.Spec.HazelcastClusters {
 		commands = append(commands, fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data --client-config %s", path.Join("/config", cluster.Name+".xml")))
@@ -500,7 +500,7 @@ func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
 	return strings.Join(commands, " && ")
 }
 
-func hazelcastKeystore(ctx context.Context, c client.Client, mc *hazelcastv1alpha1.ManagementCenter, secretName string) ([]byte, error) {
+func hazelcastKeystore(ctx context.Context, c client.Client, mc *hazelcastv1beta1.ManagementCenter, secretName string) ([]byte, error) {
 	var (
 		store    = keystore.New()
 		password = []byte("hazelcast")
@@ -529,7 +529,7 @@ func hazelcastKeystore(ctx context.Context, c client.Client, mc *hazelcastv1alph
 	return b.Bytes(), nil
 }
 
-func loadTLSKeyPair(ctx context.Context, c client.Client, mc *hazelcastv1alpha1.ManagementCenter, secretName string) (cert []byte, key []byte, err error) {
+func loadTLSKeyPair(ctx context.Context, c client.Client, mc *hazelcastv1beta1.ManagementCenter, secretName string) (cert []byte, key []byte, err error) {
 	var s v1.Secret
 	err = c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: mc.Namespace}, &s)
 	if err != nil {
@@ -557,7 +557,7 @@ func decodePEM(data []byte, typ string) ([]byte, error) {
 	return b.Bytes, nil
 }
 
-func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelcastv1alpha1.HazelcastClusterConfig) ([]byte, error) {
+func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelcastv1beta1.HazelcastClusterConfig) ([]byte, error) {
 	clientConfig := HazelcastClient{
 		XMLNS:          "http://www.hazelcast.com/schema/client-config",
 		XMLNSXSI:       "http://www.w3.org/2001/XMLSchema-instance",

@@ -13,7 +13,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -45,7 +45,7 @@ func NewMultiMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, 
 
 func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-multimap", req.NamespacedName)
-	mm := &hazelcastv1alpha1.MultiMap{}
+	mm := &hazelcastv1beta1.MultiMap{}
 
 	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, mm, r.Update, r.clientRegistry, logger)
 	if cl == nil {
@@ -58,13 +58,13 @@ func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	ms, err := r.ReconcileMultiMapConfig(ctx, mm, cl, logger)
 	if err != nil {
 		return updateDSStatus(ctx, r.Client, mm, recoptions.RetryAfter(retryAfterForDataStructures),
-			withDSState(hazelcastv1alpha1.DataStructurePending),
+			withDSState(hazelcastv1beta1.DataStructurePending),
 			withDSMessage(err.Error()),
 			withDSMemberStatuses(ms))
 	}
 
 	requeue, err := updateDSStatus(ctx, r.Client, mm, recoptions.RetryAfter(1*time.Second),
-		withDSState(hazelcastv1alpha1.DataStructurePersisting),
+		withDSState(hazelcastv1beta1.DataStructurePersisting),
 		withDSMessage("Persisting the applied MultiMap config."),
 		withDSMemberStatuses(ms))
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	if !persisted {
 		return updateDSStatus(ctx, r.Client, mm, recoptions.RetryAfter(1*time.Second),
-			withDSState(hazelcastv1alpha1.DataStructurePersisting),
+			withDSState(hazelcastv1beta1.DataStructurePersisting),
 			withDSMessage("Waiting for MultiMap Config to be persisted."),
 			withDSMemberStatuses(ms))
 	}
@@ -89,10 +89,10 @@ func (r *MultiMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 func (r *MultiMapReconciler) ReconcileMultiMapConfig(
 	ctx context.Context,
-	mm *hazelcastv1alpha1.MultiMap,
+	mm *hazelcastv1beta1.MultiMap,
 	cl hzclient.Client,
 	logger logr.Logger,
-) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
+) (map[string]hazelcastv1beta1.DataStructureConfigState, error) {
 	var req *proto.ClientMessage
 
 	multiMapInput := codecTypes.DefaultMultiMapConfigInput()
@@ -103,7 +103,7 @@ func (r *MultiMapReconciler) ReconcileMultiMapConfig(
 	return sendCodecRequest(ctx, cl, mm, req, logger)
 }
 
-func fillMultiMapConfigInput(multiMapInput *codecTypes.MultiMapConfig, mm *hazelcastv1alpha1.MultiMap) {
+func fillMultiMapConfigInput(multiMapInput *codecTypes.MultiMapConfig, mm *hazelcastv1beta1.MultiMap) {
 	multiMapInput.Name = mm.GetDSName()
 
 	mms := mm.Spec
@@ -113,7 +113,7 @@ func fillMultiMapConfigInput(multiMapInput *codecTypes.MultiMapConfig, mm *hazel
 	multiMapInput.CollectionType = string(mms.CollectionType)
 }
 
-func (r *MultiMapReconciler) validateMultiMapConfigPersistence(ctx context.Context, mm *hazelcastv1alpha1.MultiMap) (bool, error) {
+func (r *MultiMapReconciler) validateMultiMapConfigPersistence(ctx context.Context, mm *hazelcastv1beta1.MultiMap) (bool, error) {
 	hzConfig, err := getHazelcastConfig(ctx, r.Client, mm)
 	if err != nil {
 		return false, err
@@ -134,6 +134,6 @@ func (r *MultiMapReconciler) validateMultiMapConfigPersistence(ctx context.Conte
 // SetupWithManager sets up the controller with the Manager.
 func (r *MultiMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastv1alpha1.MultiMap{}).
+		For(&hazelcastv1beta1.MultiMap{}).
 		Complete(r)
 }

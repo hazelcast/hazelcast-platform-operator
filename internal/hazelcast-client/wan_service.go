@@ -2,8 +2,8 @@ package client
 
 import (
 	"context"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -21,8 +21,8 @@ type AddBatchPublisherRequest struct {
 	BatchSize             int32
 	BatchMaxDelayMillis   int32
 	ResponseTimeoutMillis int32
-	AckType               hazelcastv1alpha1.AcknowledgementType
-	QueueFullBehavior     hazelcastv1alpha1.FullBehaviorSetting
+	AckType               hazelcastv1beta1.AcknowledgementType
+	QueueFullBehavior     hazelcastv1beta1.FullBehaviorSetting
 }
 
 type HzWanService struct {
@@ -93,24 +93,24 @@ func (ws *HzWanService) ClearWanQueue(ctx context.Context) error {
 	return nil
 }
 
-func convertAckType(ackType hazelcastv1alpha1.AcknowledgementType) int32 {
+func convertAckType(ackType hazelcastv1beta1.AcknowledgementType) int32 {
 	switch ackType {
-	case hazelcastv1alpha1.AckOnReceipt:
+	case hazelcastv1beta1.AckOnReceipt:
 		return 0
-	case hazelcastv1alpha1.AckOnOperationComplete:
+	case hazelcastv1beta1.AckOnOperationComplete:
 		return 1
 	default:
 		return -1
 	}
 }
 
-func convertQueueBehavior(behavior hazelcastv1alpha1.FullBehaviorSetting) int32 {
+func convertQueueBehavior(behavior hazelcastv1beta1.FullBehaviorSetting) int32 {
 	switch behavior {
-	case hazelcastv1alpha1.DiscardAfterMutation:
+	case hazelcastv1beta1.DiscardAfterMutation:
 		return 0
-	case hazelcastv1alpha1.ThrowException:
+	case hazelcastv1beta1.ThrowException:
 		return 1
-	case hazelcastv1alpha1.ThrowExceptionOnlyIfReplicationActive:
+	case hazelcastv1beta1.ThrowExceptionOnlyIfReplicationActive:
 		return 2
 	default:
 		return -1

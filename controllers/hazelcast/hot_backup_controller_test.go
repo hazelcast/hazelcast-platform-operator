@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -50,10 +50,10 @@ func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
-	Eventually(func() hazelcastv1alpha1.HotBackupState {
+	Eventually(func() hazelcastv1beta1.HotBackupState {
 		_ = r.Client.Get(context.TODO(), nn, hb)
 		return hb.Status.State
-	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupSuccess))
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1beta1.HotBackupSuccess))
 }
 
 func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T) {
@@ -81,10 +81,10 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
-	Eventually(func() hazelcastv1alpha1.HotBackupState {
+	Eventually(func() hazelcastv1beta1.HotBackupState {
 		_ = r.Client.Get(context.TODO(), nn, hb)
 		return hb.Status.State
-	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1beta1.HotBackupFailure))
 }
 
 func TestHotBackupReconciler_shouldSetStatusToFailedWhenTimedMemberStateFails(t *testing.T) {
@@ -107,10 +107,10 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenTimedMemberStateFails(t 
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
-	Eventually(func() hazelcastv1alpha1.HotBackupState {
+	Eventually(func() hazelcastv1beta1.HotBackupState {
 		_ = r.Client.Get(context.TODO(), nn, hb)
 		return hb.Status.State
-	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1beta1.HotBackupFailure))
 }
 
 func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
@@ -147,10 +147,10 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 		_, _ = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	}()
 
-	Eventually(func() hazelcastv1alpha1.HotBackupState {
+	Eventually(func() hazelcastv1beta1.HotBackupState {
 		_ = r.Client.Get(context.TODO(), nn, hb)
 		return hb.Status.State
-	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupInProgress))
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1beta1.HotBackupInProgress))
 
 	reconcileWg.Add(1)
 	go func() {
@@ -206,7 +206,7 @@ func TestHotBackupReconciler_shouldNotSetStatusToFailedIfHazelcastCRNotFound(t *
 	}
 
 	_ = r.Client.Get(context.TODO(), nn, hb)
-	Expect(hb.Status.State).ShouldNot(Equal(hazelcastv1alpha1.HotBackupFailure))
+	Expect(hb.Status.State).ShouldNot(Equal(hazelcastv1beta1.HotBackupFailure))
 }
 
 func fail(t *testing.T) func(message string, callerSkip ...int) {
@@ -276,31 +276,31 @@ func defaultFakeClientAndService() (fakeHzClient, fakeHzStatusService, []cluster
 	return fakeHzClient, fakeHzStatusService, mm
 }
 
-func defaultCRs() (types.NamespacedName, *hazelcastv1alpha1.Hazelcast, *hazelcastv1alpha1.HotBackup) {
+func defaultCRs() (types.NamespacedName, *hazelcastv1beta1.Hazelcast, *hazelcastv1beta1.HotBackup) {
 	nn := types.NamespacedName{
 		Name:      "hazelcast",
 		Namespace: "default",
 	}
-	h := &hazelcastv1alpha1.Hazelcast{
+	h := &hazelcastv1beta1.Hazelcast{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nn.Name,
 			Namespace: nn.Namespace,
 		},
-		Spec: hazelcastv1alpha1.HazelcastSpec{
-			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+		Spec: hazelcastv1beta1.HazelcastSpec{
+			Persistence: &hazelcastv1beta1.HazelcastPersistenceConfiguration{
 				BaseDir: "basedir",
 			},
 		},
-		Status: hazelcastv1alpha1.HazelcastStatus{
-			Phase: hazelcastv1alpha1.Running,
+		Status: hazelcastv1beta1.HazelcastStatus{
+			Phase: hazelcastv1beta1.Running,
 		},
 	}
-	hb := &hazelcastv1alpha1.HotBackup{
+	hb := &hazelcastv1beta1.HotBackup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nn.Name,
 			Namespace: nn.Namespace,
 		},
-		Spec: hazelcastv1alpha1.HotBackupSpec{
+		Spec: hazelcastv1beta1.HotBackupSpec{
 			HazelcastResourceName: nn.Name,
 		},
 	}

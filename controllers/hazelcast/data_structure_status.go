@@ -8,41 +8,41 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 )
 
 const retryAfterForDataStructures = 5 * time.Second
 
 type DSStatusApplier interface {
-	DSStatusApply(ds *hazelcastv1alpha1.DataStructureStatus)
+	DSStatusApply(ds *hazelcastv1beta1.DataStructureStatus)
 }
 
-type withDSState hazelcastv1alpha1.DataStructureConfigState
+type withDSState hazelcastv1beta1.DataStructureConfigState
 
-func (w withDSState) DSStatusApply(ds *hazelcastv1alpha1.DataStructureStatus) {
-	ds.State = hazelcastv1alpha1.DataStructureConfigState(w)
-	if hazelcastv1alpha1.DataStructureConfigState(w) == hazelcastv1alpha1.DataStructureSuccess {
+func (w withDSState) DSStatusApply(ds *hazelcastv1beta1.DataStructureStatus) {
+	ds.State = hazelcastv1beta1.DataStructureConfigState(w)
+	if hazelcastv1beta1.DataStructureConfigState(w) == hazelcastv1beta1.DataStructureSuccess {
 		ds.Message = ""
 	}
 }
 
 type withDSFailedState string
 
-func (w withDSFailedState) DSStatusApply(ds *hazelcastv1alpha1.DataStructureStatus) {
-	ds.State = hazelcastv1alpha1.DataStructureFailed
+func (w withDSFailedState) DSStatusApply(ds *hazelcastv1beta1.DataStructureStatus) {
+	ds.State = hazelcastv1beta1.DataStructureFailed
 	ds.Message = string(w)
 }
 
 type withDSMessage string
 
-func (w withDSMessage) DSStatusApply(ds *hazelcastv1alpha1.DataStructureStatus) {
+func (w withDSMessage) DSStatusApply(ds *hazelcastv1beta1.DataStructureStatus) {
 	ds.Message = string(w)
 }
 
-type withDSMemberStatuses map[string]hazelcastv1alpha1.DataStructureConfigState
+type withDSMemberStatuses map[string]hazelcastv1beta1.DataStructureConfigState
 
-func (w withDSMemberStatuses) DSStatusApply(ds *hazelcastv1alpha1.DataStructureStatus) {
+func (w withDSMemberStatuses) DSStatusApply(ds *hazelcastv1beta1.DataStructureStatus) {
 	ds.MemberStatuses = w
 }
 
@@ -62,7 +62,7 @@ func updateDSStatus(ctx context.Context, c client.Client, obj client.Object, rec
 	if recOption.Err != nil {
 		return ctrl.Result{}, recOption.Err
 	}
-	if dsStatus == hazelcastv1alpha1.DataStructurePending || dsStatus == hazelcastv1alpha1.DataStructurePersisting {
+	if dsStatus == hazelcastv1beta1.DataStructurePending || dsStatus == hazelcastv1beta1.DataStructurePersisting {
 		return ctrl.Result{Requeue: true, RequeueAfter: recOption.RetryAfter}, nil
 	}
 	return ctrl.Result{}, nil

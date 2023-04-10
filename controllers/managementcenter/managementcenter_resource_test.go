@@ -3,29 +3,29 @@ package managementcenter
 import (
 	"testing"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 )
 
 func Test_clusterAddCommand(t *testing.T) {
 	tests := []struct {
 		name string
-		mc   *hazelcastv1alpha1.ManagementCenter
+		mc   *hazelcastv1beta1.ManagementCenter
 		want string
 	}{
 		{
 			name: "No Cluster Defined",
-			mc: &hazelcastv1alpha1.ManagementCenter{
-				Spec: hazelcastv1alpha1.ManagementCenterSpec{
-					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
+			mc: &hazelcastv1beta1.ManagementCenter{
+				Spec: hazelcastv1beta1.ManagementCenterSpec{
+					HazelcastClusters: []hazelcastv1beta1.HazelcastClusterConfig{},
 				},
 			},
 			want: "",
 		},
 		{
 			name: "One Cluster Defined",
-			mc: &hazelcastv1alpha1.ManagementCenter{
-				Spec: hazelcastv1alpha1.ManagementCenterSpec{
-					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
+			mc: &hazelcastv1beta1.ManagementCenter{
+				Spec: hazelcastv1beta1.ManagementCenterSpec{
+					HazelcastClusters: []hazelcastv1beta1.HazelcastClusterConfig{
 						{
 							Name:    "dev",
 							Address: "hazelcast",
@@ -37,9 +37,9 @@ func Test_clusterAddCommand(t *testing.T) {
 		},
 		{
 			name: "Two Clusters Defined",
-			mc: &hazelcastv1alpha1.ManagementCenter{
-				Spec: hazelcastv1alpha1.ManagementCenterSpec{
-					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
+			mc: &hazelcastv1beta1.ManagementCenter{
+				Spec: hazelcastv1beta1.ManagementCenterSpec{
+					HazelcastClusters: []hazelcastv1beta1.HazelcastClusterConfig{
 						{
 							Name:    "dev",
 							Address: "hazelcast",

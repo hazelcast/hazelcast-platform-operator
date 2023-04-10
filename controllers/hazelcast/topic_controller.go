@@ -13,7 +13,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -45,7 +45,7 @@ func NewTopicReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht
 
 func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-topic", req.NamespacedName)
-	t := &hazelcastv1alpha1.Topic{}
+	t := &hazelcastv1beta1.Topic{}
 
 	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, t, r.Update, r.clientRegistry, logger)
 	if cl == nil {
@@ -58,13 +58,13 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	ms, err := r.ReconcileTopicConfig(ctx, t, cl, logger)
 	if err != nil {
 		return updateDSStatus(ctx, r.Client, t, recoptions.RetryAfter(retryAfterForDataStructures),
-			withDSState(hazelcastv1alpha1.DataStructurePending),
+			withDSState(hazelcastv1beta1.DataStructurePending),
 			withDSMessage(err.Error()),
 			withDSMemberStatuses(ms))
 	}
 
 	requeue, err := updateDSStatus(ctx, r.Client, t, recoptions.RetryAfter(1*time.Second),
-		withDSState(hazelcastv1alpha1.DataStructurePersisting),
+		withDSState(hazelcastv1beta1.DataStructurePersisting),
 		withDSMessage("Persisting the applied multiMap config."),
 		withDSMemberStatuses(ms))
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if !persisted {
 		return updateDSStatus(ctx, r.Client, t, recoptions.RetryAfter(1*time.Second),
-			withDSState(hazelcastv1alpha1.DataStructurePersisting),
+			withDSState(hazelcastv1beta1.DataStructurePersisting),
 			withDSMessage("Waiting for Cache Config to be persisted."),
 			withDSMemberStatuses(ms))
 	}
@@ -89,10 +89,10 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 func (r *TopicReconciler) ReconcileTopicConfig(
 	ctx context.Context,
-	t *hazelcastv1alpha1.Topic,
+	t *hazelcastv1beta1.Topic,
 	cl hzclient.Client,
 	logger logr.Logger,
-) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
+) (map[string]hazelcastv1beta1.DataStructureConfigState, error) {
 	var req *proto.ClientMessage
 
 	topicInput := codecTypes.DefaultTopicConfigInput()
@@ -103,7 +103,7 @@ func (r *TopicReconciler) ReconcileTopicConfig(
 	return sendCodecRequest(ctx, cl, t, req, logger)
 }
 
-func fillTopicConfigInput(topicInput *codecTypes.TopicConfig, t *hazelcastv1alpha1.Topic) {
+func fillTopicConfigInput(topicInput *codecTypes.TopicConfig, t *hazelcastv1beta1.Topic) {
 	topicInput.Name = t.GetDSName()
 
 	ts := t.Spec
@@ -111,7 +111,7 @@ func fillTopicConfigInput(topicInput *codecTypes.TopicConfig, t *hazelcastv1alph
 	topicInput.MultiThreadingEnabled = ts.MultiThreadingEnabled
 }
 
-func (r *TopicReconciler) validateTopicConfigPersistence(ctx context.Context, t *hazelcastv1alpha1.Topic) (bool, error) {
+func (r *TopicReconciler) validateTopicConfigPersistence(ctx context.Context, t *hazelcastv1beta1.Topic) (bool, error) {
 	hzConfig, err := getHazelcastConfig(ctx, r.Client, t)
 	if err != nil {
 		return false, err
@@ -132,6 +132,6 @@ func (r *TopicReconciler) validateTopicConfigPersistence(ctx context.Context, t 
 // SetupWithManager sets up the controller with the Manager.
 func (r *TopicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastv1alpha1.Topic{}).
+		For(&hazelcastv1beta1.Topic{}).
 		Complete(r)
 }

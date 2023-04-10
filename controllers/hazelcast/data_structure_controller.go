@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
@@ -35,7 +35,7 @@ type Type interface {
 type DataStructure interface {
 	GetDSName() string
 	GetHZResourceName() string
-	GetStatus() *hazelcastv1alpha1.DataStructureStatus
+	GetStatus() *hazelcastv1beta1.DataStructureStatus
 	GetSpec() (string, error)
 	SetSpec(string) error
 }
@@ -44,9 +44,9 @@ type Update func(ctx context.Context, obj client.Object, opts ...client.UpdateOp
 
 func isDSPersisted(obj client.Object) bool {
 	switch obj.(DataStructure).GetStatus().State {
-	case hazelcastv1alpha1.DataStructurePersisting, hazelcastv1alpha1.DataStructureSuccess:
+	case hazelcastv1beta1.DataStructurePersisting, hazelcastv1beta1.DataStructureSuccess:
 		return true
-	case hazelcastv1alpha1.DataStructureFailed, hazelcastv1alpha1.DataStructurePending:
+	case hazelcastv1beta1.DataStructureFailed, hazelcastv1beta1.DataStructurePending:
 		if spec, ok := obj.GetAnnotations()[n.LastSuccessfulSpecAnnotation]; ok {
 			if err := obj.(DataStructure).SetSpec(spec); err != nil {
 				return false
@@ -78,7 +78,7 @@ func initialSetupDS(ctx context.Context,
 	if obj.GetDeletionTimestamp() != nil {
 		if err := startDelete(ctx, c, obj, updateFunc, logger); err != nil {
 			result, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
-				withDSState(hazelcastv1alpha1.DataStructureTerminating),
+				withDSState(hazelcastv1beta1.DataStructureTerminating),
 				withDSMessage(err.Error()))
 			return nil, result, err
 		}
@@ -95,9 +95,9 @@ func initialSetupDS(ctx context.Context,
 		return nil, res, err
 	}
 
-	if obj.(DataStructure).GetStatus().State != hazelcastv1alpha1.DataStructurePersisting {
+	if obj.(DataStructure).GetStatus().State != hazelcastv1beta1.DataStructurePersisting {
 		requeue, err := updateDSStatus(ctx, c, obj, recoptions.Empty(),
-			withDSState(hazelcastv1alpha1.Pending),
+			withDSState(hazelcastv1beta1.Pending),
 			withDSMessage(fmt.Sprintf("Applying new %v configuration.", objKind)))
 		if err != nil {
 			return nil, requeue, err
@@ -119,7 +119,7 @@ func getCR(ctx context.Context, c client.Client, obj client.Object, nn client.Ob
 }
 
 func startDelete(ctx context.Context, c client.Client, obj client.Object, updateFunc Update, logger logr.Logger) error {
-	updateDSStatus(ctx, c, obj, recoptions.Empty(), withDSState(hazelcastv1alpha1.Terminating)) //nolint:errcheck
+	updateDSStatus(ctx, c, obj, recoptions.Empty(), withDSState(hazelcastv1beta1.Terminating)) //nolint:errcheck
 	if err := executeFinalizer(ctx, obj, updateFunc); err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func handleCreatedBefore(ctx context.Context, c client.Client, obj client.Object
 
 		if s == mms {
 			logger.Info(fmt.Sprintf("%v Config was already applied.", objKind), "name", obj.GetName(), "namespace", obj.GetNamespace())
-			result, err := updateDSStatus(ctx, c, obj, recoptions.Empty(), withDSState(hazelcastv1alpha1.DataStructureSuccess))
+			result, err := updateDSStatus(ctx, c, obj, recoptions.Empty(), withDSState(hazelcastv1beta1.DataStructureSuccess))
 			return false, result, err
 		}
 
@@ -165,7 +165,7 @@ func handleCreatedBefore(ctx context.Context, c client.Client, obj client.Object
 }
 
 func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hzResourceName string, cs hzclient.ClientRegistry) (hzclient.Client, ctrl.Result, error) {
-	h := &hazelcastv1alpha1.Hazelcast{}
+	h := &hazelcastv1beta1.Hazelcast{}
 	hzLookup := types.NamespacedName{Namespace: ns, Name: hzResourceName}
 	err := c.Get(ctx, hzLookup, h)
 	if err != nil {
@@ -174,7 +174,7 @@ func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hz
 			withDSFailedState(err.Error()))
 		return nil, result, err
 	}
-	if h.Status.Phase != hazelcastv1alpha1.Running {
+	if h.Status.Phase != hazelcastv1beta1.Running {
 		err = errors.NewServiceUnavailable("Hazelcast CR is not ready")
 		result, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
 			withDSFailedState(err.Error()))
@@ -191,7 +191,7 @@ func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hz
 	if !hzcl.Running() {
 		err = fmt.Errorf("trying to connect to the cluster %s", hzResourceName)
 		result, err := updateDSStatus(ctx, c, obj, recoptions.RetryAfter(retryAfterForDataStructures),
-			withDSState(hazelcastv1alpha1.Pending),
+			withDSState(hazelcastv1beta1.Pending),
 			withDSMessage(err.Error()))
 		return nil, result, err
 	}
@@ -210,7 +210,7 @@ func finalSetupDS(ctx context.Context, c client.Client, ph chan struct{}, obj cl
 	}
 
 	return updateDSStatus(ctx, c, obj, recoptions.Empty(),
-		withDSState(hazelcastv1alpha1.DataStructureSuccess),
+		withDSState(hazelcastv1beta1.DataStructureSuccess),
 		withDSMessage(""),
 		withDSMemberStatuses{})
 }
@@ -240,22 +240,22 @@ func sendCodecRequest(
 	cl hzclient.Client,
 	obj client.Object,
 	req *hazelcast.ClientMessage,
-	logger logr.Logger) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
-	memberStatuses := map[string]hazelcastv1alpha1.DataStructureConfigState{}
+	logger logr.Logger) (map[string]hazelcastv1beta1.DataStructureConfigState, error) {
+	memberStatuses := map[string]hazelcastv1beta1.DataStructureConfigState{}
 	var failedMembers strings.Builder
 	for _, member := range cl.OrderedMembers() {
-		if status, ok := obj.(DataStructure).GetStatus().MemberStatuses[member.UUID.String()]; ok && status == hazelcastv1alpha1.DataStructureSuccess {
-			memberStatuses[member.UUID.String()] = hazelcastv1alpha1.DataStructureSuccess
+		if status, ok := obj.(DataStructure).GetStatus().MemberStatuses[member.UUID.String()]; ok && status == hazelcastv1beta1.DataStructureSuccess {
+			memberStatuses[member.UUID.String()] = hazelcastv1beta1.DataStructureSuccess
 			continue
 		}
 		_, err := cl.InvokeOnMember(ctx, req, member.UUID, nil)
 		if err != nil {
-			memberStatuses[member.UUID.String()] = hazelcastv1alpha1.DataStructureFailed
+			memberStatuses[member.UUID.String()] = hazelcastv1beta1.DataStructureFailed
 			failedMembers.WriteString(member.UUID.String() + ", ")
 			logger.Error(err, "Failed with member")
 			continue
 		}
-		memberStatuses[member.UUID.String()] = hazelcastv1alpha1.DataStructureSuccess
+		memberStatuses[member.UUID.String()] = hazelcastv1beta1.DataStructureSuccess
 	}
 	errString := failedMembers.String()
 	if errString != "" {

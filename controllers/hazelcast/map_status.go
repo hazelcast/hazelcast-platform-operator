@@ -7,43 +7,43 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 )
 
 type MapStatusApplier interface {
-	MapStatusApply(ms *hazelcastv1alpha1.MapStatus)
+	MapStatusApply(ms *hazelcastv1beta1.MapStatus)
 }
 
-type withMapState hazelcastv1alpha1.MapConfigState
+type withMapState hazelcastv1beta1.MapConfigState
 
-func (w withMapState) MapStatusApply(ms *hazelcastv1alpha1.MapStatus) {
-	ms.State = hazelcastv1alpha1.MapConfigState(w)
-	if hazelcastv1alpha1.MapConfigState(w) == hazelcastv1alpha1.MapSuccess {
+func (w withMapState) MapStatusApply(ms *hazelcastv1beta1.MapStatus) {
+	ms.State = hazelcastv1beta1.MapConfigState(w)
+	if hazelcastv1beta1.MapConfigState(w) == hazelcastv1beta1.MapSuccess {
 		ms.Message = ""
 	}
 }
 
 type withMapFailedState string
 
-func (w withMapFailedState) MapStatusApply(ms *hazelcastv1alpha1.MapStatus) {
-	ms.State = hazelcastv1alpha1.MapFailed
+func (w withMapFailedState) MapStatusApply(ms *hazelcastv1beta1.MapStatus) {
+	ms.State = hazelcastv1beta1.MapFailed
 	ms.Message = string(w)
 }
 
 type withMapMessage string
 
-func (w withMapMessage) MapStatusApply(ms *hazelcastv1alpha1.MapStatus) {
+func (w withMapMessage) MapStatusApply(ms *hazelcastv1beta1.MapStatus) {
 	ms.Message = string(w)
 }
 
-type withMapMemberStatuses map[string]hazelcastv1alpha1.MapConfigState
+type withMapMemberStatuses map[string]hazelcastv1beta1.MapConfigState
 
-func (w withMapMemberStatuses) MapStatusApply(ms *hazelcastv1alpha1.MapStatus) {
+func (w withMapMemberStatuses) MapStatusApply(ms *hazelcastv1beta1.MapStatus) {
 	ms.MemberStatuses = w
 }
 
-func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1alpha1.Map, recOption controllers.ReconcilerOption, options ...MapStatusApplier) (ctrl.Result, error) {
+func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1beta1.Map, recOption controllers.ReconcilerOption, options ...MapStatusApplier) (ctrl.Result, error) {
 	for _, applier := range options {
 		applier.MapStatusApply(&m.Status)
 	}
@@ -58,7 +58,7 @@ func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1alpha1.
 	if recOption.Err != nil {
 		return ctrl.Result{}, recOption.Err
 	}
-	if m.Status.State == hazelcastv1alpha1.MapPending || m.Status.State == hazelcastv1alpha1.MapPersisting {
+	if m.Status.State == hazelcastv1beta1.MapPending || m.Status.State == hazelcastv1beta1.MapPersisting {
 		return ctrl.Result{Requeue: true, RequeueAfter: recOption.RetryAfter}, nil
 	}
 	return ctrl.Result{}, nil

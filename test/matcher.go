@@ -47,7 +47,7 @@ func (matcher HazelcastSpecEqual) Match(actual interface{}) (success bool, err e
 	}
 	if matcher.ee && spec.LicenseKeySecret != matcher.Expected.LicenseKey {
 		return false, fmt.Errorf(
-			"expected LicenseKeySecret is %s but actual is %s", matcher.Expected.LicenseKey, spec.LicenseKeySecret)
+			"expected LicenseKeySecretName is %s but actual is %s", matcher.Expected.LicenseKey, spec.LicenseKeySecret)
 	}
 	return true, nil
 }

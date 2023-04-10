@@ -1047,7 +1047,7 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(ok).To(BeTrue())
 				Expect(an).To(Equal(string(hz.Spec.ExposeExternally.MemberAccessType())))
 
-				By("Checking if StatefulSet LicenseKeySecret is updated")
+				By("Checking if StatefulSet LicenseKeySecretName is updated")
 				el := ss.Spec.Template.Spec.Containers[0].Env
 				for _, env := range el {
 					if env.Name == "HZ_LICENSEKEY" {

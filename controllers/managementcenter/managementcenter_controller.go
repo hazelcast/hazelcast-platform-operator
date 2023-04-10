@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -57,7 +57,7 @@ func NewManagementCenterReconciler(c client.Client, log logr.Logger, s *runtime.
 func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("management-center", req.NamespacedName)
 
-	mc := &hazelcastv1alpha1.ManagementCenter{}
+	mc := &hazelcastv1beta1.ManagementCenter{}
 	err := r.Client.Get(ctx, req.NamespacedName, mc)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -83,7 +83,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	err = hazelcastv1alpha1.ValidateManagementCenterSpec(mc)
+	err = hazelcastv1beta1.ValidateManagementCenterSpec(mc)
 	if err != nil {
 		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 	}
@@ -120,7 +120,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, 1); !ok {
 		if err == nil {
-			return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.Pending))
+			return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1beta1.Pending))
 		} else {
 			return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 		}
@@ -136,19 +136,19 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 	externalAddrs := util.GetExternalAddresses(ctx, r.Client, mc, logger)
 	enrichedAddrs := enrichPublicAddresses(ctx, r.Client, mc, externalAddrs)
-	return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.Running), withMcExternalAddresses(enrichedAddrs))
+	return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1beta1.Running), withMcExternalAddresses(enrichedAddrs))
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ManagementCenterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastv1alpha1.ManagementCenter{}).
+		For(&hazelcastv1beta1.ManagementCenter{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Complete(r)
 }
 
-func (r *ManagementCenterReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+func (r *ManagementCenterReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1beta1.ManagementCenter, logger logr.Logger) error {
 	hs, err := json.Marshal(h.Spec)
 	if err != nil {
 		return err
@@ -167,7 +167,7 @@ func (r *ManagementCenterReconciler) updateLastSuccessfulConfiguration(ctx conte
 	return err
 }
 
-func enrichPublicAddresses(ctx context.Context, cli client.Client, mc *hazelcastv1alpha1.ManagementCenter, externalAddresses []string) []string {
+func enrichPublicAddresses(ctx context.Context, cli client.Client, mc *hazelcastv1beta1.ManagementCenter, externalAddresses []string) []string {
 	if mc.Spec.ExternalConnectivity.Ingress.IsEnabled() {
 		externalAddresses = append(externalAddresses, mc.Spec.ExternalConnectivity.Ingress.Hostname+":80")
 	}

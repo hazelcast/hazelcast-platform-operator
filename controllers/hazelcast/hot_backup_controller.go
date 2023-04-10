@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/backup"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
@@ -59,7 +59,7 @@ func NewHotBackupReconciler(c client.Client, log logr.Logger, pht chan struct{},
 func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Request) (result reconcile.Result, err error) {
 	logger := r.Log.WithValues("hazelcast-hot-backup", req.NamespacedName)
 
-	hb := &hazelcastv1alpha1.HotBackup{}
+	hb := &hazelcastv1beta1.HotBackup{}
 	err = r.Client.Get(ctx, req.NamespacedName, hb)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
@@ -113,18 +113,18 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 
 	hazelcastName := types.NamespacedName{Namespace: req.Namespace, Name: hb.Spec.HazelcastResourceName}
 
-	h := &hazelcastv1alpha1.Hazelcast{}
+	h := &hazelcastv1beta1.Hazelcast{}
 	err = r.Client.Get(ctx, hazelcastName, h)
 	if err != nil {
 		logger.Info("Could not find hazelcast cluster", "name", hazelcastName, "err", err)
 		return r.updateStatus(ctx, req.NamespacedName, recoptions.Empty(),
-			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
+			withHotBackupState(hazelcastv1beta1.HotBackupPending))
 	}
 
-	if h.Status.Phase != hazelcastv1alpha1.Running {
+	if h.Status.Phase != hazelcastv1beta1.Running {
 		logger.Info("Hazelcast cluster is not ready", "name", hazelcastName, "phase", h.Status.Phase)
 		return r.updateStatus(ctx, req.NamespacedName, recoptions.Empty(),
-			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
+			withHotBackupState(hazelcastv1beta1.HotBackupPending))
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
@@ -138,7 +138,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	r.cancelMap[req.NamespacedName] = cancelFunc
 
 	result, err = r.updateStatus(ctx, req.NamespacedName, recoptions.Empty(),
-		withHotBackupState(hazelcastv1alpha1.HotBackupNotStarted))
+		withHotBackupState(hazelcastv1beta1.HotBackupNotStarted))
 	if err != nil {
 		return result, err
 	}
@@ -155,7 +155,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Context, name types.NamespacedName) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Always fetch the new version of the resource
-		hb := &hazelcastv1alpha1.HotBackup{}
+		hb := &hazelcastv1beta1.HotBackup{}
 		if err := r.Client.Get(ctx, name, hb); err != nil {
 			return err
 		}
@@ -172,7 +172,7 @@ func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	})
 }
 
-func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcastv1alpha1.HotBackup) error {
+func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcastv1beta1.HotBackup) error {
 	if !controllerutil.ContainsFinalizer(hb, n.Finalizer) {
 		return nil
 	}
@@ -212,7 +212,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 
 	// Change state to In Progress
 	_, err := r.updateStatus(ctx, backupName, recoptions.Empty(),
-		withHotBackupState(hazelcastv1alpha1.HotBackupInProgress))
+		withHotBackupState(hazelcastv1beta1.HotBackupInProgress))
 	if err != nil {
 		// setting status failed so this most likely will fail too
 		return r.updateStatus(ctx, backupName, recoptions.Error(err),
@@ -220,7 +220,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	}
 
 	// Get latest version as this may be running in cron
-	hz := &hazelcastv1alpha1.Hazelcast{}
+	hz := &hazelcastv1beta1.Hazelcast{}
 	if err := r.Get(ctx, hazelcastName, hz); err != nil {
 		logger.Error(err, "Get latest hazelcast CR failed")
 		return r.updateStatus(ctx, backupName, recoptions.Error(err),
@@ -231,7 +231,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	if err != nil {
 		logger.Error(err, "Get Hazelcast Client failed")
 		return r.updateStatus(ctx, backupName, recoptions.Error(err),
-			withHotBackupState(hazelcastv1alpha1.HotBackupFailure),
+			withHotBackupState(hazelcastv1beta1.HotBackupFailure),
 			withHotBackupMessage(err.Error()))
 	}
 
@@ -311,7 +311,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				return nil
 			}
 
-			hb := &hazelcastv1alpha1.HotBackup{}
+			hb := &hazelcastv1beta1.HotBackup{}
 			if err := r.Get(groupCtx, backupName, hb); err != nil {
 				return err
 			}
@@ -368,13 +368,13 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 
 	logger.Info("All members finished with no errors")
 	return r.updateStatus(ctx, backupName, recoptions.Empty(),
-		withHotBackupState(hazelcastv1alpha1.HotBackupSuccess),
+		withHotBackupState(hazelcastv1beta1.HotBackupSuccess),
 		withHotBackupMessage(""),
 		withHotBackupBackupUUIDs(backupUUIDs))
 }
 
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastv1alpha1.HotBackup{}).
+		For(&hazelcastv1beta1.HotBackup{}).
 		Complete(r)
 }

@@ -14,7 +14,7 @@ import (
 	hzlogger "github.com/hazelcast/hazelcast-go-client/logger"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
@@ -22,7 +22,7 @@ const (
 	AgentPort = 8443
 )
 
-func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, logger hzlogger.Logger) hazelcast.Config {
+func BuildConfig(h *hazelcastv1beta1.Hazelcast, pool *x509.CertPool, logger hzlogger.Logger) hazelcast.Config {
 	config := hazelcast.Config{
 		Logger: hzlogger.Config{
 			CustomLogger: logger,
@@ -53,11 +53,11 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, logger hzl
 	return config
 }
 
-func RestUrl(h *hazelcastv1alpha1.Hazelcast) string {
+func RestUrl(h *hazelcastv1beta1.Hazelcast) string {
 	return fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.RestServerSocketPort)
 }
 
-func HazelcastUrl(h *hazelcastv1alpha1.Hazelcast) string {
+func HazelcastUrl(h *hazelcastv1beta1.Hazelcast) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.DefaultHzPort)
 }
 

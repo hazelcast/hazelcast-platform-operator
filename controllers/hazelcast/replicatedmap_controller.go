@@ -13,7 +13,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -45,7 +45,7 @@ func NewReplicatedMapReconciler(c client.Client, log logr.Logger, s *runtime.Sch
 
 func (r *ReplicatedMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-replicatedmap", req.NamespacedName)
-	rm := &hazelcastv1alpha1.ReplicatedMap{}
+	rm := &hazelcastv1beta1.ReplicatedMap{}
 
 	cl, res, err := initialSetupDS(ctx, r.Client, req.NamespacedName, rm, r.Update, r.clientRegistry, logger)
 	if cl == nil {
@@ -58,13 +58,13 @@ func (r *ReplicatedMapReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	ms, err := r.ReconcileReplicatedMapConfig(ctx, rm, cl, logger)
 	if err != nil {
 		return updateDSStatus(ctx, r.Client, rm, recoptions.RetryAfter(retryAfterForDataStructures),
-			withDSState(hazelcastv1alpha1.DataStructurePending),
+			withDSState(hazelcastv1beta1.DataStructurePending),
 			withDSMessage(err.Error()),
 			withDSMemberStatuses(ms))
 	}
 
 	requeue, err := updateDSStatus(ctx, r.Client, rm, recoptions.RetryAfter(1*time.Second),
-		withDSState(hazelcastv1alpha1.DataStructurePersisting),
+		withDSState(hazelcastv1beta1.DataStructurePersisting),
 		withDSMessage("Persisting the applied multiMap config."),
 		withDSMemberStatuses(ms))
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *ReplicatedMapReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	if !persisted {
 		return updateDSStatus(ctx, r.Client, rm, recoptions.RetryAfter(1*time.Second),
-			withDSState(hazelcastv1alpha1.DataStructurePersisting),
+			withDSState(hazelcastv1beta1.DataStructurePersisting),
 			withDSMessage("Waiting for ReplicatedMap Config to be persisted."),
 			withDSMemberStatuses(ms))
 	}
@@ -89,10 +89,10 @@ func (r *ReplicatedMapReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 func (r *ReplicatedMapReconciler) ReconcileReplicatedMapConfig(
 	ctx context.Context,
-	rm *hazelcastv1alpha1.ReplicatedMap,
+	rm *hazelcastv1beta1.ReplicatedMap,
 	cl hzclient.Client,
 	logger logr.Logger,
-) (map[string]hazelcastv1alpha1.DataStructureConfigState, error) {
+) (map[string]hazelcastv1beta1.DataStructureConfigState, error) {
 	var req *proto.ClientMessage
 
 	replicatedMapInput := codecTypes.DefaultReplicatedMapConfigInput()
@@ -103,7 +103,7 @@ func (r *ReplicatedMapReconciler) ReconcileReplicatedMapConfig(
 	return sendCodecRequest(ctx, cl, rm, req, logger)
 }
 
-func fillReplicatedConfigInput(replicatedMapInput *codecTypes.ReplicatedMapConfig, rm *hazelcastv1alpha1.ReplicatedMap) {
+func fillReplicatedConfigInput(replicatedMapInput *codecTypes.ReplicatedMapConfig, rm *hazelcastv1beta1.ReplicatedMap) {
 	replicatedMapInput.Name = rm.GetDSName()
 
 	rms := rm.Spec
@@ -111,7 +111,7 @@ func fillReplicatedConfigInput(replicatedMapInput *codecTypes.ReplicatedMapConfi
 	replicatedMapInput.AsyncFillup = *rms.AsyncFillup
 }
 
-func (r *ReplicatedMapReconciler) validateReplicatedMapConfigPersistence(ctx context.Context, rm *hazelcastv1alpha1.ReplicatedMap) (bool, error) {
+func (r *ReplicatedMapReconciler) validateReplicatedMapConfigPersistence(ctx context.Context, rm *hazelcastv1beta1.ReplicatedMap) (bool, error) {
 	hzConfig, err := getHazelcastConfig(ctx, r.Client, rm)
 	if err != nil {
 		return false, err
@@ -132,6 +132,6 @@ func (r *ReplicatedMapReconciler) validateReplicatedMapConfigPersistence(ctx con
 // SetupWithManager sets up the controller with the Manager.
 func (r *ReplicatedMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastv1alpha1.ReplicatedMap{}).
+		For(&hazelcastv1beta1.ReplicatedMap{}).
 		Complete(r)
 }

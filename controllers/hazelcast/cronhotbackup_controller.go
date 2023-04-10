@@ -19,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/go-logr/logr"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	"github.com/robfig/cron/v3"
@@ -56,7 +56,7 @@ func NewCronHotBackupReconciler(
 func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	logger := r.Log.WithValues("hazelcast-hot-backup", req.NamespacedName)
 
-	chb := &hazelcastv1alpha1.CronHotBackup{}
+	chb := &hazelcastv1beta1.CronHotBackup{}
 	err = r.Client.Get(ctx, req.NamespacedName, chb)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
@@ -127,7 +127,7 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return
 }
 
-func (r *CronHotBackupReconciler) executeFinalizer(ctx context.Context, chb *hazelcastv1alpha1.CronHotBackup) error {
+func (r *CronHotBackupReconciler) executeFinalizer(ctx context.Context, chb *hazelcastv1beta1.CronHotBackup) error {
 	if !controllerutil.ContainsFinalizer(chb, n.Finalizer) {
 		return nil
 	}
@@ -151,11 +151,11 @@ func (r *CronHotBackupReconciler) removeSchedule(key types.NamespacedName) {
 	}
 }
 
-func (r *CronHotBackupReconciler) deleteDependentHotBackups(ctx context.Context, chb *hazelcastv1alpha1.CronHotBackup) error {
+func (r *CronHotBackupReconciler) deleteDependentHotBackups(ctx context.Context, chb *hazelcastv1beta1.CronHotBackup) error {
 	fieldMatcher := client.MatchingFields{"controller": chb.Name}
 	nsMatcher := client.InNamespace(chb.Namespace)
 
-	hbl := &hazelcastv1alpha1.HotBackupList{}
+	hbl := &hazelcastv1beta1.HotBackupList{}
 
 	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
 		return fmt.Errorf("Could not get CronHotBackup dependent HotBackup resources %w", err)
@@ -192,7 +192,7 @@ func (r *CronHotBackupReconciler) deleteDependentHotBackups(ctx context.Context,
 	return nil
 }
 
-func (r *CronHotBackupReconciler) updateSchedule(ctx context.Context, chb *hazelcastv1alpha1.CronHotBackup) error {
+func (r *CronHotBackupReconciler) updateSchedule(ctx context.Context, chb *hazelcastv1beta1.CronHotBackup) error {
 	chbCopy := *chb.DeepCopy()
 	chbKey := types.NamespacedName{Name: chbCopy.Name, Namespace: chbCopy.Namespace}
 
@@ -220,13 +220,13 @@ func (r *CronHotBackupReconciler) updateSchedule(ctx context.Context, chb *hazel
 	return nil
 }
 
-func (r *CronHotBackupReconciler) createHotBackup(ctx context.Context, chb hazelcastv1alpha1.CronHotBackup) error {
+func (r *CronHotBackupReconciler) createHotBackup(ctx context.Context, chb hazelcastv1beta1.CronHotBackup) error {
 	hbName, err := r.generateBackupName(chb)
 	if err != nil {
 		return err
 	}
 
-	hb := &hazelcastv1alpha1.HotBackup{
+	hb := &hazelcastv1beta1.HotBackup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        hbName,
 			Namespace:   chb.Namespace,
@@ -244,7 +244,7 @@ func (r *CronHotBackupReconciler) createHotBackup(ctx context.Context, chb hazel
 	err = r.Client.Create(ctx, hb)
 	return err
 }
-func (r *CronHotBackupReconciler) generateBackupName(chb hazelcastv1alpha1.CronHotBackup) (string, error) {
+func (r *CronHotBackupReconciler) generateBackupName(chb hazelcastv1beta1.CronHotBackup) (string, error) {
 	schedule, err := r.cronParser.Parse(chb.Spec.Schedule)
 	if err != nil {
 		return "", err
@@ -254,11 +254,11 @@ func (r *CronHotBackupReconciler) generateBackupName(chb hazelcastv1alpha1.CronH
 	return fmt.Sprintf("%s-%d", chb.Name, nextTimeInUnix), nil
 }
 
-func (r *CronHotBackupReconciler) cleanupResources(ctx context.Context, chb hazelcastv1alpha1.CronHotBackup) error {
+func (r *CronHotBackupReconciler) cleanupResources(ctx context.Context, chb hazelcastv1beta1.CronHotBackup) error {
 	fieldMatcher := client.MatchingFields{"controller": chb.Name}
 	nsMatcher := client.InNamespace(chb.Namespace)
 
-	hbl := &hazelcastv1alpha1.HotBackupList{}
+	hbl := &hazelcastv1beta1.HotBackupList{}
 	if err := r.Client.List(ctx, hbl, fieldMatcher, nsMatcher); err != nil {
 		return fmt.Errorf("Could not get CronHotBackup dependent HotBackup resources %w", err)
 	}
@@ -267,14 +267,14 @@ func (r *CronHotBackupReconciler) cleanupResources(ctx context.Context, chb haze
 		return nil
 	}
 
-	failedHotBackups := []hazelcastv1alpha1.HotBackup{}
-	successfulHotBackups := []hazelcastv1alpha1.HotBackup{}
+	failedHotBackups := []hazelcastv1beta1.HotBackup{}
+	successfulHotBackups := []hazelcastv1beta1.HotBackup{}
 
 	for _, hb := range hbl.Items {
 		switch hb.Status.State {
-		case hazelcastv1alpha1.HotBackupFailure:
+		case hazelcastv1beta1.HotBackupFailure:
 			failedHotBackups = append(failedHotBackups, hb)
-		case hazelcastv1alpha1.HotBackupSuccess:
+		case hazelcastv1beta1.HotBackupSuccess:
 			successfulHotBackups = append(successfulHotBackups, hb)
 		}
 	}
@@ -286,7 +286,7 @@ func (r *CronHotBackupReconciler) cleanupResources(ctx context.Context, chb haze
 }
 
 // Best effort deletion of the HotBackup resources
-func deleteHotBackupHistory(ctx context.Context, cl client.Client, limit int, backups []hazelcastv1alpha1.HotBackup) {
+func deleteHotBackupHistory(ctx context.Context, cl client.Client, limit int, backups []hazelcastv1beta1.HotBackup) {
 	diff := len(backups) - limit
 	if diff <= 0 {
 		return
@@ -303,7 +303,7 @@ func deleteHotBackupHistory(ctx context.Context, cl client.Client, limit int, ba
 func (r *CronHotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Context, name types.NamespacedName) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Always fetch the new version of the resource
-		chb := &hazelcastv1alpha1.CronHotBackup{}
+		chb := &hazelcastv1beta1.CronHotBackup{}
 		if err := r.Client.Get(ctx, name, chb); err != nil {
 			return err
 		}
@@ -320,7 +320,7 @@ func (r *CronHotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.
 	})
 }
 
-func (r *CronHotBackupReconciler) isAlreadyApplied(chb *hazelcastv1alpha1.CronHotBackup) (bool, error) {
+func (r *CronHotBackupReconciler) isAlreadyApplied(chb *hazelcastv1beta1.CronHotBackup) (bool, error) {
 	chbs, err := json.Marshal(chb.Spec)
 	if err != nil {
 		return false, fmt.Errorf("Error marshaling the CronHotbackupSpec")
@@ -336,13 +336,13 @@ func (r *CronHotBackupReconciler) isAlreadyApplied(chb *hazelcastv1alpha1.CronHo
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CronHotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.HotBackup{}, "controller", func(rawObj client.Object) []string {
-		hb := rawObj.(*hazelcastv1alpha1.HotBackup)
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1beta1.HotBackup{}, "controller", func(rawObj client.Object) []string {
+		hb := rawObj.(*hazelcastv1beta1.HotBackup)
 		controller := metav1.GetControllerOf(hb)
 		if controller == nil {
 			return nil
 		}
-		if controller.APIVersion != hazelcastv1alpha1.GroupVersion.String() || controller.Kind != "CronHotBackup" {
+		if controller.APIVersion != hazelcastv1beta1.GroupVersion.String() || controller.Kind != "CronHotBackup" {
 			return nil
 		}
 		return []string{controller.Name}
@@ -351,7 +351,7 @@ func (r *CronHotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastv1alpha1.CronHotBackup{}).
-		Owns(&hazelcastv1alpha1.HotBackup{}).
+		For(&hazelcastv1beta1.CronHotBackup{}).
+		Owns(&hazelcastv1beta1.HotBackup{}).
 		Complete(r)
 }

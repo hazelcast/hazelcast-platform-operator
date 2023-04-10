@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 )
 
 func Test_hazelcastConfigMultipleCRs(t *testing.T) {
@@ -25,7 +25,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 	cm := &corev1.Secret{
 		ObjectMeta: meta,
 	}
-	h := &hazelcastv1alpha1.Hazelcast{
+	h := &hazelcastv1beta1.Hazelcast{
 		ObjectMeta: meta,
 	}
 
@@ -34,12 +34,12 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error unmarshalling Hazelcast config")
 	}
-	structureSpec := hazelcastv1alpha1.DataStructureSpec{
+	structureSpec := hazelcastv1beta1.DataStructureSpec{
 		HazelcastResourceName: meta.Name,
 		BackupCount:           pointer.Int32(1),
 		AsyncBackupCount:      0,
 	}
-	structureStatus := hazelcastv1alpha1.DataStructureStatus{State: hazelcastv1alpha1.DataStructureSuccess}
+	structureStatus := hazelcastv1beta1.DataStructureStatus{State: hazelcastv1beta1.DataStructureSuccess}
 
 	tests := []struct {
 		name     string
@@ -51,7 +51,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			listKeys: func(h config.Hazelcast) []string {
 				return getKeys(h.Cache)
 			},
-			c: &hazelcastv1alpha1.Cache{
+			c: &hazelcastv1beta1.Cache{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "Cache",
 				},
@@ -59,8 +59,8 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 					Name:      "cr",
 					Namespace: "default",
 				},
-				Spec:   hazelcastv1alpha1.CacheSpec{DataStructureSpec: structureSpec},
-				Status: hazelcastv1alpha1.CacheStatus{DataStructureStatus: structureStatus},
+				Spec:   hazelcastv1beta1.CacheSpec{DataStructureSpec: structureSpec},
+				Status: hazelcastv1beta1.CacheStatus{DataStructureStatus: structureStatus},
 			},
 		},
 		{
@@ -68,7 +68,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			listKeys: func(h config.Hazelcast) []string {
 				return getKeys(h.Topic)
 			},
-			c: &hazelcastv1alpha1.Topic{
+			c: &hazelcastv1beta1.Topic{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "Topic",
 				},
@@ -76,8 +76,8 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 					Name:      "cr",
 					Namespace: "default",
 				},
-				Spec:   hazelcastv1alpha1.TopicSpec{HazelcastResourceName: meta.Name},
-				Status: hazelcastv1alpha1.TopicStatus{DataStructureStatus: structureStatus},
+				Spec:   hazelcastv1beta1.TopicSpec{HazelcastResourceName: meta.Name},
+				Status: hazelcastv1beta1.TopicStatus{DataStructureStatus: structureStatus},
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			listKeys: func(h config.Hazelcast) []string {
 				return getKeys(h.MultiMap)
 			},
-			c: &hazelcastv1alpha1.MultiMap{
+			c: &hazelcastv1beta1.MultiMap{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "MultiMap",
 				},
@@ -93,8 +93,8 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 					Name:      "cr",
 					Namespace: "default",
 				},
-				Spec:   hazelcastv1alpha1.MultiMapSpec{DataStructureSpec: structureSpec},
-				Status: hazelcastv1alpha1.MultiMapStatus{DataStructureStatus: structureStatus},
+				Spec:   hazelcastv1beta1.MultiMapSpec{DataStructureSpec: structureSpec},
+				Status: hazelcastv1beta1.MultiMapStatus{DataStructureStatus: structureStatus},
 			},
 		},
 		{
@@ -102,7 +102,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			listKeys: func(h config.Hazelcast) []string {
 				return getKeys(h.ReplicatedMap)
 			},
-			c: &hazelcastv1alpha1.ReplicatedMap{
+			c: &hazelcastv1beta1.ReplicatedMap{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "ReplicatedMap",
 				},
@@ -110,8 +110,8 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 					Name:      "cr",
 					Namespace: "default",
 				},
-				Spec:   hazelcastv1alpha1.ReplicatedMapSpec{HazelcastResourceName: meta.Name, AsyncFillup: pointer.Bool(true)},
-				Status: hazelcastv1alpha1.ReplicatedMapStatus{DataStructureStatus: structureStatus},
+				Spec:   hazelcastv1beta1.ReplicatedMapSpec{HazelcastResourceName: meta.Name, AsyncFillup: pointer.Bool(true)},
+				Status: hazelcastv1beta1.ReplicatedMapStatus{DataStructureStatus: structureStatus},
 			},
 		},
 		{
@@ -119,7 +119,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			listKeys: func(h config.Hazelcast) []string {
 				return getKeys(h.Queue)
 			},
-			c: &hazelcastv1alpha1.Queue{
+			c: &hazelcastv1beta1.Queue{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "Queue",
 				},
@@ -127,12 +127,12 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 					Name:      "cr",
 					Namespace: "default",
 				},
-				Spec: hazelcastv1alpha1.QueueSpec{
+				Spec: hazelcastv1beta1.QueueSpec{
 					EmptyQueueTtlSeconds: pointer.Int32(10),
 					MaxSize:              0,
 					DataStructureSpec:    structureSpec,
 				},
-				Status: hazelcastv1alpha1.QueueStatus{DataStructureStatus: structureStatus},
+				Status: hazelcastv1beta1.QueueStatus{DataStructureStatus: structureStatus},
 			},
 		},
 		{
@@ -140,7 +140,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			listKeys: func(h config.Hazelcast) []string {
 				return getKeys(h.Map)
 			},
-			c: &hazelcastv1alpha1.Map{
+			c: &hazelcastv1beta1.Map{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "Map",
 				},
@@ -148,14 +148,14 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 					Name:      "cr",
 					Namespace: "default",
 				},
-				Spec: hazelcastv1alpha1.MapSpec{
+				Spec: hazelcastv1beta1.MapSpec{
 					DataStructureSpec: structureSpec,
 					TimeToLiveSeconds: 10,
-					Eviction: hazelcastv1alpha1.EvictionConfig{
+					Eviction: hazelcastv1beta1.EvictionConfig{
 						MaxSize: 0,
 					},
 				},
-				Status: hazelcastv1alpha1.MapStatus{State: hazelcastv1alpha1.MapSuccess},
+				Status: hazelcastv1beta1.MapStatus{State: hazelcastv1beta1.MapSuccess},
 			},
 		},
 	}
