@@ -350,7 +350,7 @@ jobs:
     if: needs.operatorhub_release.result != 'success' && needs.redhat_certified_operator_release.result != 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
+      - uses: 8398a7/action-slack@fbd6aa58ba854a740e11a35d0df80cb5d12101d8
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
