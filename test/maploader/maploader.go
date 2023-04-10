@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/hazelcast/hazelcast-go-client"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -53,7 +54,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			var r = rand.New(rand.NewSource(rand.Int63()))
+			var r = rand.New(rand.NewSource(time.Now().UnixMilli()))
 			for j := 1; j <= entriesPerGoroutine; j++ {
 				key := fmt.Sprintf("%s-%s-%s-%s", clusterName, randString(r, 5), randString(r, 5), randString(r, 5))
 				value := randString(r, valueLen)
