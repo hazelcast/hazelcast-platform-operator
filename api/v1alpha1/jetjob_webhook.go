@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -25,17 +23,14 @@ var _ webhook.Validator = &JetJob{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (jj *JetJob) ValidateCreate() error {
 	jetjoblog.Info("validate create", "name", jj.Name)
-	// 1. Hazelcast Jet resource upload must be enabled
-	// 2. The Job name within a HZ cluster must be unique
-	return ValidateJetJobSpec(jj)
+	return ValidateJetJobCreateSpec(jj)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (jj *JetJob) ValidateUpdate(old runtime.Object) error {
 	jetjoblog.Info("validate update", "name", jj.Name)
 	oldJj := old.(*JetJob)
-	println(fmt.Sprintf("%v", oldJj))
-	return ValidateJetJobSpec(jj)
+	return ValidateJetJobUpdateSpec(jj, oldJj)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

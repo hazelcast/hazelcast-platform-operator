@@ -541,6 +541,22 @@ var (
 			Spec: cs,
 		}
 	}
+
+	JetJob = func(jarName string, hz string, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.JetJob {
+		return &hazelcastv1alpha1.JetJob{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.JetJobSpec{
+				Name:                  lk.Name,
+				HazelcastResourceName: hz,
+				State:                 hazelcastv1alpha1.RunningJobState,
+				JarName:               jarName,
+			},
+		}
+	}
 )
 
 func repo(ee bool) string {

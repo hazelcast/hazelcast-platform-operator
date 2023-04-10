@@ -2137,7 +2137,6 @@ spec:
                 type: integer
               phase:
                 enum:
-                - Unknown
                 - NotRunning
                 - Starting
                 - Running

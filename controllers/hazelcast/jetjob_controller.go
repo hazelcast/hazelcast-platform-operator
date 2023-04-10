@@ -11,7 +11,9 @@ import (
 	"github.com/go-logr/logr"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -69,7 +71,7 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	//Check if the JetJob CR is marked to be deleted
 	if jj.GetDeletionTimestamp() != nil {
-		err = r.executeFinalizer(ctx, jj)
+		err = r.executeFinalizer(ctx, jj, logger)
 		if err != nil {
 			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
 		}
@@ -94,9 +96,34 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	if err != nil {
 		return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(fmt.Errorf("error marshaling JetJob as JSON: %w", err)))
 	}
-	if s, ok := jj.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok && s == string(jjs) {
-		logger.Info("JetJob was already applied.", "name", jj.Name, "namespace", jj.Namespace)
-		return
+	s, createdBefore := jj.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if createdBefore {
+		if s == string(jjs) {
+			logger.Info("JetJob was already applied.", "name", jj.Name, "namespace", jj.Namespace)
+			return
+		}
+
+		lastSpec := &hazelcastv1alpha1.JetJobSpec{}
+		err = json.Unmarshal([]byte(s), lastSpec)
+		if err != nil {
+			err = fmt.Errorf("error unmarshaling Last JetJob Spec: %w", err)
+			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
+		}
+		var allErrs field.ErrorList
+		allErrs = append(hazelcastv1alpha1.ValidateJetJobNonUpdatableFields(jj.Spec, *lastSpec))
+		if len(allErrs) > 0 {
+			err = apiErrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"}, req.Name, allErrs)
+			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
+		}
+	} else {
+		jjList := &hazelcastv1alpha1.JetJobList{}
+		nsMatcher := client.InNamespace(req.Namespace)
+		if err = r.Client.List(ctx, jjList, nsMatcher); err != nil {
+			logger.Error(err, "Unable to fetch JetJobList")
+		}
+		if err = hazelcastv1alpha1.ValidateExistingJobName(jj, jjList); err != nil {
+			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
+		}
 	}
 
 	hazelcastName := types.NamespacedName{Namespace: req.Namespace, Name: jj.Spec.HazelcastResourceName}
@@ -111,6 +138,10 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	if h.Status.Phase != hazelcastv1alpha1.Running {
 		logger.Info("Hazelcast cluster is not ready", "name", hazelcastName, "phase", h.Status.Phase)
 		return r.updateStatus(ctx, req.NamespacedName, jetJobWithStatus(hazelcastv1alpha1.JetJobNotRunning))
+	}
+
+	if err = hazelcastv1alpha1.ValidateJetConfiguration(h); err != nil {
+		return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
@@ -265,15 +296,46 @@ func (r *JetJobReconciler) updateLastSuccessfulConfiguration(ctx context.Context
 	})
 }
 
-func (r *JetJobReconciler) executeFinalizer(ctx context.Context, jj *hazelcastv1alpha1.JetJob) error {
+func (r *JetJobReconciler) executeFinalizer(ctx context.Context, jj *hazelcastv1alpha1.JetJob, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(jj, n.Finalizer) {
 		return nil
 	}
+	if err := r.stopJetExecution(ctx, jj, logger); err != nil {
+		return fmt.Errorf("failed to remove finalizer: %w", err)
+	}
 	r.removeJobFromChecker(jj)
 	controllerutil.RemoveFinalizer(jj, n.Finalizer)
-	err := r.Update(ctx, jj)
-	if err != nil {
+	if err := r.Update(ctx, jj); err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)
+	}
+	return nil
+}
+
+func (r *JetJobReconciler) stopJetExecution(ctx context.Context, jj *hazelcastv1alpha1.JetJob, logger logr.Logger) error {
+	hzNn := types.NamespacedName{Name: jj.Spec.HazelcastResourceName, Namespace: jj.Namespace}
+	hz := &hazelcastv1alpha1.Hazelcast{}
+	err := r.Client.Get(ctx, hzNn, hz)
+	if err != nil {
+		if apiErrors.IsNotFound(err) {
+			logger.Info("Hazelcast resource not found. Ignoring since object must be deleted")
+			return nil
+		} else {
+			return err
+		}
+	}
+	c, err := r.ClientRegistry.GetOrCreate(ctx, hzNn)
+	if err != nil {
+		logger.Error(err, "Get Hazelcast Client failed")
+		return err
+	}
+	js := hzclient.NewJetService(c)
+	terminateJob := codecTypes.JetTerminateJob{
+		JobId:         jj.Status.Id,
+		TerminateMode: codecTypes.CancelForcefully,
+	}
+	if err = js.UpdateJobState(ctx, terminateJob); err != nil {
+		logger.Error(err, "Could not terminate JetJob")
+		return err
 	}
 	return nil
 }
