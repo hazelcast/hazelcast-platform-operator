@@ -1788,9 +1788,10 @@ func jetEngineContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 
 func ucdBucketAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
-		Name:  n.UserCodeBucketAgent + h.Spec.UserCodeDeployment.TriggerSequence,
-		Image: h.AgentDockerImage(),
-		Args:  []string{"jar-download-bucket"},
+		Name:            n.UserCodeBucketAgent + h.Spec.UserCodeDeployment.TriggerSequence,
+		Image:           h.AgentDockerImage(),
+		Args:            []string{"jar-download-bucket"},
+		ImagePullPolicy: corev1.PullIfNotPresent,
 		Env: []v1.EnvVar{
 			{
 				Name:  "JDB_SECRET_NAME",
@@ -1805,7 +1806,10 @@ func ucdBucketAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Value: n.UserCodeBucketPath,
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{ucdBucketAgentVolumeMount()},
+		VolumeMounts:             []v1.VolumeMount{ucdBucketAgentVolumeMount()},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
+		SecurityContext:          containerSecurityContext(),
 	}
 }
 
@@ -1825,9 +1829,10 @@ func jetJobJarsVolumeMount() v1.VolumeMount {
 
 func ucdURLsAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
-		Name:  n.UserCodeURLAgent + h.Spec.UserCodeDeployment.TriggerSequence,
-		Image: h.AgentDockerImage(),
-		Args:  []string{"file-download-url"},
+		Name:            n.UserCodeURLAgent + h.Spec.UserCodeDeployment.TriggerSequence,
+		Args:            []string{"file-download-url"},
+		Image:           h.AgentDockerImage(),
+		ImagePullPolicy: corev1.PullIfNotPresent,
 		Env: []v1.EnvVar{
 			{
 				Name:  "FDU_URLS",
@@ -1838,7 +1843,10 @@ func ucdURLsAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Value: n.UserCodeURLPath,
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{ucdURLAgentVolumeMount()},
+		VolumeMounts:             []v1.VolumeMount{ucdURLAgentVolumeMount()},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
+		SecurityContext:          containerSecurityContext(),
 	}
 }
 
