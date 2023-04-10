@@ -190,6 +190,9 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 		}
 	}(ctx, metaData, jjnn, logger)
 	checker.runChecker(ctx, js, r.updateJob, logger)
+	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(job) {
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
+	}
 	return r.updateStatus(ctx, jjnn, jetJobWithStatus(hazelcastv1alpha1.JetJobStarting))
 }
 
