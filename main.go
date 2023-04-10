@@ -247,9 +247,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Cache")
 		os.Exit(1)
 	}
-
-	setupWithWebhookOrDie(mgr)
-
 	if err = hazelcast.NewJetJobReconciler(
 		mgr.GetClient(),
 		controllerLogger.WithName("JetJob"),
@@ -263,6 +260,9 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "JetJob")
 		os.Exit(1)
 	}
+
+	setupWithWebhookOrDie(mgr)
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

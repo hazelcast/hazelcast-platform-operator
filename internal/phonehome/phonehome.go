@@ -97,6 +97,11 @@ type PhoneHomeData struct {
 	TopicCount                    int                    `json:"tc"`
 	HighAvailabilityMode          []string               `json:"ha"`
 	NativeMemoryCount             int                    `json:"nmc"`
+	Jet                           Jet                    `json:"jet"`
+}
+
+type Jet struct {
+	Count int `json:"c"`
 }
 
 type ExposeExternally struct {
@@ -453,6 +458,15 @@ func (phm *PhoneHomeData) fillReplicatedMapMetrics(cl client.Client) {
 		return
 	}
 	phm.ReplicatedMapCount = len(rml.Items)
+}
+
+func (phm *PhoneHomeData) fillJetMetrics(cl client.Client) {
+	jjl := &hazelcastv1alpha1.JetJobList{}
+	err := cl.List(context.Background(), jjl, listOptions()...)
+	if err != nil || jjl.Items == nil {
+		return
+	}
+	phm.Jet.Count = len(jjl.Items)
 }
 
 func listOptions() []client.ListOption {
