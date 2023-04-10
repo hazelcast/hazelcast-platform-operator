@@ -344,13 +344,14 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	}
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
-		service.Spec.Type = serviceType(h)
-		service.Spec.Ports = util.EnrichServiceNodePorts(hazelcastPort(), service.Spec.Ports)
-
 		// append default wan port to HZ Discovery Service if use did not configure
+		isAddWANPort := false
 		if len(h.Spec.AdvancedNetwork.WAN) == 0 {
-			service.Spec.Ports = append(service.Spec.Ports, defaultWANPort())
+			isAddWANPort = true
 		}
+
+		service.Spec.Type = serviceType(h)
+		service.Spec.Ports = util.EnrichServiceNodePorts(hazelcastPort(isAddWANPort), service.Spec.Ports)
 
 		return nil
 	})
@@ -516,8 +517,8 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return ls
 }
 
-func hazelcastPort() []v1.ServicePort {
-	return []corev1.ServicePort{
+func hazelcastPort(isAddWANPort bool) []v1.ServicePort {
+	p := []corev1.ServicePort{
 		clientPort(),
 		{
 			Name:        "member-port",
@@ -534,6 +535,12 @@ func hazelcastPort() []v1.ServicePort {
 			AppProtocol: pointer.String("tcp"),
 		},
 	}
+
+	if isAddWANPort {
+		p = append(p, defaultWANPort())
+	}
+
+	return p
 }
 
 func clientPort() corev1.ServicePort {
