@@ -4,11 +4,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +kubebuilder:validation:Enum=Unknown;NotRunning;Starting;Running;Suspended;SuspendedExportingSnapshot;Completing;Failed;Completed
+// +kubebuilder:validation:Enum=NotRunning;Starting;Running;Suspended;SuspendedExportingSnapshot;Completing;Failed;Completed
 type JetJobStatusPhase string
 
 const (
-	JetJobUnknown           JetJobStatusPhase = "Unknown"
 	JetJobNotRunning        JetJobStatusPhase = "NotRunning"                 //0
 	JetJobStarting          JetJobStatusPhase = "Starting"                   //1
 	JetJobRunning           JetJobStatusPhase = "Running"                    //2
