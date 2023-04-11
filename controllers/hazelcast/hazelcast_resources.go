@@ -521,14 +521,14 @@ func hazelcastPort(isAddWANPort bool) []v1.ServicePort {
 	p := []corev1.ServicePort{
 		clientPort(),
 		{
-			Name:        "member-port",
+			Name:        n.MemberPortName,
 			Protocol:    v1.ProtocolTCP,
 			Port:        n.MemberServerSocketPort,
 			TargetPort:  intstr.FromInt(n.MemberServerSocketPort),
 			AppProtocol: pointer.String("tcp"),
 		},
 		{
-			Name:        "rest-port",
+			Name:        n.RestPortName,
 			Protocol:    v1.ProtocolTCP,
 			Port:        n.RestServerSocketPort,
 			TargetPort:  intstr.FromInt(n.RestServerSocketPort),
@@ -555,7 +555,7 @@ func clientPort() corev1.ServicePort {
 
 func defaultWANPort() corev1.ServicePort {
 	return corev1.ServicePort{
-		Name:        "default-wan-rep-port",
+		Name:        n.WanDefaultPortName,
 		Protocol:    corev1.ProtocolTCP,
 		AppProtocol: pointer.String("tcp"),
 		Port:        n.WanDefaultPort,
