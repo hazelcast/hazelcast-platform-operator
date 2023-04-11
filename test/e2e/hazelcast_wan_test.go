@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"strconv"
 	. "time"
 
@@ -399,7 +400,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		wan := hazelcastconfig.WanReplication(
 			wanLookupKey,
 			hzTargetCr.Spec.ClusterName,
-			fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzTargetCr.Name, hzTargetCr.Namespace, 5710),
+			fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzTargetCr.Name, hzTargetCr.Namespace, naming.WanDefaultPort),
 			[]hazelcastcomv1alpha1.ResourceSpec{
 				{
 					Name: hzSource,

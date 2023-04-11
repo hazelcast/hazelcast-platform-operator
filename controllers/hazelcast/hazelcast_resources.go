@@ -558,8 +558,8 @@ func defaultWANPort() corev1.ServicePort {
 		Name:        "default-wan-rep-port",
 		Protocol:    corev1.ProtocolTCP,
 		AppProtocol: pointer.String("tcp"),
-		Port:        5710,
-		TargetPort:  intstr.FromInt(5710),
+		Port:        n.WanDefaultPort,
+		TargetPort:  intstr.FromInt(n.WanDefaultPort),
 	}
 }
 
@@ -807,7 +807,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
 		cfg.AdvancedNetwork.WanServerSocketEndpointConfig["default"] = config.WanPort{
 			PortAndPortCount: config.PortAndPortCount{
-				Port:      5710,
+				Port:      n.WanDefaultPort,
 				PortCount: 1,
 			},
 		}
@@ -1569,10 +1569,19 @@ func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.Containe
 		for i := 0; i < int(w.PortCount); i++ {
 			c = append(c, v1.ContainerPort{
 				ContainerPort: int32(int(w.Port) + i),
-				Name:          w.Name + "-" + strconv.Itoa(int(w.Port)+i),
+				Name:          n.WanPortNamePrefix + w.Name + "-" + strconv.Itoa(int(w.Port)+i),
 				Protocol:      v1.ProtocolTCP,
 			})
 		}
+	}
+
+	// If WAN is not configured, use the default port for it
+	if len(h.Spec.AdvancedNetwork.WAN) == 0 {
+		c = append(c, v1.ContainerPort{
+			ContainerPort: n.WanDefaultPort,
+			Name:          n.WanDefaultPortName,
+			Protocol:      v1.ProtocolTCP,
+		})
 	}
 
 	return c

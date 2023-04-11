@@ -269,11 +269,12 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
-	externalAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
+	externalAddrs, wanAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
 	return r.update(ctx, h, recoptions.Empty(),
 		withHzPhase(hazelcastv1alpha1.Running),
 		withHzMessage(clientConnectionMessage(r.clientRegistry, req)),
 		withHzExternalAddresses(externalAddrs),
+		withHzWanAddresses(wanAddrs),
 		r.withMemberStatuses(ctx, h, nil))
 }
 

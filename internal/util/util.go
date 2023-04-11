@@ -224,36 +224,44 @@ func GetExternalAddresses(
 	cli client.Client,
 	cr ExternalAddresser,
 	logger logr.Logger,
-) []string {
+) ([]string, []string) {
 	if !cr.ExternalAddressEnabled() {
-		return nil
+		return nil, nil
 	}
 
 	svc, err := getDiscoveryService(ctx, cli, cr)
 	if err != nil {
 		logger.Error(err, "Could not get the service")
-		return nil
+		return nil, nil
 	}
 	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
 		logger.Error(errors.New("unexpected service type"), "Service type is not LoadBalancer")
-		return nil
+		return nil, nil
 	}
 
-	externalAddrs := make([]string, 0, len(svc.Status.LoadBalancer.Ingress)*len(svc.Spec.Ports))
+	var externalAddrs, wanAddrs []string
 	for _, ingress := range svc.Status.LoadBalancer.Ingress {
 		addr := getLoadBalancerAddress(&ingress)
 		if addr == "" {
 			continue
 		}
 		for _, port := range svc.Spec.Ports {
-			externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+			// we don't want to print these ports as the output of "kubectl get hz" command
+			// and we want to print wan addresses with a separate title (WAN-Addresses)
+			if !(port.Port == int32(n.RestServerSocketPort) || port.Port == int32(n.MemberServerSocketPort) ||
+				strings.Contains(port.Name, n.WanPortNamePrefix)) {
+				externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+			}
+			if strings.Contains(port.Name, n.WanPortNamePrefix) {
+				wanAddrs = append(wanAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+			}
 		}
 	}
 
 	if len(externalAddrs) == 0 {
 		logger.Info("Load Balancer external IP is not ready.")
 	}
-	return externalAddrs
+	return externalAddrs, wanAddrs
 }
 
 func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.Service, error) {

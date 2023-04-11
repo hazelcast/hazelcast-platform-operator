@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -764,7 +765,7 @@ func (r *WanReplicationReconciler) checkWanEndpoint(ctx context.Context, wan *ha
 	for i, endpoint := range endpoints {
 		_, _, err := net.SplitHostPort(endpoint)
 		if err != nil {
-			endpoint = net.JoinHostPort(endpoint, "5710")
+			endpoint = net.JoinHostPort(endpoint, strconv.Itoa(n.WanDefaultPort))
 		}
 		endpoints[i] = endpoint
 	}

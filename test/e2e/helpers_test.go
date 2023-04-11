@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"io"
 	"k8s.io/apimachinery/pkg/watch"
 	"log"
@@ -949,7 +950,7 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 	wan := hazelcastconfig.WanReplication(
 		lk,
 		target.Spec.ClusterName,
-		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, 5710),
+		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, naming.WanDefaultPort),
 		resources,
 		labels,
 	)

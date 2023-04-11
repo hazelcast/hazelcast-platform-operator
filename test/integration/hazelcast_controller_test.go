@@ -1314,7 +1314,7 @@ var _ = Describe("Hazelcast controller", func() {
 					WanServerSocketEndpointConfig: map[string]config.WanPort{
 						"default": {
 							PortAndPortCount: config.PortAndPortCount{
-								Port:      5710,
+								Port:      n.WanDefaultPort,
 								PortCount: 1,
 							},
 						},
