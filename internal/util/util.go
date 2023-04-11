@@ -248,13 +248,17 @@ func GetExternalAddresses(
 		for _, port := range svc.Spec.Ports {
 			// we don't want to print these ports as the output of "kubectl get hz" command
 			// and we want to print wan addresses with a separate title (WAN-Addresses)
-			if !(port.Port == int32(n.RestServerSocketPort) || port.Port == int32(n.MemberServerSocketPort) ||
-				strings.Contains(port.Name, n.WanPortNamePrefix)) {
-				externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
-			}
-			if strings.Contains(port.Name, n.WanPortNamePrefix) {
+			if strings.HasPrefix(port.Name, n.WanPortNamePrefix) {
 				wanAddrs = append(wanAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+				continue
 			}
+			if port.Port == int32(n.RestServerSocketPort) {
+				continue
+			}
+			if port.Port == int32(n.MemberServerSocketPort) {
+				continue
+			}
+			externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
 		}
 	}
 
