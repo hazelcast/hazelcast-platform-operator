@@ -225,10 +225,6 @@ func GetExternalAddresses(
 	cr ExternalAddresser,
 	logger logr.Logger,
 ) ([]string, []string) {
-	if !cr.ExternalAddressEnabled() {
-		return nil, nil
-	}
-
 	svc, err := getDiscoveryService(ctx, cli, cr)
 	if err != nil {
 		logger.Error(err, "Could not get the service")

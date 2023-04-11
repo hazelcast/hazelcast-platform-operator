@@ -1569,7 +1569,7 @@ func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.Containe
 		for i := 0; i < int(w.PortCount); i++ {
 			c = append(c, v1.ContainerPort{
 				ContainerPort: int32(int(w.Port) + i),
-				Name:          fmt.Sprintf("%s%s-%s", n.WanPortNamePrefix, w.Name, strconv.Itoa(int(w.Port)+i)),
+				Name:          fmt.Sprintf("%s%s-%s", n.WanPortNamePrefix, w.Name, strconv.Itoa(i)),
 				Protocol:      v1.ProtocolTCP,
 			})
 		}
