@@ -24,7 +24,7 @@ on:
       gke_zone:
         type: string
         required: false
-        default: 'europe-west1-b'
+        default: 'us-east1-b'
       gcp_project_id:
         type: string
         required: false

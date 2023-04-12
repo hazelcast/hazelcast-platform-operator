@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GCP_PROJECT_ID: hazelcast-33
-      GKE_ZONE: europe-west1-b
+      GKE_ZONE: us-east1-b
     steps:
       - name: Authenticate to GCP
         uses: 'google-github-actions/auth@v1.0.0'

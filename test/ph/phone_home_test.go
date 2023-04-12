@@ -45,23 +45,26 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Phone Home Table with installed Hazelcast", func() {
 		AfterEach(func() {
-			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, &hazelcastcomv1alpha1.HazelcastList{}, hzNamespace, nil)
+			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, &hazelcastcomv1alpha1.HazelcastList{}, hzNamespace, labels)
 			assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		})
 
 		DescribeTable("should have correct metrics",
 			func(config string, createdEnterpriseClusterCount int, unisocket int, smart int, discoveryLoadBalancer int, discoveryNodePort int, memberNodePortExternalIP int, memberNodePortNodeName int, memberLoadBalancer int) {
-				setLabelAndCRName("phhz")
 				var cfg *hazelcastcomv1alpha1.Hazelcast
 				switch config {
 				case "unisocket":
-					cfg = hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, nil)
+					setLabelAndCRName("ph-us")
+					cfg = hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 				case "smartNodePort":
-					cfg = hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, nil)
+					setLabelAndCRName("ph-snp")
+					cfg = hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 				case "smartLoadBalancer":
-					cfg = hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, nil)
+					setLabelAndCRName("ph-slb")
+					cfg = hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
 				case "smartNodePortNodeName":
-					cfg = hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzLookupKey, ee, nil)
+					setLabelAndCRName("ph-snpnn")
+					cfg = hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzLookupKey, ee, labels)
 				default:
 					Fail("Incorrect input configuration")
 				}

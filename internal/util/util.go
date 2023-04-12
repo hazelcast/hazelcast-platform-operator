@@ -10,6 +10,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -287,4 +288,18 @@ func NodeDiscoveryEnabled() bool {
 		return true
 	}
 	return watching == "true"
+}
+
+func EnrichServiceNodePorts(newPorts []v1.ServicePort, existing []v1.ServicePort) []v1.ServicePort {
+	existingMap := map[string]v1.ServicePort{}
+	for _, port := range existing {
+		existingMap[port.Name] = port
+	}
+
+	for i := range newPorts {
+		if val, ok := existingMap[newPorts[i].Name]; ok {
+			newPorts[i].NodePort = val.NodePort
+		}
+	}
+	return newPorts
 }
