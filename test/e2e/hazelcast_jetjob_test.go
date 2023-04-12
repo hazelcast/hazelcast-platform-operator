@@ -79,7 +79,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 89", jj.JobName()))))
 	})
 
-	FIt("should change JetJob status", func() {
+	It("should change JetJob status", Label("fast"), func() {
 		setLabelAndCRName("jj-2")
 
 		hazelcast := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
