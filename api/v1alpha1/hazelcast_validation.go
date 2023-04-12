@@ -55,7 +55,7 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 	}
 
 	if err := validateTLS(h); err != nil {
-		return append(allErrs, err)
+		allErrs = append(allErrs, err)
 	}
 
 	if err := validatePersistence(h); err != nil {
