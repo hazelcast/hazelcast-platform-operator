@@ -27,7 +27,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
-var _ = FDescribe("Hazelcast CR", func() {
+var _ = Describe("Hazelcast CR", func() {
 	const namespace = "default"
 
 	labelFilter := func(hz *hazelcastv1alpha1.Hazelcast) client.MatchingLabels {
@@ -46,12 +46,12 @@ var _ = FDescribe("Hazelcast CR", func() {
 	}
 
 	Create := func(hz *hazelcastv1alpha1.Hazelcast) {
-		By("creating the CR with specs successfully")
+		By("creating the Hazelcast CR with specs successfully")
 		Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 	}
 
 	Fetch := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
-		By("fetching Hazelcast")
+		By("fetching Hazelcast CR")
 		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
 		assertExists(lookupKey(hz), fetchedCR)
 		return fetchedCR
@@ -140,10 +140,6 @@ var _ = FDescribe("Hazelcast CR", func() {
 		By("ensuring that the status is correct")
 		Eventually(func() hazelcastv1alpha1.Phase {
 			hz = Fetch(hz)
-			fmt.Println("--------------------------------")
-			fmt.Printf("Status : %s\n", hz.Status.Phase)
-			fmt.Println(hz.Status.Message)
-			fmt.Println("--------------------------------")
 			return hz.Status.Phase
 		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
 		return hz

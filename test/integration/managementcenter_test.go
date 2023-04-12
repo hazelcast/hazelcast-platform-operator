@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -23,22 +22,14 @@ import (
 var _ = Describe("ManagementCenter CR", func() {
 	const namespace = "default"
 
-	Create := func(obj client.Object) {
-		By("creating the CR with specs successfully")
-		Expect(k8sClient.Create(context.Background(), obj)).Should(Succeed())
+	Create := func(mc *hazelcastv1alpha1.ManagementCenter) {
+		By("creating the ManagementCenter CR with specs successfully")
+		Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
 	}
 
 	Update := func(mc *hazelcastv1alpha1.ManagementCenter) {
-		By("updating the CR with specs successfully")
+		By("updating the ManagementCenter CR with specs successfully")
 		Expect(k8sClient.Update(context.Background(), mc)).Should(Succeed())
-	}
-
-	Delete := func(obj client.Object) {
-		By("expecting to delete CR successfully")
-		deleteIfExists(lookupKey(obj), obj)
-
-		By("expecting to CR delete finish")
-		assertDoesNotExist(lookupKey(obj), obj)
 	}
 
 	Fetch := func(mc *hazelcastv1alpha1.ManagementCenter) *hazelcastv1alpha1.ManagementCenter {
@@ -75,7 +66,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			Create(mc)
 			fetchedCR := EnsureStatus(mc)
 			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), false)
-			Delete(mc)
+			deleteResource(lookupKey(mc), mc)
 		})
 
 		It("Should handle CR and sub resources correctly", Label("fast"), func() {
@@ -131,8 +122,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.AccessModes).To(Equal(expectedPVCSpec.AccessModes))
 			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.Resources).To(Equal(expectedPVCSpec.Resources))
 
-			Delete(mc)
-
+			deleteResource(lookupKey(mc), mc)
 		})
 
 		When("applying empty spec", func() {
@@ -155,7 +145,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				}, timeout, interval).Should(Equal(n.MCRepo))
 				Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
 
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -281,7 +271,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					MountPath: "/data",
 				}
 				Expect(fetchedSts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(expectedVolumeMount))
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -304,7 +294,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, fetchedSts)
 				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -329,7 +319,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					return ss.Spec.Template.Spec.NodeSelector
 				}, timeout, interval).Should(HaveKeyWithValue("node.selector", "1"))
 
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 
@@ -382,7 +372,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					return ss.Spec.Template.Spec.Affinity
 				}, timeout, interval).Should(Equal(spec.Scheduling.Affinity))
 
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 
@@ -408,7 +398,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					return ss.Spec.Template.Spec.Tolerations
 				}, timeout, interval).Should(Equal(spec.Scheduling.Tolerations))
 
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -449,7 +439,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("5Gi"))),
 				)
 
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -464,8 +454,9 @@ var _ = Describe("ManagementCenter CR", func() {
 						"tls.key": []byte(exampleKey),
 					},
 				}
-				Create(secret)
-				defer Delete(secret)
+
+				Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+				defer deleteResource(lookupKey(secret), secret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -480,7 +471,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				}}
 				Create(mc)
 				EnsureStatus(mc)
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -584,7 +575,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				By("checking if StatefulSet Resources is updated")
 				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(secondSpec.Resources))
 
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 	})

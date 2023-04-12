@@ -105,7 +105,7 @@ func randomObjectMeta(ns string, annotations ...string) metav1.ObjectMeta {
 	}
 
 	return metav1.ObjectMeta{
-		Name:        fmt.Sprintf("%s", uuid.NewUUID()[0:5]),
+		Name:        fmt.Sprintf("resource-%s", uuid.NewUUID()),
 		Namespace:   ns,
 		Annotations: annotationMap,
 	}
