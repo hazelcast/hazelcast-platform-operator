@@ -56,9 +56,8 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 	It("should execute JetJob successfully", Label("fast"), func() {
 		setLabelAndCRName("jj-1")
 
-		hazelcast := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
+		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
-		hazelcast.Spec.JetEngineConfiguration.ResourceUploadEnabled = true
 		CreateHazelcastCR(hazelcast)
 
 		By("creating JetJob CR")
@@ -79,12 +78,11 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 89", jj.JobName()))))
 	})
 
-	FIt("should change JetJob status", func() {
+	It("should change JetJob status", Label("fast"), func() {
 		setLabelAndCRName("jj-2")
 
-		hazelcast := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
+		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
-		hazelcast.Spec.JetEngineConfiguration.ResourceUploadEnabled = true
 		CreateHazelcastCR(hazelcast)
 
 		By("creating JetJob CR")

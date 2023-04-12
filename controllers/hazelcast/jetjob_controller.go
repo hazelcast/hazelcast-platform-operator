@@ -179,7 +179,7 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 
 	checker.storeJob(job.JobName(), jjnn)
 
-	metaData := codecTypes.DefaultExistingJarJobMetaData(job.JobName(), path.Join(n.UserCodeBucketPath, job.Spec.JarName))
+	metaData := codecTypes.DefaultExistingJarJobMetaData(job.JobName(), path.Join(n.JetJobJarsBucketPath, job.Spec.JarName))
 	if job.Spec.MainClass != "" {
 		metaData.MainClass = job.Spec.MainClass
 	}
@@ -315,6 +315,10 @@ func (r *JetJobReconciler) executeFinalizer(ctx context.Context, jj *hazelcastv1
 }
 
 func (r *JetJobReconciler) stopJetExecution(ctx context.Context, jj *hazelcastv1alpha1.JetJob, logger logr.Logger) error {
+	if jj.Status.Id == 0 {
+		logger.Info("Jet job ID is 0", "name", jj.Name, "namespace", jj.Namespace)
+		return nil
+	}
 	hzNn := types.NamespacedName{Name: jj.Spec.HazelcastResourceName, Namespace: jj.Namespace}
 	hz := &hazelcastv1alpha1.Hazelcast{}
 	err := r.Client.Get(ctx, hzNn, hz)

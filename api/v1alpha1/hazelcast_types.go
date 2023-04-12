@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.2.1"
+	// +kubebuilder:default:="5.3.0-SNAPSHOT"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -168,11 +168,21 @@ type JetEngineConfiguration struct {
 	// +kubebuilder:default:=false
 	// +optional
 	ResourceUploadEnabled bool `json:"resourceUploadEnabled"`
+
+	// Bucket Configuration from which the JAR files be downloaded and accessible for the member.
+	// These JAR files will not be placed in the CLASSPATH.
+	// +optional
+	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
 }
 
 // Returns true if Jet section is configured.
 func (j *JetEngineConfiguration) IsConfigured() bool {
 	return j != nil
+}
+
+// Returns true if jet.bucketConfiguration is specified.
+func (j *JetEngineConfiguration) IsBucketEnabled() bool {
+	return j != nil && j.BucketConfiguration != nil
 }
 
 type ExecutorServiceConfiguration struct {
