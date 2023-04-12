@@ -223,6 +223,7 @@ jobs:
 
       - name: Get Second KUBECONFIG
         run: |
+          kubectl config set-context $SECOND_CONTEXT_NAME
           echo "SECOND_KUBECONFIG=${{ env.KUBECONFIG }}" >> $GITHUB_ENV
 
       - name: Connect To The First GKE Cluster
@@ -234,16 +235,17 @@ jobs:
 
       - name: Get First KUBECONFIG
         run: |
+          kubectl config set-context $FIRST_CONTEXT_NAME
           echo "FIRST_KUBECONFIG=${{ env.KUBECONFIG }}" >> $GITHUB_ENV
 
       - name: Merge KUBECONFIG Files
         run: |
           KUBECONFIG="$FIRST_KUBECONFIG:$SECOND_KUBECONFIG"
           kubectl config view --raw > ${GITHUB_WORKSPACE}/kubeconfig
-          echo "KUBECONFIG="${GITHUB_WORKSPACE}/kubeconfig"" >> $GITHUB_ENV
+          echo "KUBECONFIG=${GITHUB_WORKSPACE}/kubeconfig" >> $GITHUB_ENV
 
       - name: Run Wan Test
-        run: |-
+        run: |
           make test-e2e NAMESPACE=src-ns RELEASE_NAME=src-ns E2E_TEST_SUITE=hz_wan_slow REPORT_SUFFIX=ee_01 WORKFLOW_ID=wan
 
       - name: Upload Test Report

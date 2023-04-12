@@ -283,6 +283,7 @@ func SwitchContext(context string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		Expect(rawConfig.CurrentContext).Should(Equal(context))
 	})
 }
 func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool, mapName string, entryCount int) {

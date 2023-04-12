@@ -8,7 +8,6 @@ on:
 env:
   GO_VERSION: '1.19.0'
   GOBIN: ${{ github.workspace }}/bin
-  GINKGO_VERSION: v2.1.6
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
