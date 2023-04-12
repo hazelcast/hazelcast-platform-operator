@@ -21,7 +21,7 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+func CreateOrUpdateForce(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 	opResult, err := controllerutil.CreateOrUpdate(ctx, c, obj, f)
 	if kerrors.IsAlreadyExists(err) {
 		// Ignore "already exists" error.
@@ -35,6 +35,16 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 			return opResult, err
 		}
 		return controllerutil.CreateOrUpdate(ctx, c, obj, f)
+	}
+	return opResult, err
+}
+
+func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+	opResult, err := controllerutil.CreateOrUpdate(ctx, c, obj, f)
+	if kerrors.IsAlreadyExists(err) {
+		// Ignore "already exists" error.
+		// Inside createOrUpdate() there's is a race condition between Get() and Create(), so this error is expected from time to time.
+		return opResult, nil
 	}
 	return opResult, err
 }
@@ -210,6 +220,75 @@ type ExternalAddresser interface {
 }
 
 func GetExternalAddresses(
+	ctx context.Context,
+	cli client.Client,
+	cr ExternalAddresser,
+	logger logr.Logger,
+) ([]string, []string) {
+	svcList, err := getRelatedServices(ctx, cli, cr)
+	if err != nil {
+		logger.Error(err, "Could not get the service")
+		return nil, nil
+	}
+
+	var externalAddrs, wanAddrs []string
+	for i := range svcList.Items {
+		svc := svcList.Items[i]
+		if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
+			continue
+		}
+
+		for _, ingress := range svc.Status.LoadBalancer.Ingress {
+			addr := getLoadBalancerAddress(&ingress)
+			if addr == "" {
+				continue
+			}
+			for _, port := range svc.Spec.Ports {
+				// we don't want to print these ports as the output of "kubectl get hz" command
+				// and we want to print wan addresses with a separate title (WAN-Addresses)
+				if strings.HasPrefix(port.Name, n.WanPortNamePrefix) {
+					wanAddrs = append(wanAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+					continue
+				}
+				if port.Port == int32(n.RestServerSocketPort) {
+					continue
+				}
+				if port.Port == int32(n.MemberServerSocketPort) {
+					continue
+				}
+				externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+			}
+		}
+
+		if len(externalAddrs) == 0 {
+			logger.Info("Load Balancer external IP is not ready.")
+		}
+	}
+
+	return externalAddrs, wanAddrs
+}
+
+func getRelatedServices(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.ServiceList, error) {
+	nsMatcher := client.InNamespace(cr.GetNamespace())
+	labelMatcher := client.MatchingLabels(labels(cr))
+
+	var svcList corev1.ServiceList
+	if err := cli.List(ctx, &svcList, nsMatcher, labelMatcher); err != nil {
+		return nil, err
+	}
+
+	return &svcList, nil
+}
+
+func labels(cr ExternalAddresser) map[string]string {
+	return map[string]string{
+		n.ApplicationNameLabel:         n.Hazelcast,
+		n.ApplicationInstanceNameLabel: cr.GetName(),
+		n.ApplicationManagedByLabel:    n.OperatorName,
+	}
+}
+
+func GetExternalAddressesForMC(
 	ctx context.Context,
 	cli client.Client,
 	cr ExternalAddresser,
