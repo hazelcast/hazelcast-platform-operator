@@ -379,7 +379,7 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 		for i = 0; i < w.PortCount; i++ {
 			ports = append(ports,
 				corev1.ServicePort{
-					Name:        fmt.Sprintf("%s%s-%s", n.WanPortNamePrefix, w.Name, strconv.Itoa(int(i))),
+					Name:        fmt.Sprintf("%s%s-%d", n.WanPortNamePrefix, w.Name, i),
 					Protocol:    corev1.ProtocolTCP,
 					Port:        int32(w.Port + i),
 					TargetPort:  intstr.FromInt(int(w.Port + i)),
