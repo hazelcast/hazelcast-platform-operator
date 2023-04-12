@@ -203,12 +203,14 @@ const (
 
 // Advanced Network Constants
 const (
-	MemberPortName = "member-port"
-	ClientPortName = "client-port"
-	RestPortName   = "rest-port"
-	WanPortName    = "wan-port"
+	MemberPortName     = "member-port"
+	ClientPortName     = "client-port"
+	RestPortName       = "rest-port"
+	WanDefaultPortName = "wan-port"
+	WanPortNamePrefix  = "wan-"
 
 	MemberServerSocketPort = 5702
 	ClientServerSocketPort = 5701
 	RestServerSocketPort   = 8081
+	WanDefaultPort         = 5710
 )

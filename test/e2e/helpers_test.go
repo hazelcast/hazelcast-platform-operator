@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"io"
 	"k8s.io/apimachinery/pkg/watch"
 	"log"
@@ -919,14 +920,6 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzCrName, Namespace: ns}, ee, labels)
 		hz.Spec.ClusterName = hzCrName
 		hz.Spec.ClusterSize = pointer.Int32(1)
-		hz.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		hzCrs[hzCrName] = hz
 		CreateHazelcastCRWithoutCheck(hz)
 	}
@@ -957,7 +950,7 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 	wan := hazelcastconfig.WanReplication(
 		lk,
 		target.Spec.ClusterName,
-		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, 5710),
+		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, naming.WanDefaultPort),
 		resources,
 		labels,
 	)

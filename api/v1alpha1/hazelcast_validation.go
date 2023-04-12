@@ -255,7 +255,26 @@ func ValidateAppliedNativeMemory(inMemoryFormat InMemoryFormatType, h *Hazelcast
 }
 
 func validateAdvancedNetwork(h *Hazelcast) error {
-	return validateWANPorts(h)
+	err := validateWANServiceTypes(h)
+	if err != nil {
+		return err
+	}
+
+	err = validateWANPorts(h)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateWANServiceTypes(h *Hazelcast) error {
+	for _, w := range h.Spec.AdvancedNetwork.WAN {
+		if w.ServiceType == corev1.ServiceTypeNodePort || w.ServiceType == corev1.ServiceTypeExternalName {
+			return fmt.Errorf("invalid serviceType value, possible values are ClusterIP and LoadBalancer")
+		}
+	}
+	return nil
 }
 
 func validateWANPorts(h *Hazelcast) error {

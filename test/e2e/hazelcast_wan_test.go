@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"strconv"
 	. "time"
 
@@ -374,14 +375,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}, ee, labels)
 		hzSourceCr.Spec.ClusterName = hzSource
 		hzSourceCr.Spec.ClusterSize = pointer.Int32(1)
-		hzSourceCr.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		CreateHazelcastCRWithoutCheck(hzSourceCr)
 		evaluateReadyMembers(types.NamespacedName{Name: hzSource, Namespace: hzSrcLookupKey.Namespace})
 
@@ -391,14 +384,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}, ee, labels)
 		hzTargetCr.Spec.ClusterName = hzTarget
 		hzTargetCr.Spec.ClusterSize = pointer.Int32(1)
-		hzTargetCr.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		CreateHazelcastCRWithoutCheck(hzTargetCr)
 		evaluateReadyMembers(types.NamespacedName{Name: hzTarget, Namespace: hzTrgLookupKey.Namespace})
 
@@ -415,7 +400,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		wan := hazelcastconfig.WanReplication(
 			wanLookupKey,
 			hzTargetCr.Spec.ClusterName,
-			fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzTargetCr.Name, hzTargetCr.Namespace, 5710),
+			fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzTargetCr.Name, hzTargetCr.Namespace, naming.WanDefaultPort),
 			[]hazelcastcomv1alpha1.ResourceSpec{
 				{
 					Name: hzSource,
@@ -463,14 +448,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}, ee, labels)
 		hzSourceCr.Spec.ClusterName = hzSource
 		hzSourceCr.Spec.ClusterSize = pointer.Int32(1)
-		hzSourceCr.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		CreateHazelcastCRWithoutCheck(hzSourceCr)
 		evaluateReadyMembers(types.NamespacedName{Name: hzSource, Namespace: hzSrcLookupKey.Namespace})
 
@@ -480,14 +457,6 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}, ee, labels)
 		hzTargetCr.Spec.ClusterName = hzTarget
 		hzTargetCr.Spec.ClusterSize = pointer.Int32(1)
-		hzTargetCr.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		CreateHazelcastCRWithoutCheck(hzTargetCr)
 		evaluateReadyMembers(types.NamespacedName{Name: hzTarget, Namespace: hzTrgLookupKey.Namespace})
 
