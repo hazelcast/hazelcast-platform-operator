@@ -288,6 +288,51 @@ func labels(cr ExternalAddresser) map[string]string {
 	}
 }
 
+func GetExternalAddressesForMC(
+	ctx context.Context,
+	cli client.Client,
+	cr ExternalAddresser,
+	logger logr.Logger,
+) []string {
+	if !cr.ExternalAddressEnabled() {
+		return nil
+	}
+
+	svc, err := getDiscoveryService(ctx, cli, cr)
+	if err != nil {
+		logger.Error(err, "Could not get the service")
+		return nil
+	}
+	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
+		logger.Error(errors.New("unexpected service type"), "Service type is not LoadBalancer")
+		return nil
+	}
+
+	externalAddrs := make([]string, 0, len(svc.Status.LoadBalancer.Ingress)*len(svc.Spec.Ports))
+	for _, ingress := range svc.Status.LoadBalancer.Ingress {
+		addr := getLoadBalancerAddress(&ingress)
+		if addr == "" {
+			continue
+		}
+		for _, port := range svc.Spec.Ports {
+			externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+		}
+	}
+
+	if len(externalAddrs) == 0 {
+		logger.Info("Load Balancer external IP is not ready.")
+	}
+	return externalAddrs
+}
+
+func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.Service, error) {
+	svc := corev1.Service{}
+	if err := cli.Get(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}, &svc); err != nil {
+		return nil, err
+	}
+	return &svc, nil
+}
+
 func getLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
 	if lb.IP != "" {
 		return lb.IP
