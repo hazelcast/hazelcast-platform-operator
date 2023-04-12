@@ -202,6 +202,30 @@ var (
 		}
 	}
 
+	JetConfigured = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:      &[]int32{1}[0],
+				Repository:       repo(ee),
+				Version:          *hazelcastVersion,
+				LicenseKeySecret: licenseKey(ee),
+				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled:               pointer.Bool(true),
+					ResourceUploadEnabled: true,
+					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+						Secret:    s,
+						BucketURI: bkt,
+					},
+				},
+			},
+		}
+	}
+
 	ExecutorService = func(lk types.NamespacedName, ee bool, allExecutorServices map[string]interface{}, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
