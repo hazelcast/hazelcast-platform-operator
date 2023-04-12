@@ -62,9 +62,18 @@ func main() {
 		panic(fmt.Errorf("an error occurred while downloading base bundle yaml: %s", err.Error()))
 	}
 
-	revBundle, err := downloadBundleYAML(revision)
-	if err != nil {
-		panic(fmt.Errorf("an error occurred while downloading revision bundle yaml: %s", err.Error()))
+	var revBundle string
+	var err2 error
+	if revision == "snapshot" {
+		revBundle, err2 = generateBundleYAML()
+		if err != nil {
+			panic(fmt.Errorf("an error occurred while generating snapshot bundle yaml: %s", err2.Error()))
+		}
+	} else {
+		revBundle, err = downloadBundleYAML(revision)
+		if err2 != nil {
+			panic(fmt.Errorf("an error occurred while downloading revision bundle yaml: %s", err2.Error()))
+		}
 	}
 
 	baseSpec, err := createOpenAPISpec(baseBundle)
@@ -93,8 +102,8 @@ func main() {
 func parseParams() (string, string, error) {
 	var base, revision string
 
-	flag.StringVar(&base, "base", "", "base yaml")
-	flag.StringVar(&revision, "revision", "", "revision yaml")
+	flag.StringVar(&base, "base", "", "base version")
+	flag.StringVar(&revision, "revision", "", "revision")
 	flag.Parse()
 
 	if base != "" && revision != "" {
@@ -102,9 +111,12 @@ func parseParams() (string, string, error) {
 		if err != nil {
 			return "", "", err
 		}
-		_, err = version.NewVersion(revision)
-		if err != nil {
-			return "", "", err
+
+		if revision != "snapshot" {
+			_, err = version.NewVersion(revision)
+			if err != nil {
+				return "", "", err
+			}
 		}
 	} else {
 		cmd := exec.Command("git", "for-each-ref", `--format='%(refname)'`, "refs/tags")
@@ -273,6 +285,26 @@ func formatDiff(base, rev string) (string, error) {
 	}
 
 	return f.Name(), nil
+}
+
+func generateBundleYAML() (string, error) {
+	cmd1 := exec.Command("bash", "-c", `cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml ./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds/templates/`)
+	o, err := cmd1.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Println(o)
+
+	cmd2 := exec.Command("bash", "-c", `helm template hazelcast-platform-operator-crds ./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds > snapshot-bundle.yaml`)
+	o2, err := cmd2.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Println(o2)
+
+	return "snapshot-bundle.yaml", nil
 }
 
 func cleanup() error {
