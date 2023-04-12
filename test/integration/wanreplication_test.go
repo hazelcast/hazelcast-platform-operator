@@ -77,7 +77,7 @@ var _ = Describe("WanReplication CR", func() {
 						return ""
 					}
 					return newWan.Spec.Endpoints
-				}, timeout, interval).Should(Equal("10.0.0.1:5701,10.0.0.2:5701,10.0.0.3:5701"))
+				}, timeout, interval).Should(Equal("10.0.0.1:5710,10.0.0.2:5710,10.0.0.3:5710"))
 			})
 		})
 	})

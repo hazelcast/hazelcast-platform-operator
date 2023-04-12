@@ -23,14 +23,7 @@ import (
 var _ = Describe("ManagementCenter CR", func() {
 	const namespace = "default"
 
-	defaultSpecValues := &test.MCSpecValues{
-		Repository:      n.MCRepo,
-		Version:         n.MCVersion,
-		LicenseKey:      n.LicenseKeySecret,
-		ImagePullPolicy: n.MCImagePullPolicy,
-	}
-
-	Create := func(mc *hazelcastv1alpha1.ManagementCenter) {
+	Create := func(obj client.Object) {
 		By("creating the CR with specs successfully")
 		Expect(k8sClient.Create(context.Background(), obj)).Should(Succeed())
 	}
@@ -74,16 +67,26 @@ var _ = Describe("ManagementCenter CR", func() {
 		return svc
 	}
 
-	Context("with default configuration", func() {
+	Context("ManagementCenter CustomResource with default specs", func() {
+		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+			}
+			Create(mc)
+			fetchedCR := EnsureStatus(mc)
+			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), false)
+			Delete(mc)
+		})
+
 		It("Should handle CR and sub resources correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 			}
 
 			Create(mc)
 			fetchedCR := EnsureStatus(mc)
-			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues, ee)
+			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), ee)
 
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(BeNil())
 
@@ -161,12 +164,12 @@ var _ = Describe("ManagementCenter CR", func() {
 		It("should create and update service correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 			}
 
 			Create(mc)
 			fetchedMc := EnsureStatus(mc)
-			test.CheckManagementCenterCR(fetchedMc, defaultSpecValues, ee)
+			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
 			EnsureServiceType(mc, corev1.ServiceTypeLoadBalancer)
 
 			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeNodePort
@@ -183,12 +186,12 @@ var _ = Describe("ManagementCenter CR", func() {
 		It("should handle ingress correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 			}
 
 			Create(mc)
 			fetchedMc := EnsureStatus(mc)
-			test.CheckManagementCenterCR(fetchedMc, defaultSpecValues, ee)
+			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
 
 			ing := &networkingv1.Ingress{}
 			assertDoesNotExist(lookupKey(mc), ing)
@@ -309,7 +312,7 @@ var _ = Describe("ManagementCenter CR", func() {
 	Context("with PodScheduling parameters", func() {
 		When("NodeSelector is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
-				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
+				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
 						"node.selector": "1",
@@ -332,7 +335,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 		When("Affinity is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
-				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
+				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
@@ -385,7 +388,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 		When("Toleration is used", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
-				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
+				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
 						{
@@ -413,7 +416,7 @@ var _ = Describe("ManagementCenter CR", func() {
 	Context("with Resources parameters", func() {
 		When("Resources are used", func() {
 			It("should be set to Container spec", Label("fast"), func() {
-				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
+				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Resources = corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("500m"),
@@ -455,7 +458,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		When("TLS property is configured", func() {
 			It("should be enabled", Label("fast"), func() {
 				secret := &corev1.Secret{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Data: map[string][]byte{
 						"tls.crt": []byte(exampleCert),
 						"tls.key": []byte(exampleKey),
@@ -465,8 +468,8 @@ var _ = Describe("ManagementCenter CR", func() {
 				defer Delete(secret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 				}
 				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
 					Name:    "dev",
