@@ -225,51 +225,67 @@ func GetExternalAddresses(
 	cr ExternalAddresser,
 	logger logr.Logger,
 ) ([]string, []string) {
-	svc, err := getDiscoveryService(ctx, cli, cr)
+	svcList, err := getRelatedServices(ctx, cli, cr)
 	if err != nil {
 		logger.Error(err, "Could not get the service")
 		return nil, nil
 	}
-	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
-		logger.Error(errors.New("unexpected service type"), "Service type is not LoadBalancer")
-		return nil, nil
-	}
 
 	var externalAddrs, wanAddrs []string
-	for _, ingress := range svc.Status.LoadBalancer.Ingress {
-		addr := getLoadBalancerAddress(&ingress)
-		if addr == "" {
+	for i := range svcList.Items {
+		svc := svcList.Items[i]
+		if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
 			continue
 		}
-		for _, port := range svc.Spec.Ports {
-			// we don't want to print these ports as the output of "kubectl get hz" command
-			// and we want to print wan addresses with a separate title (WAN-Addresses)
-			if strings.HasPrefix(port.Name, n.WanPortNamePrefix) {
-				wanAddrs = append(wanAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+
+		for _, ingress := range svc.Status.LoadBalancer.Ingress {
+			addr := getLoadBalancerAddress(&ingress)
+			if addr == "" {
 				continue
 			}
-			if port.Port == int32(n.RestServerSocketPort) {
-				continue
+			for _, port := range svc.Spec.Ports {
+				// we don't want to print these ports as the output of "kubectl get hz" command
+				// and we want to print wan addresses with a separate title (WAN-Addresses)
+				if strings.HasPrefix(port.Name, n.WanPortNamePrefix) {
+					wanAddrs = append(wanAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+					continue
+				}
+				if port.Port == int32(n.RestServerSocketPort) {
+					continue
+				}
+				if port.Port == int32(n.MemberServerSocketPort) {
+					continue
+				}
+				externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
 			}
-			if port.Port == int32(n.MemberServerSocketPort) {
-				continue
-			}
-			externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
+		}
+
+		if len(externalAddrs) == 0 {
+			logger.Info("Load Balancer external IP is not ready.")
 		}
 	}
 
-	if len(externalAddrs) == 0 {
-		logger.Info("Load Balancer external IP is not ready.")
-	}
 	return externalAddrs, wanAddrs
 }
 
-func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.Service, error) {
-	svc := corev1.Service{}
-	if err := cli.Get(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}, &svc); err != nil {
+func getRelatedServices(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.ServiceList, error) {
+	nsMatcher := client.InNamespace(cr.GetNamespace())
+	labelMatcher := client.MatchingLabels(labels(cr))
+
+	var svcList corev1.ServiceList
+	if err := cli.List(ctx, &svcList, nsMatcher, labelMatcher); err != nil {
 		return nil, err
 	}
-	return &svc, nil
+
+	return &svcList, nil
+}
+
+func labels(cr ExternalAddresser) map[string]string {
+	return map[string]string{
+		n.ApplicationNameLabel:         n.Hazelcast,
+		n.ApplicationInstanceNameLabel: cr.GetName(),
+		n.ApplicationManagedByLabel:    n.OperatorName,
+	}
 }
 
 func getLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
