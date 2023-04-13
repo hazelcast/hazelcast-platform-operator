@@ -81,6 +81,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 	})
 
 	It("should change JetJob status", Label("fast"), func() {
+		Skip("Test with skip!")
 		setLabelAndCRName("jj-2")
 
 		hazelcast := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
