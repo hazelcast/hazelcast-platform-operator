@@ -41,7 +41,7 @@ import (
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
@@ -52,7 +52,7 @@ import (
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
 
-type UpdateFn func(*hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast
+type UpdateFn func(*hazelcastcomv1beta1.Hazelcast) *hazelcastcomv1beta1.Hazelcast
 
 func GetBackupSequence(t Time, lk types.NamespacedName) string {
 	var seq string
@@ -107,14 +107,14 @@ func SidecarAgentLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 	return logs
 }
 
-func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+func CreateHazelcastCR(hazelcast *hazelcastcomv1beta1.Hazelcast) {
 	By("creating Hazelcast CR", func() {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
 	lk := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
 	message := ""
 	By("checking Hazelcast CR running", func() {
-		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		hz := &hazelcastcomv1beta1.Hazelcast{}
 		Eventually(func() bool {
 			err := k8sClient.Get(context.Background(), lk, hz)
 			if err != nil {
@@ -126,14 +126,14 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	})
 }
 
-func UpdateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast, fns ...UpdateFn) {
+func UpdateHazelcastCR(hazelcast *hazelcastcomv1beta1.Hazelcast, fns ...UpdateFn) {
 	By("updating the CR", func() {
 		if len(fns) == 0 {
 			Expect(k8sClient.Update(context.Background(), hazelcast)).Should(Succeed())
 		} else {
 			lk := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
 			for {
-				cr := &hazelcastcomv1alpha1.Hazelcast{}
+				cr := &hazelcastcomv1beta1.Hazelcast{}
 				Expect(k8sClient.Get(context.Background(), lk, cr)).Should(Succeed())
 				for _, fn := range fns {
 					cr = fn(cr)
@@ -151,13 +151,13 @@ func UpdateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast, fns ...UpdateF
 	})
 }
 
-func CreateHazelcastCRWithoutCheck(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+func CreateHazelcastCRWithoutCheck(hazelcast *hazelcastcomv1beta1.Hazelcast) {
 	By("creating Hazelcast CR", func() {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
 }
 
-func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+func RemoveHazelcastCR(hazelcast *hazelcastcomv1beta1.Hazelcast) {
 	By("removing hazelcast CR", func() {
 		Expect(k8sClient.Delete(context.Background(), hazelcast, client.PropagationPolicy(metav1.DeletePropagationForeground))).Should(Succeed())
 		assertDoesNotExist(types.NamespacedName{
@@ -167,7 +167,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	})
 	By("waiting for Hazelcast CR to be removed", func() {
 		Eventually(func() error {
-			h := &hazelcastcomv1alpha1.Hazelcast{}
+			h := &hazelcastcomv1beta1.Hazelcast{}
 			return k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      hazelcast.Name,
 				Namespace: hazelcast.Namespace,
@@ -234,7 +234,7 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 		}
 		Expect(addr).Should(Not(BeEmpty()))
 
-		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		hz := &hazelcastcomv1beta1.Hazelcast{}
 		Expect(k8sClient.Get(context.Background(), lk, hz)).Should(Succeed())
 		clusterName := "dev"
 		if len(hz.Spec.ClusterName) > 0 {
@@ -330,7 +330,7 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 2 (entries per single goroutine) = 1048576 (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
 */
 
-func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
+func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzConfig *hazelcastcomv1beta1.Hazelcast) {
 	By(fmt.Sprintf("filling the map '%s' with '%d' MB data", mapName, sizeInMb), func() {
 		hzAddress := hzclient.HazelcastUrl(hzConfig)
 		clientHz := GetHzClient(ctx, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace}, true)
@@ -346,7 +346,7 @@ func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzCon
 	})
 }
 
-func countKeySet(ctx context.Context, clientHz *hzClient.Client, mapName string, hzConfig *hazelcastcomv1alpha1.Hazelcast) int {
+func countKeySet(ctx context.Context, clientHz *hzClient.Client, mapName string, hzConfig *hazelcastcomv1beta1.Hazelcast) int {
 	keyCount := 0
 	m, _ := clientHz.GetMap(ctx, mapName)
 	keySet, _ := m.GetKeySet(ctx)
@@ -404,13 +404,13 @@ func mapLoaderImage() string {
 	return "us-east1-docker.pkg.dev/hazelcast-33/hazelcast-platform-operator/wan-replication-maploader:700d"
 }
 
-func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
+func isHazelcastRunning(hz *hazelcastcomv1beta1.Hazelcast) bool {
 	return hz.Status.Phase == "Running"
 }
 
 // assertMemberLogs check that the given expected string can be found in the logs.
 // expected can be a regexp pattern.
-func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
+func assertMemberLogs(h *hazelcastcomv1beta1.Hazelcast, expected string) {
 	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
 		Name:      h.Name + "-0",
 		Namespace: h.Namespace,
@@ -430,7 +430,7 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 
 func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
-		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		hz := &hazelcastcomv1beta1.Hazelcast{}
 		err := k8sClient.Get(context.Background(), lookupKey, hz)
 		Expect(err).ToNot(HaveOccurred())
 		membersCount := int(*hz.Spec.ClusterSize)
@@ -457,10 +457,10 @@ func closeChannel(closeChan chan struct{}) {
 	closeChan <- struct{}{}
 }
 
-func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapConfigState) *hazelcastcomv1alpha1.Map {
-	checkMap := &hazelcastcomv1alpha1.Map{}
+func assertMapStatus(m *hazelcastcomv1beta1.Map, st hazelcastcomv1beta1.MapConfigState) *hazelcastcomv1beta1.Map {
+	checkMap := &hazelcastcomv1beta1.Map{}
 	By("waiting for Map CR status", func() {
-		Eventually(func() hazelcastcomv1alpha1.MapConfigState {
+		Eventually(func() hazelcastcomv1beta1.MapConfigState {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      m.Name,
 				Namespace: m.Namespace,
@@ -474,10 +474,10 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 	return checkMap
 }
 
-func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1alpha1.WanStatus) *hazelcastcomv1alpha1.WanReplication {
-	checkWan := &hazelcastcomv1alpha1.WanReplication{}
+func assertWanStatus(wr *hazelcastcomv1beta1.WanReplication, st hazelcastcomv1beta1.WanStatus) *hazelcastcomv1beta1.WanReplication {
+	checkWan := &hazelcastcomv1beta1.WanReplication{}
 	By("waiting for WAN CR status", func() {
-		Eventually(func() hazelcastcomv1alpha1.WanStatus {
+		Eventually(func() hazelcastcomv1beta1.WanStatus {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      wr.Name,
 				Namespace: wr.Namespace,
@@ -491,8 +491,8 @@ func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1a
 	return checkWan
 }
 
-func assertWanStatusMapCount(wr *hazelcastcomv1alpha1.WanReplication, mapLen int) *hazelcastcomv1alpha1.WanReplication {
-	checkWan := &hazelcastcomv1alpha1.WanReplication{}
+func assertWanStatusMapCount(wr *hazelcastcomv1beta1.WanReplication, mapLen int) *hazelcastcomv1beta1.WanReplication {
+	checkWan := &hazelcastcomv1beta1.WanReplication{}
 	By("waiting for WAN CR status map length", func() {
 		Eventually(func() int {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
@@ -558,7 +558,7 @@ func portForwardPod(sName, sNamespace, port string) chan struct{} {
 	return stopChan
 }
 
-func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
+func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1beta1.Hazelcast, localPort string) *hzClient.Client {
 	clientWithConfig := &hzClient.Client{}
 	By(fmt.Sprintf("creating Hazelcast client using address '%s'", "localhost:"+localPort), func() {
 		c := hzClient.Config{
@@ -584,14 +584,14 @@ func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.
 	return clientWithConfig
 }
 
-func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
+func isManagementCenterRunning(mc *hazelcastcomv1beta1.ManagementCenter) bool {
 	return mc.Status.Phase == "Running"
 }
 
-func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcastcomv1alpha1.RestoreState) *hazelcastcomv1alpha1.Hazelcast {
-	checkHz := &hazelcastcomv1alpha1.Hazelcast{}
+func assertHazelcastRestoreStatus(h *hazelcastcomv1beta1.Hazelcast, st hazelcastcomv1beta1.RestoreState) *hazelcastcomv1beta1.Hazelcast {
+	checkHz := &hazelcastcomv1beta1.Hazelcast{}
 	By("waiting for Map CR status", func() {
-		Eventually(func() hazelcastcomv1alpha1.RestoreState {
+		Eventually(func() hazelcastcomv1beta1.RestoreState {
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
 				Name:      h.Name,
 				Namespace: h.Namespace,
@@ -599,7 +599,7 @@ func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcas
 			if err != nil {
 				return ""
 			}
-			if checkHz.Status.Restore == (hazelcastcomv1alpha1.RestoreStatus{}) {
+			if checkHz.Status.Restore == (hazelcastcomv1beta1.RestoreStatus{}) {
 				return ""
 			}
 			return checkHz.Status.Restore.State
@@ -608,7 +608,7 @@ func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcas
 	return checkHz
 }
 
-func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, caches ...string) *config.HazelcastWrapper {
+func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1beta1.Hazelcast, caches ...string) *config.HazelcastWrapper {
 	cm := &corev1.Secret{}
 	returnConfig := &config.HazelcastWrapper{}
 	Eventually(func() []string {
@@ -634,7 +634,7 @@ func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, cach
 	return returnConfig
 }
 
-func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps ...string) *config.HazelcastWrapper {
+func assertMapConfigsPersisted(hazelcast *hazelcastcomv1beta1.Hazelcast, maps ...string) *config.HazelcastWrapper {
 	cm := &corev1.Secret{}
 	returnConfig := &config.HazelcastWrapper{}
 	Eventually(func() []string {
@@ -729,32 +729,32 @@ func getExecutorServiceConfigFromMemberConfig(memberConfigXML string) codecTypes
 }
 
 func assertExecutorServices(expectedES map[string]interface{}, actualES codecTypes.ExecutorServices) {
-	for i, bes1 := range expectedES["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration) {
+	for i, bes1 := range expectedES["es"].([]hazelcastcomv1beta1.ExecutorServiceConfiguration) {
 		// `i+1`'s reason is the default executor service added by hazelcast in any case.
 		assertES(bes1, actualES.Basic[i+1])
 	}
-	for i, des1 := range expectedES["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration) {
+	for i, des1 := range expectedES["des"].([]hazelcastcomv1beta1.DurableExecutorServiceConfiguration) {
 		assertDurableES(des1, actualES.Durable[i])
 	}
-	for i, ses1 := range expectedES["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration) {
+	for i, ses1 := range expectedES["ses"].([]hazelcastcomv1beta1.ScheduledExecutorServiceConfiguration) {
 		assertScheduledES(ses1, actualES.Scheduled[i])
 	}
 }
 
-func assertES(expectedES hazelcastcomv1alpha1.ExecutorServiceConfiguration, actualES codecTypes.ExecutorServiceConfig) {
+func assertES(expectedES hazelcastcomv1beta1.ExecutorServiceConfiguration, actualES codecTypes.ExecutorServiceConfig) {
 	Expect(expectedES.Name).Should(Equal(actualES.Name), "Name")
 	Expect(expectedES.PoolSize).Should(Equal(actualES.PoolSize), "PoolSize")
 	Expect(expectedES.QueueCapacity).Should(Equal(actualES.QueueCapacity), "QueueCapacity")
 }
 
-func assertDurableES(expectedDES hazelcastcomv1alpha1.DurableExecutorServiceConfiguration, actualDES codecTypes.DurableExecutorServiceConfig) {
+func assertDurableES(expectedDES hazelcastcomv1beta1.DurableExecutorServiceConfiguration, actualDES codecTypes.DurableExecutorServiceConfig) {
 	Expect(expectedDES.Name).Should(Equal(actualDES.Name), "Name")
 	Expect(expectedDES.PoolSize).Should(Equal(actualDES.PoolSize), "PoolSize")
 	Expect(expectedDES.Capacity).Should(Equal(actualDES.Capacity), "Capacity")
 	Expect(expectedDES.Durability).Should(Equal(actualDES.Durability), "Durability")
 }
 
-func assertScheduledES(expectedSES hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration, actualSES codecTypes.ScheduledExecutorServiceConfig) {
+func assertScheduledES(expectedSES hazelcastcomv1beta1.ScheduledExecutorServiceConfiguration, actualSES codecTypes.ScheduledExecutorServiceConfig) {
 	Expect(expectedSES.Name).Should(Equal(actualSES.Name), "Name")
 	Expect(expectedSES.PoolSize).Should(Equal(actualSES.PoolSize), "PoolSize")
 	Expect(expectedSES.Capacity).Should(Equal(actualSES.Capacity), "Capacity")
@@ -762,28 +762,28 @@ func assertScheduledES(expectedSES hazelcastcomv1alpha1.ScheduledExecutorService
 	Expect(expectedSES.CapacityPolicy).Should(Equal(actualSES.CapacityPolicy), "CapacityPolicy")
 }
 
-func assertHotBackupStatus(hb *hazelcastcomv1alpha1.HotBackup, s hazelcastcomv1alpha1.HotBackupState, t Duration) *hazelcastcomv1alpha1.HotBackup {
-	hbCheck := &hazelcastcomv1alpha1.HotBackup{}
+func assertHotBackupStatus(hb *hazelcastcomv1beta1.HotBackup, s hazelcastcomv1beta1.HotBackupState, t Duration) *hazelcastcomv1beta1.HotBackup {
+	hbCheck := &hazelcastcomv1beta1.HotBackup{}
 	By(fmt.Sprintf("waiting for HotBackup CR status to be %s", s), func() {
-		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
+		Eventually(func() hazelcastcomv1beta1.HotBackupState {
 			err := k8sClient.Get(
 				context.Background(), types.NamespacedName{Name: hb.Name, Namespace: hzNamespace}, hbCheck)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(hbCheck.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hbCheck.Status.Message)
+			Expect(hbCheck.Status.State).ShouldNot(Equal(hazelcastcomv1beta1.HotBackupFailure), "Message: %v", hbCheck.Status.Message)
 			return hbCheck.Status.State
 		}, t, interval).Should(Equal(s))
 	})
 	return hbCheck
 }
 
-func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *hazelcastcomv1alpha1.HotBackup {
-	return assertHotBackupStatus(hb, hazelcastcomv1alpha1.HotBackupSuccess, t)
+func assertHotBackupSuccess(hb *hazelcastcomv1beta1.HotBackup, t Duration) *hazelcastcomv1beta1.HotBackup {
+	return assertHotBackupStatus(hb, hazelcastcomv1beta1.HotBackupSuccess, t)
 }
 
-func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1alpha1.DataStructureConfigState, obj client.Object) client.Object {
+func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1beta1.DataStructureConfigState, obj client.Object) client.Object {
 	temp := fmt.Sprintf("waiting for %v CR status", obj.(hazelcast.Type).GetKind())
 	By(temp, func() {
-		Eventually(func() hazelcastcomv1alpha1.DataStructureConfigState {
+		Eventually(func() hazelcastcomv1beta1.DataStructureConfigState {
 			err := k8sClient.Get(context.Background(), lk, obj)
 			if err != nil {
 				return ""
@@ -882,7 +882,7 @@ func unixMilli(msec int64) Time {
 	return Unix(msec/1e3, (msec%1e3)*1e6)
 }
 
-func assertCorrectBackupStatus(hotBackup *hazelcastcomv1alpha1.HotBackup, seq string) {
+func assertCorrectBackupStatus(hotBackup *hazelcastcomv1beta1.HotBackup, seq string) {
 	if hotBackup.Spec.IsExternal() {
 		timestamp, _ := strconv.ParseInt(seq, 10, 64)
 		bucketURI := hotBackup.Spec.BucketURI + fmt.Sprintf("?prefix=%s/%s/", hzLookupKey.Name,
@@ -898,28 +898,28 @@ func assertCorrectBackupStatus(hotBackup *hazelcastcomv1alpha1.HotBackup, seq st
 	Expect("backup-" + seq).Should(Equal(backupSeqFolder))
 }
 
-func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bool) hazelcastcomv1alpha1.RestoreConfiguration {
+func restoreConfig(hotBackup *hazelcastcomv1beta1.HotBackup, useBucketConfig bool) hazelcastcomv1beta1.RestoreConfiguration {
 	if useBucketConfig {
-		return hazelcastcomv1alpha1.RestoreConfiguration{
-			BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
+		return hazelcastcomv1beta1.RestoreConfiguration{
+			BucketConfiguration: &hazelcastcomv1beta1.BucketConfiguration{
 				BucketURI: hotBackup.Status.GetBucketURI(),
 				Secret:    hotBackup.Spec.Secret,
 			},
 		}
 	}
-	return hazelcastcomv1alpha1.RestoreConfiguration{
+	return hazelcastcomv1beta1.RestoreConfiguration{
 		HotBackupResourceName: hotBackup.Name,
 	}
 }
 
-func createWanResources(ctx context.Context, hzMapResources map[string][]string, ns string, labels map[string]string) (map[string]*hazelcastcomv1alpha1.Hazelcast, map[string]*hazelcastcomv1alpha1.Map) {
-	hzCrs := map[string]*hazelcastcomv1alpha1.Hazelcast{}
+func createWanResources(ctx context.Context, hzMapResources map[string][]string, ns string, labels map[string]string) (map[string]*hazelcastcomv1beta1.Hazelcast, map[string]*hazelcastcomv1beta1.Map) {
+	hzCrs := map[string]*hazelcastcomv1beta1.Hazelcast{}
 
 	for hzCrName := range hzMapResources {
 		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzCrName, Namespace: ns}, ee, labels)
 		hz.Spec.ClusterName = hzCrName
 		hz.Spec.ClusterSize = pointer.Int32(1)
-		hz.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
+		hz.Spec.AdvancedNetwork.WAN = []hazelcastcomv1beta1.WANConfig{
 			{
 				Port:        5710,
 				PortCount:   0,
@@ -935,7 +935,7 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		evaluateReadyMembers(types.NamespacedName{Name: hz.Name, Namespace: ns})
 	}
 
-	mapCrs := map[string]*hazelcastcomv1alpha1.Map{}
+	mapCrs := map[string]*hazelcastcomv1beta1.Map{}
 
 	for hzCrName, mapCrNames := range hzMapResources {
 		for _, mapCrName := range mapCrNames {
@@ -946,14 +946,14 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 	}
 
 	for i := range mapCrs {
-		mapCrs[i] = assertMapStatus(mapCrs[i], hazelcastcomv1alpha1.MapSuccess)
+		mapCrs[i] = assertMapStatus(mapCrs[i], hazelcastcomv1beta1.MapSuccess)
 	}
 
 	return hzCrs, mapCrs
 
 }
 
-func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazelcastcomv1alpha1.Hazelcast, resources []hazelcastcomv1alpha1.ResourceSpec, mapCount int, labels map[string]string) *hazelcastcomv1alpha1.WanReplication {
+func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazelcastcomv1beta1.Hazelcast, resources []hazelcastcomv1beta1.ResourceSpec, mapCount int, labels map[string]string) *hazelcastcomv1beta1.WanReplication {
 	wan := hazelcastconfig.WanReplication(
 		lk,
 		target.Spec.ClusterName,
@@ -962,24 +962,24 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 		labels,
 	)
 	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
-	wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
+	wan = assertWanStatus(wan, hazelcastcomv1beta1.WanStatusSuccess)
 	wan = assertWanStatusMapCount(wan, mapCount)
 	return wan
 }
 
-func CreateMcForClusters(ctx context.Context, hzCrs ...*hazelcastcomv1alpha1.Hazelcast) {
-	clusters := []hazelcastcomv1alpha1.HazelcastClusterConfig{}
+func CreateMcForClusters(ctx context.Context, hzCrs ...*hazelcastcomv1beta1.Hazelcast) {
+	clusters := []hazelcastcomv1beta1.HazelcastClusterConfig{}
 	for _, hz := range hzCrs {
-		clusters = append(clusters, hazelcastcomv1alpha1.HazelcastClusterConfig{Name: hz.Spec.ClusterName, Address: hzclient.HazelcastUrl(hz)})
+		clusters = append(clusters, hazelcastcomv1beta1.HazelcastClusterConfig{Name: hz.Spec.ClusterName, Address: hzclient.HazelcastUrl(hz)})
 	}
 	mc := mcconfig.WithClusterConfig(mcLookupKey, ee, clusters, labels)
 	Expect(k8sClient.Create(ctx, mc)).Should(Succeed())
 }
 
-func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLookupKey types.NamespacedName) *hazelcastcomv1alpha1.Map {
+func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLookupKey types.NamespacedName) *hazelcastcomv1beta1.Map {
 	m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: hzLookupKey.Namespace}, hzLookupKey.Name, labels)
 	m.Spec.Name = mapName
 	Expect(k8sClient.Create(ctx, m)).Should(Succeed())
-	assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+	assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 	return m
 }

@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
@@ -34,18 +34,18 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.ManagementCenter{}, nil, hzNamespace, labels)
 		deletePVCs(mcLookupKey)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	create := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
+	create := func(mancenter *hazelcastcomv1beta1.ManagementCenter) {
 		By("creating ManagementCenter CR", func() {
 			Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
 		})
 
 		By("checking ManagementCenter CR running", func() {
-			mc := &hazelcastcomv1alpha1.ManagementCenter{}
+			mc := &hazelcastcomv1beta1.ManagementCenter{}
 			Eventually(func() bool {
 				err := k8sClient.Get(context.Background(), mcLookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
@@ -54,7 +54,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		})
 	}
 
-	createWithoutCheck := func(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
+	createWithoutCheck := func(mancenter *hazelcastcomv1beta1.ManagementCenter) {
 		By("creating ManagementCenter CR", func() {
 			Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
 		})
@@ -86,7 +86,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 
 			By("asserting status of external addresses are not empty", func() {
 				Eventually(func() string {
-					cr := hazelcastcomv1alpha1.ManagementCenter{}
+					cr := hazelcastcomv1beta1.ManagementCenter{}
 					err := k8sClient.Get(context.Background(), mcLookupKey, &cr)
 					Expect(err).ToNot(HaveOccurred())
 					return cr.Status.ExternalAddresses
@@ -117,9 +117,9 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 	})
 
 	Describe("External API errors", func() {
-		assertStatusEventually := func(phase hazelcastcomv1alpha1.Phase) {
-			mc := &hazelcastcomv1alpha1.ManagementCenter{}
-			Eventually(func() hazelcastcomv1alpha1.Phase {
+		assertStatusEventually := func(phase hazelcastcomv1beta1.Phase) {
+			mc := &hazelcastcomv1beta1.ManagementCenter{}
+			Eventually(func() hazelcastcomv1beta1.Phase {
 				err := k8sClient.Get(context.Background(), mcLookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
 				return mc.Status.Phase
@@ -130,7 +130,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		It("should be reflected to Management CR status", Label("fast"), func() {
 			setLabelAndCRName("mc-3")
 			createWithoutCheck(mcconfig.Faulty(mcLookupKey, ee, labels))
-			assertStatusEventually(hazelcastcomv1alpha1.Failed)
+			assertStatusEventually(hazelcastcomv1beta1.Failed)
 		})
 	})
 

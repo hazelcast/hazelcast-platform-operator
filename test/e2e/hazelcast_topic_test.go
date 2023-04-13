@@ -5,7 +5,7 @@ import (
 	"strconv"
 	. "time"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
@@ -29,10 +29,10 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Topic{}, &hazelcastcomv1alpha1.TopicList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Topic{}, &hazelcastcomv1beta1.TopicList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -43,7 +43,7 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 
 		topic := hazelcastconfig.DefaultTopic(topicLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-		assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{})
+		assertDataStructureStatus(topicLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.Topic{})
 	})
 
 	It("should create Topic Config with correct default values", Label("fast"), func() {
@@ -54,7 +54,7 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		By("creating the default topic config")
 		topic := hazelcastconfig.DefaultTopic(topicLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-		topic = assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{}).(*hazelcastcomv1alpha1.Topic)
+		topic = assertDataStructureStatus(topicLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.Topic{}).(*hazelcastcomv1beta1.Topic)
 
 		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		topicConfig := getTopicConfigFromMemberConfig(memberConfigXML, topic.GetDSName())
@@ -71,19 +71,19 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the topic config")
-		topics := hazelcastcomv1alpha1.TopicSpec{
+		topics := hazelcastcomv1beta1.TopicSpec{
 			HazelcastResourceName: hzLookupKey.Name,
 			GlobalOrderingEnabled: true,
 			MultiThreadingEnabled: false,
 		}
 		topic := hazelcastconfig.Topic(topics, topicLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-		topic = assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{}).(*hazelcastcomv1alpha1.Topic)
+		topic = assertDataStructureStatus(topicLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.Topic{}).(*hazelcastcomv1beta1.Topic)
 
 		By("failing to update topic config")
 		topic.Spec.GlobalOrderingEnabled = false
 		topic.Spec.MultiThreadingEnabled = true
 		Expect(k8sClient.Update(context.Background(), topic)).Should(Succeed())
-		assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Topic{})
+		assertDataStructureStatus(topicLookupKey, hazelcastcomv1beta1.DataStructureFailed, &hazelcastcomv1beta1.Topic{})
 	})
 })

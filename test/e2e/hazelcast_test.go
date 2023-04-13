@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
@@ -35,9 +35,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -78,14 +78,14 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
-			memberStateT := func(status hazelcastcomv1alpha1.HazelcastMemberStatus) string {
+			hz := &hazelcastcomv1beta1.Hazelcast{}
+			memberStateT := func(status hazelcastcomv1beta1.HazelcastMemberStatus) string {
 				return string(status.State)
 			}
-			masterT := func(status hazelcastcomv1alpha1.HazelcastMemberStatus) bool {
+			masterT := func(status hazelcastcomv1beta1.HazelcastMemberStatus) bool {
 				return status.Master
 			}
-			Eventually(func() []hazelcastcomv1alpha1.HazelcastMemberStatus {
+			Eventually(func() []hazelcastcomv1beta1.HazelcastMemberStatus {
 				err := k8sClient.Get(context.Background(), hzLookupKey, hz)
 				Expect(err).ToNot(HaveOccurred())
 				return hz.Status.Members
@@ -101,7 +101,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			hz := &hazelcastcomv1beta1.Hazelcast{}
 			err := k8sClient.Get(context.Background(), hzLookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
 			By("checking hazelcast members pod name")
@@ -116,9 +116,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 	})
 
 	Describe("External API errors", func() {
-		assertStatusAndMessageEventually := func(phase hazelcastcomv1alpha1.Phase) {
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
-			Eventually(func() hazelcastcomv1alpha1.Phase {
+		assertStatusAndMessageEventually := func(phase hazelcastcomv1beta1.Phase) {
+			hz := &hazelcastcomv1beta1.Hazelcast{}
+			Eventually(func() hazelcastcomv1beta1.Phase {
 				err := k8sClient.Get(context.Background(), hzLookupKey, hz)
 				Expect(err).ToNot(HaveOccurred())
 				return hz.Status.Phase
@@ -129,7 +129,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		It("should be reflected to Hazelcast CR status", Label("fast"), func() {
 			setLabelAndCRName("h-6")
 			CreateHazelcastCRWithoutCheck(hazelcastconfig.Faulty(hzLookupKey, ee, labels))
-			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
+			assertStatusAndMessageEventually(hazelcastcomv1beta1.Failed)
 		})
 	})
 
@@ -148,21 +148,21 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 				m := hazelcastconfig.DefaultMap(mapLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-				assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+				assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 
 				mm := hazelcastconfig.DefaultMultiMap(mmLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
-				assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{})
+				assertDataStructureStatus(mmLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.MultiMap{})
 
 				rm := hazelcastconfig.DefaultReplicatedMap(rmLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
-				assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{})
+				assertDataStructureStatus(rmLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.ReplicatedMap{})
 
 				topic := hazelcastconfig.DefaultTopic(topicLookupKey, hz.Name, labels)
 				Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-				assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{})
+				assertDataStructureStatus(topicLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.Topic{})
 
-				DeleteAllOf(hz, &hazelcastcomv1alpha1.HazelcastList{}, hz.Namespace, labels)
+				DeleteAllOf(hz, &hazelcastcomv1beta1.HazelcastList{}, hz.Namespace, labels)
 
 				err := k8sClient.Get(context.Background(), mapLookupKey, m)
 				Expect(errors.IsNotFound(err)).To(BeTrue())

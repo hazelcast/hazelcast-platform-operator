@@ -3,7 +3,7 @@ package client
 import (
 	"github.com/go-logr/logr"
 	"github.com/hazelcast/hazelcast-go-client/logger"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -13,7 +13,7 @@ type LogrHzClientLoggerAdapter struct {
 	enableFunc func() bool
 }
 
-func NewLogrHzClientLoggerAdapter(rootLogger logr.Logger, level logger.Level, h *hazelcastv1alpha1.Hazelcast) (*LogrHzClientLoggerAdapter, error) {
+func NewLogrHzClientLoggerAdapter(rootLogger logr.Logger, level logger.Level, h *hazelcastv1beta1.Hazelcast) (*LogrHzClientLoggerAdapter, error) {
 	w, err := logger.WeightForLogLevel(level)
 	l := rootLogger.WithName("client").WithName(h.Name).
 		WithValues("Hazelcast", h.Name, "Cluster", h.Spec.ClusterName)

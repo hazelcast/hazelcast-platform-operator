@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/utils/pointer"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -31,10 +31,10 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Queue{}, &hazelcastcomv1alpha1.QueueList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Queue{}, &hazelcastcomv1beta1.QueueList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -45,7 +45,7 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 
 		q := hazelcastconfig.DefaultQueue(qLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-		assertDataStructureStatus(qLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Queue{})
+		assertDataStructureStatus(qLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.Queue{})
 	})
 
 	It("should create Queue Config with correct default values", Label("fast"), func() {
@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 		By("creating the default queue config")
 		q := hazelcastconfig.DefaultQueue(qLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-		q = assertDataStructureStatus(qLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Queue{}).(*hazelcastcomv1alpha1.Queue)
+		q = assertDataStructureStatus(qLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.Queue{}).(*hazelcastcomv1beta1.Queue)
 
 		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		queueConfig := getQueueConfigFromMemberConfig(memberConfigXML, q.GetDSName())
@@ -73,8 +73,8 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the queue config")
-		qs := hazelcastcomv1alpha1.QueueSpec{
-			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
+		qs := hazelcastcomv1beta1.QueueSpec{
+			DataStructureSpec: hazelcastcomv1beta1.DataStructureSpec{
 				HazelcastResourceName: hzLookupKey.Name,
 				BackupCount:           pointer.Int32(3),
 			},
@@ -83,12 +83,12 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 		}
 		q := hazelcastconfig.Queue(qs, qLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-		q = assertDataStructureStatus(qLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Queue{}).(*hazelcastcomv1alpha1.Queue)
+		q = assertDataStructureStatus(qLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.Queue{}).(*hazelcastcomv1beta1.Queue)
 
 		By("failing to update queue config")
 		q.Spec.BackupCount = pointer.Int32(5)
 		q.Spec.EmptyQueueTtlSeconds = pointer.Int32(20)
 		Expect(k8sClient.Update(context.Background(), q)).Should(Succeed())
-		assertDataStructureStatus(qLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Queue{})
+		assertDataStructureStatus(qLookupKey, hazelcastcomv1beta1.DataStructureFailed, &hazelcastcomv1beta1.Queue{})
 	})
 })

@@ -11,16 +11,16 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 	waitForLBAddress := func(name types.NamespacedName) string {
 		By("waiting for load balancer address")
-		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		hz := &hazelcastcomv1beta1.Hazelcast{}
 		Eventually(func() string {
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			hz := &hazelcastcomv1beta1.Hazelcast{}
 			err := k8sClient.Get(context.Background(), name, hz)
 			Expect(err).ToNot(HaveOccurred())
 			return hz.Status.ExternalAddresses
@@ -44,9 +44,9 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			return
 		}
 		for _, ns := range []string{sourceLookupKey.Namespace, targetLookupKey.Namespace} {
-			DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, &hazelcastcomv1alpha1.WanReplicationList{}, ns, labels)
-			DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, ns, labels)
-			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, ns, labels)
+			DeleteAllOf(&hazelcastcomv1beta1.WanReplication{}, &hazelcastcomv1beta1.WanReplicationList{}, ns, labels)
+			DeleteAllOf(&hazelcastcomv1beta1.Map{}, &hazelcastcomv1beta1.MapList{}, ns, labels)
+			DeleteAllOf(&hazelcastcomv1beta1.Hazelcast{}, nil, ns, labels)
 		}
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
@@ -86,7 +86,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		By("creating map for source Hazelcast cluster")
 		m := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		m = assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating WAN configuration")
 		wan := hazelcastconfig.DefaultWanReplication(
@@ -99,14 +99,14 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		wan.Spec.Queue.Capacity = 3000000
 		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
 
-		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
-			wan := &hazelcastcomv1alpha1.WanReplication{}
+		Eventually(func() (hazelcastcomv1beta1.WanStatus, error) {
+			wan := &hazelcastcomv1beta1.WanReplication{}
 			err := k8sClient.Get(context.Background(), sourceLookupKey, wan)
 			if err != nil {
-				return hazelcastcomv1alpha1.WanStatusFailed, err
+				return hazelcastcomv1beta1.WanStatusFailed, err
 			}
 			return wan.Status.Status, nil
-		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1beta1.WanStatusSuccess))
 
 		By("filling the Map")
 		FillTheMapWithData(context.Background(), m.Name, mapSizeInMb, hazelcastSource)
@@ -155,25 +155,25 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		mapSrc1 := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
 		mapSrc1.Spec.Name = "wanmap1"
 		Expect(k8sClient.Create(context.Background(), mapSrc1)).Should(Succeed())
-		mapSrc1 = assertMapStatus(mapSrc1, hazelcastcomv1alpha1.MapSuccess)
+		mapSrc1 = assertMapStatus(mapSrc1, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating second map for source Hazelcast cluster")
 		mapSrc2 := hazelcastconfig.DefaultMap(sourceLookupKey2, hazelcastSource.Name, labels)
 		mapSrc2.Spec.Name = "wanmap2"
 		Expect(k8sClient.Create(context.Background(), mapSrc2)).Should(Succeed())
-		mapSrc2 = assertMapStatus(mapSrc2, hazelcastcomv1alpha1.MapSuccess)
+		mapSrc2 = assertMapStatus(mapSrc2, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating first map for target Hazelcast cluster")
 		mapTrg1 := hazelcastconfig.DefaultMap(targetLookupKey, hazelcastTarget.Name, labels)
 		mapTrg1.Spec.Name = "wanmap1"
 		Expect(k8sClient.Create(context.Background(), mapTrg1)).Should(Succeed())
-		mapTrg1 = assertMapStatus(mapTrg1, hazelcastcomv1alpha1.MapSuccess)
+		mapTrg1 = assertMapStatus(mapTrg1, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating second map for target Hazelcast cluster")
 		mapTrg2 := hazelcastconfig.DefaultMap(targetLookupKey2, hazelcastTarget.Name, labels)
 		mapTrg2.Spec.Name = "wanmap2"
 		Expect(k8sClient.Create(context.Background(), mapTrg2)).Should(Succeed())
-		mapTrg2 = assertMapStatus(mapTrg2, hazelcastcomv1alpha1.MapSuccess)
+		mapTrg2 = assertMapStatus(mapTrg2, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating WAN configuration for source Hazelcast cluster")
 		wanSrc := hazelcastconfig.CustomWanReplication(
@@ -182,25 +182,25 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			targetAddress,
 			labels,
 		)
-		wanSrc.Spec.Resources = []hazelcastcomv1alpha1.ResourceSpec{{
+		wanSrc.Spec.Resources = []hazelcastcomv1beta1.ResourceSpec{{
 			Name: mapSrc1.Name,
-			Kind: hazelcastcomv1alpha1.ResourceKindMap,
+			Kind: hazelcastcomv1beta1.ResourceKindMap,
 		},
 			{
 				Name: mapSrc2.Name,
-				Kind: hazelcastcomv1alpha1.ResourceKindMap,
+				Kind: hazelcastcomv1beta1.ResourceKindMap,
 			}}
 		wanSrc.Spec.Queue.Capacity = 3000000
 		Expect(k8sClient.Create(context.Background(), wanSrc)).Should(Succeed())
 
-		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
-			wanSrc := &hazelcastcomv1alpha1.WanReplication{}
+		Eventually(func() (hazelcastcomv1beta1.WanStatus, error) {
+			wanSrc := &hazelcastcomv1beta1.WanReplication{}
 			err := k8sClient.Get(context.Background(), sourceLookupKey, wanSrc)
 			if err != nil {
-				return hazelcastcomv1alpha1.WanStatusFailed, err
+				return hazelcastcomv1beta1.WanStatusFailed, err
 			}
 			return wanSrc.Status.Status, nil
-		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1beta1.WanStatusSuccess))
 
 		By("creating WAN configuration for target Hazelcast cluster")
 		wanTrg := hazelcastconfig.CustomWanReplication(
@@ -209,21 +209,21 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			sourceAddress,
 			labels,
 		)
-		wanTrg.Spec.Resources = []hazelcastcomv1alpha1.ResourceSpec{{
+		wanTrg.Spec.Resources = []hazelcastcomv1beta1.ResourceSpec{{
 			Name: hazelcastTarget.Name,
-			Kind: hazelcastcomv1alpha1.ResourceKindHZ,
+			Kind: hazelcastcomv1beta1.ResourceKindHZ,
 		}}
 		wanTrg.Spec.Queue.Capacity = 3000000
 		Expect(k8sClient.Create(context.Background(), wanTrg)).Should(Succeed())
 
-		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
-			wanTrg := &hazelcastcomv1alpha1.WanReplication{}
+		Eventually(func() (hazelcastcomv1beta1.WanStatus, error) {
+			wanTrg := &hazelcastcomv1beta1.WanReplication{}
 			err := k8sClient.Get(context.Background(), targetLookupKey, wanTrg)
 			if err != nil {
-				return hazelcastcomv1alpha1.WanStatusFailed, err
+				return hazelcastcomv1beta1.WanStatusFailed, err
 			}
 			return wanTrg.Status.Status, nil
-		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1beta1.WanStatusSuccess))
 
 		By("filling the first source Map")
 		FillTheMapWithData(context.Background(), mapSrc1.Spec.Name, mapSizeInMb, hazelcastSource)
@@ -292,7 +292,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		setupEnv()
 		m := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		m = assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating WAN configuration")
 		wan := hazelcastconfig.DefaultWanReplication(
@@ -305,14 +305,14 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		wan.Spec.Queue.Capacity = 3000000
 		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
 
-		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
-			wan := &hazelcastcomv1alpha1.WanReplication{}
+		Eventually(func() (hazelcastcomv1beta1.WanStatus, error) {
+			wan := &hazelcastcomv1beta1.WanReplication{}
 			err := k8sClient.Get(context.Background(), sourceLookupKey, wan)
 			if err != nil {
-				return hazelcastcomv1alpha1.WanStatusFailed, err
+				return hazelcastcomv1beta1.WanStatusFailed, err
 			}
 			return wan.Status.Status, nil
-		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1beta1.WanStatusSuccess))
 
 		By("filling the Map")
 		FillTheMapWithData(context.Background(), m.Name, mapSizeInMb, hazelcastSource)
@@ -368,13 +368,13 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		mapSrc1 := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
 		mapSrc1.Spec.Name = "wanmap1"
 		Expect(k8sClient.Create(context.Background(), mapSrc1)).Should(Succeed())
-		mapSrc1 = assertMapStatus(mapSrc1, hazelcastcomv1alpha1.MapSuccess)
+		mapSrc1 = assertMapStatus(mapSrc1, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating second map for source Hazelcast cluster")
 		mapSrc2 := hazelcastconfig.DefaultMap(sourceLookupKey2, hazelcastSource.Name, labels)
 		mapSrc2.Spec.Name = "wanmap2"
 		Expect(k8sClient.Create(context.Background(), mapSrc2)).Should(Succeed())
-		mapSrc2 = assertMapStatus(mapSrc2, hazelcastcomv1alpha1.MapSuccess)
+		mapSrc2 = assertMapStatus(mapSrc2, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating first map for target Hazelcast cluster")
 		SwitchContext(context2)
@@ -382,13 +382,13 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		mapTrg1 := hazelcastconfig.DefaultMap(targetLookupKey, hazelcastTarget.Name, labels)
 		mapTrg1.Spec.Name = "wanmap1"
 		Expect(k8sClient.Create(context.Background(), mapTrg1)).Should(Succeed())
-		mapTrg1 = assertMapStatus(mapTrg1, hazelcastcomv1alpha1.MapSuccess)
+		mapTrg1 = assertMapStatus(mapTrg1, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating second map for target Hazelcast cluster")
 		mapTrg2 := hazelcastconfig.DefaultMap(targetLookupKey2, hazelcastTarget.Name, labels)
 		mapTrg2.Spec.Name = "wanmap2"
 		Expect(k8sClient.Create(context.Background(), mapTrg2)).Should(Succeed())
-		mapTrg2 = assertMapStatus(mapTrg2, hazelcastcomv1alpha1.MapSuccess)
+		mapTrg2 = assertMapStatus(mapTrg2, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating WAN configuration for source Hazelcast cluster")
 		SwitchContext(context1)
@@ -399,25 +399,25 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			targetAddress,
 			labels,
 		)
-		wanSrc.Spec.Resources = []hazelcastcomv1alpha1.ResourceSpec{{
+		wanSrc.Spec.Resources = []hazelcastcomv1beta1.ResourceSpec{{
 			Name: mapSrc1.Name,
-			Kind: hazelcastcomv1alpha1.ResourceKindMap,
+			Kind: hazelcastcomv1beta1.ResourceKindMap,
 		},
 			{
 				Name: mapSrc2.Name,
-				Kind: hazelcastcomv1alpha1.ResourceKindMap,
+				Kind: hazelcastcomv1beta1.ResourceKindMap,
 			}}
 		wanSrc.Spec.Queue.Capacity = 3000000
 		Expect(k8sClient.Create(context.Background(), wanSrc)).Should(Succeed())
 
-		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
-			wanSrc := &hazelcastcomv1alpha1.WanReplication{}
+		Eventually(func() (hazelcastcomv1beta1.WanStatus, error) {
+			wanSrc := &hazelcastcomv1beta1.WanReplication{}
 			err := k8sClient.Get(context.Background(), sourceLookupKey, wanSrc)
 			if err != nil {
-				return hazelcastcomv1alpha1.WanStatusFailed, err
+				return hazelcastcomv1beta1.WanStatusFailed, err
 			}
 			return wanSrc.Status.Status, nil
-		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1beta1.WanStatusSuccess))
 
 		By("creating WAN configuration for target Hazelcast cluster")
 		SwitchContext(context2)
@@ -428,21 +428,21 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			sourceAddress,
 			labels,
 		)
-		wanTrg.Spec.Resources = []hazelcastcomv1alpha1.ResourceSpec{{
+		wanTrg.Spec.Resources = []hazelcastcomv1beta1.ResourceSpec{{
 			Name: hazelcastTarget.Name,
-			Kind: hazelcastcomv1alpha1.ResourceKindHZ,
+			Kind: hazelcastcomv1beta1.ResourceKindHZ,
 		}}
 		wanTrg.Spec.Queue.Capacity = 3000000
 		Expect(k8sClient.Create(context.Background(), wanTrg)).Should(Succeed())
 
-		Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
-			wanTrg := &hazelcastcomv1alpha1.WanReplication{}
+		Eventually(func() (hazelcastcomv1beta1.WanStatus, error) {
+			wanTrg := &hazelcastcomv1beta1.WanReplication{}
 			err := k8sClient.Get(context.Background(), targetLookupKey, wanTrg)
 			if err != nil {
-				return hazelcastcomv1alpha1.WanStatusFailed, err
+				return hazelcastcomv1beta1.WanStatusFailed, err
 			}
 			return wanTrg.Status.Status, nil
-		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+		}, 30*Second, interval).Should(Equal(hazelcastcomv1beta1.WanStatusSuccess))
 
 		By("filling the first source Map")
 		SwitchContext(context1)

@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/utils/pointer"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -31,10 +31,10 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.ReplicatedMap{}, &hazelcastcomv1alpha1.ReplicatedMapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.ReplicatedMap{}, &hazelcastcomv1beta1.ReplicatedMapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -45,7 +45,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 
 		rm := hazelcastconfig.DefaultReplicatedMap(rmLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
-		assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{})
+		assertDataStructureStatus(rmLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.ReplicatedMap{})
 	})
 
 	It("should create ReplicatedMap Config with correct default values", Label("fast"), func() {
@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		By("creating the default ReplicatedMap config")
 		rm := hazelcastconfig.DefaultReplicatedMap(rmLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
-		rm = assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{}).(*hazelcastcomv1alpha1.ReplicatedMap)
+		rm = assertDataStructureStatus(rmLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.ReplicatedMap{}).(*hazelcastcomv1beta1.ReplicatedMap)
 
 		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
 		replicatedMapConfig := getReplicatedMapConfigFromMemberConfig(memberConfigXML, rm.GetDSName())
@@ -72,19 +72,19 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the ReplicatedMap config")
-		rms := hazelcastcomv1alpha1.ReplicatedMapSpec{
+		rms := hazelcastcomv1beta1.ReplicatedMapSpec{
 			HazelcastResourceName: hzLookupKey.Name,
-			InMemoryFormat:        hazelcastcomv1alpha1.RMInMemoryFormatBinary,
+			InMemoryFormat:        hazelcastcomv1beta1.RMInMemoryFormatBinary,
 			AsyncFillup:           pointer.Bool(false),
 		}
 		rm := hazelcastconfig.ReplicatedMap(rms, rmLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
-		rm = assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{}).(*hazelcastcomv1alpha1.ReplicatedMap)
+		rm = assertDataStructureStatus(rmLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.ReplicatedMap{}).(*hazelcastcomv1beta1.ReplicatedMap)
 
 		By("failing to update ReplicatedMap config")
-		rm.Spec.InMemoryFormat = hazelcastcomv1alpha1.RMInMemoryFormatObject
+		rm.Spec.InMemoryFormat = hazelcastcomv1beta1.RMInMemoryFormatObject
 		rm.Spec.AsyncFillup = pointer.Bool(true)
 		Expect(k8sClient.Update(context.Background(), rm)).Should(Succeed())
-		assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.ReplicatedMap{})
+		assertDataStructureStatus(rmLookupKey, hazelcastcomv1beta1.DataStructureFailed, &hazelcastcomv1beta1.ReplicatedMap{})
 	})
 })

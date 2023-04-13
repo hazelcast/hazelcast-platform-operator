@@ -20,7 +20,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 )
 
 type OperatorPhoneHome struct {
@@ -51,7 +51,7 @@ type ExposeExternally struct {
 	MemberLoadBalancer       int `bigquery:"memberLoadBalancer"`
 }
 
-func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
+func isHazelcastRunning(hz *hazelcastcomv1beta1.Hazelcast) bool {
 	return hz.Status.Phase == "Running"
 }
 
@@ -153,7 +153,7 @@ func googleCloudProjectName() string {
 	return projectID
 }
 
-func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
+func isManagementCenterRunning(mc *hazelcastcomv1beta1.ManagementCenter) bool {
 	return mc.Status.Phase == "Running"
 }
 
@@ -205,7 +205,7 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 
 func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
-		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		hz := &hazelcastcomv1beta1.Hazelcast{}
 		err := k8sClient.Get(context.Background(), lookupKey, hz)
 		Expect(err).ToNot(HaveOccurred())
 		membersCount := int(*hz.Spec.ClusterSize)
@@ -217,14 +217,14 @@ func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	})
 }
 
-func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+func CreateHazelcastCR(hazelcast *hazelcastcomv1beta1.Hazelcast) {
 	By("creating Hazelcast CR", func() {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
 	lk := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
 	message := ""
 	By("checking Hazelcast CR running", func() {
-		hz := &hazelcastcomv1alpha1.Hazelcast{}
+		hz := &hazelcastcomv1beta1.Hazelcast{}
 		Eventually(func() bool {
 			err := k8sClient.Get(context.Background(), lk, hz)
 			if err != nil {
@@ -236,13 +236,13 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	})
 }
 
-func CreateMC(mancenter *hazelcastcomv1alpha1.ManagementCenter) {
+func CreateMC(mancenter *hazelcastcomv1beta1.ManagementCenter) {
 	By("creating ManagementCenter CR", func() {
 		Expect(k8sClient.Create(context.Background(), mancenter)).Should(Succeed())
 	})
 
 	By("checking ManagementCenter CR running", func() {
-		mc := &hazelcastcomv1alpha1.ManagementCenter{}
+		mc := &hazelcastcomv1beta1.ManagementCenter{}
 		Eventually(func() bool {
 			err := k8sClient.Get(context.Background(), mcLookupKey, mc)
 			Expect(err).ToNot(HaveOccurred())

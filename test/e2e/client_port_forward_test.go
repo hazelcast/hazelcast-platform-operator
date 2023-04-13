@@ -11,12 +11,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
-func fillTheMapDataPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string, entryCount int) {
+func fillTheMapDataPortForward(ctx context.Context, hz *hazelcastcomv1beta1.Hazelcast, localPort, mapName string, entryCount int) {
 	By(fmt.Sprintf("filling the '%s' map with '%d' entries using '%s' lookup name and '%s' namespace", mapName, entryCount, hz.Name, hz.Namespace), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
@@ -43,7 +43,7 @@ func fillTheMapDataPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Haz
 	})
 }
 
-func waitForMapSizePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string, mapSize int, timeout Duration) {
+func waitForMapSizePortForward(ctx context.Context, hz *hazelcastcomv1beta1.Hazelcast, localPort, mapName string, mapSize int, timeout Duration) {
 	By(fmt.Sprintf("waiting the '%s' map to be of size '%d' using lookup name '%s'", mapName, mapSize, hz.Name), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
@@ -68,7 +68,7 @@ func waitForMapSizePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Haz
 	})
 }
 
-func memberConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string) string {
+func memberConfigPortForward(ctx context.Context, hz *hazelcastcomv1beta1.Hazelcast, localPort string) string {
 	cfg := ""
 	By(fmt.Sprintf("Getting the member config with lookup name '%s'", hz.Name), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
@@ -85,7 +85,7 @@ func memberConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazel
 	return cfg
 }
 
-func mapConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mapName string) codecTypes.MapConfig {
+func mapConfigPortForward(ctx context.Context, hz *hazelcastcomv1beta1.Hazelcast, localPort, mapName string) codecTypes.MapConfig {
 	cfg := codecTypes.MapConfig{}
 	By(fmt.Sprintf("Getting the map config with lookup name '%s'", hz.Name), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
@@ -102,7 +102,7 @@ func mapConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcas
 	return cfg
 }
 
-func assertClusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string, state codecTypes.ClusterState) {
+func assertClusterStatePortForward(ctx context.Context, hz *hazelcastcomv1beta1.Hazelcast, localPort string, state codecTypes.ClusterState) {
 	By("waiting for Cluster state", func() {
 		Eventually(func() codecTypes.ClusterState {
 			return clusterStatePortForward(ctx, hz, localPort)
@@ -110,7 +110,7 @@ func assertClusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1
 	})
 }
 
-func clusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string) codecTypes.ClusterState {
+func clusterStatePortForward(ctx context.Context, hz *hazelcastcomv1beta1.Hazelcast, localPort string) codecTypes.ClusterState {
 	state := codecTypes.ClusterState(-1)
 	By(fmt.Sprintf("Getting the cluster state with lookup name '%s'", hz.Name), func() {
 		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")

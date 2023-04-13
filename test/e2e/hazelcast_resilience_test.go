@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"context"
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	appsv1 "k8s.io/api/apps/v1"
@@ -50,7 +50,7 @@ var _ = Describe("Resilience", Label("resilience"), Serial, func() {
 		By("creating map for source Hazelcast cluster")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcastSource.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		m = assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 
 		By("creating wan replication configuration")
 		wan := hazelcastconfig.DefaultWanReplication(

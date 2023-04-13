@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
@@ -45,13 +45,13 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Phone Home Table with installed Hazelcast", func() {
 		AfterEach(func() {
-			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, &hazelcastcomv1alpha1.HazelcastList{}, hzNamespace, labels)
-			assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+			DeleteAllOf(&hazelcastcomv1beta1.Hazelcast{}, &hazelcastcomv1beta1.HazelcastList{}, hzNamespace, labels)
+			assertDoesNotExist(hzLookupKey, &hazelcastcomv1beta1.Hazelcast{})
 		})
 
 		DescribeTable("should have correct metrics",
 			func(config string, createdEnterpriseClusterCount int, unisocket int, smart int, discoveryLoadBalancer int, discoveryNodePort int, memberNodePortExternalIP int, memberNodePortNodeName int, memberLoadBalancer int) {
-				var cfg *hazelcastcomv1alpha1.Hazelcast
+				var cfg *hazelcastcomv1beta1.Hazelcast
 				switch config {
 				case "unisocket":
 					setLabelAndCRName("ph-us")
@@ -105,8 +105,8 @@ var _ = Describe("Hazelcast", func() {
 	})
 	Describe("Phone Home table with installed Management Center", func() {
 		AfterEach(func() {
-			DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, &hazelcastcomv1alpha1.ManagementCenterList{}, hzNamespace, labels)
-			assertDoesNotExist(mcLookupKey, &hazelcastcomv1alpha1.ManagementCenter{})
+			DeleteAllOf(&hazelcastcomv1beta1.ManagementCenter{}, &hazelcastcomv1beta1.ManagementCenterList{}, hzNamespace, labels)
+			assertDoesNotExist(mcLookupKey, &hazelcastcomv1beta1.ManagementCenter{})
 			pvcLookupKey := types.NamespacedName{
 				Name:      fmt.Sprintf("mancenter-storage-%s-0", mcLookupKey.Name),
 				Namespace: mcLookupKey.Namespace,

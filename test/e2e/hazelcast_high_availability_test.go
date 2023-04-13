@@ -16,7 +16,7 @@ import (
 	"k8s.io/utils/exec"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
@@ -68,7 +68,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 
 		By("waiting for all nodes are ready", func() {
 			waitForDroppedNodes(context.Background(), 0)
@@ -93,7 +93,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		By("creating the map config and adding entries")
 		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
 		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
-		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
+		assertMapStatus(m, hazelcastv1beta1.MapSuccess)
 		mapName := "ha-test-map"
 		mapSize := 30000
 		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)
@@ -147,7 +147,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		By("creating the map config and adding entries")
 		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
 		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
-		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
+		assertMapStatus(m, hazelcastv1beta1.MapSuccess)
 		mapName := "ha-test-map"
 		mapSize := 30000
 		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)

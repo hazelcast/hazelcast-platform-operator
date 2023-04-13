@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	hzTypes "github.com/hazelcast/hazelcast-go-client/types"
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -34,11 +34,11 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Map{}, &hazelcastcomv1beta1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		DeleteAllOf(&corev1.Secret{}, &corev1.SecretList{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -61,18 +61,18 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		Expect(k8sClient.Create(context.Background(), s)).Should(Succeed())
 
 		By("creating map with MapStore")
-		ms := hazelcastcomv1alpha1.MapSpec{
-			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
+		ms := hazelcastcomv1beta1.MapSpec{
+			DataStructureSpec: hazelcastcomv1beta1.DataStructureSpec{
 				HazelcastResourceName: hzLookupKey.Name,
 			},
-			MapStore: &hazelcastcomv1alpha1.MapStoreConfig{
+			MapStore: &hazelcastcomv1beta1.MapStoreConfig{
 				ClassName:            msClassName,
 				PropertiesSecretName: propSecretName,
 			},
 		}
 		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 		t := Now()
 
 		By("filling the map with entries")
@@ -109,14 +109,14 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 	It("should add executor services both initially and dynamically", Label("fast"), func() {
 		setLabelAndCRName("hcc-1")
 
-		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
+		executorServices := []hazelcastcomv1beta1.ExecutorServiceConfiguration{
 			{
 				Name:          "service1",
 				PoolSize:      8,
 				QueueCapacity: 0,
 			},
 		}
-		durableExecutorServices := []hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{
+		durableExecutorServices := []hazelcastcomv1beta1.DurableExecutorServiceConfiguration{
 			{
 				Name:       "service1",
 				PoolSize:   16,
@@ -124,7 +124,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 				Capacity:   100,
 			},
 		}
-		scheduledExecutorServices := []hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{
+		scheduledExecutorServices := []hazelcastcomv1beta1.ScheduledExecutorServiceConfiguration{
 			{
 				Name:           "service2",
 				PoolSize:       16,
@@ -154,14 +154,14 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		assertExecutorServices(sampleExecutorServices, actualES)
 
 		By("adding new executor services dynamically")
-		sampleExecutorServices["es"] = append(sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration), hazelcastcomv1alpha1.ExecutorServiceConfiguration{Name: "new-service", PoolSize: 8, QueueCapacity: 50})
-		sampleExecutorServices["des"] = append(sampleExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration), hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{Name: "new-durable-service", PoolSize: 12, Durability: 1, Capacity: 40})
-		sampleExecutorServices["ses"] = append(sampleExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration), hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{Name: "new-scheduled-service", PoolSize: 12, Durability: 1, Capacity: 40, CapacityPolicy: "PER_NODE"})
+		sampleExecutorServices["es"] = append(sampleExecutorServices["es"].([]hazelcastcomv1beta1.ExecutorServiceConfiguration), hazelcastcomv1beta1.ExecutorServiceConfiguration{Name: "new-service", PoolSize: 8, QueueCapacity: 50})
+		sampleExecutorServices["des"] = append(sampleExecutorServices["des"].([]hazelcastcomv1beta1.DurableExecutorServiceConfiguration), hazelcastcomv1beta1.DurableExecutorServiceConfiguration{Name: "new-durable-service", PoolSize: 12, Durability: 1, Capacity: 40})
+		sampleExecutorServices["ses"] = append(sampleExecutorServices["ses"].([]hazelcastcomv1beta1.ScheduledExecutorServiceConfiguration), hazelcastcomv1beta1.ScheduledExecutorServiceConfiguration{Name: "new-scheduled-service", PoolSize: 12, Durability: 1, Capacity: 40, CapacityPolicy: "PER_NODE"})
 
-		UpdateHazelcastCR(hazelcast, func(hz *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
-			hz.Spec.ExecutorServices = sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration)
-			hz.Spec.DurableExecutorServices = sampleExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration)
-			hz.Spec.ScheduledExecutorServices = sampleExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration)
+		UpdateHazelcastCR(hazelcast, func(hz *hazelcastcomv1beta1.Hazelcast) *hazelcastcomv1beta1.Hazelcast {
+			hz.Spec.ExecutorServices = sampleExecutorServices["es"].([]hazelcastcomv1beta1.ExecutorServiceConfiguration)
+			hz.Spec.DurableExecutorServices = sampleExecutorServices["des"].([]hazelcastcomv1beta1.DurableExecutorServiceConfiguration)
+			hz.Spec.ScheduledExecutorServices = sampleExecutorServices["ses"].([]hazelcastcomv1beta1.ScheduledExecutorServiceConfiguration)
 			return hz
 		})
 
@@ -183,11 +183,11 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		CreateHazelcastCR(h)
 
 		By("creating map with Map with entry listener")
-		ms := hazelcastcomv1alpha1.MapSpec{
-			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
+		ms := hazelcastcomv1beta1.MapSpec{
+			DataStructureSpec: hazelcastcomv1beta1.DataStructureSpec{
 				HazelcastResourceName: hzLookupKey.Name,
 			},
-			EntryListeners: []hazelcastcomv1alpha1.EntryListenerConfiguration{
+			EntryListeners: []hazelcastcomv1beta1.EntryListenerConfiguration{
 				{
 					ClassName: "org.example.SampleEntryListener",
 				},
@@ -195,7 +195,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		}
 		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 		t := Now()
 
 		By("port-forwarding to Hazelcast master pod")

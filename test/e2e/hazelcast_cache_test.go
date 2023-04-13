@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -30,10 +30,10 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Cache{}, &hazelcastcomv1alpha1.CacheList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Cache{}, &hazelcastcomv1beta1.CacheList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -44,7 +44,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 
 		c := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
-		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Cache{})
+		assertDataStructureStatus(chLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.Cache{})
 	})
 
 	It("should create Cache Config with correct default values", Label("fast"), func() {
@@ -55,7 +55,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		By("creating the default cache config")
 		c := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
-		c = assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Cache{}).(*hazelcastcomv1alpha1.Cache)
+		c = assertDataStructureStatus(chLookupKey, hazelcastcomv1beta1.DataStructureSuccess, &hazelcastcomv1beta1.Cache{}).(*hazelcastcomv1beta1.Cache)
 
 		By("checking if the cache config is created correctly")
 		memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)

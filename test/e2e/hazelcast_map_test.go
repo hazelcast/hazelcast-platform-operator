@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/utils/pointer"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
@@ -18,13 +18,13 @@ import (
 var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	localPort := strconv.Itoa(8200 + GinkgoParallelProcess())
 
-	configEqualsSpec := func(mapSpec *hazelcastcomv1alpha1.MapSpec) func(config codecTypes.MapConfig) bool {
+	configEqualsSpec := func(mapSpec *hazelcastcomv1beta1.MapSpec) func(config codecTypes.MapConfig) bool {
 		return func(config codecTypes.MapConfig) bool {
 			return mapSpec.TimeToLiveSeconds == config.TimeToLiveSeconds &&
 				mapSpec.MaxIdleSeconds == config.MaxIdleSeconds &&
 				!config.ReadBackupData && mapSpec.Eviction.MaxSize == config.MaxSize &&
-				config.MaxSizePolicy == hazelcastcomv1alpha1.EncodeMaxSizePolicy[mapSpec.Eviction.MaxSizePolicy] &&
-				config.EvictionPolicy == hazelcastcomv1alpha1.EncodeEvictionPolicyType[mapSpec.Eviction.EvictionPolicy]
+				config.MaxSizePolicy == hazelcastcomv1beta1.EncodeMaxSizePolicy[mapSpec.Eviction.MaxSizePolicy] &&
+				config.EvictionPolicy == hazelcastcomv1beta1.EncodeEvictionPolicyType[mapSpec.Eviction.EvictionPolicy]
 		}
 	}
 
@@ -42,10 +42,10 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Map{}, &hazelcastcomv1beta1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 	})
 
 	It("should create Map Config with correct default values", Label("fast"), func() {
@@ -67,19 +67,19 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		By("creating the map config")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		m = assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 
 		By("checking if the map config is created correctly")
 		mapConfig := mapConfigPortForward(context.Background(), hazelcast, localPort, m.MapName())
-		Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastcomv1alpha1.EncodeInMemoryFormat[m.Spec.InMemoryFormat]))
+		Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastcomv1beta1.EncodeInMemoryFormat[m.Spec.InMemoryFormat]))
 		Expect(mapConfig.BackupCount).Should(Equal(n.DefaultMapBackupCount))
 		Expect(mapConfig.AsyncBackupCount).Should(Equal(int32(0)))
 		Expect(mapConfig.TimeToLiveSeconds).Should(Equal(m.Spec.TimeToLiveSeconds))
 		Expect(mapConfig.MaxIdleSeconds).Should(Equal(m.Spec.MaxIdleSeconds))
 		Expect(mapConfig.MaxSize).Should(Equal(m.Spec.Eviction.MaxSize))
-		Expect(mapConfig.MaxSizePolicy).Should(Equal(hazelcastcomv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy]))
+		Expect(mapConfig.MaxSizePolicy).Should(Equal(hazelcastcomv1beta1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy]))
 		Expect(mapConfig.ReadBackupData).Should(Equal(false))
-		Expect(mapConfig.EvictionPolicy).Should(Equal(hazelcastcomv1alpha1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy]))
+		Expect(mapConfig.EvictionPolicy).Should(Equal(hazelcastcomv1beta1.EncodeEvictionPolicyType[m.Spec.Eviction.EvictionPolicy]))
 		Expect(mapConfig.MergePolicy).Should(Equal("com.hazelcast.spi.merge.PutIfAbsentMergePolicy"))
 
 	})
@@ -91,25 +91,25 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		m.Spec.BackupCount = pointer.Int32(3)
-		m.Spec.Indexes = []hazelcastcomv1alpha1.IndexConfig{
+		m.Spec.Indexes = []hazelcastcomv1beta1.IndexConfig{
 			{
 				Name:               "index-1",
-				Type:               hazelcastcomv1alpha1.IndexTypeHash,
+				Type:               hazelcastcomv1beta1.IndexTypeHash,
 				Attributes:         []string{"attribute1", "attribute2"},
 				BitmapIndexOptions: nil,
 			},
 			{
 				Name:       "index-2",
-				Type:       hazelcastcomv1alpha1.IndexTypeBitmap,
+				Type:       hazelcastcomv1beta1.IndexTypeBitmap,
 				Attributes: []string{"attribute3", "attribute4"},
-				BitmapIndexOptions: &hazelcastcomv1alpha1.BitmapIndexOptionsConfig{
+				BitmapIndexOptions: &hazelcastcomv1beta1.BitmapIndexOptionsConfig{
 					UniqueKey:           "key",
-					UniqueKeyTransition: hazelcastcomv1alpha1.UniqueKeyTransitionRAW,
+					UniqueKeyTransition: hazelcastcomv1beta1.UniqueKeyTransitionRAW,
 				},
 			},
 		}
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 
 		By("port-forwarding to Hazelcast master pod")
 		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
@@ -124,17 +124,17 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		By("checking if the map config is created correctly")
 		mapConfig := getMapConfig(context.Background(), cl, m.MapName())
 		Expect(mapConfig.Indexes[0].Name).Should(Equal("index-1"))
-		Expect(mapConfig.Indexes[0].Type).Should(Equal(hazelcastcomv1alpha1.EncodeIndexType[hazelcastcomv1alpha1.IndexTypeHash]))
+		Expect(mapConfig.Indexes[0].Type).Should(Equal(hazelcastcomv1beta1.EncodeIndexType[hazelcastcomv1beta1.IndexTypeHash]))
 		Expect(mapConfig.Indexes[0].Attributes).Should(Equal([]string{"attribute1", "attribute2"}))
 		// TODO: Hazelcast side returns these bitmapIndexOptions even though we give them empty.
 		Expect(mapConfig.Indexes[0].BitmapIndexOptions.UniqueKey).Should(Equal("__key"))
 		Expect(mapConfig.Indexes[0].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(int32(0)))
 
 		Expect(mapConfig.Indexes[1].Name).Should(Equal("index-2"))
-		Expect(mapConfig.Indexes[1].Type).Should(Equal(hazelcastcomv1alpha1.EncodeIndexType[hazelcastcomv1alpha1.IndexTypeBitmap]))
+		Expect(mapConfig.Indexes[1].Type).Should(Equal(hazelcastcomv1beta1.EncodeIndexType[hazelcastcomv1beta1.IndexTypeBitmap]))
 		Expect(mapConfig.Indexes[1].Attributes).Should(Equal([]string{"attribute3", "attribute4"}))
 		Expect(mapConfig.Indexes[1].BitmapIndexOptions.UniqueKey).Should(Equal("key"))
-		Expect(mapConfig.Indexes[1].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(hazelcastcomv1alpha1.EncodeUniqueKeyTransition[hazelcastcomv1alpha1.UniqueKeyTransitionRAW]))
+		Expect(mapConfig.Indexes[1].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(hazelcastcomv1beta1.EncodeUniqueKeyTransition[hazelcastcomv1beta1.UniqueKeyTransitionRAW]))
 
 	})
 
@@ -150,18 +150,18 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		By("creating the map config")
 		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		m = assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 
 		By("updating the map config")
 		m.Spec.TimeToLiveSeconds = 150
 		m.Spec.MaxIdleSeconds = 100
-		m.Spec.Eviction = hazelcastcomv1alpha1.EvictionConfig{
-			EvictionPolicy: hazelcastcomv1alpha1.EvictionPolicyLFU,
+		m.Spec.Eviction = hazelcastcomv1beta1.EvictionConfig{
+			EvictionPolicy: hazelcastcomv1beta1.EvictionPolicyLFU,
 			MaxSize:        500,
-			MaxSizePolicy:  hazelcastcomv1alpha1.MaxSizePolicyFreeHeapSize,
+			MaxSizePolicy:  hazelcastcomv1beta1.MaxSizePolicyFreeHeapSize,
 		}
 		Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
-		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		m = assertMapStatus(m, hazelcastcomv1beta1.MapSuccess)
 
 		By("checking if the map config is updated correctly")
 		cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
