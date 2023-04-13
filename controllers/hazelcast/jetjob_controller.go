@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -109,8 +108,7 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			err = fmt.Errorf("error unmarshaling Last JetJob Spec: %w", err)
 			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
 		}
-		var allErrs field.ErrorList
-		allErrs = append(hazelcastv1alpha1.ValidateJetJobNonUpdatableFields(jj.Spec, *lastSpec))
+		var allErrs = hazelcastv1alpha1.ValidateJetJobNonUpdatableFields(jj.Spec, *lastSpec)
 		if len(allErrs) > 0 {
 			err = apiErrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"}, req.Name, allErrs)
 			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
