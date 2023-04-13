@@ -173,7 +173,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			EnsureServiceType(mc, corev1.ServiceTypeClusterIP)
 		})
 
-		It("should handle ingress correctly", Label("fast"), func() {
+		It("should handle Ingress correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
