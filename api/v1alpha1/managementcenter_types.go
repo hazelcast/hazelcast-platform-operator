@@ -45,7 +45,7 @@ type ManagementCenterSpec struct {
 	// Configuration for Management Center persistence.
 	// +kubebuilder:default:={enabled: true, size: "10Gi"}
 	// +optional
-	Persistence PersistenceConfiguration `json:"persistence,omitempty"`
+	Persistence McPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// Scheduling details
 	// +kubebuilder:default:={}
@@ -164,7 +164,7 @@ func (ecr *ExternalConnectivityRoute) IsEnabled() bool {
 	return ecr != nil
 }
 
-type PersistenceConfiguration struct {
+type McPersistenceConfiguration struct {
 	// When true, MC will use a PersistentVolumeClaim to store data.
 	// +kubebuilder:default:=true
 	// +optional
@@ -186,7 +186,7 @@ type PersistenceConfiguration struct {
 }
 
 // IsEnabled returns true if persistence configuration is specified.
-func (pc *PersistenceConfiguration) IsEnabled() bool {
+func (pc *McPersistenceConfiguration) IsEnabled() bool {
 	return pc != nil && pc.Enabled != nil && *pc.Enabled
 }
 

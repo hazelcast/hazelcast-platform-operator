@@ -15,6 +15,7 @@ type QueueSpec struct {
 
 	// Max size of the queue.
 	// +kubebuilder:default:=0
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MaxSize int32 `json:"maxSize"`
 

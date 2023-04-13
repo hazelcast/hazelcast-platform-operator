@@ -32,7 +32,7 @@ var (
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
-				Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+				Persistence: hazelcastv1alpha1.McPersistenceConfiguration{
 					Enabled: pointer.Bool(true),
 					Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 				},
@@ -60,7 +60,7 @@ var (
 						Address: "hazelcast",
 					},
 				},
-				Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+				Persistence: hazelcastv1alpha1.McPersistenceConfiguration{
 					Enabled: pointer.Bool(false),
 				},
 			},
@@ -110,7 +110,7 @@ var (
 						Address: "hazelcast",
 					},
 				},
-				Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+				Persistence: hazelcastv1alpha1.McPersistenceConfiguration{
 					Enabled: pointer.Bool(false),
 				},
 			},
