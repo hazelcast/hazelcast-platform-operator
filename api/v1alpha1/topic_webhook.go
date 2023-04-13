@@ -23,13 +23,13 @@ var _ webhook.Validator = &Topic{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Topic) ValidateCreate() error {
 	topiclog.Info("validate create", "name", r.Name)
-	return ValidateTopicSpec(r)
+	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Topic) ValidateUpdate(old runtime.Object) error {
 	topiclog.Info("validate update", "name", r.Name)
-	return ValidateTopicSpec(r)
+	return r.ValidateSpecUpdate()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

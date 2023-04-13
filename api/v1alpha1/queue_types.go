@@ -88,6 +88,14 @@ func (q *Queue) SetSpec(spec string) error {
 	return nil
 }
 
+func (q *Queue) ValidateSpecCurrent(_ *Hazelcast) error {
+	return nil
+}
+
+func (q *Queue) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(q)
+}
+
 //+kubebuilder:object:root=true
 
 // QueueList contains a list of Queue

@@ -65,38 +65,46 @@ type ReplicatedMap struct {
 	Status ReplicatedMapStatus `json:"status,omitempty"`
 }
 
-func (mm *ReplicatedMap) GetDSName() string {
-	if mm.Spec.Name != "" {
-		return mm.Spec.Name
+func (rm *ReplicatedMap) GetDSName() string {
+	if rm.Spec.Name != "" {
+		return rm.Spec.Name
 	}
-	return mm.Name
+	return rm.Name
 }
 
-func (mm *ReplicatedMap) GetKind() string {
-	return mm.Kind
+func (rm *ReplicatedMap) GetKind() string {
+	return rm.Kind
 }
 
-func (mm *ReplicatedMap) GetHZResourceName() string {
-	return mm.Spec.HazelcastResourceName
+func (rm *ReplicatedMap) GetHZResourceName() string {
+	return rm.Spec.HazelcastResourceName
 }
 
-func (mm *ReplicatedMap) GetStatus() *DataStructureStatus {
-	return &mm.Status.DataStructureStatus
+func (rm *ReplicatedMap) GetStatus() *DataStructureStatus {
+	return &rm.Status.DataStructureStatus
 }
 
-func (mm *ReplicatedMap) GetSpec() (string, error) {
-	mms, err := json.Marshal(mm.Spec)
+func (rm *ReplicatedMap) GetSpec() (string, error) {
+	rms, err := json.Marshal(rm.Spec)
 	if err != nil {
-		return "", fmt.Errorf("error marshaling %v as JSON: %w", mm.Kind, err)
+		return "", fmt.Errorf("error marshaling %v as JSON: %w", rm.Kind, err)
 	}
-	return string(mms), nil
+	return string(rms), nil
 }
 
-func (mm *ReplicatedMap) SetSpec(spec string) error {
-	if err := json.Unmarshal([]byte(spec), &mm.Spec); err != nil {
+func (rm *ReplicatedMap) SetSpec(spec string) error {
+	if err := json.Unmarshal([]byte(spec), &rm.Spec); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (rm *ReplicatedMap) ValidateSpecCurrent(_ *Hazelcast) error {
+	return nil
+}
+
+func (rm *ReplicatedMap) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(rm)
 }
 
 //+kubebuilder:object:root=true
