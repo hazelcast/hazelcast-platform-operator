@@ -188,7 +188,35 @@ func validateClusterSize(h *Hazelcast) *field.Error {
 }
 
 func validateAdvancedNetwork(h *Hazelcast) []*field.Error {
-	return validateWANPorts(h)
+	var allErrs field.ErrorList
+
+	if errs := validateWANServiceTypes(h); errs != nil {
+		allErrs = append(allErrs, errs...)
+	}
+
+	if errs := validateWANPorts(h); errs != nil {
+		allErrs = append(allErrs, errs...)
+	}
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return allErrs
+}
+
+func validateWANServiceTypes(h *Hazelcast) []*field.Error {
+	var allErrs field.ErrorList
+
+	for i, w := range h.Spec.AdvancedNetwork.WAN {
+		if w.ServiceType == corev1.ServiceTypeNodePort || w.ServiceType == corev1.ServiceTypeExternalName {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("advancedNetwork").Child(fmt.Sprintf("wan[%d]", i)),
+				"invalid serviceType value, possible values are ClusterIP and LoadBalancer"))
+		}
+	}
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return allErrs
 }
 
 func validateWANPorts(h *Hazelcast) []*field.Error {

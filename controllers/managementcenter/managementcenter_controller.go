@@ -134,7 +134,8 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
-	externalAddrs := util.GetExternalAddresses(ctx, r.Client, mc, logger)
+
+	externalAddrs := util.GetExternalAddressesForMC(ctx, r.Client, mc, logger)
 	enrichedAddrs := enrichPublicAddresses(ctx, r.Client, mc, externalAddrs)
 	return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.Running), withMcExternalAddresses(enrichedAddrs))
 }

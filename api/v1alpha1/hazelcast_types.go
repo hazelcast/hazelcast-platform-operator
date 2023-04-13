@@ -790,6 +790,10 @@ type HazelcastStatus struct {
 	// +optional
 	ExternalAddresses string `json:"externalAddresses,omitempty"`
 
+	// WAN addresses of the Hazelcast cluster members
+	// +optional
+	WanAddresses string `json:"wanAddresses,omitempty"`
+
 	// Status of Hazelcast members
 	// +optional
 	Members []HazelcastMemberStatus `json:"members,omitempty"`
@@ -902,6 +906,7 @@ type HazelcastClusterStatus struct {
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 // +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
 // +kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Hazelcast cluster"
+// +kubebuilder:printcolumn:name="WAN-Addresses",type="string",JSONPath=".status.wanAddresses",description="WAN addresses of the Hazelcast cluster"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Hazelcast Config"
 // +kubebuilder:resource:shortName=hz
 type Hazelcast struct {

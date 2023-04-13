@@ -349,6 +349,27 @@ var _ = Describe("Hazelcast webhook", func() {
 			Expect(k8sClient.Create(context.Background(), hz)).
 				Should(MatchError(ContainSubstring("spec.advancedNetwork.wan[0]: Invalid value: \"5702-5704\": wan ports conflicting with one of 5701,5702,8081")))
 		})
+
+		It("should validate service type for wan config", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+				WAN: []hazelcastv1alpha1.WANConfig{
+					{
+						Port:        5702,
+						PortCount:   3,
+						ServiceType: corev1.ServiceTypeExternalName,
+					},
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("invalid serviceType value, possible values are ClusterIP and LoadBalancer")))
+		})
 	})
 
 	Context("Hazelcast Validation Multiple Errors", func() {
