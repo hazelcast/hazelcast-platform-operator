@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -33,7 +34,8 @@ func Test_jetJobCheckerConcurrency(t *testing.T) {
 		wg.Wait()
 		testDoneWg.Done()
 	}
-	checker.runChecker(context.Background(), js, updateF, logr.Logger{})
+	logger := logr.New(log.NullLogSink{})
+	checker.runChecker(context.Background(), js, updateF, logger)
 
 	anotherUpdateF := func(_ context.Context, sum codecTypes.JobAndSqlSummary, nn types.NamespacedName) {
 		testDoneWg.Add(1)
@@ -42,7 +44,7 @@ func Test_jetJobCheckerConcurrency(t *testing.T) {
 
 	js.jobs = append(js.jobs, codecTypes.JobAndSqlSummary{NameOrId: "job2"}, codecTypes.JobAndSqlSummary{NameOrId: "job3"})
 	storeNewJob(checker, testDoneWg, "job2")
-	checker.runChecker(context.Background(), js, anotherUpdateF, logr.Logger{})
+	checker.runChecker(context.Background(), js, anotherUpdateF, logger)
 	storeNewJob(checker, testDoneWg, "job3")
 	wg.Done()
 	testDoneWg.Wait()
@@ -58,15 +60,16 @@ func Test_jetJobStatusCheckerDeadLock(t *testing.T) {
 	nsName := types.NamespacedName{Name: "test-namespace"}
 	jsc.storeJob(jobName, nsName)
 
+	logger := logr.New(log.NullLogSink{})
 	var wg sync.WaitGroup
 	wg.Add(2)
 	f := func(_ context.Context, summary codecTypes.JobAndSqlSummary, nn types.NamespacedName) {}
 	go func() {
-		jsc.runChecker(context.Background(), &fakeJetService{}, f, logr.Logger{})
+		jsc.runChecker(context.Background(), &fakeJetService{}, f, logger)
 		wg.Done()
 	}()
 	go func() {
-		jsc.runChecker(context.Background(), &fakeJetService{}, f, logr.Logger{})
+		jsc.runChecker(context.Background(), &fakeJetService{}, f, logger)
 		wg.Done()
 	}()
 	wg.Wait()
