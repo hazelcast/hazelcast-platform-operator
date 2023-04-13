@@ -36,7 +36,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 			err := k8sClient.Get(
 				context.Background(), types.NamespacedName{Name: jjLookupKey.Name, Namespace: hzNamespace}, jjCheck)
 			Expect(err).ToNot(HaveOccurred())
-			fmt.Printf("%v\n", jjCheck)
+			GinkgoWriter.Println(fmt.Sprintf("JetJob checked %v\n", jjCheck))
 			return jjCheck.Status.Phase
 		}, 5*Minute, interval).Should(Equal(phase))
 	}
