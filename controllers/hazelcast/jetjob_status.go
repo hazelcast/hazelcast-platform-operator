@@ -87,18 +87,12 @@ func (sc *jetJobStatusChecker) runChecker(ctx context.Context, service client.Je
 type jetJobStatusBuilder struct {
 	status hazelcastv1alpha1.JetJobStatusPhase
 	err    error
-	jobId  int64
 }
 
 func jetJobWithStatus(s hazelcastv1alpha1.JetJobStatusPhase) *jetJobStatusBuilder {
 	return &jetJobStatusBuilder{
 		status: s,
 	}
-}
-
-func (jj *jetJobStatusBuilder) withJobId(jobId int64) *jetJobStatusBuilder {
-	jj.jobId = jobId
-	return jj
 }
 
 func failedJetJobStatus(err error) *jetJobStatusBuilder {

@@ -101,12 +101,12 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 			Should(ContainElements(
 				MatchRegexp(fmt.Sprintf(".*\\[%s\\/\\w+#\\d+\\]\\s+SimpleEvent\\(timestamp=.*,\\s+sequence=\\d+\\).*", jj.Name))))
 
-		k8sClient.Get(context.Background(), jjLookupKey, jj)
+		Expect(k8sClient.Get(context.Background(), jjLookupKey, jj)).Should(Succeed())
 		jj.Spec.State = hazelcastv1alpha1.SuspendedJobState
 		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
 		checkJetJobStatus(hazelcastv1alpha1.JetJobSuspended)
 
-		k8sClient.Get(context.Background(), jjLookupKey, jj)
+		Expect(k8sClient.Get(context.Background(), jjLookupKey, jj)).Should(Succeed())
 		jj.Spec.State = hazelcastv1alpha1.RunningJobState
 		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
 		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)

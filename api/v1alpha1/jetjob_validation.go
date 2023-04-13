@@ -53,8 +53,7 @@ func ValidateJetConfiguration(h *Hazelcast) error {
 }
 
 func ValidateJetJobUpdateSpec(jj *JetJob, oldJj *JetJob) error {
-	var allErrs field.ErrorList
-	allErrs = append(ValidateJetJobNonUpdatableFields(jj.Spec, oldJj.Spec))
+	var allErrs = ValidateJetJobNonUpdatableFields(jj.Spec, oldJj.Spec)
 	if len(allErrs) == 0 {
 		return nil
 	}
