@@ -120,6 +120,13 @@ spec:
                           description: Name of the secret with TLS certificate and
                             key.
                           type: string
+                        type:
+                          default: BasicSSL
+                          description: Type of TLS configuration
+                          enum:
+                          - BasicSSL
+                          - OpenSSL
+                          type: string
                       type: object
                   required:
                   - address

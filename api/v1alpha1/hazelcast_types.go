@@ -854,7 +854,33 @@ type ClientServerSocketEndpointConfig struct {
 type TLS struct {
 	// Name of the secret with TLS certificate and key.
 	SecretName string `json:"secretName,omitempty"`
+
+	// Type of TLS configuration
+	// +kubebuilder:default:="BasicSSL"
+	// +optional
+	Type TLSType `json:"type,omitempty"`
 }
+
+func (t *TLS) IsEnabled() bool {
+	return t != nil && t.SecretName != ""
+}
+
+func (t *TLS) IsBasicSSLEnabled() bool {
+	return t != nil && t.IsEnabled() && t.Type == TLSTypeBasicSSL
+}
+
+func (t *TLS) IsOpenSSLEnabled() bool {
+	return t != nil && t.IsEnabled() && t.Type == TLSTypeOpenSSL
+}
+
+// +kubebuilder:validation:Enum=BasicSSL;OpenSSL
+type TLSType string
+
+const (
+	TLSTypeBasicSSL TLSType = "BasicSSL"
+
+	TLSTypeOpenSSL TLSType = "OpenSSL"
+)
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {

@@ -340,7 +340,8 @@ type SSL struct {
 }
 
 type SSLProperties struct {
-	Protocol             string `yaml:"protocol,omitempty"`
+	Protocol string `yaml:"protocol,omitempty"`
+	// Properties of BasicSSL
 	MutualAuthentication string `yaml:"mutualAuthentication,omitempty"`
 	KeyStore             string `yaml:"keyStore,omitempty"`
 	KeyStorePassword     string `yaml:"keyStorePassword,omitempty"`
@@ -348,4 +349,8 @@ type SSLProperties struct {
 	TrustStore           string `yaml:"trustStore,omitempty"`
 	TrustStorePassword   string `yaml:"trustStorePassword,omitempty"`
 	TrustStoreType       string `yaml:"trustStoreType,omitempty"`
+	// Properties of OpenSSL
+	TrustCertCollectionFile string `yaml:"trustCertCollectionFile,omitempty"`
+	KeyFile                 string `yaml:"keyFile,omitempty"`
+	KeyCertChainFile        string `yaml:"keyCertChainFile,omitempty"`
 }

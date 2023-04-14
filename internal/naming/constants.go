@@ -70,6 +70,8 @@ const (
 	UserCodeURLPath       = "/opt/hazelcast/userCode/urls"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 	JetJobJarsBucketPath  = "/opt/hazelcast/jetJobJars/bucket"
+
+	TLSOpenSSLVolumeName = "tls-openssl"
 )
 
 // Hazelcast default configurations

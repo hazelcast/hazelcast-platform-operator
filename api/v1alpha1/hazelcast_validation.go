@@ -129,7 +129,7 @@ func validateLicense(h *Hazelcast) *field.Error {
 
 func validateTLS(h *Hazelcast) *field.Error {
 	// make sure secret exists
-	if h.Spec.TLS.SecretName != "" {
+	if h.Spec.TLS.IsEnabled() {
 		secretName := types.NamespacedName{
 			Name:      h.Spec.TLS.SecretName,
 			Namespace: h.Namespace,

@@ -1920,6 +1920,13 @@ spec:
                   secretName:
                     description: Name of the secret with TLS certificate and key.
                     type: string
+                  type:
+                    default: BasicSSL
+                    description: Type of TLS configuration
+                    enum:
+                    - BasicSSL
+                    - OpenSSL
+                    type: string
                 type: object
               userCodeDeployment:
                 description: User Codes to Download into CLASSPATH
@@ -2424,6 +2431,13 @@ spec:
                         secretName:
                           description: Name of the secret with TLS certificate and
                             key.
+                          type: string
+                        type:
+                          default: BasicSSL
+                          description: Type of TLS configuration
+                          enum:
+                          - BasicSSL
+                          - OpenSSL
                           type: string
                       type: object
                   required:

@@ -9,3 +9,4 @@ spec:
   licenseKeySecret: hazelcast-license-key
   tls:
     secretName: example
+    type: OpenSSL

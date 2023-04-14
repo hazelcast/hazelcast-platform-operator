@@ -617,12 +617,17 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 		}
 		cm.Data["hazelcast.yaml"] = config
 
-		if _, ok := cm.Data["hazelcast.jks"]; !ok {
-			keystore, err := hazelcastKeystore(ctx, r.Client, h)
-			if err != nil {
-				return err
+		// Hazelcast TLS config
+		if h.Spec.TLS.IsEnabled() {
+			if h.Spec.TLS.IsBasicSSLEnabled() {
+				keystore, err := hazelcastKeystore(ctx, r.Client, h)
+				if err != nil {
+					return err
+				}
+				cm.Data["hazelcast.jks"] = keystore
 			}
-			cm.Data["hazelcast.jks"] = keystore
+			// If the TLS type is `OpenSSL`, cert and key values from given secret is not copied into out secret.
+			// The given TLS secret is directly used to mount into the Hazelcast containers.
 		}
 
 		if _, ok := cm.Data["ca.crt"]; !ok {
@@ -854,38 +859,68 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
 	}
 
-	if h.Spec.TLS.SecretName != "" {
-		var (
-			jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
-			password = "hazelcast"
-		)
-		// require MTLS for member-member communication
-		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
-			Enabled:          pointer.Bool(true),
-			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: config.SSLProperties{
-				Protocol:             "TLSv1.2",
-				MutualAuthentication: "REQUIRED",
-				// server cert + key
-				KeyStoreType:     "JKS",
-				KeyStore:         jksPath,
-				KeyStorePassword: password,
-				// trusted cert pool (we use the same file for convince)
-				TrustStoreType:     "JKS",
-				TrustStore:         jksPath,
-				TrustStorePassword: password,
-			},
-		}
-		// for client-server configuration use only server TLS
-		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
-			Enabled:          pointer.Bool(true),
-			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: config.SSLProperties{
-				Protocol:         "TLS",
-				KeyStoreType:     "JKS",
-				KeyStore:         jksPath,
-				KeyStorePassword: password,
-			},
+	// TLS Configuration
+	if h.Spec.TLS.IsEnabled() {
+		if h.Spec.TLS.IsBasicSSLEnabled() {
+			var (
+				jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
+				password = "hazelcast"
+			)
+			// require MTLS for member-member communication
+			cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+				Properties: config.SSLProperties{
+					Protocol:             "TLSv1.2",
+					MutualAuthentication: "REQUIRED",
+					// server cert + key
+					KeyStoreType:     "JKS",
+					KeyStore:         jksPath,
+					KeyStorePassword: password,
+					// trusted cert pool (we use the same file for convince)
+					TrustStoreType:     "JKS",
+					TrustStore:         jksPath,
+					TrustStorePassword: password,
+				},
+			}
+			// for client-server configuration use only server TLS
+			cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+				Properties: config.SSLProperties{
+					Protocol:         "TLS",
+					KeyStoreType:     "JKS",
+					KeyStore:         jksPath,
+					KeyStorePassword: password,
+				},
+			}
+		} else if h.Spec.TLS.IsOpenSSLEnabled() {
+			var (
+				// TODO
+				crtPath = path.Join(n.HazelcastMountPath, "tls.crt")
+				keyPath = path.Join(n.HazelcastMountPath, "tls.key")
+			)
+			// member
+			cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: "com.hazelcast.nio.ssl.OpenSSLEngineFactory",
+				Properties: config.SSLProperties{
+					Protocol:                "TLSv1.2",
+					TrustCertCollectionFile: crtPath,
+					KeyFile:                 keyPath,
+					KeyCertChainFile:        crtPath,
+				},
+			}
+			// client
+			cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+				Properties: config.SSLProperties{
+					Protocol:         "TLS",
+					KeyFile:          keyPath,
+					KeyCertChainFile: crtPath,
+				},
+			}
 		}
 	}
 	return cfg
@@ -1891,6 +1926,10 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		vols = append(vols, userCodeConfigMapVolumes(h)...)
 	}
 
+	if h.Spec.TLS.IsOpenSSLEnabled() {
+		vols = append(vols, tlsOpenSSLVolume(h.Spec.TLS))
+	}
+
 	if !h.Spec.Persistence.IsEnabled() {
 		return vols
 	}
@@ -1907,6 +1946,18 @@ func emptyDirVolume(name string) v1.Volume {
 		Name: name,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+func tlsOpenSSLVolume(tls hazelcastv1alpha1.TLS) corev1.Volume {
+	return v1.Volume{
+		Name: n.TLSOpenSSLVolumeName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName:  tls.SecretName,
+				DefaultMode: pointer.Int32(755),
+			},
 		},
 	}
 }
@@ -1939,6 +1990,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 		ucdURLAgentVolumeMount(),
 		jetJobJarsVolumeMount(),
 	}
+
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
@@ -1955,6 +2007,14 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
 		mounts = append(mounts, userCodeConfigMapVolumeMounts(h)...)
 	}
+
+	if h.Spec.TLS.IsOpenSSLEnabled() {
+		mounts = append(mounts, v1.VolumeMount{
+			Name:      n.TLSOpenSSLVolumeName,
+			MountPath: n.HazelcastMountPath,
+		})
+	}
+
 	return mounts
 }
 
