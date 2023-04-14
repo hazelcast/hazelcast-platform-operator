@@ -55,7 +55,7 @@ func ValidateManagementCenterSpecUpdate(mc *ManagementCenter) []*field.Error {
 func ValidateNotUpdatableMcPersistenceFields(current, last MCPersistenceConfiguration) []*field.Error {
 	var allErrs field.ErrorList
 
-	if reflect.DeepEqual(current.Enabled, last.Enabled) {
+	if !reflect.DeepEqual(current.Enabled, last.Enabled) {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("persistence").Child("enabled"), "field cannot be updated"))
 	}
@@ -67,7 +67,7 @@ func ValidateNotUpdatableMcPersistenceFields(current, last MCPersistenceConfigur
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("persistence").Child("storageClass"), "field cannot be updated"))
 	}
-	if reflect.DeepEqual(current.Size, last.Size) {
+	if !reflect.DeepEqual(current.Size, last.Size) {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("persistence").Child("size"), "field cannot be updated"))
 	}

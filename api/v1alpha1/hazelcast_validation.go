@@ -432,7 +432,7 @@ func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistence
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("persistence").Child("baseDir"), "field cannot be updated"))
 	}
-	if reflect.DeepEqual(current.Pvc, last.Pvc) {
+	if !reflect.DeepEqual(current.Pvc, last.Pvc) {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("persistence").Child("pvc"), "field cannot be updated"))
 	}
