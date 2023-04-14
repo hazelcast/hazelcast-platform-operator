@@ -52,7 +52,7 @@ func ValidateManagementCenterSpecUpdate(mc *ManagementCenter) []*field.Error {
 	return ValidateNotUpdatableMcPersistenceFields(mc.Spec.Persistence, parsed.Persistence)
 }
 
-func ValidateNotUpdatableMcPersistenceFields(current, last McPersistenceConfiguration) []*field.Error {
+func ValidateNotUpdatableMcPersistenceFields(current, last MCPersistenceConfiguration) []*field.Error {
 	var allErrs field.ErrorList
 
 	if reflect.DeepEqual(current.Enabled, last.Enabled) {

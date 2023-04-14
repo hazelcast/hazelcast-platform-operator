@@ -112,7 +112,7 @@ var _ = Describe("ManagementCenter controller", func() {
 			}
 			Expect(fetchedCR.Spec.ExternalConnectivity).Should(Equal(expectedExternalConnectivity))
 
-			expectedPersistence := hazelcastv1alpha1.McPersistenceConfiguration{
+			expectedPersistence := hazelcastv1alpha1.MCPersistenceConfiguration{
 				Enabled: pointer.Bool(true),
 				Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 			}
@@ -271,7 +271,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
-						Persistence: hazelcastv1alpha1.McPersistenceConfiguration{
+						Persistence: hazelcastv1alpha1.MCPersistenceConfiguration{
 							Enabled:                 pointer.Bool(true),
 							ExistingVolumeClaimName: "ClaimName",
 						},
