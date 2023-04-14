@@ -124,11 +124,6 @@ func validateLicense(h *Hazelcast) *field.Error {
 }
 
 func validateTLS(h *Hazelcast) *field.Error {
-	if h.Spec.TLS.SecretName != "" && !checkEnterprise(h.Spec.Repository) {
-		return field.Required(field.NewPath("spec").Child("tls"),
-			"Hazelcast Enterprise version is required for configuring TLS")
-	}
-
 	// make sure secret exists
 	if h.Spec.TLS.SecretName != "" {
 		secretName := types.NamespacedName{
