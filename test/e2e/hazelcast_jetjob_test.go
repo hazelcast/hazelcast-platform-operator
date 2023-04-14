@@ -36,7 +36,6 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 			err := k8sClient.Get(
 				context.Background(), types.NamespacedName{Name: jjLookupKey.Name, Namespace: hzNamespace}, jjCheck)
 			Expect(err).ToNot(HaveOccurred())
-			GinkgoWriter.Println(fmt.Sprintf("JetJob checked %v\n", jjCheck))
 			return jjCheck.Status.Phase
 		}, 5*Minute, interval).Should(Equal(phase))
 	}
@@ -81,7 +80,6 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 	})
 
 	It("should change JetJob status", Label("fast"), func() {
-		Skip("Test with skip!")
 		setLabelAndCRName("jj-2")
 
 		hazelcast := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
