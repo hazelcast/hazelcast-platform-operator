@@ -238,8 +238,7 @@ jobs:
 
       - name: Merge KUBECONFIG Files
         run: |
-          KUBECONFIG="$FIRST_KUBECONFIG:$SECOND_KUBECONFIG"
-          kubectl config view --raw > ${GITHUB_WORKSPACE}/kubeconfig
+          KUBECONFIG="${{ env.FIRST_KUBECONFIG }}:${{ env.SECOND_KUBECONFIG }}" kubectl config view --raw > ${GITHUB_WORKSPACE}/kubeconfig
           echo "KUBECONFIG="${GITHUB_WORKSPACE}/kubeconfig"" >> $GITHUB_ENV
 
       - name: Run Wan Test
