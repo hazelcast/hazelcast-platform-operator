@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"strings"
 
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
@@ -12,7 +13,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -20,40 +20,40 @@ import (
 )
 
 type HzStatusApplier interface {
-	HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus)
+	HzStatusApply(hs *hazelcastv1beta1.HazelcastStatus)
 }
 
-type withHzPhase hazelcastv1alpha1.Phase
+type withHzPhase hazelcastv1beta1.Phase
 
-func (w withHzPhase) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
-	hs.Phase = hazelcastv1alpha1.Phase(w)
-	if hazelcastv1alpha1.Phase(w) == hazelcastv1alpha1.Running {
+func (w withHzPhase) HzStatusApply(hs *hazelcastv1beta1.HazelcastStatus) {
+	hs.Phase = hazelcastv1beta1.Phase(w)
+	if hazelcastv1beta1.Phase(w) == hazelcastv1beta1.Running {
 		hs.Message = ""
 	}
 }
 
 type withHzFailedPhase string
 
-func (w withHzFailedPhase) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
-	hs.Phase = hazelcastv1alpha1.Failed
+func (w withHzFailedPhase) HzStatusApply(hs *hazelcastv1beta1.HazelcastStatus) {
+	hs.Phase = hazelcastv1beta1.Failed
 	hs.Message = string(w)
 }
 
 type withHzMessage string
 
-func (m withHzMessage) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
+func (m withHzMessage) HzStatusApply(hs *hazelcastv1beta1.HazelcastStatus) {
 	hs.Message = string(m)
 }
 
 type withHzExternalAddresses []string
 
-func (w withHzExternalAddresses) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
+func (w withHzExternalAddresses) HzStatusApply(hs *hazelcastv1beta1.HazelcastStatus) {
 	hs.ExternalAddresses = strings.Join(w, ",")
 }
 
 type withHzWanAddresses []string
 
-func (w withHzWanAddresses) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
+func (w withHzWanAddresses) HzStatusApply(hs *hazelcastv1beta1.HazelcastStatus) {
 	hs.WanAddresses = strings.Join(w, ",")
 }
 
@@ -65,7 +65,7 @@ type memberStatuses struct {
 	podErrors       util.PodErrors
 }
 
-func (r *HazelcastReconciler) withMemberStatuses(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, err error) memberStatuses {
+func (r *HazelcastReconciler) withMemberStatuses(ctx context.Context, h *hazelcastv1beta1.Hazelcast, err error) memberStatuses {
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	ss, ok := r.statusServiceRegistry.Get(lk)
 	if !ok {
@@ -85,7 +85,7 @@ func (r *HazelcastReconciler) withMemberStatuses(ctx context.Context, h *hazelca
 	}
 
 	var restoreStatus codecTypes.ClusterHotRestartStatus
-	if rs := status.ClusterHotRestartStatus.RestoreState(); h.Spec.Persistence.IsEnabled() && rs != hazelcastv1alpha1.RestoreUnknown {
+	if rs := status.ClusterHotRestartStatus.RestoreState(); h.Spec.Persistence.IsEnabled() && rs != hazelcastv1beta1.RestoreUnknown {
 		restoreStatus = status.ClusterHotRestartStatus
 	}
 
@@ -98,7 +98,7 @@ func (r *HazelcastReconciler) withMemberStatuses(ctx context.Context, h *hazelca
 	}
 }
 
-func (m memberStatuses) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
+func (m memberStatuses) HzStatusApply(hs *hazelcastv1beta1.HazelcastStatus) {
 	hs.Cluster.ReadyMembers = m.readyMembers
 
 	readyMembers := readyMemberStatuses(m.readyMembersMap, m.memberPods)
@@ -112,7 +112,7 @@ func (m memberStatuses) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
 	hs.Members = allMemberStatuses
 
 	if m.restoreState != (codecTypes.ClusterHotRestartStatus{}) {
-		hs.Restore = hazelcastv1alpha1.RestoreStatus{
+		hs.Restore = hazelcastv1beta1.RestoreStatus{
 			State:                   m.restoreState.RestoreState(),
 			RemainingDataLoadTime:   m.restoreState.RemainingDataLoadTimeSec(),
 			RemainingValidationTime: m.restoreState.RemainingValidationTimeSec(),
@@ -121,8 +121,8 @@ func (m memberStatuses) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
 
 }
 
-func readyMemberStatuses(m map[hztypes.UUID]*hzclient.MemberData, memberPods []corev1.Pod) []hazelcastv1alpha1.HazelcastMemberStatus {
-	members := make([]hazelcastv1alpha1.HazelcastMemberStatus, 0, len(m))
+func readyMemberStatuses(m map[hztypes.UUID]*hzclient.MemberData, memberPods []corev1.Pod) []hazelcastv1beta1.HazelcastMemberStatus {
+	members := make([]hazelcastv1beta1.HazelcastMemberStatus, 0, len(m))
 	memberPodIpNameMap := make(map[string]string)
 	for _, pod := range memberPods {
 		memberPodIpNameMap[pod.Status.PodIP] = pod.Name
@@ -130,7 +130,7 @@ func readyMemberStatuses(m map[hztypes.UUID]*hzclient.MemberData, memberPods []c
 	for uid, member := range m {
 		ip := strings.Split(member.Address, ":")[0]
 		podName := memberPodIpNameMap[ip]
-		members = append(members, hazelcastv1alpha1.HazelcastMemberStatus{
+		members = append(members, hazelcastv1beta1.HazelcastMemberStatus{
 			PodName:         podName,
 			Uid:             uid.String(),
 			Ip:              ip,
@@ -139,17 +139,17 @@ func readyMemberStatuses(m map[hztypes.UUID]*hzclient.MemberData, memberPods []c
 			Master:          member.Master,
 			Lite:            member.LiteMember,
 			OwnedPartitions: member.Partitions,
-			State:           hazelcastv1alpha1.NodeState(member.MemberState),
+			State:           hazelcastv1beta1.NodeState(member.MemberState),
 		})
 	}
 	return members
 }
 
-func failedMemberStatuses(podErrs util.PodErrors) []hazelcastv1alpha1.HazelcastMemberStatus {
+func failedMemberStatuses(podErrs util.PodErrors) []hazelcastv1beta1.HazelcastMemberStatus {
 
-	statuses := []hazelcastv1alpha1.HazelcastMemberStatus{}
+	statuses := []hazelcastv1beta1.HazelcastMemberStatus{}
 	for _, pErr := range podErrs {
-		statuses = append(statuses, hazelcastv1alpha1.HazelcastMemberStatus{
+		statuses = append(statuses, hazelcastv1beta1.HazelcastMemberStatus{
 			PodName:      pErr.Name,
 			Ip:           pErr.PodIp,
 			Ready:        false,
@@ -161,7 +161,7 @@ func failedMemberStatuses(podErrs util.PodErrors) []hazelcastv1alpha1.HazelcastM
 	return statuses
 }
 
-func pendingMemberPods(pods []corev1.Pod, currentMembers []hazelcastv1alpha1.HazelcastMemberStatus) []corev1.Pod {
+func pendingMemberPods(pods []corev1.Pod, currentMembers []hazelcastv1beta1.HazelcastMemberStatus) []corev1.Pod {
 	memberIps := map[string]struct{}{}
 	for _, member := range currentMembers {
 		memberIps[member.Ip] = struct{}{}
@@ -177,10 +177,10 @@ func pendingMemberPods(pods []corev1.Pod, currentMembers []hazelcastv1alpha1.Haz
 	return pmPods
 }
 
-func pendingMemberStatuses(pods []corev1.Pod) []hazelcastv1alpha1.HazelcastMemberStatus {
-	statuses := []hazelcastv1alpha1.HazelcastMemberStatus{}
+func pendingMemberStatuses(pods []corev1.Pod) []hazelcastv1beta1.HazelcastMemberStatus {
+	statuses := []hazelcastv1beta1.HazelcastMemberStatus{}
 	for _, pod := range pods {
-		statuses = append(statuses, hazelcastv1alpha1.HazelcastMemberStatus{
+		statuses = append(statuses, hazelcastv1beta1.HazelcastMemberStatus{
 			PodName: pod.Name,
 			Ip:      pod.Status.PodIP,
 			Ready:   false,
@@ -191,7 +191,7 @@ func pendingMemberStatuses(pods []corev1.Pod) []hazelcastv1alpha1.HazelcastMembe
 	return statuses
 }
 
-func hzMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) []corev1.Pod {
+func hzMemberPods(ctx context.Context, c client.Client, h *hazelcastv1beta1.Hazelcast) []corev1.Pod {
 	podList := &corev1.PodList{}
 	namespace := client.InNamespace(h.Namespace)
 	matchingLabels := client.MatchingLabels(labels(h))
@@ -203,7 +203,7 @@ func hzMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Haz
 }
 
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
-func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, recOption controllers.ReconcilerOption, options ...HzStatusApplier) (ctrl.Result, error) {
+func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1beta1.Hazelcast, recOption controllers.ReconcilerOption, options ...HzStatusApplier) (ctrl.Result, error) {
 	for _, applier := range options {
 		applier.HzStatusApply(&h.Status)
 	}
@@ -218,7 +218,7 @@ func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.H
 	if recOption.Err != nil {
 		return ctrl.Result{}, recOption.Err
 	}
-	if h.Status.Phase == hazelcastv1alpha1.Pending {
+	if h.Status.Phase == hazelcastv1beta1.Pending {
 		return ctrl.Result{Requeue: true, RequeueAfter: recOption.RetryAfter}, nil
 	}
 	return ctrl.Result{}, nil

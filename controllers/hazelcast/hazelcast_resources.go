@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"hash/crc32"
 	"net"
 	"path"
@@ -32,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -48,7 +49,7 @@ const (
 	hzLicenseKey = "HZ_LICENSEKEY"
 )
 
-func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
 	}
@@ -79,7 +80,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	return nil
 }
 
-func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1beta1.Hazelcast) error {
 
 	dependentCRs := map[string]client.ObjectList{
 		"Map":           &hazelcastv1alpha1.MapList{},
@@ -97,7 +98,7 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 	return nil
 }
 
-func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, crKind string, objList client.ObjectList) error {
+func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcastv1beta1.Hazelcast, crKind string, objList client.ObjectList) error {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
 
@@ -137,7 +138,7 @@ func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcas
 	return nil
 }
 
-func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	clusterRole := &rbacv1.ClusterRole{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, clusterRole)
 	if err != nil && kerrors.IsNotFound(err) {
@@ -153,7 +154,7 @@ func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcas
 	return nil
 }
 
-func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	crb := &rbacv1.ClusterRoleBinding{}
 	err := r.Get(ctx, client.ObjectKey{Name: h.ClusterScopedName()}, crb)
 	if err != nil && kerrors.IsNotFound(err) {
@@ -169,7 +170,7 @@ func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *h
 	return nil
 }
 
-func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
@@ -195,7 +196,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
@@ -239,7 +240,7 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	serviceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metadata(h),
 	}
@@ -258,7 +259,7 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	csName := h.ClusterScopedName()
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -289,7 +290,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      h.Name,
@@ -325,7 +326,7 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	service := &corev1.Service{
 		ObjectMeta: metadata(h),
 		Spec: corev1.ServiceSpec{
@@ -361,7 +362,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
@@ -407,14 +408,14 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 	return nil
 }
 
-func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
+func serviceType(h *hazelcastv1beta1.Hazelcast) v1.ServiceType {
 	if h.Spec.ExposeExternally.IsEnabled() {
 		return h.Spec.ExposeExternally.DiscoveryK8ServiceType()
 	}
 	return corev1.ServiceTypeClusterIP
 }
 
-func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	if !h.Spec.ExposeExternally.IsSmart() {
 		// Service per pod applies only to Smart type
 		return nil
@@ -455,7 +456,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 	return nil
 }
 
-func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, h *hazelcastv1beta1.Hazelcast) error {
 	var s int
 	if h.Spec.ExposeExternally.IsSmart() {
 		s = int(*h.Spec.ClusterSize)
@@ -501,17 +502,17 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 	return nil
 }
 
-func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
+func servicePerPodName(i int, h *hazelcastv1beta1.Hazelcast) string {
 	return fmt.Sprintf("%s-%d", h.Name, i)
 }
 
-func servicePerPodSelector(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
+func servicePerPodSelector(i int, h *hazelcastv1beta1.Hazelcast) map[string]string {
 	ls := labels(h)
 	ls[n.PodNameLabel] = servicePerPodName(i, h)
 	return ls
 }
 
-func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+func servicePerPodLabels(h *hazelcastv1beta1.Hazelcast) map[string]string {
 	ls := labels(h)
 	ls[n.ServicePerPodLabelName] = n.LabelValueTrue
 	return ls
@@ -563,7 +564,7 @@ func defaultWANPort() corev1.ServicePort {
 	}
 }
 
-func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) bool {
+func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1beta1.Hazelcast) bool {
 	if !h.Spec.ExposeExternally.IsSmart() {
 		// Service per pod applies only to Smart type
 		return true
@@ -598,7 +599,7 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	return true
 }
 
-func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	cm := &corev1.Secret{
 		ObjectMeta: metadata(h),
 	}
@@ -629,7 +630,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 	return err
 }
 
-func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
+func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1beta1.Hazelcast) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
 
 	fillHazelcastConfigWithProperties(&cfg, h)
@@ -681,7 +682,7 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 }
 
-func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
+func hazelcastBasicConfig(h *hazelcastv1beta1.Hazelcast) config.Hazelcast {
 	cfg := config.Hazelcast{
 		AdvancedNetwork: config.AdvancedNetwork{
 			Enabled: true,
@@ -732,12 +733,12 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	if h.Spec.HighAvailabilityMode != "" {
 		switch h.Spec.HighAvailabilityMode {
-		case hazelcastv1alpha1.HighAvailabilityNodeMode:
+		case hazelcastv1beta1.HighAvailabilityNodeMode:
 			cfg.PartitionGroup = config.PartitionGroup{
 				Enabled:   pointer.Bool(true),
 				GroupType: "NODE_AWARE",
 			}
-		case hazelcastv1alpha1.HighAvailabilityZoneMode:
+		case hazelcastv1beta1.HighAvailabilityZoneMode:
 			cfg.PartitionGroup = config.PartitionGroup{
 				Enabled:   pointer.Bool(true),
 				GroupType: "ZONE_AWARE",
@@ -856,7 +857,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	return cfg
 }
 
-func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
+func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1beta1.Hazelcast) ([]byte, error) {
 	var (
 		store    = keystore.New()
 		password = []byte("hazelcast")
@@ -885,7 +886,7 @@ func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha
 	return b.Bytes(), nil
 }
 
-func loadTLSKeyPair(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (cert []byte, key []byte, err error) {
+func loadTLSKeyPair(ctx context.Context, c client.Client, h *hazelcastv1beta1.Hazelcast) (cert []byte, key []byte, err error) {
 	var s v1.Secret
 	err = c.Get(ctx, types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}, &s)
 	if err != nil {
@@ -913,13 +914,13 @@ func decodePEM(data []byte, typ string) ([]byte, error) {
 	return b.Bytes, nil
 }
 
-func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {
+func clusterDataRecoveryPolicy(policyType hazelcastv1beta1.DataRecoveryPolicyType) string {
 	switch policyType {
-	case hazelcastv1alpha1.FullRecovery:
+	case hazelcastv1beta1.FullRecovery:
 		return "FULL_RECOVERY_ONLY"
-	case hazelcastv1alpha1.MostRecent:
+	case hazelcastv1beta1.MostRecent:
 		return "PARTIAL_RECOVERY_MOST_RECENT"
-	case hazelcastv1alpha1.MostComplete:
+	case hazelcastv1beta1.MostComplete:
 		return "PARTIAL_RECOVERY_MOST_COMPLETE"
 	}
 	return "FULL_RECOVERY_ONLY"
@@ -928,14 +929,14 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 func filterProperties(p map[string]string) map[string]string {
 	filteredProperties := map[string]string{}
 	for propertyKey, value := range p {
-		if _, ok := hazelcastv1alpha1.BlackListProperties[propertyKey]; !ok {
+		if _, ok := hazelcastv1beta1.BlackListProperties[propertyKey]; !ok {
 			filteredProperties[propertyKey] = value
 		}
 	}
 	return filteredProperties
 }
 
-func filterPersistedMaps(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.Map, error) {
+func filterPersistedMaps(ctx context.Context, c client.Client, h *hazelcastv1beta1.Hazelcast) ([]hazelcastv1alpha1.Map, error) {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
 
@@ -966,7 +967,7 @@ func filterPersistedMaps(ctx context.Context, c client.Client, h *hazelcastv1alp
 	return l, nil
 }
 
-func filterPersistedDS(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, objList client.ObjectList) ([]client.Object, error) {
+func filterPersistedDS(ctx context.Context, c client.Client, h *hazelcastv1beta1.Hazelcast, objList client.ObjectList) ([]client.Object, error) {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
 
@@ -982,7 +983,7 @@ func filterPersistedDS(ctx context.Context, c client.Client, h *hazelcastv1alpha
 	return l, nil
 }
 
-func filterPersistedWanReplications(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (map[string]hazelcastv1alpha1.WanReplication, error) {
+func filterPersistedWanReplications(ctx context.Context, c client.Client, h *hazelcastv1beta1.Hazelcast) (map[string]hazelcastv1alpha1.WanReplication, error) {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
 
@@ -1009,11 +1010,11 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, h *haz
 	return l, nil
 }
 
-func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
+func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1beta1.Hazelcast) {
 	cfg.Properties = filterProperties(h.Spec.Properties)
 }
 
-func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
+func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *config.Hazelcast, h *hazelcastv1beta1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
 	if len(ml) != 0 {
 		cfg.Map = map[string]config.Map{}
 		for _, mcfg := range ml {
@@ -1094,7 +1095,7 @@ func fillHazelcastConfigWithReplicatedMaps(cfg *config.Hazelcast, rml []client.O
 	}
 }
 
-func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
+func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcastv1beta1.Hazelcast) {
 	if len(h.Spec.ExecutorServices) != 0 {
 		cfg.ExecutorService = map[string]config.ExecutorService{}
 		for _, escfg := range h.Spec.ExecutorServices {
@@ -1117,7 +1118,7 @@ func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcast
 	}
 }
 
-func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
+func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1beta1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
 	ms := m.Spec
 	mc := config.Map{
 		BackupCount:       *ms.BackupCount,
@@ -1231,15 +1232,15 @@ func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
 	return ics
 }
 
-func createExecutorServiceConfig(es *hazelcastv1alpha1.ExecutorServiceConfiguration) config.ExecutorService {
+func createExecutorServiceConfig(es *hazelcastv1beta1.ExecutorServiceConfiguration) config.ExecutorService {
 	return config.ExecutorService{PoolSize: es.PoolSize, QueueCapacity: es.QueueCapacity}
 }
 
-func createDurableExecutorServiceConfig(des *hazelcastv1alpha1.DurableExecutorServiceConfiguration) config.DurableExecutorService {
+func createDurableExecutorServiceConfig(des *hazelcastv1beta1.DurableExecutorServiceConfiguration) config.DurableExecutorService {
 	return config.DurableExecutorService{PoolSize: des.PoolSize, Durability: des.Durability, Capacity: des.Capacity}
 }
 
-func createScheduledExecutorServiceConfig(ses *hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) config.ScheduledExecutorService {
+func createScheduledExecutorServiceConfig(ses *hazelcastv1beta1.ScheduledExecutorServiceConfiguration) config.ScheduledExecutorService {
 	return config.ScheduledExecutorService{PoolSize: ses.PoolSize, Durability: ses.Durability, Capacity: ses.Capacity, CapacityPolicy: ses.CapacityPolicy}
 }
 
@@ -1347,7 +1348,7 @@ func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanRepl
 	return cfg
 }
 
-func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelcastv1beta1.Hazelcast) error {
 	_, err := r.mtlsClientRegistry.Create(ctx, r.Client, h.Namespace)
 	if err != nil {
 		return err
@@ -1368,7 +1369,7 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	ls := labels(h)
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metadata(h),
@@ -1470,7 +1471,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
-func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
+func persistentVolumeClaim(h *hazelcastv1beta1.Hazelcast) []v1.PersistentVolumeClaim {
 	return []v1.PersistentVolumeClaim{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1491,7 +1492,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 	}
 }
 
-func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func sidecarContainer(h *hazelcastv1beta1.Hazelcast) v1.Container {
 	c := v1.Container{
 		Name:  n.SidecarAgent,
 		Image: h.AgentDockerImage(),
@@ -1562,7 +1563,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return c
 }
 
-func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
+func hazelcastContainerWanRepPorts(h *hazelcastv1beta1.Hazelcast) []v1.ContainerPort {
 	var c []v1.ContainerPort
 
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
@@ -1617,7 +1618,7 @@ func containerSecurityContext() *v1.SecurityContext {
 	}
 }
 
-func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
+func initContainers(ctx context.Context, h *hazelcastv1beta1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
@@ -1646,7 +1647,7 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	return containers, nil
 }
 
-func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
+func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1beta1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := cl.Get(ctx, key, hb)
 	if err != nil {
@@ -1669,7 +1670,7 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 	return cont, nil
 }
 
-func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
+func restoreAgentContainer(h *hazelcastv1beta1.Hazelcast, secretName, bucket string) v1.Container {
 	commandName := "restore_pvc"
 
 	return v1.Container{
@@ -1714,7 +1715,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 	}
 }
 
-func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
+func restoreLocalAgentContainer(h *hazelcastv1beta1.Hazelcast, backupFolder string) v1.Container {
 	commandName := "restore_pvc_local"
 
 	return v1.Container{
@@ -1755,7 +1756,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 	}
 }
 
-func ucdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func ucdAgentContainer(h *hazelcastv1beta1.Hazelcast) v1.Container {
 	return v1.Container{
 		Name:  n.UserCodeDownloadAgent + h.Spec.UserCodeDeployment.TriggerSequence,
 		Image: h.AgentDockerImage(),
@@ -1778,14 +1779,14 @@ func ucdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
-func ucdAgentVolumeMount(_ *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
+func ucdAgentVolumeMount(_ *hazelcastv1beta1.Hazelcast) v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UserCodeBucketVolumeName,
 		MountPath: n.UserCodeBucketPath,
 	}
 }
 
-func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
+func volumes(h *hazelcastv1beta1.Hazelcast) []v1.Volume {
 	vols := []v1.Volume{
 		{
 			Name: n.HazelcastStorageName,
@@ -1815,7 +1816,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	return vols
 }
 
-func userCodeAgentVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
+func userCodeAgentVolume(_ *hazelcastv1beta1.Hazelcast) v1.Volume {
 	return v1.Volume{
 		Name: n.UserCodeBucketVolumeName,
 		VolumeSource: v1.VolumeSource{
@@ -1833,7 +1834,7 @@ func tmpDirVolume() v1.Volume {
 	}
 }
 
-func tlsVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
+func tlsVolume(_ *hazelcastv1beta1.Hazelcast) v1.Volume {
 	return v1.Volume{
 		Name: n.MTLSCertSecretName,
 		VolumeSource: v1.VolumeSource{
@@ -1845,7 +1846,7 @@ func tlsVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	}
 }
 
-func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
+func userCodeConfigMapVolumes(h *hazelcastv1beta1.Hazelcast) []corev1.Volume {
 	var vols []corev1.Volume
 	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
 		vols = append(vols, corev1.Volume{
@@ -1863,7 +1864,7 @@ func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
 	return vols
 }
 
-func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func hzContainerVolumeMounts(h *hazelcastv1beta1.Hazelcast) []corev1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,
@@ -1890,7 +1891,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	return mounts
 }
 
-func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func userCodeConfigMapVolumeMounts(h *hazelcastv1beta1.Hazelcast) []corev1.VolumeMount {
 	var vms []corev1.VolumeMount
 	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
 		vms = append(vms, corev1.VolumeMount{
@@ -1903,45 +1904,45 @@ func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.Volu
 
 // persistenceStartupAction performs the action specified in the h.Spec.Persistence.StartupAction if
 // the persistence is enabled and if the Hazelcast is not yet running
-func (r *HazelcastReconciler) persistenceStartupAction(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) persistenceStartupAction(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	if !h.Spec.Persistence.IsEnabled() ||
 		!util.IsEnterprise(h.Spec.Repository) ||
 		h.Spec.Persistence.StartupAction == "" ||
-		h.Status.Phase == hazelcastv1alpha1.Running {
+		h.Status.Phase == hazelcastv1beta1.Running {
 		return nil
 	}
 	logger.Info("Persistence enabled with startup action.", "action", h.Spec.Persistence.StartupAction)
-	if h.Spec.Persistence.StartupAction == hazelcastv1alpha1.ForceStart {
+	if h.Spec.Persistence.StartupAction == hazelcastv1beta1.ForceStart {
 		return NewRestClient(h).ForceStart(ctx)
 	}
-	if h.Spec.Persistence.StartupAction == hazelcastv1alpha1.PartialStart {
+	if h.Spec.Persistence.StartupAction == hazelcastv1beta1.PartialStart {
 		return NewRestClient(h).PartialStart(ctx)
 	}
 	return nil
 }
 
-func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hzclient.Client, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hzclient.Client, h *hazelcastv1beta1.Hazelcast) error {
 	// make sure restore is active
 	if !h.Spec.Persistence.IsRestoreEnabled() {
 		return nil
 	}
 
 	// make sure restore was successful
-	if h.Status.Restore == (hazelcastv1alpha1.RestoreStatus{}) {
+	if h.Status.Restore == (hazelcastv1beta1.RestoreStatus{}) {
 		return nil
 	}
 
-	if h.Status.Restore.State != hazelcastv1alpha1.RestoreSucceeded {
+	if h.Status.Restore.State != hazelcastv1beta1.RestoreSucceeded {
 		return nil
 	}
 
-	if h.Status.Phase == hazelcastv1alpha1.Pending {
+	if h.Status.Phase == hazelcastv1beta1.Pending {
 		return nil
 	}
 
 	// check if all cluster members are in passive state
 	for _, member := range h.Status.Members {
-		if member.State != hazelcastv1alpha1.NodeStatePassive {
+		if member.State != hazelcastv1beta1.NodeStatePassive {
 			return nil
 		}
 	}
@@ -1957,7 +1958,7 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 	return svc.ChangeClusterState(ctx, codecTypes.ClusterStateActive)
 }
 
-func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.TopologySpreadConstraint {
+func appendHAModeTopologySpreadConstraints(h *hazelcastv1beta1.Hazelcast) []v1.TopologySpreadConstraint {
 	topologySpreadConstraints := h.Spec.Scheduling.TopologySpreadConstraints
 	if h.Spec.HighAvailabilityMode != "" {
 		switch h.Spec.HighAvailabilityMode {
@@ -1982,7 +1983,7 @@ func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.
 	return topologySpreadConstraints
 }
 
-func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
+func env(h *hazelcastv1beta1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
 			Name:  "JAVA_OPTS",
@@ -2009,14 +2010,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Value: javaClassPath(h),
 		},
 	}
-	if h.Spec.LicenseKeySecret != "" {
+	if h.Spec.LicenseKeySecretName != "" {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: hzLicenseKey,
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
 						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.LicenseKeySecret,
+							Name: h.Spec.LicenseKeySecretName,
 						},
 						Key: n.LicenseDataKey,
 					},
@@ -2027,7 +2028,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	return envs
 }
 
-func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
+func javaOPTS(h *hazelcastv1beta1.Hazelcast) string {
 	b := strings.Builder{}
 	b.WriteString("-Dhazelcast.config=" + path.Join(n.HazelcastMountPath, "hazelcast.yaml"))
 
@@ -2063,11 +2064,11 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 
 	if v := jvmGC.GetCollector(); v != "" {
 		switch v {
-		case hazelcastv1alpha1.GCTypeSerial:
+		case hazelcastv1beta1.GCTypeSerial:
 			b.WriteString(" -XX:+UseSerialGC")
-		case hazelcastv1alpha1.GCTypeParallel:
+		case hazelcastv1beta1.GCTypeParallel:
 			b.WriteString(" -XX:+UseParallelGC")
-		case hazelcastv1alpha1.GCTypeG1:
+		case hazelcastv1beta1.GCTypeG1:
 			b.WriteString(" -XX:+UseG1GC")
 		}
 	}
@@ -2075,7 +2076,7 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 	return b.String()
 }
 
-func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
+func javaClassPath(h *hazelcastv1beta1.Hazelcast) string {
 	b := []string{path.Join(n.UserCodeBucketPath, "*")}
 
 	if !h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
@@ -2089,7 +2090,7 @@ func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 	return strings.Join(b, ":")
 }
 
-func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+func labels(h *hazelcastv1beta1.Hazelcast) map[string]string {
 	return map[string]string{
 		n.ApplicationNameLabel:         n.Hazelcast,
 		n.ApplicationInstanceNameLabel: h.Name,
@@ -2097,7 +2098,7 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	}
 }
 
-func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+func statefulSetAnnotations(h *hazelcastv1beta1.Hazelcast) map[string]string {
 	if !h.Spec.ExposeExternally.IsSmart() {
 		return nil
 	}
@@ -2107,7 +2108,7 @@ func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	}
 }
 
-func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
+func podAnnotations(annotations map[string]string, h *hazelcastv1beta1.Hazelcast) (map[string]string, error) {
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
@@ -2127,7 +2128,7 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 	return annotations, nil
 }
 
-func hazelcastContainerPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
+func hazelcastContainerPorts(h *hazelcastv1beta1.Hazelcast) []v1.ContainerPort {
 	ports := []v1.ContainerPort{{
 		ContainerPort: n.DefaultHzPort,
 		Name:          n.Hazelcast,
@@ -2157,7 +2158,7 @@ func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
 	}
 }
 
-func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
+func metadata(h *hazelcastv1beta1.Hazelcast) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:      h.Name,
 		Namespace: h.Namespace,
@@ -2165,7 +2166,7 @@ func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
 	}
 }
 
-func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1beta1.Hazelcast, logger logr.Logger) error {
 	hs, err := json.Marshal(h.Spec)
 	if err != nil {
 		return err
@@ -2185,7 +2186,7 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	return err
 }
 
-func (r *HazelcastReconciler) unmarshalHazelcastSpec(h *hazelcastv1alpha1.Hazelcast, rawLastSpec string) (*hazelcastv1alpha1.HazelcastSpec, error) {
+func (r *HazelcastReconciler) unmarshalHazelcastSpec(h *hazelcastv1beta1.Hazelcast, rawLastSpec string) (*hazelcastv1beta1.HazelcastSpec, error) {
 	hs, err := json.Marshal(h.Spec)
 	if err != nil {
 		err = fmt.Errorf("error marshaling Hazelcast as JSON: %w", err)
@@ -2194,7 +2195,7 @@ func (r *HazelcastReconciler) unmarshalHazelcastSpec(h *hazelcastv1alpha1.Hazelc
 	if rawLastSpec == string(hs) {
 		return &h.Spec, nil
 	}
-	lastSpec := &hazelcastv1alpha1.HazelcastSpec{}
+	lastSpec := &hazelcastv1beta1.HazelcastSpec{}
 	err = json.Unmarshal([]byte(rawLastSpec), lastSpec)
 	if err != nil {
 		err = fmt.Errorf("error unmarshaling Last HZ Spec: %w", err)
@@ -2203,11 +2204,11 @@ func (r *HazelcastReconciler) unmarshalHazelcastSpec(h *hazelcastv1alpha1.Hazelc
 	return lastSpec, nil
 }
 
-func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Hazelcast, lastSpec *hazelcastv1alpha1.HazelcastSpec) (map[string]interface{}, error) {
+func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1beta1.Hazelcast, lastSpec *hazelcastv1beta1.HazelcastSpec) (map[string]interface{}, error) {
 	currentSpec := h.Spec
 
 	existExecutorServices := make(map[string]struct{}, len(lastSpec.ExecutorServices))
-	newExecutorServices := make([]hazelcastv1alpha1.ExecutorServiceConfiguration, 0, len(currentSpec.ExecutorServices))
+	newExecutorServices := make([]hazelcastv1beta1.ExecutorServiceConfiguration, 0, len(currentSpec.ExecutorServices))
 	for _, es := range lastSpec.ExecutorServices {
 		existExecutorServices[es.Name] = struct{}{}
 	}
@@ -2219,7 +2220,7 @@ func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Haz
 	}
 
 	existExecutorServices = make(map[string]struct{}, len(lastSpec.DurableExecutorServices))
-	newDurableExecutorServices := make([]hazelcastv1alpha1.DurableExecutorServiceConfiguration, 0, len(currentSpec.DurableExecutorServices))
+	newDurableExecutorServices := make([]hazelcastv1beta1.DurableExecutorServiceConfiguration, 0, len(currentSpec.DurableExecutorServices))
 	for _, es := range lastSpec.DurableExecutorServices {
 		existExecutorServices[es.Name] = struct{}{}
 	}
@@ -2231,7 +2232,7 @@ func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Haz
 	}
 
 	existExecutorServices = make(map[string]struct{}, len(lastSpec.ScheduledExecutorServices))
-	newScheduledExecutorServices := make([]hazelcastv1alpha1.ScheduledExecutorServiceConfiguration, 0, len(currentSpec.ScheduledExecutorServices))
+	newScheduledExecutorServices := make([]hazelcastv1beta1.ScheduledExecutorServiceConfiguration, 0, len(currentSpec.ScheduledExecutorServices))
 	for _, es := range lastSpec.ScheduledExecutorServices {
 		existExecutorServices[es.Name] = struct{}{}
 	}
@@ -2247,7 +2248,7 @@ func (r *HazelcastReconciler) detectNewExecutorServices(h *hazelcastv1alpha1.Haz
 
 func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client hzclient.Client, newExecutorServices map[string]interface{}) {
 	var req *proto.ClientMessage
-	for _, es := range newExecutorServices["es"].([]hazelcastv1alpha1.ExecutorServiceConfiguration) {
+	for _, es := range newExecutorServices["es"].([]hazelcastv1beta1.ExecutorServiceConfiguration) {
 		esInput := codecTypes.DefaultAddExecutorServiceInput()
 		fillAddExecutorServiceInput(esInput, es)
 		req = codec.EncodeDynamicConfigAddExecutorConfigRequest(esInput)
@@ -2259,7 +2260,7 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client hz
 			}
 		}
 	}
-	for _, des := range newExecutorServices["des"].([]hazelcastv1alpha1.DurableExecutorServiceConfiguration) {
+	for _, des := range newExecutorServices["des"].([]hazelcastv1beta1.DurableExecutorServiceConfiguration) {
 		esInput := codecTypes.DefaultAddDurableExecutorServiceInput()
 		fillAddDurableExecutorServiceInput(esInput, des)
 		req = codec.EncodeDynamicConfigAddDurableExecutorConfigRequest(esInput)
@@ -2271,7 +2272,7 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client hz
 			}
 		}
 	}
-	for _, ses := range newExecutorServices["ses"].([]hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) {
+	for _, ses := range newExecutorServices["ses"].([]hazelcastv1beta1.ScheduledExecutorServiceConfiguration) {
 		esInput := codecTypes.DefaultAddScheduledExecutorServiceInput()
 		fillAddScheduledExecutorServiceInput(esInput, ses)
 		req = codec.EncodeDynamicConfigAddScheduledExecutorConfigRequest(esInput)
@@ -2285,20 +2286,20 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client hz
 	}
 }
 
-func fillAddExecutorServiceInput(esInput *codecTypes.ExecutorServiceConfig, es hazelcastv1alpha1.ExecutorServiceConfiguration) {
+func fillAddExecutorServiceInput(esInput *codecTypes.ExecutorServiceConfig, es hazelcastv1beta1.ExecutorServiceConfiguration) {
 	esInput.Name = es.Name
 	esInput.PoolSize = es.PoolSize
 	esInput.QueueCapacity = es.QueueCapacity
 }
 
-func fillAddDurableExecutorServiceInput(esInput *codecTypes.DurableExecutorServiceConfig, es hazelcastv1alpha1.DurableExecutorServiceConfiguration) {
+func fillAddDurableExecutorServiceInput(esInput *codecTypes.DurableExecutorServiceConfig, es hazelcastv1beta1.DurableExecutorServiceConfiguration) {
 	esInput.Name = es.Name
 	esInput.PoolSize = es.PoolSize
 	esInput.Capacity = es.Capacity
 	esInput.Durability = es.Durability
 }
 
-func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorServiceConfig, es hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) {
+func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorServiceConfig, es hazelcastv1beta1.ScheduledExecutorServiceConfiguration) {
 	esInput.Name = es.Name
 	esInput.PoolSize = es.PoolSize
 	esInput.Capacity = es.Capacity

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -12,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ValidateAppliedNativeMemory(inMemoryFormat InMemoryFormatType, h *Hazelcast) *field.Error {
+func ValidateAppliedNativeMemory(inMemoryFormat InMemoryFormatType, h *v1beta1.Hazelcast) *field.Error {
 	if inMemoryFormat != InMemoryFormatNative {
 		return nil
 	}
@@ -35,7 +36,7 @@ func ValidateAppliedNativeMemory(inMemoryFormat InMemoryFormatType, h *Hazelcast
 	return nil
 }
 
-func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) *field.Error {
+func ValidateAppliedPersistence(persistenceEnabled bool, h *v1beta1.Hazelcast) *field.Error {
 	if !persistenceEnabled {
 		return nil
 	}

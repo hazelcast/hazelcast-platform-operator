@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,7 +19,7 @@ func ValidateMapSpecUpdate(m *Map) error {
 	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, allErrs)
 }
 
-func ValidateMapSpec(m *Map, h *Hazelcast) error {
+func ValidateMapSpec(m *Map, h *v1beta1.Hazelcast) error {
 	currentErrs := validateMapSpecCurrent(m, h)
 	updateErrs := validateMapSpecUpdate(m)
 	allErrs := append(currentErrs, updateErrs...)
@@ -28,7 +29,7 @@ func ValidateMapSpec(m *Map, h *Hazelcast) error {
 	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, allErrs)
 }
 
-func validateMapSpecCurrent(m *Map, h *Hazelcast) []*field.Error {
+func validateMapSpecCurrent(m *Map, h *v1beta1.Hazelcast) []*field.Error {
 	var allErrs field.ErrorList
 	allErrs = appendIfNotNil(allErrs, ValidateAppliedPersistence(m.Spec.PersistenceEnabled, h))
 	allErrs = appendIfNotNil(allErrs, ValidateAppliedNativeMemory(m.Spec.InMemoryFormat, h))

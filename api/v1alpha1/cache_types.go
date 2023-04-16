@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -89,7 +90,7 @@ func (c *Cache) SetSpec(spec string) error {
 	return nil
 }
 
-func (c *Cache) ValidateSpecCurrent(h *Hazelcast) error {
+func (c *Cache) ValidateSpecCurrent(h *v1beta1.Hazelcast) error {
 	return ValidateCacheSpecCurrent(c, h)
 }
 

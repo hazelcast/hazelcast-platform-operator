@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -25,7 +26,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 	cm := &corev1.Secret{
 		ObjectMeta: meta,
 	}
-	h := &hazelcastv1alpha1.Hazelcast{
+	h := &hazelcastv1beta1.Hazelcast{
 		ObjectMeta: meta,
 	}
 

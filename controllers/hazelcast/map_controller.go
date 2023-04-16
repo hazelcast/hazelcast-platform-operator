@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"reflect"
 	"strings"
 	"time"
@@ -85,14 +86,14 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, nil
 	}
 
-	h := &hazelcastv1alpha1.Hazelcast{}
+	h := &hazelcastv1beta1.Hazelcast{}
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: m.Spec.HazelcastResourceName}, h)
 	if err != nil {
 		err = fmt.Errorf("could not create/update Map config: Hazelcast resource not found: %w", err)
 		return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
 			withMapFailedState(err.Error()))
 	}
-	if h.Status.Phase != hazelcastv1alpha1.Running {
+	if h.Status.Phase != hazelcastv1beta1.Running {
 		err = errors.NewServiceUnavailable("Hazelcast CR is not ready")
 		return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
 			withMapFailedState(err.Error()))
@@ -207,7 +208,7 @@ func getHazelcastClient(ctx context.Context, cs hzclient.ClientRegistry, hzName,
 func (r *MapReconciler) ReconcileMapConfig(
 	ctx context.Context,
 	m *hazelcastv1alpha1.Map,
-	hz *hazelcastv1alpha1.Hazelcast,
+	hz *hazelcastv1beta1.Hazelcast,
 	cl hzclient.Client,
 	createdBefore bool,
 ) (map[string]hazelcastv1alpha1.MapConfigState, error) {
@@ -255,7 +256,7 @@ func (r *MapReconciler) ReconcileMapConfig(
 	return memberStatuses, nil
 }
 
-func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codecTypes.AddMapConfigInput, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) error {
+func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codecTypes.AddMapConfigInput, hz *hazelcastv1beta1.Hazelcast, m *hazelcastv1alpha1.Map) error {
 	mapInput.Name = m.MapName()
 
 	ms := m.Spec
@@ -330,7 +331,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 	return nil
 }
 
-func defaultWanReplicationRefCodec(hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) codecTypes.WanReplicationRef {
+func defaultWanReplicationRefCodec(hz *hazelcastv1beta1.Hazelcast, m *hazelcastv1alpha1.Map) codecTypes.WanReplicationRef {
 	if !util.IsEnterprise(hz.Spec.Repository) {
 		return codecTypes.WanReplicationRef{}
 	}
@@ -386,7 +387,7 @@ func (r *MapReconciler) updateLastSuccessfulConfiguration(ctx context.Context, m
 	return err
 }
 
-func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (bool, error) {
+func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, h *hazelcastv1beta1.Hazelcast, m *hazelcastv1alpha1.Map) (bool, error) {
 	cm := &corev1.Secret{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: m.Spec.HazelcastResourceName, Namespace: m.Namespace}, cm)
 	if err != nil {

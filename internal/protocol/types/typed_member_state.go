@@ -1,9 +1,8 @@
 package types
 
 import (
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"time"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
 type TimedMemberStateWrapper struct {
@@ -56,15 +55,15 @@ func (c ClusterHotRestartStatus) RemainingDataLoadTimeSec() int64 {
 	return int64((time.Duration(c.RemainingDataLoadTimeMillis) * time.Millisecond).Seconds())
 }
 
-func (c ClusterHotRestartStatus) RestoreState() hazelcastv1alpha1.RestoreState {
+func (c ClusterHotRestartStatus) RestoreState() hazelcastv1beta1.RestoreState {
 	switch c.HotRestartStatus {
 	case "SUCCEEDED":
-		return hazelcastv1alpha1.RestoreSucceeded
+		return hazelcastv1beta1.RestoreSucceeded
 	case "IN_PROGRESS":
-		return hazelcastv1alpha1.RestoreInProgress
+		return hazelcastv1beta1.RestoreInProgress
 	case "FAILED":
-		return hazelcastv1alpha1.RestoreFailed
+		return hazelcastv1beta1.RestoreFailed
 	default:
-		return hazelcastv1alpha1.RestoreUnknown
+		return hazelcastv1beta1.RestoreUnknown
 	}
 }

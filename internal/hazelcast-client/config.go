@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"time"
 
 	"github.com/hazelcast/hazelcast-go-client"
@@ -53,7 +54,7 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, logger hzl
 	return config
 }
 
-func RestUrl(h *hazelcastv1alpha1.Hazelcast) string {
+func RestUrl(h *hazelcastv1beta1.Hazelcast) string {
 	return fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", h.Name, h.Namespace, n.RestServerSocketPort)
 }
 

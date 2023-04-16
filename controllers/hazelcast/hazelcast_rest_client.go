@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 )
 
@@ -41,7 +41,7 @@ type stateResponse struct {
 	State string `json:"state"`
 }
 
-func NewRestClient(h *v1alpha1.Hazelcast) *RestClient {
+func NewRestClient(h *v1beta1.Hazelcast) *RestClient {
 	return &RestClient{
 		url:         hzclient.RestUrl(h),
 		clusterName: h.Spec.ClusterName,
