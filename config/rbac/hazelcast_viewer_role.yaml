@@ -1,0 +1,27 @@
+# permissions for end users to view hazelcasts.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: hazelcast-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: hazelcast-platform-operator
+    app.kubernetes.io/part-of: hazelcast-platform-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: hazelcast-viewer-role
+rules:
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - hazelcasts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - hazelcasts/status
+  verbs:
+  - get

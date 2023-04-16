@@ -128,4 +128,11 @@ resources:
   webhooks:
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: hazelcast.com
+  kind: Hazelcast
+  path: github.com/hazelcast/hazelcast-platform-operator/api/v1beta1
+  version: v1beta1
 version: "3"
