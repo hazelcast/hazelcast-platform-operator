@@ -298,7 +298,7 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 	}
 	setupLog.Info("setting up webhook server listeners for custom resources")
 
-	if err := (&hazelcastcomv1alpha1.Hazelcast{}).SetupWebhookWithManager(mgr); err != nil {
+	if err := (&hazelcastcomv1beta1.Hazelcast{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Hazelcast")
 		os.Exit(1)
 	}
