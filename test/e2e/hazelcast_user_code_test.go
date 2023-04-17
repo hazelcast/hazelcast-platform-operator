@@ -110,14 +110,14 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 	It("should add executor services both initially and dynamically", Label("fast"), func() {
 		setLabelAndCRName("hcc-1")
 
-		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
+		executorServices := []hazelcastv1beta1.ExecutorServiceConfiguration{
 			{
 				Name:          "service1",
 				PoolSize:      8,
 				QueueCapacity: 0,
 			},
 		}
-		durableExecutorServices := []hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{
+		durableExecutorServices := []hazelcastv1beta1.DurableExecutorServiceConfiguration{
 			{
 				Name:       "service1",
 				PoolSize:   16,
@@ -125,7 +125,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 				Capacity:   100,
 			},
 		}
-		scheduledExecutorServices := []hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{
+		scheduledExecutorServices := []hazelcastv1beta1.ScheduledExecutorServiceConfiguration{
 			{
 				Name:           "service2",
 				PoolSize:       16,
