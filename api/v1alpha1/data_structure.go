@@ -1,6 +1,9 @@
 package v1alpha1
 
-import "sigs.k8s.io/controller-runtime/pkg/client"
+import (
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
 // +k8s:deepcopy-gen=false
 type CRLister interface {
@@ -18,7 +21,7 @@ type DataStructure interface {
 	GetStatus() *DataStructureStatus
 	GetSpec() (string, error)
 	SetSpec(string) error
-	ValidateSpecCurrent(h *Hazelcast) error
+	ValidateSpecCurrent(h *v1beta1.Hazelcast) error
 	ValidateSpecUpdate() error
 }
 
