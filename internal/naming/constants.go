@@ -53,6 +53,7 @@ const (
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
 	PersistenceVolumeName       = "hot-restart-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
+	JetJobJarsVolumeName        = "jet-job-jars-bucket"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 
 	SidecarAgent          = "sidecar-agent"
@@ -61,12 +62,14 @@ const (
 	RestoreLocalAgent     = "restore-local-agent"
 	BucketSecret          = "br-secret"
 	UserCodeDownloadAgent = "ucd-agent"
+	JetDownloadAgent      = "jet-agent"
 
 	MTLSCertSecretName = "hazelcast-mtls-cert"
 	MTLSCertPath       = "/var/run/secrets/hazelcast"
 
 	UserCodeBucketPath    = "/opt/hazelcast/userCode/bucket"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
+	JetJobJarsBucketPath  = "/opt/hazelcast/jetJobJars/bucket"
 )
 
 // Hazelcast default configurations
@@ -82,7 +85,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.2.3"
+	HazelcastVersion = "5.3.0-BETA-2"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )

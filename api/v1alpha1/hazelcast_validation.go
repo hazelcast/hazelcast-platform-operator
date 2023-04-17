@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -123,11 +124,6 @@ func validateLicense(h *Hazelcast) *field.Error {
 }
 
 func validateTLS(h *Hazelcast) *field.Error {
-	if h.Spec.TLS.SecretName != "" && !checkEnterprise(h.Spec.Repository) {
-		return field.Required(field.NewPath("spec").Child("tls"),
-			"Hazelcast Enterprise version is required for configuring TLS")
-	}
-
 	// make sure secret exists
 	if h.Spec.TLS.SecretName != "" {
 		secretName := types.NamespacedName{
@@ -398,9 +394,50 @@ func ValidateNotUpdatableHazelcastFields(current *HazelcastSpec, last *Hazelcast
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("highAvailabilityMode"), "field cannot be updated"))
 	}
+
+	if errs := ValidateNotUpdatableHzPersistenceFields(current.Persistence, last.Persistence); errs != nil {
+		allErrs = append(allErrs, errs...)
+	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}
 
+	return allErrs
+}
+
+func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistenceConfiguration) []*field.Error {
+	var allErrs field.ErrorList
+
+	if current == nil && last == nil {
+		return nil
+	}
+
+	if current == nil && last != nil {
+		return append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("persistence"), "field cannot be enabled after creation"))
+	}
+
+	if current != nil && last == nil {
+		return append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("persistence"), "field cannot be disabled after creation"))
+	}
+
+	if current.BaseDir != last.BaseDir {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("persistence").Child("baseDir"), "field cannot be updated"))
+	}
+	if !reflect.DeepEqual(current.Pvc, last.Pvc) {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("persistence").Child("pvc"), "field cannot be updated"))
+	}
+	if current.Restore != last.Restore {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("persistence").Child("restore"), "field cannot be updated"))
+	}
+
+	if len(allErrs) == 0 {
+		return nil
+	}
 	return allErrs
 }

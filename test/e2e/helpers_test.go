@@ -9,7 +9,6 @@ import (
 	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"io"
-	"k8s.io/apimachinery/pkg/watch"
 	"log"
 	"net"
 	"net/http"
@@ -21,6 +20,10 @@ import (
 	"strings"
 	"time"
 	. "time"
+
+	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
@@ -694,7 +697,7 @@ func printDebugState() {
 }
 
 func printDebugStateForContext() {
-	allCRs := "hazelcast,map,hotbackup,wanreplication,managementcenter,pvc,topic,queue,cache,multimap,replicatedmap"
+	allCRs := "hazelcast,map,hotbackup,wanreplication,managementcenter,pvc,topic,queue,cache,multimap,replicatedmap,jetjob"
 	printKubectlCommand("KUBECTL GET CLUSTER WIDE RESOURCES", "kubectl", "get", "node,validatingwebhookconfigurations")
 	printKubectlCommand("KUBECTL GET CRS RELATED TO TEST OUTPUT WIDE", "kubectl", "get", allCRs, "-o=wide", "-l="+labelsString(), "-A")
 	for _, ns := range []string{hzNamespace, sourceNamespace, targetNamespace} {

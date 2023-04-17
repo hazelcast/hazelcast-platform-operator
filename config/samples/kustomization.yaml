@@ -10,5 +10,6 @@ resources:
 - _v1alpha1_replicatedmap.yaml
 - _v1alpha1_queue.yaml
 - _v1alpha1_cache.yaml
+- _v1alpha1_jetjob.yaml
 - _v1beta1_hazelcast.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

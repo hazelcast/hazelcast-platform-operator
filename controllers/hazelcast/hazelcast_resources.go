@@ -1625,6 +1625,10 @@ func initContainers(ctx context.Context, h *hazelcastv1beta1.Hazelcast, cl clien
 		containers = append(containers, ucdAgentContainer(h))
 	}
 
+	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
+		containers = append(containers, jetEngineContainer(h))
+	}
+
 	if !h.Spec.Persistence.IsRestoreEnabled() {
 		return containers, nil
 	}
@@ -1779,6 +1783,36 @@ func ucdAgentContainer(h *hazelcastv1beta1.Hazelcast) v1.Container {
 	}
 }
 
+func jetEngineContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	return v1.Container{
+		Name:  n.JetDownloadAgent,
+		Image: h.AgentDockerImage(),
+		Args:  []string{"user-code-deployment"},
+		Env: []v1.EnvVar{
+			{
+				Name:  "UCD_SECRET_NAME",
+				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.Secret,
+			},
+			{
+				Name:  "UCD_BUCKET",
+				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.BucketURI,
+			},
+			{
+				Name:  "UCD_DESTINATION",
+				Value: n.JetJobJarsBucketPath,
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{jetJobJarsVolumeMount()},
+	}
+}
+
+func jetJobJarsVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.JetJobJarsVolumeName,
+		MountPath: n.JetJobJarsBucketPath,
+	}
+}
+
 func ucdAgentVolumeMount(_ *hazelcastv1beta1.Hazelcast) v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UserCodeBucketVolumeName,
@@ -1797,7 +1831,8 @@ func volumes(h *hazelcastv1beta1.Hazelcast) []v1.Volume {
 				},
 			},
 		},
-		userCodeAgentVolume(h),
+		emptyDirVolume(n.UserCodeBucketVolumeName),
+		emptyDirVolume(n.JetJobJarsVolumeName),
 		tlsVolume(h),
 	}
 
@@ -1811,7 +1846,7 @@ func volumes(h *hazelcastv1beta1.Hazelcast) []v1.Volume {
 
 	// Add tmpDir because Hazelcast wit persistence enabled fails with read-only root file system error
 	// when it tries to write to /tmp dir.
-	vols = append(vols, tmpDirVolume())
+	vols = append(vols, emptyDirVolume(n.TmpDirVolName))
 
 	return vols
 }
@@ -1827,7 +1862,16 @@ func userCodeAgentVolume(_ *hazelcastv1beta1.Hazelcast) v1.Volume {
 
 func tmpDirVolume() v1.Volume {
 	return v1.Volume{
-		Name: n.TmpDirVolName,
+		Name: name,
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+func emptyDirVolume(name string) v1.Volume {
+	return v1.Volume{
+		Name: name,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
@@ -1871,6 +1915,7 @@ func hzContainerVolumeMounts(h *hazelcastv1beta1.Hazelcast) []corev1.VolumeMount
 			MountPath: n.HazelcastMountPath,
 		},
 		ucdAgentVolumeMount(h),
+		jetJobJarsVolumeMount(),
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
