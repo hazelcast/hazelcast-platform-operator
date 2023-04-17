@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -72,7 +73,7 @@ func initialSetupDS(ctx context.Context,
 	// Get Hazelcast
 	ds := obj.(hazelcastv1alpha1.DataStructure)
 	hzLookupKey := types.NamespacedName{Name: ds.GetHZResourceName(), Namespace: nn.Namespace}
-	h := &hazelcastv1alpha1.Hazelcast{}
+	h := &hazelcastv1beta1.Hazelcast{}
 	err := c.Get(ctx, hzLookupKey, h)
 	if err != nil {
 		err = fmt.Errorf("could not create/update %v config: Hazelcast resource not found: %w", hazelcastv1alpha1.GetKind(obj), err)
@@ -167,8 +168,8 @@ func handleCreatedBefore(ctx context.Context, c client.Client, obj client.Object
 	return true, ctrl.Result{}, nil
 }
 
-func getHZClient(ctx context.Context, c client.Client, obj client.Object, h *hazelcastv1alpha1.Hazelcast, cs hzclient.ClientRegistry) (hzclient.Client, ctrl.Result, error) {
-	if h.Status.Phase != hazelcastv1alpha1.Running {
+func getHZClient(ctx context.Context, c client.Client, obj client.Object, h *hazelcastv1beta1.Hazelcast, cs hzclient.ClientRegistry) (hzclient.Client, ctrl.Result, error) {
+	if h.Status.Phase != hazelcastv1beta1.Running {
 		err := errors.NewServiceUnavailable("Hazelcast CR is not ready")
 		result, newErr := updateDSStatus(ctx, c, obj, recoptions.Error(err),
 			withDSFailedState(err.Error()))
