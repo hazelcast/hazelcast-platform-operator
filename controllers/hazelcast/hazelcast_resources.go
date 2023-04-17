@@ -1851,15 +1851,6 @@ func volumes(h *hazelcastv1beta1.Hazelcast) []v1.Volume {
 	return vols
 }
 
-func userCodeAgentVolume(_ *hazelcastv1beta1.Hazelcast) v1.Volume {
-	return v1.Volume{
-		Name: n.UserCodeBucketVolumeName,
-		VolumeSource: v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
 func emptyDirVolume(name string) v1.Volume {
 	return v1.Volume{
 		Name: name,
