@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	. "github.com/hazelcast/hazelcast-platform-operator/test"
 	//+kubebuilder:scaffold:imports
@@ -70,6 +71,9 @@ func setupEnv() *rest.Config {
 	Expect(cfg).NotTo(BeNil())
 
 	err = hazelcastcomv1alpha1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = hazelcastcomv1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = routev1.AddToScheme(scheme.Scheme)
