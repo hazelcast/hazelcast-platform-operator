@@ -33,7 +33,7 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.Secret{}).
 		Build()
 
-	scheme2, _ := hazelcastv1beta1.SchemeBuilder.Register(&hazelcastv1alpha1.Hazelcast{}).Build()
+	scheme2, _ := hazelcastv1beta1.SchemeBuilder.Register(&hazelcastv1beta1.Hazelcast{}).Build()
 
 	return fake.NewClientBuilder().WithScheme(scheme).WithScheme(scheme2).WithObjects(initObjs...).Build()
 }
