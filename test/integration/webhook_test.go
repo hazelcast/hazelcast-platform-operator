@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 
 	"k8s.io/utils/pointer"
 
@@ -83,7 +84,7 @@ var _ = Describe("Webhook", func() {
 		It("should fail to update", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -123,7 +124,7 @@ var _ = Describe("Webhook", func() {
 		It("should fail to update", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
