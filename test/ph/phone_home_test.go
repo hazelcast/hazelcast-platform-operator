@@ -4,6 +4,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -51,7 +52,7 @@ var _ = Describe("Hazelcast", func() {
 
 		DescribeTable("should have correct metrics",
 			func(config string, createdEnterpriseClusterCount int, unisocket int, smart int, discoveryLoadBalancer int, discoveryNodePort int, memberNodePortExternalIP int, memberNodePortNodeName int, memberLoadBalancer int) {
-				var cfg *hazelcastcomv1alpha1.Hazelcast
+				var cfg *hazelcastv1beta1.Hazelcast
 				switch config {
 				case "unisocket":
 					setLabelAndCRName("ph-us")

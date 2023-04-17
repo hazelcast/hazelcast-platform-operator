@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"strconv"
 	. "time"
 
@@ -89,7 +90,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		By("creating new Hazelcast cluster from existing backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastv1beta1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 
@@ -142,7 +143,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 })
 
-func validateCacheEntriesPortForward(h *hazelcastv1alpha1.Hazelcast, localPort, cacheName string, entryCount int) {
+func validateCacheEntriesPortForward(h *hazelcastv1beta1.Hazelcast, localPort, cacheName string, entryCount int) {
 	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
 	defer closeChannel(stopChan)
 	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
@@ -161,7 +162,7 @@ func validateCacheEntriesPortForward(h *hazelcastv1alpha1.Hazelcast, localPort, 
 	}
 }
 
-func fillCachePortForward(h *hazelcastv1alpha1.Hazelcast, cacheName, localPort string, entryCount int) {
+func fillCachePortForward(h *hazelcastv1beta1.Hazelcast, cacheName, localPort string, entryCount int) {
 	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
 	defer closeChannel(stopChan)
 	cl := newHazelcastClientPortForward(context.Background(), h, localPort)

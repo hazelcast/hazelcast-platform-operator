@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"strconv"
 	. "time"
 
@@ -83,7 +84,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		By("creating new Hazelcast cluster from existing backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastv1beta1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 

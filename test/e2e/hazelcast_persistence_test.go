@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"strconv"
 	. "time"
 
@@ -49,7 +50,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		clusterSize := int32(3)
 
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1alpha1.MostRecent
+		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1beta1.MostRecent
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -74,7 +75,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 	})
 
 	DescribeTable("should trigger corresponding action when startupActionSpecified", Label("slow"),
-		func(action hazelcastv1alpha1.PersistenceStartupAction, dataPolicy hazelcastv1alpha1.DataRecoveryPolicyType) {
+		func(action hazelcastv1beta1.PersistenceStartupAction, dataPolicy hazelcastv1beta1.DataRecoveryPolicyType) {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -141,7 +142,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		Expect(len(hbl.Items)).To(Equal(0))
 	})
 
-	backupRestore := func(hazelcast *hazelcastv1alpha1.Hazelcast, hotBackup *hazelcastv1alpha1.HotBackup, useBucketConfig bool) {
+	backupRestore := func(hazelcast *hazelcastv1beta1.Hazelcast, hotBackup *hazelcastv1alpha1.HotBackup, useBucketConfig bool) {
 		By("creating cluster with backup enabled")
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
@@ -216,7 +217,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 		clusterSize := int32(1)
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1alpha1.MostRecent
+		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1beta1.MostRecent
 
 		By("creating HotBackup CR")
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)

@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"strconv"
 	. "time"
 
@@ -158,10 +159,10 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		sampleExecutorServices["des"] = append(sampleExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration), hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{Name: "new-durable-service", PoolSize: 12, Durability: 1, Capacity: 40})
 		sampleExecutorServices["ses"] = append(sampleExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration), hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{Name: "new-scheduled-service", PoolSize: 12, Durability: 1, Capacity: 40, CapacityPolicy: "PER_NODE"})
 
-		UpdateHazelcastCR(hazelcast, func(hz *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
-			hz.Spec.ExecutorServices = sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration)
-			hz.Spec.DurableExecutorServices = sampleExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration)
-			hz.Spec.ScheduledExecutorServices = sampleExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration)
+		UpdateHazelcastCR(hazelcast, func(hz *hazelcastv1beta1.Hazelcast) *hazelcastv1beta1.Hazelcast {
+			hz.Spec.ExecutorServices = sampleExecutorServices["es"].([]hazelcastv1beta1.ExecutorServiceConfiguration)
+			hz.Spec.DurableExecutorServices = sampleExecutorServices["des"].([]hazelcastv1beta1.DurableExecutorServiceConfiguration)
+			hz.Spec.ScheduledExecutorServices = sampleExecutorServices["ses"].([]hazelcastv1beta1.ScheduledExecutorServiceConfiguration)
 			return hz
 		})
 

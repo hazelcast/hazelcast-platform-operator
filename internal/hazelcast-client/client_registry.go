@@ -3,13 +3,13 @@ package client
 import (
 	"context"
 	"crypto/x509"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"sync"
 
 	"github.com/hazelcast/hazelcast-go-client/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -26,7 +26,7 @@ type HazelcastClientRegistry struct {
 }
 
 func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (Client, error) {
-	h := &hazelcastv1alpha1.Hazelcast{}
+	h := &hazelcastv1beta1.Hazelcast{}
 	err := cr.K8sClient.Get(ctx, nn, h)
 	if err != nil {
 		return nil, err

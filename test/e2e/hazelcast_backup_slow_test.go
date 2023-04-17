@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"strconv"
 	. "time"
 
@@ -52,12 +53,12 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+		hazelcast.Spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+			Type:                 hazelcastv1beta1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1alpha1.MostRecent
+		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1beta1.MostRecent
 		t := Now()
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
@@ -93,10 +94,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+		hazelcast.Spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+			Type:                 hazelcastv1beta1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
@@ -124,13 +125,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating new Hazelcast cluster from the existing backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastv1beta1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
-		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+		hazelcast.Spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+			Type:                 hazelcastv1beta1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
@@ -162,10 +163,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+		hazelcast.Spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+			Type:                 hazelcastv1beta1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
@@ -198,12 +199,12 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating cluster from external backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastv1beta1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name}
-		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+		hazelcast.Spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+			Type:                 hazelcastv1beta1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
@@ -233,10 +234,10 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+		hazelcast.Spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+			Type:                 hazelcastv1beta1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 		}
 		hazelcast.Spec.Resources = corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
@@ -326,7 +327,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating cluster from from first backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastv1beta1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 		CreateHazelcastCR(hazelcast)
@@ -341,7 +342,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating cluster from from second backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastv1beta1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup2.Name,
 		}
 		CreateHazelcastCR(hazelcast)
@@ -363,17 +364,17 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		clusterSize := int32(3)
 		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+		hazelcast.Spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+			Type:                 hazelcastv1beta1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 		}
 		persistenceStrategy := map[string]string{
 			"hazelcast.persistence.auto.cluster.state.strategy": "FROZEN",
 		}
 
 		hazelcast.Spec.Properties = persistenceStrategy
-		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1alpha1.MostRecent
+		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1beta1.MostRecent
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -407,12 +408,12 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		clusterSize := int32(3)
 		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+		hazelcast.Spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+			Type:                 hazelcastv1beta1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1alpha1.MostRecent
+		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastv1beta1.MostRecent
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
@@ -435,12 +436,12 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 
 		By("creating new Hazelcast cluster from existing backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+		hazelcast.Spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+			Type:                 hazelcastv1beta1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastv1beta1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 		t := Now()

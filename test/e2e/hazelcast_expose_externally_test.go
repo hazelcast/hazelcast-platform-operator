@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"strings"
 	. "time"
 
@@ -157,21 +158,21 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	})
 })
 
-func getHazelcastMembers(ctx context.Context, hazelcast *hazelcastcomv1alpha1.Hazelcast) []hazelcastcomv1alpha1.HazelcastMemberStatus {
-	hz := &hazelcastcomv1alpha1.Hazelcast{}
+func getHazelcastMembers(ctx context.Context, hazelcast *hazelcastv1beta1.Hazelcast) []hazelcastv1beta1.HazelcastMemberStatus {
+	hz := &hazelcastv1beta1.Hazelcast{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: hazelcast.Namespace, Name: hazelcast.Name}, hz)
 	Expect(err).Should(BeNil())
 	return hz.Status.Members
 }
 
-func getServiceOfMember(ctx context.Context, namespace string, member hazelcastcomv1alpha1.HazelcastMemberStatus) *corev1.Service {
+func getServiceOfMember(ctx context.Context, namespace string, member hazelcastv1beta1.HazelcastMemberStatus) *corev1.Service {
 	service := &corev1.Service{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: member.PodName}, service)
 	Expect(err).Should(BeNil())
 	return service
 }
 
-func getNodeOfMember(ctx context.Context, namespace string, member hazelcastcomv1alpha1.HazelcastMemberStatus) *corev1.Node {
+func getNodeOfMember(ctx context.Context, namespace string, member hazelcastv1beta1.HazelcastMemberStatus) *corev1.Node {
 	pod := &corev1.Pod{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: member.PodName}, pod)
 	Expect(err).Should(BeNil())

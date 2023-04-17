@@ -17,6 +17,17 @@ import (
 // +kubebuilder:validation:Enum=OFF;FATAL;ERROR;WARN;INFO;DEBUG;TRACE;ALL
 type LoggingLevel string
 
+const (
+	LoggingLevelOff   LoggingLevel = "OFF"
+	LoggingLevelFatal LoggingLevel = "FATAL"
+	LoggingLevelError LoggingLevel = "ERROR"
+	LoggingLevelWarn  LoggingLevel = "WARN"
+	LoggingLevelInfo  LoggingLevel = "INFO"
+	LoggingLevelDebug LoggingLevel = "DEBUG"
+	LoggingLevelTrace LoggingLevel = "TRACE"
+	LoggingLevelAll   LoggingLevel = "ALL"
+)
+
 // HazelcastSpec defines the desired state of Hazelcast
 type HazelcastSpec struct {
 	// Number of Hazelcast members in the cluster.

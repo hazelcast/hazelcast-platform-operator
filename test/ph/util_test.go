@@ -3,6 +3,7 @@ package ph
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"log"
 	"os"
 	"reflect"
@@ -217,7 +218,7 @@ func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	})
 }
 
-func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+func CreateHazelcastCR(hazelcast *hazelcastv1beta1.Hazelcast) {
 	By("creating Hazelcast CR", func() {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
