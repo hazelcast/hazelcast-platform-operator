@@ -1,0 +1,21 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  repository: 'docker.io/hazelcast/hazelcast-enterprise'
+  persistence:
+    baseDir: "/tmp/base/dir"
+    clusterDataRecoveryPolicy: FullRecoveryOnly
+    startupAction: PartialStart
+  clusterSize: 5000
+  advancedNetwork:
+    wan:
+      - port: 5701
+        portCount: 20
+      - port: 5709
+        portCount: 1
+  exposeExternally:
+    type: Unisocket
+    discoveryServiceType: LoadBalancer
+    memberAccess: LoadBalancer

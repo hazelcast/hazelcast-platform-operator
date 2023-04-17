@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	. "time"
 
@@ -50,7 +49,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastv1alpha1.MapFailed)
-		Expect(m.Status.Message).To(Equal(fmt.Sprintf("error validating new Spec: persistence is not enabled for the Hazelcast resource %s", hazelcast.Name)))
+		Expect(m.Status.Message).To(ContainSubstring("data structure persistence must match with Hazelcast persistence"))
 	})
 
 	It("should keep the entries after a Hot Backup", Label("slow"), func() {

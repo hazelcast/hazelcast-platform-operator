@@ -82,17 +82,17 @@ func TestExternalConnectivityConfigurationIngress(t *testing.T) {
 func TestPersistenceConfigurationIsEnabled(t *testing.T) {
 	tests := []struct {
 		name string
-		conf PersistenceConfiguration
+		conf MCPersistenceConfiguration
 		want bool
 	}{
 		{
 			name: "Default configuration",
-			conf: PersistenceConfiguration{},
+			conf: MCPersistenceConfiguration{},
 			want: false,
 		},
 		{
 			name: "Enabled configuration",
-			conf: PersistenceConfiguration{
+			conf: MCPersistenceConfiguration{
 				Enabled: pointer.Bool(true),
 			},
 			want: true,

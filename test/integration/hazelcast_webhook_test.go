@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/aws/smithy-go/ptr"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -13,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -71,7 +73,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("startupAction PartialStart can be used only with Partial* clusterDataRecoveryPolicy")))
+				Should(MatchError(ContainSubstring("PartialStart can be used only with Partial clusterDataRecoveryPolicy")))
 		})
 
 		It("should not create HZ if pvc is specified", Label("fast"), func() {
@@ -85,7 +87,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("when persistence is enabled \"pvc\" field must be set")))
+				Should(MatchError(ContainSubstring("spec.persistence.pvc: Required value: must be set when persistence is enabled")))
 		})
 	})
 
@@ -102,7 +104,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("when Hazelcast Enterprise is deployed, licenseKeySecret must be set")))
+				Should(MatchError(ContainSubstring("spec.licenseKeySecret: Required value: must be set when Hazelcast Enterprise is deployed")))
 		})
 	})
 
@@ -118,12 +120,12 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("cluster size limit is exceeded")))
+				Should(MatchError(ContainSubstring("Invalid value: 301: may not be greater than 300")))
 		})
 	})
 
 	Context("JVM Configuration", func() {
-		expectedErrStr := `argument %s is configured twice`
+		expectedErrStr := `%s is already set up in JVM config"`
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.InitialRamPerArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
@@ -267,7 +269,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set")))
+				Should(MatchError(ContainSubstring("Forbidden: can't be set when exposeExternally.type is set to \"Unisocket\"")))
 		})
 	})
 
@@ -296,7 +298,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				break
 			}
 			Expect(err).
-				Should(MatchError(ContainSubstring("highAvailabilityMode cannot be updated")))
+				Should(MatchError(ContainSubstring("spec.highAvailabilityMode: Forbidden: field cannot be updated")))
 
 			deleteIfExists(lookupKey(hz), hz)
 			assertDoesNotExist(lookupKey(hz), hz)
@@ -325,7 +327,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(MatchError(
-				ContainSubstring("wan replications ports are overlapping, please check and re-apply")))
+				ContainSubstring("spec.advancedNetwork.wan: Invalid value: \"5001-5003\": wan ports overlapping with 5002-5004")))
 		})
 
 		It("should validate overlap with other sockets", Label("fast"), func() {
@@ -345,7 +347,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("following port numbers are not in use for wan replication")))
+				Should(MatchError(ContainSubstring("spec.advancedNetwork.wan[0]: Invalid value: \"5702-5704\": wan ports conflicting with one of 5701,5702,8081")))
 		})
 
 		It("should validate service type for wan config", Label("fast"), func() {
@@ -370,4 +372,43 @@ var _ = Describe("Hazelcast webhook", func() {
 		})
 	})
 
+	Context("Hazelcast Validation Multiple Errors", func() {
+		It("should return multiple errors", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			}
+			spec.ClusterSize = pointer.Int32(5000)
+			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+				WAN: []hazelcastv1alpha1.WANConfig{
+					{
+						Port:      5701,
+						PortCount: 20,
+					},
+					{
+						Port:      5709,
+						PortCount: 1,
+					},
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+			err := k8sClient.Create(context.Background(), hz)
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.exposeExternally.memberAccess:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.clusterSize:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.advancedNetwork.wan:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.advancedNetwork.wan[0]:")))
+
+		})
+
+	})
 })

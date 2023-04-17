@@ -91,6 +91,14 @@ func (mm *MultiMap) SetSpec(spec string) error {
 	return nil
 }
 
+func (mm *MultiMap) ValidateSpecCurrent(_ *Hazelcast) error {
+	return nil
+}
+
+func (mm *MultiMap) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(mm)
+}
+
 //+kubebuilder:object:root=true
 
 // MultiMapList contains a list of MultiMap
