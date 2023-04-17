@@ -6,8 +6,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"io"
 	"log"
 	"net"
@@ -23,6 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/watch"
 
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"

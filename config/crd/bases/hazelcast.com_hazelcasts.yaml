@@ -1978,6 +1978,28 @@ spec:
                   resourceUploadEnabled: false
                 description: Jet Engine configuration
                 properties:
+                  bucketConfig:
+                    description: Bucket Configuration from which the JAR files be
+                      downloaded and accessible for the member. These JAR files will
+                      not be placed in the CLASSPATH.
+                    properties:
+                      bucketURI:
+                        description: 'URL of the bucket to download HotBackup folders.
+                          AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
+                          Example bucket URIs: - AWS S3     -> s3://bucket-name/path/to/folder
+                          - GCP Bucket -> gs://bucket-name/path/to/folder - Azure
+                          Blob -> azblob://bucket-name/path/to/folder'
+                        minLength: 6
+                        type: string
+                      secret:
+                        description: Name of the secret with credentials for cloud
+                          providers.
+                        minLength: 1
+                        type: string
+                    required:
+                    - bucketURI
+                    - secret
+                    type: object
                   enabled:
                     default: true
                     description: When false, disables Jet Engine.
