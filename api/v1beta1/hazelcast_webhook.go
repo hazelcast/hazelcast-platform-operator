@@ -16,7 +16,7 @@ func (r *Hazelcast) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-hazelcast-com-v1beta1-hazelcast,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=hazelcasts,verbs=create;update,versions=v1beta1,name=vhazelcast.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-hazelcast-com-v1beta1-hazelcast,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=hazelcasts,verbs=create;update,versions=v1beta1,name=vvhazelcast.kb.io,admissionReviewVersions=v1
 // Role related to webhooks
 
 var _ webhook.Validator = &Hazelcast{}
