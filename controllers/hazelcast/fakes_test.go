@@ -31,7 +31,6 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 	scheme, _ := hazelcastv1beta1.SchemeBuilder.
 		Register(
 			&hazelcastv1beta1.Hazelcast{},
-			&hazelcastv1alpha1.Hazelcast{},
 			&hazelcastv1alpha1.HazelcastList{},
 			&v1.ClusterRole{},
 			&v1.ClusterRoleBinding{},
