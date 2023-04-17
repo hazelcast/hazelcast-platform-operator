@@ -29,8 +29,8 @@ import (
 
 func fakeK8sClient(initObjs ...client.Object) client.Client {
 	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
-		Register(&hazelcastv1beta1.Hazelcast{}, &hazelcastv1beta1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{},
-			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.Secret{}).
+		RegisterAll(hazelcastv1beta1.SchemeBuilder).
+		Register(&v1.ClusterRole{}, &v1.ClusterRoleBinding{}, &corev1.Secret{}).
 		Build()
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 }
