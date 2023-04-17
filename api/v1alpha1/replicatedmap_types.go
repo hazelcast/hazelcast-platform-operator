@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -99,7 +100,7 @@ func (rm *ReplicatedMap) SetSpec(spec string) error {
 	return nil
 }
 
-func (rm *ReplicatedMap) ValidateSpecCurrent(_ *Hazelcast) error {
+func (rm *ReplicatedMap) ValidateSpecCurrent(_ *hazelcastv1beta1.Hazelcast) error {
 	return nil
 }
 
