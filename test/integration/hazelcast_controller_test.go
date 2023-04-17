@@ -1140,7 +1140,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hazelcast CR mutation", func() {
 		When("License key with OS repo is given", func() {
-			It("should use EE repo", Label("fast"), func() {
+			FIt("should use EE repo", Label("fast"), func() {
 				h := &hazelcastv1beta1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1beta1.HazelcastSpec{

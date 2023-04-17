@@ -3,13 +3,12 @@ package test
 import (
 	"bufio"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"io"
 
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
 	"github.com/onsi/gomega/types"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
 func EqualSpecs(expected *HazelcastSpecValues, ee bool) types.GomegaMatcher {
@@ -25,7 +24,7 @@ type HazelcastSpecEqual struct {
 }
 
 func (matcher HazelcastSpecEqual) Match(actual interface{}) (success bool, err error) {
-	spec, ok := actual.(*hazelcastv1alpha1.HazelcastSpec)
+	spec, ok := actual.(*hazelcastv1beta1.HazelcastSpec)
 	if !ok {
 		return false, fmt.Errorf("type of %v should be &hazelcastv1alpha1.HazelcastSpec", actual)
 	}
@@ -45,9 +44,9 @@ func (matcher HazelcastSpecEqual) Match(actual interface{}) (success bool, err e
 		return false, fmt.Errorf(
 			"expected ImagePullPolicy is %s but actual is %s", matcher.Expected.ImagePullPolicy, spec.ImagePullPolicy)
 	}
-	if matcher.ee && spec.LicenseKeySecret != matcher.Expected.LicenseKey {
+	if matcher.ee && spec.LicenseKeySecretName != matcher.Expected.LicenseKey {
 		return false, fmt.Errorf(
-			"expected LicenseKeySecret is %s but actual is %s", matcher.Expected.LicenseKey, spec.LicenseKeySecret)
+			"expected LicenseKeySecretName is %s but actual is %s", matcher.Expected.LicenseKey, spec.LicenseKeySecretName)
 	}
 	return true, nil
 }
