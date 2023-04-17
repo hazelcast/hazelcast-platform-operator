@@ -57,7 +57,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	clusterScopedLookupKey := func(hz *hazelcastv1beta1.Hazelcast) types.NamespacedName {
 		return types.NamespacedName{
-			Name:      (&hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{Name: hz.Name, Namespace: namespace}}).ClusterScopedName(),
+			Name:      (&hazelcastv1beta1.Hazelcast{ObjectMeta: metav1.ObjectMeta{Name: hz.Name, Namespace: namespace}}).ClusterScopedName(),
 			Namespace: "",
 		}
 	}
