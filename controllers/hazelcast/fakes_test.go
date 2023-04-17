@@ -7,6 +7,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -28,6 +29,7 @@ import (
 
 func fakeK8sClient(initObjs ...client.Object) client.Client {
 	scheme := runtime.NewScheme()
+	clientgoscheme.AddToScheme(scheme)
 	hazelcastv1alpha1.AddToScheme(scheme)
 	hazelcastv1beta1.AddToScheme(scheme)
 
