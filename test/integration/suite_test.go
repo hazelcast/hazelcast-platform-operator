@@ -154,7 +154,7 @@ var _ = BeforeSuite(func() {
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&hazelcastcomv1alpha1.Hazelcast{}).SetupWebhookWithManager(k8sManager)
+	err = (&hazelcastcomv1beta1.Hazelcast{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 	err = (&hazelcastcomv1alpha1.Map{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
