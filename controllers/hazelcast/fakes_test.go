@@ -4,10 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -17,22 +14,24 @@ import (
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 func fakeK8sClient(initObjs ...client.Object) client.Client {
-	scheme := runtime.NewScheme()
-	clientgoscheme.AddToScheme(scheme)
-	hazelcastv1alpha1.AddToScheme(scheme)
-	hazelcastv1beta1.AddToScheme(scheme)
-
+	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
+		Register(&hazelcastv1beta1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{},
+			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.Secret{}).
+		Build()
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 }
 
