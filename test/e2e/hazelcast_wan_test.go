@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"strconv"
 	. "time"
@@ -36,7 +37,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		}
 		DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, &hazelcastcomv1alpha1.WanReplicationList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

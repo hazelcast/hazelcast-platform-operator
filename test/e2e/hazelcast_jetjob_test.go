@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -46,10 +47,10 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 			return
 		}
 		DeleteAllOf(&hazelcastv1alpha1.JetJob{}, &hazelcastv1alpha1.JetJobList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		DeleteAllOf(&corev1.Secret{}, &corev1.SecretList{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

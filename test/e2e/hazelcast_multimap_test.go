@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"strconv"
 	. "time"
 
@@ -32,9 +33,9 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 			return
 		}
 		DeleteAllOf(&hazelcastcomv1alpha1.MultiMap{}, &hazelcastcomv1alpha1.MultiMapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

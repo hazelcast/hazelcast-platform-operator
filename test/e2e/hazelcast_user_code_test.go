@@ -155,9 +155,9 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		assertExecutorServices(sampleExecutorServices, actualES)
 
 		By("adding new executor services dynamically")
-		sampleExecutorServices["es"] = append(sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration), hazelcastcomv1alpha1.ExecutorServiceConfiguration{Name: "new-service", PoolSize: 8, QueueCapacity: 50})
-		sampleExecutorServices["des"] = append(sampleExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration), hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{Name: "new-durable-service", PoolSize: 12, Durability: 1, Capacity: 40})
-		sampleExecutorServices["ses"] = append(sampleExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration), hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{Name: "new-scheduled-service", PoolSize: 12, Durability: 1, Capacity: 40, CapacityPolicy: "PER_NODE"})
+		sampleExecutorServices["es"] = append(sampleExecutorServices["es"].([]hazelcastv1beta1.ExecutorServiceConfiguration), hazelcastv1beta1.ExecutorServiceConfiguration{Name: "new-service", PoolSize: 8, QueueCapacity: 50})
+		sampleExecutorServices["des"] = append(sampleExecutorServices["des"].([]hazelcastv1beta1.DurableExecutorServiceConfiguration), hazelcastv1beta1.DurableExecutorServiceConfiguration{Name: "new-durable-service", PoolSize: 12, Durability: 1, Capacity: 40})
+		sampleExecutorServices["ses"] = append(sampleExecutorServices["ses"].([]hazelcastv1beta1.ScheduledExecutorServiceConfiguration), hazelcastv1beta1.ScheduledExecutorServiceConfiguration{Name: "new-scheduled-service", PoolSize: 12, Durability: 1, Capacity: 40, CapacityPolicy: "PER_NODE"})
 
 		UpdateHazelcastCR(hazelcast, func(hz *hazelcastv1beta1.Hazelcast) *hazelcastv1beta1.Hazelcast {
 			hz.Spec.ExecutorServices = sampleExecutorServices["es"].([]hazelcastv1beta1.ExecutorServiceConfiguration)

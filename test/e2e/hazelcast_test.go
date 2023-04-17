@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	. "time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -35,9 +36,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -78,14 +79,14 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
-			memberStateT := func(status hazelcastcomv1alpha1.HazelcastMemberStatus) string {
+			hz := &hazelcastv1beta1.Hazelcast{}
+			memberStateT := func(status hazelcastv1beta1.HazelcastMemberStatus) string {
 				return string(status.State)
 			}
-			masterT := func(status hazelcastcomv1alpha1.HazelcastMemberStatus) bool {
+			masterT := func(status hazelcastv1beta1.HazelcastMemberStatus) bool {
 				return status.Master
 			}
-			Eventually(func() []hazelcastcomv1alpha1.HazelcastMemberStatus {
+			Eventually(func() []hazelcastv1beta1.HazelcastMemberStatus {
 				err := k8sClient.Get(context.Background(), hzLookupKey, hz)
 				Expect(err).ToNot(HaveOccurred())
 				return hz.Status.Members
@@ -101,7 +102,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			hz := &hazelcastv1beta1.Hazelcast{}
 			err := k8sClient.Get(context.Background(), hzLookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
 			By("checking hazelcast members pod name")
@@ -116,9 +117,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 	})
 
 	Describe("External API errors", func() {
-		assertStatusAndMessageEventually := func(phase hazelcastcomv1alpha1.Phase) {
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
-			Eventually(func() hazelcastcomv1alpha1.Phase {
+		assertStatusAndMessageEventually := func(phase hazelcastv1beta1.Phase) {
+			hz := &hazelcastv1beta1.Hazelcast{}
+			Eventually(func() hazelcastv1beta1.Phase {
 				err := k8sClient.Get(context.Background(), hzLookupKey, hz)
 				Expect(err).ToNot(HaveOccurred())
 				return hz.Status.Phase
@@ -129,7 +130,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		It("should be reflected to Hazelcast CR status", Label("fast"), func() {
 			setLabelAndCRName("h-6")
 			CreateHazelcastCRWithoutCheck(hazelcastconfig.Faulty(hzLookupKey, ee, labels))
-			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
+			assertStatusAndMessageEventually(hazelcastv1beta1.Failed)
 		})
 	})
 
@@ -162,7 +163,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
 				assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{})
 
-				DeleteAllOf(hz, &hazelcastcomv1alpha1.HazelcastList{}, hz.Namespace, labels)
+				DeleteAllOf(hz, &hazelcastv1beta1.HazelcastList{}, hz.Namespace, labels)
 
 				err := k8sClient.Get(context.Background(), mapLookupKey, m)
 				Expect(errors.IsNotFound(err)).To(BeTrue())

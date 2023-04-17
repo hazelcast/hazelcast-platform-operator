@@ -35,9 +35,9 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		DeleteAllOf(&hazelcastv1alpha1.CronHotBackup{}, &hazelcastv1alpha1.CronHotBackupList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastv1alpha1.HotBackup{}, &hazelcastv1alpha1.HotBackupList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastv1alpha1.Map{}, &hazelcastv1alpha1.MapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastv1beta1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 
 	})
@@ -108,8 +108,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 			evaluateReadyMembers(hzLookupKey)
 			assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 		},
-		Entry("ForceStart", Label("slow"), hazelcastv1alpha1.ForceStart, hazelcastv1alpha1.FullRecovery),
-		Entry("PartialStart", Label("slow"), hazelcastv1alpha1.PartialStart, hazelcastv1alpha1.MostRecent),
+		Entry("ForceStart", Label("slow"), hazelcastv1beta1.ForceStart, hazelcastv1beta1.FullRecovery),
+		Entry("PartialStart", Label("slow"), hazelcastv1beta1.PartialStart, hazelcastv1beta1.MostRecent),
 	)
 
 	It("should trigger multiple HotBackups with CronHotBackup", Label("slow"), func() {

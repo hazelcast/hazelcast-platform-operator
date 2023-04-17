@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"os"
 	"strings"
 	"text/template"
@@ -68,7 +69,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastv1beta1.Hazelcast{}, nil, hzNamespace, labels)
 
 		By("waiting for all nodes are ready", func() {
 			waitForDroppedNodes(context.Background(), 0)
