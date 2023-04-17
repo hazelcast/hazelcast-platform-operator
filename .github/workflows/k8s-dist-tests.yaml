@@ -55,14 +55,15 @@ jobs:
     steps:
       - name: Decide to run tests
         id: should-run-tests
+        env:
+          COMMIT_MESSAGE: ${{ github.event.commits[0].message }}
         run: |
           if [[ '${{ github.event_name }}' != 'push' ]]; then
             echo "RUN_TESTS=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          COMMIT_MESSAGE='${{ github.event.commits[0].message }}'
-          PR_NUMBER=$(echo $COMMIT_MESSAGE | grep -oP '\(#\K[0-9]*(?=\))')
+          PR_NUMBER=$(echo "$COMMIT_MESSAGE" | grep -oP '\(#\K[0-9]*(?=\))')
           PR_LABELS=$( (gh pr view https://github.com/${{github.repository}}/pull/${PR_NUMBER} --json labels  | jq .labels[].name) || echo "Could not get PR labels")
           for label in $PR_LABELS; do
             # if full suite is ran before 
