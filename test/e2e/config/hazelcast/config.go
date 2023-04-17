@@ -210,7 +210,7 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{1}[0],
+				ClusterSize:      pointer.Int32(1),
 				Repository:       repo(ee),
 				Version:          *hazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
