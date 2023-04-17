@@ -215,7 +215,7 @@ var _ = Describe("Hazelcast controller", func() {
 			By("creating the sub resources successfully")
 			expectedOwnerReference := metav1.OwnerReference{
 				Kind:               "Hazelcast",
-				APIVersion:         "hazelcast.com/v1alpha1",
+				APIVersion:         "hazelcast.com/v1beta1",
 				UID:                fetchedCR.UID,
 				Name:               fetchedCR.Name,
 				Controller:         pointer.Bool(true),
