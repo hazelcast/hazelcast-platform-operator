@@ -1783,7 +1783,7 @@ func ucdAgentContainer(h *hazelcastv1beta1.Hazelcast) v1.Container {
 	}
 }
 
-func jetEngineContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func jetEngineContainer(h *hazelcastv1beta1.Hazelcast) v1.Container {
 	return v1.Container{
 		Name:  n.JetDownloadAgent,
 		Image: h.AgentDockerImage(),
@@ -1854,15 +1854,6 @@ func volumes(h *hazelcastv1beta1.Hazelcast) []v1.Volume {
 func userCodeAgentVolume(_ *hazelcastv1beta1.Hazelcast) v1.Volume {
 	return v1.Volume{
 		Name: n.UserCodeBucketVolumeName,
-		VolumeSource: v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-func tmpDirVolume() v1.Volume {
-	return v1.Volume{
-		Name: name,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
