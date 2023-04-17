@@ -115,7 +115,7 @@ func validateLicense(h *Hazelcast) *field.Error {
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
 			return field.NotFound(field.NewPath("spec").Child("licenseKeySecretName"),
-				"Hazelcast Enterprise licenseKeySecret is not found")
+				"Hazelcast Enterprise licenseKeySecretName is not found")
 		}
 	}
 

@@ -105,7 +105,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("spec.licenseKeySecret: Required value: must be set when Hazelcast Enterprise is deployed")))
+				Should(MatchError(ContainSubstring("spec.licenseKeySecretName: Required value: must be set when Hazelcast Enterprise is deployed")))
 		})
 	})
 
