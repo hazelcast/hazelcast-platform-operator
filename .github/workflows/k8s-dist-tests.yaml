@@ -227,11 +227,12 @@ jobs:
   slack_notify:
     name: Slack Notify
     timeout-minutes: 15
-    needs: ["update-test-run-status-badges"]
+    needs: ["update-test-run-status-badges","upload-coverage"]
     if: failure() && github.event_name == 'push'
     runs-on: ubuntu-latest
     env:
       ACTION_API_URL: ${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/k8s-dist-tests.yaml/runs?branch=main
+      ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - name: decide to notify
         id: decide
@@ -268,7 +269,7 @@ jobs:
         env:
           SLACK_CHANNEL: cloud-native-dev
           SLACK_COLOR: red # or a specific color like 'green' or '#ff00ff'
-          SLACK_MESSAGE: '${{ github.actor}} broke the main branch :bomb: previous successful run number was ${{ steps.decide.outputs.LAST_RUN_NUMBER }}'
+          SLACK_MESSAGE: '${{ github.actor}} broke the <${{ env.ACTION_RUN_URL }}|main branch> :bomb: previous successful run number was ${{ steps.decide.outputs.LAST_RUN_NUMBER }}'
           SLACK_TITLE: Main Branch Broken
           SLACK_USERNAME: rtCamp
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CLOUD_NATIVE }}
