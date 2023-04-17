@@ -141,13 +141,16 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	if err = hazelcastv1alpha1.ValidateJetConfiguration(h); err != nil {
 		return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
 	}
+	result, err = r.applyJetJob(ctx, jj, hazelcastName, logger)
+	if err != nil {
+		return result, err
+	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
-		return
 	}
-	return r.applyJetJob(ctx, jj, hazelcastName, logger)
+	return
 }
 
 func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alpha1.JetJob, hazelcastName types.NamespacedName, logger logr.Logger) (ctrl.Result, error) {

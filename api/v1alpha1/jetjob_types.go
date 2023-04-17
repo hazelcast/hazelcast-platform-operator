@@ -46,7 +46,7 @@ type JetJobSpec struct {
 	// +required
 	State JetJobState `json:"state"`
 
-	// JarName specify the name of the Jar to run that is present in the member's CLASSPATH.
+	// JarName specify the name of the Jar to run that is present on the member.
 	// +kubebuilder:validation:MinLength:=1
 	// +required
 	JarName string `json:"jarName"`

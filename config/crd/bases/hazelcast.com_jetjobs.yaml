@@ -61,7 +61,7 @@ spec:
                 type: string
               jarName:
                 description: JarName specify the name of the Jar to run that is present
-                  in the member's CLASSPATH.
+                  on the member.
                 minLength: 1
                 type: string
               mainClass:
