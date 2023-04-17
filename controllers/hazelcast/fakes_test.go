@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -31,7 +32,10 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{},
 			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.Secret{}).
 		Build()
-	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+
+	scheme2, _ := hazelcastv1beta1.SchemeBuilder.Register(&hazelcastv1alpha1.Hazelcast{}).Build()
+
+	return fake.NewClientBuilder().WithScheme(scheme).WithScheme(scheme2).WithObjects(initObjs...).Build()
 }
 
 func fakeHttpServer(url string, handler http.HandlerFunc) (*httptest.Server, error) {
