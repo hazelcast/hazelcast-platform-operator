@@ -185,7 +185,7 @@ var _ = Describe("Hazelcast controller", func() {
 		Eventually(func() hazelcastv1beta1.Phase {
 			hz = Fetch(hz)
 			return hz.Status.Phase
-		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
+		}, timeout, interval).Should(Equal(hazelcastv1beta1.Pending))
 		return hz
 	}
 
@@ -265,7 +265,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			Create(hz)
 			fetchedCR := EnsureStatus(hz)
-			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeUnisocket))
+			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1beta1.ExposeExternallyTypeUnisocket))
 			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
 
 			By("checking created services")
@@ -292,9 +292,9 @@ var _ = Describe("Hazelcast controller", func() {
 
 			Create(hz)
 			fetchedCR := EnsureStatus(hz)
-			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeSmart))
+			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1beta1.ExposeExternallyTypeSmart))
 			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
-			Expect(fetchedCR.Spec.ExposeExternally.MemberAccess).Should(Equal(hazelcastv1alpha1.MemberAccessNodePortExternalIP))
+			Expect(fetchedCR.Spec.ExposeExternally.MemberAccess).Should(Equal(hazelcastv1beta1.MemberAccessNodePortExternalIP))
 
 			By("checking created services")
 			serviceList := FetchServices(hz, 4)
@@ -776,7 +776,7 @@ var _ = Describe("Hazelcast controller", func() {
 				By("checking the Persistence CR configuration", func() {
 					Expect(fetchedCR.Spec.Persistence.BaseDir).Should(Equal("/data/hot-restart/"))
 					Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
-						Should(Equal(hazelcastv1alpha1.FullRecovery))
+						Should(Equal(hazelcastv1beta1.FullRecovery))
 					Expect(fetchedCR.Spec.Persistence.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
 					Expect(*fetchedCR.Spec.Persistence.Pvc.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
 					Expect(*fetchedCR.Spec.Persistence.Pvc.StorageClassName).Should(Equal("standard"))
