@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 
 	"github.com/aws/smithy-go/ptr"
 
@@ -45,7 +46,7 @@ var _ = Describe("Hazelcast webhook", func() {
 		}
 	}
 
-	GetRandomObjectMetaWithAnnotation := func(spec *hazelcastv1alpha1.HazelcastSpec) metav1.ObjectMeta {
+	GetRandomObjectMetaWithAnnotation := func(spec *hazelcastv1beta1.HazelcastSpec) metav1.ObjectMeta {
 		hs, _ := json.Marshal(spec)
 		return metav1.ObjectMeta{
 			Name:      fmt.Sprintf("hazelcast-test-%s", uuid.NewUUID()),
@@ -59,16 +60,16 @@ var _ = Describe("Hazelcast webhook", func() {
 	Context("Hazelcast Persistence validation", func() {
 		It("should not create HZ PartialStart with FullRecovery", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+			spec.Persistence = &hazelcastv1beta1.HazelcastPersistenceConfiguration{
 				BaseDir:                   "/baseDir/",
-				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-				StartupAction:             hazelcastv1alpha1.PartialStart,
-				Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+				ClusterDataRecoveryPolicy: hazelcastv1beta1.FullRecovery,
+				StartupAction:             hazelcastv1beta1.PartialStart,
+				Pvc: hazelcastv1beta1.PersistencePvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -78,11 +79,11 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It("should not create HZ if pvc is specified", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+			spec.Persistence = &hazelcastv1beta1.HazelcastPersistenceConfiguration{
 				BaseDir: "/baseDir/",
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -97,9 +98,9 @@ var _ = Describe("Hazelcast webhook", func() {
 				Skip("This test will only run in EE configuration")
 			}
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.LicenseKeySecret = ""
+			spec.LicenseKeySecretName = ""
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -114,7 +115,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			requestedClusterSize := int32(n.ClusterSizeLimit + 1)
 			spec.ClusterSize = &requestedClusterSize
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -129,14 +130,14 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.InitialRamPerArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
-				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+			spec.JVM = &hazelcastv1beta1.JVMConfiguration{
+				Memory: &hazelcastv1beta1.JVMMemoryConfiguration{
 					InitialRAMPercentage: ptr.String("10"),
 				},
 				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.InitialRamPerArg)},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -147,14 +148,14 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MinRamPerArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
-				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+			spec.JVM = &hazelcastv1beta1.JVMConfiguration{
+				Memory: &hazelcastv1beta1.JVMMemoryConfiguration{
 					MinRAMPercentage: ptr.String("10"),
 				},
 				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MinRamPerArg)},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -165,32 +166,32 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MaxRamPerArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
-				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+			spec.JVM = &hazelcastv1beta1.JVMConfiguration{
+				Memory: &hazelcastv1beta1.JVMMemoryConfiguration{
 					MaxRAMPercentage: ptr.String("10"),
 				},
 				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MaxRamPerArg)},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.MaxRamPerArg))))
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1beta1.MaxRamPerArg))))
 		})
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.GCLoggingArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
-				GC: &hazelcastv1alpha1.JVMGCConfiguration{
+			spec.JVM = &hazelcastv1beta1.JVMConfiguration{
+				GC: &hazelcastv1beta1.JVMGCConfiguration{
 					Logging: ptr.Bool(true),
 				},
 				Args: []string{fmt.Sprintf(hazelcastv1alpha1.GCLoggingArg)},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -201,16 +202,16 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.SerialGCArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			c := hazelcastv1alpha1.GCTypeSerial
-			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+			c := hazelcastv1beta1.GCTypeSerial
+			spec.JVM = &hazelcastv1beta1.JVMConfiguration{
 				Memory: nil,
-				GC: &hazelcastv1alpha1.JVMGCConfiguration{
+				GC: &hazelcastv1beta1.JVMGCConfiguration{
 					Collector: &c,
 				},
 				Args: []string{fmt.Sprintf(hazelcastv1alpha1.SerialGCArg)},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -221,14 +222,14 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.ParallelGCArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			c := hazelcastv1alpha1.GCTypeParallel
-			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
-				GC:   &hazelcastv1alpha1.JVMGCConfiguration{},
+			c := hazelcastv1beta1.GCTypeParallel
+			spec.JVM = &hazelcastv1beta1.JVMConfiguration{
+				GC:   &hazelcastv1beta1.JVMGCConfiguration{},
 				Args: []string{fmt.Sprintf(hazelcastv1alpha1.ParallelGCArg)},
 			}
 			spec.JVM.GC.Collector = &c
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -239,14 +240,14 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.G1GCArg), Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			c := hazelcastv1alpha1.GCTypeG1
-			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
-				GC:   &hazelcastv1alpha1.JVMGCConfiguration{},
+			c := hazelcastv1beta1.GCTypeG1
+			spec.JVM = &hazelcastv1beta1.JVMConfiguration{
+				GC:   &hazelcastv1beta1.JVMGCConfiguration{},
 				Args: []string{fmt.Sprintf(hazelcastv1alpha1.G1GCArg)},
 			}
 			spec.JVM.GC.Collector = &c
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -259,12 +260,12 @@ var _ = Describe("Hazelcast webhook", func() {
 	Context("Hazelcast Expose externaly", func() {
 		It("should validate MemberAccess for unisocket", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-				Type:         hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-				MemberAccess: hazelcastv1alpha1.MemberAccessNodePortExternalIP,
+			spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+				Type:         hazelcastv1beta1.ExposeExternallyTypeUnisocket,
+				MemberAccess: hazelcastv1beta1.MemberAccessNodePortExternalIP,
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -278,7 +279,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			zoneHASpec := test.HazelcastSpec(defaultSpecValues, ee)
 			zoneHASpec.HighAvailabilityMode = "ZONE"
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMetaWithAnnotation(&zoneHASpec),
 				Spec:       zoneHASpec,
 			}
@@ -290,7 +291,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			for {
 				Expect(k8sClient.Get(
 					context.Background(), types.NamespacedName{Namespace: hz.Namespace, Name: hz.Name}, hz)).Should(Succeed())
-				hz.Spec.HighAvailabilityMode = hazelcastv1alpha1.HighAvailabilityNodeMode
+				hz.Spec.HighAvailabilityMode = hazelcastv1beta1.HighAvailabilityNodeMode
 				err = k8sClient.Update(context.Background(), hz)
 				if errors.IsConflict(err) {
 					continue
@@ -308,8 +309,8 @@ var _ = Describe("Hazelcast webhook", func() {
 	Context("Hazelcast Advanced Network", func() {
 		It("should validate overlap each other", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
-				WAN: []hazelcastv1alpha1.WANConfig{
+			spec.AdvancedNetwork = hazelcastv1beta1.AdvancedNetwork{
+				WAN: []hazelcastv1beta1.WANConfig{
 					{
 						Port:      5001,
 						PortCount: 3,
@@ -321,7 +322,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -332,8 +333,8 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It("should validate overlap with other sockets", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
-				WAN: []hazelcastv1alpha1.WANConfig{
+			spec.AdvancedNetwork = hazelcastv1beta1.AdvancedNetwork{
+				WAN: []hazelcastv1beta1.WANConfig{
 					{
 						Port:      5702,
 						PortCount: 3,
@@ -341,7 +342,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -352,8 +353,8 @@ var _ = Describe("Hazelcast webhook", func() {
 
 		It("should validate service type for wan config", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
-				WAN: []hazelcastv1alpha1.WANConfig{
+			spec.AdvancedNetwork = hazelcastv1beta1.AdvancedNetwork{
+				WAN: []hazelcastv1beta1.WANConfig{
 					{
 						Port:        5702,
 						PortCount:   3,
@@ -362,7 +363,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}
@@ -375,14 +376,14 @@ var _ = Describe("Hazelcast webhook", func() {
 	Context("Hazelcast Validation Multiple Errors", func() {
 		It("should return multiple errors", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+			spec.ExposeExternally = &hazelcastv1beta1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1beta1.ExposeExternallyTypeUnisocket,
 				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+				MemberAccess:         hazelcastv1beta1.MemberAccessLoadBalancer,
 			}
 			spec.ClusterSize = pointer.Int32(5000)
-			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
-				WAN: []hazelcastv1alpha1.WANConfig{
+			spec.AdvancedNetwork = hazelcastv1beta1.AdvancedNetwork{
+				WAN: []hazelcastv1beta1.WANConfig{
 					{
 						Port:      5701,
 						PortCount: 20,
@@ -394,7 +395,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				},
 			}
 
-			hz := &hazelcastv1alpha1.Hazelcast{
+			hz := &hazelcastv1beta1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec:       spec,
 			}

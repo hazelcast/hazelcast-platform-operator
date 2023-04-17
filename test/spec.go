@@ -1,6 +1,7 @@
 package test
 
 import (
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 
@@ -15,26 +16,26 @@ type HazelcastSpecValues struct {
 	ImagePullPolicy corev1.PullPolicy
 }
 
-func HazelcastSpec(values *HazelcastSpecValues, ee bool) hazelcastv1alpha1.HazelcastSpec {
-	spec := hazelcastv1alpha1.HazelcastSpec{
+func HazelcastSpec(values *HazelcastSpecValues, ee bool) hazelcastv1beta1.HazelcastSpec {
+	spec := hazelcastv1beta1.HazelcastSpec{
 		ClusterSize:     &values.ClusterSize,
 		Repository:      values.Repository,
 		Version:         values.Version,
 		ImagePullPolicy: values.ImagePullPolicy,
 	}
 	if ee {
-		spec.LicenseKeySecret = values.LicenseKey
+		spec.LicenseKeySecretName = values.LicenseKey
 	}
 	return spec
 }
 
-func CheckHazelcastCR(h *hazelcastv1alpha1.Hazelcast, expected *HazelcastSpecValues, ee bool) {
+func CheckHazelcastCR(h *hazelcastv1beta1.Hazelcast, expected *HazelcastSpecValues, ee bool) {
 	Expect(*h.Spec.ClusterSize).Should(Equal(expected.ClusterSize))
 	Expect(h.Spec.Repository).Should(Equal(expected.Repository))
 	Expect(h.Spec.Version).Should(Equal(expected.Version))
 	Expect(h.Spec.ImagePullPolicy).Should(Equal(expected.ImagePullPolicy))
 	if ee {
-		Expect(h.Spec.LicenseKeySecret).Should(Equal(expected.LicenseKey))
+		Expect(h.Spec.LicenseKeySecretName).Should(Equal(expected.LicenseKey))
 	}
 }
 
