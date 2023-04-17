@@ -732,32 +732,32 @@ func getExecutorServiceConfigFromMemberConfig(memberConfigXML string) codecTypes
 }
 
 func assertExecutorServices(expectedES map[string]interface{}, actualES codecTypes.ExecutorServices) {
-	for i, bes1 := range expectedES["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration) {
+	for i, bes1 := range expectedES["es"].([]hazelcastv1beta1.ExecutorServiceConfiguration) {
 		// `i+1`'s reason is the default executor service added by hazelcast in any case.
 		assertES(bes1, actualES.Basic[i+1])
 	}
-	for i, des1 := range expectedES["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration) {
+	for i, des1 := range expectedES["des"].([]hazelcastv1beta1.DurableExecutorServiceConfiguration) {
 		assertDurableES(des1, actualES.Durable[i])
 	}
-	for i, ses1 := range expectedES["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration) {
+	for i, ses1 := range expectedES["ses"].([]hazelcastv1beta1.ScheduledExecutorServiceConfiguration) {
 		assertScheduledES(ses1, actualES.Scheduled[i])
 	}
 }
 
-func assertES(expectedES hazelcastcomv1alpha1.ExecutorServiceConfiguration, actualES codecTypes.ExecutorServiceConfig) {
+func assertES(expectedES hazelcastv1beta1.ExecutorServiceConfiguration, actualES codecTypes.ExecutorServiceConfig) {
 	Expect(expectedES.Name).Should(Equal(actualES.Name), "Name")
 	Expect(expectedES.PoolSize).Should(Equal(actualES.PoolSize), "PoolSize")
 	Expect(expectedES.QueueCapacity).Should(Equal(actualES.QueueCapacity), "QueueCapacity")
 }
 
-func assertDurableES(expectedDES hazelcastcomv1alpha1.DurableExecutorServiceConfiguration, actualDES codecTypes.DurableExecutorServiceConfig) {
+func assertDurableES(expectedDES hazelcastv1beta1.DurableExecutorServiceConfiguration, actualDES codecTypes.DurableExecutorServiceConfig) {
 	Expect(expectedDES.Name).Should(Equal(actualDES.Name), "Name")
 	Expect(expectedDES.PoolSize).Should(Equal(actualDES.PoolSize), "PoolSize")
 	Expect(expectedDES.Capacity).Should(Equal(actualDES.Capacity), "Capacity")
 	Expect(expectedDES.Durability).Should(Equal(actualDES.Durability), "Durability")
 }
 
-func assertScheduledES(expectedSES hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration, actualSES codecTypes.ScheduledExecutorServiceConfig) {
+func assertScheduledES(expectedSES hazelcastv1beta1.ScheduledExecutorServiceConfiguration, actualSES codecTypes.ScheduledExecutorServiceConfig) {
 	Expect(expectedSES.Name).Should(Equal(actualSES.Name), "Name")
 	Expect(expectedSES.PoolSize).Should(Equal(actualSES.PoolSize), "PoolSize")
 	Expect(expectedSES.Capacity).Should(Equal(actualSES.Capacity), "Capacity")
