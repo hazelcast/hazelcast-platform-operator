@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/mtypey/platform-operator-agent", version: "0.1.17"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.17"}
 	// +optional
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
@@ -356,7 +356,7 @@ func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/mtypey/platform-operator-agent"
+	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
