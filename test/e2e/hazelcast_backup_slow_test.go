@@ -142,7 +142,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		By("checking the cluster state and map size")
-		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
+		assertHazelcastRestoreStatus(hazelcast, hazelcastv1beta1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
@@ -215,7 +215,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		By("checking the cluster state and map size")
-		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
+		assertHazelcastRestoreStatus(hazelcast, hazelcastv1beta1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
@@ -334,7 +334,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		By("checking the cluster state and map size")
-		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
+		assertHazelcastRestoreStatus(hazelcast, hazelcastv1beta1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
 
@@ -349,7 +349,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		By("checking the cluster state and map size")
-		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
+		assertHazelcastRestoreStatus(hazelcast, hazelcastv1beta1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 20, 1*Minute)
 

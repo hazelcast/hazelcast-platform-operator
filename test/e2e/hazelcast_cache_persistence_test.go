@@ -96,7 +96,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 		evaluateReadyMembers(hzLookupKey)
-		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
+		assertHazelcastRestoreStatus(hazelcast, hazelcastv1beta1.RestoreSucceeded)
 
 		By("checking the cache entries")
 		validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)

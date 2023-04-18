@@ -11,6 +11,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-hazelcast-com-v1beta1-hazelcast
+  failurePolicy: Ignore
+  name: vvhazelcast.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - hazelcasts
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-hazelcast-com-v1alpha1-cache
   failurePolicy: Fail
   name: vcache.kb.io
