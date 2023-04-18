@@ -349,7 +349,7 @@ func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
 	return c != nil && (len(c.ConfigMaps) != 0)
 }
 
-// Returns true if userCodeDeployment.configMaps configuration is specified.
+// Returns true if userCodeDeployment.RemoteURLs configuration is specified.
 func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
 	return c != nil && (len(c.RemoteURLs) != 0)
 }
