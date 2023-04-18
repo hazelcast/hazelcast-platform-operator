@@ -173,7 +173,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		evaluateReadyMembers(hzLookupKey)
 
 		By("checking the cluster state and map size")
-		assertHazelcastRestoreStatus(restoredHz, hazelcastv1alpha1.RestoreSucceeded)
+		assertHazelcastRestoreStatus(restoredHz, hazelcastv1beta1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), restoredHz, localPort, codecTypes.ClusterStateActive)
 		waitForMapSizePortForward(context.Background(), restoredHz, localPort, m.MapName(), 10, 1*Minute)
 	}

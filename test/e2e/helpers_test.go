@@ -591,7 +591,7 @@ func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
 	return mc.Status.Phase == "Running"
 }
 
-func assertHazelcastRestoreStatus(h *hazelcastv1beta1.Hazelcast, st hazelcastcomv1alpha1.RestoreState) *hazelcastv1beta1.Hazelcast {
+func assertHazelcastRestoreStatus(h *hazelcastv1beta1.Hazelcast, st hazelcastv1beta1.RestoreState) *hazelcastv1beta1.Hazelcast {
 	checkHz := &hazelcastv1beta1.Hazelcast{}
 	By("waiting for Map CR status", func() {
 		Eventually(func() hazelcastv1beta1.RestoreState {
