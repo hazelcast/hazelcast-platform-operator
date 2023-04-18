@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -276,23 +277,23 @@ func defaultFakeClientAndService() (fakeHzClient, fakeHzStatusService, []cluster
 	return fakeHzClient, fakeHzStatusService, mm
 }
 
-func defaultCRs() (types.NamespacedName, *hazelcastv1alpha1.Hazelcast, *hazelcastv1alpha1.HotBackup) {
+func defaultCRs() (types.NamespacedName, *hazelcastv1beta1.Hazelcast, *hazelcastv1alpha1.HotBackup) {
 	nn := types.NamespacedName{
 		Name:      "hazelcast",
 		Namespace: "default",
 	}
-	h := &hazelcastv1alpha1.Hazelcast{
+	h := &hazelcastv1beta1.Hazelcast{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nn.Name,
 			Namespace: nn.Namespace,
 		},
-		Spec: hazelcastv1alpha1.HazelcastSpec{
-			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+		Spec: hazelcastv1beta1.HazelcastSpec{
+			Persistence: &hazelcastv1beta1.HazelcastPersistenceConfiguration{
 				BaseDir: "basedir",
 			},
 		},
-		Status: hazelcastv1alpha1.HazelcastStatus{
-			Phase: hazelcastv1alpha1.Running,
+		Status: hazelcastv1beta1.HazelcastStatus{
+			Phase: hazelcastv1beta1.Running,
 		},
 	}
 	hb := &hazelcastv1alpha1.HotBackup{

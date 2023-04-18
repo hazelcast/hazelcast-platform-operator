@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
@@ -113,7 +114,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 
 	hazelcastName := types.NamespacedName{Namespace: req.Namespace, Name: hb.Spec.HazelcastResourceName}
 
-	h := &hazelcastv1alpha1.Hazelcast{}
+	h := &hazelcastv1beta1.Hazelcast{}
 	err = r.Client.Get(ctx, hazelcastName, h)
 	if err != nil {
 		logger.Info("Could not find hazelcast cluster", "name", hazelcastName, "err", err)
@@ -121,7 +122,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
 	}
 
-	if h.Status.Phase != hazelcastv1alpha1.Running {
+	if h.Status.Phase != hazelcastv1beta1.Running {
 		logger.Info("Hazelcast cluster is not ready", "name", hazelcastName, "phase", h.Status.Phase)
 		return r.updateStatus(ctx, req.NamespacedName, recoptions.Empty(),
 			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
@@ -220,7 +221,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	}
 
 	// Get latest version as this may be running in cron
-	hz := &hazelcastv1alpha1.Hazelcast{}
+	hz := &hazelcastv1beta1.Hazelcast{}
 	if err := r.Get(ctx, hazelcastName, hz); err != nil {
 		logger.Error(err, "Get latest hazelcast CR failed")
 		return r.updateStatus(ctx, backupName, recoptions.Error(err),

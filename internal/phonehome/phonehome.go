@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"net/http"
 	"strings"
 	"time"
@@ -203,7 +204,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	highAvailabilityModes := []string{}
 	nativeMemoryCount := 0
 
-	hzl := &hazelcastv1alpha1.HazelcastList{}
+	hzl := &hazelcastv1beta1.HazelcastList{}
 	err := cl.List(context.Background(), hzl, listOptions()...)
 	if err != nil {
 		return //TODO maybe add retry
@@ -255,13 +256,13 @@ func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (strin
 	return cid.String(), true
 }
 
-func (an *AdvancedNetwork) addUsageMetrics(wc []hazelcastv1alpha1.WANConfig) {
+func (an *AdvancedNetwork) addUsageMetrics(wc []hazelcastv1beta1.WANConfig) {
 	for _, w := range wc {
 		an.WANEndpointCount += int(w.PortCount)
 	}
 }
 
-func (xe *ExposeExternally) addUsageMetrics(e *hazelcastv1alpha1.ExposeExternallyConfiguration) {
+func (xe *ExposeExternally) addUsageMetrics(e *hazelcastv1beta1.ExposeExternallyConfiguration) {
 	if !e.IsEnabled() {
 		return
 	}
@@ -280,16 +281,16 @@ func (xe *ExposeExternally) addUsageMetrics(e *hazelcastv1alpha1.ExposeExternall
 	xe.Smart += 1
 
 	switch ma := e.MemberAccess; ma {
-	case hazelcastv1alpha1.MemberAccessLoadBalancer:
+	case hazelcastv1beta1.MemberAccessLoadBalancer:
 		xe.MemberLoadBalancer += 1
-	case hazelcastv1alpha1.MemberAccessNodePortNodeName:
+	case hazelcastv1beta1.MemberAccessNodePortNodeName:
 		xe.MemberNodePortNodeName += 1
 	default:
 		xe.MemberNodePortExternalIP += 1
 	}
 }
 
-func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersistenceConfiguration) {
+func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1beta1.HazelcastPersistenceConfiguration) {
 	if !p.IsEnabled() {
 		return
 	}
@@ -301,7 +302,7 @@ func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersis
 	}
 }
 
-func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeDeploymentConfig) {
+func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1beta1.UserCodeDeploymentConfig) {
 	if hucd == nil {
 		return
 	}
@@ -316,7 +317,7 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 	}
 }
 
-func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration) {
+func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1beta1.JVMConfiguration) {
 	if jc == nil {
 		return
 	}

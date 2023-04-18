@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"sync"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -119,7 +119,7 @@ func (ss *HzStatusService) Start() {
 
 func (ss *HzStatusService) triggerReconcile() {
 	ss.triggerReconcileChan <- event.GenericEvent{
-		Object: &hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
+		Object: &hazelcastv1beta1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
 			Namespace: ss.namespacedName.Namespace,
 			Name:      ss.namespacedName.Name,
 		}}}
