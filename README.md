@@ -44,7 +44,7 @@ Hazelcast Platform Operator supports the features below:
 * Support Multi-namespace configuration
 * ExecutorService and EntryProcessor support
 * Support several data structures like Map, Topic, MultiMap, ReplicatedMap, Queue and Cache which can be created dynamically via specific Custom Resources
-* MapStore, Near Cache and off-heap memory (HD memory and native memory) support for the Map CR
+* MapStore, Near Cache and Native Memory support for the Map CR
 * Native memory support for the Cache CR
 
 For Hazelcast Platform Enterprise, you can request a trial license key from [here](https://trialrequest.hazelcast.com).
