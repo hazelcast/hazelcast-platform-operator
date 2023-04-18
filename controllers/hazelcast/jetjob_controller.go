@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	hazelcastv1beta1 "github.com/hazelcast/hazelcast-platform-operator/api/v1beta1"
 	"path"
 	"sync"
 	"time"
@@ -126,19 +127,19 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	hazelcastName := types.NamespacedName{Namespace: req.Namespace, Name: jj.Spec.HazelcastResourceName}
 
-	h := &hazelcastv1alpha1.Hazelcast{}
+	h := &hazelcastv1beta1.Hazelcast{}
 	err = r.Client.Get(ctx, hazelcastName, h)
 	if err != nil {
 		logger.Info("Could not find hazelcast cluster", "name", hazelcastName, "err", err)
 		return r.updateStatus(ctx, req.NamespacedName, jetJobWithStatus(hazelcastv1alpha1.JetJobNotRunning))
 	}
 
-	if h.Status.Phase != hazelcastv1alpha1.Running {
+	if h.Status.Phase != hazelcastv1beta1.Running {
 		logger.Info("Hazelcast cluster is not ready", "name", hazelcastName, "phase", h.Status.Phase)
 		return r.updateStatus(ctx, req.NamespacedName, jetJobWithStatus(hazelcastv1alpha1.JetJobNotRunning))
 	}
 
-	if err = hazelcastv1alpha1.ValidateJetConfiguration(h); err != nil {
+	if err = hazelcastv1beta1.ValidateJetConfiguration(h); err != nil {
 		return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
 	}
 	result, err = r.applyJetJob(ctx, jj, hazelcastName, logger)
@@ -321,7 +322,7 @@ func (r *JetJobReconciler) stopJetExecution(ctx context.Context, jj *hazelcastv1
 		return nil
 	}
 	hzNn := types.NamespacedName{Name: jj.Spec.HazelcastResourceName, Namespace: jj.Namespace}
-	hz := &hazelcastv1alpha1.Hazelcast{}
+	hz := &hazelcastv1beta1.Hazelcast{}
 	err := r.Client.Get(ctx, hzNn, hz)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
