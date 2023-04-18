@@ -262,6 +262,10 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "JetJob")
 		os.Exit(1)
 	}
+	if err = (&hazelcastcomv1beta1.Hazelcast{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Hazelcast")
+		os.Exit(1)
+	}
 
 	setupWithWebhookOrDie(mgr)
 

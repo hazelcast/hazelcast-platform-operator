@@ -19,7 +19,7 @@ resources:
 # patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
-#- patches/webhook_in_hazelcasts.yaml
+- patches/webhook_in_hazelcasts.yaml
 #- patches/webhook_in_managementcenters.yaml
 #- patches/webhook_in_maps.yaml
 #- patches/webhook_in_wanreplications.yaml
@@ -34,7 +34,7 @@ resources:
 
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
-#- patches/cainjection_in_hazelcasts.yaml
+- patches/cainjection_in_hazelcasts.yaml
 #- patches/cainjection_in_managementcenters.yaml
 #- patches/cainjection_in_maps.yaml
 #- patches/cainjection_in_wanreplications.yaml
