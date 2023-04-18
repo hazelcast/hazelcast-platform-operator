@@ -1774,7 +1774,7 @@ func jetEngineContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.Secret,
 			},
 			{
-				Name:  "JDB_BUCKET",
+				Name:  "JDB_BUCKET_URI",
 				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.BucketURI,
 			},
 			{
@@ -1798,7 +1798,7 @@ func ucdBucketAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Value: h.Spec.UserCodeDeployment.BucketConfiguration.Secret,
 			},
 			{
-				Name:  "JDB_URL",
+				Name:  "JDB_BUCKET_URI",
 				Value: h.Spec.UserCodeDeployment.BucketConfiguration.BucketURI,
 			},
 			{
