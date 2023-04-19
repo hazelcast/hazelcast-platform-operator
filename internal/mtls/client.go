@@ -16,6 +16,8 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -30,10 +32,23 @@ var (
 )
 
 func NewClient(ctx context.Context, kubeClient client.Client, secretName types.NamespacedName) (*http.Client, error) {
+	if secretName.Namespace == "" {
+		// if not specified we always use default namespace
+		// as a fallback for running operator locally
+		secretName.Namespace = "default"
+	}
 	secret := &v1.Secret{}
 	err := kubeClient.Get(ctx, secretName, secret)
 	if err != nil {
-		return nil, err
+		// exit for errors other than not found
+		if !kerrors.IsNotFound(err) {
+			return nil, err
+		}
+		// generate new secret with tls cert
+		secret, err = createSecret(ctx, kubeClient, secretName)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// parse secret data
@@ -75,7 +90,23 @@ func NewClient(ctx context.Context, kubeClient client.Client, secretName types.N
 	return c, nil
 }
 
-func NewCertificateAuthority() (cert []byte, key []byte, err error) {
+func createSecret(ctx context.Context, kubeClient client.Client, secretName types.NamespacedName) (*v1.Secret, error) {
+	ca, err := generateCA()
+	if err != nil {
+		return nil, fmt.Errorf("mtls: %w", err)
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName.Name,
+			Namespace: secretName.Namespace,
+		},
+		Type: v1.SecretTypeTLS,
+		Data: ca,
+	}
+	return secret, kubeClient.Create(ctx, secret)
+}
+
+func generateCA() (map[string][]byte, error) {
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
@@ -92,12 +123,12 @@ func NewCertificateAuthority() (cert []byte, key []byte, err error) {
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	rawCrt, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var crtPEM bytes.Buffer
@@ -106,7 +137,7 @@ func NewCertificateAuthority() (cert []byte, key []byte, err error) {
 		Bytes: rawCrt,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var keyPEM bytes.Buffer
@@ -115,8 +146,12 @@ func NewCertificateAuthority() (cert []byte, key []byte, err error) {
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return crtPEM.Bytes(), keyPEM.Bytes(), nil
+	return map[string][]byte{
+		TLSCAKey:            crtPEM.Bytes(),
+		v1.TLSCertKey:       crtPEM.Bytes(),
+		v1.TLSPrivateKeyKey: keyPEM.Bytes(),
+	}, nil
 }
