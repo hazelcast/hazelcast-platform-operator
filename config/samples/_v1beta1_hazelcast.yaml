@@ -1,12 +1,9 @@
 apiVersion: hazelcast.com/v1beta1
 kind: Hazelcast
 metadata:
-  labels:
-    app.kubernetes.io/name: hazelcast
-    app.kubernetes.io/instance: hazelcast-sample
-    app.kubernetes.io/part-of: hazelcast-platform-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: hazelcast-platform-operator
-  name: hazelcast-sample
+  name: hazelcast
 spec:
-  # TODO(user): Add fields here
+  clusterSize: 3
+  repository: 'docker.io/hazelcast/hazelcast-enterprise'
+  version: '5.2.1'
+  licenseKeySecretName: hazelcast-license-key
