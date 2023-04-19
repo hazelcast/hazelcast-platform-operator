@@ -1,32 +1,5 @@
 ---
 apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
-metadata:
-  creationTimestamp: null
-  name: mutating-webhook-configuration
-webhooks:
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /mutate-hazelcast-com-v1beta1-hazelcast
-  failurePolicy: Ignore
-  name: vvhazelcast.kb.io
-  rules:
-  - apiGroups:
-    - hazelcast.com
-    apiVersions:
-    - v1beta1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - hazelcasts
-  sideEffects: None
----
-apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   creationTimestamp: null

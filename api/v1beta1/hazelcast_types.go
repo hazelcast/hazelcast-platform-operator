@@ -908,7 +908,7 @@ const (
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-// +kubebuilder:storageversion
+//+kubebuilder:storageversion
 
 // Hazelcast is the Schema for the hazelcasts API
 // +kubebuilder:subresource:status
