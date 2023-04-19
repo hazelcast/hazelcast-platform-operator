@@ -294,7 +294,7 @@ webhooks:
         namespace: {{ .Release.Namespace }}
         path: /validate-hazelcast-com-v1beta1-hazelcast
     failurePolicy: Ignore
-    name: vhazelcast.kb.io
+    name: vvhazelcast.kb.io
     rules:
       - apiGroups:
           - hazelcast.com
