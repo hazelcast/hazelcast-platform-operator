@@ -130,34 +130,6 @@ checking_image_grade()
     done
 }
 
-# This function will delete completed 'pages-build-deployment' runs using 'run_number' located in a custom head_commit message
-cleanup_page_publish_runs()
-{
-    sleep 2
-    local GITHUB_REPOSITORY=$1
-    local JOB_NAME=$2
-    local MASTER_JOB_RUN_NUMBER=$3
-    local TIMEOUT_IN_MINS=$4
-    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
-    local WORKFLOW_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/workflows | jq '.workflows[] | select(.["name"] | contains("'${JOB_NAME}'")) | .id')
-
-    for i in `seq 1 ${NOF_RETRIES}`; do
-            RUN_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW_ID}/runs --paginate | jq '.workflow_runs[] | select(.["status"] | contains("completed")) | select(.head_commit.message | select(contains("'${MASTER_JOB_RUN_NUMBER}'"))) | .id')
-            if [[ ${RUN_ID} -ne "" ]]; then
-                    echo "Deleting Run ID $RUN_ID for the workflow ID $WORKFLOW_ID"
-                    gh api repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID} -X DELETE >/dev/null
-                return 0
-            else
-                echo "The '${JOB_NAME}' job that was triggered by job with run number '${MASTER_JOB_RUN_NUMBER}' is not finished yet. Waiting..."
-            fi
-            if [[ ${i} == ${NOF_RETRIES} ]]; then
-                echo "Timeout! 'pages-build-deployment' job still not completed."
-                return 42
-            fi
-            sleep 20
-    done
-}
-
 # The function waits until all EKS stacks will be deleted. Takes 2 arguments - cluster name and timeout.
 wait_for_eks_stack_deleted()
 {
