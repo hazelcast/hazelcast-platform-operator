@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
@@ -842,32 +843,53 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
 			Enabled:          pointer.Bool(true),
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: config.SSLProperties{
-				Protocol:             "TLSv1.2",
-				MutualAuthentication: "REQUIRED",
-				// server cert + key
-				KeyStoreType:     "JKS",
-				KeyStore:         jksPath,
-				KeyStorePassword: password,
-				// trusted cert pool (we use the same file for convince)
-				TrustStoreType:     "JKS",
-				TrustStore:         jksPath,
-				TrustStorePassword: password,
-			},
+			Properties:       NewSSLProperties(jksPath, password, "TLS", v1alpha1.MutualAuthenticationRequired),
 		}
 		// for client-server configuration use only server TLS
 		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
 			Enabled:          pointer.Bool(true),
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: config.SSLProperties{
-				Protocol:         "TLS",
-				KeyStoreType:     "JKS",
-				KeyStore:         jksPath,
-				KeyStorePassword: password,
-			},
+			Properties:       NewSSLProperties(jksPath, password, "TLS", h.Spec.TLS.MutualAuthentication),
 		}
 	}
 	return cfg
+}
+
+func NewSSLProperties(path, password, protocol string, auth v1alpha1.MutualAuthentication) config.SSLProperties {
+	const typ = "JKS"
+	switch auth {
+	case v1alpha1.MutualAuthenticationRequired:
+		return config.SSLProperties{
+			Protocol:             protocol,
+			MutualAuthentication: "REQUIRED",
+			// server cert + key
+			KeyStoreType:     typ,
+			KeyStore:         path,
+			KeyStorePassword: password,
+			// trusted cert pool (we use the same file for convince)
+			TrustStoreType:     typ,
+			TrustStore:         path,
+			TrustStorePassword: password,
+		}
+	case v1alpha1.MutualAuthenticationOptional:
+		return config.SSLProperties{
+			Protocol:             protocol,
+			MutualAuthentication: "OPTIONAL",
+			KeyStoreType:         typ,
+			KeyStore:             path,
+			KeyStorePassword:     password,
+			TrustStoreType:       typ,
+			TrustStore:           path,
+			TrustStorePassword:   password,
+		}
+	default:
+		return config.SSLProperties{
+			Protocol:         protocol,
+			KeyStoreType:     typ,
+			KeyStore:         path,
+			KeyStorePassword: password,
+		}
+	}
 }
 
 func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
@@ -2161,6 +2183,14 @@ func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
 		Jet:                hz.Jet,
 		UserCodeDeployment: hz.UserCodeDeployment,
 		Properties:         hz.Properties,
+		AdvancedNetwork: config.AdvancedNetwork{
+			ClientServerSocketEndpointConfig: config.ClientServerSocketEndpointConfig{
+				SSL: hz.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL,
+			},
+			MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{
+				SSL: hz.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL,
+			},
+		},
 	}
 }
 
