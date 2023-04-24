@@ -64,9 +64,6 @@ const (
 	UserCodeDownloadAgent = "ucd-agent"
 	JetDownloadAgent      = "jet-agent"
 
-	MTLSCertSecretName = "hazelcast-mtls-cert"
-	MTLSCertPath       = "/var/run/secrets/hazelcast"
-
 	UserCodeBucketPath    = "/opt/hazelcast/userCode/bucket"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 	JetJobJarsBucketPath  = "/opt/hazelcast/jetJobJars/bucket"
