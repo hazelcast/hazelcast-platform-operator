@@ -468,5 +468,5 @@ func validateJetConfig(h *Hazelcast) []*field.Error {
 			"can be enabled only if persistence enabled"))
 	}
 
-	return nil
+	return allErrs
 }
