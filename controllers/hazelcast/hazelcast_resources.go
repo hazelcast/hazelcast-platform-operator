@@ -600,22 +600,22 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 }
 
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	cm := &corev1.Secret{
+	configSecret := &corev1.Secret{
 		ObjectMeta: metadata(h),
 		Data:       make(map[string][]byte),
 	}
 
-	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
+	err := controllerutil.SetControllerReference(h, configSecret, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, cm, func() error {
+	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, configSecret, func() error {
 		config, err := hazelcastConfig(ctx, r.Client, h)
 		if err != nil {
 			return err
 		}
-		cm.Data["hazelcast.yaml"] = config
+		configSecret.Data["hazelcast.yaml"] = config
 
 		// Hazelcast TLS config
 		if h.Spec.TLS.IsEnabled() {
@@ -624,20 +624,20 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 				if err != nil {
 					return err
 				}
-				cm.Data["hazelcast.jks"] = keystore
+				configSecret.Data["hazelcast.jks"] = keystore
 			}
 			// If the TLS type is `OpenSSL`, cert and key values from given secret is not copied into out secret.
 			// The given TLS secret is directly used to mount into the Hazelcast containers.
 		}
 
-		if _, ok := cm.Data["ca.crt"]; !ok {
+		if _, ok := configSecret.Data["ca.crt"]; !ok {
 			mtlsCert, mtlsKey, err := mtls.NewCertificateAuthority()
 			if err != nil {
 				return err
 			}
-			cm.Data["ca.crt"] = mtlsCert
-			cm.Data["tls.crt"] = mtlsCert
-			cm.Data["tls.key"] = mtlsKey
+			configSecret.Data["ca.crt"] = mtlsCert
+			configSecret.Data["tls.crt"] = mtlsCert
+			configSecret.Data["tls.key"] = mtlsKey
 		}
 
 		return nil
@@ -1951,7 +1951,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		return vols
 	}
 
-	// Add tmpDir because Hazelcast wit persistence enabled fails with read-only root file system error
+	// Add tmpDir because Hazelcast with persistence enabled fails with read-only root file system error
 	// when it tries to write to /tmp dir.
 	vols = append(vols, emptyDirVolume(n.TmpDirVolName))
 
