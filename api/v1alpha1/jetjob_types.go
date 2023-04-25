@@ -54,6 +54,10 @@ type JetJobSpec struct {
 	// MainClass is the name of the main class that will be run on the submitted job.
 	// +optional
 	MainClass string `json:"mainClass,omitempty"`
+
+	// Bucket Configuration from which the JAR files specified in JarName be downloaded and the jor will be run.
+	// +optional
+	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
 }
 
 // JetJobStatus defines the observed state of JetJob

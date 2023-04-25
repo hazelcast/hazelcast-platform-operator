@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 	It("should execute JetJob successfully", Label("fast"), func() {
 		setLabelAndCRName("jj-1")
 
-		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
+		hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
 		CreateHazelcastCR(hazelcast)
 
@@ -81,7 +81,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 	It("should change JetJob status", Label("fast"), func() {
 		setLabelAndCRName("jj-2")
 
-		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
+		hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
 		CreateHazelcastCR(hazelcast)
 
@@ -108,5 +108,34 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		jj.Spec.State = hazelcastv1alpha1.RunningJobState
 		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
 		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
+	})
+
+	It("should download JAR and execute JetJob", Label("fast"), func() {
+		setLabelAndCRName("jj-3")
+
+		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
+		hazelcast.Spec.ClusterSize = pointer.Int32(1)
+		CreateHazelcastCR(hazelcast)
+
+		By("creating JetJob CR")
+		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
+		jj.Spec.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+			Secret:    "br-secret-gcp",
+			BucketURI: "gs://operator-user-code/jetJobs",
+		}
+		t := Now()
+		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
+		checkJetJobStatus(hazelcastv1alpha1.JetJobCompleted)
+
+		By("Checking the JetJob jar was executed")
+		logs := InitLogs(t, hzLookupKey)
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		test.EventuallyInLogsUnordered(logReader, 15*Second, logInterval).
+			Should(ContainElements(
+				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 0", jj.JobName())),
+				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 1", jj.JobName())),
+				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 13", jj.JobName())),
+				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 89", jj.JobName()))))
 	})
 })

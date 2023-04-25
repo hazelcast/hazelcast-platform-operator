@@ -202,7 +202,27 @@ var (
 		}
 	}
 
-	JetConfigured = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+	JetConfigured = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:      pointer.Int32(1),
+				Repository:       repo(ee),
+				Version:          *hazelcastVersion,
+				LicenseKeySecret: licenseKey(ee),
+				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled:               pointer.Bool(true),
+					ResourceUploadEnabled: true,
+				},
+			},
+		}
+	}
+
+	JetWithBucketConfigured = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
