@@ -21,3 +21,6 @@ spec:
       receiveWindowMultiplier: 3
   version: '5.1.4'
   licenseKeySecret: hazelcast-license-key
+  jvm:
+    args:
+      - "-Djet.idle.cooperative.min.microseconds=50"

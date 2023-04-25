@@ -446,7 +446,9 @@ func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistence
 	return allErrs
 }
 
-func validateJetConfig(h *Hazelcast) error {
+func validateJetConfig(h *Hazelcast) []*field.Error {
+	var allErrs field.ErrorList
+
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
 
@@ -457,10 +459,13 @@ func validateJetConfig(h *Hazelcast) error {
 		return nil
 	}
 	if j.Instance.BackupCount > 6 {
-		return fmt.Errorf("the max value allowed for the backup-count is 6")
+		allErrs = append(allErrs,
+			field.Invalid(field.NewPath("spec").Child("jet").Child("instance").Child("backupCount"),
+				h.Spec.JetEngineConfiguration.Instance.BackupCount, fmt.Sprintf("may not be greater than %d", n.MaxBackupCount)))
 	}
 	if j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
-		return fmt.Errorf("persistence must be enabled to enable lossless restart")
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
+			"can be enabled only if persistence enabled"))
 	}
 
 	return nil

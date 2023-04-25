@@ -222,21 +222,6 @@ spec:
                   resourceUploadEnabled: false
                 description: Jet Engine configuration
                 properties:
-                  edgeDefaults:
-                    description: Jet Edge Defaults Configuration
-                    properties:
-                      packetSizeLimit:
-                        description: Limits the size of the packet in bytes.
-                        type: integer
-                      queueSize:
-                        description: Sets the capacity of processor-to-processor concurrent
-                          queues.
-                        type: integer
-                      receiveWindowMultiplier:
-                        description: Sets the scaling factor used by the adaptive
-                          receive window sizing function.
-                        type: integer
-                    type: object
                   bucketConfig:
                     description: Bucket Configuration from which the JAR files be
                       downloaded and accessible for the member. These JAR files will
@@ -258,6 +243,21 @@ spec:
                     required:
                     - bucketURI
                     - secret
+                    type: object
+                  edgeDefaults:
+                    description: Jet Edge Defaults Configuration
+                    properties:
+                      packetSizeLimit:
+                        description: Limits the size of the packet in bytes.
+                        type: integer
+                      queueSize:
+                        description: Sets the capacity of processor-to-processor concurrent
+                          queues.
+                        type: integer
+                      receiveWindowMultiplier:
+                        description: Sets the scaling factor used by the adaptive
+                          receive window sizing function.
+                        type: integer
                     type: object
                   enabled:
                     default: true
