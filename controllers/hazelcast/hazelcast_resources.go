@@ -1614,7 +1614,11 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
-		containers = append(containers, ucdAgentContainer(h))
+		containers = append(containers, ucdBucketAgentContainer(h))
+	}
+
+	if h.Spec.UserCodeDeployment.IsRemoteURLsEnabled() {
+		containers = append(containers, ucdURLsAgentContainer(h))
 	}
 
 	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
@@ -1756,18 +1760,18 @@ func jetEngineContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
 		Name:  n.JetDownloadAgent,
 		Image: h.AgentDockerImage(),
-		Args:  []string{"user-code-deployment"},
+		Args:  []string{"jar-download-bucket"},
 		Env: []v1.EnvVar{
 			{
-				Name:  "UCD_SECRET_NAME",
+				Name:  "JDB_SECRET_NAME",
 				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.Secret,
 			},
 			{
-				Name:  "UCD_BUCKET",
+				Name:  "JDB_BUCKET_URI",
 				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.BucketURI,
 			},
 			{
-				Name:  "UCD_DESTINATION",
+				Name:  "JDB_DESTINATION",
 				Value: n.JetJobJarsBucketPath,
 			},
 		},
@@ -1775,30 +1779,34 @@ func jetEngineContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
-func ucdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func ucdBucketAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return v1.Container{
-		Name:  n.UserCodeDownloadAgent + h.Spec.UserCodeDeployment.TriggerSequence,
-		Image: h.AgentDockerImage(),
-		Args:  []string{"user-code-deployment"},
+		Name:            n.UserCodeBucketAgent + h.Spec.UserCodeDeployment.TriggerSequence,
+		Image:           h.AgentDockerImage(),
+		Args:            []string{"jar-download-bucket"},
+		ImagePullPolicy: corev1.PullIfNotPresent,
 		Env: []v1.EnvVar{
 			{
-				Name:  "UCD_SECRET_NAME",
+				Name:  "JDB_SECRET_NAME",
 				Value: h.Spec.UserCodeDeployment.BucketConfiguration.Secret,
 			},
 			{
-				Name:  "UCD_BUCKET",
+				Name:  "JDB_BUCKET_URI",
 				Value: h.Spec.UserCodeDeployment.BucketConfiguration.BucketURI,
 			},
 			{
-				Name:  "UCD_DESTINATION",
+				Name:  "JDB_DESTINATION",
 				Value: n.UserCodeBucketPath,
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{ucdAgentVolumeMount(h)},
+		VolumeMounts:             []v1.VolumeMount{ucdBucketAgentVolumeMount()},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
+		SecurityContext:          containerSecurityContext(),
 	}
 }
 
-func ucdAgentVolumeMount(_ *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
+func ucdBucketAgentVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UserCodeBucketVolumeName,
 		MountPath: n.UserCodeBucketPath,
@@ -1809,6 +1817,36 @@ func jetJobJarsVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.JetJobJarsVolumeName,
 		MountPath: n.JetJobJarsBucketPath,
+	}
+}
+
+func ucdURLsAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	return v1.Container{
+		Name:            n.UserCodeURLAgent + h.Spec.UserCodeDeployment.TriggerSequence,
+		Args:            []string{"file-download-url"},
+		Image:           h.AgentDockerImage(),
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Env: []v1.EnvVar{
+			{
+				Name:  "FDU_URLS",
+				Value: strings.Join(h.Spec.UserCodeDeployment.RemoteURLs, ","),
+			},
+			{
+				Name:  "FDU_DESTINATION",
+				Value: n.UserCodeURLPath,
+			},
+		},
+		VolumeMounts:             []v1.VolumeMount{ucdURLAgentVolumeMount()},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
+		SecurityContext:          containerSecurityContext(),
+	}
+}
+
+func ucdURLAgentVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.UserCodeURLVolumeName,
+		MountPath: n.UserCodeURLPath,
 	}
 }
 
@@ -1824,6 +1862,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 			},
 		},
 		emptyDirVolume(n.UserCodeBucketVolumeName),
+		emptyDirVolume(n.UserCodeURLVolumeName),
 		emptyDirVolume(n.JetJobJarsVolumeName),
 	}
 
@@ -1875,7 +1914,8 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 			Name:      n.HazelcastStorageName,
 			MountPath: n.HazelcastMountPath,
 		},
-		ucdAgentVolumeMount(h),
+		ucdBucketAgentVolumeMount(),
+		ucdURLAgentVolumeMount(),
 		jetJobJarsVolumeMount(),
 	}
 	if h.Spec.Persistence.IsEnabled() {
@@ -2083,11 +2123,9 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
-	b := []string{path.Join(n.UserCodeBucketPath, "*")}
-
-	if !h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		return b[0]
-	}
+	b := []string{
+		path.Join(n.UserCodeBucketPath, "*"),
+		path.Join(n.UserCodeURLPath, "*")}
 
 	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
 		b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))

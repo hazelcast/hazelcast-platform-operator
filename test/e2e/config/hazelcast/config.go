@@ -180,7 +180,7 @@ var (
 		return hzRestore
 	}
 
-	UserCode = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+	UserCodeBucket = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -221,6 +221,25 @@ var (
 						Secret:    s,
 						BucketURI: bkt,
 					},
+				},
+			},
+		}
+	}
+
+	UserCodeURL = func(lk types.NamespacedName, ee bool, urls []string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:      &[]int32{1}[0],
+				Repository:       repo(ee),
+				Version:          *hazelcastVersion,
+				LicenseKeySecret: licenseKey(ee),
+				UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
+					RemoteURLs: urls,
 				},
 			},
 		}
