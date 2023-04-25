@@ -426,7 +426,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(MatchError(
-				ContainSubstring("the max value allowed for the backup-count is 6")))
+				ContainSubstring("Invalid value: 7: may not be greater than 6")))
 		})
 
 		It("should validate if lossless restart enabled without enabling persistence", Label("fast"), func() {
@@ -444,7 +444,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("persistence must be enabled to enable lossless restart")))
+				Should(MatchError(ContainSubstring("Forbidden: can be enabled only if persistence enabled")))
 		})
 	})
 })
