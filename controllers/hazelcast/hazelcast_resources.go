@@ -973,8 +973,8 @@ func tlsBasicSslConfigs() (member config.SSL, client config.SSL) {
 
 func tlsOpenSslConfigs() (member config.SSL, client config.SSL) {
 	var (
-		crtPath = path.Join(n.TLSMountPath, "tls.crt")
-		keyPath = path.Join(n.TLSMountPath, "tls.key")
+		crtPath = path.Join(n.TLSMountPath, corev1.TLSCertKey)
+		keyPath = path.Join(n.TLSMountPath, corev1.TLSPrivateKeyKey)
 	)
 	// require MTLS for member-member communication
 	member = config.SSL{
@@ -1947,10 +1947,6 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		vols = append(vols, tlsOpenSSLVolume(h.Spec.TLS))
 	}
 
-	if !h.Spec.Persistence.IsEnabled() {
-		return vols
-	}
-
 	// Add tmpDir because Hazelcast with persistence enabled fails with read-only root file system error
 	// when it tries to write to /tmp dir.
 	vols = append(vols, emptyDirVolume(n.TmpDirVolName))
@@ -2012,13 +2008,12 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	// with read-only rootFileSystem when these features are enabled:
 	// - persistence
 	// - userCodeDeployment
-	// they might try to write into /tmp dir.
-	if h.Spec.Persistence.IsEnabled() || h.Spec.UserCodeDeployment.IsEnabled() {
-		mounts = append(mounts, v1.VolumeMount{
-			Name:      n.TmpDirVolName,
-			MountPath: "/tmp",
-		})
-	}
+	// - jet
+	// when these features are enabled, Hazelcast might need to write to /tmp dir.
+	mounts = append(mounts, v1.VolumeMount{
+		Name:      n.TmpDirVolName,
+		MountPath: "/tmp",
+	})
 
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{

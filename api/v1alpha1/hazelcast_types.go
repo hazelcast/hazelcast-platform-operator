@@ -404,10 +404,6 @@ type UserCodeDeploymentConfig struct {
 	RemoteURLs []string `json:"remoteURLs,omitempty"`
 }
 
-func (c *UserCodeDeploymentConfig) IsEnabled() bool {
-	return c.IsBucketEnabled() || c.IsConfigMapEnabled()
-}
-
 // Returns true if userCodeDeployment.bucketConfiguration is specified.
 func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
 	return c != nil && c.BucketConfiguration != nil
