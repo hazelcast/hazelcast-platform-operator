@@ -861,68 +861,11 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	// TLS Configuration
 	if h.Spec.TLS.IsEnabled() {
-		if h.Spec.TLS.IsBasicSSLEnabled() {
-			var (
-				jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
-				password = "hazelcast"
-			)
-			// require MTLS for member-member communication
-			cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
-				Enabled:          pointer.Bool(true),
-				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-				Properties: config.SSLProperties{
-					Protocol:             "TLSv1.2",
-					MutualAuthentication: "REQUIRED",
-					// server cert + key
-					KeyStoreType:     "JKS",
-					KeyStore:         jksPath,
-					KeyStorePassword: password,
-					// trusted cert pool (we use the same file for convince)
-					TrustStoreType:     "JKS",
-					TrustStore:         jksPath,
-					TrustStorePassword: password,
-				},
-			}
-			// for client-server configuration use only server TLS
-			cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
-				Enabled:          pointer.Bool(true),
-				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-				Properties: config.SSLProperties{
-					Protocol:         "TLS",
-					KeyStoreType:     "JKS",
-					KeyStore:         jksPath,
-					KeyStorePassword: password,
-				},
-			}
-		} else if h.Spec.TLS.IsOpenSSLEnabled() {
-			var (
-				// TODO
-				crtPath = path.Join(n.HazelcastMountPath, "tls.crt")
-				keyPath = path.Join(n.HazelcastMountPath, "tls.key")
-			)
-			// member
-			cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
-				Enabled:          pointer.Bool(true),
-				FactoryClassName: "com.hazelcast.nio.ssl.OpenSSLEngineFactory",
-				Properties: config.SSLProperties{
-					Protocol:                "TLSv1.2",
-					TrustCertCollectionFile: crtPath,
-					KeyFile:                 keyPath,
-					KeyCertChainFile:        crtPath,
-				},
-			}
-			// client
-			cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
-				Enabled:          pointer.Bool(true),
-				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-				Properties: config.SSLProperties{
-					Protocol:         "TLS",
-					KeyFile:          keyPath,
-					KeyCertChainFile: crtPath,
-				},
-			}
-		}
+		memberSsl, clientSsl := tlsSslConfigs(h.Spec.TLS)
+		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = memberSsl
+		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = clientSsl
 	}
+
 	return cfg
 }
 
@@ -981,6 +924,80 @@ func decodePEM(data []byte, typ string) ([]byte, error) {
 		return nil, fmt.Errorf("expected type %v, got %v", typ, b.Type)
 	}
 	return b.Bytes, nil
+}
+
+func tlsSslConfigs(tls hazelcastv1alpha1.TLS) (member config.SSL, client config.SSL) {
+	if tls.IsBasicSSLEnabled() {
+		member, client = tlsBasicSslConfigs()
+	} else if tls.IsOpenSSLEnabled() {
+		member, client = tlsOpenSslConfigs()
+	}
+	return
+}
+
+func tlsBasicSslConfigs() (member config.SSL, client config.SSL) {
+	var (
+		jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
+		password = "hazelcast"
+	)
+	// require MTLS for member-member communication
+	member = config.SSL{
+		Enabled:          pointer.Bool(true),
+		FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+		Properties: config.SSLProperties{
+			Protocol:             "TLSv1.2",
+			MutualAuthentication: "REQUIRED",
+			// server cert + key
+			KeyStoreType:     "JKS",
+			KeyStore:         jksPath,
+			KeyStorePassword: password,
+			// trusted cert pool (we use the same file for convince)
+			TrustStoreType:     "JKS",
+			TrustStore:         jksPath,
+			TrustStorePassword: password,
+		},
+	}
+	// for client-server configuration use only server TLS
+	client = config.SSL{
+		Enabled:          pointer.Bool(true),
+		FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+		Properties: config.SSLProperties{
+			Protocol:         "TLS",
+			KeyStoreType:     "JKS",
+			KeyStore:         jksPath,
+			KeyStorePassword: password,
+		},
+	}
+	return
+}
+
+func tlsOpenSslConfigs() (member config.SSL, client config.SSL) {
+	var (
+		crtPath = path.Join(n.TLSMountPath, "tls.crt")
+		keyPath = path.Join(n.TLSMountPath, "tls.key")
+	)
+	// require MTLS for member-member communication
+	member = config.SSL{
+		Enabled:          pointer.Bool(true),
+		FactoryClassName: "com.hazelcast.nio.ssl.OpenSSLEngineFactory",
+		Properties: config.SSLProperties{
+			Protocol:                "TLSv1.2",
+			TrustCertCollectionFile: crtPath,
+			KeyFile:                 keyPath,
+			KeyCertChainFile:        crtPath,
+		},
+	}
+	// for client-server configuration use only server TLS
+	client = config.SSL{
+		Enabled:          pointer.Bool(true),
+		FactoryClassName: "com.hazelcast.nio.ssl.OpenSSLEngineFactory",
+		Properties: config.SSLProperties{
+			Protocol:         "TLS",
+			KeyFile:          keyPath,
+			KeyCertChainFile: crtPath,
+		},
+	}
+	return
 }
 
 func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {
@@ -1648,7 +1665,7 @@ func podSecurityContext() *v1.PodSecurityContext {
 		FSGroup:      pointer.Int64(65534),
 		RunAsNonRoot: pointer.Bool(true),
 		// Have to give userID otherwise Kubelet fails to create the pod
-		// saying userID must be numberic, Hazelcast image's default userID is "hazelcast"
+		// saying userID must be numeric, Hazelcast image's default userID is "hazelcast"
 		// UBI images prohibits all numeric userIDs https://access.redhat.com/solutions/3103631
 		RunAsUser: pointer.Int64(65534),
 	}
@@ -1956,7 +1973,7 @@ func tlsOpenSSLVolume(tls hazelcastv1alpha1.TLS) corev1.Volume {
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
 				SecretName:  tls.SecretName,
-				DefaultMode: pointer.Int32(755),
+				DefaultMode: pointer.Int32(0755),
 			},
 		},
 	}
@@ -1991,16 +2008,22 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 		jetJobJarsVolumeMount(),
 	}
 
+	// /tmp dir is overridden with emptyDir because Hazelcast fails to start
+	// with read-only rootFileSystem when these features are enabled:
+	// - persistence
+	// - userCodeDeployment
+	// they might try to write into /tmp dir.
+	if h.Spec.Persistence.IsEnabled() || h.Spec.UserCodeDeployment.IsEnabled() {
+		mounts = append(mounts, v1.VolumeMount{
+			Name:      n.TmpDirVolName,
+			MountPath: "/tmp",
+		})
+	}
+
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
-		}, v1.VolumeMount{
-			// /tmp dir is overriden with emptyDir because Hazelcast fails to start with
-			// read-only rootFileSystem when persistence is enabled because it tries to write
-			// into /tmp dir.
-			Name:      n.TmpDirVolName,
-			MountPath: "/tmp",
 		})
 	}
 
@@ -2011,7 +2034,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	if h.Spec.TLS.IsOpenSSLEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      n.TLSOpenSSLVolumeName,
-			MountPath: n.HazelcastMountPath,
+			MountPath: n.TLSMountPath,
 		})
 	}
 

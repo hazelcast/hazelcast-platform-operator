@@ -72,6 +72,7 @@ const (
 	JetJobJarsBucketPath  = "/opt/hazelcast/jetJobJars/bucket"
 
 	TLSOpenSSLVolumeName = "tls-openssl"
+	TLSMountPath         = HazelcastMountPath + "/tls"
 )
 
 // Hazelcast default configurations
