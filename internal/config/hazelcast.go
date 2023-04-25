@@ -78,25 +78,25 @@ type PartitionGroup struct {
 }
 
 type Jet struct {
-	Enabled               *bool           `yaml:"enabled,omitempty"`
-	ResourceUploadEnabled *bool           `yaml:"resource-upload-enabled,omitempty"`
-	Instance              JetInstance     `yaml:"instance,omitempty"`
-	EdgeDefaults          JetEdgeDefaults `yaml:"edge-defaults,omitempty"`
+	Enabled               *bool        `yaml:"enabled,omitempty"`
+	ResourceUploadEnabled *bool        `yaml:"resource-upload-enabled,omitempty"`
+	Instance              JetInstance  `yaml:"instance,omitempty"`
+	EdgeDefaults          EdgeDefaults `yaml:"edge-defaults,omitempty"`
 }
 
 type JetInstance struct {
-	CooperativeThreadCount         int  `yaml:"cooperative-thread-count,omitempty"`
-	FlowControlPeriodMS            int  `yaml:"flow-control-period,omitempty"`
-	BackupCount                    int  `yaml:"backup-count,omitempty"`
-	ScaleUpDelayMS                 int  `yaml:"scale-up-delay-millis,omitempty"`
-	LosslessRestartEnabled         bool `yaml:"lossless-restart-enabled,omitempty"`
-	MaxProcessorAccumulatedRecords int  `yaml:"max-processor-accumulated-records,omitempty"`
+	CooperativeThreadCount         *int32 `yaml:"cooperative-thread-count,omitempty"`
+	FlowControlPeriodMillis        *int32 `yaml:"flow-control-period,omitempty"`
+	BackupCount                    *int32 `yaml:"backup-count,omitempty"`
+	ScaleUpDelayMillis             *int32 `yaml:"scale-up-delay-millis,omitempty"`
+	LosslessRestartEnabled         *bool  `yaml:"lossless-restart-enabled,omitempty"`
+	MaxProcessorAccumulatedRecords *int64 `yaml:"max-processor-accumulated-records,omitempty"`
 }
 
-type JetEdgeDefaults struct {
-	QueueSize               int `yaml:"queue-size,omitempty"`
-	PacketSizeLimit         int `yaml:"packet-size-limit,omitempty"`
-	ReceiveWindowMultiplier int `yaml:"receive-window-multiplier,omitempty"`
+type EdgeDefaults struct {
+	QueueSize               *int32 `yaml:"queue-size,omitempty"`
+	PacketSizeLimit         *int32 `yaml:"packet-size-limit,omitempty"`
+	ReceiveWindowMultiplier *int8  `yaml:"receive-window-multiplier,omitempty"`
 }
 
 type Network struct {

@@ -659,17 +659,17 @@ var _ = Describe("Hazelcast controller", func() {
 					Enabled:               ptr.Bool(true),
 					ResourceUploadEnabled: ptr.Bool(false),
 					Instance: config.JetInstance{
-						CooperativeThreadCount:         1,
-						FlowControlPeriodMS:            1,
-						BackupCount:                    1,
-						ScaleUpDelayMS:                 1,
-						LosslessRestartEnabled:         false,
-						MaxProcessorAccumulatedRecords: 1,
+						CooperativeThreadCount:         ptr.Int32(1),
+						FlowControlPeriodMillis:        ptr.Int32(1),
+						BackupCount:                    ptr.Int32(1),
+						ScaleUpDelayMillis:             ptr.Int32(1),
+						LosslessRestartEnabled:         ptr.Bool(false),
+						MaxProcessorAccumulatedRecords: ptr.Int64(1),
 					},
-					EdgeDefaults: config.JetEdgeDefaults{
-						QueueSize:               1,
-						PacketSizeLimit:         1,
-						ReceiveWindowMultiplier: 1,
+					EdgeDefaults: config.EdgeDefaults{
+						QueueSize:               ptr.Int32(1),
+						PacketSizeLimit:         ptr.Int32(1),
+						ReceiveWindowMultiplier: ptr.Int8(1),
 					},
 				}
 
