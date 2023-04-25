@@ -130,34 +130,6 @@ checking_image_grade()
     done
 }
 
-# This function will delete completed 'pages-build-deployment' runs using 'run_number' located in a custom head_commit message
-cleanup_page_publish_runs()
-{
-    sleep 2
-    local GITHUB_REPOSITORY=$1
-    local JOB_NAME=$2
-    local MASTER_JOB_RUN_NUMBER=$3
-    local TIMEOUT_IN_MINS=$4
-    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
-    local WORKFLOW_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/workflows | jq '.workflows[] | select(.["name"] | contains("'${JOB_NAME}'")) | .id')
-
-    for i in `seq 1 ${NOF_RETRIES}`; do
-            RUN_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW_ID}/runs --paginate | jq '.workflow_runs[] | select(.["status"] | contains("completed")) | select(.head_commit.message | select(contains("'${MASTER_JOB_RUN_NUMBER}'"))) | .id')
-            if [[ ${RUN_ID} -ne "" ]]; then
-                    echo "Deleting Run ID $RUN_ID for the workflow ID $WORKFLOW_ID"
-                    gh api repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID} -X DELETE >/dev/null
-                return 0
-            else
-                echo "The '${JOB_NAME}' job that was triggered by job with run number '${MASTER_JOB_RUN_NUMBER}' is not finished yet. Waiting..."
-            fi
-            if [[ ${i} == ${NOF_RETRIES} ]]; then
-                echo "Timeout! 'pages-build-deployment' job still not completed."
-                return 42
-            fi
-            sleep 20
-    done
-}
-
 # The function waits until all EKS stacks will be deleted. Takes 2 arguments - cluster name and timeout.
 wait_for_eks_stack_deleted()
 {
@@ -275,9 +247,8 @@ wait_for_instance_restarted()
 # Returns the specified number of files with name test_suite_XX where XX - suffix number of file starting with '01'. The tests will be equally splitted between files.
 generate_test_suites()
 {
+   make ginkgo
    mkdir suite_files
-   local GINKGO_VERSION=v2.1.6
-   make ginkgo GINKGO_VERSION=$GINKGO_VERSION
    SUITE_LIST=$(find test/e2e -type f \
      -name "*_test.go" \
    ! -name "hazelcast_backup_slow_test.go" \
@@ -290,7 +261,7 @@ generate_test_suites()
    ! -name "util_test.go" \
    ! -name "options_test.go")
    for SUITE_NAME in $SUITE_LIST; do
-       $(go env GOBIN)/ginkgo/$GINKGO_VERSION/ginkgo outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
+       $(make ginkgo PRINT_TOOL_NAME=true) outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
    done
    split --number=r/$1 TESTS_LIST suite_files/test_suite_ --numeric-suffixes=1 -a 2
    for i in $(ls suite_files/); do
@@ -302,36 +273,47 @@ generate_test_suites()
 
 # The function merges all test reports (XML) files from each node into one report.
 # Takes a single argument - the WORKFLOW_ID (kind,gke,eks, aks etc.)
-merge_xml_test_reports()
-{
+merge_xml_test_reports() {
   sudo apt-get install -y xmlstarlet
-  local HZ_VERSIONS=("ee" "os")
-  for hz_version in "${HZ_VERSIONS[@]}"; do
+  local WORKFLOW_ID=$1
+  local files_by_edition=()
+  local edition
+  for file in $(ls ${GITHUB_WORKSPACE}/allure-results/$WORKFLOW_ID/test_report_*); do
+      if [[ $WORKFLOW_ID == "multi" ]]; then
+         edition=$(basename "$file" | awk -F "_" '{print $3"_"$4"_"$5}')
+      else
+         edition=$(basename "$file" | awk -F "_" '{print $3}')
+      fi
+         files_by_edition+=("$edition $file")
+  done
+  groups=$(printf "%s\n" "${files_by_edition[@]}" | awk '{print $1}' | sort -u)
+
+  for group in $groups; do
       IFS=$'\n'
-      local PARENT_TEST_REPORT_FILE="${GITHUB_WORKSPACE}/allure-results/$1/test-report-$hz_version-01.xml"
-      # for each test report file (except parent one) extracted the test cases
-      for ALLURE_SUITE_FILE in $(find ${GITHUB_WORKSPACE}/allure-results/$1 -type f \
-            -name 'test-report-'$hz_version'-?[0-9].xml' \
-          ! -name 'test-report-'$hz_version'-01.xml'); do
+      local PARENT_TEST_REPORT_FILE="${GITHUB_WORKSPACE}/allure-results/$WORKFLOW_ID/test_report_"$group"_01.xml"
+      for ALLURE_SUITE_FILE in $(find ${GITHUB_WORKSPACE}/allure-results/$WORKFLOW_ID/test_report_* -type f \
+              -name 'test_report_'$group'_?[0-9].xml' \
+            ! -name 'test_report_'$group'_01.xml'); do
           local TEST_CASES=$(sed '1,/<\/properties/d;/<\/testsuite/,$d' $ALLURE_SUITE_FILE)
           # insert extracted test cases into parent_test_report_file
           printf '%s\n' '0?<\/testcase>?a' $TEST_CASES . x | ex $PARENT_TEST_REPORT_FILE
       done
-          #remove 'SynchronizedBeforeSuite' and 'AfterSuite' xml tags from the final report
-          cat <<< $(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
-          cat <<< $(xmlstarlet ed -d '//testcase[@name="[AfterSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
-          # for each test name verify status
+      #remove 'SynchronizedBeforeSuite' and 'AfterSuite' xml tags from the final report
+      cat <<<$(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
+      cat <<<$(xmlstarlet ed -d '//testcase[@name="[AfterSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
+
+      # for each test name verify status
       for TEST_NAME in $(xmlstarlet sel -t -v "//testcase/@name" $PARENT_TEST_REPORT_FILE); do
           local IS_PASSED=$(xmlstarlet sel -t -v 'count(//testcase[@name="'"${TEST_NAME}"'" and @status="passed"])' $PARENT_TEST_REPORT_FILE)
           local IS_FAILED=$(xmlstarlet sel -t -v 'count(//testcase[@name="'"${TEST_NAME}"'" and @status="failed"])' $PARENT_TEST_REPORT_FILE)
           if [[ "$IS_PASSED" -ge 1 || "$IS_FAILED" -ge 1 ]]; then
-          # if test is 'passed' or 'failed' then remove all tests with 'skipped' status and remove duplicated tags with 'passed' and 'failed' statuses except one
-              cat <<< $(xmlstarlet ed -d '//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
-              cat <<< $(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="passed"])[position()>1]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
-              cat <<< $(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="failed"])[position()>1]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+              # if test is 'passed' or 'failed' then remove all tests with 'skipped' status and remove duplicated tags with 'passed' and 'failed' statuses except one
+              cat <<<$(xmlstarlet ed -d '//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
+              cat <<<$(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="passed"])[position()>1]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
+              cat <<<$(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="failed"])[position()>1]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
           else
-          # if tests in not in 'passed' or 'failed' statuses, then remove all duplicated tags with 'skipped' statuses except one
-              cat <<< $(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"])[position()>1]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+              # if tests in not in 'passed' or 'failed' statuses, then remove all duplicated tags with 'skipped' statuses except one
+              cat <<<$(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"])[position()>1]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
           fi
       done
       # count 'total' and 'skipped' number of tests and update the values in the final report
@@ -341,10 +323,10 @@ merge_xml_test_reports()
       local SKIPPED_TESTS=$(xmlstarlet sel -t -v 'count(//testcase[@status="skipped"])' $PARENT_TEST_REPORT_FILE)
       sed -i 's/tests="[^"]*/tests="'$TOTAL_TESTS'/g' $PARENT_TEST_REPORT_FILE
       sed -i 's/failures="[^"]*/failures="'$FAILED_TESTS'/g' $PARENT_TEST_REPORT_FILE
-      sed -i 's/errors="[^"]*/errors="'$FAILED_TESTS'/g' $PARENT_TEST_REPORT_FILE
+      sed -i 's/errors="[^"]*/errors="'$BROKEN_TESTS'/g' $PARENT_TEST_REPORT_FILE
       sed -i 's/skipped="[^"]*/skipped="'$SKIPPED_TESTS'/g' $PARENT_TEST_REPORT_FILE
       # remove all test report files except parent one for further processing
-      find ${GITHUB_WORKSPACE}/allure-results/$1 -type f -name 'test-report-'$hz_version'-?[0-9].xml' ! -name 'test-report-'$hz_version'-01.xml' -delete
+      find ${GITHUB_WORKSPACE}/allure-results/$WORKFLOW_ID/test_report_* -type f -name 'test_report_'$group'_?[0-9].xml' ! -name 'test_report_'$group'_01.xml' -delete
   done
 }
 
@@ -367,7 +349,7 @@ update_test_files()
                                |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
                                |.testStage.steps[].name |= sub(" Duration.*";"")
                                |.testStage.steps[].time.duration |= sub(".*Duration:";"")
-                               |.testStage.steps[].time.duration |= (if contains("ms") then split("ms") | .[0]|tonumber elif contains("CR_ID") then . elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
+                               |.testStage.steps[].time.duration |= (if contains("CR_ID") then . elif contains("ms") then split("ms") | .[0]|tonumber elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
                                |.testStage.steps[]+={status: "passed"}
                                |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
                                |to_entries
@@ -502,4 +484,54 @@ update_status_badges()
        done
        exit 1
      fi
+}
+
+# It cleans up resources (all, PVCs and their bounded PVs) in the given namespace.
+cleanup_namespace(){
+
+  # number of all resources excepting `kubernetes` svc
+  number_of_all_resources() {
+    kubectl get all --namespace="$1" -o json | \
+      jq '.items | map(select((.kind | contains("Service")) and (.metadata.name | contains("kubernetes")) | not)) | length'
+  }
+
+  # number of PVCs
+  number_of_pvc() {
+    kubectl get pvc --namespace="$1" -o json | \
+      jq '.items | length'
+  }
+
+  # space separated list of PVs which are bounded to PVCs in given namespace
+  list_of_bounded_pv(){
+    kubectl get pvc --namespace="$1" -o json | \
+      jq -r '.items[].spec.volumeName' | \
+      tr '\n' ' '
+  }
+
+  ns="$1"
+
+  if [ -z "$ns" ];
+  then
+      echo "namespace is not passed"
+      exit 1
+  fi
+
+  echo "namespace: '$ns'"
+
+  while [ "$(number_of_all_resources "$ns")" -gt 0 ]
+  do
+    echo "kubectl delete all"
+    kubectl delete all --all --namespace="$ns"
+    sleep 3
+  done
+
+  if [ "$(number_of_pvc "$ns")" -gt 0 ];
+  then
+    pvList="$(list_of_bounded_pv "$ns")"
+    echo "kubectl delete PVCs"
+    kubectl delete pvc --all --namespace="$ns"
+    echo "kubectl delete PV $pvList"
+    kubectl delete pv $pvList || true
+  fi
+
 }

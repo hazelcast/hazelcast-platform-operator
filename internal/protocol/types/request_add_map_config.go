@@ -79,5 +79,8 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 		},
 		MetadataPolicy:       0,
 		PerEntryStatsEnabled: false,
+		NearCacheConfig: NearCacheConfigHolder{
+			EvictionConfigHolder: EvictionConfigHolder{},
+		},
 	}
 }

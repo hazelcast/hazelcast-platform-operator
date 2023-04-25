@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	. "time"
 
@@ -50,7 +49,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastv1alpha1.MapFailed)
-		Expect(m.Status.Message).To(Equal(fmt.Sprintf("persistence is not enabled for the Hazelcast resource %s", hazelcast.Name)))
+		Expect(m.Status.Message).To(ContainSubstring("data structure persistence must match with Hazelcast persistence"))
 	})
 
 	It("should keep the entries after a Hot Backup", Label("slow"), func() {
@@ -97,7 +96,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
 	})
 
-	It("should persist the map successfully created configs into the configmap", Label("fast"), func() {
+	It("should persist the map successfully created configs into the config", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -124,7 +123,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 			assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 		}
 
-		By("checking if the maps are in the map config", func() {
+		By("checking if the maps are in the Config", func() {
 			hzConfig := assertMapConfigsPersisted(hazelcast, "map1", "map2", "map3")
 			for i, mapp := range maps {
 				if mapp != "mapfail" {
@@ -137,7 +136,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		Expect(k8sClient.Delete(context.Background(),
 			&hazelcastv1alpha1.Map{ObjectMeta: v1.ObjectMeta{Name: "map2", Namespace: hazelcast.Namespace}})).Should(Succeed())
 
-		By("checking if map2 is not persisted in the configmap", func() {
+		By("checking if map2 is not persisted in the Config", func() {
 			_ = assertMapConfigsPersisted(hazelcast, "map1", "map3")
 		})
 	})
@@ -162,7 +161,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 
-		By("checking if the map is in the configmap")
+		By("checking if the map is in the Config")
 		hzConfig := assertMapConfigsPersisted(hazelcast, m.Name)
 
 		By("checking if the indexes are persisted")

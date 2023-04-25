@@ -74,7 +74,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		By("creating the ReplicatedMap config")
 		rms := hazelcastcomv1alpha1.ReplicatedMapSpec{
 			HazelcastResourceName: hzLookupKey.Name,
-			InMemoryFormat:        hazelcastcomv1alpha1.InMemoryFormatBinary,
+			InMemoryFormat:        hazelcastcomv1alpha1.RMInMemoryFormatBinary,
 			AsyncFillup:           pointer.Bool(false),
 		}
 		rm := hazelcastconfig.ReplicatedMap(rms, rmLookupKey, labels)
@@ -82,9 +82,9 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		rm = assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{}).(*hazelcastcomv1alpha1.ReplicatedMap)
 
 		By("failing to update ReplicatedMap config")
-		rm.Spec.InMemoryFormat = hazelcastcomv1alpha1.InMemoryFormatObject
+		rm.Spec.InMemoryFormat = hazelcastcomv1alpha1.RMInMemoryFormatObject
 		rm.Spec.AsyncFillup = pointer.Bool(true)
-		Expect(k8sClient.Update(context.Background(), rm)).Should(Succeed())
-		assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.ReplicatedMap{})
+		Expect(k8sClient.Update(context.Background(), rm)).
+			Should(MatchError(ContainSubstring("spec: Forbidden: cannot be updated")))
 	})
 })

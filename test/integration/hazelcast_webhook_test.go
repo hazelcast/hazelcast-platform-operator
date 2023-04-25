@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"k8s.io/utils/pointer"
 
+	"github.com/aws/smithy-go/ptr"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -13,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -71,7 +74,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("startupAction PartialStart can be used only with Partial* clusterDataRecoveryPolicy")))
+				Should(MatchError(ContainSubstring("PartialStart can be used only with Partial clusterDataRecoveryPolicy")))
 		})
 
 		It("should not create HZ if pvc is specified", Label("fast"), func() {
@@ -85,7 +88,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("when persistence is enabled \"pvc\" field must be set")))
+				Should(MatchError(ContainSubstring("spec.persistence.pvc: Required value: must be set when persistence is enabled")))
 		})
 	})
 
@@ -102,7 +105,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("when Hazelcast Enterprise is deployed, licenseKeySecret must be set")))
+				Should(MatchError(ContainSubstring("spec.licenseKeySecret: Required value: must be set when Hazelcast Enterprise is deployed")))
 		})
 	})
 
@@ -118,7 +121,139 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("cluster size limit is exceeded")))
+				Should(MatchError(ContainSubstring("Invalid value: 301: may not be greater than 300")))
+		})
+	})
+
+	Context("JVM Configuration", func() {
+		expectedErrStr := `%s is already set up in JVM config"`
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.InitialRamPerArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+					InitialRAMPercentage: ptr.String("10"),
+				},
+				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.InitialRamPerArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.InitialRamPerArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MinRamPerArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+					MinRAMPercentage: ptr.String("10"),
+				},
+				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MinRamPerArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.MinRamPerArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MaxRamPerArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
+					MaxRAMPercentage: ptr.String("10"),
+				},
+				Args: []string{fmt.Sprintf("%s=10", hazelcastv1alpha1.MaxRamPerArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.MaxRamPerArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.GCLoggingArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				GC: &hazelcastv1alpha1.JVMGCConfiguration{
+					Logging: ptr.Bool(true),
+				},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.GCLoggingArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.GCLoggingArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.SerialGCArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			c := hazelcastv1alpha1.GCTypeSerial
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				Memory: nil,
+				GC: &hazelcastv1alpha1.JVMGCConfiguration{
+					Collector: &c,
+				},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.SerialGCArg)},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.SerialGCArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.ParallelGCArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			c := hazelcastv1alpha1.GCTypeParallel
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				GC:   &hazelcastv1alpha1.JVMGCConfiguration{},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.ParallelGCArg)},
+			}
+			spec.JVM.GC.Collector = &c
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.ParallelGCArg))))
+		})
+
+		It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.G1GCArg), Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			c := hazelcastv1alpha1.GCTypeG1
+			spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+				GC:   &hazelcastv1alpha1.JVMGCConfiguration{},
+				Args: []string{fmt.Sprintf(hazelcastv1alpha1.G1GCArg)},
+			}
+			spec.JVM.GC.Collector = &c
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.G1GCArg))))
 		})
 	})
 
@@ -135,7 +270,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set")))
+				Should(MatchError(ContainSubstring("Forbidden: can't be set when exposeExternally.type is set to \"Unisocket\"")))
 		})
 	})
 
@@ -164,7 +299,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				break
 			}
 			Expect(err).
-				Should(MatchError(ContainSubstring("highAvailabilityMode cannot be updated")))
+				Should(MatchError(ContainSubstring("spec.highAvailabilityMode: Forbidden: field cannot be updated")))
 
 			deleteIfExists(lookupKey(hz), hz)
 			assertDoesNotExist(lookupKey(hz), hz)
@@ -193,7 +328,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(MatchError(
-				ContainSubstring("wan replications ports are overlapping, please check and re-apply")))
+				ContainSubstring("spec.advancedNetwork.wan: Invalid value: \"5001-5003\": wan ports overlapping with 5002-5004")))
 		})
 
 		It("should validate overlap with other sockets", Label("fast"), func() {
@@ -213,10 +348,70 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("following port numbers are not in use for wan replication")))
+				Should(MatchError(ContainSubstring("spec.advancedNetwork.wan[0]: Invalid value: \"5702-5704\": wan ports conflicting with one of 5701,5702,8081")))
+		})
+
+		It("should validate service type for wan config", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+				WAN: []hazelcastv1alpha1.WANConfig{
+					{
+						Port:        5702,
+						PortCount:   3,
+						ServiceType: corev1.ServiceTypeExternalName,
+					},
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("invalid serviceType value, possible values are ClusterIP and LoadBalancer")))
 		})
 	})
 
+	Context("Hazelcast Validation Multiple Errors", func() {
+		It("should return multiple errors", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+			}
+			spec.ClusterSize = pointer.Int32(5000)
+			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+				WAN: []hazelcastv1alpha1.WANConfig{
+					{
+						Port:      5701,
+						PortCount: 20,
+					},
+					{
+						Port:      5709,
+						PortCount: 1,
+					},
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+			err := k8sClient.Create(context.Background(), hz)
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.exposeExternally.memberAccess:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.clusterSize:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.advancedNetwork.wan:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.advancedNetwork.wan[0]:")))
+
+		})
+
+	})
 	Context("Hazelcast Jet Engine Configuration", func() {
 		It("should validate backup count", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)

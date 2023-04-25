@@ -17,39 +17,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
-type CRLister interface {
-	GetItems() []client.Object
-}
-
-type Type interface {
-	GetKind() string
-}
-
-type DataStructure interface {
-	GetDSName() string
-	GetHZResourceName() string
-	GetStatus() hazelcastv1alpha1.DataStructureConfigState
-	GetMemberStatuses() map[string]hazelcastv1alpha1.DataStructureConfigState
-	SetStatus(hazelcastv1alpha1.DataStructureConfigState, string, map[string]hazelcastv1alpha1.DataStructureConfigState)
-	GetSpec() (string, error)
-	SetSpec(string) error
-}
-
 type Update func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error
 
 func isDSPersisted(obj client.Object) bool {
-	switch obj.(DataStructure).GetStatus() {
+	switch obj.(hazelcastv1alpha1.DataStructure).GetStatus().State {
 	case hazelcastv1alpha1.DataStructurePersisting, hazelcastv1alpha1.DataStructureSuccess:
 		return true
 	case hazelcastv1alpha1.DataStructureFailed, hazelcastv1alpha1.DataStructurePending:
 		if spec, ok := obj.GetAnnotations()[n.LastSuccessfulSpecAnnotation]; ok {
-			if err := obj.(DataStructure).SetSpec(spec); err != nil {
+			if err := obj.(hazelcastv1alpha1.DataStructure).SetSpec(spec); err != nil {
 				return false
 			}
 			return true
@@ -68,19 +51,34 @@ func initialSetupDS(ctx context.Context,
 	if err := getCR(ctx, c, obj, nn, logger); err != nil {
 		return nil, ctrl.Result{}, err
 	}
-	objKind := obj.(Type).GetKind()
+	objKind := hazelcastv1alpha1.GetKind(obj)
 
 	if err := util.AddFinalizer(ctx, c, obj, logger); err != nil {
-		result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(err).withMessage(err.Error()))
+		result, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+			withDSFailedState(err.Error()))
 		return nil, result, err
 	}
 
 	if obj.GetDeletionTimestamp() != nil {
 		if err := startDelete(ctx, c, obj, updateFunc, logger); err != nil {
-			result, err := updateDSStatus(ctx, c, obj, dsTerminatingStatus(err).withMessage(err.Error()))
+			result, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+				withDSState(hazelcastv1alpha1.DataStructureTerminating),
+				withDSMessage(err.Error()))
 			return nil, result, err
 		}
 		return nil, ctrl.Result{}, nil
+	}
+
+	// Get Hazelcast
+	ds := obj.(hazelcastv1alpha1.DataStructure)
+	hzLookupKey := types.NamespacedName{Name: ds.GetHZResourceName(), Namespace: nn.Namespace}
+	h := &hazelcastv1alpha1.Hazelcast{}
+	err := c.Get(ctx, hzLookupKey, h)
+	if err != nil {
+		err = fmt.Errorf("could not create/update %v config: Hazelcast resource not found: %w", hazelcastv1alpha1.GetKind(obj), err)
+		res, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+			withDSFailedState(err.Error()))
+		return nil, res, err
 	}
 
 	cont, res, err := handleCreatedBefore(ctx, c, obj, logger)
@@ -88,13 +86,27 @@ func initialSetupDS(ctx context.Context,
 		return nil, res, err
 	}
 
-	cl, res, err := getHZClient(ctx, c, obj, nn.Namespace, obj.(DataStructure).GetHZResourceName(), cs)
+	if err := ds.ValidateSpecCurrent(h); err != nil {
+		res, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+			withDSFailedState(fmt.Sprintf("could not validate current spec: %s", err.Error())))
+		return nil, res, err
+	}
+
+	if err := ds.ValidateSpecUpdate(); err != nil {
+		res, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+			withDSFailedState(fmt.Sprintf("could not validate update in spec: %s", err.Error())))
+		return nil, res, err
+	}
+
+	cl, res, err := getHZClient(ctx, c, obj, h, cs)
 	if cl == nil {
 		return nil, res, err
 	}
 
-	if obj.(DataStructure).GetStatus() != hazelcastv1alpha1.DataStructurePersisting {
-		requeue, err := updateDSStatus(ctx, c, obj, dsPendingStatus(0).withMessage(fmt.Sprintf("Applying new %v configuration.", objKind)))
+	if ds.GetStatus().State != hazelcastv1alpha1.DataStructurePersisting {
+		requeue, err := updateDSStatus(ctx, c, obj, recoptions.Empty(),
+			withDSState(hazelcastv1alpha1.Pending),
+			withDSMessage(fmt.Sprintf("Applying new %v configuration.", objKind)))
 		if err != nil {
 			return nil, requeue, err
 		}
@@ -115,7 +127,7 @@ func getCR(ctx context.Context, c client.Client, obj client.Object, nn client.Ob
 }
 
 func startDelete(ctx context.Context, c client.Client, obj client.Object, updateFunc Update, logger logr.Logger) error {
-	updateDSStatus(ctx, c, obj, dsTerminatingStatus(nil)) //nolint:errcheck
+	updateDSStatus(ctx, c, obj, recoptions.Empty(), withDSState(hazelcastv1alpha1.Terminating)) //nolint:errcheck
 	if err := executeFinalizer(ctx, obj, updateFunc); err != nil {
 		return err
 	}
@@ -137,49 +149,44 @@ func executeFinalizer(ctx context.Context, obj client.Object, updateFunc Update)
 
 func handleCreatedBefore(ctx context.Context, c client.Client, obj client.Object, logger logr.Logger) (bool, ctrl.Result, error) {
 	s, createdBefore := obj.GetAnnotations()[n.LastSuccessfulSpecAnnotation]
-	objKind := obj.(Type).GetKind()
+	objKind := hazelcastv1alpha1.GetKind(obj)
 	if createdBefore {
-		mms, err := obj.(DataStructure).GetSpec()
+		mms, err := obj.(hazelcastv1alpha1.DataStructure).GetSpec()
 		if err != nil {
-			result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(err).withMessage(err.Error()))
+			result, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+				withDSFailedState(err.Error()))
 			return false, result, err
 		}
 
 		if s == mms {
 			logger.Info(fmt.Sprintf("%v Config was already applied.", objKind), "name", obj.GetName(), "namespace", obj.GetNamespace())
-			result, err := updateDSStatus(ctx, c, obj, dsSuccessStatus())
+			result, err := updateDSStatus(ctx, c, obj, recoptions.Empty(), withDSState(hazelcastv1alpha1.DataStructureSuccess))
 			return false, result, err
 		}
-		result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(fmt.Errorf("%v is not updatable", objKind)))
-		return false, result, err
 	}
 	return true, ctrl.Result{}, nil
 }
 
-func getHZClient(ctx context.Context, c client.Client, obj client.Object, ns, hzResourceName string, cs hzclient.ClientRegistry) (hzclient.Client, ctrl.Result, error) {
-	h := &hazelcastv1alpha1.Hazelcast{}
-	hzLookup := types.NamespacedName{Namespace: ns, Name: hzResourceName}
-	err := c.Get(ctx, hzLookup, h)
-	if err != nil {
-		err = fmt.Errorf("could not create/update %v config: Hazelcast resource not found: %w", obj.(Type).GetKind(), err)
-		result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(err).withMessage(err.Error()))
-		return nil, result, err
-	}
+func getHZClient(ctx context.Context, c client.Client, obj client.Object, h *hazelcastv1alpha1.Hazelcast, cs hzclient.ClientRegistry) (hzclient.Client, ctrl.Result, error) {
 	if h.Status.Phase != hazelcastv1alpha1.Running {
-		err = errors.NewServiceUnavailable("Hazelcast CR is not ready")
-		result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(err).withMessage(err.Error()))
-		return nil, result, err
+		err := errors.NewServiceUnavailable("Hazelcast CR is not ready")
+		result, newErr := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+			withDSFailedState(err.Error()))
+		return nil, result, newErr
 	}
 
-	hzcl, err := cs.GetOrCreate(ctx, hzLookup)
+	hzcl, err := cs.GetOrCreate(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 	if err != nil {
-		err = errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", hzResourceName))
-		result, err := updateDSStatus(ctx, c, obj, dsFailedStatus(err).withMessage(err.Error()))
+		err = errors.NewInternalError(fmt.Errorf("cannot connect to the cluster for %s", h.Name))
+		result, err := updateDSStatus(ctx, c, obj, recoptions.Error(err),
+			withDSFailedState(err.Error()))
 		return nil, result, err
 	}
 	if !hzcl.Running() {
-		err = fmt.Errorf("trying to connect to the cluster %s", hzResourceName)
-		result, err := updateDSStatus(ctx, c, obj, dsPendingStatus(retryAfterForDataStructures).withMessage(err.Error()))
+		err = fmt.Errorf("trying to connect to the cluster %s", h.Name)
+		result, err := updateDSStatus(ctx, c, obj, recoptions.RetryAfter(retryAfterForDataStructures),
+			withDSState(hazelcastv1alpha1.Pending),
+			withDSMessage(err.Error()))
 		return nil, result, err
 	}
 
@@ -196,15 +203,18 @@ func finalSetupDS(ctx context.Context, c client.Client, ph chan struct{}, obj cl
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
 
-	return updateDSStatus(ctx, c, obj, dsSuccessStatus().withMemberStatuses(nil))
+	return updateDSStatus(ctx, c, obj, recoptions.Empty(),
+		withDSState(hazelcastv1alpha1.DataStructureSuccess),
+		withDSMessage(""),
+		withDSMemberStatuses{})
 }
 
 func updateLastSuccessfulConfigurationDS(ctx context.Context, c client.Client, obj client.Object, logger logr.Logger) error {
-	spec, err := obj.(DataStructure).GetSpec()
+	spec, err := obj.(hazelcastv1alpha1.DataStructure).GetSpec()
 	if err != nil {
 		return err
 	}
-	opResult, err := util.CreateOrUpdate(ctx, c, obj, func() error {
+	opResult, err := util.Update(ctx, c, obj, func() error {
 		annotations := obj.GetAnnotations()
 		if annotations == nil {
 			annotations = map[string]string{}
@@ -214,7 +224,7 @@ func updateLastSuccessfulConfigurationDS(ctx context.Context, c client.Client, o
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", fmt.Sprintf("%v Annotation", obj.(Type).GetKind()), obj.GetName(), "result", opResult)
+		logger.Info("Operation result", fmt.Sprintf("%v Annotation", hazelcastv1alpha1.GetKind(obj)), obj.GetName(), "result", opResult)
 	}
 	return err
 }
@@ -228,7 +238,7 @@ func sendCodecRequest(
 	memberStatuses := map[string]hazelcastv1alpha1.DataStructureConfigState{}
 	var failedMembers strings.Builder
 	for _, member := range cl.OrderedMembers() {
-		if status, ok := obj.(DataStructure).GetMemberStatuses()[member.UUID.String()]; ok && status == hazelcastv1alpha1.DataStructureSuccess {
+		if status, ok := obj.(hazelcastv1alpha1.DataStructure).GetStatus().MemberStatuses[member.UUID.String()]; ok && status == hazelcastv1alpha1.DataStructureSuccess {
 			memberStatuses[member.UUID.String()] = hazelcastv1alpha1.DataStructureSuccess
 			continue
 		}
@@ -243,23 +253,23 @@ func sendCodecRequest(
 	}
 	errString := failedMembers.String()
 	if errString != "" {
-		return memberStatuses, fmt.Errorf("error creating/updating the MultiMap config %s for members %s", obj.(DataStructure).GetDSName(), errString[:len(errString)-2])
+		return memberStatuses, fmt.Errorf("error creating/updating the MultiMap config %s for members %s", obj.(hazelcastv1alpha1.DataStructure).GetDSName(), errString[:len(errString)-2])
 	}
 
 	return memberStatuses, nil
 }
 
-func getHazelcastConfigMap(ctx context.Context, c client.Client, obj client.Object) (*config.HazelcastWrapper, error) {
-	cm := &corev1.ConfigMap{}
-	err := c.Get(ctx, types.NamespacedName{Name: obj.(DataStructure).GetHZResourceName(), Namespace: obj.GetNamespace()}, cm)
+func getHazelcastConfig(ctx context.Context, c client.Client, obj client.Object) (*config.HazelcastWrapper, error) {
+	cm := &corev1.Secret{}
+	err := c.Get(ctx, types.NamespacedName{Name: obj.(hazelcastv1alpha1.DataStructure).GetHZResourceName(), Namespace: obj.GetNamespace()}, cm)
 	if err != nil {
-		return nil, fmt.Errorf("could not find ConfigMap for %v config persistence", obj.(Type).GetKind())
+		return nil, fmt.Errorf("could not find Secret for %v config persistence", hazelcastv1alpha1.GetKind(obj))
 	}
 
 	hzConfig := &config.HazelcastWrapper{}
-	err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+	err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 	if err != nil {
-		return nil, fmt.Errorf("persisted ConfigMap is not formatted correctly")
+		return nil, fmt.Errorf("persisted Secret is not formatted correctly")
 	}
 	return hzConfig, nil
 }

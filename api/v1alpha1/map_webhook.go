@@ -1,15 +1,10 @@
 package v1alpha1
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 // log is for logging in this package.
@@ -34,18 +29,7 @@ func (m *Map) ValidateCreate() error {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (m *Map) ValidateUpdate(old runtime.Object) error {
 	maplog.Info("validate update", "name", m.Name)
-
-	// use last successfully applied spec
-	if last, ok := m.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
-		var parsed MapSpec
-		if err := json.Unmarshal([]byte(last), &parsed); err != nil {
-			return fmt.Errorf("error parsing last map spec: %w", err)
-		}
-
-		return ValidateNotUpdatableMapFields(&m.Spec, &parsed)
-	}
-
-	return nil
+	return ValidateMapSpecUpdate(m)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

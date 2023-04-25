@@ -72,18 +72,8 @@ func (mm *MultiMap) GetHZResourceName() string {
 	return mm.Spec.HazelcastResourceName
 }
 
-func (mm *MultiMap) GetStatus() DataStructureConfigState {
-	return mm.Status.State
-}
-
-func (mm *MultiMap) GetMemberStatuses() map[string]DataStructureConfigState {
-	return mm.Status.MemberStatuses
-}
-
-func (mm *MultiMap) SetStatus(status DataStructureConfigState, msg string, memberStatues map[string]DataStructureConfigState) {
-	mm.Status.State = status
-	mm.Status.Message = msg
-	mm.Status.MemberStatuses = memberStatues
+func (mm *MultiMap) GetStatus() *DataStructureStatus {
+	return &mm.Status.DataStructureStatus
 }
 
 func (mm *MultiMap) GetSpec() (string, error) {
@@ -99,6 +89,14 @@ func (mm *MultiMap) SetSpec(spec string) error {
 		return err
 	}
 	return nil
+}
+
+func (mm *MultiMap) ValidateSpecCurrent(_ *Hazelcast) error {
+	return nil
+}
+
+func (mm *MultiMap) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(mm)
 }
 
 //+kubebuilder:object:root=true

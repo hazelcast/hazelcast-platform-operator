@@ -34,9 +34,7 @@ func (r *MultiMap) ValidateCreate() error {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *MultiMap) ValidateUpdate(old runtime.Object) error {
 	multimaplog.Info("validate update", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object update.
-	return nil
+	return r.ValidateSpecUpdate()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

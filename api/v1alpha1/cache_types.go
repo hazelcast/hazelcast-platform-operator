@@ -70,18 +70,8 @@ func (c *Cache) GetHZResourceName() string {
 	return c.Spec.HazelcastResourceName
 }
 
-func (c *Cache) GetStatus() DataStructureConfigState {
-	return c.Status.State
-}
-
-func (c *Cache) GetMemberStatuses() map[string]DataStructureConfigState {
-	return c.Status.MemberStatuses
-}
-
-func (c *Cache) SetStatus(state DataStructureConfigState, msg string, members map[string]DataStructureConfigState) {
-	c.Status.State = state
-	c.Status.Message = msg
-	c.Status.MemberStatuses = members
+func (c *Cache) GetStatus() *DataStructureStatus {
+	return &c.Status.DataStructureStatus
 }
 
 func (c *Cache) GetSpec() (string, error) {
@@ -97,6 +87,14 @@ func (c *Cache) SetSpec(spec string) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Cache) ValidateSpecCurrent(h *Hazelcast) error {
+	return ValidateCacheSpecCurrent(c, h)
+}
+
+func (c *Cache) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(c)
 }
 
 //+kubebuilder:object:root=true

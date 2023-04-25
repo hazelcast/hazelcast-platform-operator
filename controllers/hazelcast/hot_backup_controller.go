@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
@@ -18,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/backup"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	localbackup "github.com/hazelcast/hazelcast-platform-operator/internal/local_backup"
@@ -67,19 +67,22 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			return result, nil
 		}
 		logger.Error(err, "Failed to get HotBackup")
-		return r.updateStatus(ctx, req.NamespacedName, failedHbStatus(err))
+		return r.updateStatus(ctx, req.NamespacedName, recoptions.Error(err),
+			withHotBackupFailedState(err.Error()))
 	}
 
 	err = util.AddFinalizer(ctx, r.Client, hb, logger)
 	if err != nil {
-		return r.updateStatus(ctx, req.NamespacedName, failedHbStatus(err))
+		return r.updateStatus(ctx, req.NamespacedName, recoptions.Error(err),
+			withHotBackupFailedState(err.Error()))
 	}
 
 	//Check if the HotBackup CR is marked to be deleted
 	if hb.GetDeletionTimestamp() != nil {
 		err = r.executeFinalizer(ctx, hb)
 		if err != nil {
-			return r.updateStatus(ctx, req.NamespacedName, failedHbStatus(err))
+			return r.updateStatus(ctx, req.NamespacedName, recoptions.Error(err),
+				withHotBackupFailedState(err.Error()))
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return
@@ -99,7 +102,9 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 
 	hs, err := json.Marshal(hb.Spec)
 	if err != nil {
-		return r.updateStatus(ctx, req.NamespacedName, failedHbStatus(fmt.Errorf("error marshaling Hot Backup as JSON: %w", err)))
+		returnErr := fmt.Errorf("error marshaling Hot Backup as JSON: %w", err)
+		return r.updateStatus(ctx, req.NamespacedName, recoptions.Error(returnErr),
+			withHotBackupFailedState(err.Error()))
 	}
 	if s, ok := hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok && s == string(hs) {
 		logger.Info("HotBackup was already applied.", "name", hb.Name, "namespace", hb.Namespace)
@@ -112,12 +117,14 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	err = r.Client.Get(ctx, hazelcastName, h)
 	if err != nil {
 		logger.Info("Could not find hazelcast cluster", "name", hazelcastName, "err", err)
-		return r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupPending))
+		return r.updateStatus(ctx, req.NamespacedName, recoptions.Empty(),
+			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
 	}
 
 	if h.Status.Phase != hazelcastv1alpha1.Running {
 		logger.Info("Hazelcast cluster is not ready", "name", hazelcastName, "phase", h.Status.Phase)
-		return r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupPending))
+		return r.updateStatus(ctx, req.NamespacedName, recoptions.Empty(),
+			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
@@ -130,7 +137,8 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 	r.cancelMap[req.NamespacedName] = cancelFunc
 
-	result, err = r.updateStatus(ctx, req.NamespacedName, hbWithStatus(hazelcastv1alpha1.HotBackupNotStarted))
+	result, err = r.updateStatus(ctx, req.NamespacedName, recoptions.Empty(),
+		withHotBackupState(hazelcastv1alpha1.HotBackupNotStarted))
 	if err != nil {
 		return result, err
 	}
@@ -185,28 +193,6 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 	return nil
 }
 
-func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.NamespacedName, options *hotBackupOptionsBuilder) (ctrl.Result, error) {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		// Always fetch the new version of the resource
-		hb := &hazelcastv1alpha1.HotBackup{}
-		if err := r.Get(ctx, name, hb); err != nil {
-			return err
-		}
-		hb.Status.State = options.status
-		hb.Status.Message = options.message
-		hb.Status.BackupUUIDs = options.backupUUIDs
-		return r.Status().Update(ctx, hb)
-	})
-
-	if options.status == hazelcastv1alpha1.HotBackupFailure {
-		return ctrl.Result{}, options.err
-	}
-	if options.status == hazelcastv1alpha1.HotBackupPending {
-		return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Second}, nil
-	}
-	return ctrl.Result{}, err
-}
-
 func (r *HotBackupReconciler) checkBackup(name types.NamespacedName) bool {
 	_, ok := r.backup[name]
 	return ok
@@ -225,39 +211,47 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	defer logger.Info("Finished backup")
 
 	// Change state to In Progress
-	_, err := r.updateStatus(ctx, backupName, hbWithStatus(hazelcastv1alpha1.HotBackupInProgress))
+	_, err := r.updateStatus(ctx, backupName, recoptions.Empty(),
+		withHotBackupState(hazelcastv1alpha1.HotBackupInProgress))
 	if err != nil {
 		// setting status failed so this most likely will fail too
-		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+		return r.updateStatus(ctx, backupName, recoptions.Error(err),
+			withHotBackupFailedState(err.Error()))
 	}
 
 	// Get latest version as this may be running in cron
 	hz := &hazelcastv1alpha1.Hazelcast{}
 	if err := r.Get(ctx, hazelcastName, hz); err != nil {
 		logger.Error(err, "Get latest hazelcast CR failed")
-		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+		return r.updateStatus(ctx, backupName, recoptions.Error(err),
+			withHotBackupFailedState(err.Error()))
 	}
 
 	client, err := r.clientRegistry.GetOrCreate(ctx, hazelcastName)
 	if err != nil {
 		logger.Error(err, "Get Hazelcast Client failed")
-		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+		return r.updateStatus(ctx, backupName, recoptions.Error(err),
+			withHotBackupState(hazelcastv1alpha1.HotBackupFailure),
+			withHotBackupMessage(err.Error()))
 	}
 
 	statusService, ok := r.statusServiceRegistry.Get(hazelcastName)
 	if !ok {
 		logger.Error(err, "Get Hazelcast Status Service failed")
-		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+		return r.updateStatus(ctx, backupName, recoptions.Error(err),
+			withHotBackupFailedState(err.Error()))
 	}
 
 	backupService := hzclient.NewBackupService(client)
 	b, err := backup.NewClusterBackup(statusService, backupService)
 	if err != nil {
-		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+		return r.updateStatus(ctx, backupName, recoptions.Error(err),
+			withHotBackupFailedState(err.Error()))
 	}
 
 	if err := b.Start(ctx); err != nil {
-		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+		return r.updateStatus(ctx, backupName, recoptions.Error(err),
+			withHotBackupFailedState(err.Error()))
 	}
 
 	// for each member monitor and upload backup if needed
@@ -281,15 +275,18 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	// Wait for all local backups to finish
 	if err := g.Wait(); err != nil {
 		logger.Error(err, "One or more members failed, returning first error")
-		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+		return r.updateStatus(ctx, backupName, recoptions.Error(err), withHotBackupFailedState(err.Error()))
 	}
 
 	backupUUIDs := make([]string, len(b.Members()))
 	// for each member monitor and upload backup if needed
 	g, groupCtx = errgroup.WithContext(ctx)
-	mtlsClient, ok := r.mtlsClientRegistry.Get(hazelcastName.Namespace)
+	mtlsClient, ok := r.mtlsClientRegistry.Get(ctx, hazelcastName)
 	if !ok {
-		return r.updateStatus(ctx, backupName, failedHbStatus(errors.New("failed to get MTLS client")))
+		returnErr := errors.New("failed to get MTLS client")
+		return r.updateStatus(ctx, backupName, recoptions.Error(returnErr),
+			withHotBackupFailedState(err.Error()))
+
 	}
 	for i, m := range b.Members() {
 		m := m
@@ -365,11 +362,15 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	logger.Info("Waiting for members")
 	if err := g.Wait(); err != nil {
 		logger.Error(err, "One or more members failed, returning first error")
-		return r.updateStatus(ctx, backupName, failedHbStatus(err))
+		return r.updateStatus(ctx, backupName, recoptions.Error(err),
+			withHotBackupFailedState(err.Error()))
 	}
 
 	logger.Info("All members finished with no errors")
-	return r.updateStatus(ctx, backupName, hbWithStatus(hazelcastv1alpha1.HotBackupSuccess).withBackupUUIDs(backupUUIDs))
+	return r.updateStatus(ctx, backupName, recoptions.Empty(),
+		withHotBackupState(hazelcastv1alpha1.HotBackupSuccess),
+		withHotBackupMessage(""),
+		withHotBackupBackupUUIDs(backupUUIDs))
 }
 
 func (r *HotBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {

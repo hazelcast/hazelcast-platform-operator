@@ -88,7 +88,7 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 		By("failing to update queue config")
 		q.Spec.BackupCount = pointer.Int32(5)
 		q.Spec.EmptyQueueTtlSeconds = pointer.Int32(20)
-		Expect(k8sClient.Update(context.Background(), q)).Should(Succeed())
-		assertDataStructureStatus(qLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Queue{})
+		Expect(k8sClient.Update(context.Background(), q)).
+			Should(MatchError(ContainSubstring("spec: Forbidden: cannot be updated")))
 	})
 })

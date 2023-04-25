@@ -4,6 +4,8 @@
 package client
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"time"
 
@@ -20,19 +22,20 @@ const (
 	AgentPort = 8443
 )
 
-func BuildConfig(h *hazelcastv1alpha1.Hazelcast, logger hzlogger.Logger) hazelcast.Config {
+func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, logger hzlogger.Logger) hazelcast.Config {
 	config := hazelcast.Config{
 		Logger: hzlogger.Config{
 			CustomLogger: logger,
 		},
 		Cluster: cluster.Config{
 			ConnectionStrategy: cluster.ConnectionStrategyConfig{
-				Timeout:       hztypes.Duration(3 * time.Second),
+				Timeout:       hztypes.Duration(120 * time.Second),
 				ReconnectMode: cluster.ReconnectModeOn,
 				Retry: cluster.ConnectionRetryConfig{
-					InitialBackoff: hztypes.Duration(200 * time.Millisecond),
-					MaxBackoff:     hztypes.Duration(1 * time.Second),
-					Jitter:         0.25,
+					InitialBackoff: hztypes.Duration(20 * time.Millisecond),
+					MaxBackoff:     hztypes.Duration(30 * time.Second),
+					Multiplier:     1.05,
+					Jitter:         0.05,
 				},
 			},
 		},
@@ -40,6 +43,13 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast, logger hzlogger.Logger) hazelca
 	cc := &config.Cluster
 	cc.Name = h.Spec.ClusterName
 	cc.Network.SetAddresses(HazelcastUrl(h))
+	if pool != nil {
+		cc.Network.SSL.Enabled = true
+		cc.Network.SSL.SetTLSConfig(&tls.Config{
+			RootCAs:            pool,
+			InsecureSkipVerify: true,
+		})
+	}
 	return config
 }
 

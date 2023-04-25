@@ -2,9 +2,6 @@ package hazelcast
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"reflect"
 	"time"
 
@@ -12,11 +9,11 @@ import (
 	"github.com/hazelcast/hazelcast-go-client"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -57,80 +54,35 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return res, nil
 	}
 
-	h := &hazelcastv1alpha1.Hazelcast{}
-	err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: c.Spec.HazelcastResourceName}, h)
-	if err != nil {
-		err = fmt.Errorf("could not create/update Map config: Hazelcast resource not found: %w", err)
-		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
-	}
-
-	err = r.validateCachePersistence(ctx, req, c)
-	if err != nil {
-		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).
-			withMessage(err.Error()))
-	}
-
-	s, createdBefore := c.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-
-	if createdBefore {
-		cs, err := json.Marshal(c.Spec)
-		if err != nil {
-			err = fmt.Errorf("error marshaling Cache as JSON: %w", err)
-			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
-		}
-		if s == string(cs) {
-			logger.Info("Cache Config was already applied.", "name", c.Name, "namespace", c.Namespace)
-			return updateDSStatus(ctx, r.Client, c, dsSuccessStatus())
-		}
-		lastSpec := &hazelcastv1alpha1.CacheSpec{}
-		err = json.Unmarshal([]byte(s), lastSpec)
-		if err != nil {
-			err = fmt.Errorf("error unmarshaling Last Cache Spec: %w", err)
-			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
-		}
-
-		err = hazelcastv1alpha1.ValidateNotUpdatableCacheFields(&c.Spec, lastSpec)
-		if err != nil {
-			return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
-		}
-	}
-
 	ms, err := r.ReconcileCacheConfig(ctx, c, cl, logger)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, c, dsPendingStatus(retryAfterForDataStructures).
-			withError(err).
-			withMessage(err.Error()).
-			withMemberStatuses(ms))
+		return updateDSStatus(ctx, r.Client, c, recoptions.RetryAfter(retryAfterForDataStructures),
+			withDSState(hazelcastv1alpha1.DataStructurePending),
+			withDSMessage(err.Error()),
+			withDSMemberStatuses(ms))
 	}
-
-	requeue, err := updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Persisting the applied multiMap config."))
+	requeue, err := updateDSStatus(ctx, r.Client, c, recoptions.RetryAfter(1*time.Second),
+		withDSState(hazelcastv1alpha1.DataStructurePersisting),
+		withDSMessage("Persisting the applied cache config."),
+		withDSMemberStatuses(ms))
 	if err != nil {
 		return requeue, err
 	}
 
 	persisted, err := r.validateCacheConfigPersistence(ctx, c)
 	if err != nil {
-		return updateDSStatus(ctx, r.Client, c, dsFailedStatus(err).withMessage(err.Error()))
+		return updateDSStatus(ctx, r.Client, c, recoptions.Error(err),
+			withDSFailedState(err.Error()))
 	}
 
 	if !persisted {
-		return updateDSStatus(ctx, r.Client, c, dsPersistingStatus(1*time.Second).withMessage("Waiting for Cache Config to be persisted."))
+		return updateDSStatus(ctx, r.Client, c, recoptions.RetryAfter(1*time.Second),
+			withDSState(hazelcastv1alpha1.DataStructurePersisting),
+			withDSMessage("Waiting for Cache Config to be persisted."),
+			withDSMemberStatuses(ms))
 	}
 
 	return finalSetupDS(ctx, r.Client, r.phoneHomeTrigger, c, logger)
-}
-
-func (r *CacheReconciler) validateCachePersistence(ctx context.Context, req ctrl.Request, c *hazelcastv1alpha1.Cache) error {
-	h := &hazelcastv1alpha1.Hazelcast{}
-	err := r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: c.Spec.HazelcastResourceName}, h)
-	if err != nil {
-		return fmt.Errorf("could not create/update Cache config: Hazelcast resource not found: %w", err)
-	}
-	err = hazelcastv1alpha1.ValidateAppliedPersistence(c.Spec.PersistenceEnabled, h)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *CacheReconciler) ReconcileCacheConfig(
@@ -161,7 +113,7 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 }
 
 func (r *CacheReconciler) validateCacheConfigPersistence(ctx context.Context, c *hazelcastv1alpha1.Cache) (bool, error) {
-	hzConfig, err := getHazelcastConfigMap(ctx, r.Client, c)
+	hzConfig, err := getHazelcastConfig(ctx, r.Client, c)
 	if err != nil {
 		return false, err
 	}

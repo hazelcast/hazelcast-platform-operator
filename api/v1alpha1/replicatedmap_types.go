@@ -22,7 +22,7 @@ type ReplicatedMapSpec struct {
 	// InMemoryFormat specifies in which format data will be stored in the ReplicatedMap
 	// +kubebuilder:default:=OBJECT
 	// +optional
-	InMemoryFormat InMemoryFormatType `json:"inMemoryFormat,omitempty"`
+	InMemoryFormat RMInMemoryFormatType `json:"inMemoryFormat,omitempty"`
 
 	// HazelcastResourceName defines the name of the Hazelcast resource.
 	// +kubebuilder:validation:MinLength:=1
@@ -34,6 +34,18 @@ type ReplicatedMapSpec struct {
 type ReplicatedMapStatus struct {
 	DataStructureStatus `json:",inline"`
 }
+
+// RMInMemoryFormatType represents the format options for storing the data in the ReplicatedMap.
+// +kubebuilder:validation:Enum=BINARY;OBJECT
+type RMInMemoryFormatType string
+
+const (
+	// RMInMemoryFormatBinary Data will be stored in serialized binary format.
+	RMInMemoryFormatBinary RMInMemoryFormatType = "BINARY"
+
+	// RMInMemoryFormatObject Data will be stored in deserialized form.
+	RMInMemoryFormatObject RMInMemoryFormatType = "OBJECT"
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
@@ -53,48 +65,46 @@ type ReplicatedMap struct {
 	Status ReplicatedMapStatus `json:"status,omitempty"`
 }
 
-func (mm *ReplicatedMap) GetDSName() string {
-	if mm.Spec.Name != "" {
-		return mm.Spec.Name
+func (rm *ReplicatedMap) GetDSName() string {
+	if rm.Spec.Name != "" {
+		return rm.Spec.Name
 	}
-	return mm.Name
+	return rm.Name
 }
 
-func (mm *ReplicatedMap) GetKind() string {
-	return mm.Kind
+func (rm *ReplicatedMap) GetKind() string {
+	return rm.Kind
 }
 
-func (mm *ReplicatedMap) GetHZResourceName() string {
-	return mm.Spec.HazelcastResourceName
+func (rm *ReplicatedMap) GetHZResourceName() string {
+	return rm.Spec.HazelcastResourceName
 }
 
-func (mm *ReplicatedMap) GetStatus() DataStructureConfigState {
-	return mm.Status.State
+func (rm *ReplicatedMap) GetStatus() *DataStructureStatus {
+	return &rm.Status.DataStructureStatus
 }
 
-func (mm *ReplicatedMap) GetMemberStatuses() map[string]DataStructureConfigState {
-	return mm.Status.MemberStatuses
-}
-
-func (mm *ReplicatedMap) SetStatus(status DataStructureConfigState, msg string, memberStatues map[string]DataStructureConfigState) {
-	mm.Status.State = status
-	mm.Status.Message = msg
-	mm.Status.MemberStatuses = memberStatues
-}
-
-func (mm *ReplicatedMap) GetSpec() (string, error) {
-	mms, err := json.Marshal(mm.Spec)
+func (rm *ReplicatedMap) GetSpec() (string, error) {
+	rms, err := json.Marshal(rm.Spec)
 	if err != nil {
-		return "", fmt.Errorf("error marshaling %v as JSON: %w", mm.Kind, err)
+		return "", fmt.Errorf("error marshaling %v as JSON: %w", rm.Kind, err)
 	}
-	return string(mms), nil
+	return string(rms), nil
 }
 
-func (mm *ReplicatedMap) SetSpec(spec string) error {
-	if err := json.Unmarshal([]byte(spec), &mm.Spec); err != nil {
+func (rm *ReplicatedMap) SetSpec(spec string) error {
+	if err := json.Unmarshal([]byte(spec), &rm.Spec); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (rm *ReplicatedMap) ValidateSpecCurrent(_ *Hazelcast) error {
+	return nil
+}
+
+func (rm *ReplicatedMap) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(rm)
 }
 
 //+kubebuilder:object:root=true

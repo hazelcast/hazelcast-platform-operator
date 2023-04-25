@@ -61,8 +61,7 @@ jobs:
             exit 0
           fi
 
-          COMMIT_MESSAGE='${{ github.event.commits[0].message }}'
-          PR_NUMBER=$(echo $COMMIT_MESSAGE | grep -oP '\(#\K[0-9]*(?=\))')
+          PR_NUMBER=$(echo "$COMMIT_MESSAGE" | grep -oP '\(#\K[0-9]*(?=\))')
           PR_LABELS=$( (gh pr view https://github.com/${{github.repository}}/pull/${PR_NUMBER} --json labels  | jq .labels[].name) || echo "Could not get PR labels")
           for label in $PR_LABELS; do
             # if full suite is ran before 
@@ -75,6 +74,7 @@ jobs:
           echo "RUN_TESTS=true" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_MESSAGE: ${{ github.event.commits[0].message }}
 
       - name: Print decision
         run: echo "Run tests= ${{ steps.should-run-tests.outputs.RUN_TESTS }}"
@@ -221,3 +221,56 @@ jobs:
           flags: unit
           name: Unit Tests Report
           fail_ci_if_error: true
+
+
+  slack_notify:
+    name: Slack Notify
+    timeout-minutes: 15
+    needs: ["update-test-run-status-badges","upload-coverage"]
+    if: failure() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      ACTION_API_URL: ${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/k8s-dist-tests.yaml/runs?branch=main
+      ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: decide to notify
+        id: decide
+        run: |
+          while true
+          do
+            curl_result=$(curl -sSL\
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            ${ACTION_API_URL})
+
+            RESULT=$(echo $curl_result | jq -r 'first(.workflow_runs[] | select(.run_number < ${{ github.run_number }} )) | { conclusion, status, run_number}')
+            STATUS=$(echo $RESULT | jq -r .status)
+            if [[ $STATUS == "completed" ]]; then
+              break
+            fi
+              echo "status is $STATUS, sleeping 30 seconds"
+              sleep 30          
+          done
+
+          CONCLUSION=$(echo $RESULT | jq -r .conclusion)
+          LAST_RUN_NUMBER=$(echo $RESULT | jq -r .run_number)
+          if [[ $CONCLUSION == "success" ]]; then
+              echo "SEND_SLACK_MESSAGE=true" >> $GITHUB_OUTPUT
+              echo "LAST_RUN_NUMBER=$LAST_RUN_NUMBER" >> $GITHUB_OUTPUT
+          else
+              echo "SEND_SLACK_MESSAGE=false" >> $GITHUB_OUTPUT
+          fi
+        
+
+      - uses: rtCamp/action-slack-notify@v2
+        if: steps.decide.outputs.SEND_SLACK_MESSAGE == 'true'
+        env:
+          SLACK_CHANNEL: cloud-native-dev
+          SLACK_COLOR: red # or a specific color like 'green' or '#ff00ff'
+          SLACK_MESSAGE: '${{ github.actor}} broke the <${{ env.ACTION_RUN_URL }}|main branch> :bomb: previous successful run number was ${{ steps.decide.outputs.LAST_RUN_NUMBER }}'
+          SLACK_TITLE: Main Branch Broken
+          SLACK_USERNAME: rtCamp
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CLOUD_NATIVE }}
+          MSG_MINIMAL: true
+

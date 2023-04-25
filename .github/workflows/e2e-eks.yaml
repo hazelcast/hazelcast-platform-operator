@@ -163,12 +163,9 @@ jobs:
           username: _json_key
           password: ${{ secrets.GKE_SA_KEY }}
 
-      - name: Deploy CRDs
-        if: matrix.edition == 'ee'
-        run: make install-crds
-
       - name: Deploy Operator to EKS
         run: |
+          make install-crds
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
@@ -203,7 +200,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=eks
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=${{ matrix.edition }}_01 WORKFLOW_ID=eks
 
       - name: Clean up after Tests
         if: always()
@@ -241,11 +238,21 @@ jobs:
       WORKFLOW_ID: eks
       CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
 
+  cleanup-namespaces:
+    if: always()
+    needs: ["prepare-env", "eks-e2e-tests"]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+      cluster_type: eks
+      namespaces: "test-operator-os,test-operator-ee,grafana"
+
   delete-cluster:
     name: Delete EKS cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: ["prepare-env", "eks-e2e-tests"]
+    needs: ["prepare-env", "eks-e2e-tests", "cleanup-namespaces"]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -277,7 +284,7 @@ jobs:
     if: always() && ( needs.eks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
-      - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
+      - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure

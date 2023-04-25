@@ -155,6 +155,7 @@ Rules needed for operator watched namespaces
   - ""
   resources:
   - configmaps
+  - secrets
   - events
   - pods
   - serviceaccounts
@@ -389,6 +390,32 @@ Rules needed for operator watched namespaces
   - hazelcast.com
   resources:
   - multimaps/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobs/status
   verbs:
   - get
   - patch

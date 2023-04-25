@@ -55,48 +55,46 @@ type Topic struct {
 	Status TopicStatus `json:"status,omitempty"`
 }
 
-func (mm *Topic) GetDSName() string {
-	if mm.Spec.Name != "" {
-		return mm.Spec.Name
+func (t *Topic) GetDSName() string {
+	if t.Spec.Name != "" {
+		return t.Spec.Name
 	}
-	return mm.Name
+	return t.Name
 }
 
-func (mm *Topic) GetKind() string {
-	return mm.Kind
+func (t *Topic) GetKind() string {
+	return t.Kind
 }
 
-func (mm *Topic) GetHZResourceName() string {
-	return mm.Spec.HazelcastResourceName
+func (t *Topic) GetHZResourceName() string {
+	return t.Spec.HazelcastResourceName
 }
 
-func (mm *Topic) GetStatus() DataStructureConfigState {
-	return mm.Status.State
+func (t *Topic) GetStatus() *DataStructureStatus {
+	return &t.Status.DataStructureStatus
 }
 
-func (mm *Topic) GetMemberStatuses() map[string]DataStructureConfigState {
-	return mm.Status.MemberStatuses
-}
-
-func (mm *Topic) SetStatus(status DataStructureConfigState, msg string, memberStatues map[string]DataStructureConfigState) {
-	mm.Status.State = status
-	mm.Status.Message = msg
-	mm.Status.MemberStatuses = memberStatues
-}
-
-func (mm *Topic) GetSpec() (string, error) {
-	mms, err := json.Marshal(mm.Spec)
+func (t *Topic) GetSpec() (string, error) {
+	ts, err := json.Marshal(t.Spec)
 	if err != nil {
-		return "", fmt.Errorf("error marshaling %v as JSON: %w", mm.Kind, err)
+		return "", fmt.Errorf("error marshaling %v as JSON: %w", t.Kind, err)
 	}
-	return string(mms), nil
+	return string(ts), nil
 }
 
-func (mm *Topic) SetSpec(spec string) error {
-	if err := json.Unmarshal([]byte(spec), &mm.Spec); err != nil {
+func (t *Topic) SetSpec(spec string) error {
+	if err := json.Unmarshal([]byte(spec), &t.Spec); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (t *Topic) ValidateSpecCurrent(_ *Hazelcast) error {
+	return ValidateTopicSpecCurrent(t)
+}
+
+func (t *Topic) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(t)
 }
 
 //+kubebuilder:object:root=true

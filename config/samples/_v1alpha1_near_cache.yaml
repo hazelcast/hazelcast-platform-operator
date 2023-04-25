@@ -1,0 +1,16 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Map
+metadata:
+  name: mostly-read-map
+spec:
+  hazelcastResourceName: hazelcast
+  nearCache:
+      inMemoryFormat: OBJECT
+      invalidateOnChange: true
+      timeToLiveSeconds: 300
+      maxIdleSeconds: 300
+      eviction:
+        evictionPolicy: NONE
+        maxSizePolicy: ENTRY_COUNT
+        size: 5000
+      cacheLocalEntries: true

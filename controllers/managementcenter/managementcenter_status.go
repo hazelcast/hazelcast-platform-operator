@@ -3,67 +3,55 @@ package managementcenter
 import (
 	"context"
 	"strings"
-	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 )
 
-type optionsBuilder struct {
-	phase             hazelcastv1alpha1.Phase
-	retryAfter        time.Duration
-	err               error
-	message           string
-	externalAddresses string
+type McStatusApplier interface {
+	McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus)
 }
 
-func failedPhase(err error) optionsBuilder {
-	return optionsBuilder{
-		phase: hazelcastv1alpha1.Failed,
-		err:   err,
+type withMcPhase hazelcastv1alpha1.Phase
+
+func (w withMcPhase) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus) {
+	ms.Phase = hazelcastv1alpha1.Phase(w)
+	if hazelcastv1alpha1.Phase(w) == hazelcastv1alpha1.Running {
+		ms.Message = ""
 	}
 }
 
-func pendingPhase(retryAfter time.Duration) optionsBuilder {
-	return optionsBuilder{
-		phase:      hazelcastv1alpha1.Pending,
-		retryAfter: retryAfter,
-	}
+type withMcFailedPhase string
+
+func (w withMcFailedPhase) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus) {
+	ms.Phase = hazelcastv1alpha1.Failed
+	ms.Message = string(w)
+
 }
 
-func runningPhase() optionsBuilder {
-	return optionsBuilder{
-		phase: hazelcastv1alpha1.Running,
-	}
-}
+type withMcExternalAddresses []string
 
-func (o optionsBuilder) withMessage(message string) optionsBuilder {
-	o.message = message
-	return o
-}
-
-func (o optionsBuilder) withExternalAddresses(externalAddrs []string) optionsBuilder {
-	o.externalAddresses = strings.Join(externalAddrs, ",")
-	return o
+func (w withMcExternalAddresses) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus) {
+	ms.ExternalAddresses = strings.Join(w, ",")
 }
 
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Management Center resource
-func update(ctx context.Context, statusWriter client.StatusWriter, mc *hazelcastv1alpha1.ManagementCenter, options optionsBuilder) (ctrl.Result, error) {
-	mc.Status = hazelcastv1alpha1.ManagementCenterStatus{
-		Phase:             options.phase,
-		Message:           options.message,
-		ExternalAddresses: options.externalAddresses,
+func update(ctx context.Context, c client.Client, mc *hazelcastv1alpha1.ManagementCenter, recOption controllers.ReconcilerOption, options ...McStatusApplier) (ctrl.Result, error) {
+	for _, applier := range options {
+		applier.McStatusApply(&mc.Status)
 	}
-	if err := statusWriter.Update(ctx, mc); err != nil {
+
+	if err := c.Status().Update(ctx, mc); err != nil {
 		return ctrl.Result{}, err
 	}
-	if options.phase == hazelcastv1alpha1.Failed {
-		return ctrl.Result{}, options.err
+	if recOption.Err != nil {
+		return ctrl.Result{}, recOption.Err
 	}
-	if options.phase == hazelcastv1alpha1.Pending {
-		return ctrl.Result{Requeue: true, RequeueAfter: options.retryAfter}, nil
+	if mc.Status.Phase == hazelcastv1alpha1.Pending {
+		return ctrl.Result{Requeue: true, RequeueAfter: recOption.RetryAfter}, nil
 	}
 	return ctrl.Result{}, nil
 }

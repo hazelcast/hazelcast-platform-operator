@@ -8,7 +8,6 @@ on:
 env:
   GO_VERSION: '1.19.0'
   GOBIN: ${{ github.workspace }}/bin
-  GINKGO_VERSION: v2.1.6
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
@@ -124,7 +123,7 @@ jobs:
           NAMESPACE=${GRAFANA_NS} envsubst < .github/grafana/logs-cm.yaml | /bin/sh -c 'kubectl apply -f -'
           MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-bare.yaml NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && helm repo update && \
-          helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.4.2 -n ${GRAFANA_NS}
+          helm install ksm prometheus-community/kube-state-metrics --version 5.3.0 --set image.tag=v2.8.2 -n ${GRAFANA_NS}
           MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-loki.yaml NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
       - name: Install metallb
         uses: nick-fields/retry@v2
@@ -198,7 +197,7 @@ jobs:
       - name: Run Tests
         id: e2e-test
         run: |
-          make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee-01 WORKFLOW_ID=cluster_scope NAMESPACE=${{ env.NAMESPACE }}
+          make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=cluster_scope NAMESPACE=${{ env.NAMESPACE }}
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v3

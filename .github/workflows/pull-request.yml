@@ -20,7 +20,6 @@ env:
   GO_VERSION: '1.19.0'
   NR_OF_SUITES: 5
   GOBIN: ${{ github.workspace }}/bin
-  GINKGO_VERSION: v2.1.6
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
@@ -60,8 +59,8 @@ jobs:
       - name: Check if tests are unfocused
         if: ${{ !cancelled() }}
         run: |
-           make ginkgo GINKGO_VERSION=$GINKGO_VERSION
-           if [[ $($GOBIN/ginkgo/$GINKGO_VERSION/ginkgo unfocus | wc -l) -gt 1 ]]; then
+           make ginkgo
+           if [[ $($(make ginkgo PRINT_TOOL_NAME=true) unfocus | wc -l) -gt 1 ]]; then
              echo "Some tests have 'F' before the test name. Run the 'ginkgo unfocus' command against your branch '${{ github.event.pull_request.head.ref }}' and push the changes."
              exit 1
            fi
@@ -280,7 +279,7 @@ jobs:
           NAMESPACE=${GRAFANA_NS} envsubst < .github/grafana/logs-cm.yaml | /bin/sh -c 'kubectl apply -f -'
           MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-bare.yaml NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && helm repo update && \
-          helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.4.2 -n ${GRAFANA_NS}
+          helm install ksm prometheus-community/kube-state-metrics --version 5.3.0 --set image.tag=v2.8.2 -n ${GRAFANA_NS}
           MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/agent-loki.yaml NAMESPACE=${GRAFANA_NS} /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.27.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
 
       - name: Install metallb
@@ -374,7 +373,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e-split-kind REPORT_SUFFIX=${{ matrix.edition }}-${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr FOCUSED_TESTS="$(cat suite_files/test_suite_${{ matrix.node_number }})"
+          make test-e2e-split-kind REPORT_SUFFIX=${{ matrix.edition }}_${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr FOCUSED_TESTS="$(cat suite_files/test_suite_${{ matrix.node_number }})"
 
       - name: Upload Test Report
         if: always()

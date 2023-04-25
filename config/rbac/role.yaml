@@ -73,6 +73,7 @@ rules:
   - configmaps
   - events
   - pods
+  - secrets
   - serviceaccounts
   - services
   verbs:
@@ -114,6 +115,7 @@ rules:
   - create
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - apps
@@ -227,6 +229,32 @@ rules:
   - hazelcast.com
   resources:
   - hotbackups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobs/status
   verbs:
   - get
   - patch

@@ -97,11 +97,22 @@ type PhoneHomeData struct {
 	TopicCount                    int                    `json:"tc"`
 	HighAvailabilityMode          []string               `json:"ha"`
 	NativeMemoryCount             int                    `json:"nmc"`
+	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
 	AdvancedNetwork               AdvancedNetwork        `json:"an"`
+	Jet                           Jet                    `json:"jet"`
+}
+
+type JVMConfigUsage struct {
+	Count           int             `json:"c"`
+	AdvancedNetwork AdvancedNetwork `json:"an"`
 }
 
 type AdvancedNetwork struct {
 	WANEndpointCount int `json:"wec"`
+}
+
+type Jet struct {
+	Count int `json:"c"`
 }
 
 type ExposeExternally struct {
@@ -119,6 +130,7 @@ type Map struct {
 	PersistenceCount  int `json:"pc"`
 	MapStoreCount     int `json:"msc"`
 	NativeMemoryCount int `json:"nmc"`
+	NearCacheCount    int `json:"ncc"`
 }
 
 type Cache struct {
@@ -142,6 +154,7 @@ type UserCodeDeployment struct {
 	ClientEnabled int `json:"ce"`
 	FromBucket    int `json:"fb"`
 	FromConfigMap int `json:"fcm"`
+	FromURL       int `json:"fu"`
 }
 
 type McExternalConnectivity struct {
@@ -173,6 +186,7 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillReplicatedMapMetrics(cl)
 	phd.fillCronHotBackupMetrics(cl)
 	phd.fillTopicMetrics(cl)
+	phd.fillJetMetrics(cl)
 	return phd
 }
 
@@ -211,6 +225,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
+		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -300,6 +315,34 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 	if hucd.IsConfigMapEnabled() {
 		ucd.FromConfigMap++
 	}
+	if hucd.IsRemoteURLsEnabled() {
+		ucd.FromURL++
+	}
+}
+
+func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration) {
+	if jc == nil {
+		return
+	}
+
+	if jc.Memory != nil &&
+		(jc.Memory.MaxRAMPercentage != nil ||
+			jc.Memory.MinRAMPercentage != nil ||
+			jc.Memory.InitialRAMPercentage != nil) {
+		j.Count += 1
+		return
+	}
+
+	if jc.GC != nil &&
+		(jc.GC.Logging != nil || jc.GC.Collector != nil) {
+		j.Count += 1
+		return
+	}
+
+	if len(jc.Args) > 0 {
+		j.Count += 1
+		return
+	}
 }
 
 func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
@@ -346,6 +389,7 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 	persistedMapCount := 0
 	mapStoreMapCount := 0
 	nativeMemoryMapCount := 0
+	nearCacheCount := 0
 
 	ml := &hazelcastv1alpha1.MapList{}
 	err := cl.List(context.Background(), ml, listOptions()...)
@@ -364,11 +408,15 @@ func (phm *PhoneHomeData) fillMapMetrics(cl client.Client) {
 		if m.Spec.InMemoryFormat == hazelcastv1alpha1.InMemoryFormatNative {
 			nativeMemoryMapCount += 1
 		}
+		if m.Spec.NearCache != nil {
+			nearCacheCount += 1
+		}
 	}
 	phm.Map.Count = createdMapCount
 	phm.Map.PersistenceCount = persistedMapCount
 	phm.Map.MapStoreCount = mapStoreMapCount
 	phm.Map.NativeMemoryCount = nativeMemoryMapCount
+	phm.Map.NearCacheCount = nearCacheCount
 }
 
 func (phm *PhoneHomeData) fillCacheMetrics(cl client.Client) {
@@ -465,6 +513,15 @@ func (phm *PhoneHomeData) fillReplicatedMapMetrics(cl client.Client) {
 		return
 	}
 	phm.ReplicatedMapCount = len(rml.Items)
+}
+
+func (phm *PhoneHomeData) fillJetMetrics(cl client.Client) {
+	jjl := &hazelcastv1alpha1.JetJobList{}
+	err := cl.List(context.Background(), jjl, listOptions()...)
+	if err != nil || jjl.Items == nil {
+		return
+	}
+	phm.Jet.Count = len(jjl.Items)
 }
 
 func listOptions() []client.ListOption {

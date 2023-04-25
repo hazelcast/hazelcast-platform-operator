@@ -283,6 +283,10 @@ spec:
       jsonPath: .status.externalAddresses
       name: External-Addresses
       type: string
+    - description: WAN addresses of the Hazelcast cluster
+      jsonPath: .status.wanAddresses
+      name: WAN-Addresses
+      type: string
     - description: Message for the current Hazelcast Config
       jsonPath: .status.message
       name: Message
@@ -339,7 +343,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.15
+                  version: 0.1.17
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -347,7 +351,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.16
+                    default: 0.1.17
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -471,6 +475,28 @@ spec:
                   resourceUploadEnabled: false
                 description: Jet Engine configuration
                 properties:
+                  bucketConfig:
+                    description: Bucket Configuration from which the JAR files be
+                      downloaded and accessible for the member. These JAR files will
+                      not be placed in the CLASSPATH.
+                    properties:
+                      bucketURI:
+                        description: 'URL of the bucket to download HotBackup folders.
+                          AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
+                          Example bucket URIs: - AWS S3     -> s3://bucket-name/path/to/folder
+                          - GCP Bucket -> gs://bucket-name/path/to/folder - Azure
+                          Blob -> azblob://bucket-name/path/to/folder'
+                        minLength: 6
+                        type: string
+                      secret:
+                        description: Name of the secret with credentials for cloud
+                          providers.
+                        minLength: 1
+                        type: string
+                    required:
+                    - bucketURI
+                    - secret
+                    type: object
                   edgeDefaults:
                     description: Jet Edge Defaults Configuration
                     properties:
@@ -531,14 +557,14 @@ spec:
               jvm:
                 description: Hazelcast JVM configuration
                 properties:
+                  args:
+                    description: Args is for arbitrary JVM arguments
+                    items:
+                      type: string
+                    type: array
                   gc:
                     description: GC is for configuring JVM Garbage Collector
                     properties:
-                      args:
-                        description: Args is for arbitrary garbage collection arguments
-                        items:
-                          type: string
-                        type: array
                       collector:
                         description: Collector is the Garbage Collector type
                         enum:
@@ -584,6 +610,25 @@ spec:
                 - TRACE
                 - ALL
                 type: string
+              managementCenter:
+                description: Hazelcast Management Center Configuration
+                properties:
+                  consoleEnabled:
+                    default: false
+                    description: Allows you to execute commands from a built-in console
+                      in the user interface.
+                    type: boolean
+                  dataAccessEnabled:
+                    default: false
+                    description: Allows you to access contents of Hazelcast data structures
+                      via SQL Browser or Map Browser.
+                    type: boolean
+                  scriptingEnabled:
+                    default: false
+                    description: Allows you to execute scripts that can automate interactions
+                      with the cluster.
+                    type: boolean
+                type: object
               nativeMemory:
                 description: Hazelcast Native Memory (HD Memory) configuration
                 properties:
@@ -1861,6 +1906,13 @@ spec:
                       type: object
                     type: array
                 type: object
+              tls:
+                description: Hazelcast TLS configuration
+                properties:
+                  secretName:
+                    description: Name of the secret with TLS certificate and key.
+                    type: string
+                type: object
               userCodeDeployment:
                 description: User Codes to Download into CLASSPATH
                 properties:
@@ -1894,13 +1946,19 @@ spec:
                     items:
                       type: string
                     type: array
+                  remoteURLs:
+                    description: List of URLs. Files downloaded from the URLs will
+                      be put under Java CLASSPATH.
+                    items:
+                      type: string
+                    type: array
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading
                       the user code.
                     type: string
                 type: object
               version:
-                default: latest-snapshot
+                default: 5.3.0-BETA-2
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
@@ -2013,6 +2071,9 @@ spec:
                     - Succeeded
                     type: string
                 type: object
+              wanAddresses:
+                description: WAN addresses of the Hazelcast cluster members
+                type: string
             type: object
         type: object
     served: true
@@ -2105,6 +2166,130 @@ spec:
             type: object
         required:
         - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
+  name: jetjobs.hazelcast.com
+spec:
+  group: hazelcast.com
+  names:
+    kind: JetJob
+    listKind: JetJobList
+    plural: jetjobs
+    shortNames:
+    - jj
+    singular: jetjob
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Current state of the JetJob
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    - description: ID of the JetJob
+      jsonPath: .status.id
+      name: Id
+      type: string
+    - description: Time when the JetJob was submitted
+      jsonPath: .status.submissionTime
+      name: SubmissionTime
+      type: string
+    - description: Time when the JetJob was completed
+      jsonPath: .status.completionTime
+      name: CompletionTime
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: JetJob is the Schema for the jetjobs API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: JetJobSpec defines the desired state of JetJob
+            properties:
+              hazelcastResourceName:
+                description: HazelcastResourceName defines the name of the Hazelcast
+                  resource that this resource is created for.
+                minLength: 1
+                type: string
+              jarName:
+                description: JarName specify the name of the Jar to run that is present
+                  on the member.
+                minLength: 1
+                type: string
+              mainClass:
+                description: MainClass is the name of the main class that will be
+                  run on the submitted job.
+                type: string
+              name:
+                description: Name of the JetJob to be created. If empty, CR name will
+                  be used. It cannot be updated after the config is created successfully.
+                type: string
+              state:
+                default: Running
+                description: State is used to manage the job state.
+                enum:
+                - Running
+                - Suspended
+                - Canceled
+                - Restarted
+                type: string
+            required:
+            - hazelcastResourceName
+            - jarName
+            - state
+            type: object
+          status:
+            description: JetJobStatus defines the observed state of JetJob
+            properties:
+              completionTime:
+                format: date-time
+                type: string
+              failureText:
+                type: string
+              id:
+                format: int64
+                type: integer
+              phase:
+                enum:
+                - NotRunning
+                - Starting
+                - Running
+                - Suspended
+                - SuspendedExportingSnapshot
+                - Completing
+                - Failed
+                - Completed
+                type: string
+              submissionTime:
+                format: date-time
+                type: string
+              suspensionCause:
+                type: string
+            required:
+            - id
+            - phase
+            type: object
         type: object
     served: true
     storage: true
@@ -2225,6 +2410,14 @@ spec:
                       description: Name of the Hazelcast cluster that Management Center
                         will connect to, default is dev.
                       type: string
+                    tls:
+                      description: TLS client configuration.
+                      properties:
+                        secretName:
+                          description: Name of the secret with TLS certificate and
+                            key.
+                          type: string
+                      type: object
                   required:
                   - address
                   type: object
@@ -3552,6 +3745,7 @@ spec:
                     - USED_NATIVE_MEMORY_PERCENTAGE
                     - FREE_NATIVE_MEMORY_SIZE
                     - FREE_NATIVE_MEMORY_PERCENTAGE
+                    - ENTRY_COUNT
                     type: string
                 type: object
               hazelcastResourceName:
@@ -3660,6 +3854,81 @@ spec:
                   CR name will be used. It cannot be updated after the config is created
                   successfully.
                 type: string
+              nearCache:
+                description: InMemoryFormat specifies near cache configuration for
+                  map
+                properties:
+                  cacheLocalEntries:
+                    default: true
+                    description: CacheLocalEntries specifies whether the local entries
+                      are cached
+                    type: boolean
+                  eviction:
+                    description: NearCacheEviction specifies the eviction behavior
+                      in Near Cache
+                    properties:
+                      evictionPolicy:
+                        default: NONE
+                        description: EvictionPolicy to be applied when near cache
+                          reaches its max size according to the max size policy.
+                        enum:
+                        - NONE
+                        - LRU
+                        - LFU
+                        - RANDOM
+                        type: string
+                      maxSizePolicy:
+                        default: ENTRY_COUNT
+                        description: MaxSizePolicy for deciding if the maxSize is
+                          reached.
+                        enum:
+                        - PER_NODE
+                        - PER_PARTITION
+                        - USED_HEAP_SIZE
+                        - USED_HEAP_PERCENTAGE
+                        - FREE_HEAP_SIZE
+                        - FREE_HEAP_PERCENTAGE
+                        - USED_NATIVE_MEMORY_SIZE
+                        - USED_NATIVE_MEMORY_PERCENTAGE
+                        - FREE_NATIVE_MEMORY_SIZE
+                        - FREE_NATIVE_MEMORY_PERCENTAGE
+                        - ENTRY_COUNT
+                        type: string
+                      size:
+                        description: Size is maximum size of the Near Cache used for
+                          max-size-policy
+                        format: int32
+                        type: integer
+                    type: object
+                  inMemoryFormat:
+                    default: BINARY
+                    description: InMemoryFormat specifies in which format data will
+                      be stored in your near cache
+                    enum:
+                    - BINARY
+                    - OBJECT
+                    - NATIVE
+                    type: string
+                  invalidateOnChange:
+                    default: true
+                    description: InvalidateOnChange specifies whether the cached entries
+                      are evicted when the entries are updated or removed
+                    type: boolean
+                  maxIdleSeconds:
+                    default: 0
+                    description: MaxIdleSeconds Maximum number of seconds each entry
+                      can stay in the Near Cache as untouched (not read)
+                    type: integer
+                  name:
+                    default: default
+                    description: Name is name of the near cache
+                    type: string
+                  timeToLiveSeconds:
+                    default: 0
+                    description: TimeToLiveSeconds maximum number of seconds for each
+                      entry to stay in the Near Cache
+                    type: integer
+                type: object
               persistenceEnabled:
                 default: false
                 description: When enabled, map data will be persisted. It cannot be
@@ -3904,6 +4173,7 @@ spec:
                 default: 0
                 description: Max size of the queue.
                 format: int32
+                minimum: 0
                 type: integer
               name:
                 description: Name of the data structure config to be created. If empty,
@@ -4018,7 +4288,6 @@ spec:
                 enum:
                 - BINARY
                 - OBJECT
-                - NATIVE
                 type: string
               name:
                 description: Name of the ReplicatedMap config to be created. If empty,

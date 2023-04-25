@@ -100,7 +100,7 @@ var _ = BeforeSuite(func() {
 		nil,
 		cs,
 		ssm,
-		mtls.NewHttpClientRegistry(),
+		mtls.NewHttpClientRegistry(k8sManager.GetClient()),
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -144,7 +144,7 @@ var _ = BeforeSuite(func() {
 		controllerLogger.WithName("WanReplication"),
 		k8sManager.GetScheme(),
 		nil,
-		mtls.NewHttpClientRegistry(),
+		mtls.NewHttpClientRegistry(k8sManager.GetClient()),
 		cs,
 		ssm,
 	).SetupWithManager(k8sManager)
@@ -171,6 +171,8 @@ var _ = BeforeSuite(func() {
 	err = (&hazelcastcomv1alpha1.WanReplication{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 	err = (&hazelcastcomv1alpha1.ManagementCenter{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.JetJob{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook

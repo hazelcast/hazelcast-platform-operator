@@ -88,7 +88,8 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 		By("failing to update multiMap config")
 		mm.Spec.BackupCount = pointer.Int32(5)
 		mm.Spec.Binary = false
-		Expect(k8sClient.Update(context.Background(), mm)).Should(Succeed())
-		assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.MultiMap{})
+		Expect(k8sClient.Update(context.Background(), mm)).
+			Should(MatchError(ContainSubstring("spec: Forbidden: cannot be updated")))
+
 	})
 })

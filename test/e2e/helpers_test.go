@@ -16,10 +16,18 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	. "time"
 
+	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+
 	hzClient "github.com/hazelcast/hazelcast-go-client"
+	"github.com/hazelcast/hazelcast-go-client/cluster"
+	"github.com/hazelcast/hazelcast-go-client/logger"
 	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
+	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
@@ -37,7 +45,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -180,6 +187,38 @@ func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 			log.Fatal(err)
 		}
 	})
+}
+
+func WaitForPodReady(podName string, lk types.NamespacedName, timeout time.Duration) {
+	watcher, err := getClientSet().CoreV1().Pods(lk.Namespace).Watch(context.Background(), metav1.ListOptions{FieldSelector: "metadata.name=" + podName})
+	if err != nil {
+		log.Fatalf("failed to create pod watcher: %v", err)
+	}
+	defer watcher.Stop()
+	timeoutCh := time.After(timeout)
+
+	for {
+		select {
+		case event, eventOk := <-watcher.ResultChan():
+			if !eventOk {
+				log.Fatal("watch channel closed before pod became ready")
+			}
+			if event.Type == watch.Modified {
+				pod, ok := event.Object.(*corev1.Pod)
+				if !ok {
+					log.Fatalf("unexpected object type: %v", event.Object)
+				}
+				for _, c := range pod.Status.Conditions {
+					if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
+						return
+					}
+				}
+			}
+		case <-timeoutCh:
+			watcher.Stop()
+			log.Fatalf("timed out waiting for pod %s to become ready in namespace %s", podName, lk.Namespace)
+		}
+	}
 }
 
 func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *hzClient.Client {
@@ -524,11 +563,20 @@ func portForwardPod(sName, sNamespace, port string) chan struct{} {
 func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcast, localPort string) *hzClient.Client {
 	clientWithConfig := &hzClient.Client{}
 	By(fmt.Sprintf("creating Hazelcast client using address '%s'", "localhost:"+localPort), func() {
-		c := hzClient.Config{}
-		cc := &c.Cluster
-		cc.Unisocket = true
-		cc.Name = h.Spec.ClusterName
-		cc.Network.SetAddresses("localhost:" + localPort)
+		c := hzClient.Config{
+			Logger: logger.Config{
+				Level: logger.DebugLevel,
+			},
+			Cluster: cluster.Config{
+				Unisocket: true,
+				Name:      h.Spec.ClusterName,
+				ConnectionStrategy: cluster.ConnectionStrategyConfig{
+					Timeout:       hztypes.Duration(2 * time.Second),
+					ReconnectMode: cluster.ReconnectModeOff,
+				},
+			},
+		}
+		c.Cluster.Network.SetAddresses("localhost:" + localPort)
 		Eventually(func() (err error) {
 			clientWithConfig, err = hzClient.StartNewClientWithConfig(ctx, c)
 			return err
@@ -563,7 +611,7 @@ func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcas
 }
 
 func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, caches ...string) *config.HazelcastWrapper {
-	cm := &corev1.ConfigMap{}
+	cm := &corev1.Secret{}
 	returnConfig := &config.HazelcastWrapper{}
 	Eventually(func() []string {
 		hzConfig := &config.HazelcastWrapper{}
@@ -574,7 +622,7 @@ func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, cach
 		if err != nil {
 			return nil
 		}
-		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 		if err != nil {
 			return nil
 		}
@@ -589,7 +637,7 @@ func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, cach
 }
 
 func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps ...string) *config.HazelcastWrapper {
-	cm := &corev1.ConfigMap{}
+	cm := &corev1.Secret{}
 	returnConfig := &config.HazelcastWrapper{}
 	Eventually(func() []string {
 		hzConfig := &config.HazelcastWrapper{}
@@ -600,7 +648,7 @@ func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps .
 		if err != nil {
 			return nil
 		}
-		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 		if err != nil {
 			return nil
 		}
@@ -647,7 +695,7 @@ func printDebugState() {
 }
 
 func printDebugStateForContext() {
-	allCRs := "hazelcast,map,hotbackup,wanreplication,managementcenter,pvc,topic,queue,cache,multimap,replicatedmap"
+	allCRs := "hazelcast,map,hotbackup,wanreplication,managementcenter,pvc,topic,queue,cache,multimap,replicatedmap,jetjob"
 	printKubectlCommand("KUBECTL GET CLUSTER WIDE RESOURCES", "kubectl", "get", "node,validatingwebhookconfigurations")
 	printKubectlCommand("KUBECTL GET CRS RELATED TO TEST OUTPUT WIDE", "kubectl", "get", allCRs, "-o=wide", "-l="+labelsString(), "-A")
 	for _, ns := range []string{hzNamespace, sourceNamespace, targetNamespace} {
@@ -735,14 +783,14 @@ func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *haz
 }
 
 func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1alpha1.DataStructureConfigState, obj client.Object) client.Object {
-	temp := fmt.Sprintf("waiting for %v CR status", obj.(hazelcast.Type).GetKind())
+	temp := fmt.Sprintf("waiting for %v CR status", hazelcastcomv1alpha1.GetKind(obj))
 	By(temp, func() {
 		Eventually(func() hazelcastcomv1alpha1.DataStructureConfigState {
 			err := k8sClient.Get(context.Background(), lk, obj)
 			if err != nil {
 				return ""
 			}
-			return obj.(hazelcast.DataStructure).GetStatus()
+			return obj.(hazelcastcomv1alpha1.DataStructure).GetStatus().State
 		}, 1*Minute, interval).Should(Equal(st))
 	})
 	return obj
@@ -873,14 +921,6 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzCrName, Namespace: ns}, ee, labels)
 		hz.Spec.ClusterName = hzCrName
 		hz.Spec.ClusterSize = pointer.Int32(1)
-		hz.Spec.AdvancedNetwork.WAN = []hazelcastcomv1alpha1.WANConfig{
-			{
-				Port:        5710,
-				PortCount:   0,
-				ServiceType: "NodePort",
-				Name:        "tokyo",
-			},
-		}
 		hzCrs[hzCrName] = hz
 		CreateHazelcastCRWithoutCheck(hz)
 	}
@@ -895,7 +935,7 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		for _, mapCrName := range mapCrNames {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: ns}, hzCrName, labels)
 			mapCrs[mapCrName] = m
-			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 		}
 	}
 
@@ -911,11 +951,11 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 	wan := hazelcastconfig.WanReplication(
 		lk,
 		target.Spec.ClusterName,
-		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, 5710),
+		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, naming.WanDefaultPort),
 		resources,
 		labels,
 	)
-	Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
 	wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	wan = assertWanStatusMapCount(wan, mapCount)
 	return wan
@@ -927,13 +967,13 @@ func CreateMcForClusters(ctx context.Context, hzCrs ...*hazelcastcomv1alpha1.Haz
 		clusters = append(clusters, hazelcastcomv1alpha1.HazelcastClusterConfig{Name: hz.Spec.ClusterName, Address: hzclient.HazelcastUrl(hz)})
 	}
 	mc := mcconfig.WithClusterConfig(mcLookupKey, ee, clusters, labels)
-	Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
+	Expect(k8sClient.Create(ctx, mc)).Should(Succeed())
 }
 
 func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLookupKey types.NamespacedName) *hazelcastcomv1alpha1.Map {
 	m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: hzLookupKey.Namespace}, hzLookupKey.Name, labels)
 	m.Spec.Name = mapName
-	Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+	Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 	assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 	return m
 }

@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/mutate"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
@@ -70,9 +71,9 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 // Role related to Reconcile() to be able to give Hazelcast Role permissions
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 // Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;secrets;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;watch;get;list,namespace=watched
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;update;watch;get;list,namespace=watched
 
 func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast", req.NamespacedName)
@@ -84,21 +85,22 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			logger.Info("Hazelcast resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
-		return r.update(ctx, h, failedPhase(err))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
 	// Add finalizer for Hazelcast CR to cleanup ClusterRole
 	err = util.AddFinalizer(ctx, r.Client, h, logger)
 	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
 	// Check if the Hazelcast CR is marked to be deleted
 	if h.GetDeletionTimestamp() != nil {
+		r.update(ctx, h, recoptions.Empty(), withHzPhase(hazelcastv1alpha1.Terminating)) //nolint:errcheck
 		// Execute finalizer's pre-delete function to cleanup ClusterRole
 		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
-			return r.update(ctx, h, terminatingPhase(err).withMessage(err.Error()))
+			return r.update(ctx, h, recoptions.Error(err), withHzPhase(hazelcastv1alpha1.Terminating), withHzMessage(err.Error()))
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
@@ -107,96 +109,84 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if mutated := mutate.HazelcastSpec(h); mutated {
 		err = r.Client.Update(ctx, h)
 		if err != nil {
-			return r.update(ctx, h,
-				failedPhase(err).
-					withMessage(fmt.Sprintf("error mutating new Spec: %s", err)))
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error mutating new Spec: %s", err)))
 		}
 	}
 
 	err = hazelcastv1alpha1.ValidateHazelcastSpec(h)
 	if err != nil {
-		return r.update(ctx, h,
-			failedPhase(err).
-				withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error validating Spec: %s", err)))
 	}
 
 	err = r.reconcileServiceAccount(ctx, h, logger)
 	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
 	err = r.reconcileRole(ctx, h, logger)
 	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
 	err = r.reconcileRoleBinding(ctx, h, logger)
 	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
 	if util.NodeDiscoveryEnabled() {
 		err = r.reconcileClusterRole(ctx, h, logger)
 		if err != nil {
-			return r.update(ctx, h, failedPhase(err))
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 		}
 
 		err = r.reconcileClusterRoleBinding(ctx, h, logger)
 		if err != nil {
-			return r.update(ctx, h, failedPhase(err))
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 		}
 	}
 
 	err = r.reconcileService(ctx, h, logger)
 	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+	}
+
+	err = r.reconcileWANServices(ctx, h, logger)
+	if err != nil {
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
 	err = r.reconcileServicePerPod(ctx, h, logger)
 	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
 	err = r.reconcileUnusedServicePerPod(ctx, h)
 	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
 	if !r.isServicePerPodReady(ctx, h) {
 		logger.Info("Service per pod is not ready, waiting.")
-		return r.update(ctx, h, pendingPhase(retryAfter))
+		return r.update(ctx, h, recoptions.RetryAfter(retryAfter), withHzPhase(hazelcastv1alpha1.Pending))
 	}
 
 	s, createdBefore := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-
 	var newExecutorServices map[string]interface{}
 	if createdBefore {
 		lastSpec, err := r.unmarshalHazelcastSpec(h, s)
 		if err != nil {
-			return r.update(ctx, h, failedPhase(err))
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 		}
 
 		newExecutorServices, err = r.detectNewExecutorServices(h, lastSpec)
 		if err != nil {
-			return r.update(ctx, h, failedPhase(err))
-		}
-
-		err = hazelcastv1alpha1.ValidateNotUpdatableHazelcastFields(&h.Spec, lastSpec)
-		if err != nil {
-			return r.update(ctx, h,
-				failedPhase(err).
-					withMessage(fmt.Sprintf("error validating new Spec: %s", err)))
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 		}
 	}
 
-	err = r.reconcileConfigMap(ctx, h, logger)
+	err = r.reconcileSecret(ctx, h, logger)
 	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
-	}
-
-	err = r.reconcileMtlsSecret(ctx, h)
-	if err != nil {
-		return r.update(ctx, h, failedPhase(err))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
 	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {
@@ -204,46 +194,59 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, nil
 		} else {
-			return r.update(ctx, h, failedPhase(err).withMessage(err.Error()))
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 		}
 	}
-
 	if err = r.persistenceStartupAction(ctx, h, logger); err != nil {
 		logger.V(util.WarnLevel).Info("Startup action call was unsuccessful", "error", err.Error())
-		return r.update(ctx, h, pendingPhase(retryAfter))
+		return r.update(ctx, h, recoptions.RetryAfter(retryAfter), withHzPhase(hazelcastv1alpha1.Pending))
 	}
 
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, *h.Spec.ClusterSize); !ok {
 		if err == nil {
-			return r.update(ctx, h, pendingPhase(retryAfter))
+			return r.update(ctx, h, recoptions.RetryAfter(retryAfter), withHzPhase(hazelcastv1alpha1.Pending), r.withMemberStatuses(ctx, h, err))
 		} else {
-			return r.update(ctx, h, failedPhase(err).withMessage(err.Error()))
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()), r.withMemberStatuses(ctx, h, err))
 		}
 	}
 
 	cl, err := r.clientRegistry.GetOrCreate(ctx, req.NamespacedName)
 	if err != nil {
-		return r.update(ctx, h, pendingPhase(retryAfter).withMessage(err.Error()))
+		return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
+			withHzPhase(hazelcastv1alpha1.Pending),
+			withHzMessage(err.Error()),
+			r.withMemberStatuses(ctx, h, nil))
 	}
 	r.statusServiceRegistry.Create(req.NamespacedName, cl, r.Log, r.triggerReconcileChan)
 
 	if err = r.ensureClusterActive(ctx, cl, h); err != nil {
 		logger.Error(err, "Cluster activation attempt after hot restore failed")
-		return r.update(ctx, h, pendingPhase(retryAfter))
+		return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
+			withHzPhase(hazelcastv1alpha1.Pending),
+			r.withMemberStatuses(ctx, h, nil))
 	}
 
 	if !cl.IsClientConnected() {
 		r.statusServiceRegistry.Delete(req.NamespacedName)
 		err = r.clientRegistry.Delete(ctx, req.NamespacedName)
 		if err != nil {
-			return r.update(ctx, h, pendingPhase(retryAfter).withMessage(err.Error()))
+			return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
+				withHzPhase(hazelcastv1alpha1.Pending),
+				withHzMessage(err.Error()),
+				r.withMemberStatuses(ctx, h, nil))
 		}
-		return r.update(ctx, h, pendingPhase(retryAfter).withMessage("Client is not connected to the cluster!"))
+		return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
+			withHzPhase(hazelcastv1alpha1.Pending),
+			withHzMessage("Client is not connected to the cluster!"),
+			r.withMemberStatuses(ctx, h, nil))
 	}
 
 	if newExecutorServices != nil {
 		if !cl.AreAllMembersAccessible() {
-			return r.update(ctx, h, pendingPhase(retryAfter))
+			return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
+				withHzPhase(hazelcastv1alpha1.Pending),
+				withHzMessage("Not all Hazelcast members are accessible!"),
+				r.withMemberStatuses(ctx, h, nil))
 		}
 		r.addExecutorServices(ctx, cl, newExecutorServices)
 	}
@@ -256,11 +259,13 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
-
-	externalAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
-	return r.update(ctx, h, r.runningPhaseWithStatus(req).
-		withExternalAddresses(externalAddrs).
-		withMessage(clientConnectionMessage(r.clientRegistry, req)))
+	externalAddrs, wanAddrs := util.GetExternalAddresses(ctx, r.Client, h, logger)
+	return r.update(ctx, h, recoptions.Empty(),
+		withHzPhase(hazelcastv1alpha1.Running),
+		withHzMessage(clientConnectionMessage(r.clientRegistry, req)),
+		withHzExternalAddresses(externalAddrs),
+		withHzWanAddresses(wanAddrs),
+		r.withMemberStatuses(ctx, h, nil))
 }
 
 func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
@@ -395,6 +400,8 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&hazelcastv1alpha1.Hazelcast{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&rbacv1.RoleBinding{}).
 		Owns(&corev1.ServiceAccount{}).
 		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).

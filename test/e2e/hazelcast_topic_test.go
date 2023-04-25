@@ -83,7 +83,7 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		By("failing to update topic config")
 		topic.Spec.GlobalOrderingEnabled = false
 		topic.Spec.MultiThreadingEnabled = true
-		Expect(k8sClient.Update(context.Background(), topic)).Should(Succeed())
-		assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Topic{})
+		Expect(k8sClient.Update(context.Background(), topic)).
+			Should(MatchError(ContainSubstring("spec: Forbidden: cannot be updated")))
 	})
 })

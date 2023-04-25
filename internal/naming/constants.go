@@ -53,20 +53,23 @@ const (
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
 	PersistenceVolumeName       = "hot-restart-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
+	JetJobJarsVolumeName        = "jet-job-jars-bucket"
+	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 
-	SidecarAgent          = "sidecar-agent"
-	BackupAgentPortName   = "backup-agent-port"
-	RestoreAgent          = "restore-agent"
-	RestoreLocalAgent     = "restore-local-agent"
-	BucketSecret          = "br-secret"
-	UserCodeDownloadAgent = "ucd-agent"
-
-	MTLSCertSecretName = "hazelcast-mtls-cert"
-	MTLSCertPath       = "/var/run/secrets/hazelcast"
+	SidecarAgent        = "sidecar-agent"
+	BackupAgentPortName = "backup-agent-port"
+	RestoreAgent        = "restore-agent"
+	RestoreLocalAgent   = "restore-local-agent"
+	BucketSecret        = "br-secret"
+	UserCodeBucketAgent = "ucd-bucket-agent"
+	UserCodeURLAgent    = "ucd-url-agent"
+	JetDownloadAgent    = "jet-agent"
 
 	UserCodeBucketPath    = "/opt/hazelcast/userCode/bucket"
+	UserCodeURLPath       = "/opt/hazelcast/userCode/urls"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
+	JetJobJarsBucketPath  = "/opt/hazelcast/jetJobJars/bucket"
 )
 
 // Hazelcast default configurations
@@ -82,7 +85,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "latest-snapshot"
+	HazelcastVersion = "5.3.0-BETA-2"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
@@ -203,12 +206,14 @@ const (
 
 // Advanced Network Constants
 const (
-	MemberPortName = "member-port"
-	ClientPortName = "client-port"
-	RestPortName   = "rest-port"
-	WanPortName    = "wan-port"
+	MemberPortName     = "member-port"
+	ClientPortName     = "client-port"
+	RestPortName       = "rest-port"
+	WanDefaultPortName = "wan-port"
+	WanPortNamePrefix  = "wan-"
 
 	MemberServerSocketPort = 5702
 	ClientServerSocketPort = 5701
 	RestServerSocketPort   = 8081
+	WanDefaultPort         = 5710
 )

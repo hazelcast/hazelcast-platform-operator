@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="latest-snapshot"
+	// +kubebuilder:default:="5.3.0-BETA-2"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.15"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.17"}
 	// +optional
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
@@ -152,6 +152,32 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:default:={}
 	AdvancedNetwork AdvancedNetwork `json:"advancedNetwork,omitempty"`
+
+	// Hazelcast Management Center Configuration
+	// +optional
+	// +kubebuilder:default:={}
+	ManagementCenterConfig ManagementCenterConfig `json:"managementCenter,omitempty"`
+
+	// Hazelcast TLS configuration
+	// +optional
+	TLS TLS `json:"tls,omitempty"`
+}
+
+type ManagementCenterConfig struct {
+	// Allows you to execute scripts that can automate interactions with the cluster.
+	// +kubebuilder:default:=false
+	// +optional
+	ScriptingEnabled bool `json:"scriptingEnabled,omitempty"`
+
+	// Allows you to execute commands from a built-in console in the user interface.
+	// +kubebuilder:default:=false
+	// +optional
+	ConsoleEnabled bool `json:"consoleEnabled,omitempty"`
+
+	// Allows you to access contents of Hazelcast data structures via SQL Browser or Map Browser.
+	// +kubebuilder:default:=false
+	// +optional
+	DataAccessEnabled bool `json:"dataAccessEnabled,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=NODE;ZONE
@@ -173,6 +199,11 @@ type JetEngineConfiguration struct {
 	// +kubebuilder:default:=false
 	// +optional
 	ResourceUploadEnabled bool `json:"resourceUploadEnabled"`
+
+	// Bucket Configuration from which the JAR files be downloaded and accessible for the member.
+	// These JAR files will not be placed in the CLASSPATH.
+	// +optional
+	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
 
 	// Jet Instance Configuration
 	// +kubebuilder:default:={}
@@ -242,6 +273,11 @@ func (j *JetEdgeDefaults) IsConfigured() bool {
 // Returns true if Jet section is configured.
 func (j *JetEngineConfiguration) IsConfigured() bool {
 	return j != nil
+}
+
+// Returns true if jet.bucketConfiguration is specified.
+func (j *JetEngineConfiguration) IsBucketEnabled() bool {
+	return j != nil && j.BucketConfiguration != nil
 }
 
 type ExecutorServiceConfiguration struct {
@@ -361,6 +397,10 @@ type UserCodeDeploymentConfig struct {
 	// Names of the list of ConfigMaps. Files in each ConfigMap will be put under Java CLASSPATH.
 	// +optional
 	ConfigMaps []string `json:"configMaps,omitempty"`
+
+	// List of URLs. Files downloaded from the URLs will be put under Java CLASSPATH.
+	// +optional
+	RemoteURLs []string `json:"remoteURLs,omitempty"`
 }
 
 // Returns true if userCodeDeployment.bucketConfiguration is specified.
@@ -373,6 +413,11 @@ func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
 	return c != nil && (len(c.ConfigMaps) != 0)
 }
 
+// Returns true if userCodeDeployment.RemoteURLs configuration is specified.
+func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
+	return c != nil && (len(c.RemoteURLs) != 0)
+}
+
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
 	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
@@ -380,7 +425,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.16"
+	// +kubebuilder:default:="0.1.17"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
@@ -637,6 +682,10 @@ type JVMConfiguration struct {
 	// GC is for configuring JVM Garbage Collector
 	// +optional
 	GC *JVMGCConfiguration `json:"gc,omitempty"`
+
+	// Args is for arbitrary JVM arguments
+	// +optional
+	Args []string `json:"args,omitempty"`
 }
 
 func (c *JVMConfiguration) GetMemory() *JVMMemoryConfiguration {
@@ -649,6 +698,13 @@ func (c *JVMConfiguration) GetMemory() *JVMMemoryConfiguration {
 func (c *JVMConfiguration) GCConfig() *JVMGCConfiguration {
 	if c != nil {
 		return c.GC
+	}
+	return nil
+}
+
+func (c *JVMConfiguration) GetArgs() []string {
+	if c != nil {
+		return c.Args
 	}
 	return nil
 }
@@ -698,10 +754,6 @@ type JVMGCConfiguration struct {
 	// Collector is the Garbage Collector type
 	// +optional
 	Collector *GCType `json:"collector,omitempty"`
-
-	// Args is for arbitrary garbage collection arguments
-	// +optional
-	Args []string `json:"args,omitempty"`
 }
 
 func (j *JVMGCConfiguration) IsLoggingEnabled() bool {
@@ -716,13 +768,6 @@ func (j *JVMGCConfiguration) GetCollector() GCType {
 		return *j.Collector
 	}
 	return ""
-}
-
-func (j *JVMGCConfiguration) GetArgs() []string {
-	if j != nil && j.Args != nil {
-		return j.Args
-	}
-	return []string{}
 }
 
 // GCType is Garbage Collector type
@@ -805,6 +850,11 @@ type ClientServerSocketEndpointConfig struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 }
 
+type TLS struct {
+	// Name of the secret with TLS certificate and key.
+	SecretName string `json:"secretName,omitempty"`
+}
+
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
 	// Phase of the Hazelcast cluster
@@ -822,6 +872,10 @@ type HazelcastStatus struct {
 	// External addresses of the Hazelcast cluster members
 	// +optional
 	ExternalAddresses string `json:"externalAddresses,omitempty"`
+
+	// WAN addresses of the Hazelcast cluster members
+	// +optional
+	WanAddresses string `json:"wanAddresses,omitempty"`
 
 	// Status of Hazelcast members
 	// +optional
@@ -935,6 +989,7 @@ type HazelcastClusterStatus struct {
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 // +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
 // +kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Hazelcast cluster"
+// +kubebuilder:printcolumn:name="WAN-Addresses",type="string",JSONPath=".status.wanAddresses",description="WAN addresses of the Hazelcast cluster"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Hazelcast Config"
 // +kubebuilder:resource:shortName=hz
 type Hazelcast struct {

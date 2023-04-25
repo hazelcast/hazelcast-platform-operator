@@ -2,7 +2,6 @@ package hazelcast
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,14 +21,13 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 func fakeK8sClient(initObjs ...client.Object) client.Client {
 	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
 		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{},
-			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.ConfigMap{}).
+			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.Secret{}).
 		Build()
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 }
@@ -80,26 +78,19 @@ type fakeHttpClientRegistry struct {
 	clients sync.Map
 }
 
-func (hr *fakeHttpClientRegistry) Create(_ context.Context, _ client.Client, ns string) (*http.Client, error) {
-	if v, ok := hr.clients.Load(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}); ok {
-		return v.(*http.Client), nil
-	}
-	return nil, errors.New("no client found")
-}
-
-func (hr *fakeHttpClientRegistry) Get(ns string) (*http.Client, bool) {
-	if v, ok := hr.clients.Load(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}); ok {
+func (hr *fakeHttpClientRegistry) Get(ctx context.Context, name types.NamespacedName) (*http.Client, bool) {
+	if v, ok := hr.clients.Load(name); ok {
 		return v.(*http.Client), ok
 	}
 	return nil, false
 }
 
-func (hr *fakeHttpClientRegistry) Delete(ns string) {
-	hr.clients.Delete(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns})
+func (hr *fakeHttpClientRegistry) Delete(name types.NamespacedName) {
+	hr.clients.Delete(name)
 }
 
-func (hr *fakeHttpClientRegistry) Set(ns string, cl *http.Client) {
-	hr.clients.Store(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}, cl)
+func (hr *fakeHttpClientRegistry) Set(name types.NamespacedName, cl *http.Client) {
+	hr.clients.Store(name, cl)
 }
 
 type fakeHzClient struct {

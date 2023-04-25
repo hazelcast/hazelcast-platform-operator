@@ -120,7 +120,7 @@ jobs:
           oc adm policy add-scc-to-user privileged system:serviceaccount:${GRAFANA_NS}:ksm-kube-state-metrics
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && \
           helm repo update && \
-          helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.4.2 -n ${GRAFANA_NS}
+          helm install ksm prometheus-community/kube-state-metrics --version 5.3.0 --set image.tag=v2.8.2 -n ${GRAFANA_NS}
 
       - name: Install Grafana Agent logs
         env:
@@ -175,14 +175,10 @@ jobs:
           username: _json_key
           password: ${{ secrets.GKE_SA_KEY }}
 
-      - name: Deploy CRDs
-        if: matrix.edition == 'ee'
-        run: make install-crds
-
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
+          make install-crds
           oc new-project $NAMESPACE
-
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
           make install-operator IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           oc rollout status deployment ${DEPLOY_NAME}
@@ -215,7 +211,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}-01 WORKFLOW_ID=ocp
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}_01 WORKFLOW_ID=ocp
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
@@ -246,11 +242,10 @@ jobs:
         run: |
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           helm uninstall ksm --namespace ${GRAFANA_NS}
-          kubectl delete namespace ${GRAFANA_NS}
+          kubectl delete namespace ${GRAFANA_NS} --grace-period=0 --force
           for NODE in $(oc get nodes --no-headers -o name); do
             oc debug ${NODE} -- chroot /host sh -c "sleep 5; podman image prune -a -f"
           done
-          make uninstall-crds
 
   update-test-run-status-badge:
     runs-on: ubuntu-latest
@@ -280,7 +275,7 @@ jobs:
     if: always() &&  needs.ocp-e2e-tests.result != 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: 8398a7/action-slack@a189acbf0b7ea434558662ae25a0de71df69a435
+      - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
