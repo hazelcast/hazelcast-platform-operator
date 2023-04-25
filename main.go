@@ -124,7 +124,7 @@ func main() {
 
 	controllerLogger := ctrl.Log.WithName("controllers")
 
-	mtlsRegistry := mtls.NewHttpClientRegistry()
+	mtlsRegistry := mtls.NewHttpClientRegistry(mgr.GetClient())
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),
 		controllerLogger.WithName("Hazelcast"),
@@ -256,10 +256,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "JetJob")
 		os.Exit(1)
 	}
-	if err = (&hazelcastcomv1alpha1.JetJob{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "JetJob")
-		os.Exit(1)
-	}
 
 	setupWithWebhookOrDie(mgr)
 
@@ -338,6 +334,10 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 	}
 	if err := (&hazelcastcomv1alpha1.ReplicatedMap{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "ReplicatedMap")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.JetJob{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "JetJob")
 		os.Exit(1)
 	}
 }

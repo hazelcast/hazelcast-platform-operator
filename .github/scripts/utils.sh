@@ -130,34 +130,6 @@ checking_image_grade()
     done
 }
 
-# This function will delete completed 'pages-build-deployment' runs using 'run_number' located in a custom head_commit message
-cleanup_page_publish_runs()
-{
-    sleep 2
-    local GITHUB_REPOSITORY=$1
-    local JOB_NAME=$2
-    local MASTER_JOB_RUN_NUMBER=$3
-    local TIMEOUT_IN_MINS=$4
-    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
-    local WORKFLOW_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/workflows | jq '.workflows[] | select(.["name"] | contains("'${JOB_NAME}'")) | .id')
-
-    for i in `seq 1 ${NOF_RETRIES}`; do
-            RUN_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW_ID}/runs --paginate | jq '.workflow_runs[] | select(.["status"] | contains("completed")) | select(.head_commit.message | select(contains("'${MASTER_JOB_RUN_NUMBER}'"))) | .id')
-            if [[ ${RUN_ID} -ne "" ]]; then
-                    echo "Deleting Run ID $RUN_ID for the workflow ID $WORKFLOW_ID"
-                    gh api repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID} -X DELETE >/dev/null
-                return 0
-            else
-                echo "The '${JOB_NAME}' job that was triggered by job with run number '${MASTER_JOB_RUN_NUMBER}' is not finished yet. Waiting..."
-            fi
-            if [[ ${i} == ${NOF_RETRIES} ]]; then
-                echo "Timeout! 'pages-build-deployment' job still not completed."
-                return 42
-            fi
-            sleep 20
-    done
-}
-
 # The function waits until all EKS stacks will be deleted. Takes 2 arguments - cluster name and timeout.
 wait_for_eks_stack_deleted()
 {
@@ -275,9 +247,8 @@ wait_for_instance_restarted()
 # Returns the specified number of files with name test_suite_XX where XX - suffix number of file starting with '01'. The tests will be equally splitted between files.
 generate_test_suites()
 {
+   make ginkgo
    mkdir suite_files
-   local GINKGO_VERSION=v2.1.6
-   make ginkgo GINKGO_VERSION=$GINKGO_VERSION
    SUITE_LIST=$(find test/e2e -type f \
      -name "*_test.go" \
    ! -name "hazelcast_backup_slow_test.go" \
@@ -290,7 +261,7 @@ generate_test_suites()
    ! -name "util_test.go" \
    ! -name "options_test.go")
    for SUITE_NAME in $SUITE_LIST; do
-       $(go env GOBIN)/ginkgo/$GINKGO_VERSION/ginkgo outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
+       $(make ginkgo PRINT_TOOL_NAME=true) outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
    done
    split --number=r/$1 TESTS_LIST suite_files/test_suite_ --numeric-suffixes=1 -a 2
    for i in $(ls suite_files/); do

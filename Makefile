@@ -34,7 +34,7 @@ OCP_OLM_CATALOG_VALIDATOR_VERSION ?= v0.0.1
 OPM_VERSION ?= v1.26.2
 # https://github.com/onsi/ginkgo/releases
 # It is set in the go.mod file
-GINKGO_VERSION ?= v2.1.6
+GINKGO_VERSION ?= $(shell go list -m -f "{{.Version}}" github.com/onsi/ginkgo/v2)
 # https://github.com/kubernetes-sigs/kustomize/releases
 KUSTOMIZE_VERSION ?= v4.5.3
 # https://github.com/helm/helm/releases
@@ -210,7 +210,7 @@ endif
 GINKGO_PARALLEL_PROCESSES ?= 4
 
 test-e2e-split-kind: generate fmt vet ginkgo ## Run end-to-end tests on Kind
-	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --output-interceptor-mode=none --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
 	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
