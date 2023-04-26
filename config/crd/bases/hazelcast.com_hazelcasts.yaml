@@ -274,6 +274,7 @@ spec:
                           on the IMap that Jet needs internally to store job metadata
                           and snapshots.
                         format: int32
+                        maximum: 6
                         type: integer
                       cooperativeThreadCount:
                         description: The number of threads Jet creates in its cooperative
