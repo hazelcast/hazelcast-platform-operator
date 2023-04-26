@@ -39,6 +39,7 @@ jobs:
           aws s3 sync s3://reportboard/${{ inputs.WORKFLOW_ID }}/last-history test-report-history/${{ inputs.WORKFLOW_ID }}/last-history
           aws s3 cp s3://reportboard/styles.css test-report-history/styles.css
           aws s3 cp s3://reportboard/favicon.ico test-report-history/favicon.ico
+          sed -i 's%//\#testresult%/\#testresult%g' test-report-history/${{ inputs.WORKFLOW_ID }}/last-history/history.json
 
       - name: Download test-report.xml
         if: always()
@@ -75,6 +76,7 @@ jobs:
           echo "[{\"name\":\"Backup Slow Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_backup_slow_test.*\"},{\"name\":\"Expose Externally Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_expose_externally_test.*\"},{\"name\":\"Map Custom Class Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_custom_class_test.*\"},{\"name\":\"Map Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_persistence_test.*\"},{\"name\":\"Map Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_test.*\"},{\"name\":\"Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_persistence_test.*\"},{\"name\":\"Hazelcast Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_test.*\"},{\"name\":\"Hazelcast Wan Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_wan_test.*\"},{\"name\":\"Management Center Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*management_center_test.*\"},{\"name\":\"Phone Home Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*phone_home_test.*\"}]" > allure-results/${{ inputs.WORKFLOW_ID }}/categories.json
 
       - name: Generate Test Report
+        id: generate-report
         uses: simple-elf/allure-report-action@master
         if: always()
         with:
@@ -114,53 +116,12 @@ jobs:
           mv -f test-report-history/favicon.ico allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
 
       - name: Upload Report to AWS S3
+        if: steps.generate-report.outcome == 'success'
         run: |
           aws s3 sync ./allure-history s3://reportboard
           
       - name: Add Test Report Summary To PR
         if: ${{ contains(inputs.WORKFLOW_ID, 'pr') }}
         run: |
-          sudo apt-get install libxml2-utils
-          # Define an array to store test run status
-          declare -a test_run_status
-          
-          # Define an associative array to map report names to suite IDs
-          declare -A suite_ids=(
-              ["test_report_ee_01.xml"]="fb850ba25ceb06c7b2b56dd821744585"
-              ["test_report_os_01.xml"]="0b301d038a17885b818e60273771cfeb"
-          )
-
-          # Initialize the table header
-          comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
-
-          # Loop through the test reports and generate a table row for each one
-          for report in "${!suite_ids[@]}"
-          do
-              # Extract the relevant data from the test report using xmllint
-              tests=$(xmllint --xpath 'string(//testsuites/testsuite/@tests)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-              failures=$(xmllint --xpath 'string(//testsuites/testsuite/@failures)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-              errors=$(xmllint --xpath 'string(//testsuites/testsuite/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-              skipped=$(xmllint --xpath 'string(//testsuites/testsuite/@skipped)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-          
-              # Save status of the test run
-              test_run_status+=("$([ "$failures" -gt 0 ] && echo true || echo false)" "$([ "$errors" -gt 0 ] && echo true || echo false)")
-
-              # Get the suite ID from the array
-              suite_id=${suite_ids[$report]}
-
-              # Extract the substring "EE" or "OS" from the report name
-              type="${report#test_report_}"
-              type="${type%_01.xml}"
-
-              # Construct a table row with a link to the test report
-              link="$REPORT_PAGE_URL/pr/${{ github.run_number }}/#suites/${suite_id}"
-              row="| [${type^^}](${link}) | $tests | $failures | $errors| $skipped |\n"
-
-              # Append the row to the output
-              comment+="$row"
-          done
-
-          # Send the output as a comment on the pull request using gh
-          if [[ "${test_run_status[*]}" == *"true"* ]]; then
-             echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
-          fi
+          source .github/scripts/utils.sh
+          post_test_result ${{ github.event.pull_request.number }}
