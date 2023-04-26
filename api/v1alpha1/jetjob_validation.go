@@ -78,5 +78,13 @@ func ValidateJetJobNonUpdatableFields(jj JetJobSpec, oldJj JetJobSpec) []*field.
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("mainClass"), "field cannot be updated"))
 	}
+	if jj.BucketConfiguration.BucketURI != oldJj.BucketConfiguration.BucketURI {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("bucketURI"), "field cannot be updated"))
+	}
+	if jj.BucketConfiguration.Secret != oldJj.BucketConfiguration.Secret {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("secret"), "field cannot be updated"))
+	}
 	return allErrs
 }
