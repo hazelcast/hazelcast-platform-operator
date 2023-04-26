@@ -228,6 +228,7 @@ type JetInstance struct {
 
 	// The number of synchronous backups to configure on the IMap that Jet needs internally to store job metadata and snapshots.
 	// +kubebuilder:default:=1
+	// +kubebuilder:validation:Maximum:=6
 	// +optional
 	BackupCount int32 `json:"backupCount,omitempty"`
 

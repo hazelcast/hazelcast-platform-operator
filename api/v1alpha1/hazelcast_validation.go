@@ -458,7 +458,7 @@ func validateJetConfig(h *Hazelcast) []*field.Error {
 	if !j.Instance.IsConfigured() {
 		return nil
 	}
-	if j.Instance.BackupCount > 6 {
+	if j.Instance.BackupCount > n.MaxBackupCount {
 		allErrs = append(allErrs,
 			field.Invalid(field.NewPath("spec").Child("jet").Child("instance").Child("backupCount"),
 				h.Spec.JetEngineConfiguration.Instance.BackupCount, fmt.Sprintf("may not be greater than %d", n.MaxBackupCount)))
