@@ -333,6 +333,10 @@ type UserCodeDeploymentConfig struct {
 	// Names of the list of ConfigMaps. Files in each ConfigMap will be put under Java CLASSPATH.
 	// +optional
 	ConfigMaps []string `json:"configMaps,omitempty"`
+
+	// List of URLs. Files downloaded from the URLs will be put under Java CLASSPATH.
+	// +optional
+	RemoteURLs []string `json:"remoteURLs,omitempty"`
 }
 
 // Returns true if userCodeDeployment.bucketConfiguration is specified.
@@ -343,6 +347,11 @@ func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
 // Returns true if userCodeDeployment.configMaps configuration is specified.
 func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
 	return c != nil && (len(c.ConfigMaps) != 0)
+}
+
+// Returns true if userCodeDeployment.RemoteURLs configuration is specified.
+func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
+	return c != nil && (len(c.RemoteURLs) != 0)
 }
 
 type AgentConfiguration struct {

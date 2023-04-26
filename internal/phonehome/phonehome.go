@@ -154,6 +154,7 @@ type UserCodeDeployment struct {
 	ClientEnabled int `json:"ce"`
 	FromBucket    int `json:"fb"`
 	FromConfigMap int `json:"fcm"`
+	FromURL       int `json:"fu"`
 }
 
 type McExternalConnectivity struct {
@@ -313,6 +314,9 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 	}
 	if hucd.IsConfigMapEnabled() {
 		ucd.FromConfigMap++
+	}
+	if hucd.IsRemoteURLsEnabled() {
+		ucd.FromURL++
 	}
 }
 

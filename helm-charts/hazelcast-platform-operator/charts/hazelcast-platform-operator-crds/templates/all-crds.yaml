@@ -1898,6 +1898,12 @@ spec:
                     items:
                       type: string
                     type: array
+                  remoteURLs:
+                    description: List of URLs. Files downloaded from the URLs will
+                      be put under Java CLASSPATH.
+                    items:
+                      type: string
+                    type: array
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading
                       the user code.

@@ -20,7 +20,6 @@ env:
   GO_VERSION: '1.19.0'
   NR_OF_SUITES: 5
   GOBIN: ${{ github.workspace }}/bin
-  GINKGO_VERSION: v2.1.6
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
@@ -60,8 +59,8 @@ jobs:
       - name: Check if tests are unfocused
         if: ${{ !cancelled() }}
         run: |
-           make ginkgo GINKGO_VERSION=$GINKGO_VERSION
-           if [[ $($GOBIN/ginkgo/$GINKGO_VERSION/ginkgo unfocus | wc -l) -gt 1 ]]; then
+           make ginkgo
+           if [[ $($(make ginkgo PRINT_TOOL_NAME=true) unfocus | wc -l) -gt 1 ]]; then
              echo "Some tests have 'F' before the test name. Run the 'ginkgo unfocus' command against your branch '${{ github.event.pull_request.head.ref }}' and push the changes."
              exit 1
            fi

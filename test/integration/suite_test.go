@@ -100,7 +100,7 @@ var _ = BeforeSuite(func() {
 		nil,
 		cs,
 		ssm,
-		mtls.NewHttpClientRegistry(),
+		mtls.NewHttpClientRegistry(k8sManager.GetClient()),
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -144,7 +144,7 @@ var _ = BeforeSuite(func() {
 		controllerLogger.WithName("WanReplication"),
 		k8sManager.GetScheme(),
 		nil,
-		mtls.NewHttpClientRegistry(),
+		mtls.NewHttpClientRegistry(k8sManager.GetClient()),
 		cs,
 		ssm,
 	).SetupWithManager(k8sManager)
