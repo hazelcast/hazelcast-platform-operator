@@ -5,7 +5,6 @@ metadata:
 spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
-  version: '5.2.1'
   licenseKeySecret: hazelcast-license-key
   jvm:
     args:
