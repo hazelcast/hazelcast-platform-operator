@@ -412,7 +412,7 @@ var _ = Describe("Hazelcast webhook", func() {
 
 	})
 	Context("Hazelcast Jet Engine Configuration", func() {
-		FIt("should validate backup count", Label("fast"), func() {
+		It("should validate backup count", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
 			spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
 				Enabled: pointer.Bool(true),
