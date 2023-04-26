@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+
+	"github.com/hazelcast/platform-operator-agent/sidecar"
 )
 
 type FileDownloadService struct {
@@ -23,15 +25,7 @@ func NewFileDownloadService(address string, httpClient *http.Client) (*FileDownl
 	}, nil
 }
 
-// TODO reuse sidecar
-type DownloadFileReq struct {
-	URL        string `json:"url"`
-	FileName   string `json:"file_name"`
-	DestDir    string `json:"dest_dir"`
-	SecretName string `json:"secret_name"`
-}
-
-func (s *FileDownloadService) Download(ctx context.Context, opts DownloadFileReq) (*http.Response, error) {
+func (s *FileDownloadService) Download(ctx context.Context, opts sidecar.DownloadFileReq) (*http.Response, error) {
 	u := "download"
 	req, err := s.client.NewRequest("POST", u, opts)
 	if err != nil {

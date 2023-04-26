@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/hazelcast/platform-operator-agent/sidecar"
 	"golang.org/x/sync/errgroup"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -233,7 +234,7 @@ func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alp
 				logger.Error(err, "unable to create NewFileDownloadService")
 				return err
 			}
-			_, err = fds.Download(groupCtx, rest.DownloadFileReq{
+			_, err = fds.Download(groupCtx, sidecar.DownloadFileReq{
 				URL:        bc.BucketURI,
 				FileName:   job.Spec.JarName,
 				DestDir:    n.JetJobJarsBucketPath,
