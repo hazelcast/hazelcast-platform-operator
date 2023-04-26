@@ -208,6 +208,56 @@ wait_for_elb_deleted()
     fi
 }
 
+post_test_result()
+{
+    local PR_NUMBER=$1
+    sudo apt-get update
+    sudo apt-get install libxml2-utils
+    # Define an array to store test run status
+    declare -a test_run_status
+
+    # Define an associative array to map report names to suite IDs
+    declare -A suite_ids=(
+        ["test_report_ee_01.xml"]="c27ecdc7f61258eff0f1de9e8de22e20"
+        ["test_report_os_01.xml"]="5d60bbdb1d132c4d168b7ea248b808b2"
+    )
+
+    # Initialize the table header
+    comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
+
+    # Loop through the test reports and generate a table row for each one
+    for report in "${!suite_ids[@]}"
+    do
+        # Extract the relevant data from the test report using xmllint
+        tests=$(xmllint --xpath 'string(//testsuites/testsuite/@tests)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+        failures=$(xmllint --xpath 'string(//testsuites/testsuite/@failures)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+        errors=$(xmllint --xpath 'string(//testsuites/testsuite/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+        skipped=$(xmllint --xpath 'string(//testsuites/testsuite/@skipped)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+
+        # Save status of the test run
+        test_run_status+=("$([ "$failures" -gt 0 ] && echo true || echo false)" "$([ "$errors" -gt 0 ] && echo true || echo false)")
+
+        # Get the suite ID from the array
+        suite_id=${suite_ids[$report]}
+
+        # Extract the substring "EE" or "OS" from the report name
+        type="${report#test_report_}"
+        type="${type%_01.xml}"
+
+        # Construct a table row with a link to the test report
+        link="${REPORT_PAGE_URL}/pr/${GITHUB_RUN_NUMBER}/#suites/${suite_id}"
+        row="| [${type^^}](${link}) | $tests | $failures | $errors| $skipped |\n"
+
+        # Append the row to the output
+        comment+="$row"
+    done
+
+    # Send the output as a comment on the pull request using gh
+    if [[ "${test_run_status[*]}" == *"true"* ]]; then
+       echo -e "$comment" | gh pr comment ${PR_NUMBER} -F -
+    fi
+}
+
 # This function will restart all instances that are not in ready status and wait until it will be ready
 wait_for_instance_restarted()
 {
