@@ -426,7 +426,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(MatchError(
-				ContainSubstring("Invalid value: 7: may not be greater than 6")))
+				ContainSubstring("Invalid value: 7: spec.jet.instance.backupCount in body should be less than or equal to 6")))
 		})
 
 		It("should validate if lossless restart enabled without enabling persistence", Label("fast"), func() {
