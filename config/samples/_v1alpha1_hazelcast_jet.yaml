@@ -8,5 +8,19 @@ spec:
   jet:
     enabled: true
     resourceUploadEnabled: false
+    instance:
+      cooperativeThreadCount: 4
+      flowControlPeriodMillis: 100
+      backupCount: 1
+      scaleUpDelayMillis: 10000
+      losslessRestartEnabled: false
+      maxProcessorAccumulatedRecords: 1000000000
+    edgeDefaults:
+      queueSize: 1024
+      packetSizeLimit: 16384
+      receiveWindowMultiplier: 3
   version: '5.1.4'
   licenseKeySecret: hazelcast-license-key
+  jvm:
+    args:
+      - "-Djet.idle.cooperative.min.microseconds=50"

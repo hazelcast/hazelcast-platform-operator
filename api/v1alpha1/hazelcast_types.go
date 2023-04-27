@@ -204,6 +204,71 @@ type JetEngineConfiguration struct {
 	// These JAR files will not be placed in the CLASSPATH.
 	// +optional
 	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
+
+	// Jet Instance Configuration
+	// +kubebuilder:default:={}
+	// +optional
+	Instance *JetInstance `json:"instance,omitempty"`
+
+	// Jet Edge Defaults Configuration
+	// +kubebuilder:default:={}
+	// +optional
+	EdgeDefaults *JetEdgeDefaults `json:"edgeDefaults,omitempty"`
+}
+
+type JetInstance struct {
+	// The number of threads Jet creates in its cooperative multithreading pool.
+	// +optional
+	CooperativeThreadCount int32 `json:"cooperativeThreadCount,omitempty"`
+
+	// The duration of the interval between flow-control packets.
+	// +kubebuilder:default:=100
+	// +optional
+	FlowControlPeriodMillis int32 `json:"flowControlPeriodMillis,omitempty"`
+
+	// The number of synchronous backups to configure on the IMap that Jet needs internally to store job metadata and snapshots.
+	// +kubebuilder:default:=1
+	// +kubebuilder:validation:Maximum:=6
+	// +optional
+	BackupCount int32 `json:"backupCount,omitempty"`
+
+	// The delay after which the auto-scaled jobs restart if a new member joins the cluster.
+	// +kubebuilder:default:=10000
+	// +optional
+	ScaleUpDelayMillis int32 `json:"scaleUpDelayMillis,omitempty"`
+
+	// Specifies whether the Lossless Cluster Restart feature is enabled.
+	// +kubebuilder:default:=false
+	// +optional
+	LosslessRestartEnabled bool `json:"losslessRestartEnabled"`
+
+	// Specifies the maximum number of records that can be accumulated by any single processor instance.
+	// +optional
+	MaxProcessorAccumulatedRecords int64 `json:"maxProcessorAccumulatedRecords,omitempty"`
+}
+
+// Returns true if Jet Instance section is configured.
+func (j *JetInstance) IsConfigured() bool {
+	return j != nil && !(*j == (JetInstance{}))
+}
+
+type JetEdgeDefaults struct {
+	// Sets the capacity of processor-to-processor concurrent queues.
+	// +optional
+	QueueSize int32 `json:"queueSize,omitempty"`
+
+	// Limits the size of the packet in bytes.
+	// +optional
+	PacketSizeLimit int32 `json:"packetSizeLimit,omitempty"`
+
+	// Sets the scaling factor used by the adaptive receive window sizing function.
+	// +optional
+	ReceiveWindowMultiplier int8 `json:"receiveWindowMultiplier,omitempty"`
+}
+
+// Returns true if Jet Instance Edge Defaults is configured.
+func (j *JetEdgeDefaults) IsConfigured() bool {
+	return j != nil && !(*j == (JetEdgeDefaults{}))
 }
 
 // Returns true if Jet section is configured.

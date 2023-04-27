@@ -217,3 +217,8 @@ const (
 	RestServerSocketPort   = 8081
 	WanDefaultPort         = 5710
 )
+
+// Jet Engine Config Constants
+const (
+	MaxBackupCount = 6
+)

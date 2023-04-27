@@ -629,6 +629,67 @@ var _ = Describe("Hazelcast controller", func() {
 				Delete(hz)
 			})
 		})
+
+		When("Jet engine is fully configured", func() {
+			It("should create jet engine configuration", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled:               ptr.Bool(true),
+					ResourceUploadEnabled: false,
+					Instance: &hazelcastv1alpha1.JetInstance{
+						CooperativeThreadCount:         1,
+						FlowControlPeriodMillis:        1,
+						BackupCount:                    1,
+						ScaleUpDelayMillis:             1,
+						LosslessRestartEnabled:         false,
+						MaxProcessorAccumulatedRecords: 1,
+					},
+					EdgeDefaults: &hazelcastv1alpha1.JetEdgeDefaults{
+						QueueSize:               1,
+						PacketSizeLimit:         1,
+						ReceiveWindowMultiplier: 1,
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				expectedJetEngineConfig := config.Jet{
+					Enabled:               ptr.Bool(true),
+					ResourceUploadEnabled: ptr.Bool(false),
+					Instance: config.JetInstance{
+						CooperativeThreadCount:         ptr.Int32(1),
+						FlowControlPeriodMillis:        ptr.Int32(1),
+						BackupCount:                    ptr.Int32(1),
+						ScaleUpDelayMillis:             ptr.Int32(1),
+						LosslessRestartEnabled:         ptr.Bool(false),
+						MaxProcessorAccumulatedRecords: ptr.Int64(1),
+					},
+					EdgeDefaults: config.EdgeDefaults{
+						QueueSize:               ptr.Int32(1),
+						PacketSizeLimit:         ptr.Int32(1),
+						ReceiveWindowMultiplier: ptr.Int8(1),
+					},
+				}
+
+				Create(hz)
+				_ = EnsureStatus(hz)
+
+				Eventually(func() config.Jet {
+					cfg := getSecret(hz)
+					a := &config.HazelcastWrapper{}
+
+					if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+						return config.Jet{}
+					}
+
+					return a.Hazelcast.Jet
+				}, timeout, interval).Should(Equal(expectedJetEngineConfig))
+
+				Delete(hz)
+			})
+		})
 	})
 
 	Context("Hazelcast CR HighAvailabilityMode Configuration", func() {

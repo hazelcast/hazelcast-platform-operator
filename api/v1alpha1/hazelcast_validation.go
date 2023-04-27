@@ -71,6 +71,10 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 		allErrs = append(allErrs, err...)
 	}
 
+	if err := validateJetConfig(h); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
 	if err := validateJVMConfig(h); err != nil {
 		allErrs = append(allErrs, err...)
 	}
@@ -440,4 +444,25 @@ func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistence
 		return nil
 	}
 	return allErrs
+}
+
+func validateJetConfig(h *Hazelcast) *field.Error {
+	var err *field.Error
+
+	j := h.Spec.JetEngineConfiguration
+	p := h.Spec.Persistence
+
+	if !j.IsConfigured() {
+		return nil
+	}
+	if !j.Instance.IsConfigured() {
+		return nil
+	}
+
+	if j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
+		err = field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
+			"can be enabled only if persistence enabled")
+	}
+
+	return err
 }
