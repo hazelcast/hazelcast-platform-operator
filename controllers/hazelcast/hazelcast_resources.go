@@ -1541,6 +1541,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Name:      n.HazelcastStorageName,
 				MountPath: n.HazelcastMountPath,
 			},
+			jetJobJarsVolumeMount(),
 		},
 		SecurityContext: containerSecurityContext(),
 	}
