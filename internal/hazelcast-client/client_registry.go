@@ -40,7 +40,7 @@ func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.Nam
 		return nil, err
 	}
 	var pool *x509.CertPool
-	if h.Spec.TLS.SecretName != "" {
+	if h.Spec.TLS.IsEnabled() {
 		var s v1.Secret
 		err = cr.K8sClient.Get(ctx, types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}, &s)
 		if err != nil {

@@ -324,11 +324,16 @@ func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *ha
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, secret, func() error {
 		files := make(map[string][]byte)
 		for _, cluster := range mc.Spec.HazelcastClusters {
-			keystore, err := hazelcastKeystore(ctx, r.Client, mc, cluster.TLS.SecretName)
-			if err != nil {
-				return err
+
+			// Management Center cluster TLS configuration
+			// TLS.Type field is just ignored. We continue with 'BasicSSL'
+			if cluster.TLS.IsEnabled() {
+				keystore, err := hazelcastKeystore(ctx, r.Client, mc, cluster.TLS.SecretName)
+				if err != nil {
+					return err
+				}
+				files[cluster.Name+".jks"] = keystore
 			}
-			files[cluster.Name+".jks"] = keystore
 
 			clientConfig, err := hazelcastClientConfig(ctx, r.Client, &cluster)
 			if err != nil {
@@ -574,7 +579,7 @@ func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelca
 		},
 	}
 
-	if config.TLS.SecretName != "" {
+	if config.TLS.IsEnabled() {
 		clientConfig.Network.SSL = SSL{
 			Enabled:          "true",
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",

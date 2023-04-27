@@ -626,8 +626,8 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 				}
 				configSecret.Data["hazelcast.jks"] = keystore
 			}
-			// If the TLS type is `OpenSSL`, cert and key values from given secret is not copied into out secret.
-			// The given TLS secret is directly used to mount into the Hazelcast containers.
+			// If the TLS type is `OpenSSL`, the cert and key values from given secret is not copied into the secret.
+			// The given TLS secret is directly mounted into the ManagementCenter container.
 		}
 
 		if _, ok := configSecret.Data["ca.crt"]; !ok {

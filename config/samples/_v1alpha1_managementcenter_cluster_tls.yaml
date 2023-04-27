@@ -12,7 +12,3 @@ spec:
       name: dev
       tls:
         secretName: example
-  persistence:
-    enabled: false
-
-
