@@ -411,4 +411,40 @@ var _ = Describe("Hazelcast webhook", func() {
 		})
 
 	})
+	Context("Hazelcast Jet Engine Configuration", func() {
+		It("should validate backup count", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				Enabled: pointer.Bool(true),
+				Instance: &hazelcastv1alpha1.JetInstance{
+					BackupCount: 7,
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).Should(MatchError(
+				ContainSubstring("Invalid value: 7: spec.jet.instance.backupCount in body should be less than or equal to 6")))
+		})
+
+		It("should validate if lossless restart enabled without enabling persistence", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultSpecValues, ee)
+			spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				Enabled: pointer.Bool(true),
+				Instance: &hazelcastv1alpha1.JetInstance{
+					LosslessRestartEnabled: true,
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("Forbidden: can be enabled only if persistence enabled")))
+		})
+	})
 })

@@ -719,6 +719,27 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			Enabled:               h.Spec.JetEngineConfiguration.Enabled,
 			ResourceUploadEnabled: pointer.Bool(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
 		}
+
+		if h.Spec.JetEngineConfiguration.Instance.IsConfigured() {
+			i := h.Spec.JetEngineConfiguration.Instance
+			cfg.Jet.Instance = config.JetInstance{
+				CooperativeThreadCount:         &i.CooperativeThreadCount,
+				FlowControlPeriodMillis:        &i.FlowControlPeriodMillis,
+				BackupCount:                    &i.BackupCount,
+				ScaleUpDelayMillis:             &i.ScaleUpDelayMillis,
+				LosslessRestartEnabled:         &i.LosslessRestartEnabled,
+				MaxProcessorAccumulatedRecords: &i.MaxProcessorAccumulatedRecords,
+			}
+		}
+
+		if h.Spec.JetEngineConfiguration.EdgeDefaults.IsConfigured() {
+			e := h.Spec.JetEngineConfiguration.EdgeDefaults
+			cfg.Jet.EdgeDefaults = config.EdgeDefaults{
+				QueueSize:               &e.QueueSize,
+				PacketSizeLimit:         &e.PacketSizeLimit,
+				ReceiveWindowMultiplier: &e.ReceiveWindowMultiplier,
+			}
+		}
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
