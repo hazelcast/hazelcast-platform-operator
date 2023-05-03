@@ -1636,15 +1636,25 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
-		containers = append(containers, ucdBucketAgentContainer(h))
+		containers = append(containers, bucketDownloadContainer(
+			n.UserCodeBucketAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
 	}
 
 	if h.Spec.UserCodeDeployment.IsRemoteURLsEnabled() {
-		containers = append(containers, ucdURLsAgentContainer(h))
+		containers = append(containers, urlDownloadContainer(
+			n.UserCodeURLAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
 	}
 
 	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
-		containers = append(containers, jetEngineContainer(h))
+		containers = append(containers, bucketDownloadContainer(
+			n.JetBucketAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
+	}
+
+	if h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
+		containers = append(containers, urlDownloadContainer(
+			n.JetUrlAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
 	}
 
 	if !h.Spec.Persistence.IsRestoreEnabled() {
@@ -1715,7 +1725,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 			},
 			{
 				Name:  "RESTORE_ID",
-				Value: string(h.Spec.Persistence.Restore.Hash()),
+				Value: h.Spec.Persistence.Restore.Hash(),
 			},
 			{
 				Name: "RESTORE_HOSTNAME",
@@ -1778,50 +1788,26 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 	}
 }
 
-func jetEngineContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
 	return v1.Container{
-		Name:  n.JetDownloadAgent,
-		Image: h.AgentDockerImage(),
+		Name:  name,
+		Image: image,
 		Args:  []string{"jar-download-bucket"},
 		Env: []v1.EnvVar{
 			{
 				Name:  "JDB_SECRET_NAME",
-				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.Secret,
+				Value: rfc.BucketConfiguration.Secret,
 			},
 			{
 				Name:  "JDB_BUCKET_URI",
-				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.BucketURI,
+				Value: rfc.BucketConfiguration.BucketURI,
 			},
 			{
 				Name:  "JDB_DESTINATION",
-				Value: n.JetJobJarsBucketPath,
+				Value: vm.MountPath,
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{jetJobJarsVolumeMount()},
-	}
-}
-
-func ucdBucketAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
-	return v1.Container{
-		Name:            n.UserCodeBucketAgent + h.Spec.UserCodeDeployment.TriggerSequence,
-		Image:           h.AgentDockerImage(),
-		Args:            []string{"jar-download-bucket"},
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Env: []v1.EnvVar{
-			{
-				Name:  "JDB_SECRET_NAME",
-				Value: h.Spec.UserCodeDeployment.BucketConfiguration.Secret,
-			},
-			{
-				Name:  "JDB_BUCKET_URI",
-				Value: h.Spec.UserCodeDeployment.BucketConfiguration.BucketURI,
-			},
-			{
-				Name:  "JDB_DESTINATION",
-				Value: n.UserCodeBucketPath,
-			},
-		},
-		VolumeMounts:             []v1.VolumeMount{ucdBucketAgentVolumeMount()},
+		VolumeMounts:             []v1.VolumeMount{vm},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
 		SecurityContext:          containerSecurityContext(),
@@ -1842,23 +1828,23 @@ func jetJobJarsVolumeMount() v1.VolumeMount {
 	}
 }
 
-func ucdURLsAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func urlDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
 	return v1.Container{
-		Name:            n.UserCodeURLAgent + h.Spec.UserCodeDeployment.TriggerSequence,
+		Name:            name,
 		Args:            []string{"file-download-url"},
-		Image:           h.AgentDockerImage(),
+		Image:           image,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Env: []v1.EnvVar{
 			{
 				Name:  "FDU_URLS",
-				Value: strings.Join(h.Spec.UserCodeDeployment.RemoteURLs, ","),
+				Value: strings.Join(rfc.RemoteURLs, ","),
 			},
 			{
 				Name:  "FDU_DESTINATION",
-				Value: n.UserCodeURLPath,
+				Value: vm.MountPath,
 			},
 		},
-		VolumeMounts:             []v1.VolumeMount{ucdURLAgentVolumeMount()},
+		VolumeMounts:             []v1.VolumeMount{vm},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
 		SecurityContext:          containerSecurityContext(),
@@ -1914,7 +1900,7 @@ func emptyDirVolume(name string) v1.Volume {
 
 func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
 	var vols []corev1.Volume
-	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+	for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
 		vols = append(vols, corev1.Volume{
 			Name: n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
 			VolumeSource: v1.VolumeSource{
@@ -1961,7 +1947,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 
 func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 	var vms []corev1.VolumeMount
-	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+	for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
 		vms = append(vms, corev1.VolumeMount{
 			Name:      n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
 			MountPath: path.Join(n.UserCodeConfigMapPath, cm),
@@ -2149,7 +2135,7 @@ func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 		path.Join(n.UserCodeBucketPath, "*"),
 		path.Join(n.UserCodeURLPath, "*")}
 
-	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+	for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
 		b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
 	}
 

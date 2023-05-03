@@ -64,7 +64,8 @@ const (
 	BucketSecret        = "br-secret"
 	UserCodeBucketAgent = "ucd-bucket-agent"
 	UserCodeURLAgent    = "ucd-url-agent"
-	JetDownloadAgent    = "jet-agent"
+	JetBucketAgent      = "jet-bucket-agent"
+	JetUrlAgent         = "jet-url-agent"
 
 	UserCodeBucketPath    = "/opt/hazelcast/userCode/bucket"
 	UserCodeURLPath       = "/opt/hazelcast/userCode/urls"

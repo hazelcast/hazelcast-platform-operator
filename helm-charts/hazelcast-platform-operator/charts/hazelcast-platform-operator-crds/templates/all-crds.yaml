@@ -476,27 +476,35 @@ spec:
                 description: Jet Engine configuration
                 properties:
                   bucketConfig:
-                    description: Bucket Configuration from which the JAR files be
-                      downloaded and accessible for the member. These JAR files will
-                      not be placed in the CLASSPATH.
+                    description: Bucket config from where the JAR files will be downloaded.
                     properties:
                       bucketURI:
+                        allOf:
+                        - minLength: 6
+                        - minLength: 6
                         description: 'URL of the bucket to download HotBackup folders.
                           AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
                           Example bucket URIs: - AWS S3     -> s3://bucket-name/path/to/folder
                           - GCP Bucket -> gs://bucket-name/path/to/folder - Azure
                           Blob -> azblob://bucket-name/path/to/folder'
-                        minLength: 6
                         type: string
                       secret:
+                        allOf:
+                        - minLength: 1
+                        - minLength: 1
                         description: Name of the secret with credentials for cloud
                           providers.
-                        minLength: 1
                         type: string
                     required:
                     - bucketURI
                     - secret
                     type: object
+                  configMaps:
+                    description: Names of the list of ConfigMaps. Files in each ConfigMap
+                      will be downloaded.
+                    items:
+                      type: string
+                    type: array
                   edgeDefaults:
                     description: Jet Edge Defaults Configuration
                     properties:
@@ -557,6 +565,11 @@ spec:
                         format: int32
                         type: integer
                     type: object
+                  remoteURLs:
+                    description: List of URLs from where the files will be downloaded.
+                    items:
+                      type: string
+                    type: array
                   resourceUploadEnabled:
                     default: false
                     description: When true, enables resource uploading for Jet jobs.
@@ -1925,8 +1938,7 @@ spec:
                 description: User Codes to Download into CLASSPATH
                 properties:
                   bucketConfig:
-                    description: Bucket config where JAR files will be downloaded
-                      into Java CLASSPATH.
+                    description: Bucket config from where the JAR files will be downloaded.
                     properties:
                       bucketURI:
                         description: 'URL of the bucket to download HotBackup folders.
@@ -1950,15 +1962,17 @@ spec:
                     type: boolean
                   configMaps:
                     description: Names of the list of ConfigMaps. Files in each ConfigMap
-                      will be put under Java CLASSPATH.
+                      will be downloaded.
                     items:
                       type: string
                     type: array
                   remoteURLs:
-                    description: List of URLs. Files downloaded from the URLs will
-                      be put under Java CLASSPATH.
-                    items:
-                      type: string
+                    allOf:
+                    - items:
+                        type: string
+                    - items:
+                        type: string
+                    description: List of URLs from where the files will be downloaded.
                     type: array
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading

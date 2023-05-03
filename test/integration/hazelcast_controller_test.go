@@ -1142,7 +1142,9 @@ var _ = Describe("Hazelcast controller", func() {
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
 						UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
-							ConfigMaps:      cms,
+							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+								ConfigMaps: cms,
+							},
 							TriggerSequence: ts,
 						},
 					},
