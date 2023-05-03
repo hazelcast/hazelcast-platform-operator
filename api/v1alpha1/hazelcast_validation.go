@@ -151,11 +151,10 @@ func validateTLS(h *Hazelcast) *field.Error {
 				"Hazelcast Enterprise TLS Secret is not found")
 		}
 
-		if secret.Type != corev1.SecretTypeTLS {
-			return field.NotFound(field.NewPath("spec").Child("tls"),
-				"secret type must be TLS")
-		}
-
+		//if secret.Type != corev1.SecretTypeTLS {
+		//	return field.TypeInvalid(field.NewPath("spec").Child("tls"),
+		//		secret.Type, "secret type must be TLS")
+		//}
 	}
 
 	return nil

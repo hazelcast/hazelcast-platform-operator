@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	. "time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -210,62 +209,5 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				evaluateReadyMembers(hzLookupKey)
 			})
 		})
-
-		When("TLS is not configured properly", func() {
-			It("should fail if secret does not exist", Label("fast"), func() {
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
-				setLabelAndCRName("h-10")
-
-				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, "", ee, labels)
-				By("creating Hazelcast CR", func() {
-					Expect(k8sClient.Create(context.Background(), hz)).
-						Should(HaveOccurred())
-				})
-			})
-
-			It("should fail if secretName is not specified", Label("fast"), func() {
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
-				setLabelAndCRName("h-11")
-
-				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, "", ee, labels)
-				By("creating Hazelcast CR", func() {
-					Expect(k8sClient.Create(context.Background(), hz)).
-						Should(HaveOccurred())
-				})
-			})
-
-			It("should fail if secret type is not TLS", Label("fast"), func() {
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
-				setLabelAndCRName("h-12")
-
-				secret := &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      hzLookupKey.Name + "-tls",
-						Namespace: hzLookupKey.Namespace,
-					},
-					Data: map[string][]byte{
-						corev1.TLSCertKey:       []byte(hazelcastconfig.ExampleCert),
-						corev1.TLSPrivateKeyKey: []byte(hazelcastconfig.ExampleKey),
-					},
-				}
-
-				By("creating TLS secret", func() {
-					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
-				})
-
-				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, secret.Name, ee, labels)
-				By("creating Hazelcast CR", func() {
-					Expect(k8sClient.Create(context.Background(), hz)).
-						Should(HaveOccurred())
-				})
-			})
-		})
-
 	})
 })

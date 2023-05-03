@@ -1513,9 +1513,10 @@ var _ = Describe("Hazelcast controller", func() {
 				secret := &corev1.Secret{
 					ObjectMeta: GetRandomObjectMeta(),
 					Data: map[string][]byte{
-						"tls.crt": []byte(exampleCert),
-						"tls.key": []byte(exampleKey),
+						corev1.TLSCertKey:       []byte(exampleCert),
+						corev1.TLSPrivateKeyKey: []byte(exampleKey),
 					},
+					Type: corev1.SecretTypeTLS,
 				}
 				Create(secret)
 				defer Delete(secret)
@@ -1536,22 +1537,75 @@ var _ = Describe("Hazelcast controller", func() {
 					configMap := getSecret(hz)
 
 					config := &config.HazelcastWrapper{}
-					if err := yaml.Unmarshal([]byte(configMap.Data["hazelcast.yaml"]), config); err != nil {
-						return false
-					}
 
-					if enabled := *config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.Enabled; !enabled {
-						return enabled
-					}
-
-					if enabled := *config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.Enabled; !enabled {
-						return enabled
-					}
-
-					return true
+					return yaml.Unmarshal(configMap.Data["hazelcast.yaml"], config) == nil &&
+						*config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.Enabled &&
+						*config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.Enabled
 				}, timeout, interval).Should(BeTrue())
 
 				Delete(hz)
+			})
+
+			It("should be configured correctly with OpenSSL type", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				secret := &corev1.Secret{
+					ObjectMeta: GetRandomObjectMeta(),
+					Data: map[string][]byte{
+						corev1.TLSCertKey:       []byte(exampleCert),
+						corev1.TLSPrivateKeyKey: []byte(exampleKey),
+					},
+					Type: corev1.SecretTypeTLS,
+				}
+				Create(secret)
+				defer Delete(secret)
+
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.TLS = &hazelcastv1alpha1.TLS{
+					SecretName: secret.GetName(),
+					Type:       hazelcastv1alpha1.TLSTypeOpenSSL,
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				EnsureStatus(hz)
+
+				Eventually(func() bool {
+					configMap := getSecret(hz)
+
+					config := &config.HazelcastWrapper{}
+
+					return yaml.Unmarshal(configMap.Data["hazelcast.yaml"], config) == nil &&
+						*config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.Enabled &&
+						config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.FactoryClassName == "com.hazelcast.nio.ssl.OpenSSLEngineFactory" &&
+						*config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.Enabled &&
+						config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.FactoryClassName == "com.hazelcast.nio.ssl.OpenSSLEngineFactory"
+				}, timeout, interval).Should(BeTrue())
+
+				Delete(hz)
+			})
+
+			It("should fail if secretName is not specified", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.TLS = &hazelcastv1alpha1.TLS{}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				By("creating Hazelcast CR", func() {
+					Expect(k8sClient.Create(context.Background(), hz)).
+						Should(HaveOccurred())
+				})
 			})
 		})
 	})
