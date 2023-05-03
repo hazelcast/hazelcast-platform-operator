@@ -1144,7 +1144,6 @@ var _ = Describe("Hazelcast controller", func() {
 						UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
 							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 								ConfigMaps: cms,
-								RemoteURLs: cms,
 							},
 							TriggerSequence: ts,
 						},
