@@ -1132,7 +1132,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hazelcast CR User Code Deployment with ConfigMap", func() {
 		When("Two Configmaps are given in userCode field", func() {
-			FIt("Should put correct fields in StatefulSet", Label("fast"), func() {
+			It("Should put correct fields in StatefulSet", Label("fast"), func() {
 				cms := []string{
 					"cm1",
 					"cm2",
