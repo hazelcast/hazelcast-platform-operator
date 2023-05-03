@@ -1714,12 +1714,9 @@ spec:
                       type: string
                     type: array
                   remoteURLs:
-                    allOf:
-                    - items:
-                        type: string
-                    - items:
-                        type: string
                     description: List of URLs from where the files will be downloaded.
+                    items:
+                      type: string
                     type: array
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading

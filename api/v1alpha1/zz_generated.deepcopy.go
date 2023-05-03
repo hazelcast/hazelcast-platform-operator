@@ -2056,11 +2056,6 @@ func (in *UserCodeDeploymentConfig) DeepCopyInto(out *UserCodeDeploymentConfig) 
 		*out = new(bool)
 		**out = **in
 	}
-	if in.RemoteURLs != nil {
-		in, out := &in.RemoteURLs, &out.RemoteURLs
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	in.RemoteFileConfiguration.DeepCopyInto(&out.RemoteFileConfiguration)
 }
 

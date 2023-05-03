@@ -388,11 +388,8 @@ type UserCodeDeploymentConfig struct {
 	// +optional
 	TriggerSequence string `json:"triggerSequence,omitempty"`
 
-	// List of URLs. Files downloaded from the URLs will be put under Java CLASSPATH.
-	// +optional
-	RemoteURLs []string `json:"remoteURLs,omitempty"`
-
 	// Configuration for files to download. Files downloaded will be put under Java CLASSPATH.
+	// +optional
 	RemoteFileConfiguration RemoteFileConfiguration `json:",inline"`
 }
 
