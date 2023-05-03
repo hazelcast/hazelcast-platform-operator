@@ -977,3 +977,23 @@ func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLo
 	assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 	return m
 }
+
+func CreateTlsSecret(n types.NamespacedName) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name + "-tls",
+			Namespace: n.Namespace,
+		},
+		Data: map[string][]byte{
+			corev1.TLSCertKey:       []byte(hazelcastconfig.ExampleCert),
+			corev1.TLSPrivateKeyKey: []byte(hazelcastconfig.ExampleKey),
+		},
+		Type: corev1.SecretTypeTLS,
+	}
+
+	By("creating TLS secret", func() {
+		Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+	})
+
+	return secret
+}

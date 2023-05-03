@@ -2,10 +2,10 @@ package e2e
 
 import (
 	"context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	. "time"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -180,16 +180,78 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 					Skip("This test will only run in EE configuration")
 				}
 				setLabelAndCRName("h-8")
-				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
+
+				tlsSecret := CreateTlsSecret(hzLookupKey)
+
+				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, tlsSecret.Name, ee, labels)
+				CreateHazelcastCR(hz)
+				evaluateReadyMembers(hzLookupKey)
+			})
+		})
+
+		When("TLS property is configured to OpenSSL with UserCodeDeployment", func() {
+			It("should form a cluster and be able to connect", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				setLabelAndCRName("h-9")
+
+				ucdBucketSecret := "br-secret-gcp"
+				usdBucketUri := "gs://hazelcast-operator-tls-openssl"
+
+				tlsSecret := CreateTlsSecret(hzLookupKey)
+
+				hz := hazelcastconfig.UserCodeBucket(hzLookupKey, ee, ucdBucketSecret, usdBucketUri, labels)
+				hz.Spec.TLS = &hazelcastcomv1alpha1.TLS{
+					Type:       hazelcastcomv1alpha1.TLSTypeOpenSSL,
+					SecretName: tlsSecret.Name,
+				}
+				CreateHazelcastCR(hz)
+				evaluateReadyMembers(hzLookupKey)
+			})
+		})
+
+		When("TLS is not configured properly", func() {
+			It("should fail if secret does not exist", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				setLabelAndCRName("h-10")
+
+				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, "", ee, labels)
+				By("creating Hazelcast CR", func() {
+					Expect(k8sClient.Create(context.Background(), hz)).
+						Should(HaveOccurred())
+				})
+			})
+
+			It("should fail if secretName is not specified", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				setLabelAndCRName("h-11")
+
+				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, "", ee, labels)
+				By("creating Hazelcast CR", func() {
+					Expect(k8sClient.Create(context.Background(), hz)).
+						Should(HaveOccurred())
+				})
+			})
+
+			It("should fail if secret type is not TLS", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				setLabelAndCRName("h-12")
 
 				secret := &corev1.Secret{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      hz.Spec.TLS.SecretName,
-						Namespace: hz.Namespace,
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      hzLookupKey.Name + "-tls",
+						Namespace: hzLookupKey.Namespace,
 					},
 					Data: map[string][]byte{
-						"tls.crt": []byte(hazelcastconfig.ExampleCert),
-						"tls.key": []byte(hazelcastconfig.ExampleKey),
+						corev1.TLSCertKey:       []byte(hazelcastconfig.ExampleCert),
+						corev1.TLSPrivateKeyKey: []byte(hazelcastconfig.ExampleKey),
 					},
 				}
 
@@ -197,9 +259,13 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
 				})
 
-				CreateHazelcastCR(hz)
-				evaluateReadyMembers(hzLookupKey)
+				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, secret.Name, ee, labels)
+				By("creating Hazelcast CR", func() {
+					Expect(k8sClient.Create(context.Background(), hz)).
+						Should(HaveOccurred())
+				})
 			})
 		})
+
 	})
 })
