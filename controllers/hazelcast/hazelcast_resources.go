@@ -1649,12 +1649,8 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	}
 
 	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
-		println("~~~~~~~~~~~~~~~~~~~~~ the bucket is enabled ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 		containers = append(containers, bucketDownloadContainer(
 			n.JetBucketAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
-	} else {
-		marshal, _ := json.Marshal(h.Spec.JetEngineConfiguration.BucketConfiguration)
-		println(fmt.Sprintf("~~~~~~~~~~~~~~~~~~~~~~~ the bucket is not enabled, yo! %s", string(marshal)))
 	}
 
 	if h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
