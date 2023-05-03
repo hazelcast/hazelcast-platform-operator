@@ -1633,7 +1633,6 @@ func containerSecurityContext() *v1.SecurityContext {
 }
 
 func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
-	println("+++++++++++++++++++=init conainers!")
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
@@ -1825,7 +1824,7 @@ func ucdBucketAgentVolumeMount() v1.VolumeMount {
 func jetJobJarsVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.JetJobJarsVolumeName,
-		MountPath: n.JetJobJarsBucketPath,
+		MountPath: n.JetJobJarsPath,
 	}
 }
 
@@ -1876,7 +1875,11 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	}
 
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		vols = append(vols, userCodeConfigMapVolumes(h)...)
+		vols = append(vols, configMapVolumes(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration)...)
+	}
+
+	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
+		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
 	}
 
 	if !h.Spec.Persistence.IsEnabled() {
@@ -1899,11 +1902,23 @@ func emptyDirVolume(name string) v1.Volume {
 	}
 }
 
-func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
+type ConfigMapVolumeName func(cm string) string
+
+func jetConfigMapName(cm string) string {
+	return n.JetConfigMapNamePrefix + cm
+}
+
+func ucdConfigMapName(h *hazelcastv1alpha1.Hazelcast) ConfigMapVolumeName {
+	return func(cm string) string {
+		return n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence
+	}
+}
+
+func configMapVolumes(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFileConfiguration) []corev1.Volume {
 	var vols []corev1.Volume
-	for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
+	for _, cm := range rfc.ConfigMaps {
 		vols = append(vols, corev1.Volume{
-			Name: n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
+			Name: nameFn(cm),
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -1941,17 +1956,23 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	}
 
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		mounts = append(mounts, userCodeConfigMapVolumeMounts(h)...)
+		mounts = append(mounts,
+			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
+	}
+
+	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
+		mounts = append(mounts,
+			configMapVolumeMounts(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration, n.JetJobJarsPath)...)
 	}
 	return mounts
 }
 
-func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func configMapVolumeMounts(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFileConfiguration, mountPath string) []corev1.VolumeMount {
 	var vms []corev1.VolumeMount
-	for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
+	for _, cm := range rfc.ConfigMaps {
 		vms = append(vms, corev1.VolumeMount{
-			Name:      n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
-			MountPath: path.Join(n.UserCodeConfigMapPath, cm),
+			Name:      nameFn(cm),
+			MountPath: path.Join(mountPath, cm),
 		})
 	}
 	return vms

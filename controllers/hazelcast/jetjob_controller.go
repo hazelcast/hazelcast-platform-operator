@@ -188,7 +188,7 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 
 	checker.storeJob(job.JobName(), jjnn)
 
-	metaData := codecTypes.DefaultExistingJarJobMetaData(job.JobName(), path.Join(n.JetJobJarsBucketPath, job.Spec.JarName))
+	metaData := codecTypes.DefaultExistingJarJobMetaData(job.JobName(), path.Join(n.JetJobJarsPath, job.Spec.JarName))
 	if job.Spec.MainClass != "" {
 		metaData.MainClass = job.Spec.MainClass
 	}
@@ -237,7 +237,7 @@ func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alp
 			_, err = fds.Download(groupCtx, sidecar.DownloadFileReq{
 				URL:        bc.BucketURI,
 				FileName:   job.Spec.JarName,
-				DestDir:    n.JetJobJarsBucketPath,
+				DestDir:    n.JetJobJarsPath,
 				SecretName: bc.Secret,
 			})
 			if err != nil {
