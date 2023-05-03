@@ -200,13 +200,9 @@ type JetEngineConfiguration struct {
 	// +optional
 	ResourceUploadEnabled bool `json:"resourceUploadEnabled"`
 
-	// Bucket Configuration from which the JAR files be downloaded and accessible for the member.
-	// These JAR files will not be placed in the CLASSPATH.
-	// +optional
-	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
-
 	// Configuration for downloading the JAR files be downloaded and accessible for the member.
 	// These JAR files will not be placed in the CLASSPATH.
+	// +optional
 	RemoteFileConfiguration `json:",inline"`
 
 	// Jet Instance Configuration

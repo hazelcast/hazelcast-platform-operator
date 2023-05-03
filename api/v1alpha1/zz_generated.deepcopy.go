@@ -964,11 +964,6 @@ func (in *JetEngineConfiguration) DeepCopyInto(out *JetEngineConfiguration) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.BucketConfiguration != nil {
-		in, out := &in.BucketConfiguration, &out.BucketConfiguration
-		*out = new(BucketConfiguration)
-		**out = **in
-	}
 	in.RemoteFileConfiguration.DeepCopyInto(&out.RemoteFileConfiguration)
 	if in.Instance != nil {
 		in, out := &in.Instance, &out.Instance

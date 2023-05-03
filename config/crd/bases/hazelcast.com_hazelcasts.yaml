@@ -226,21 +226,17 @@ spec:
                     description: Bucket config from where the JAR files will be downloaded.
                     properties:
                       bucketURI:
-                        allOf:
-                        - minLength: 6
-                        - minLength: 6
                         description: 'URL of the bucket to download HotBackup folders.
                           AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
                           Example bucket URIs: - AWS S3     -> s3://bucket-name/path/to/folder
                           - GCP Bucket -> gs://bucket-name/path/to/folder - Azure
                           Blob -> azblob://bucket-name/path/to/folder'
+                        minLength: 6
                         type: string
                       secret:
-                        allOf:
-                        - minLength: 1
-                        - minLength: 1
                         description: Name of the secret with credentials for cloud
                           providers.
+                        minLength: 1
                         type: string
                     required:
                     - bucketURI
