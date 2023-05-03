@@ -299,7 +299,7 @@ var (
 				Repository:       repo(ee),
 				Version:          *hazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
-				TLS: hazelcastv1alpha1.TLS{
+				TLS: &hazelcastv1alpha1.TLS{
 					SecretName: lk.Name + "-tls",
 				},
 			},

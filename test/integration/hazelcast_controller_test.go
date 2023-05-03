@@ -1521,7 +1521,7 @@ var _ = Describe("Hazelcast controller", func() {
 				defer Delete(secret)
 
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
-				spec.TLS = hazelcastv1alpha1.TLS{
+				spec.TLS = &hazelcastv1alpha1.TLS{
 					SecretName: secret.GetName(),
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{

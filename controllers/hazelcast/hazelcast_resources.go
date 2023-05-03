@@ -926,7 +926,7 @@ func decodePEM(data []byte, typ string) ([]byte, error) {
 	return b.Bytes, nil
 }
 
-func tlsSslConfigs(tls hazelcastv1alpha1.TLS) (member config.SSL, client config.SSL) {
+func tlsSslConfigs(tls *hazelcastv1alpha1.TLS) (member config.SSL, client config.SSL) {
 	if tls.IsBasicSSLEnabled() {
 		member, client = tlsBasicSslConfigs()
 	} else if tls.IsOpenSSLEnabled() {
@@ -1963,7 +1963,7 @@ func emptyDirVolume(name string) v1.Volume {
 	}
 }
 
-func tlsOpenSSLVolume(tls hazelcastv1alpha1.TLS) corev1.Volume {
+func tlsOpenSSLVolume(tls *hazelcastv1alpha1.TLS) corev1.Volume {
 	return v1.Volume{
 		Name: n.TLSOpenSSLVolumeName,
 		VolumeSource: v1.VolumeSource{

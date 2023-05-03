@@ -160,7 +160,8 @@ type HazelcastSpec struct {
 
 	// Hazelcast TLS configuration
 	// +optional
-	TLS TLS `json:"tls,omitempty"`
+	// +kubebuilder:default:={}
+	TLS *TLS `json:"tls,omitempty"`
 }
 
 type ManagementCenterConfig struct {
@@ -862,15 +863,15 @@ type TLS struct {
 }
 
 func (t *TLS) IsEnabled() bool {
-	return t != nil && t.SecretName != ""
+	return t != nil
 }
 
 func (t *TLS) IsBasicSSLEnabled() bool {
-	return t != nil && t.IsEnabled() && t.Type == TLSTypeBasicSSL
+	return t.IsEnabled() && t.Type == TLSTypeBasicSSL
 }
 
 func (t *TLS) IsOpenSSLEnabled() bool {
-	return t != nil && t.IsEnabled() && t.Type == TLSTypeOpenSSL
+	return t.IsEnabled() && t.Type == TLSTypeOpenSSL
 }
 
 // +kubebuilder:validation:Enum=BasicSSL;OpenSSL

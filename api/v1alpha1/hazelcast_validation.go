@@ -128,8 +128,15 @@ func validateLicense(h *Hazelcast) *field.Error {
 }
 
 func validateTLS(h *Hazelcast) *field.Error {
-	// make sure secret exists
+
 	if h.Spec.TLS.IsEnabled() {
+		// make sure secret is specified
+		if h.Spec.TLS.SecretName == "" {
+			return field.Required(field.NewPath("spec").Child("tls").Child("secretName"),
+				"must be set when TLS is enabled")
+		}
+
+		// make sure secret exists
 		secretName := types.NamespacedName{
 			Name:      h.Spec.TLS.SecretName,
 			Namespace: h.Namespace,
@@ -137,11 +144,18 @@ func validateTLS(h *Hazelcast) *field.Error {
 
 		var secret corev1.Secret
 		err := kubeclient.Get(context.Background(), secretName, &secret)
+
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
 			return field.NotFound(field.NewPath("spec").Child("tls"),
 				"Hazelcast Enterprise TLS Secret is not found")
 		}
+
+		if secret.Type != corev1.SecretTypeTLS {
+			return field.NotFound(field.NewPath("spec").Child("tls"),
+				"secret type must be TLS")
+		}
+
 	}
 
 	return nil
