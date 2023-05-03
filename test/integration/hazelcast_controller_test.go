@@ -1132,7 +1132,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hazelcast CR User Code Deployment with ConfigMap", func() {
 		When("Two Configmaps are given in userCode field", func() {
-			It("Should put correct fields in StatefulSet", Label("fast"), func() {
+			FIt("Should put correct fields in StatefulSet", Label("fast"), func() {
 				cms := []string{
 					"cm1",
 					"cm2",
@@ -1144,6 +1144,7 @@ var _ = Describe("Hazelcast controller", func() {
 						UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
 							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 								ConfigMaps: cms,
+								RemoteURLs: cms,
 							},
 							TriggerSequence: ts,
 						},

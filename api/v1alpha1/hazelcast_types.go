@@ -207,7 +207,7 @@ type JetEngineConfiguration struct {
 
 	// Configuration for downloading the JAR files be downloaded and accessible for the member.
 	// These JAR files will not be placed in the CLASSPATH.
-	RemoteFileConfiguration RemoteFileConfiguration `json:",inline"`
+	RemoteFileConfiguration `json:",inline"`
 
 	// Jet Instance Configuration
 	// +kubebuilder:default:={}
@@ -390,7 +390,7 @@ type UserCodeDeploymentConfig struct {
 
 	// Configuration for files to download. Files downloaded will be put under Java CLASSPATH.
 	// +optional
-	RemoteFileConfiguration RemoteFileConfiguration `json:",inline"`
+	RemoteFileConfiguration `json:",inline"`
 }
 
 type RemoteFileConfiguration struct {
