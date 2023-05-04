@@ -9,6 +9,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -83,6 +84,30 @@ var _ = Describe("ManagementCenter controller", func() {
 		}, timeout, interval).Should(Equal(svcType))
 		return svc
 	}
+
+	CreateLicenseKeySecret := func(name string) *corev1.Secret {
+		By(fmt.Sprintf("creating license key secret '%s'", name))
+		licenseSec := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Data: map[string][]byte{
+				n.LicenseDataKey: []byte("integration-test-license"),
+			},
+		}
+		Eventually(func() bool {
+			err := k8sClient.Create(context.Background(), licenseSec)
+			return err == nil || errors.IsAlreadyExists(err)
+		}, timeout, interval).Should(BeTrue())
+		return licenseSec
+	}
+
+	BeforeEach(func() {
+		if ee {
+			CreateLicenseKeySecret(n.LicenseKeySecret)
+		}
+	})
 
 	Context("ManagementCenter CustomResource with default specs", func() {
 		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
