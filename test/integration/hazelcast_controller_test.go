@@ -1607,6 +1607,56 @@ var _ = Describe("Hazelcast controller", func() {
 						Should(HaveOccurred())
 				})
 			})
+
+			It("should fail if the specified secretName does not exist", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.TLS = &hazelcastv1alpha1.TLS{
+					SecretName: "non-existing-tls-secret",
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				By("creating Hazelcast CR", func() {
+					Expect(k8sClient.Create(context.Background(), hz)).
+						Should(HaveOccurred())
+				})
+			})
+
+			It("should fail if the type of secret is not tls", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				secret := &corev1.Secret{
+					ObjectMeta: GetRandomObjectMeta(),
+					Data: map[string][]byte{
+						corev1.TLSCertKey:       []byte(exampleCert),
+						corev1.TLSPrivateKeyKey: []byte(exampleKey),
+					},
+				}
+				Create(secret)
+				defer Delete(secret)
+
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.TLS = &hazelcastv1alpha1.TLS{
+					SecretName: secret.Name,
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				By("creating Hazelcast CR", func() {
+					Expect(k8sClient.Create(context.Background(), hz)).
+						Should(HaveOccurred())
+				})
+			})
 		})
 	})
 
