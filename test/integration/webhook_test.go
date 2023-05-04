@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"k8s.io/utils/pointer"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -78,6 +78,28 @@ var _ = Describe("Webhook", func() {
 		By("expecting to CR delete finish")
 		assertDoesNotExist(lookupKey(obj), obj)
 	}
+
+	BeforeEach(func() {
+		if !ee {
+			return
+		}
+
+		licenseSec := corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      n.LicenseKeySecret,
+				Namespace: namespace,
+			},
+			Data: map[string][]byte{
+				n.LicenseDataKey: []byte("integration-test-license"),
+			},
+		}
+
+		By(fmt.Sprintf("creating license key secret '%s'", licenseSec.Name))
+		Eventually(func() bool {
+			err := k8sClient.Create(context.Background(), &licenseSec)
+			return err == nil || errors.IsAlreadyExists(err)
+		}, timeout, interval).Should(BeTrue())
+	})
 
 	Context("Cache Validation", func() {
 		It("should fail to update", Label("fast"), func() {
