@@ -78,6 +78,11 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 	if err := validateJVMConfig(h); err != nil {
 		allErrs = append(allErrs, err...)
 	}
+
+	if err := validateJet(h); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
 	return allErrs
 }
 
@@ -371,6 +376,20 @@ func validateArg(args []string, arg string) *field.Error {
 	for _, s := range args {
 		if strings.Contains(s, arg) {
 			return field.Duplicate(field.NewPath("spec").Child("jvm").Child("args"), fmt.Sprintf("%s is already set up in JVM config", arg))
+		}
+	}
+	return nil
+}
+
+func validateJet(h *Hazelcast) []*field.Error {
+	// Check if Persistence is enabled when Lossless Restart is enabled.
+	if h.Spec.JetEngineConfiguration.IsEnabled() &&
+		h.Spec.JetEngineConfiguration.Instance.IsConfigured() &&
+		h.Spec.JetEngineConfiguration.Instance.LosslessRestartEnabled &&
+		!h.Spec.Persistence.IsEnabled() {
+		return []*field.Error{
+			field.Required(field.NewPath("spec").Child("persistence"),
+				"Lossless Cluster Restart is enabled, but Persistence, which is required for its functionality, is not"),
 		}
 	}
 	return nil
