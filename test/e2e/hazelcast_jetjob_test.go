@@ -118,19 +118,29 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
 	})
 
-	It("should download JAR and execute JetJob", Label("fast"), func() {
+	DescribeTable("should download JAR and execute JetJob", func(secretName, url string) {
 		setLabelAndCRName("jj-3")
 
 		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
+		hazelcast.Spec.Agent.Version = "latest-snapshot"
 		CreateHazelcastCR(hazelcast)
 
 		By("creating JetJob CR")
 		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
-		jj.Spec.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+		if secretName != "" {
+			jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+				Secret:    secretName,
+				BucketURI: url,
+			}
+		} else {
+			jj.Spec.JetRemoteFileConfiguration.RemoteURL = url
+		}
+		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
 			Secret:    "br-secret-gcp",
 			BucketURI: "gs://operator-user-code/jetJobs",
 		}
+
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
 		checkJetJobStatus(hazelcastv1alpha1.JetJobCompleted)
@@ -145,5 +155,8 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 1", jj.JobName())),
 				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 13", jj.JobName())),
 				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 89", jj.JobName()))))
-	})
+	},
+		Entry("using jar from bucket", Label("fast"), "br-secret-gcp", "gs://operator-user-code/jetJobs"),
+		Entry("using jar from remote url", Label("fast"), "", "https://storage.googleapis.com/operator-user-code-urls-public/jet-pipeline-1.0.2.jar"),
+	)
 })

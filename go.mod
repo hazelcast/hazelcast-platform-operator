@@ -28,6 +28,8 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
+replace github.com/hazelcast/platform-operator-agent v0.1.19 => github.com/hazelcast/platform-operator-agent v0.0.0-20230505072838-97aec4e7b8f8
+
 require (
 	cloud.google.com/go v0.106.0 // indirect
 	cloud.google.com/go/compute v1.12.1 // indirect

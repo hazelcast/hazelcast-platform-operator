@@ -55,9 +55,34 @@ type JetJobSpec struct {
 	// +optional
 	MainClass string `json:"mainClass,omitempty"`
 
-	// Bucket Configuration from which the JAR files specified in JarName be downloaded and the jor will be run.
+	// Configuration for downloading the file from remote.
+	// +optional
+	JetRemoteFileConfiguration `json:",inline"`
+}
+
+type JetRemoteFileConfiguration struct {
+	// Bucket config from where the JAR files will be downloaded.
 	// +optional
 	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
+
+	// URL from where the file will be downloaded.
+	// +optional
+	RemoteURL string `json:"remoteURL,omitempty"`
+}
+
+// Returns true is eigher of bucketConfiguration or remoteURL are enabled
+func (j *JetJobSpec) IsDownloadEnabled() bool {
+	return j.IsBucketEnabled() || j.IsRemoteURLsEnabled()
+}
+
+// Returns true if bucketConfiguration is specified.
+func (j *JetJobSpec) IsBucketEnabled() bool {
+	return j != nil && j.JetRemoteFileConfiguration.BucketConfiguration != nil
+}
+
+// Returns true if remoteURL configuration is specified.
+func (j *JetJobSpec) IsRemoteURLsEnabled() bool {
+	return j != nil && j.JetRemoteFileConfiguration.RemoteURL != ""
 }
 
 // JetJobStatus defines the observed state of JetJob

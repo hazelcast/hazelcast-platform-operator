@@ -45,9 +45,11 @@ var _ = Describe("Hazelcast webhook", func() {
 					State:                 hazelcastv1alpha1.RunningJobState,
 					JarName:               "myjob.jar",
 					MainClass:             "com.example.MyClass",
-					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-						Secret:    "my-secret",
-						BucketURI: "gs://my-bucket",
+					JetRemoteFileConfiguration: hazelcastv1alpha1.JetRemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							Secret:    "my-secret",
+							BucketURI: "gs://my-bucket",
+						},
 					},
 				},
 			}
@@ -58,7 +60,7 @@ var _ = Describe("Hazelcast webhook", func() {
 			jj.Spec.HazelcastResourceName = "my-hazelcast"
 			jj.Spec.JarName = "another.jar"
 			jj.Spec.MainClass = "com.example.AnotherClass"
-			jj.Spec.BucketConfiguration = nil
+			jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = nil
 			err := k8sClient.Update(context.Background(), jj)
 			Expect(err).Should(And(
 				MatchError(ContainSubstring("spec.name")),
@@ -86,7 +88,7 @@ var _ = Describe("Hazelcast webhook", func() {
 
 			Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
 
-			jj.Spec.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+			jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
 				Secret:    "my-secret",
 				BucketURI: "gs://my-bucket",
 			}
