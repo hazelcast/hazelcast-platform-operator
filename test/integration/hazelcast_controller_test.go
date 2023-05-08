@@ -720,6 +720,53 @@ var _ = Describe("Hazelcast controller", func() {
 				Delete(hz)
 			})
 		})
+
+		When("Jet engine is configured with losslessRestart is enabled", func() {
+			It("should fail if persistence is not enabled", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled: ptr.Bool(true),
+					Instance: &hazelcastv1alpha1.JetInstance{
+						LosslessRestartEnabled: true,
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+			})
+
+			It("should be created successfully if persistence is enabled", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+					},
+				}
+				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled: ptr.Bool(true),
+					Instance: &hazelcastv1alpha1.JetInstance{
+						LosslessRestartEnabled: true,
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				hz = EnsureStatus(hz)
+
+				Expect(hz.Spec.JetEngineConfiguration.Instance.LosslessRestartEnabled).Should(BeTrue())
+
+				Delete(hz)
+			})
+		})
 	})
 
 	Context("Hazelcast CR HighAvailabilityMode Configuration", func() {

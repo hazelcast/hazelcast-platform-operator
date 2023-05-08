@@ -79,10 +79,6 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 		allErrs = append(allErrs, err...)
 	}
 
-	if err := validateJet(h); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
 	return allErrs
 }
 
@@ -381,20 +377,6 @@ func validateArg(args []string, arg string) *field.Error {
 	return nil
 }
 
-func validateJet(h *Hazelcast) []*field.Error {
-	// Check if Persistence is enabled when Lossless Restart is enabled.
-	if h.Spec.JetEngineConfiguration.IsEnabled() &&
-		h.Spec.JetEngineConfiguration.Instance.IsConfigured() &&
-		h.Spec.JetEngineConfiguration.Instance.LosslessRestartEnabled &&
-		!h.Spec.Persistence.IsEnabled() {
-		return []*field.Error{
-			field.Required(field.NewPath("spec").Child("persistence"),
-				"Lossless Cluster Restart is enabled, but Persistence, which is required for its functionality, is not"),
-		}
-	}
-	return nil
-}
-
 func ValidateHazelcastSpecUpdate(h *Hazelcast) []*field.Error {
 	last, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
@@ -471,9 +453,10 @@ func validateJetConfig(h *Hazelcast) *field.Error {
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
 
-	if !j.IsConfigured() {
+	if !j.IsEnabled() {
 		return nil
 	}
+
 	if !j.Instance.IsConfigured() {
 		return nil
 	}
