@@ -15,7 +15,7 @@ import (
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
-	keystore "github.com/pavlo-v-chernykh/keystore-go/v4"
+	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -727,21 +727,21 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		if h.Spec.JetEngineConfiguration.Instance.IsConfigured() {
 			i := h.Spec.JetEngineConfiguration.Instance
 			cfg.Jet.Instance = config.JetInstance{
-				CooperativeThreadCount:         &i.CooperativeThreadCount,
+				CooperativeThreadCount:         i.CooperativeThreadCount,
 				FlowControlPeriodMillis:        &i.FlowControlPeriodMillis,
 				BackupCount:                    &i.BackupCount,
 				ScaleUpDelayMillis:             &i.ScaleUpDelayMillis,
 				LosslessRestartEnabled:         &i.LosslessRestartEnabled,
-				MaxProcessorAccumulatedRecords: &i.MaxProcessorAccumulatedRecords,
+				MaxProcessorAccumulatedRecords: i.MaxProcessorAccumulatedRecords,
 			}
 		}
 
 		if h.Spec.JetEngineConfiguration.EdgeDefaults.IsConfigured() {
 			e := h.Spec.JetEngineConfiguration.EdgeDefaults
 			cfg.Jet.EdgeDefaults = config.EdgeDefaults{
-				QueueSize:               &e.QueueSize,
-				PacketSizeLimit:         &e.PacketSizeLimit,
-				ReceiveWindowMultiplier: &e.ReceiveWindowMultiplier,
+				QueueSize:               e.QueueSize,
+				PacketSizeLimit:         e.PacketSizeLimit,
+				ReceiveWindowMultiplier: e.ReceiveWindowMultiplier,
 			}
 		}
 	}

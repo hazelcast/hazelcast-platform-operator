@@ -229,8 +229,10 @@ type JetEngineConfiguration struct {
 
 type JetInstance struct {
 	// The number of threads Jet creates in its cooperative multithreading pool.
+	// Its default value is the number of cores
+	// +kubebuilder:validation:Minimum:=1
 	// +optional
-	CooperativeThreadCount int32 `json:"cooperativeThreadCount,omitempty"`
+	CooperativeThreadCount *int32 `json:"cooperativeThreadCount,omitempty"`
 
 	// The duration of the interval between flow-control packets.
 	// +kubebuilder:default:=100
@@ -254,8 +256,9 @@ type JetInstance struct {
 	LosslessRestartEnabled bool `json:"losslessRestartEnabled"`
 
 	// Specifies the maximum number of records that can be accumulated by any single processor instance.
+	// Default value is Long.MAX_VALUE
 	// +optional
-	MaxProcessorAccumulatedRecords int64 `json:"maxProcessorAccumulatedRecords,omitempty"`
+	MaxProcessorAccumulatedRecords *int64 `json:"maxProcessorAccumulatedRecords,omitempty"`
 }
 
 // Returns true if Jet Instance section is configured.
@@ -266,15 +269,15 @@ func (j *JetInstance) IsConfigured() bool {
 type JetEdgeDefaults struct {
 	// Sets the capacity of processor-to-processor concurrent queues.
 	// +optional
-	QueueSize int32 `json:"queueSize,omitempty"`
+	QueueSize *int32 `json:"queueSize,omitempty"`
 
 	// Limits the size of the packet in bytes.
 	// +optional
-	PacketSizeLimit int32 `json:"packetSizeLimit,omitempty"`
+	PacketSizeLimit *int32 `json:"packetSizeLimit,omitempty"`
 
 	// Sets the scaling factor used by the adaptive receive window sizing function.
 	// +optional
-	ReceiveWindowMultiplier int8 `json:"receiveWindowMultiplier,omitempty"`
+	ReceiveWindowMultiplier *int8 `json:"receiveWindowMultiplier,omitempty"`
 }
 
 // Returns true if Jet Instance Edge Defaults is configured.
