@@ -123,7 +123,6 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 
 		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
-		hazelcast.Spec.Agent.Version = "latest-snapshot"
 		CreateHazelcastCR(hazelcast)
 
 		By("creating JetJob CR")
