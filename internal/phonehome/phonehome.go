@@ -86,6 +86,7 @@ type PhoneHomeData struct {
 	ExposeExternally              ExposeExternally       `json:"xe"`
 	Map                           Map                    `json:"m"`
 	Cache                         Cache                  `json:"c"`
+	Jet                           Jet                    `json:"jet"`
 	WanReplicationCount           int                    `json:"wrc"`
 	BackupAndRestore              BackupAndRestore       `json:"br"`
 	UserCodeDeployment            UserCodeDeployment     `json:"ucd"`
@@ -99,7 +100,7 @@ type PhoneHomeData struct {
 	NativeMemoryCount             int                    `json:"nmc"`
 	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
 	AdvancedNetwork               AdvancedNetwork        `json:"an"`
-	Jet                           Jet                    `json:"jet"`
+	JetEngine                     JetEngine              `json:"je"`
 }
 
 type JVMConfigUsage struct {
@@ -111,8 +112,9 @@ type AdvancedNetwork struct {
 	WANEndpointCount int `json:"wec"`
 }
 
-type Jet struct {
-	Count int `json:"c"`
+type JetEngine struct {
+	EnabledCount    int `json:"ec"`
+	LosslessRestart int `json:"lr"`
 }
 
 type ExposeExternally struct {
@@ -137,6 +139,10 @@ type Cache struct {
 	Count             int `json:"c"`
 	PersistenceCount  int `json:"pc"`
 	NativeMemoryCount int `json:"nmc"`
+}
+
+type Jet struct {
+	Count int `json:"c"`
 }
 
 type BackupAndRestore struct {
@@ -226,6 +232,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
+		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -342,6 +349,18 @@ func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration)
 	if len(jc.Args) > 0 {
 		j.Count += 1
 		return
+	}
+}
+
+func (je *JetEngine) addUsageMetrics(jec hazelcastv1alpha1.JetEngineConfiguration) {
+	if !jec.IsEnabled() {
+		return
+	}
+
+	je.EnabledCount++
+
+	if jec.Instance != nil && jec.Instance.LosslessRestartEnabled {
+		je.LosslessRestart++
 	}
 }
 
