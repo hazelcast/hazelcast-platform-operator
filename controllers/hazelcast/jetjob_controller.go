@@ -3,12 +3,16 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"path"
 	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/hazelcast/platform-operator-agent/sidecar"
+	"golang.org/x/sync/errgroup"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,8 +25,10 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -33,14 +39,16 @@ type JetJobReconciler struct {
 	ClientRegistry       hzclient.ClientRegistry
 	clusterStatusChecker sync.Map
 	phoneHomeTrigger     chan struct{}
+	mtlsClientRegistry   mtls.HttpClientRegistry
 }
 
-func NewJetJobReconciler(c client.Client, log logr.Logger, cs hzclient.ClientRegistry, pht chan struct{}) *JetJobReconciler {
+func NewJetJobReconciler(c client.Client, log logr.Logger, cs hzclient.ClientRegistry, mtlsClientRegistry mtls.HttpClientRegistry, pht chan struct{}) *JetJobReconciler {
 	return &JetJobReconciler{
-		Client:           c,
-		Log:              log,
-		ClientRegistry:   cs,
-		phoneHomeTrigger: pht,
+		Client:             c,
+		Log:                log,
+		ClientRegistry:     cs,
+		mtlsClientRegistry: mtlsClientRegistry,
+		phoneHomeTrigger:   pht,
 	}
 }
 
@@ -184,17 +192,60 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 	if job.Spec.MainClass != "" {
 		metaData.MainClass = job.Spec.MainClass
 	}
-	go func(ctx context.Context, metaData codecTypes.JobMetaData, jjnn types.NamespacedName, logger logr.Logger) {
+	if job.Spec.BucketConfiguration != nil {
+		logger.V(util.DebugLevel).Info("Downloading the JAR file before running the JetJob", "jj", jjnn)
+		if err = r.downloadFile(ctx, job, hazelcastName, jjnn, c, logger); err != nil {
+			logger.Error(err, "Error downloading Jar for JetJob")
+			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+		}
+		logger.V(util.DebugLevel).Info("JAR downloaded, starting the JetJob", "jj", jjnn)
+	}
+	go func(ctx context.Context, metaData codecTypes.JobMetaData, jjnn types.NamespacedName, client hzclient.Client, logger logr.Logger) {
 		if err = js.RunJob(ctx, metaData); err != nil {
 			logger.Error(err, "Error running JetJob")
 			_, _ = r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
 		}
-	}(ctx, metaData, jjnn, logger)
+	}(ctx, metaData, jjnn, c, logger)
 	checker.runChecker(ctx, js, r.updateJob, logger)
 	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(job) {
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 	return r.updateStatus(ctx, jjnn, jetJobWithStatus(hazelcastv1alpha1.JetJobStarting))
+}
+
+func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alpha1.JetJob, hazelcastName types.NamespacedName, jjnn types.NamespacedName, client hzclient.Client, logger logr.Logger) error {
+	bc := job.Spec.BucketConfiguration
+	g, groupCtx := errgroup.WithContext(ctx)
+	mtlsClient, ok := r.mtlsClientRegistry.Get(ctx, hazelcastName)
+	if !ok {
+		returnErr := errors.New("failed to get MTLS client")
+		_, _ = r.updateStatus(ctx, jjnn, failedJetJobStatus(returnErr))
+	}
+	for _, m := range client.OrderedMembers() {
+		m := m
+		g.Go(func() error {
+			host, _, err := net.SplitHostPort(m.Address.String())
+			if err != nil {
+				return err
+			}
+			fds, err := rest.NewFileDownloadService("https://"+host+":8443", mtlsClient)
+			if err != nil {
+				logger.Error(err, "unable to create NewFileDownloadService")
+				return err
+			}
+			_, err = fds.Download(groupCtx, sidecar.DownloadFileReq{
+				URL:        bc.BucketURI,
+				FileName:   job.Spec.JarName,
+				DestDir:    n.JetJobJarsBucketPath,
+				SecretName: bc.Secret,
+			})
+			if err != nil {
+				logger.Error(err, "unable to download Jar file")
+			}
+			return err
+		})
+	}
+	return g.Wait()
 }
 
 func (r *JetJobReconciler) changeJobState(ctx context.Context, jj *hazelcastv1alpha1.JetJob, js hzclient.JetService) error {
@@ -272,7 +323,7 @@ func jobStatusPhase(readStatus int32) hazelcastv1alpha1.JetJobStatusPhase {
 	case 5:
 		return hazelcastv1alpha1.JetJobCompleting
 	case 6:
-		return hazelcastv1alpha1.JetJobFailed
+		return hazelcastv1alpha1.JetJobExecutionFailed
 	case 7:
 		return hazelcastv1alpha1.JetJobCompleted
 	default:
