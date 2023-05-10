@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -610,37 +611,39 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, cm, func() error {
-		config, err := hazelcastConfig(ctx, r.Client, h)
-		if err != nil {
-			return err
-		}
-		cm.Data["hazelcast.yaml"] = config
-
-		if _, ok := cm.Data["hazelcast.jks"]; !ok {
-			keystore, err := hazelcastKeystore(ctx, r.Client, h)
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
+			config, err := hazelcastConfig(ctx, r.Client, h)
 			if err != nil {
 				return err
 			}
-			cm.Data["hazelcast.jks"] = keystore
-		}
+			cm.Data["hazelcast.yaml"] = config
 
-		if _, ok := cm.Data["ca.crt"]; !ok {
-			mtlsCert, mtlsKey, err := mtls.NewCertificateAuthority()
-			if err != nil {
-				return err
+			if _, ok := cm.Data["hazelcast.jks"]; !ok {
+				keystore, err := hazelcastKeystore(ctx, r.Client, h)
+				if err != nil {
+					return err
+				}
+				cm.Data["hazelcast.jks"] = keystore
 			}
-			cm.Data["ca.crt"] = mtlsCert
-			cm.Data["tls.crt"] = mtlsCert
-			cm.Data["tls.key"] = mtlsKey
-		}
 
-		return nil
+			if _, ok := cm.Data["ca.crt"]; !ok {
+				mtlsCert, mtlsKey, err := mtls.NewCertificateAuthority()
+				if err != nil {
+					return err
+				}
+				cm.Data["ca.crt"] = mtlsCert
+				cm.Data["tls.crt"] = mtlsCert
+				cm.Data["tls.key"] = mtlsKey
+			}
+
+			return nil
+		})
+		if result != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Secret", h.Name, "result", result)
+		}
+		return err
 	})
-	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "Secret", h.Name, "result", opResult)
-	}
-	return err
 }
 
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
