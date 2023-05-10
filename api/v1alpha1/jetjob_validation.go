@@ -1,11 +1,14 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"fmt"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 func ValidateJetJobCreateSpec(jj *JetJob) error {
@@ -52,12 +55,24 @@ func ValidateJetConfiguration(h *Hazelcast) error {
 	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Hazelcast"}, h.Name, allErrs)
 }
 
-func ValidateJetJobUpdateSpec(jj *JetJob, oldJj *JetJob) error {
-	var allErrs = ValidateJetJobNonUpdatableFields(jj.Spec, oldJj.Spec)
+func ValidateJetJobUpdateSpec(jj *JetJob, _ *JetJob) error {
+	var allErrs = validateJetJobUpdateSpec(jj)
 	if len(allErrs) == 0 {
 		return nil
 	}
 	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"}, jj.Name, allErrs)
+}
+
+func validateJetJobUpdateSpec(jj *JetJob) []*field.Error {
+	last, ok := jj.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		return nil
+	}
+	var parsed JetJobSpec
+	if err := json.Unmarshal([]byte(last), &parsed); err != nil {
+		return []*field.Error{field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last JetJob spec for update errors: %w", err))}
+	}
+	return ValidateJetJobNonUpdatableFields(jj.Spec, parsed)
 }
 
 func ValidateJetJobNonUpdatableFields(jj JetJobSpec, oldJj JetJobSpec) []*field.Error {
