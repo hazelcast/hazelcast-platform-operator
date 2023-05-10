@@ -197,6 +197,30 @@ var _ = Describe("Hazelcast controller", func() {
 		return hz
 	}
 
+	CreateLicenseKeySecret := func(name string) *corev1.Secret {
+		By(fmt.Sprintf("creating license key secret '%s'", name))
+		licenseSec := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Data: map[string][]byte{
+				n.LicenseDataKey: []byte("integration-test-license"),
+			},
+		}
+		Eventually(func() bool {
+			err := k8sClient.Create(context.Background(), licenseSec)
+			return err == nil || errors.IsAlreadyExists(err)
+		}, timeout, interval).Should(BeTrue())
+		return licenseSec
+	}
+
+	BeforeEach(func() {
+		if ee {
+			CreateLicenseKeySecret(n.LicenseKeySecret)
+		}
+	})
+
 	// Hazelcast CR configuration and controller tests
 	Context("Hazelcast CR with default specs", func() {
 		It("should handle CR and sub resources correctly", Label("fast"), func() {
@@ -430,10 +454,12 @@ var _ = Describe("Hazelcast controller", func() {
 					ClusterSize:      &[]int32{5}[0],
 					Repository:       "myorg/hazelcast",
 					Version:          "1.0",
-					LicenseKeySecret: "licenseKeySecret",
+					LicenseKeySecret: "my-license-key-secret",
 					ImagePullPolicy:  corev1.PullAlways,
 				},
 			}
+
+			CreateLicenseKeySecret("my-license-key-secret")
 
 			Create(hz)
 			fetchedCR := EnsureStatus(hz)
@@ -1078,6 +1104,8 @@ var _ = Describe("Hazelcast controller", func() {
 					Spec:       firstSpec,
 				}
 
+				CreateLicenseKeySecret(firstSpec.LicenseKeySecret)
+
 				Create(hz)
 				hz = EnsureStatus(hz)
 				hz.Spec = secondSpec
@@ -1265,6 +1293,9 @@ var _ = Describe("Hazelcast controller", func() {
 						Repository:       n.HazelcastRepo,
 					},
 				}
+
+				CreateLicenseKeySecret("secret-name")
+
 				Expect(k8sClient.Create(context.Background(), h)).Should(Succeed())
 				h = EnsureStatus(h)
 				Expect(h.Spec.Repository).Should(Equal(n.HazelcastEERepo))

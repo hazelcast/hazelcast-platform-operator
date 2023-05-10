@@ -56,6 +56,28 @@ var _ = Describe("Hazelcast webhook", func() {
 		}
 	}
 
+	BeforeEach(func() {
+		if !ee {
+			return
+		}
+
+		licenseSec := corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      n.LicenseKeySecret,
+				Namespace: namespace,
+			},
+			Data: map[string][]byte{
+				n.LicenseDataKey: []byte("integration-test-license"),
+			},
+		}
+
+		By(fmt.Sprintf("creating license key secret '%s'", licenseSec.Name))
+		Eventually(func() bool {
+			err := k8sClient.Create(context.Background(), &licenseSec)
+			return err == nil || errors.IsAlreadyExists(err)
+		}, timeout, interval).Should(BeTrue())
+	})
+
 	Context("Hazelcast Persistence validation", func() {
 		It("should not create HZ PartialStart with FullRecovery", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultSpecValues, ee)

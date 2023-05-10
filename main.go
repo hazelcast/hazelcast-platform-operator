@@ -98,7 +98,7 @@ func main() {
 	}
 
 	if err := mgr.Add(kubeclient.Setup(mgr.GetClient())); err != nil {
-		setupLog.Error(err, "unable to setup kubeclient package")
+		setupLog.Error(err, "unable to setup 'kubeclient' package")
 		os.Exit(1)
 	}
 

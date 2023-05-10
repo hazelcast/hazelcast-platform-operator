@@ -59,10 +59,6 @@ jobs:
           git tag ${TAG_VERSION}
           git push origin ${TAG_VERSION}
 
-  create-release-notes:
-    uses: ./.github/workflows/create-release-notes.yaml
-    secrets: inherit
-
   slack_notify:
     name: Slack Notify
     needs: [ 'create_release' ]
