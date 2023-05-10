@@ -8,13 +8,14 @@ import (
 type JetJobStatusPhase string
 
 const (
+	JetJobFailed            JetJobStatusPhase = "Failed"                     //6
 	JetJobNotRunning        JetJobStatusPhase = "NotRunning"                 //0
 	JetJobStarting          JetJobStatusPhase = "Starting"                   //1
 	JetJobRunning           JetJobStatusPhase = "Running"                    //2
 	JetJobSuspended         JetJobStatusPhase = "Suspended"                  //3
 	JetJobExportingSnapshot JetJobStatusPhase = "SuspendedExportingSnapshot" //4
 	JetJobCompleting        JetJobStatusPhase = "Completing"                 //5
-	JetJobFailed            JetJobStatusPhase = "Failed"                     //6
+	JetJobExecutionFailed   JetJobStatusPhase = "FailedDuringExecution"      //6
 	JetJobCompleted         JetJobStatusPhase = "Completed"                  //7
 )
 
@@ -102,7 +103,7 @@ func (jjs JetJobStatusPhase) IsRunning() bool {
 }
 
 func (jjs JetJobStatusPhase) IsFinished() bool {
-	return jjs == JetJobFailed || jjs == JetJobCompleted
+	return jjs == JetJobExecutionFailed || jjs == JetJobCompleted
 }
 
 func (jjs JetJobStatusPhase) IsSuspended() bool {

@@ -198,16 +198,16 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 	if job.Spec.MainClass != "" {
 		metaData.MainClass = job.Spec.MainClass
 	}
-	go func(ctx context.Context, metaData codecTypes.JobMetaData, jjnn types.NamespacedName, client hzclient.Client, logger logr.Logger) {
-		if job.Spec.IsDownloadEnabled() {
-			logger.V(util.DebugLevel).Info("Downloading the JAR file before running the JetJob", "jj", jjnn)
-			if err = r.downloadFile(ctx, job, hazelcastName, jjnn, client, logger); err != nil {
-				logger.Error(err, "Error downloading Jar for JetJob")
-				_, _ = r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
-				return
-			}
-			logger.V(util.DebugLevel).Info("JAR downloaded, starting the JetJob", "jj", jjnn)
+	if job.Spec.IsDownloadEnabled() {
+		logger.V(util.DebugLevel).Info("Downloading the JAR file before running the JetJob", "jj", jjnn)
+		if err = r.downloadFile(ctx, job, hazelcastName, jjnn, c, logger); err != nil {
+			logger.Error(err, "Error downloading Jar for JetJob")
+			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+
 		}
+		logger.V(util.DebugLevel).Info("JAR downloaded, starting the JetJob", "jj", jjnn)
+	}
+	go func(ctx context.Context, metaData codecTypes.JobMetaData, jjnn types.NamespacedName, client hzclient.Client, logger logr.Logger) {
 		if err = js.RunJob(ctx, metaData); err != nil {
 			logger.Error(err, "Error running JetJob")
 			_, _ = r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
@@ -341,7 +341,7 @@ func jobStatusPhase(readStatus int32) hazelcastv1alpha1.JetJobStatusPhase {
 	case 5:
 		return hazelcastv1alpha1.JetJobCompleting
 	case 6:
-		return hazelcastv1alpha1.JetJobFailed
+		return hazelcastv1alpha1.JetJobExecutionFailed
 	case 7:
 		return hazelcastv1alpha1.JetJobCompleted
 	default:
