@@ -215,6 +215,7 @@ post_test_result()
     sudo apt-get install libxml2-utils
     # Define an array to store test run status
     declare -a test_run_status
+    local failed_tests
 
     # Define an associative array to map report names to suite IDs
     declare -A suite_ids=(
@@ -223,7 +224,9 @@ post_test_result()
     )
 
     # Initialize the table header
-    comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
+    comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | ---- | :----: | :----: |\n"
+    # Initialize the failed test section
+    failed_test_block="\n<details><summary>Failed Tests</summary>\n\n|||\n| :----: | ---- |\n"
 
     # Loop through the test reports and generate a table row for each one
     for report in "${!suite_ids[@]}"
@@ -237,6 +240,10 @@ post_test_result()
         # Save status of the test run
         test_run_status+=("$([ "$failures" -gt 0 ] && echo true || echo false)" "$([ "$errors" -gt 0 ] && echo true || echo false)")
 
+        if [ "$failures" -gt 0 ]; then
+            failed_tests=$(xmllint --xpath "//testcase[@status='failed']/@name" "${GITHUB_WORKSPACE}/allure-results/pr/${report}" | cut -d '"' -f 2 |sed -n 's/.*\[It\] \(.*\) \[.*\]/<li>\1<\/li>/p' | tr '\n' ' ')
+        fi
+
         # Get the suite ID from the array
         suite_id=${suite_ids[$report]}
 
@@ -247,11 +254,13 @@ post_test_result()
         # Construct a table row with a link to the test report
         link="${REPORT_PAGE_URL}/pr/${GITHUB_RUN_NUMBER}/#suites/${suite_id}"
         row="| [${type^^}](${link}) | $tests | $failures | $errors| $skipped |\n"
+        failed_tests_row="| ${type^^} | $failed_tests |\n"
 
         # Append the row to the output
         comment+="$row"
+        failed_test_block+="$failed_tests_row"
     done
-
+    comment+="$failed_test_block"
     # Send the output as a comment on the pull request using gh
     if [[ "${test_run_status[*]}" == *"true"* ]]; then
        echo -e "$comment" | gh pr comment ${PR_NUMBER} -F -
