@@ -356,10 +356,11 @@ func printContentTable(types []*doc.Type) {
 
 func printStructs(structTypes []StructType) {
 	for _, t := range structTypes {
-		if len(t.Fields) > 0 {
-			fmt.Printf("\n=== %s\n\n%s\n\n", t.Name, t.Doc)
-			printFields(t.Fields)
+		if len(t.Fields) <= 0 {
+			return
 		}
+		fmt.Printf("\n=== %s\n\n%s\n\n", t.Name, t.Doc)
+		printFields(t.Fields)
 		if len(t.DeprecatedFields) > 0 {
 			fmt.Println("==== Deprecated")
 			printFields(t.DeprecatedFields)
