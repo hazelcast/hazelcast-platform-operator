@@ -43,8 +43,8 @@ var _ = Describe("Hazelcast webhook", func() {
 				JarName:               "myjob.jar",
 				MainClass:             "com.example.MyClass",
 				BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-					Secret:    "my-secret",
-					BucketURI: "gs://my-bucket",
+					SecretName: "my-secret",
+					BucketURI:  "gs://my-bucket",
 				},
 			}
 			js, _ := json.Marshal(spec)
@@ -99,8 +99,8 @@ var _ = Describe("Hazelcast webhook", func() {
 			Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
 
 			jj.Spec.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
-				Secret:    "my-secret",
-				BucketURI: "gs://my-bucket",
+				SecretName: "my-secret",
+				BucketURI:  "gs://my-bucket",
 			}
 			err := k8sClient.Update(context.Background(), jj)
 			Expect(err).Should(And(

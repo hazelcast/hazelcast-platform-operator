@@ -119,7 +119,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Skip("This test will only run in EE configuration")
 			}
 			spec := test.HazelcastSpec(defaultSpecValues, ee)
-			spec.LicenseKeySecret = ""
+			spec.LicenseKeySecretName = ""
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),

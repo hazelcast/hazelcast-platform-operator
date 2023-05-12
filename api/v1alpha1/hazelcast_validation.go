@@ -103,15 +103,15 @@ func validateExposeExternally(h *Hazelcast) *field.Error {
 }
 
 func validateLicense(h *Hazelcast) *field.Error {
-	if checkEnterprise(h.Spec.Repository) && len(h.Spec.LicenseKeySecret) == 0 {
+	if checkEnterprise(h.Spec.Repository) && len(h.Spec.GetLicenseKeySecretName()) == 0 {
 		return field.Required(field.NewPath("spec").Child("licenseKeySecret"),
 			"must be set when Hazelcast Enterprise is deployed")
 	}
 
 	// make sure secret exists
-	if h.Spec.LicenseKeySecret != "" {
+	if h.Spec.GetLicenseKeySecretName() != "" {
 		secretName := types.NamespacedName{
-			Name:      h.Spec.LicenseKeySecret,
+			Name:      h.Spec.GetLicenseKeySecretName(),
 			Namespace: h.Namespace,
 		}
 
@@ -140,7 +140,7 @@ func validateTLS(h *Hazelcast) *field.Error {
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
 			return field.NotFound(field.NewPath("spec").Child("tls"),
-				"Hazelcast Enterprise TLS Secret is not found")
+				"Hazelcast Enterprise TLS DeprecatedSecret is not found")
 		}
 	}
 

@@ -23,7 +23,7 @@ func HazelcastSpec(values *HazelcastSpecValues, ee bool) hazelcastv1alpha1.Hazel
 		ImagePullPolicy: values.ImagePullPolicy,
 	}
 	if ee {
-		spec.LicenseKeySecret = values.LicenseKey
+		spec.LicenseKeySecretName = values.LicenseKey
 	}
 	return spec
 }
@@ -34,7 +34,7 @@ func CheckHazelcastCR(h *hazelcastv1alpha1.Hazelcast, expected *HazelcastSpecVal
 	Expect(h.Spec.Version).Should(Equal(expected.Version))
 	Expect(h.Spec.ImagePullPolicy).Should(Equal(expected.ImagePullPolicy))
 	if ee {
-		Expect(h.Spec.LicenseKeySecret).Should(Equal(expected.LicenseKey))
+		Expect(h.Spec.GetLicenseKeySecretName()).Should(Equal(expected.LicenseKey))
 	}
 }
 

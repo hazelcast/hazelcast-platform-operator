@@ -608,7 +608,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
 	if err != nil {
-		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
+		return fmt.Errorf("failed to set owner reference on DeprecatedSecret: %w", err)
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -640,7 +640,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 			return nil
 		})
 		if result != controllerutil.OperationResultNone {
-			logger.Info("Operation result", "Secret", h.Name, "result", result)
+			logger.Info("Operation result", "DeprecatedSecret", h.Name, "result", result)
 		}
 		return err
 	})
@@ -1666,7 +1666,7 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	}
 
 	// restoring from bucket config
-	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
+	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
 		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
 
 	return containers, nil
@@ -1789,7 +1789,7 @@ func jetEngineContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		Env: []v1.EnvVar{
 			{
 				Name:  "JDB_SECRET_NAME",
-				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.Secret,
+				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.GetSecretName(),
 			},
 			{
 				Name:  "JDB_BUCKET_URI",
@@ -1813,7 +1813,7 @@ func ucdBucketAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		Env: []v1.EnvVar{
 			{
 				Name:  "JDB_SECRET_NAME",
-				Value: h.Spec.UserCodeDeployment.BucketConfiguration.Secret,
+				Value: h.Spec.UserCodeDeployment.BucketConfiguration.GetSecretName(),
 			},
 			{
 				Name:  "JDB_BUCKET_URI",
@@ -2081,14 +2081,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Value: javaClassPath(h),
 		},
 	}
-	if h.Spec.LicenseKeySecret != "" {
+	if h.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: hzLicenseKey,
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
 						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.LicenseKeySecret,
+							Name: h.Spec.GetLicenseKeySecretName(),
 						},
 						Key: n.LicenseDataKey,
 					},

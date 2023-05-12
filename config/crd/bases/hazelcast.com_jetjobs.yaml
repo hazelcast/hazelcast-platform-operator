@@ -67,12 +67,15 @@ spec:
                     minLength: 6
                     type: string
                   secret:
+                    description: secret is a deprecated alias for secretName.
+                    minLength: 1
+                    type: string
+                  secretName:
                     description: Name of the secret with credentials for cloud providers.
                     minLength: 1
                     type: string
                 required:
                 - bucketURI
-                - secret
                 type: object
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast

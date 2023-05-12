@@ -683,16 +683,16 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 		cm := &corev1.Secret{}
 		err := r.Client.Get(ctx, types.NamespacedName{Name: hz, Namespace: wan.Namespace}, cm)
 		if err != nil {
-			return false, fmt.Errorf("could not find Secret for wan config persistence")
+			return false, fmt.Errorf("could not find DeprecatedSecret for wan config persistence")
 		}
 
 		hzConfig := &config.HazelcastWrapper{}
 		err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 		if err != nil {
-			return false, fmt.Errorf("persisted Secret is not formatted correctly")
+			return false, fmt.Errorf("persisted DeprecatedSecret is not formatted correctly")
 		}
 
-		// Add all map wan configs in Hazelcast Secret
+		// Add all map wan configs in Hazelcast DeprecatedSecret
 		for wanName, wanConfig := range hzConfig.Hazelcast.WanReplication {
 			mapName := splitWanName(wanName)
 			cmMap[wanMapKey(hz, mapName)] = wanConfig

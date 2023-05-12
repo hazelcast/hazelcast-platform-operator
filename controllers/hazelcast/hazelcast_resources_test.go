@@ -172,7 +172,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			c := fakeK8sClient(objects...)
 			data, err := hazelcastConfig(context.Background(), c, h)
 			if err != nil {
-				t.Errorf("Error retreiving Secret data")
+				t.Errorf("Error retreiving DeprecatedSecret data")
 			}
 			actualConfig := &config.HazelcastWrapper{}
 			err = yaml.Unmarshal(data, actualConfig)

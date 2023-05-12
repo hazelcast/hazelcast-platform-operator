@@ -237,7 +237,7 @@ func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alp
 				URL:        bc.BucketURI,
 				FileName:   job.Spec.JarName,
 				DestDir:    n.JetJobJarsBucketPath,
-				SecretName: bc.Secret,
+				SecretName: bc.GetSecretName(),
 			})
 			if err != nil {
 				logger.Error(err, "unable to download Jar file")

@@ -120,8 +120,8 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		By("creating JetJob CR")
 		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		jj.Spec.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
-			Secret:    "br-secret-gcp",
-			BucketURI: "gs://operator-user-code/jetJobs",
+			SecretName: "br-secret-gcp",
+			BucketURI:  "gs://operator-user-code/jetJobs",
 		}
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())

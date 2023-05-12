@@ -6,7 +6,7 @@ import (
 )
 
 func HazelcastSpec(h *hazelcastv1alpha1.Hazelcast) (mutated bool) {
-	if h.Spec.LicenseKeySecret != "" && h.Spec.Repository == n.HazelcastRepo {
+	if h.Spec.GetLicenseKeySecretName() != "" && h.Spec.Repository == n.HazelcastRepo {
 		h.Spec.Repository = n.HazelcastEERepo
 		mutated = true
 	}

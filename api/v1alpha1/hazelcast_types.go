@@ -68,9 +68,13 @@ type HazelcastSpec struct {
 	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
+	// licenseKeySecret is a deprecated alias for licenseKeySecretName.
+	// +optional
+	DeprecatedLicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
-	LicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
 	// +kubebuilder:default:={}
@@ -161,6 +165,13 @@ type HazelcastSpec struct {
 	// Hazelcast TLS configuration
 	// +optional
 	TLS TLS `json:"tls,omitempty"`
+}
+
+func (s *HazelcastSpec) GetLicenseKeySecretName() string {
+	if s.LicenseKeySecretName == "" {
+		return s.DeprecatedLicenseKeySecret
+	}
+	return s.LicenseKeySecretName
 }
 
 type ManagementCenterConfig struct {
@@ -365,10 +376,15 @@ const (
 )
 
 type BucketConfiguration struct {
+	// secret is a deprecated alias for secretName.
+	// +kubebuilder:validation:MinLength:=1
+	// +optional
+	DeprecatedSecret string `json:"secret"`
+
 	// Name of the secret with credentials for cloud providers.
 	// +kubebuilder:validation:MinLength:=1
-	// +required
-	Secret string `json:"secret"`
+	// +optional
+	SecretName string `json:"secretName"`
 
 	// URL of the bucket to download HotBackup folders.
 	// AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
@@ -379,6 +395,13 @@ type BucketConfiguration struct {
 	// +kubebuilder:validation:MinLength:=6
 	// +required
 	BucketURI string `json:"bucketURI"`
+}
+
+func (b *BucketConfiguration) GetSecretName() string {
+	if b.SecretName == "" {
+		return b.DeprecatedSecret
+	}
+	return b.SecretName
 }
 
 // UserCodeDeploymentConfig contains the configuration for User Code download operation
