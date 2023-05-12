@@ -272,6 +272,18 @@ var _ = Describe("Hazelcast controller", func() {
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRole{})
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRoleBinding{})
 		})
+
+		It("should fail if CR name is invalid", Label("fast"), func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "1hz",
+					Namespace: namespace,
+				},
+				Spec: test.HazelcastSpec(defaultSpecValues, ee),
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+		})
 	})
 
 	Context("Hazelcast CR with expose externally", func() {

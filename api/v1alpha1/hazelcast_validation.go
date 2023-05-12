@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -47,6 +48,11 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 
 func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 	var allErrs field.ErrorList
+
+	if err := validateMetadata(h); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
 	if err := validateExposeExternally(h); err != nil {
 		allErrs = append(allErrs, err)
 	}
@@ -79,6 +85,20 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 		allErrs = append(allErrs, err...)
 	}
 	return allErrs
+}
+
+func validateMetadata(h *Hazelcast) *field.Error {
+	// RFC 1035
+	matched, _ := regexp.MatchString(`^[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$`, h.Name)
+	if !matched {
+		return field.Invalid(field.NewPath("metadata").Child("name"),
+			h.Name, "Hazelcast name has the same constraints as DNS-1035 label."+
+				" It must consist of lower case alphanumeric characters or '-',"+
+				" start with an alphabetic character, and end with an alphanumeric character"+
+				" (e.g. 'my-name',  or 'abc-123', regex used for validation is 'a-z?'")
+	}
+
+	return nil
 }
 
 func validateExposeExternally(h *Hazelcast) *field.Error {
