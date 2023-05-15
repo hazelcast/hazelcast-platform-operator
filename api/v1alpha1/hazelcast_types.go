@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.19"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.20"}
 	// +optional
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
@@ -200,10 +200,10 @@ type JetEngineConfiguration struct {
 	// +optional
 	ResourceUploadEnabled bool `json:"resourceUploadEnabled"`
 
-	// Bucket Configuration from which the JAR files be downloaded and accessible for the member.
+	// Configuration for downloading the JAR files be downloaded and accessible for the member.
 	// These JAR files will not be placed in the CLASSPATH.
 	// +optional
-	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
+	RemoteFileConfiguration `json:",inline"`
 
 	// Jet Instance Configuration
 	// +kubebuilder:default:={}
@@ -278,7 +278,17 @@ func (j *JetEngineConfiguration) IsConfigured() bool {
 
 // Returns true if jet.bucketConfiguration is specified.
 func (j *JetEngineConfiguration) IsBucketEnabled() bool {
-	return j != nil && j.BucketConfiguration != nil
+	return j != nil && j.RemoteFileConfiguration.BucketConfiguration != nil
+}
+
+// Returns true if jet.configMaps configuration is specified.
+func (j *JetEngineConfiguration) IsConfigMapEnabled() bool {
+	return j != nil && (len(j.RemoteFileConfiguration.ConfigMaps) != 0)
+}
+
+// Returns true if jet.RemoteURLs configuration is specified.
+func (j *JetEngineConfiguration) IsRemoteURLsEnabled() bool {
+	return j != nil && (len(j.RemoteFileConfiguration.RemoteURLs) != 0)
 }
 
 type ExecutorServiceConfiguration struct {
@@ -364,6 +374,35 @@ const (
 	CapacityPolicyPerPartition CapacityPolicyType = "PER_PARTITION"
 )
 
+// UserCodeDeploymentConfig contains the configuration for User Code download operation
+type UserCodeDeploymentConfig struct {
+	// When true, allows user code deployment from clients.
+	// +optional
+	ClientEnabled *bool `json:"clientEnabled,omitempty"`
+
+	// A string for triggering a rolling restart for re-downloading the user code.
+	// +optional
+	TriggerSequence string `json:"triggerSequence,omitempty"`
+
+	// Configuration for files to download. Files downloaded will be put under Java CLASSPATH.
+	// +optional
+	RemoteFileConfiguration `json:",inline"`
+}
+
+type RemoteFileConfiguration struct {
+	// Bucket config from where the JAR files will be downloaded.
+	// +optional
+	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
+
+	// Names of the list of ConfigMaps. Files in each ConfigMap will be downloaded.
+	// +optional
+	ConfigMaps []string `json:"configMaps,omitempty"`
+
+	// List of URLs from where the files will be downloaded.
+	// +optional
+	RemoteURLs []string `json:"remoteURLs,omitempty"`
+}
+
 type BucketConfiguration struct {
 	// Name of the secret with credentials for cloud providers.
 	// +kubebuilder:validation:MinLength:=1
@@ -381,42 +420,19 @@ type BucketConfiguration struct {
 	BucketURI string `json:"bucketURI"`
 }
 
-// UserCodeDeploymentConfig contains the configuration for User Code download operation
-type UserCodeDeploymentConfig struct {
-	// When true, allows user code deployment from clients.
-	// +optional
-	ClientEnabled *bool `json:"clientEnabled,omitempty"`
-
-	// Bucket config where JAR files will be downloaded into Java CLASSPATH.
-	// +optional
-	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
-
-	// A string for triggering a rolling restart for re-downloading the user code.
-	// +optional
-	TriggerSequence string `json:"triggerSequence,omitempty"`
-
-	// Names of the list of ConfigMaps. Files in each ConfigMap will be put under Java CLASSPATH.
-	// +optional
-	ConfigMaps []string `json:"configMaps,omitempty"`
-
-	// List of URLs. Files downloaded from the URLs will be put under Java CLASSPATH.
-	// +optional
-	RemoteURLs []string `json:"remoteURLs,omitempty"`
-}
-
 // Returns true if userCodeDeployment.bucketConfiguration is specified.
 func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
-	return c != nil && c.BucketConfiguration != nil
+	return c != nil && c.RemoteFileConfiguration.BucketConfiguration != nil
 }
 
 // Returns true if userCodeDeployment.configMaps configuration is specified.
 func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
-	return c != nil && (len(c.ConfigMaps) != 0)
+	return c != nil && (len(c.RemoteFileConfiguration.ConfigMaps) != 0)
 }
 
 // Returns true if userCodeDeployment.RemoteURLs configuration is specified.
 func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
-	return c != nil && (len(c.RemoteURLs) != 0)
+	return c != nil && (len(c.RemoteFileConfiguration.RemoteURLs) != 0)
 }
 
 type AgentConfiguration struct {
@@ -426,7 +442,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.19"
+	// +kubebuilder:default:="0.1.20"
 	// +optional
 	Version string `json:"version,omitempty"`
 }

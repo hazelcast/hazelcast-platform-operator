@@ -4,13 +4,12 @@ metadata:
   name: hazelcast
 spec:
   version: "latest-snapshot"
-  userCodeDeployment:
-    bucketConfig:
-      secret: br-secret-gcp
-      bucketURI: "gs://operator-user-code/jetJobs"
   exposeExternally:
     type: Unisocket
     discoveryServiceType: LoadBalancer
   jet:
     enabled: true
     resourceUploadEnabled: true
+    bucketConfig:
+      bucketURI: "gs://operator-user-code/jetJobs"
+      secret: br-secret-gcp

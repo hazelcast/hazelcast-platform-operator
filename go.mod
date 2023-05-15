@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/hazelcast/hazelcast-go-client v1.4.0
-	github.com/hazelcast/platform-operator-agent v0.1.19
+	github.com/hazelcast/platform-operator-agent v0.1.20
 	github.com/onsi/ginkgo/v2 v2.4.0
 	github.com/onsi/gomega v1.22.1
 	github.com/openshift/api v0.0.0-20220715133027-dab5b363ebd1
