@@ -68,7 +68,7 @@ jobs:
       GKE_ZONE: us-east1-b
     steps:
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v1.1.0'
+        uses: 'google-github-actions/auth@v1.1.1'
         with:
           credentials_json: ${{ secrets.GKE_SA_KEY }}
 
