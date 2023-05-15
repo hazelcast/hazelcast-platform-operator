@@ -54,6 +54,7 @@ const (
 	PersistenceVolumeName       = "hot-restart-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
 	JetJobJarsVolumeName        = "jet-job-jars-bucket"
+	JetConfigMapNamePrefix      = "jet-cm-"
 	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 
@@ -64,12 +65,13 @@ const (
 	BucketSecret        = "br-secret"
 	UserCodeBucketAgent = "ucd-bucket-agent"
 	UserCodeURLAgent    = "ucd-url-agent"
-	JetDownloadAgent    = "jet-agent"
+	JetBucketAgent      = "jet-bucket-agent"
+	JetUrlAgent         = "jet-url-agent"
 
 	UserCodeBucketPath    = "/opt/hazelcast/userCode/bucket"
 	UserCodeURLPath       = "/opt/hazelcast/userCode/urls"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
-	JetJobJarsBucketPath  = "/opt/hazelcast/jetJobJars/bucket"
+	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
 )
 
 // Hazelcast default configurations

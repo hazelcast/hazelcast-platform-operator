@@ -93,19 +93,30 @@ func ValidateJetJobNonUpdatableFields(jj JetJobSpec, oldJj JetJobSpec) []*field.
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("mainClass"), "field cannot be updated"))
 	}
-	if (jj.BucketConfiguration != nil && oldJj.BucketConfiguration == nil) || (jj.BucketConfiguration == nil && oldJj.BucketConfiguration != nil) {
+	if jj.IsBucketEnabled() != oldJj.IsBucketEnabled() {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration"), "field cannot be added or removed"))
 	}
-	if jj.BucketConfiguration != nil && oldJj.BucketConfiguration != nil {
-		if jj.BucketConfiguration.BucketURI != oldJj.BucketConfiguration.BucketURI {
-			allErrs = append(allErrs,
-				field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("bucketURI"), "field cannot be updated"))
-		}
-		if jj.BucketConfiguration.GetSecretName() != oldJj.BucketConfiguration.GetSecretName() {
-			allErrs = append(allErrs,
-				field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("secret"), "field cannot be updated"))
-		}
+	if jj.IsBucketEnabled() && oldJj.IsBucketEnabled() {
+		allErrs = append(allErrs,
+			ValidateBucketFields(jj.JetRemoteFileConfiguration.BucketConfiguration, oldJj.JetRemoteFileConfiguration.BucketConfiguration)...)
+	}
+	if jj.IsRemoteURLsEnabled() != oldJj.IsRemoteURLsEnabled() {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("remoteURL"), "field cannot be updated"))
+	}
+	return allErrs
+}
+
+func ValidateBucketFields(jjbc *BucketConfiguration, old *BucketConfiguration) []*field.Error {
+	var allErrs field.ErrorList
+	if jjbc.BucketURI != old.BucketURI {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("bucketURI"), "field cannot be updated"))
+	}
+	if jjbc.GetSecretName() != old.GetSecretName() {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("secret"), "field cannot be updated"))
 	}
 	return allErrs
 }

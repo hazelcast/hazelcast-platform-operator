@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -188,15 +189,21 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 
 	checker.storeJob(job.JobName(), jjnn)
 
-	metaData := codecTypes.DefaultExistingJarJobMetaData(job.JobName(), path.Join(n.JetJobJarsBucketPath, job.Spec.JarName))
+	jarName := job.Spec.JarName
+	if job.Spec.IsRemoteURLsEnabled() && jarName == "" {
+		url := job.Spec.JetRemoteFileConfiguration.RemoteURL
+		jarName = url[strings.LastIndex(url, "/")+1:]
+	}
+	metaData := codecTypes.DefaultExistingJarJobMetaData(job.JobName(), path.Join(n.JetJobJarsPath, jarName))
 	if job.Spec.MainClass != "" {
 		metaData.MainClass = job.Spec.MainClass
 	}
-	if job.Spec.BucketConfiguration != nil {
+	if job.Spec.IsDownloadEnabled() {
 		logger.V(util.DebugLevel).Info("Downloading the JAR file before running the JetJob", "jj", jjnn)
 		if err = r.downloadFile(ctx, job, hazelcastName, jjnn, c, logger); err != nil {
 			logger.Error(err, "Error downloading Jar for JetJob")
 			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+
 		}
 		logger.V(util.DebugLevel).Info("JAR downloaded, starting the JetJob", "jj", jjnn)
 	}
@@ -214,7 +221,6 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 }
 
 func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alpha1.JetJob, hazelcastName types.NamespacedName, jjnn types.NamespacedName, client hzclient.Client, logger logr.Logger) error {
-	bc := job.Spec.BucketConfiguration
 	g, groupCtx := errgroup.WithContext(ctx)
 	mtlsClient, ok := r.mtlsClientRegistry.Get(ctx, hazelcastName)
 	if !ok {
@@ -233,12 +239,7 @@ func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alp
 				logger.Error(err, "unable to create NewFileDownloadService")
 				return err
 			}
-			_, err = fds.Download(groupCtx, sidecar.DownloadFileReq{
-				URL:        bc.BucketURI,
-				FileName:   job.Spec.JarName,
-				DestDir:    n.JetJobJarsBucketPath,
-				SecretName: bc.GetSecretName(),
-			})
+			_, err = fds.Download(groupCtx, fileDownloadReq(job))
 			if err != nil {
 				logger.Error(err, "unable to download Jar file")
 			}
@@ -246,6 +247,23 @@ func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alp
 		})
 	}
 	return g.Wait()
+}
+
+func fileDownloadReq(job *hazelcastv1alpha1.JetJob) sidecar.DownloadFileReq {
+	req := sidecar.DownloadFileReq{
+		FileName: job.Spec.JarName,
+		DestDir:  n.JetJobJarsPath,
+	}
+	jrfc := job.Spec.JetRemoteFileConfiguration
+	if job.Spec.IsBucketEnabled() {
+		req.DownloadType = sidecar.BucketDownload
+		req.URL = jrfc.BucketConfiguration.BucketURI
+		req.SecretName = jrfc.BucketConfiguration.GetSecretName()
+	} else if job.Spec.IsRemoteURLsEnabled() {
+		req.DownloadType = sidecar.URLDownload
+		req.URL = jrfc.RemoteURL
+	}
+	return req
 }
 
 func (r *JetJobReconciler) changeJobState(ctx context.Context, jj *hazelcastv1alpha1.JetJob, js hzclient.JetService) error {

@@ -55,8 +55,7 @@ spec:
             description: JetJobSpec defines the desired state of JetJob
             properties:
               bucketConfig:
-                description: Bucket Configuration from which the JAR files specified
-                  in JarName be downloaded and the jor will be run.
+                description: Bucket config from where the JAR files will be downloaded.
                 properties:
                   bucketURI:
                     description: 'URL of the bucket to download HotBackup folders.
@@ -68,11 +67,9 @@ spec:
                     type: string
                   secret:
                     description: secret is a deprecated alias for secretName.
-                    minLength: 1
                     type: string
                   secretName:
                     description: Name of the secret with credentials for cloud providers.
-                    minLength: 1
                     type: string
                 required:
                 - bucketURI
@@ -94,6 +91,9 @@ spec:
               name:
                 description: Name of the JetJob to be created. If empty, CR name will
                   be used. It cannot be updated after the config is created successfully.
+                type: string
+              remoteURL:
+                description: URL from where the file will be downloaded.
                 type: string
               state:
                 default: Running

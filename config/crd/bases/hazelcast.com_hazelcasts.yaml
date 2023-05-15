@@ -90,7 +90,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.19
+                  version: 0.1.20
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -98,7 +98,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.19
+                    default: 0.1.20
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -223,9 +223,7 @@ spec:
                 description: Jet Engine configuration
                 properties:
                   bucketConfig:
-                    description: Bucket Configuration from which the JAR files be
-                      downloaded and accessible for the member. These JAR files will
-                      not be placed in the CLASSPATH.
+                    description: Bucket config from where the JAR files will be downloaded.
                     properties:
                       bucketURI:
                         description: 'URL of the bucket to download HotBackup folders.
@@ -237,16 +235,20 @@ spec:
                         type: string
                       secret:
                         description: secret is a deprecated alias for secretName.
-                        minLength: 1
                         type: string
                       secretName:
                         description: Name of the secret with credentials for cloud
                           providers.
-                        minLength: 1
                         type: string
                     required:
                     - bucketURI
                     type: object
+                  configMaps:
+                    description: Names of the list of ConfigMaps. Files in each ConfigMap
+                      will be downloaded.
+                    items:
+                      type: string
+                    type: array
                   edgeDefaults:
                     description: Jet Edge Defaults Configuration
                     properties:
@@ -307,6 +309,11 @@ spec:
                         format: int32
                         type: integer
                     type: object
+                  remoteURLs:
+                    description: List of URLs from where the files will be downloaded.
+                    items:
+                      type: string
+                    type: array
                   resourceUploadEnabled:
                     default: false
                     description: When true, enables resource uploading for Jet jobs.
@@ -487,12 +494,10 @@ spec:
                             type: string
                           secret:
                             description: secret is a deprecated alias for secretName.
-                            minLength: 1
                             type: string
                           secretName:
                             description: Name of the secret with credentials for cloud
                               providers.
-                            minLength: 1
                             type: string
                         required:
                         - bucketURI
@@ -1681,8 +1686,7 @@ spec:
                 description: User Codes to Download into CLASSPATH
                 properties:
                   bucketConfig:
-                    description: Bucket config where JAR files will be downloaded
-                      into Java CLASSPATH.
+                    description: Bucket config from where the JAR files will be downloaded.
                     properties:
                       bucketURI:
                         description: 'URL of the bucket to download HotBackup folders.
@@ -1694,12 +1698,10 @@ spec:
                         type: string
                       secret:
                         description: secret is a deprecated alias for secretName.
-                        minLength: 1
                         type: string
                       secretName:
                         description: Name of the secret with credentials for cloud
                           providers.
-                        minLength: 1
                         type: string
                     required:
                     - bucketURI
@@ -1709,13 +1711,12 @@ spec:
                     type: boolean
                   configMaps:
                     description: Names of the list of ConfigMaps. Files in each ConfigMap
-                      will be put under Java CLASSPATH.
+                      will be downloaded.
                     items:
                       type: string
                     type: array
                   remoteURLs:
-                    description: List of URLs. Files downloaded from the URLs will
-                      be put under Java CLASSPATH.
+                    description: List of URLs from where the files will be downloaded.
                     items:
                       type: string
                     type: array
