@@ -68,7 +68,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	r.statusServiceRegistry.Delete(lk)
-
+	r.mtlsClientRegistry.Delete(lk)
 	if err := r.clientRegistry.Delete(ctx, lk); err != nil {
 		return fmt.Errorf("Hazelcast client could not be deleted:  %w", err)
 	}
