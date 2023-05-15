@@ -195,6 +195,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 
 				By("creating TLS secret", func() {
 					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+					assertExists(types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, &corev1.Secret{})
 				})
 
 				CreateHazelcastCR(hz)

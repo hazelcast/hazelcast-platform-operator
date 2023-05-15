@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/aws/smithy-go/ptr"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -76,6 +75,8 @@ var _ = Describe("Hazelcast webhook", func() {
 			err := k8sClient.Create(context.Background(), &licenseSec)
 			return err == nil || errors.IsAlreadyExists(err)
 		}, timeout, interval).Should(BeTrue())
+
+		assertExists(lookupKey(&licenseSec), &corev1.Secret{})
 	})
 
 	Context("Hazelcast Persistence validation", func() {

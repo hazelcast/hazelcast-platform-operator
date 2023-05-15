@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/utils/pointer"
 
@@ -78,6 +79,30 @@ var _ = Describe("Webhook", func() {
 		By("expecting to CR delete finish")
 		assertDoesNotExist(lookupKey(obj), obj)
 	}
+
+	BeforeEach(func() {
+		if !ee {
+			return
+		}
+
+		licenseSec := corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      n.LicenseKeySecret,
+				Namespace: namespace,
+			},
+			Data: map[string][]byte{
+				n.LicenseDataKey: []byte("integration-test-license"),
+			},
+		}
+
+		By(fmt.Sprintf("creating license key secret '%s'", licenseSec.Name))
+		Eventually(func() bool {
+			err := k8sClient.Create(context.Background(), &licenseSec)
+			return err == nil || errors.IsAlreadyExists(err)
+		}, timeout, interval).Should(BeTrue())
+
+		assertExists(lookupKey(&licenseSec), &corev1.Secret{})
+	})
 
 	Context("Cache Validation", func() {
 		It("should fail to update", Label("fast"), func() {
