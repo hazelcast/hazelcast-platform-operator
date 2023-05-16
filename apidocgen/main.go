@@ -42,8 +42,9 @@ type Field struct {
 }
 
 type StructType struct {
-	Name, Doc string
-	Fields    []Field
+	Name, Doc        string
+	Fields           []Field
+	DeprecatedFields []Field
 }
 
 type Const struct {
@@ -93,7 +94,8 @@ func parseStructDocumentation(srcs []string) []StructType {
 	for _, kubType := range pkg.Types {
 		if structType, ok := kubType.Decl.Specs[0].(*ast.TypeSpec).Type.(*ast.StructType); ok {
 			ks := processFields(structType, []Field{})
-			st := StructType{Name: kubType.Name, Doc: fmtRawDoc(kubType.Doc), Fields: ks}
+			dks := processDeprecatedFields(structType, []Field{})
+			st := StructType{Name: kubType.Name, Doc: fmtRawDoc(kubType.Doc), Fields: ks, DeprecatedFields: dks}
 			docForTypes = append(docForTypes, st)
 		}
 	}
@@ -197,7 +199,7 @@ func processFields(structType *ast.StructType, ks []Field) []Field {
 		typeString := fieldType(field.Type)
 		fieldMandatory := fieldRequired(field)
 		defaultValue := fieldDefault(field)
-		if n := fieldName(field); n != "-" {
+		if n := fieldName(field); n != "-" && !isFieldDeprecated(field) {
 			fieldDoc := fmtRawDoc(field.Doc.Text())
 			ks = append(ks,
 				Field{Name: n,
@@ -214,6 +216,33 @@ func processFields(structType *ast.StructType, ks []Field) []Field {
 					}
 				}
 			}
+		}
+	}
+	return ks
+}
+
+func isFieldDeprecated(f *ast.Field) bool {
+	for _, name := range f.Names {
+		if strings.HasPrefix(name.Name, "Deprecated") {
+			return true
+		}
+	}
+	return false
+}
+
+func processDeprecatedFields(structType *ast.StructType, ks []Field) []Field {
+	for _, field := range structType.Fields.List {
+		typeString := fieldType(field.Type)
+		fieldMandatory := fieldRequired(field)
+		defaultValue := fieldDefault(field)
+		if n := fieldName(field); n != "-" && isFieldDeprecated(field) {
+			fieldDoc := fmtRawDoc(field.Doc.Text())
+			ks = append(ks,
+				Field{Name: n,
+					Doc:       fieldDoc,
+					Type:      typeString,
+					Default:   defaultValue,
+					Mandatory: fieldMandatory})
 		}
 	}
 	return ks
@@ -327,27 +356,35 @@ func printContentTable(types []*doc.Type) {
 
 func printStructs(structTypes []StructType) {
 	for _, t := range structTypes {
-		if len(t.Fields) > 0 {
-			fmt.Printf("\n=== %s\n\n%s\n\n", t.Name, t.Doc)
-
-			fmt.Println("[cols=\"4,8,4,2,4\"options=\"header\"]")
-			fmt.Println("|===")
-			fmt.Println("| Field | Description | Type | Required | Default")
-			for _, f := range t.Fields {
-				var d string
-				if f.Doc == "" {
-					d = "&#160;"
-				} else {
-					d = strings.ReplaceAll(f.Doc, "\\n", " +\n")
-				}
-				fmt.Println("m|", f.Name, "|", d, "m|", f.Type, "|", f.Mandatory, "|", f.Default)
-			}
-			fmt.Println("|===")
-			fmt.Println("")
-			fmt.Println("<<Table of Contents,Back to TOC>>")
+		if len(t.Fields) <= 0 {
+			return
 		}
+		fmt.Printf("\n=== %s\n\n%s\n\n", t.Name, t.Doc)
+		printFields(t.Fields)
+		if len(t.DeprecatedFields) > 0 {
+			fmt.Println("==== Deprecated")
+			printFields(t.DeprecatedFields)
+		}
+		fmt.Println("")
+		fmt.Println("<<Table of Contents,Back to TOC>>")
 	}
 
+}
+
+func printFields(fields []Field) {
+	fmt.Println("[cols=\"4,8,4,2,4\"options=\"header\"]")
+	fmt.Println("|===")
+	fmt.Println("| Field | Description | Type | Required | Default")
+	for _, f := range fields {
+		var d string
+		if f.Doc == "" {
+			d = "&#160;"
+		} else {
+			d = strings.ReplaceAll(f.Doc, "\\n", " +\n")
+		}
+		fmt.Println("m|", f.Name, "|", d, "m|", f.Type, "|", f.Mandatory, "|", f.Default)
+	}
+	fmt.Println("|===")
 }
 
 func printStrings(stringTypes []StringType) {

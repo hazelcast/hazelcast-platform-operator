@@ -28,12 +28,12 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
-				ClusterName:      "development",
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
-				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
+				ClusterSize:          &[]int32{3}[0],
+				ClusterName:          "development",
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
 			},
 		}
 	}
@@ -46,11 +46,11 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
-				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
+				ClusterSize:          &[]int32{3}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
 			},
 		}
 	}
@@ -63,11 +63,11 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
-				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
+				ClusterSize:          &[]int32{3}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -85,11 +85,11 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
-				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
+				ClusterSize:          &[]int32{3}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -107,11 +107,11 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
-				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
+				ClusterSize:          &[]int32{3}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
 					DiscoveryServiceType: corev1.ServiceTypeNodePort,
@@ -129,11 +129,11 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          &[]int32{3}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
+				LicenseKeySecretName: licenseKey(ee),
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
 					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -150,11 +150,11 @@ var (
 				Labels:    labels,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{clusterSize}[0],
-				Repository:       repo(true),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(true),
-				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
+				ClusterSize:          &[]int32{clusterSize}[0],
+				Repository:           repo(true),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(true),
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
@@ -188,15 +188,15 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{1}[0],
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          &[]int32{1}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-							Secret:    s,
-							BucketURI: bkt,
+							SecretName: s,
+							BucketURI:  bkt,
 						},
 					},
 				},
@@ -212,10 +212,10 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      pointer.Int32(1),
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          pointer.Int32(1),
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
@@ -232,17 +232,17 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      pointer.Int32(1),
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          pointer.Int32(1),
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-							Secret:    s,
-							BucketURI: bkt,
+							SecretName: s,
+							BucketURI:  bkt,
 						},
 					},
 				},
@@ -258,10 +258,10 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      pointer.Int32(1),
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          pointer.Int32(1),
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
@@ -281,10 +281,10 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{1}[0],
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          &[]int32{1}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						RemoteURLs: urls,
@@ -306,7 +306,7 @@ var (
 				ClusterSize:               &[]int32{1}[0],
 				Repository:                repo(ee),
 				Version:                   *hazelcastVersion,
-				LicenseKeySecret:          licenseKey(ee),
+				LicenseKeySecretName:      licenseKey(ee),
 				ExecutorServices:          allExecutorServices["es"].([]hazelcastv1alpha1.ExecutorServiceConfiguration),
 				DurableExecutorServices:   allExecutorServices["des"].([]hazelcastv1alpha1.DurableExecutorServiceConfiguration),
 				ScheduledExecutorServices: allExecutorServices["ses"].([]hazelcastv1alpha1.ScheduledExecutorServiceConfiguration),
@@ -326,7 +326,7 @@ var (
 				HighAvailabilityMode: mode,
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
-				LicenseKeySecret:     licenseKey(ee),
+				LicenseKeySecretName: licenseKey(ee),
 				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
@@ -344,10 +344,10 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          &[]int32{3}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				TLS: hazelcastv1alpha1.TLS{
 					SecretName: lk.Name + "-tls",
 				},
@@ -410,11 +410,11 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
-				Repository:       repo(ee),
-				Version:          "not-exists",
-				LicenseKeySecret: licenseKey(ee),
-				LoggingLevel:     hazelcastv1alpha1.LoggingLevelDebug,
+				ClusterSize:          &[]int32{3}[0],
+				Repository:           repo(ee),
+				Version:              "not-exists",
+				LicenseKeySecretName: licenseKey(ee),
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
 			},
 		}
 	}

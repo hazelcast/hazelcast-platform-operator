@@ -1676,7 +1676,7 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	}
 
 	// restoring from bucket config
-	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
+	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
 		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
 
 	return containers, nil
@@ -1799,7 +1799,7 @@ func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFil
 		Env: []v1.EnvVar{
 			{
 				Name:  "JDB_SECRET_NAME",
-				Value: rfc.BucketConfiguration.Secret,
+				Value: rfc.BucketConfiguration.GetSecretName(),
 			},
 			{
 				Name:  "JDB_BUCKET_URI",
@@ -2089,14 +2089,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Value: javaClassPath(h),
 		},
 	}
-	if h.Spec.LicenseKeySecret != "" {
+	if h.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: hzLicenseKey,
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
 						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.LicenseKeySecret,
+							Name: h.Spec.GetLicenseKeySecretName(),
 						},
 						Key: n.LicenseDataKey,
 					},
