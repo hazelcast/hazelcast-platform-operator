@@ -28,13 +28,13 @@ var _ = Describe("Queue CR", func() {
 			qs := q.Spec
 
 			By("checking the CR values with default ones")
-			Expect(qs.Name).To(Equal(""))
+			Expect(qs.Name).To(BeEmpty())
 			Expect(*qs.BackupCount).To(Equal(n.DefaultQueueBackupCount))
 			Expect(qs.AsyncBackupCount).To(Equal(n.DefaultQueueAsyncBackupCount))
 			Expect(qs.HazelcastResourceName).To(Equal("hazelcast"))
 			Expect(*qs.EmptyQueueTtlSeconds).To(Equal(n.DefaultQueueEmptyQueueTtl))
 			Expect(qs.MaxSize).To(Equal(n.DefaultMapMaxSize))
-			Expect(qs.PriorityComparatorClassName).To(Equal(""))
+			Expect(qs.PriorityComparatorClassName).To(BeEmpty())
 		})
 
 		When("applying empty spec", func() {

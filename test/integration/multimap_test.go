@@ -28,7 +28,7 @@ var _ = Describe("MultiMap CR", func() {
 			mms := mm.Spec
 
 			By("checking the CR values with default ones")
-			Expect(mms.Name).To(Equal(""))
+			Expect(mms.Name).To(BeEmpty())
 			Expect(*mms.BackupCount).To(Equal(n.DefaultMultiMapBackupCount))
 			Expect(mms.Binary).To(Equal(n.DefaultMultiMapBinary))
 			Expect(string(mms.CollectionType)).To(Equal(n.DefaultMultiMapCollectionType))

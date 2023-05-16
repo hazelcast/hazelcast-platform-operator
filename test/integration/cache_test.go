@@ -40,12 +40,12 @@ var _ = Describe("Cache CR", func() {
 			cs := c.Spec
 
 			By("checking the CR values with default ones")
-			Expect(cs.Name).To(Equal(""))
+			Expect(cs.Name).To(BeEmpty())
 			Expect(*cs.BackupCount).To(Equal(n.DefaultCacheBackupCount))
 			Expect(cs.AsyncBackupCount).To(Equal(n.DefaultCacheAsyncBackupCount))
 			Expect(cs.HazelcastResourceName).To(Equal("hazelcast"))
-			Expect(cs.KeyType).To(Equal(""))
-			Expect(cs.ValueType).To(Equal(""))
+			Expect(cs.KeyType).To(BeEmpty())
+			Expect(cs.ValueType).To(BeEmpty())
 			Expect(cs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatBinary))
 		})
 

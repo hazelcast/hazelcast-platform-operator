@@ -26,7 +26,7 @@ var _ = Describe("ReplicatedMap CR", func() {
 			rms := rm.Spec
 
 			By("checking the CR values with default ones")
-			Expect(rms.Name).To(Equal(""))
+			Expect(rms.Name).To(BeEmpty())
 			Expect(string(rms.InMemoryFormat)).To(Equal(n.DefaultReplicatedMapInMemoryFormat))
 			Expect(*rms.AsyncFillup).To(Equal(n.DefaultReplicatedMapAsyncFillup))
 			Expect(rms.HazelcastResourceName).To(Equal("hazelcast"))

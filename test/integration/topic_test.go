@@ -26,7 +26,7 @@ var _ = Describe("Topic CR", func() {
 			ts := t.Spec
 
 			By("checking the CR values with default ones")
-			Expect(ts.Name).To(Equal(""))
+			Expect(ts.Name).To(BeEmpty())
 			Expect(ts.GlobalOrderingEnabled).To(Equal(n.DefaultTopicGlobalOrderingEnabled))
 			Expect(ts.MultiThreadingEnabled).To(Equal(n.DefaultTopicMultiThreadingEnabled))
 			Expect(ts.HazelcastResourceName).To(Equal("hazelcast"))

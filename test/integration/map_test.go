@@ -40,7 +40,7 @@ var _ = Describe("Map CR", func() {
 			ms := m.Spec
 
 			By("checking the CR values with default ones")
-			Expect(ms.Name).To(Equal(""))
+			Expect(ms.Name).To(BeEmpty())
 			Expect(*ms.BackupCount).To(Equal(n.DefaultMapBackupCount))
 			Expect(ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
 			Expect(ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
@@ -157,7 +157,7 @@ var _ = Describe("Map CR", func() {
 			ms := m.Spec
 
 			By("checking the CR values with default ones")
-			Expect(ms.Name).To(Equal(""))
+			Expect(ms.Name).To(BeEmpty())
 			Expect(*ms.BackupCount).To(Equal(n.DefaultMapBackupCount))
 			Expect(ms.TimeToLiveSeconds).To(Equal(n.DefaultMapTimeToLiveSeconds))
 			Expect(ms.MaxIdleSeconds).To(Equal(n.DefaultMapMaxIdleSeconds))
