@@ -127,7 +127,7 @@ var (
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
 				Repository:                 *mcRepo,
 				Version:                    "not-exists",
-				DeprecatedLicenseKeySecret: licenseKey(ee),
+				LicenseKeySecretName: licenseKey(ee),
 			},
 		}
 	}
