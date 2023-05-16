@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
@@ -167,27 +166,14 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 
 		setLabelAndCRName("jj-4")
 
-		hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
-		hazelcast.Spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-			BaseDir:                   "/data/hot-restart/",
-			ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-			Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
-				AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
-			},
-		}
-		hazelcast.Spec.JetEngineConfiguration.Instance = &hazelcastv1alpha1.JetInstance{
-			LosslessRestartEnabled:         true,
-			CooperativeThreadCount:         1,
-			MaxProcessorAccumulatedRecords: 1000000000,
-		}
-		hazelcast.Spec.ClusterSize = pointer.Int32(1)
+		hazelcast := hazelcastconfig.JetWithLosslessRestart(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
 		CreateHazelcastCR(hazelcast)
 
 		By("creating JetJob CR")
 		jj := hazelcastconfig.JetJob(longRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
+
 		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
 
 		By("Checking the JetJob jar is running")
@@ -206,26 +192,11 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		RemoveHazelcastCR(hazelcast)
 
 		By("creating new Hazelcast cluster from the existing backup")
-		hazelcast = hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
-		hazelcast.Spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-			BaseDir:                   "/data/hot-restart/",
-			ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-			Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
-				AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
-			},
-		}
-		hazelcast.Spec.JetEngineConfiguration.Instance = &hazelcastv1alpha1.JetInstance{
-			LosslessRestartEnabled:         true,
-			CooperativeThreadCount:         1,
-			MaxProcessorAccumulatedRecords: 1000000000,
-		}
-		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
-			HotBackupResourceName: hotBackup.Name,
-		}
-		hazelcast.Spec.ClusterSize = pointer.Int32(1)
+		hazelcast = hazelcastconfig.JetWithRestore(hzLookupKey, ee, hotBackup.Name, labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
+
+		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
 
 		By("Checking the JetJob jar is running in new Hazelcast cluster")
 		test.EventuallyInLogsUnordered(logReader, 15*Second, logInterval).
