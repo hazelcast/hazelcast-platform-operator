@@ -175,8 +175,8 @@ jobs:
       - name: Run integration tests
         run: |
           case ${{ matrix.edition }} in
-            os) COVER_OUT='cover-it-os.out';GO_TEST_FLAGS='-ee=false -eventually-timeout=30s';;
-            ee) COVER_OUT='cover-it-ee.out';GO_TEST_FLAGS='-ee=true -eventually-timeout=30s';;
+            os) COVER_OUT='cover-it-os.out';GO_TEST_FLAGS='-ee=false';;
+            ee) COVER_OUT='cover-it-ee.out';GO_TEST_FLAGS='-ee=true';;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
           echo "COVER_OUT=${COVER_OUT}" >> $GITHUB_ENV

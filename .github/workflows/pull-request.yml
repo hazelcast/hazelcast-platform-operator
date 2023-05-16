@@ -104,10 +104,10 @@ jobs:
         run: make test-unit
 
       - name: Run integration tests (OS)
-        run: make GO_TEST_FLAGS="-ee=false -eventually-timeout=30s" test-it
+        run: make GO_TEST_FLAGS="-ee=false" test-it
 
       - name: Run integration tests (EE)
-        run: make GO_TEST_FLAGS="-ee=true -eventually-timeout=30s" test-it
+        run: make GO_TEST_FLAGS="-ee=true" test-it
 
   generate-test-suites:
     name: Generate Test Suites
