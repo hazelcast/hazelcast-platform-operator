@@ -365,7 +365,7 @@ var (
 			Spec: hazelcastv1alpha1.HotBackupSpec{
 				HazelcastResourceName: hzName,
 				BucketURI:             bucketURI,
-				Secret:                secretName,
+				SecretName:            secretName,
 			},
 		}
 	}
