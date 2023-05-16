@@ -175,19 +175,19 @@ jobs:
       - name: Run integration tests
         run: |
           case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
+            os) COVER_OUT='cover-it-os.out';GO_TEST_FLAGS='-ee=false -eventually-timeout=30s';;
+            ee) COVER_OUT='cover-it-ee.out';GO_TEST_FLAGS='-ee=true -eventually-timeout=30s';;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          echo "GO_TEST_FLAGS=${GO_TEST_FLAGS}" >> $GITHUB_ENV
-          make GO_TEST_FLAGS=${GO_TEST_FLAGS} test-it
+          echo "COVER_OUT=${COVER_OUT}" >> $GITHUB_ENV
+          make GO_TEST_FLAGS=${GO_TEST_FLAGS} COVER_OUT=${COVER_OUT} test-it
 
       - name: Upload Integration Coverage Report
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: test-coverage
-          path: cover_it${{ env.GO_TEST_FLAGS }}.out
+          path: ${{ env.COVER_OUT }}
           retention-days: 1
 
   upload-coverage:
@@ -208,7 +208,7 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: cover_it-ee=true.out,cover_it-ee=false.out
+          files: cover-it-ee.out,cover-it-os.out
           flags: integration
           name: Integration Tests Report
           fail_ci_if_error: true
