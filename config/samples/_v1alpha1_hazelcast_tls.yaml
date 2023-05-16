@@ -4,6 +4,6 @@ metadata:
   name: hazelcast
 spec:
   clusterSize: 3
-  licenseKeySecret: hazelcast-license-key
+  licenseKeySecretName: hazelcast-license-key
   tls:
     secretName: example

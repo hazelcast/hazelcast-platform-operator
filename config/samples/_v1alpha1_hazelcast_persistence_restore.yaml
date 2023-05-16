@@ -5,7 +5,7 @@ metadata:
 spec:
   clusterSize: 3
   repository: "docker.io/hazelcast/hazelcast-enterprise"
-  licenseKeySecret: hazelcast-license-key
+  licenseKeySecretName: hazelcast-license-key
   agent:
     repository: hazelcast/platform-operator-agent
   persistence:
@@ -16,5 +16,5 @@ spec:
       requestStorage: 8Gi
     restore:
       bucketConfig:
-        secret: br-secret-az
+        secretName: br-secret-az
         bucketURI: "azblob://backup?prefix=hazelcast/2022-06-02-21-57-49/"

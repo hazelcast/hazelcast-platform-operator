@@ -52,7 +52,7 @@ func ManagementCenterSpec(values *MCSpecValues, ee bool) hazelcastv1alpha1.Manag
 		ImagePullPolicy: values.ImagePullPolicy,
 	}
 	if ee {
-		spec.LicenseKeySecret = values.LicenseKey
+		spec.LicenseKeySecretName = values.LicenseKey
 	}
 	return spec
 }
@@ -63,6 +63,6 @@ func CheckManagementCenterCR(mc *hazelcastv1alpha1.ManagementCenter, expected *M
 	Expect(mc.Spec.ImagePullPolicy).Should(Equal(expected.ImagePullPolicy))
 
 	if ee {
-		Expect(mc.Spec.LicenseKeySecret).Should(Equal(expected.LicenseKey))
+		Expect(mc.Spec.GetLicenseKeySecretName()).Should(Equal(expected.LicenseKey))
 	}
 }
