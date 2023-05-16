@@ -288,9 +288,11 @@ var (
 				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
-					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-						Secret:    s,
-						BucketURI: bkt,
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							Secret:    s,
+							BucketURI: bkt,
+						},
 					},
 					Instance: &hazelcastv1alpha1.JetInstance{
 						LosslessRestartEnabled:         true,
