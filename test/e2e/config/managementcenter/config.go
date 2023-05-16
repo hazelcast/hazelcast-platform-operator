@@ -125,8 +125,8 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:                 *mcRepo,
-				Version:                    "not-exists",
+				Repository:           *mcRepo,
+				Version:              "not-exists",
 				LicenseKeySecretName: licenseKey(ee),
 			},
 		}
