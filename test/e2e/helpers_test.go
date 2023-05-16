@@ -905,7 +905,7 @@ func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bo
 		return hazelcastcomv1alpha1.RestoreConfiguration{
 			BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
 				BucketURI:  hotBackup.Status.GetBucketURI(),
-				SecretName: hotBackup.Spec.SecretName,
+				SecretName: hotBackup.Spec.GetSecretName(),
 			},
 		}
 	}
