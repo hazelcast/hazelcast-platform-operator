@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -610,42 +611,44 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, configSecret, func() error {
-		config, err := hazelcastConfig(ctx, r.Client, h)
-		if err != nil {
-			return err
-		}
-		configSecret.Data["hazelcast.yaml"] = config
-
-		// Hazelcast TLS config
-		if h.Spec.TLS.IsEnabled() {
-			if h.Spec.TLS.IsBasicSSLEnabled() {
-				keystore, err := hazelcastKeystore(ctx, r.Client, h)
-				if err != nil {
-					return err
-				}
-				configSecret.Data["hazelcast.jks"] = keystore
-			}
-			// If the TLS type is `OpenSSL`, the cert and key values from given secret is not copied into the secret.
-			// The given TLS secret is directly mounted into the ManagementCenter container.
-		}
-
-		if _, ok := configSecret.Data["ca.crt"]; !ok {
-			mtlsCert, mtlsKey, err := mtls.NewCertificateAuthority()
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, configSecret, func() error {
+			config, err := hazelcastConfig(ctx, r.Client, h)
 			if err != nil {
 				return err
 			}
-			configSecret.Data["ca.crt"] = mtlsCert
-			configSecret.Data["tls.crt"] = mtlsCert
-			configSecret.Data["tls.key"] = mtlsKey
-		}
+			configSecret.Data["hazelcast.yaml"] = config
 
-		return nil
+			// Hazelcast TLS config
+			if h.Spec.TLS.IsEnabled() {
+				if h.Spec.TLS.IsBasicSSLEnabled() {
+					keystore, err := hazelcastKeystore(ctx, r.Client, h)
+					if err != nil {
+						return err
+					}
+					configSecret.Data["hazelcast.jks"] = keystore
+				}
+				// If the TLS type is `OpenSSL`, the cert and key values from given secret is not copied into the secret.
+				// The given TLS secret is directly mounted into the ManagementCenter container.
+			}
+
+			if _, ok := configSecret.Data["ca.crt"]; !ok {
+				mtlsCert, mtlsKey, err := mtls.NewCertificateAuthority()
+				if err != nil {
+					return err
+				}
+				configSecret.Data["ca.crt"] = mtlsCert
+				configSecret.Data["tls.crt"] = mtlsCert
+				configSecret.Data["tls.key"] = mtlsKey
+			}
+
+			return nil
+		})
+		if result != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Secret", h.Name, "result", result)
+		}
+		return err
 	})
-	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "Secret", h.Name, "result", opResult)
-	}
-	return err
 }
 
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
@@ -1614,6 +1617,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Name:      n.HazelcastStorageName,
 				MountPath: n.HazelcastMountPath,
 			},
+			jetJobJarsVolumeMount(),
 		},
 		SecurityContext: containerSecurityContext(),
 	}
@@ -1687,15 +1691,25 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
-		containers = append(containers, ucdBucketAgentContainer(h))
+		containers = append(containers, bucketDownloadContainer(
+			n.UserCodeBucketAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
 	}
 
 	if h.Spec.UserCodeDeployment.IsRemoteURLsEnabled() {
-		containers = append(containers, ucdURLsAgentContainer(h))
+		containers = append(containers, urlDownloadContainer(
+			n.UserCodeURLAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
 	}
 
 	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
-		containers = append(containers, jetEngineContainer(h))
+		containers = append(containers, bucketDownloadContainer(
+			n.JetBucketAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
+	}
+
+	if h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
+		containers = append(containers, urlDownloadContainer(
+			n.JetUrlAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
 	}
 
 	if !h.Spec.Persistence.IsRestoreEnabled() {
@@ -1766,7 +1780,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 			},
 			{
 				Name:  "RESTORE_ID",
-				Value: string(h.Spec.Persistence.Restore.Hash()),
+				Value: h.Spec.Persistence.Restore.Hash(),
 			},
 			{
 				Name: "RESTORE_HOSTNAME",
@@ -1829,50 +1843,26 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 	}
 }
 
-func jetEngineContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
 	return v1.Container{
-		Name:  n.JetDownloadAgent,
-		Image: h.AgentDockerImage(),
+		Name:  name,
+		Image: image,
 		Args:  []string{"jar-download-bucket"},
 		Env: []v1.EnvVar{
 			{
 				Name:  "JDB_SECRET_NAME",
-				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.Secret,
+				Value: rfc.BucketConfiguration.Secret,
 			},
 			{
 				Name:  "JDB_BUCKET_URI",
-				Value: h.Spec.JetEngineConfiguration.BucketConfiguration.BucketURI,
+				Value: rfc.BucketConfiguration.BucketURI,
 			},
 			{
 				Name:  "JDB_DESTINATION",
-				Value: n.JetJobJarsBucketPath,
+				Value: vm.MountPath,
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{jetJobJarsVolumeMount()},
-	}
-}
-
-func ucdBucketAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
-	return v1.Container{
-		Name:            n.UserCodeBucketAgent + h.Spec.UserCodeDeployment.TriggerSequence,
-		Image:           h.AgentDockerImage(),
-		Args:            []string{"jar-download-bucket"},
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Env: []v1.EnvVar{
-			{
-				Name:  "JDB_SECRET_NAME",
-				Value: h.Spec.UserCodeDeployment.BucketConfiguration.Secret,
-			},
-			{
-				Name:  "JDB_BUCKET_URI",
-				Value: h.Spec.UserCodeDeployment.BucketConfiguration.BucketURI,
-			},
-			{
-				Name:  "JDB_DESTINATION",
-				Value: n.UserCodeBucketPath,
-			},
-		},
-		VolumeMounts:             []v1.VolumeMount{ucdBucketAgentVolumeMount()},
+		VolumeMounts:             []v1.VolumeMount{vm},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
 		SecurityContext:          containerSecurityContext(),
@@ -1889,27 +1879,27 @@ func ucdBucketAgentVolumeMount() v1.VolumeMount {
 func jetJobJarsVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.JetJobJarsVolumeName,
-		MountPath: n.JetJobJarsBucketPath,
+		MountPath: n.JetJobJarsPath,
 	}
 }
 
-func ucdURLsAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func urlDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
 	return v1.Container{
-		Name:            n.UserCodeURLAgent + h.Spec.UserCodeDeployment.TriggerSequence,
+		Name:            name,
 		Args:            []string{"file-download-url"},
-		Image:           h.AgentDockerImage(),
+		Image:           image,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Env: []v1.EnvVar{
 			{
 				Name:  "FDU_URLS",
-				Value: strings.Join(h.Spec.UserCodeDeployment.RemoteURLs, ","),
+				Value: strings.Join(rfc.RemoteURLs, ","),
 			},
 			{
 				Name:  "FDU_DESTINATION",
-				Value: n.UserCodeURLPath,
+				Value: vm.MountPath,
 			},
 		},
-		VolumeMounts:             []v1.VolumeMount{ucdURLAgentVolumeMount()},
+		VolumeMounts:             []v1.VolumeMount{vm},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
 		SecurityContext:          containerSecurityContext(),
@@ -1940,7 +1930,11 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	}
 
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		vols = append(vols, userCodeConfigMapVolumes(h)...)
+		vols = append(vols, configMapVolumes(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration)...)
+	}
+
+	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
+		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
 	}
 
 	if h.Spec.TLS.IsOpenSSLEnabled() {
@@ -1975,11 +1969,23 @@ func tlsOpenSSLVolume(tls *hazelcastv1alpha1.TLS) corev1.Volume {
 	}
 }
 
-func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
+type ConfigMapVolumeName func(cm string) string
+
+func jetConfigMapName(cm string) string {
+	return n.JetConfigMapNamePrefix + cm
+}
+
+func ucdConfigMapName(h *hazelcastv1alpha1.Hazelcast) ConfigMapVolumeName {
+	return func(cm string) string {
+		return n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence
+	}
+}
+
+func configMapVolumes(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFileConfiguration) []corev1.Volume {
 	var vols []corev1.Volume
-	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+	for _, cm := range rfc.ConfigMaps {
 		vols = append(vols, corev1.Volume{
-			Name: n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
+			Name: nameFn(cm),
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -2023,7 +2029,13 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	}
 
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		mounts = append(mounts, userCodeConfigMapVolumeMounts(h)...)
+		mounts = append(mounts,
+			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
+	}
+
+	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
+		mounts = append(mounts,
+			configMapVolumeMounts(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration, n.JetJobJarsPath)...)
 	}
 
 	if h.Spec.TLS.IsOpenSSLEnabled() {
@@ -2036,12 +2048,12 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	return mounts
 }
 
-func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func configMapVolumeMounts(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFileConfiguration, mountPath string) []corev1.VolumeMount {
 	var vms []corev1.VolumeMount
-	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+	for _, cm := range rfc.ConfigMaps {
 		vms = append(vms, corev1.VolumeMount{
-			Name:      n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
-			MountPath: path.Join(n.UserCodeConfigMapPath, cm),
+			Name:      nameFn(cm),
+			MountPath: path.Join(mountPath, cm),
 		})
 	}
 	return vms
@@ -2226,7 +2238,7 @@ func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 		path.Join(n.UserCodeBucketPath, "*"),
 		path.Join(n.UserCodeURLPath, "*")}
 
-	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+	for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
 		b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
 	}
 

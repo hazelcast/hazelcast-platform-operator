@@ -208,10 +208,14 @@ var _ = Describe("Hazelcast controller", func() {
 				n.LicenseDataKey: []byte("integration-test-license"),
 			},
 		}
+
 		Eventually(func() bool {
 			err := k8sClient.Create(context.Background(), licenseSec)
 			return err == nil || errors.IsAlreadyExists(err)
 		}, timeout, interval).Should(BeTrue())
+
+		assertExists(lookupKey(licenseSec), &corev1.Secret{})
+
 		return licenseSec
 	}
 
@@ -1170,7 +1174,9 @@ var _ = Describe("Hazelcast controller", func() {
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
 						UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
-							ConfigMaps:      cms,
+							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+								ConfigMaps: cms,
+							},
 							TriggerSequence: ts,
 						},
 					},
@@ -1221,6 +1227,61 @@ var _ = Describe("Hazelcast controller", func() {
 					}
 				}
 				Expect(classPath).To(ContainSubstring(expectedClassPath))
+				Delete(hz)
+			})
+		})
+	})
+
+	Context("Hazelcast CR Jet engine with ConfigMap", func() {
+		When("Two Configmaps are given in userCode field", func() {
+			It("Should put correct fields in StatefulSet", Label("fast"), func() {
+				cms := []string{
+					"cm1",
+					"cm2",
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec: hazelcastv1alpha1.HazelcastSpec{
+						JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+							Enabled:               pointer.Bool(true),
+							ResourceUploadEnabled: true,
+							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+								ConfigMaps: cms,
+							},
+						},
+					},
+				}
+
+				Create(hz)
+				hz = EnsureStatus(hz)
+				ss := getStatefulSet(hz)
+
+				By("Checking if StatefulSet has the ConfigMap Volumes")
+				var expectedVols []corev1.Volume
+				for _, cm := range cms {
+					expectedVols = append(expectedVols, corev1.Volume{
+						Name: n.JetConfigMapNamePrefix + cm,
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: cm,
+								},
+								DefaultMode: pointer.Int32(420),
+							},
+						},
+					})
+				}
+				Expect(ss.Spec.Template.Spec.Volumes).To(ContainElements(expectedVols))
+
+				By("Checking if StatefulSet has the ConfigMap Volumes Mounts")
+				var expectedVolMounts []corev1.VolumeMount
+				for _, cm := range cms {
+					expectedVolMounts = append(expectedVolMounts, corev1.VolumeMount{
+						Name:      n.JetConfigMapNamePrefix + cm,
+						MountPath: path.Join(n.JetJobJarsPath, cm),
+					})
+				}
+				Expect(ss.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElements(expectedVolMounts))
 				Delete(hz)
 			})
 		})
@@ -1520,6 +1581,8 @@ var _ = Describe("Hazelcast controller", func() {
 				}
 				Create(secret)
 				defer Delete(secret)
+
+				assertExists(lookupKey(secret), &corev1.Secret{})
 
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.TLS = &hazelcastv1alpha1.TLS{

@@ -96,10 +96,14 @@ var _ = Describe("ManagementCenter controller", func() {
 				n.LicenseDataKey: []byte("integration-test-license"),
 			},
 		}
+
 		Eventually(func() bool {
 			err := k8sClient.Create(context.Background(), licenseSec)
 			return err == nil || errors.IsAlreadyExists(err)
 		}, timeout, interval).Should(BeTrue())
+
+		assertExists(lookupKey(licenseSec), &corev1.Secret{})
+
 		return licenseSec
 	}
 

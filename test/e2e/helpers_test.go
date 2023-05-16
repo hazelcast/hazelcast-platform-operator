@@ -993,6 +993,7 @@ func CreateTlsSecret(n types.NamespacedName) *corev1.Secret {
 
 	By("creating TLS secret", func() {
 		Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+		assertExists(types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, &corev1.Secret{})
 	})
 
 	return secret

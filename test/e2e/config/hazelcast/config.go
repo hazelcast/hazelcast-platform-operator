@@ -193,16 +193,18 @@ var (
 				Version:          *hazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
 				UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
-					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-						Secret:    s,
-						BucketURI: bkt,
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							Secret:    s,
+							BucketURI: bkt,
+						},
 					},
 				},
 			},
 		}
 	}
 
-	JetConfigured = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+	JetConfigured = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -217,9 +219,54 @@ var (
 				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
-					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-						Secret:    s,
-						BucketURI: bkt,
+				},
+			},
+		}
+	}
+
+	JetWithBucketConfigured = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:      pointer.Int32(1),
+				Repository:       repo(ee),
+				Version:          *hazelcastVersion,
+				LicenseKeySecret: licenseKey(ee),
+				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled:               pointer.Bool(true),
+					ResourceUploadEnabled: true,
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							Secret:    s,
+							BucketURI: bkt,
+						},
+					},
+				},
+			},
+		}
+	}
+
+	JetWithUrlConfigured = func(lk types.NamespacedName, ee bool, url string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:      pointer.Int32(1),
+				Repository:       repo(ee),
+				Version:          *hazelcastVersion,
+				LicenseKeySecret: licenseKey(ee),
+				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled:               pointer.Bool(true),
+					ResourceUploadEnabled: true,
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						RemoteURLs: []string{url},
 					},
 				},
 			},
@@ -239,7 +286,9 @@ var (
 				Version:          *hazelcastVersion,
 				LicenseKeySecret: licenseKey(ee),
 				UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
-					RemoteURLs: urls,
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						RemoteURLs: urls,
+					},
 				},
 			},
 		}

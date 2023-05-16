@@ -99,6 +99,8 @@ var _ = Describe("Webhook", func() {
 			err := k8sClient.Create(context.Background(), &licenseSec)
 			return err == nil || errors.IsAlreadyExists(err)
 		}, timeout, interval).Should(BeTrue())
+
+		assertExists(lookupKey(&licenseSec), &corev1.Secret{})
 	})
 
 	Context("Cache Validation", func() {

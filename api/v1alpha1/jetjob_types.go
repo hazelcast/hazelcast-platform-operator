@@ -8,13 +8,14 @@ import (
 type JetJobStatusPhase string
 
 const (
+	JetJobFailed            JetJobStatusPhase = "Failed"                     //6
 	JetJobNotRunning        JetJobStatusPhase = "NotRunning"                 //0
 	JetJobStarting          JetJobStatusPhase = "Starting"                   //1
 	JetJobRunning           JetJobStatusPhase = "Running"                    //2
 	JetJobSuspended         JetJobStatusPhase = "Suspended"                  //3
 	JetJobExportingSnapshot JetJobStatusPhase = "SuspendedExportingSnapshot" //4
 	JetJobCompleting        JetJobStatusPhase = "Completing"                 //5
-	JetJobFailed            JetJobStatusPhase = "Failed"                     //6
+	JetJobExecutionFailed   JetJobStatusPhase = "FailedDuringExecution"      //6
 	JetJobCompleted         JetJobStatusPhase = "Completed"                  //7
 )
 
@@ -54,6 +55,35 @@ type JetJobSpec struct {
 	// MainClass is the name of the main class that will be run on the submitted job.
 	// +optional
 	MainClass string `json:"mainClass,omitempty"`
+
+	// Configuration for downloading the file from remote.
+	// +optional
+	JetRemoteFileConfiguration `json:",inline"`
+}
+
+type JetRemoteFileConfiguration struct {
+	// Bucket config from where the JAR files will be downloaded.
+	// +optional
+	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
+
+	// URL from where the file will be downloaded.
+	// +optional
+	RemoteURL string `json:"remoteURL,omitempty"`
+}
+
+// Returns true is eigher of bucketConfiguration or remoteURL are enabled
+func (j *JetJobSpec) IsDownloadEnabled() bool {
+	return j.IsBucketEnabled() || j.IsRemoteURLsEnabled()
+}
+
+// Returns true if bucketConfiguration is specified.
+func (j *JetJobSpec) IsBucketEnabled() bool {
+	return j != nil && j.JetRemoteFileConfiguration.BucketConfiguration != nil
+}
+
+// Returns true if remoteURL configuration is specified.
+func (j *JetJobSpec) IsRemoteURLsEnabled() bool {
+	return j != nil && j.JetRemoteFileConfiguration.RemoteURL != ""
 }
 
 // JetJobStatus defines the observed state of JetJob
@@ -73,7 +103,7 @@ func (jjs JetJobStatusPhase) IsRunning() bool {
 }
 
 func (jjs JetJobStatusPhase) IsFinished() bool {
-	return jjs == JetJobFailed || jjs == JetJobCompleted
+	return jjs == JetJobExecutionFailed || jjs == JetJobCompleted
 }
 
 func (jjs JetJobStatusPhase) IsSuspended() bool {

@@ -251,6 +251,7 @@ func main() {
 		mgr.GetClient(),
 		controllerLogger.WithName("JetJob"),
 		cr,
+		mtlsRegistry,
 		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "JetJob")

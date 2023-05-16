@@ -53,10 +53,15 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should execute JetJob successfully", Label("fast"), func() {
+	DescribeTable("should execute JetJob successfully", func(secretName, url string) {
 		setLabelAndCRName("jj-1")
 
-		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
+		var hazelcast *hazelcastv1alpha1.Hazelcast
+		if secretName != "" {
+			hazelcast = hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, secretName, url, labels)
+		} else {
+			hazelcast = hazelcastconfig.JetWithUrlConfigured(hzLookupKey, ee, url, labels)
+		}
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
 		CreateHazelcastCR(hazelcast)
 
@@ -76,12 +81,15 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 1", jj.JobName())),
 				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 13", jj.JobName())),
 				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 89", jj.JobName()))))
-	})
+	},
+		Entry("using jar from bucket", Label("fast"), "br-secret-gcp", "gs://operator-user-code/jetJobs"),
+		Entry("using jar from remote url", Label("fast"), "", "https://storage.googleapis.com/operator-user-code-urls-public/jet-pipeline-1.0.2.jar"),
+	)
 
 	It("should change JetJob status", Label("fast"), func() {
 		setLabelAndCRName("jj-2")
 
-		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
+		hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
 		CreateHazelcastCR(hazelcast)
 
@@ -109,4 +117,45 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
 		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
 	})
+
+	DescribeTable("should download JAR and execute JetJob", func(secretName, url string) {
+		setLabelAndCRName("jj-3")
+
+		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
+		hazelcast.Spec.ClusterSize = pointer.Int32(1)
+		CreateHazelcastCR(hazelcast)
+
+		By("creating JetJob CR")
+		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
+		if secretName != "" {
+			jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+				Secret:    secretName,
+				BucketURI: url,
+			}
+		} else {
+			jj.Spec.JetRemoteFileConfiguration.RemoteURL = url
+		}
+		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+			Secret:    "br-secret-gcp",
+			BucketURI: "gs://operator-user-code/jetJobs",
+		}
+
+		t := Now()
+		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
+		checkJetJobStatus(hazelcastv1alpha1.JetJobCompleted)
+
+		By("Checking the JetJob jar was executed")
+		logs := InitLogs(t, hzLookupKey)
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		test.EventuallyInLogsUnordered(logReader, 15*Second, logInterval).
+			Should(ContainElements(
+				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 0", jj.JobName())),
+				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 1", jj.JobName())),
+				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 13", jj.JobName())),
+				ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 89", jj.JobName()))))
+	},
+		Entry("using jar from bucket", Label("fast"), "br-secret-gcp", "gs://operator-user-code/jetJobs"),
+		Entry("using jar from remote url", Label("fast"), "", "https://storage.googleapis.com/operator-user-code-urls-public/jet-pipeline-1.0.2.jar"),
+	)
 })
