@@ -608,7 +608,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
 	if err != nil {
-		return fmt.Errorf("failed to set owner reference on DeprecatedSecret: %w", err)
+		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -640,7 +640,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 			return nil
 		})
 		if result != controllerutil.OperationResultNone {
-			logger.Info("Operation result", "DeprecatedSecret", h.Name, "result", result)
+			logger.Info("Operation result", "Secret", h.Name, "result", result)
 		}
 		return err
 	})

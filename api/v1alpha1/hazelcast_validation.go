@@ -140,7 +140,7 @@ func validateTLS(h *Hazelcast) *field.Error {
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
 			return field.NotFound(field.NewPath("spec").Child("tls"),
-				"Hazelcast Enterprise TLS DeprecatedSecret is not found")
+				"Hazelcast Enterprise TLS Secret is not found")
 		}
 	}
 

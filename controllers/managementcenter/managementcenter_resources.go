@@ -318,7 +318,7 @@ func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *ha
 
 	err := controllerutil.SetControllerReference(mc, secret, r.Scheme)
 	if err != nil {
-		return fmt.Errorf("failed to set owner reference on DeprecatedSecret: %w", err)
+		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, secret, func() error {
@@ -340,7 +340,7 @@ func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *ha
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "DeprecatedSecret", secret.Name, "result", opResult)
+		logger.Info("Operation result", "Secret", secret.Name, "result", opResult)
 	}
 	return err
 }
