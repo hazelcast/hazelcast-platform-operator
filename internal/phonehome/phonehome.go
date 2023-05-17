@@ -99,6 +99,7 @@ type PhoneHomeData struct {
 	NativeMemoryCount             int                    `json:"nmc"`
 	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
 	AdvancedNetwork               AdvancedNetwork        `json:"an"`
+	Tls                           TLS                    `json:"tls"`
 	Jet                           Jet                    `json:"jet"`
 }
 
@@ -165,6 +166,11 @@ type McExternalConnectivity struct {
 	RouteEnabledCount       int `json:"rec"`
 }
 
+type TLS struct {
+	BasicSSL int `json:"bs"`
+	OpenSSL  int `json:"os"`
+}
+
 func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:           opInfo.UID,
@@ -226,6 +232,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
+		phm.Tls.addUsageMetrics(hz.Spec.TLS)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -342,6 +349,19 @@ func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration)
 	if len(jc.Args) > 0 {
 		j.Count += 1
 		return
+	}
+}
+
+func (tls *TLS) addUsageMetrics(t *hazelcastv1alpha1.TLS) {
+	if !t.IsEnabled() {
+		return
+	}
+
+	switch t.Type {
+	case hazelcastv1alpha1.TLSTypeBasicSSL:
+		tls.BasicSSL += 1
+	case hazelcastv1alpha1.TLSTypeOpenSSL:
+		tls.OpenSSL += 1
 	}
 }
 
