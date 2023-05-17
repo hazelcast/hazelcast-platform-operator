@@ -363,10 +363,10 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      &[]int32{3}[0],
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          &[]int32{3}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				TLS: hazelcastv1alpha1.TLS{
 					SecretName:           lk.Name + "-mtls",
 					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,

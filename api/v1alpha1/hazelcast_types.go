@@ -26,7 +26,7 @@ const (
 	Terminating Phase = "Terminating"
 )
 
-// LoggingLevel controlls log verbosity for Hazelcast.
+// LoggingLevel controls log verbosity for Hazelcast.
 // +kubebuilder:validation:Enum=OFF;FATAL;ERROR;WARN;INFO;DEBUG;TRACE;ALL
 type LoggingLevel string
 
