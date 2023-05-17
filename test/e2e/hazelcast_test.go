@@ -209,5 +209,33 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				evaluateReadyMembers(hzLookupKey)
 			})
 		})
+
+		When("TLS with Mutual Authentication property is configured", func() {
+			It("should form a cluster and be able to connect", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				setLabelAndCRName("h-8")
+				hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
+
+				secret := &corev1.Secret{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      hz.Spec.TLS.SecretName,
+						Namespace: hz.Namespace,
+					},
+					Data: map[string][]byte{
+						"tls.crt": []byte(hazelcastconfig.ExampleCert),
+						"tls.key": []byte(hazelcastconfig.ExampleKey),
+					},
+				}
+
+				By("creating TLS secret", func() {
+					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+				})
+
+				CreateHazelcastCR(hz)
+				evaluateReadyMembers(hzLookupKey)
+			})
+		})
 	})
 })

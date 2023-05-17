@@ -526,6 +526,35 @@ var _ = Describe("ManagementCenter controller", func() {
 				Delete(mc)
 			})
 		})
+		When("TLS with Mutual Authentication property is configured", func() {
+			It("should be enabled", Label("fast"), func() {
+				secret := &corev1.Secret{
+					ObjectMeta: GetRandomObjectMeta(),
+					Data: map[string][]byte{
+						"tls.crt": []byte(exampleCert),
+						"tls.key": []byte(exampleKey),
+					},
+				}
+				Create(secret)
+				defer Delete(secret)
+
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				}
+				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+					Name:    "dev",
+					Address: "dummy",
+					TLS: hazelcastv1alpha1.TLS{
+						SecretName:           secret.GetName(),
+						MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
+					},
+				}}
+				Create(mc)
+				EnsureStatus(mc)
+				Delete(mc)
+			})
+		})
 	})
 
 	Context("Statefulset Updates", func() {

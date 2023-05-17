@@ -872,68 +872,50 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	return cfg
 }
 
-func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
-	var (
-		store    = keystore.New()
-		password = []byte("hazelcast")
-	)
-	if h.Spec.TLS.SecretName != "" {
-		cert, key, err := loadTLSKeyPair(ctx, c, h)
-		if err != nil {
-			return nil, err
+func NewSSLProperties(path, password, protocol string, auth hazelcastv1alpha1.MutualAuthentication) config.SSLProperties {
+	// NewSSLProperties(jksPath, password, "TLS", h.Spec.TLS.MutualAuthentication)
+	const typ = "JKS"
+	switch auth {
+	case hazelcastv1alpha1.MutualAuthenticationRequired:
+		return config.SSLProperties{
+			Protocol:             protocol,
+			MutualAuthentication: "REQUIRED",
+			// server cert + key
+			KeyStoreType:     typ,
+			KeyStore:         path,
+			KeyStorePassword: password,
+			// trusted cert pool (we use the same file for convince)
+			TrustStoreType:     typ,
+			TrustStore:         path,
+			TrustStorePassword: password,
 		}
-		err = store.SetPrivateKeyEntry("hazelcast", keystore.PrivateKeyEntry{
-			CreationTime: time.Now(),
-			PrivateKey:   key,
-			CertificateChain: []keystore.Certificate{{
-				Type:    "X509",
-				Content: cert,
-			}},
-		}, password)
-		if err != nil {
-			return nil, err
+	case hazelcastv1alpha1.MutualAuthenticationOptional:
+		return config.SSLProperties{
+			Protocol:             protocol,
+			MutualAuthentication: "OPTIONAL",
+			KeyStoreType:         typ,
+			KeyStore:             path,
+			KeyStorePassword:     password,
+			TrustStoreType:       typ,
+			TrustStore:           path,
+			TrustStorePassword:   password,
+		}
+	default:
+		return config.SSLProperties{
+			Protocol:         protocol,
+			KeyStoreType:     typ,
+			KeyStore:         path,
+			KeyStorePassword: password,
 		}
 	}
-	var b bytes.Buffer
-	if err := store.Store(&b, password); err != nil {
-		return nil, err
-	}
-	return b.Bytes(), nil
-}
-
-func loadTLSKeyPair(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (cert []byte, key []byte, err error) {
-	var s v1.Secret
-	err = c.Get(ctx, types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}, &s)
-	if err != nil {
-		return
-	}
-	cert, err = decodePEM(s.Data["tls.crt"], "CERTIFICATE")
-	if err != nil {
-		return
-	}
-	key, err = decodePEM(s.Data["tls.key"], "PRIVATE KEY")
-	if err != nil {
-		return
-	}
-	return
-}
-
-func decodePEM(data []byte, typ string) ([]byte, error) {
-	b, _ := pem.Decode(data)
-	if b == nil {
-		return nil, fmt.Errorf("expected at least one pem block")
-	}
-	if b.Type != typ {
-		return nil, fmt.Errorf("expected type %v, got %v", typ, b.Type)
-	}
-	return b.Bytes, nil
 }
 
 func tlsSslConfigs(tls *hazelcastv1alpha1.TLS) (member config.SSL, client config.SSL) {
-	if tls.IsBasicSSLEnabled() {
-		member, client = tlsBasicSslConfigs()
-	} else if tls.IsOpenSSLEnabled() {
-		member, client = tlsOpenSslConfigs()
+	switch tls.Type {
+	case hazelcastv1alpha1.TLSTypeBasicSSL:
+		return tlsBasicSslConfigs()
+	case hazelcastv1alpha1.TLSTypeOpenSSL:
+		return tlsOpenSslConfigs()
 	}
 	return
 }
@@ -1001,6 +983,63 @@ func tlsOpenSslConfigs() (member config.SSL, client config.SSL) {
 		},
 	}
 	return
+}
+
+func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
+	var (
+		store    = keystore.New()
+		password = []byte("hazelcast")
+	)
+	if h.Spec.TLS.IsEnabled() {
+		cert, key, err := loadTLSKeyPair(ctx, c, h)
+		if err != nil {
+			return nil, err
+		}
+		err = store.SetPrivateKeyEntry("hazelcast", keystore.PrivateKeyEntry{
+			CreationTime: time.Now(),
+			PrivateKey:   key,
+			CertificateChain: []keystore.Certificate{{
+				Type:    "X509",
+				Content: cert,
+			}},
+		}, password)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var b bytes.Buffer
+	if err := store.Store(&b, password); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+func loadTLSKeyPair(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (cert []byte, key []byte, err error) {
+	var s v1.Secret
+	err = c.Get(ctx, types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}, &s)
+	if err != nil {
+		return
+	}
+	cert, err = decodePEM(s.Data["tls.crt"], "CERTIFICATE")
+	if err != nil {
+		return
+	}
+	key, err = decodePEM(s.Data["tls.key"], "PRIVATE KEY")
+	if err != nil {
+		return
+	}
+	return
+}
+
+func decodePEM(data []byte, typ string) ([]byte, error) {
+	b, _ := pem.Decode(data)
+	if b == nil {
+		return nil, fmt.Errorf("expected at least one pem block")
+	}
+	if b.Type != typ {
+		return nil, fmt.Errorf("expected type %v, got %v", typ, b.Type)
+	}
+	return b.Bytes, nil
 }
 
 func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {
@@ -2310,6 +2349,14 @@ func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
 		Jet:                hz.Jet,
 		UserCodeDeployment: hz.UserCodeDeployment,
 		Properties:         hz.Properties,
+		AdvancedNetwork: config.AdvancedNetwork{
+			ClientServerSocketEndpointConfig: config.ClientServerSocketEndpointConfig{
+				SSL: hz.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL,
+			},
+			MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{
+				SSL: hz.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL,
+			},
+		},
 	}
 }
 
