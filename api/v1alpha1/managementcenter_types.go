@@ -29,9 +29,13 @@ type ManagementCenterSpec struct {
 	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
+	// licenseKeySecret is a deprecated alias for licenseKeySecretName.
+	// +optional
+	DeprecatedLicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
-	LicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
 
 	// Connection configuration for the Hazelcast clusters that Management Center will monitor.
 	// +optional
@@ -56,6 +60,13 @@ type ManagementCenterSpec struct {
 	// +kubebuilder:default:={}
 	// +optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+func (s *ManagementCenterSpec) GetLicenseKeySecretName() string {
+	if s.LicenseKeySecretName == "" {
+		return s.DeprecatedLicenseKeySecret
+	}
+	return s.LicenseKeySecretName
 }
 
 type HazelcastClusterConfig struct {

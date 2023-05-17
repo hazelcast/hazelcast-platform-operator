@@ -455,11 +455,11 @@ var _ = Describe("Hazelcast controller", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: GetRandomObjectMeta(),
 				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      &[]int32{5}[0],
-					Repository:       "myorg/hazelcast",
-					Version:          "1.0",
-					LicenseKeySecret: "my-license-key-secret",
-					ImagePullPolicy:  corev1.PullAlways,
+					ClusterSize:          &[]int32{5}[0],
+					Repository:           "myorg/hazelcast",
+					Version:              "1.0",
+					LicenseKeySecretName: "my-license-key-secret",
+					ImagePullPolicy:      corev1.PullAlways,
 				},
 			}
 
@@ -1103,13 +1103,13 @@ var _ = Describe("Hazelcast controller", func() {
 
 	Context("Hazelcast CR Statefulset updates", func() {
 		firstSpec := hazelcastv1alpha1.HazelcastSpec{
-			ClusterSize:      pointer.Int32(2),
-			Repository:       "hazelcast/hazelcast-enterprise",
-			Version:          "5.2",
-			ImagePullPolicy:  corev1.PullAlways,
-			ImagePullSecrets: nil,
-			ExposeExternally: nil,
-			LicenseKeySecret: "key-secret",
+			ClusterSize:          pointer.Int32(2),
+			Repository:           "hazelcast/hazelcast-enterprise",
+			Version:              "5.2",
+			ImagePullPolicy:      corev1.PullAlways,
+			ImagePullSecrets:     nil,
+			ExposeExternally:     nil,
+			LicenseKeySecretName: "key-secret",
 		}
 
 		secondSpec := hazelcastv1alpha1.HazelcastSpec{
@@ -1124,7 +1124,7 @@ var _ = Describe("Hazelcast controller", func() {
 			ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type: hazelcastv1alpha1.ExposeExternallyTypeSmart,
 			},
-			LicenseKeySecret: "",
+			LicenseKeySecretName: "",
 			Scheduling: hazelcastv1alpha1.SchedulingConfiguration{
 				Affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
@@ -1155,7 +1155,7 @@ var _ = Describe("Hazelcast controller", func() {
 					Spec:       firstSpec,
 				}
 
-				CreateLicenseKeySecret(firstSpec.LicenseKeySecret)
+				CreateLicenseKeySecret(firstSpec.GetLicenseKeySecretName())
 
 				Create(hz)
 				hz = EnsureStatus(hz)
@@ -1187,11 +1187,11 @@ var _ = Describe("Hazelcast controller", func() {
 				Expect(ok).To(BeTrue())
 				Expect(an).To(Equal(string(hz.Spec.ExposeExternally.MemberAccessType())))
 
-				By("Checking if StatefulSet LicenseKeySecret is updated")
+				By("Checking if StatefulSet LicenseKeySecretName is updated")
 				el := ss.Spec.Template.Spec.Containers[0].Env
 				for _, env := range el {
 					if env.Name == "HZ_LICENSEKEY" {
-						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.LicenseKeySecret))
+						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.GetLicenseKeySecretName()))
 					}
 				}
 
@@ -1340,8 +1340,8 @@ var _ = Describe("Hazelcast controller", func() {
 				h := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						LicenseKeySecret: "secret-name",
-						Repository:       n.HazelcastRepo,
+						LicenseKeySecretName: "secret-name",
+						Repository:           n.HazelcastRepo,
 					},
 				}
 

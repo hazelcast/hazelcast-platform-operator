@@ -234,13 +234,14 @@ spec:
                         minLength: 6
                         type: string
                       secret:
+                        description: secret is a deprecated alias for secretName.
+                        type: string
+                      secretName:
                         description: Name of the secret with credentials for cloud
                           providers.
-                        minLength: 1
                         type: string
                     required:
                     - bucketURI
-                    - secret
                     type: object
                   configMaps:
                     description: Names of the list of ConfigMaps. Files in each ConfigMap
@@ -358,6 +359,9 @@ spec:
                     type: object
                 type: object
               licenseKeySecret:
+                description: licenseKeySecret is a deprecated alias for licenseKeySecretName.
+                type: string
+              licenseKeySecretName:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string
@@ -489,13 +493,14 @@ spec:
                             minLength: 6
                             type: string
                           secret:
+                            description: secret is a deprecated alias for secretName.
+                            type: string
+                          secretName:
                             description: Name of the secret with credentials for cloud
                               providers.
-                            minLength: 1
                             type: string
                         required:
                         - bucketURI
-                        - secret
                         type: object
                       hotBackupResourceName:
                         description: Name of the HotBackup resource from which backup
@@ -1673,6 +1678,15 @@ spec:
               tls:
                 description: Hazelcast TLS configuration
                 properties:
+                  mutualAuthentication:
+                    default: None
+                    description: Mutual authentication configuration. It’s None by
+                      default which means the client side of connection is not authenticated.
+                    enum:
+                    - None
+                    - Required
+                    - Optional
+                    type: string
                   secretName:
                     description: Name of the secret with TLS certificate and key.
                     type: string
@@ -1692,13 +1706,14 @@ spec:
                         minLength: 6
                         type: string
                       secret:
+                        description: secret is a deprecated alias for secretName.
+                        type: string
+                      secretName:
                         description: Name of the secret with credentials for cloud
                           providers.
-                        minLength: 1
                         type: string
                     required:
                     - bucketURI
-                    - secret
                     type: object
                   clientEnabled:
                     description: When true, allows user code deployment from clients.

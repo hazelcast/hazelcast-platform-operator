@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
@@ -68,7 +69,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	r.statusServiceRegistry.Delete(lk)
-
+	r.mtlsClientRegistry.Delete(lk)
 	if err := r.clientRegistry.Delete(ctx, lk); err != nil {
 		return fmt.Errorf("Hazelcast client could not be deleted:  %w", err)
 	}
@@ -866,32 +867,53 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
 			Enabled:          pointer.Bool(true),
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: config.SSLProperties{
-				Protocol:             "TLSv1.2",
-				MutualAuthentication: "REQUIRED",
-				// server cert + key
-				KeyStoreType:     "JKS",
-				KeyStore:         jksPath,
-				KeyStorePassword: password,
-				// trusted cert pool (we use the same file for convince)
-				TrustStoreType:     "JKS",
-				TrustStore:         jksPath,
-				TrustStorePassword: password,
-			},
+			Properties:       NewSSLProperties(jksPath, password, "TLS", v1alpha1.MutualAuthenticationRequired),
 		}
 		// for client-server configuration use only server TLS
 		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
 			Enabled:          pointer.Bool(true),
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: config.SSLProperties{
-				Protocol:         "TLS",
-				KeyStoreType:     "JKS",
-				KeyStore:         jksPath,
-				KeyStorePassword: password,
-			},
+			Properties:       NewSSLProperties(jksPath, password, "TLS", h.Spec.TLS.MutualAuthentication),
 		}
 	}
 	return cfg
+}
+
+func NewSSLProperties(path, password, protocol string, auth v1alpha1.MutualAuthentication) config.SSLProperties {
+	const typ = "JKS"
+	switch auth {
+	case v1alpha1.MutualAuthenticationRequired:
+		return config.SSLProperties{
+			Protocol:             protocol,
+			MutualAuthentication: "REQUIRED",
+			// server cert + key
+			KeyStoreType:     typ,
+			KeyStore:         path,
+			KeyStorePassword: password,
+			// trusted cert pool (we use the same file for convince)
+			TrustStoreType:     typ,
+			TrustStore:         path,
+			TrustStorePassword: password,
+		}
+	case v1alpha1.MutualAuthenticationOptional:
+		return config.SSLProperties{
+			Protocol:             protocol,
+			MutualAuthentication: "OPTIONAL",
+			KeyStoreType:         typ,
+			KeyStore:             path,
+			KeyStorePassword:     password,
+			TrustStoreType:       typ,
+			TrustStore:           path,
+			TrustStorePassword:   password,
+		}
+	default:
+		return config.SSLProperties{
+			Protocol:         protocol,
+			KeyStoreType:     typ,
+			KeyStore:         path,
+			KeyStorePassword: password,
+		}
+	}
 }
 
 func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
@@ -1676,7 +1698,7 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	}
 
 	// restoring from bucket config
-	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
+	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
 		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
 
 	return containers, nil
@@ -1696,7 +1718,7 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 	var cont corev1.Container
 	if hb.Spec.IsExternal() {
 		bucketURI := hb.Status.GetBucketURI()
-		cont = restoreAgentContainer(h, hb.Spec.Secret, bucketURI)
+		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI)
 	} else {
 		backupFolder := hb.Status.GetBackupFolder()
 		cont = restoreLocalAgentContainer(h, backupFolder)
@@ -1799,7 +1821,7 @@ func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFil
 		Env: []v1.EnvVar{
 			{
 				Name:  "JDB_SECRET_NAME",
-				Value: rfc.BucketConfiguration.Secret,
+				Value: rfc.BucketConfiguration.GetSecretName(),
 			},
 			{
 				Name:  "JDB_BUCKET_URI",
@@ -2089,14 +2111,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Value: javaClassPath(h),
 		},
 	}
-	if h.Spec.LicenseKeySecret != "" {
+	if h.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: hzLicenseKey,
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
 						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.LicenseKeySecret,
+							Name: h.Spec.GetLicenseKeySecretName(),
 						},
 						Key: n.LicenseDataKey,
 					},
@@ -2232,6 +2254,14 @@ func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
 		Jet:                hz.Jet,
 		UserCodeDeployment: hz.UserCodeDeployment,
 		Properties:         hz.Properties,
+		AdvancedNetwork: config.AdvancedNetwork{
+			ClientServerSocketEndpointConfig: config.ClientServerSocketEndpointConfig{
+				SSL: hz.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL,
+			},
+			MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{
+				SSL: hz.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL,
+			},
+		},
 	}
 }
 

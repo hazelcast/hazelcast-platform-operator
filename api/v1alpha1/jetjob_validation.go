@@ -114,7 +114,7 @@ func ValidateBucketFields(jjbc *BucketConfiguration, old *BucketConfiguration) [
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("bucketURI"), "field cannot be updated"))
 	}
-	if jjbc.Secret != old.Secret {
+	if jjbc.GetSecretName() != old.GetSecretName() {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("secret"), "field cannot be updated"))
 	}

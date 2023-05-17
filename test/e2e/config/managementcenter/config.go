@@ -26,9 +26,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          *mcVersion,
-				LicenseKeySecret: licenseKey(ee),
+				Repository:           *mcRepo,
+				Version:              *mcVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
@@ -48,9 +48,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          *mcVersion,
-				LicenseKeySecret: licenseKey(ee),
+				Repository:           *mcRepo,
+				Version:              *mcVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
@@ -75,9 +75,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          *mcVersion,
-				LicenseKeySecret: licenseKey(ee),
+				Repository:           *mcRepo,
+				Version:              *mcVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
@@ -94,9 +94,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          *mcVersion,
-				LicenseKeySecret: licenseKey(ee),
+				Repository:           *mcRepo,
+				Version:              *mcVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeClusterIP,
@@ -125,9 +125,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          "not-exists",
-				LicenseKeySecret: licenseKey(ee),
+				Repository:           *mcRepo,
+				Version:              "not-exists",
+				LicenseKeySecretName: licenseKey(ee),
 			},
 		}
 	}

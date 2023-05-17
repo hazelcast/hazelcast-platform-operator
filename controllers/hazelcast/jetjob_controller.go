@@ -258,7 +258,7 @@ func fileDownloadReq(job *hazelcastv1alpha1.JetJob) sidecar.DownloadFileReq {
 	if job.Spec.IsBucketEnabled() {
 		req.DownloadType = sidecar.BucketDownload
 		req.URL = jrfc.BucketConfiguration.BucketURI
-		req.SecretName = jrfc.BucketConfiguration.Secret
+		req.SecretName = jrfc.BucketConfiguration.GetSecretName()
 	} else if job.Spec.IsRemoteURLsEnabled() {
 		req.DownloadType = sidecar.URLDownload
 		req.URL = jrfc.RemoteURL

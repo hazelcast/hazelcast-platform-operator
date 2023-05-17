@@ -104,15 +104,15 @@ func validateExposeExternally(h *Hazelcast) *field.Error {
 }
 
 func validateLicense(h *Hazelcast) *field.Error {
-	if checkEnterprise(h.Spec.Repository) && len(h.Spec.LicenseKeySecret) == 0 {
-		return field.Required(field.NewPath("spec").Child("licenseKeySecret"),
+	if checkEnterprise(h.Spec.Repository) && len(h.Spec.GetLicenseKeySecretName()) == 0 {
+		return field.Required(field.NewPath("spec").Child("licenseKeySecretName"),
 			"must be set when Hazelcast Enterprise is deployed")
 	}
 
 	// make sure secret exists
-	if h.Spec.LicenseKeySecret != "" {
+	if h.Spec.GetLicenseKeySecretName() != "" {
 		secretName := types.NamespacedName{
-			Name:      h.Spec.LicenseKeySecret,
+			Name:      h.Spec.GetLicenseKeySecretName(),
 			Namespace: h.Namespace,
 		}
 
@@ -120,7 +120,7 @@ func validateLicense(h *Hazelcast) *field.Error {
 		err := kubeclient.Get(context.Background(), secretName, &secret)
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
-			return field.NotFound(field.NewPath("spec").Child("licenseKeySecret"),
+			return field.NotFound(field.NewPath("spec").Child("licenseKeySecretName"),
 				"Hazelcast Enterprise licenseKeySecret is not found")
 		}
 	}

@@ -26,7 +26,7 @@ const (
 	Terminating Phase = "Terminating"
 )
 
-// LoggingLevel controlls log verbosity for Hazelcast.
+// LoggingLevel controls log verbosity for Hazelcast.
 // +kubebuilder:validation:Enum=OFF;FATAL;ERROR;WARN;INFO;DEBUG;TRACE;ALL
 type LoggingLevel string
 
@@ -68,9 +68,13 @@ type HazelcastSpec struct {
 	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
+	// licenseKeySecret is a deprecated alias for licenseKeySecretName.
+	// +optional
+	DeprecatedLicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
-	LicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
 	// +kubebuilder:default:={}
@@ -161,6 +165,13 @@ type HazelcastSpec struct {
 	// Hazelcast TLS configuration
 	// +optional
 	TLS TLS `json:"tls,omitempty"`
+}
+
+func (s *HazelcastSpec) GetLicenseKeySecretName() string {
+	if s.LicenseKeySecretName == "" {
+		return s.DeprecatedLicenseKeySecret
+	}
+	return s.LicenseKeySecretName
 }
 
 type ManagementCenterConfig struct {
@@ -409,10 +420,13 @@ type RemoteFileConfiguration struct {
 }
 
 type BucketConfiguration struct {
+	// secret is a deprecated alias for secretName.
+	// +optional
+	DeprecatedSecret string `json:"secret"`
+
 	// Name of the secret with credentials for cloud providers.
-	// +kubebuilder:validation:MinLength:=1
-	// +required
-	Secret string `json:"secret"`
+	// +optional
+	SecretName string `json:"secretName"`
 
 	// URL of the bucket to download HotBackup folders.
 	// AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
@@ -423,6 +437,13 @@ type BucketConfiguration struct {
 	// +kubebuilder:validation:MinLength:=6
 	// +required
 	BucketURI string `json:"bucketURI"`
+}
+
+func (b *BucketConfiguration) GetSecretName() string {
+	if b.SecretName == "" {
+		return b.DeprecatedSecret
+	}
+	return b.SecretName
 }
 
 // Returns true if userCodeDeployment.bucketConfiguration is specified.
@@ -872,9 +893,32 @@ type ClientServerSocketEndpointConfig struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=None;Required;Optional
+type MutualAuthentication string
+
+const (
+	// Client side of connection is not authenticated.
+	MutualAuthenticationNone MutualAuthentication = "None"
+
+	// Server asks for client certificate. If the client does not provide a
+	// keystore or the provided keystore is not verified against member’s
+	// truststore, the client is not authenticated.
+	MutualAuthenticationRequired MutualAuthentication = "Required"
+
+	// Server asks for client certificate, but client is not required
+	// to provide any valid certificate.
+	MutualAuthenticationOptional MutualAuthentication = "Optional"
+)
+
 type TLS struct {
 	// Name of the secret with TLS certificate and key.
 	SecretName string `json:"secretName,omitempty"`
+
+	// Mutual authentication configuration. It’s None by default which
+	// means the client side of connection is not authenticated.
+	// +kubebuilder:default:="None"
+	// +optional
+	MutualAuthentication MutualAuthentication `json:"mutualAuthentication,omitempty"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

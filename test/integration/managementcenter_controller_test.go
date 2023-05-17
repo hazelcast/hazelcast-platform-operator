@@ -526,16 +526,45 @@ var _ = Describe("ManagementCenter controller", func() {
 				Delete(mc)
 			})
 		})
+		When("TLS with Mutual Authentication property is configured", func() {
+			It("should be enabled", Label("fast"), func() {
+				secret := &corev1.Secret{
+					ObjectMeta: GetRandomObjectMeta(),
+					Data: map[string][]byte{
+						"tls.crt": []byte(exampleCert),
+						"tls.key": []byte(exampleKey),
+					},
+				}
+				Create(secret)
+				defer Delete(secret)
+
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				}
+				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+					Name:    "dev",
+					Address: "dummy",
+					TLS: hazelcastv1alpha1.TLS{
+						SecretName:           secret.GetName(),
+						MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
+					},
+				}}
+				Create(mc)
+				EnsureStatus(mc)
+				Delete(mc)
+			})
+		})
 	})
 
 	Context("Statefulset Updates", func() {
 		firstSpec := hazelcastv1alpha1.ManagementCenterSpec{
-			Repository:        "hazelcast/management-center-1",
-			Version:           "5.2",
-			ImagePullPolicy:   corev1.PullAlways,
-			ImagePullSecrets:  nil,
-			LicenseKeySecret:  "key-secret",
-			HazelcastClusters: nil,
+			Repository:           "hazelcast/management-center-1",
+			Version:              "5.2",
+			ImagePullPolicy:      corev1.PullAlways,
+			ImagePullSecrets:     nil,
+			LicenseKeySecretName: "key-secret",
+			HazelcastClusters:    nil,
 		}
 		secondSpec := hazelcastv1alpha1.ManagementCenterSpec{
 			Repository:      "hazelcast/management-center",
@@ -546,7 +575,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				{Name: "secret2"},
 			},
 
-			LicenseKeySecret: "",
+			LicenseKeySecretName: "",
 			HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
 				{Name: "dev", Address: "cluster-address"},
 			},
@@ -610,10 +639,10 @@ var _ = Describe("ManagementCenter controller", func() {
 						}
 					}
 				}
-				By("checking if StatefulSet LicenseKeySecret is updated")
+				By("checking if StatefulSet LicenseKeySecretName is updated")
 				for _, env := range el {
 					if env.Name == "MC_LICENSEKEY" {
-						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.LicenseKeySecret))
+						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.GetLicenseKeySecretName()))
 					}
 				}
 
