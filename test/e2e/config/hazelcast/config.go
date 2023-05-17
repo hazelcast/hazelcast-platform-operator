@@ -281,17 +281,17 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      pointer.Int32(1),
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          pointer.Int32(1),
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-							Secret:    s,
-							BucketURI: bkt,
+							SecretName: s,
+							BucketURI:  bkt,
 						},
 					},
 					Instance: &hazelcastv1alpha1.JetInstance{
@@ -320,10 +320,10 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:      pointer.Int32(1),
-				Repository:       repo(ee),
-				Version:          *hazelcastVersion,
-				LicenseKeySecret: licenseKey(ee),
+				ClusterSize:          pointer.Int32(1),
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
 				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
