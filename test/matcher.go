@@ -45,9 +45,9 @@ func (matcher HazelcastSpecEqual) Match(actual interface{}) (success bool, err e
 		return false, fmt.Errorf(
 			"expected ImagePullPolicy is %s but actual is %s", matcher.Expected.ImagePullPolicy, spec.ImagePullPolicy)
 	}
-	if matcher.ee && spec.LicenseKeySecret != matcher.Expected.LicenseKey {
+	if matcher.ee && spec.GetLicenseKeySecretName() != matcher.Expected.LicenseKey {
 		return false, fmt.Errorf(
-			"expected LicenseKeySecret is %s but actual is %s", matcher.Expected.LicenseKey, spec.LicenseKeySecret)
+			"expected LicenseKeySecretName is %s but actual is %s", matcher.Expected.LicenseKey, spec.GetLicenseKeySecretName())
 	}
 	return true, nil
 }

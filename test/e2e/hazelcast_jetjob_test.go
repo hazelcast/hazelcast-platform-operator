@@ -129,15 +129,15 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		if secretName != "" {
 			jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
-				Secret:    secretName,
-				BucketURI: url,
+				SecretName: secretName,
+				BucketURI:  url,
 			}
 		} else {
 			jj.Spec.JetRemoteFileConfiguration.RemoteURL = url
 		}
 		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
-			Secret:    "br-secret-gcp",
-			BucketURI: "gs://operator-user-code/jetJobs",
+			SecretName: "br-secret-gcp",
+			BucketURI:  "gs://operator-user-code/jetJobs",
 		}
 
 		t := Now()
