@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -578,13 +579,10 @@ func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelca
 		clientConfig.Network.SSL = SSL{
 			Enabled:          "true",
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: Properties{
-				Properties: []Property{
-					{Name: "protocol", Text: "TLSv1.2"},
-					{Name: "trustStore", Text: path.Join("/config", config.Name+".jks")},
-					{Name: "trustStorePassword", Text: "hazelcast"},
-				},
-			},
+			Properties: NewSSLProperties(
+				path.Join("/config", config.Name+".jks"),
+				config.TLS.MutualAuthentication,
+			),
 		}
 	}
 
@@ -630,4 +628,28 @@ type Properties struct {
 type Property struct {
 	Text string `xml:",chardata"`
 	Name string `xml:"name,attr"`
+}
+
+func NewSSLProperties(path string, auth v1alpha1.MutualAuthentication) Properties {
+	const pass = "hazelcast"
+	switch auth {
+	case v1alpha1.MutualAuthenticationRequired:
+		return Properties{
+			Properties: []Property{
+				{Name: "protocol", Text: "TLSv1.2"},
+				{Name: "trustStore", Text: path},
+				{Name: "trustStorePassword", Text: pass},
+				{Name: "keyStore", Text: path},
+				{Name: "keyStorePassword", Text: pass},
+			},
+		}
+	default:
+		return Properties{
+			Properties: []Property{
+				{Name: "protocol", Text: "TLSv1.2"},
+				{Name: "trustStore", Text: path},
+				{Name: "trustStorePassword", Text: pass},
+			},
+		}
+	}
 }
