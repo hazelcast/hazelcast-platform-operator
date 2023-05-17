@@ -88,13 +88,24 @@ type HotBackupSpec struct {
 	// +optional
 	BucketURI string `json:"bucketURI,omitempty"`
 
+	// secret is a deprecated alias for secretName.
+	// +optional
+	DeprecatedSecret string `json:"secret,omitempty"`
+
 	// Name of the secret with credentials for cloud providers.
 	// +optional
-	Secret string `json:"secret,omitempty"`
+	SecretName string `json:"secretName,omitempty"`
+}
+
+func (hbs *HotBackupSpec) GetSecretName() string {
+	if hbs.SecretName == "" {
+		return hbs.DeprecatedSecret
+	}
+	return hbs.SecretName
 }
 
 func (hbs *HotBackupSpec) IsExternal() bool {
-	return hbs.BucketURI != "" && hbs.Secret != ""
+	return hbs.BucketURI != "" && hbs.GetSecretName() != ""
 }
 
 //+kubebuilder:object:root=true

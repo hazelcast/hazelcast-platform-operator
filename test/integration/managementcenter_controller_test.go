@@ -559,12 +559,12 @@ var _ = Describe("ManagementCenter controller", func() {
 
 	Context("Statefulset Updates", func() {
 		firstSpec := hazelcastv1alpha1.ManagementCenterSpec{
-			Repository:        "hazelcast/management-center-1",
-			Version:           "5.2",
-			ImagePullPolicy:   corev1.PullAlways,
-			ImagePullSecrets:  nil,
-			LicenseKeySecret:  "key-secret",
-			HazelcastClusters: nil,
+			Repository:           "hazelcast/management-center-1",
+			Version:              "5.2",
+			ImagePullPolicy:      corev1.PullAlways,
+			ImagePullSecrets:     nil,
+			LicenseKeySecretName: "key-secret",
+			HazelcastClusters:    nil,
 		}
 		secondSpec := hazelcastv1alpha1.ManagementCenterSpec{
 			Repository:      "hazelcast/management-center",
@@ -575,7 +575,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				{Name: "secret2"},
 			},
 
-			LicenseKeySecret: "",
+			LicenseKeySecretName: "",
 			HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
 				{Name: "dev", Address: "cluster-address"},
 			},
@@ -642,7 +642,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				By("checking if StatefulSet LicenseKeySecretName is updated")
 				for _, env := range el {
 					if env.Name == "MC_LICENSEKEY" {
-						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.LicenseKeySecret))
+						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.GetLicenseKeySecretName()))
 					}
 				}
 
