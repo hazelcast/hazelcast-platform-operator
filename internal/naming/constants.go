@@ -73,6 +73,7 @@ const (
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
 
+	TLSBasicSSLJKSFile   = "hazelcast.jks"
 	TLSOpenSSLVolumeName = "tls-openssl"
 	TLSMountPath         = HazelcastMountPath + "/tls"
 )
