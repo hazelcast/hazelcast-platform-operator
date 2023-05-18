@@ -158,4 +158,49 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		Entry("using jar from bucket", Label("fast"), "br-secret-gcp", "gs://operator-user-code/jetJobs"),
 		Entry("using jar from remote url", Label("fast"), "", "https://storage.googleapis.com/operator-user-code-urls-public/jet-pipeline-1.0.2.jar"),
 	)
+
+	It("should persist jobs when lossless restart is enabled", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+
+		setLabelAndCRName("jj-4")
+
+		hazelcast := hazelcastconfig.JetWithLosslessRestart(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
+		CreateHazelcastCR(hazelcast)
+
+		By("creating JetJob CR")
+		jj := hazelcastconfig.JetJob(longRunJar, hzLookupKey.Name, jjLookupKey, labels)
+		t := Now()
+		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
+
+		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
+
+		By("Checking the JetJob jar is running")
+		logs := InitLogs(t, hzLookupKey)
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		test.EventuallyInLogsUnordered(logReader, 15*Second, logInterval).
+			Should(ContainElements(
+				MatchRegexp(fmt.Sprintf(".*\\[%s\\/\\w+#\\d+\\]\\s+SimpleEvent\\(timestamp=.*,\\s+sequence=\\d+\\).*", jj.Name))))
+
+		By("creating HotBackup CR")
+		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
+		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+		assertHotBackupSuccess(hotBackup, 20*Minute)
+
+		RemoveHazelcastCR(hazelcast)
+
+		By("creating new Hazelcast cluster from the existing backup")
+		hazelcast = hazelcastconfig.JetWithRestore(hzLookupKey, ee, hotBackup.Name, labels)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
+
+		By("Checking the JetJob jar is running in new Hazelcast cluster")
+		test.EventuallyInLogsUnordered(logReader, 15*Second, logInterval).
+			Should(ContainElements(
+				MatchRegexp(fmt.Sprintf(".*\\[%s\\/\\w+#\\d+\\]\\s+SimpleEvent\\(timestamp=.*,\\s+sequence=\\d+\\).*", jj.Name))))
+	})
 })

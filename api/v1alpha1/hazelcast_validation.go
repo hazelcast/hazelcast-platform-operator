@@ -78,6 +78,7 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 	if err := validateJVMConfig(h); err != nil {
 		allErrs = append(allErrs, err...)
 	}
+
 	return allErrs
 }
 
@@ -452,9 +453,10 @@ func validateJetConfig(h *Hazelcast) *field.Error {
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
 
-	if !j.IsConfigured() {
+	if !j.IsEnabled() {
 		return nil
 	}
+
 	if !j.Instance.IsConfigured() {
 		return nil
 	}

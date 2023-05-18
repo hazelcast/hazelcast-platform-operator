@@ -273,6 +273,81 @@ var (
 		}
 	}
 
+	JetWithLosslessRestart = func(lk types.NamespacedName, ee bool, s, bkt string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:          pointer.Int32(1),
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled:               pointer.Bool(true),
+					ResourceUploadEnabled: true,
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							SecretName: s,
+							BucketURI:  bkt,
+						},
+					},
+					Instance: &hazelcastv1alpha1.JetInstance{
+						LosslessRestartEnabled:         true,
+						CooperativeThreadCount:         1,
+						MaxProcessorAccumulatedRecords: 1000000000,
+					},
+				},
+				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+					},
+				},
+			},
+		}
+	}
+
+	JetWithRestore = func(lk types.NamespacedName, ee bool, hbn string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:          pointer.Int32(1),
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled:               pointer.Bool(true),
+					ResourceUploadEnabled: true,
+					Instance: &hazelcastv1alpha1.JetInstance{
+						LosslessRestartEnabled:         true,
+						CooperativeThreadCount:         1,
+						MaxProcessorAccumulatedRecords: 1000000000,
+					},
+				},
+				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+					},
+					Restore: hazelcastv1alpha1.RestoreConfiguration{
+						HotBackupResourceName: hbn,
+					},
+				},
+			},
+		}
+	}
+
 	UserCodeURL = func(lk types.NamespacedName, ee bool, urls []string, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{

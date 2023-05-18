@@ -287,6 +287,11 @@ func (j *JetEngineConfiguration) IsConfigured() bool {
 	return j != nil
 }
 
+// Returns true if jet is enabled.
+func (j *JetEngineConfiguration) IsEnabled() bool {
+	return j != nil && j.Enabled != nil && *j.Enabled
+}
+
 // Returns true if jet.bucketConfiguration is specified.
 func (j *JetEngineConfiguration) IsBucketEnabled() bool {
 	return j != nil && j.RemoteFileConfiguration.BucketConfiguration != nil
