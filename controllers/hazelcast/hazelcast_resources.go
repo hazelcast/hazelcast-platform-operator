@@ -864,16 +864,46 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	// TLS Configuration
 	if h.Spec.TLS.IsEnabled() {
-		memberSsl, clientSsl := tlsSslConfigs(h.Spec.TLS)
-		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = memberSsl
-		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = clientSsl
+		switch h.Spec.TLS.Type {
+		case hazelcastv1alpha1.TLSTypeBasicSSL:
+			var (
+				jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
+				password = "hazelcast"
+			)
+			// require MTLS for member-member communication
+			cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+				Properties:       NewBasicSSLProperties(jksPath, password, "TLS", hazelcastv1alpha1.MutualAuthenticationRequired),
+			}
+			cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+				Properties:       NewBasicSSLProperties(jksPath, password, "TLS", h.Spec.TLS.MutualAuthentication),
+			}
+		case hazelcastv1alpha1.TLSTypeOpenSSL:
+			var (
+				crtPath = path.Join(n.TLSMountPath, corev1.TLSCertKey)
+				keyPath = path.Join(n.TLSMountPath, corev1.TLSPrivateKeyKey)
+			)
+			// require MTLS for member-member communication
+			cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: "com.hazelcast.nio.ssl.OpenSSLEngineFactory",
+				Properties:       NewOpenSSLProperties(crtPath, keyPath, "TLSv1.2", hazelcastv1alpha1.MutualAuthenticationRequired),
+			}
+			cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: "com.hazelcast.nio.ssl.OpenSSLEngineFactory",
+				Properties:       NewOpenSSLProperties(crtPath, keyPath, "TLS", h.Spec.TLS.MutualAuthentication),
+			}
+		}
 	}
 
 	return cfg
 }
 
-func NewSSLProperties(path, password, protocol string, auth hazelcastv1alpha1.MutualAuthentication) config.SSLProperties {
-	// NewSSLProperties(jksPath, password, "TLS", h.Spec.TLS.MutualAuthentication)
+func NewBasicSSLProperties(path, password, protocol string, auth hazelcastv1alpha1.MutualAuthentication) config.SSLProperties {
 	const typ = "JKS"
 	switch auth {
 	case hazelcastv1alpha1.MutualAuthenticationRequired:
@@ -910,79 +940,31 @@ func NewSSLProperties(path, password, protocol string, auth hazelcastv1alpha1.Mu
 	}
 }
 
-func tlsSslConfigs(tls *hazelcastv1alpha1.TLS) (member config.SSL, client config.SSL) {
-	switch tls.Type {
-	case hazelcastv1alpha1.TLSTypeBasicSSL:
-		return tlsBasicSslConfigs()
-	case hazelcastv1alpha1.TLSTypeOpenSSL:
-		return tlsOpenSslConfigs()
-	}
-	return
-}
-
-func tlsBasicSslConfigs() (member config.SSL, client config.SSL) {
-	var (
-		jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
-		password = "hazelcast"
-	)
-	// require MTLS for member-member communication
-	member = config.SSL{
-		Enabled:          pointer.Bool(true),
-		FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-		Properties: config.SSLProperties{
-			Protocol:             "TLSv1.2",
-			MutualAuthentication: "REQUIRED",
-			// server cert + key
-			KeyStoreType:     "JKS",
-			KeyStore:         jksPath,
-			KeyStorePassword: password,
-			// trusted cert pool (we use the same file for convince)
-			TrustStoreType:     "JKS",
-			TrustStore:         jksPath,
-			TrustStorePassword: password,
-		},
-	}
-	// for client-server configuration use only server TLS
-	client = config.SSL{
-		Enabled:          pointer.Bool(true),
-		FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-		Properties: config.SSLProperties{
-			Protocol:         "TLS",
-			KeyStoreType:     "JKS",
-			KeyStore:         jksPath,
-			KeyStorePassword: password,
-		},
-	}
-	return
-}
-
-func tlsOpenSslConfigs() (member config.SSL, client config.SSL) {
-	var (
-		crtPath = path.Join(n.TLSMountPath, corev1.TLSCertKey)
-		keyPath = path.Join(n.TLSMountPath, corev1.TLSPrivateKeyKey)
-	)
-	// require MTLS for member-member communication
-	member = config.SSL{
-		Enabled:          pointer.Bool(true),
-		FactoryClassName: "com.hazelcast.nio.ssl.OpenSSLEngineFactory",
-		Properties: config.SSLProperties{
-			Protocol:                "TLSv1.2",
+func NewOpenSSLProperties(crtPath, keyPath, protocol string, auth hazelcastv1alpha1.MutualAuthentication) config.SSLProperties {
+	switch auth {
+	case hazelcastv1alpha1.MutualAuthenticationRequired:
+		return config.SSLProperties{
+			Protocol:                protocol,
+			MutualAuthentication:    "REQUIRED",
 			TrustCertCollectionFile: crtPath,
 			KeyFile:                 keyPath,
 			KeyCertChainFile:        crtPath,
-		},
-	}
-	// for client-server configuration use only server TLS
-	client = config.SSL{
-		Enabled:          pointer.Bool(true),
-		FactoryClassName: "com.hazelcast.nio.ssl.OpenSSLEngineFactory",
-		Properties: config.SSLProperties{
-			Protocol:         "TLS",
+		}
+	case hazelcastv1alpha1.MutualAuthenticationOptional:
+		return config.SSLProperties{
+			Protocol:                protocol,
+			MutualAuthentication:    "OPTIONAL",
+			TrustCertCollectionFile: crtPath,
+			KeyFile:                 keyPath,
+			KeyCertChainFile:        crtPath,
+		}
+	default:
+		return config.SSLProperties{
+			Protocol:         protocol,
 			KeyFile:          keyPath,
 			KeyCertChainFile: crtPath,
-		},
+		}
 	}
-	return
 }
 
 func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {

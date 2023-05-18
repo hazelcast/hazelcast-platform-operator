@@ -545,7 +545,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
 					Name:    "dev",
 					Address: "dummy",
-					TLS: hazelcastv1alpha1.TLS{
+					TLS: &hazelcastv1alpha1.TLS{
 						SecretName:           secret.GetName(),
 						MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 					},

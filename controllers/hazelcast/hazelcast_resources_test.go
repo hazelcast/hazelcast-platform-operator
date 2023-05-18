@@ -30,7 +30,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 	}
 
 	hzConfig := &config.HazelcastWrapper{}
-	err := yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+	err := yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 	if err != nil {
 		t.Errorf("Error unmarshalling Hazelcast config")
 	}

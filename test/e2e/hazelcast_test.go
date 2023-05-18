@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
@@ -219,7 +220,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
 
 				secret := &corev1.Secret{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      hz.Spec.TLS.SecretName,
 						Namespace: hz.Namespace,
 					},
