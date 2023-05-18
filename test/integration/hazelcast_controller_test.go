@@ -1596,15 +1596,23 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 				EnsureStatus(hz)
 
-				Eventually(func() bool {
+				config := new(config.HazelcastWrapper)
+
+				Eventually(func() error {
 					configMap := getSecret(hz)
+					return yaml.Unmarshal(configMap.Data["hazelcast.yaml"], config)
+				}, timeout, interval).ShouldNot(HaveOccurred())
 
-					config := &config.HazelcastWrapper{}
-
-					return yaml.Unmarshal(configMap.Data["hazelcast.yaml"], config) == nil &&
-						*config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.Enabled &&
-						*config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.Enabled
-				}, timeout, interval).Should(BeTrue())
+				Expect(*config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.Enabled).Should(BeTrue())
+				Expect(config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.FactoryClassName).
+					Should(Equal("com.hazelcast.nio.ssl.BasicSSLContextFactory"))
+				Expect(config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.Properties.MutualAuthentication).
+					Should(Equal("REQUIRED"))
+				Expect(*config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.Enabled).Should(BeTrue())
+				Expect(config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.FactoryClassName).
+					Should(Equal("com.hazelcast.nio.ssl.BasicSSLContextFactory"))
+				Expect(config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.Properties.MutualAuthentication).
+					Should(BeEmpty())
 
 				Delete(hz)
 			})
@@ -1627,8 +1635,9 @@ var _ = Describe("Hazelcast controller", func() {
 
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.TLS = &hazelcastv1alpha1.TLS{
-					SecretName: secret.GetName(),
-					Type:       hazelcastv1alpha1.TLSTypeOpenSSL,
+					SecretName:           secret.GetName(),
+					Type:                 hazelcastv1alpha1.TLSTypeOpenSSL,
+					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationOptional,
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: GetRandomObjectMeta(),
@@ -1638,17 +1647,23 @@ var _ = Describe("Hazelcast controller", func() {
 				Create(hz)
 				EnsureStatus(hz)
 
-				Eventually(func() bool {
+				config := new(config.HazelcastWrapper)
+
+				Eventually(func() error {
 					configMap := getSecret(hz)
+					return yaml.Unmarshal(configMap.Data["hazelcast.yaml"], config)
+				}, timeout, interval).ShouldNot(HaveOccurred())
 
-					config := &config.HazelcastWrapper{}
-
-					return yaml.Unmarshal(configMap.Data["hazelcast.yaml"], config) == nil &&
-						*config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.Enabled &&
-						config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.FactoryClassName == "com.hazelcast.nio.ssl.OpenSSLEngineFactory" &&
-						*config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.Enabled &&
-						config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.FactoryClassName == "com.hazelcast.nio.ssl.OpenSSLEngineFactory"
-				}, timeout, interval).Should(BeTrue())
+				Expect(*config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.Enabled).Should(BeTrue())
+				Expect(config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.FactoryClassName).
+					Should(Equal("com.hazelcast.nio.ssl.OpenSSLEngineFactory"))
+				Expect(config.Hazelcast.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL.Properties.MutualAuthentication).
+					Should(Equal("REQUIRED"))
+				Expect(*config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.Enabled).Should(BeTrue())
+				Expect(config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.FactoryClassName).
+					Should(Equal("com.hazelcast.nio.ssl.OpenSSLEngineFactory"))
+				Expect(config.Hazelcast.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL.Properties.MutualAuthentication).
+					Should(Equal("OPTIONAL"))
 
 				Delete(hz)
 			})

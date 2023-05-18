@@ -7,13 +7,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 const (
@@ -187,6 +185,20 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				CreateHazelcastCR(hz)
 				evaluateReadyMembers(hzLookupKey)
 			})
+
+			It("should form a cluster with Mutual Authentication required and be able to connect", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				setLabelAndCRName("h-10")
+
+				tlsSecret := CreateTlsSecret(hzLookupKey)
+
+				hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, tlsSecret.Name, ee, labels)
+
+				CreateHazelcastCR(hz)
+				evaluateReadyMembers(hzLookupKey)
+			})
 		})
 
 		When("TLS property is configured to OpenSSL with UserCodeDeployment", func() {
@@ -209,30 +221,24 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				CreateHazelcastCR(hz)
 				evaluateReadyMembers(hzLookupKey)
 			})
-		})
 
-		When("TLS with Mutual Authentication property is configured", func() {
-			It("should form a cluster and be able to connect", Label("fast"), func() {
+			It("should form a cluster with Mutual Authentication required and be able to connect", Label("fast"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-				setLabelAndCRName("h-8")
-				hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
+				setLabelAndCRName("h-11")
 
-				secret := &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      hz.Spec.TLS.SecretName,
-						Namespace: hz.Namespace,
-					},
-					Data: map[string][]byte{
-						"tls.crt": []byte(hazelcastconfig.ExampleCert),
-						"tls.key": []byte(hazelcastconfig.ExampleKey),
-					},
+				ucdBucketSecret := "br-secret-gcp"
+				usdBucketUri := "gs://hazelcast-operator-tls-openssl"
+
+				tlsSecret := CreateTlsSecret(hzLookupKey)
+
+				hz := hazelcastconfig.UserCodeBucket(hzLookupKey, ee, ucdBucketSecret, usdBucketUri, labels)
+				hz.Spec.TLS = &hazelcastcomv1alpha1.TLS{
+					Type:                 hazelcastcomv1alpha1.TLSTypeOpenSSL,
+					SecretName:           tlsSecret.Name,
+					MutualAuthentication: hazelcastcomv1alpha1.MutualAuthenticationRequired,
 				}
-
-				By("creating TLS secret", func() {
-					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
-				})
 
 				CreateHazelcastCR(hz)
 				evaluateReadyMembers(hzLookupKey)

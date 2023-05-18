@@ -355,7 +355,7 @@ var (
 		}
 	}
 
-	HazelcastMTLS = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
+	HazelcastMTLS = func(lk types.NamespacedName, secretName string, ee bool, lbls map[string]string) *hazelcastv1alpha1.Hazelcast {
 		return &hazelcastv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -368,7 +368,7 @@ var (
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
 				TLS: &hazelcastv1alpha1.TLS{
-					SecretName:           lk.Name + "-mtls",
+					SecretName:           secretName,
 					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 				},
 			},
