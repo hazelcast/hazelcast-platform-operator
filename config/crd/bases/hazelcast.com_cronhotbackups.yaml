@@ -73,6 +73,9 @@ spec:
                           Hazelcast resource
                         type: string
                       secret:
+                        description: secret is a deprecated alias for secretName.
+                        type: string
+                      secretName:
                         description: Name of the secret with credentials for cloud
                           providers.
                         type: string

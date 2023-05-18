@@ -6,7 +6,7 @@ spec:
   clusterSize: 3
   repository: "docker.io/hazelcast/hazelcast-enterprise"
   version: "5.2.1"
-  licenseKeySecret: hazelcast-license-key
+  licenseKeySecretName: hazelcast-license-key
   tls:
     secretName: example
     type: OpenSSL

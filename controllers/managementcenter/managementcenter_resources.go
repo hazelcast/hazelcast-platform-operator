@@ -467,14 +467,14 @@ func configMount() corev1.VolumeMount {
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{{Name: mcInitCmd, Value: clusterAddCommand(mc)}}
 
-	if mc.Spec.LicenseKeySecret != "" {
+	if mc.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: mcLicenseKey,
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
 						LocalObjectReference: v1.LocalObjectReference{
-							Name: mc.Spec.LicenseKeySecret,
+							Name: mc.Spec.GetLicenseKeySecretName(),
 						},
 						Key: n.LicenseDataKey,
 					},
