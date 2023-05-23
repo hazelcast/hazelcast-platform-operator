@@ -1725,7 +1725,6 @@ spec:
                       className:
                         type: string
                       overrideJavaSerialization:
-                        default: false
                         type: boolean
                     required:
                     - className
