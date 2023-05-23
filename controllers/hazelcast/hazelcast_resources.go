@@ -652,6 +652,7 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
+	fillHazelcastConfigWithSerialization(&cfg, h)
 
 	ml, err := filterPersistedMaps(ctx, c, h)
 	if err != nil {
@@ -1175,6 +1176,73 @@ func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcast
 			cfg.ScheduledExecutorService[sescfg.Name] = createScheduledExecutorServiceConfig(&sescfg)
 		}
 	}
+}
+
+func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
+	if h.Spec.Serialization == nil {
+		return
+	}
+	s := h.Spec.Serialization
+	byteOrder := "BIG_ENDIAN"
+	if s.ByteOrder == hazelcastv1alpha1.LittleEndian {
+		byteOrder = "LITTLE_ENDIAN"
+	}
+	cfg.Serialization = config.Serialization{
+		UseNativeByteOrder:        s.ByteOrder == hazelcastv1alpha1.NativeByteOrder,
+		ByteOrder:                 byteOrder,
+		DataSerializableFactories: factories(s.DataSerializableFactories),
+		PortableFactories:         factories(s.PortableFactories),
+		GlobalSerializer: &config.GlobalSerializer{
+			OverrideJavaSerialization: s.GlobalSerializer.OverrideJavaSerialization,
+			ClassName:                 s.GlobalSerializer.ClassName,
+		},
+		Serializers: serializers(s.Serializers),
+	}
+	if s.JavaSerializationFilter != nil {
+		cfg.Serialization.JavaSerializationFilter = &config.JavaSerializationFilter{
+			Blacklist: filterList(s.JavaSerializationFilter.Blacklist),
+			Whitelist: filterList(s.JavaSerializationFilter.Whitelist),
+		}
+	}
+	if s.CompactSerialization != nil {
+		cfg.Serialization.CompactSerialization = &config.CompactSerialization{
+			Serializers: s.CompactSerialization.Serializers,
+			Classes:     s.CompactSerialization.Classes,
+		}
+	}
+}
+
+func filterList(jsf *hazelcastv1alpha1.SerializationFilterList) *config.FilterList {
+	if jsf == nil {
+		return nil
+	}
+	return &config.FilterList{
+		Classes:  jsf.Classes,
+		Packages: jsf.Packages,
+		Prefixes: jsf.Prefixes,
+	}
+}
+
+func serializers(srs []hazelcastv1alpha1.Serializer) []config.Serializer {
+	var res []config.Serializer
+	for _, sr := range srs {
+		res = append(res, config.Serializer{
+			TypeClass: sr.TypeClass,
+			ClassName: sr.ClassName,
+		})
+	}
+	return res
+}
+
+func factories(factories []string) []config.ClassFactories {
+	var classFactories []config.ClassFactories
+	for i, f := range factories {
+		classFactories = append(classFactories, config.ClassFactories{
+			FactoryId: int32(i),
+			ClassName: f,
+		})
+	}
+	return classFactories
 }
 
 func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
