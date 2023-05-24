@@ -201,6 +201,9 @@ spec:
                           Hazelcast resource
                         type: string
                       secret:
+                        description: secret is a deprecated alias for secretName.
+                        type: string
+                      secretName:
                         description: Name of the secret with credentials for cloud
                           providers.
                         type: string
@@ -343,7 +346,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.16
+                  version: 0.1.20
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -351,7 +354,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.16
+                    default: 0.1.20
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -475,10 +478,98 @@ spec:
                   resourceUploadEnabled: false
                 description: Jet Engine configuration
                 properties:
+                  bucketConfig:
+                    description: Bucket config from where the JAR files will be downloaded.
+                    properties:
+                      bucketURI:
+                        description: 'URL of the bucket to download HotBackup folders.
+                          AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
+                          Example bucket URIs: - AWS S3     -> s3://bucket-name/path/to/folder
+                          - GCP Bucket -> gs://bucket-name/path/to/folder - Azure
+                          Blob -> azblob://bucket-name/path/to/folder'
+                        minLength: 6
+                        type: string
+                      secret:
+                        description: secret is a deprecated alias for secretName.
+                        type: string
+                      secretName:
+                        description: Name of the secret with credentials for cloud
+                          providers.
+                        type: string
+                    required:
+                    - bucketURI
+                    type: object
+                  configMaps:
+                    description: Names of the list of ConfigMaps. Files in each ConfigMap
+                      will be downloaded.
+                    items:
+                      type: string
+                    type: array
+                  edgeDefaults:
+                    description: Jet Edge Defaults Configuration
+                    properties:
+                      packetSizeLimit:
+                        description: Limits the size of the packet in bytes.
+                        format: int32
+                        type: integer
+                      queueSize:
+                        description: Sets the capacity of processor-to-processor concurrent
+                          queues.
+                        format: int32
+                        type: integer
+                      receiveWindowMultiplier:
+                        description: Sets the scaling factor used by the adaptive
+                          receive window sizing function.
+                        type: integer
+                    type: object
                   enabled:
                     default: true
                     description: When false, disables Jet Engine.
                     type: boolean
+                  instance:
+                    description: Jet Instance Configuration
+                    properties:
+                      backupCount:
+                        default: 1
+                        description: The number of synchronous backups to configure
+                          on the IMap that Jet needs internally to store job metadata
+                          and snapshots.
+                        format: int32
+                        maximum: 6
+                        type: integer
+                      cooperativeThreadCount:
+                        description: The number of threads Jet creates in its cooperative
+                          multithreading pool.
+                        format: int32
+                        type: integer
+                      flowControlPeriodMillis:
+                        default: 100
+                        description: The duration of the interval between flow-control
+                          packets.
+                        format: int32
+                        type: integer
+                      losslessRestartEnabled:
+                        default: false
+                        description: Specifies whether the Lossless Cluster Restart
+                          feature is enabled.
+                        type: boolean
+                      maxProcessorAccumulatedRecords:
+                        description: Specifies the maximum number of records that
+                          can be accumulated by any single processor instance.
+                        format: int64
+                        type: integer
+                      scaleUpDelayMillis:
+                        default: 10000
+                        description: The delay after which the auto-scaled jobs restart
+                          if a new member joins the cluster.
+                        format: int32
+                        type: integer
+                    type: object
+                  remoteURLs:
+                    description: List of URLs from where the files will be downloaded.
+                    items:
+                      type: string
+                    type: array
                   resourceUploadEnabled:
                     default: false
                     description: When true, enables resource uploading for Jet jobs.
@@ -524,6 +615,9 @@ spec:
                     type: object
                 type: object
               licenseKeySecret:
+                description: licenseKeySecret is a deprecated alias for licenseKeySecretName.
+                type: string
+              licenseKeySecretName:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string
@@ -655,13 +749,14 @@ spec:
                             minLength: 6
                             type: string
                           secret:
+                            description: secret is a deprecated alias for secretName.
+                            type: string
+                          secretName:
                             description: Name of the secret with credentials for cloud
                               providers.
-                            minLength: 1
                             type: string
                         required:
                         - bucketURI
-                        - secret
                         type: object
                       hotBackupResourceName:
                         description: Name of the HotBackup resource from which backup
@@ -1839,6 +1934,15 @@ spec:
               tls:
                 description: Hazelcast TLS configuration
                 properties:
+                  mutualAuthentication:
+                    default: None
+                    description: Mutual authentication configuration. It’s None by
+                      default which means the client side of connection is not authenticated.
+                    enum:
+                    - None
+                    - Required
+                    - Optional
+                    type: string
                   secretName:
                     description: Name of the secret with TLS certificate and key.
                     type: string
@@ -1847,8 +1951,7 @@ spec:
                 description: User Codes to Download into CLASSPATH
                 properties:
                   bucketConfig:
-                    description: Bucket config where JAR files will be downloaded
-                      into Java CLASSPATH.
+                    description: Bucket config from where the JAR files will be downloaded.
                     properties:
                       bucketURI:
                         description: 'URL of the bucket to download HotBackup folders.
@@ -1859,20 +1962,26 @@ spec:
                         minLength: 6
                         type: string
                       secret:
+                        description: secret is a deprecated alias for secretName.
+                        type: string
+                      secretName:
                         description: Name of the secret with credentials for cloud
                           providers.
-                        minLength: 1
                         type: string
                     required:
                     - bucketURI
-                    - secret
                     type: object
                   clientEnabled:
                     description: When true, allows user code deployment from clients.
                     type: boolean
                   configMaps:
                     description: Names of the list of ConfigMaps. Files in each ConfigMap
-                      will be put under Java CLASSPATH.
+                      will be downloaded.
+                    items:
+                      type: string
+                    type: array
+                  remoteURLs:
+                    description: List of URLs from where the files will be downloaded.
                     items:
                       type: string
                     type: array
@@ -1882,7 +1991,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.2.3
+                default: 5.3.0-BETA-2
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
@@ -2064,6 +2173,9 @@ spec:
                   resource
                 type: string
               secret:
+                description: secret is a deprecated alias for secretName.
+                type: string
+              secretName:
                 description: Name of the secret with credentials for cloud providers.
                 type: string
             required:
@@ -2090,6 +2202,153 @@ spec:
             type: object
         required:
         - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
+  name: jetjobs.hazelcast.com
+spec:
+  group: hazelcast.com
+  names:
+    kind: JetJob
+    listKind: JetJobList
+    plural: jetjobs
+    shortNames:
+    - jj
+    singular: jetjob
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Current state of the JetJob
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    - description: ID of the JetJob
+      jsonPath: .status.id
+      name: Id
+      type: string
+    - description: Time when the JetJob was submitted
+      jsonPath: .status.submissionTime
+      name: SubmissionTime
+      type: string
+    - description: Time when the JetJob was completed
+      jsonPath: .status.completionTime
+      name: CompletionTime
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: JetJob is the Schema for the jetjobs API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: JetJobSpec defines the desired state of JetJob
+            properties:
+              bucketConfig:
+                description: Bucket config from where the JAR files will be downloaded.
+                properties:
+                  bucketURI:
+                    description: 'URL of the bucket to download HotBackup folders.
+                      AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
+                      Example bucket URIs: - AWS S3     -> s3://bucket-name/path/to/folder
+                      - GCP Bucket -> gs://bucket-name/path/to/folder - Azure Blob
+                      -> azblob://bucket-name/path/to/folder'
+                    minLength: 6
+                    type: string
+                  secret:
+                    description: secret is a deprecated alias for secretName.
+                    type: string
+                  secretName:
+                    description: Name of the secret with credentials for cloud providers.
+                    type: string
+                required:
+                - bucketURI
+                type: object
+              hazelcastResourceName:
+                description: HazelcastResourceName defines the name of the Hazelcast
+                  resource that this resource is created for.
+                minLength: 1
+                type: string
+              jarName:
+                description: JarName specify the name of the Jar to run that is present
+                  on the member.
+                minLength: 1
+                type: string
+              mainClass:
+                description: MainClass is the name of the main class that will be
+                  run on the submitted job.
+                type: string
+              name:
+                description: Name of the JetJob to be created. If empty, CR name will
+                  be used. It cannot be updated after the config is created successfully.
+                type: string
+              remoteURL:
+                description: URL from where the file will be downloaded.
+                type: string
+              state:
+                default: Running
+                description: State is used to manage the job state.
+                enum:
+                - Running
+                - Suspended
+                - Canceled
+                - Restarted
+                type: string
+            required:
+            - hazelcastResourceName
+            - jarName
+            - state
+            type: object
+          status:
+            description: JetJobStatus defines the observed state of JetJob
+            properties:
+              completionTime:
+                format: date-time
+                type: string
+              failureText:
+                type: string
+              id:
+                format: int64
+                type: integer
+              phase:
+                enum:
+                - NotRunning
+                - Starting
+                - Running
+                - Suspended
+                - SuspendedExportingSnapshot
+                - Completing
+                - Failed
+                - Completed
+                type: string
+              submissionTime:
+                format: date-time
+                type: string
+              suspensionCause:
+                type: string
+            required:
+            - id
+            - phase
+            type: object
         type: object
     served: true
     storage: true
@@ -2213,6 +2472,16 @@ spec:
                     tls:
                       description: TLS client configuration.
                       properties:
+                        mutualAuthentication:
+                          default: None
+                          description: Mutual authentication configuration. It’s None
+                            by default which means the client side of connection is
+                            not authenticated.
+                          enum:
+                          - None
+                          - Required
+                          - Optional
+                          type: string
                         secretName:
                           description: Name of the secret with TLS certificate and
                             key.
@@ -2240,6 +2509,9 @@ spec:
                   x-kubernetes-map-type: atomic
                 type: array
               licenseKeySecret:
+                description: licenseKeySecret is a deprecated alias for licenseKeySecretName.
+                type: string
+              licenseKeySecretName:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string
@@ -3973,6 +4245,7 @@ spec:
                 default: 0
                 description: Max size of the queue.
                 format: int32
+                minimum: 0
                 type: integer
               name:
                 description: Name of the data structure config to be created. If empty,

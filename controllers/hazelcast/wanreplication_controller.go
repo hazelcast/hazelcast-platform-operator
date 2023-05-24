@@ -327,10 +327,11 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			hzResourceName = m.Spec.HazelcastResourceName
 		}
 
-		statusService, ok := r.statusServiceRegistry.Get(types.NamespacedName{
+		name := types.NamespacedName{
 			Namespace: req.Namespace,
 			Name:      hzResourceName,
-		})
+		}
+		statusService, ok := r.statusServiceRegistry.Get(name)
 		if !ok {
 			return fmt.Errorf("get Hazelcast Status Service failed for Hazelcast CR %s", hzResourceName)
 		}
@@ -341,7 +342,7 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			memberAddresses = append(memberAddresses, v.Address)
 		}
 
-		mtlsClient, ok := r.mtlsClientRegistry.Get(req.Namespace)
+		mtlsClient, ok := r.mtlsClientRegistry.Get(ctx, name)
 		if !ok {
 			return errors.New("failed to get MTLS client")
 		}

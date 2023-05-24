@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"sync"
 
@@ -40,6 +41,7 @@ func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.Nam
 		return nil, err
 	}
 	var pool *x509.CertPool
+	var certificate *tls.Certificate
 	if h.Spec.TLS.SecretName != "" {
 		var s v1.Secret
 		err = cr.K8sClient.Get(ctx, types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}, &s)
@@ -50,8 +52,15 @@ func (cr *HazelcastClientRegistry) GetOrCreate(ctx context.Context, nn types.Nam
 		if ok := pool.AppendCertsFromPEM(s.Data[v1.TLSCertKey]); !ok {
 			return nil, err
 		}
+		if h.Spec.TLS.MutualAuthentication != hazelcastv1alpha1.MutualAuthenticationNone {
+			cert, err := tls.X509KeyPair(s.Data[v1.TLSCertKey], s.Data[v1.TLSPrivateKeyKey])
+			if err != nil {
+				return nil, err
+			}
+			certificate = &cert
+		}
 	}
-	c, err := NewClient(ctx, BuildConfig(h, pool, hzLogger))
+	c, err := NewClient(ctx, BuildConfig(h, pool, certificate, hzLogger))
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -58,6 +59,34 @@ var _ = Describe("ManagementCenter CR", func() {
 		return svc
 	}
 
+	CreateLicenseKeySecret := func(name string) *corev1.Secret {
+		By(fmt.Sprintf("creating license key secret '%s'", name))
+		licenseSec := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Data: map[string][]byte{
+				n.LicenseDataKey: []byte("integration-test-license"),
+			},
+		}
+
+		Eventually(func() bool {
+			err := k8sClient.Create(context.Background(), licenseSec)
+			return err == nil || errors.IsAlreadyExists(err)
+		}, timeout, interval).Should(BeTrue())
+
+		assertExists(lookupKey(licenseSec), &corev1.Secret{})
+
+		return licenseSec
+	}
+
+	BeforeEach(func() {
+		if ee {
+			CreateLicenseKeySecret(n.LicenseKeySecret)
+		}
+	})
+
 	Context("ManagementCenter CustomResource with default specs", func() {
 		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
@@ -86,7 +115,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			}
 			Expect(fetchedCR.Spec.ExternalConnectivity).Should(Equal(expectedExternalConnectivity))
 
-			expectedPersistence := hazelcastv1alpha1.PersistenceConfiguration{
+			expectedPersistence := hazelcastv1alpha1.MCPersistenceConfiguration{
 				Enabled: pointer.Bool(true),
 				Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 			}
@@ -246,7 +275,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
-						Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+						Persistence: hazelcastv1alpha1.MCPersistenceConfiguration{
 							Enabled:                 pointer.Bool(true),
 							ExistingVolumeClaimName: "ClaimName",
 						},
@@ -474,16 +503,45 @@ var _ = Describe("ManagementCenter CR", func() {
 				deleteResource(lookupKey(mc), mc)
 			})
 		})
+		When("TLS with Mutual Authentication property is configured", func() {
+			It("should be enabled", Label("fast"), func() {
+				secret := &corev1.Secret{
+					ObjectMeta: GetRandomObjectMeta(),
+					Data: map[string][]byte{
+						"tls.crt": []byte(exampleCert),
+						"tls.key": []byte(exampleKey),
+					},
+				}
+				Create(secret)
+				defer Delete(secret)
+
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				}
+				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+					Name:    "dev",
+					Address: "dummy",
+					TLS: hazelcastv1alpha1.TLS{
+						SecretName:           secret.GetName(),
+						MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
+					},
+				}}
+				Create(mc)
+				EnsureStatus(mc)
+				Delete(mc)
+			})
+		})
 	})
 
 	Context("StatefulSet", func() {
 		firstSpec := hazelcastv1alpha1.ManagementCenterSpec{
-			Repository:        "hazelcast/management-center-1",
-			Version:           "5.2",
-			ImagePullPolicy:   corev1.PullAlways,
-			ImagePullSecrets:  nil,
-			LicenseKeySecret:  "key-secret",
-			HazelcastClusters: nil,
+			Repository:           "hazelcast/management-center-1",
+			Version:              "5.2",
+			ImagePullPolicy:      corev1.PullAlways,
+			ImagePullSecrets:     nil,
+			LicenseKeySecretName: "key-secret",
+			HazelcastClusters:    nil,
 		}
 		secondSpec := hazelcastv1alpha1.ManagementCenterSpec{
 			Repository:      "hazelcast/management-center",
@@ -494,7 +552,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				{Name: "secret2"},
 			},
 
-			LicenseKeySecret: "",
+			LicenseKeySecretName: "",
 			HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
 				{Name: "dev", Address: "cluster-address"},
 			},
@@ -559,10 +617,10 @@ var _ = Describe("ManagementCenter CR", func() {
 						}
 					}
 				}
-				By("checking if StatefulSet LicenseKeySecret is updated")
+				By("checking if StatefulSet LicenseKeySecretName is updated")
 				for _, env := range el {
 					if env.Name == "MC_LICENSEKEY" {
-						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.LicenseKeySecret))
+						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.GetLicenseKeySecretName()))
 					}
 				}
 

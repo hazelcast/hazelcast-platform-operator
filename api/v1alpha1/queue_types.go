@@ -15,6 +15,7 @@ type QueueSpec struct {
 
 	// Max size of the queue.
 	// +kubebuilder:default:=0
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MaxSize int32 `json:"maxSize"`
 
@@ -86,6 +87,14 @@ func (q *Queue) SetSpec(spec string) error {
 		return err
 	}
 	return nil
+}
+
+func (q *Queue) ValidateSpecCurrent(_ *Hazelcast) error {
+	return nil
+}
+
+func (q *Queue) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(q)
 }
 
 //+kubebuilder:object:root=true

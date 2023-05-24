@@ -26,7 +26,7 @@ const (
 	Terminating Phase = "Terminating"
 )
 
-// LoggingLevel controlls log verbosity for Hazelcast.
+// LoggingLevel controls log verbosity for Hazelcast.
 // +kubebuilder:validation:Enum=OFF;FATAL;ERROR;WARN;INFO;DEBUG;TRACE;ALL
 type LoggingLevel string
 
@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.2.3"
+	// +kubebuilder:default:="5.3.0-BETA-2"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -68,9 +68,13 @@ type HazelcastSpec struct {
 	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
+	// licenseKeySecret is a deprecated alias for licenseKeySecretName.
+	// +optional
+	DeprecatedLicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
-	LicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
 	// +kubebuilder:default:={}
@@ -98,7 +102,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.16"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.20"}
 	// +optional
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
@@ -163,6 +167,13 @@ type HazelcastSpec struct {
 	TLS TLS `json:"tls,omitempty"`
 }
 
+func (s *HazelcastSpec) GetLicenseKeySecretName() string {
+	if s.LicenseKeySecretName == "" {
+		return s.DeprecatedLicenseKeySecret
+	}
+	return s.LicenseKeySecretName
+}
+
 type ManagementCenterConfig struct {
 	// Allows you to execute scripts that can automate interactions with the cluster.
 	// +kubebuilder:default:=false
@@ -199,11 +210,101 @@ type JetEngineConfiguration struct {
 	// +kubebuilder:default:=false
 	// +optional
 	ResourceUploadEnabled bool `json:"resourceUploadEnabled"`
+
+	// Configuration for downloading the JAR files be downloaded and accessible for the member.
+	// These JAR files will not be placed in the CLASSPATH.
+	// +optional
+	RemoteFileConfiguration `json:",inline"`
+
+	// Jet Instance Configuration
+	// +kubebuilder:default:={}
+	// +optional
+	Instance *JetInstance `json:"instance,omitempty"`
+
+	// Jet Edge Defaults Configuration
+	// +kubebuilder:default:={}
+	// +optional
+	EdgeDefaults *JetEdgeDefaults `json:"edgeDefaults,omitempty"`
+}
+
+type JetInstance struct {
+	// The number of threads Jet creates in its cooperative multithreading pool.
+	// +optional
+	CooperativeThreadCount int32 `json:"cooperativeThreadCount,omitempty"`
+
+	// The duration of the interval between flow-control packets.
+	// +kubebuilder:default:=100
+	// +optional
+	FlowControlPeriodMillis int32 `json:"flowControlPeriodMillis,omitempty"`
+
+	// The number of synchronous backups to configure on the IMap that Jet needs internally to store job metadata and snapshots.
+	// +kubebuilder:default:=1
+	// +kubebuilder:validation:Maximum:=6
+	// +optional
+	BackupCount int32 `json:"backupCount,omitempty"`
+
+	// The delay after which the auto-scaled jobs restart if a new member joins the cluster.
+	// +kubebuilder:default:=10000
+	// +optional
+	ScaleUpDelayMillis int32 `json:"scaleUpDelayMillis,omitempty"`
+
+	// Specifies whether the Lossless Cluster Restart feature is enabled.
+	// +kubebuilder:default:=false
+	// +optional
+	LosslessRestartEnabled bool `json:"losslessRestartEnabled"`
+
+	// Specifies the maximum number of records that can be accumulated by any single processor instance.
+	// +optional
+	MaxProcessorAccumulatedRecords int64 `json:"maxProcessorAccumulatedRecords,omitempty"`
+}
+
+// Returns true if Jet Instance section is configured.
+func (j *JetInstance) IsConfigured() bool {
+	return j != nil && !(*j == (JetInstance{}))
+}
+
+type JetEdgeDefaults struct {
+	// Sets the capacity of processor-to-processor concurrent queues.
+	// +optional
+	QueueSize int32 `json:"queueSize,omitempty"`
+
+	// Limits the size of the packet in bytes.
+	// +optional
+	PacketSizeLimit int32 `json:"packetSizeLimit,omitempty"`
+
+	// Sets the scaling factor used by the adaptive receive window sizing function.
+	// +optional
+	ReceiveWindowMultiplier int8 `json:"receiveWindowMultiplier,omitempty"`
+}
+
+// Returns true if Jet Instance Edge Defaults is configured.
+func (j *JetEdgeDefaults) IsConfigured() bool {
+	return j != nil && !(*j == (JetEdgeDefaults{}))
 }
 
 // Returns true if Jet section is configured.
 func (j *JetEngineConfiguration) IsConfigured() bool {
 	return j != nil
+}
+
+// Returns true if jet is enabled.
+func (j *JetEngineConfiguration) IsEnabled() bool {
+	return j != nil && j.Enabled != nil && *j.Enabled
+}
+
+// Returns true if jet.bucketConfiguration is specified.
+func (j *JetEngineConfiguration) IsBucketEnabled() bool {
+	return j != nil && j.RemoteFileConfiguration.BucketConfiguration != nil
+}
+
+// Returns true if jet.configMaps configuration is specified.
+func (j *JetEngineConfiguration) IsConfigMapEnabled() bool {
+	return j != nil && (len(j.RemoteFileConfiguration.ConfigMaps) != 0)
+}
+
+// Returns true if jet.RemoteURLs configuration is specified.
+func (j *JetEngineConfiguration) IsRemoteURLsEnabled() bool {
+	return j != nil && (len(j.RemoteFileConfiguration.RemoteURLs) != 0)
 }
 
 type ExecutorServiceConfiguration struct {
@@ -289,11 +390,43 @@ const (
 	CapacityPolicyPerPartition CapacityPolicyType = "PER_PARTITION"
 )
 
+// UserCodeDeploymentConfig contains the configuration for User Code download operation
+type UserCodeDeploymentConfig struct {
+	// When true, allows user code deployment from clients.
+	// +optional
+	ClientEnabled *bool `json:"clientEnabled,omitempty"`
+
+	// A string for triggering a rolling restart for re-downloading the user code.
+	// +optional
+	TriggerSequence string `json:"triggerSequence,omitempty"`
+
+	// Configuration for files to download. Files downloaded will be put under Java CLASSPATH.
+	// +optional
+	RemoteFileConfiguration `json:",inline"`
+}
+
+type RemoteFileConfiguration struct {
+	// Bucket config from where the JAR files will be downloaded.
+	// +optional
+	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
+
+	// Names of the list of ConfigMaps. Files in each ConfigMap will be downloaded.
+	// +optional
+	ConfigMaps []string `json:"configMaps,omitempty"`
+
+	// List of URLs from where the files will be downloaded.
+	// +optional
+	RemoteURLs []string `json:"remoteURLs,omitempty"`
+}
+
 type BucketConfiguration struct {
+	// secret is a deprecated alias for secretName.
+	// +optional
+	DeprecatedSecret string `json:"secret"`
+
 	// Name of the secret with credentials for cloud providers.
-	// +kubebuilder:validation:MinLength:=1
-	// +required
-	Secret string `json:"secret"`
+	// +optional
+	SecretName string `json:"secretName"`
 
 	// URL of the bucket to download HotBackup folders.
 	// AWS S3, GCP Bucket and Azure Blob storage buckets are supported.
@@ -306,33 +439,26 @@ type BucketConfiguration struct {
 	BucketURI string `json:"bucketURI"`
 }
 
-// UserCodeDeploymentConfig contains the configuration for User Code download operation
-type UserCodeDeploymentConfig struct {
-	// When true, allows user code deployment from clients.
-	// +optional
-	ClientEnabled *bool `json:"clientEnabled,omitempty"`
-
-	// Bucket config where JAR files will be downloaded into Java CLASSPATH.
-	// +optional
-	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
-
-	// A string for triggering a rolling restart for re-downloading the user code.
-	// +optional
-	TriggerSequence string `json:"triggerSequence,omitempty"`
-
-	// Names of the list of ConfigMaps. Files in each ConfigMap will be put under Java CLASSPATH.
-	// +optional
-	ConfigMaps []string `json:"configMaps,omitempty"`
+func (b *BucketConfiguration) GetSecretName() string {
+	if b.SecretName == "" {
+		return b.DeprecatedSecret
+	}
+	return b.SecretName
 }
 
 // Returns true if userCodeDeployment.bucketConfiguration is specified.
 func (c *UserCodeDeploymentConfig) IsBucketEnabled() bool {
-	return c != nil && c.BucketConfiguration != nil
+	return c != nil && c.RemoteFileConfiguration.BucketConfiguration != nil
 }
 
 // Returns true if userCodeDeployment.configMaps configuration is specified.
 func (c *UserCodeDeploymentConfig) IsConfigMapEnabled() bool {
-	return c != nil && (len(c.ConfigMaps) != 0)
+	return c != nil && (len(c.RemoteFileConfiguration.ConfigMaps) != 0)
+}
+
+// Returns true if userCodeDeployment.RemoteURLs configuration is specified.
+func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
+	return c != nil && (len(c.RemoteFileConfiguration.RemoteURLs) != 0)
 }
 
 type AgentConfiguration struct {
@@ -342,7 +468,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.16"
+	// +kubebuilder:default:="0.1.20"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
@@ -767,9 +893,32 @@ type ClientServerSocketEndpointConfig struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=None;Required;Optional
+type MutualAuthentication string
+
+const (
+	// Client side of connection is not authenticated.
+	MutualAuthenticationNone MutualAuthentication = "None"
+
+	// Server asks for client certificate. If the client does not provide a
+	// keystore or the provided keystore is not verified against member’s
+	// truststore, the client is not authenticated.
+	MutualAuthenticationRequired MutualAuthentication = "Required"
+
+	// Server asks for client certificate, but client is not required
+	// to provide any valid certificate.
+	MutualAuthenticationOptional MutualAuthentication = "Optional"
+)
+
 type TLS struct {
 	// Name of the secret with TLS certificate and key.
 	SecretName string `json:"secretName,omitempty"`
+
+	// Mutual authentication configuration. It’s None by default which
+	// means the client side of connection is not authenticated.
+	// +kubebuilder:default:="None"
+	// +optional
+	MutualAuthentication MutualAuthentication `json:"mutualAuthentication,omitempty"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

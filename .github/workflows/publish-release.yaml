@@ -58,8 +58,8 @@ jobs:
 
           CURRENT_LATEST_TAG=$(curl --fail -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
           -H "Authorization: Bearer $token" | jq -r  '.results[] | select((.tags | length == 2) and .tags[].tag =="latest") | select(.tags[1].is_current == true) | .tags[].tag | select(. !="latest")')
-          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
-          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_OUTPUT
+          echo "CURRENT_LATEST_TAG=$CURRENT_LATEST_TAG" >> $GITHUB_ENV
+          echo "CURRENT_LATEST_TAG=$CURRENT_LATEST_TAG" >> $GITHUB_OUTPUT
 
       - name: Build Operator Image
         run: |

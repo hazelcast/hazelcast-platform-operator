@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 
@@ -88,10 +90,15 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	controllerLogger := ctrl.Log.WithName("controllers")
+
+	if err := k8sManager.Add(kubeclient.Setup(k8sManager.GetClient())); err != nil {
+		controllerLogger.Error(err, "unable to setup 'kubeclient' package")
+		os.Exit(1)
+	}
+
 	cs := &hzclient.HazelcastClientRegistry{K8sClient: k8sClient}
 	ssm := &hzclient.HzStatusServiceRegistry{}
-
-	controllerLogger := ctrl.Log.WithName("controllers")
 
 	err = hazelcast.NewHazelcastReconciler(
 		k8sManager.GetClient(),
@@ -100,7 +107,7 @@ var _ = BeforeSuite(func() {
 		nil,
 		cs,
 		ssm,
-		mtls.NewHttpClientRegistry(),
+		mtls.NewHttpClientRegistry(k8sManager.GetClient()),
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -144,7 +151,7 @@ var _ = BeforeSuite(func() {
 		controllerLogger.WithName("WanReplication"),
 		k8sManager.GetScheme(),
 		nil,
-		mtls.NewHttpClientRegistry(),
+		mtls.NewHttpClientRegistry(k8sManager.GetClient()),
 		cs,
 		ssm,
 	).SetupWithManager(k8sManager)
@@ -171,6 +178,8 @@ var _ = BeforeSuite(func() {
 	err = (&hazelcastcomv1alpha1.WanReplication{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 	err = (&hazelcastcomv1alpha1.ManagementCenter{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.JetJob{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook

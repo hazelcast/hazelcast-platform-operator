@@ -115,7 +115,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	err = hazelcastv1alpha1.ValidateHazelcastSpec(h)
 	if err != nil {
-		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error validating new Spec: %s", err)))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error validating Spec: %s", err)))
 	}
 
 	err = r.reconcileServiceAccount(ctx, h, logger)
@@ -171,7 +171,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	s, createdBefore := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-
 	var newExecutorServices map[string]interface{}
 	if createdBefore {
 		lastSpec, err := r.unmarshalHazelcastSpec(h, s)
@@ -183,18 +182,9 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 		}
-		err = hazelcastv1alpha1.ValidateNotUpdatableHazelcastFields(&h.Spec, lastSpec)
-		if err != nil {
-			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error validating new Spec: %s", err)))
-		}
 	}
 
 	err = r.reconcileSecret(ctx, h, logger)
-	if err != nil {
-		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
-	}
-
-	err = r.reconcileMTLSSecret(ctx, h)
 	if err != nil {
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}

@@ -23,10 +23,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			err := k8sClient.Get(context.Background(), name, hz)
 			Expect(err).ToNot(HaveOccurred())
-			return hz.Status.ExternalAddresses
+			return hz.Status.WanAddresses
 		}, 3*Minute, interval).Should(Not(BeEmpty()))
 		Expect(k8sClient.Get(context.Background(), name, hz)).To(Succeed())
-		return hz.Status.ExternalAddresses
+		return hz.Status.WanAddresses
 	}
 
 	BeforeEach(func() {

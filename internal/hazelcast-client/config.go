@@ -22,7 +22,7 @@ const (
 	AgentPort = 8443
 )
 
-func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, logger hzlogger.Logger) hazelcast.Config {
+func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, cert *tls.Certificate, logger hzlogger.Logger) hazelcast.Config {
 	config := hazelcast.Config{
 		Logger: hzlogger.Config{
 			CustomLogger: logger,
@@ -45,10 +45,14 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, logger hzl
 	cc.Network.SetAddresses(HazelcastUrl(h))
 	if pool != nil {
 		cc.Network.SSL.Enabled = true
-		cc.Network.SSL.SetTLSConfig(&tls.Config{
+		tlsConfig := tls.Config{
 			RootCAs:            pool,
 			InsecureSkipVerify: true,
-		})
+		}
+		if cert != nil {
+			tlsConfig.Certificates = []tls.Certificate{*cert}
+		}
+		cc.Network.SSL.SetTLSConfig(&tlsConfig)
 	}
 	return config
 }

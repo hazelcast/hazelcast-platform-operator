@@ -281,7 +281,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	backupUUIDs := make([]string, len(b.Members()))
 	// for each member monitor and upload backup if needed
 	g, groupCtx = errgroup.WithContext(ctx)
-	mtlsClient, ok := r.mtlsClientRegistry.Get(hazelcastName.Namespace)
+	mtlsClient, ok := r.mtlsClientRegistry.Get(ctx, hazelcastName)
 	if !ok {
 		returnErr := errors.New("failed to get MTLS client")
 		return r.updateStatus(ctx, backupName, recoptions.Error(returnErr),
@@ -322,7 +322,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				BucketURI:     hb.Spec.BucketURI,
 				BackupBaseDir: hz.Spec.Persistence.BaseDir,
 				HazelcastName: hb.Spec.HazelcastResourceName,
-				SecretName:    hb.Spec.Secret,
+				SecretName:    hb.Spec.GetSecretName(),
 				MemberID:      i,
 			})
 			if err != nil {
