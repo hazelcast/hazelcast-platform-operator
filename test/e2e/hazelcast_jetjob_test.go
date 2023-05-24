@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -26,8 +27,9 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
 		}
-		if os.Getenv("HZ_VERSION") == "5.1.6" {
-			Skip("We don't support Jet for 5.1.6 version")
+		version := os.Getenv("HZ_VERSION")
+		if strings.Contains(version, "5.1.6") || strings.Contains(version, "5.0.5") {
+			Skip("We don't support Jet for 5.1.6 or 5.0.5 version")
 		}
 		if runningLocally() {
 			return
