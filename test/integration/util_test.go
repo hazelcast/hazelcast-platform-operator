@@ -3,17 +3,18 @@ package integration
 import (
 	"context"
 	"fmt"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/test"
-	v1 "k8s.io/api/core/v1"
 
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
 func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
@@ -81,8 +82,8 @@ func getStatefulSet(cr metav1.Object) *appsv1.StatefulSet {
 	return sts
 }
 
-func getSecret(cr metav1.Object) *v1.Secret {
-	s := &v1.Secret{}
+func getSecret(cr metav1.Object) *corev1.Secret {
+	s := &corev1.Secret{}
 	Eventually(func() error {
 		return k8sClient.Get(context.Background(), lookupKey(cr), s)
 	}, timeout, interval).Should(Succeed())
@@ -136,6 +137,23 @@ func defaultMcSpecValues() *test.MCSpecValues {
 		LicenseKey:      n.LicenseKeySecret,
 		ImagePullPolicy: n.MCImagePullPolicy,
 	}
+}
+
+func CreateLicenseKeySecret(name string, namespace string) *corev1.Secret {
+	licenseSec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			n.LicenseDataKey: []byte("integration-test-license"),
+		},
+	}
+	Eventually(func() bool {
+		err := k8sClient.Create(context.Background(), licenseSec)
+		return err == nil || errors.IsAlreadyExists(err)
+	}, timeout, interval).Should(BeTrue())
+	return licenseSec
 }
 
 // noinspection ALL

@@ -2,16 +2,26 @@ package integration
 
 import (
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 var _ = Describe("WanReplication CR", func() {
 	const namespace = "default"
+
+	BeforeEach(func() {
+		if ee {
+			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
+		}
+	})
 
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {

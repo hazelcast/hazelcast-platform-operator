@@ -9,7 +9,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -59,31 +58,11 @@ var _ = Describe("ManagementCenter CR", func() {
 		return svc
 	}
 
-	CreateLicenseKeySecret := func(name string) *corev1.Secret {
-		By(fmt.Sprintf("creating license key secret '%s'", name))
-		licenseSec := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
-			},
-			Data: map[string][]byte{
-				n.LicenseDataKey: []byte("integration-test-license"),
-			},
-		}
-
-		Eventually(func() bool {
-			err := k8sClient.Create(context.Background(), licenseSec)
-			return err == nil || errors.IsAlreadyExists(err)
-		}, timeout, interval).Should(BeTrue())
-
-		assertExists(lookupKey(licenseSec), &corev1.Secret{})
-
-		return licenseSec
-	}
-
 	BeforeEach(func() {
 		if ee {
-			CreateLicenseKeySecret(n.LicenseKeySecret)
+			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
 		}
 	})
 
@@ -506,18 +485,19 @@ var _ = Describe("ManagementCenter CR", func() {
 		When("TLS with Mutual Authentication property is configured", func() {
 			It("should be enabled", Label("fast"), func() {
 				secret := &corev1.Secret{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Data: map[string][]byte{
 						"tls.crt": []byte(exampleCert),
 						"tls.key": []byte(exampleKey),
 					},
 				}
-				Create(secret)
-				defer Delete(secret)
+
+				Expect(k8sClient.Create(context.Background(), secret)).ShouldNot(HaveOccurred())
+				defer deleteResource(lookupKey(secret), secret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 				}
 				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
 					Name:    "dev",
@@ -529,7 +509,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				}}
 				Create(mc)
 				EnsureStatus(mc)
-				Delete(mc)
+				deleteResource(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -635,6 +615,36 @@ var _ = Describe("ManagementCenter CR", func() {
 
 				deleteResource(lookupKey(mc), mc)
 			})
+		})
+	})
+
+	When("TLS with Mutual Authentication property is configured", func() {
+		It("should be enabled", Label("fast"), func() {
+			secret := &corev1.Secret{
+				ObjectMeta: randomObjectMeta(namespace),
+				Data: map[string][]byte{
+					"tls.crt": []byte(exampleCert),
+					"tls.key": []byte(exampleKey),
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), secret)).ShouldNot(HaveOccurred())
+			defer deleteResource(lookupKey(secret), secret)
+
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+			}
+			mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+				Name:    "dev",
+				Address: "dummy",
+				TLS: hazelcastv1alpha1.TLS{
+					SecretName:           secret.GetName(),
+					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
+				},
+			}}
+			Create(mc)
+			EnsureStatus(mc)
+			deleteResource(lookupKey(mc), mc)
 		})
 	})
 })

@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -16,6 +17,14 @@ import (
 
 var _ = Describe("CronHotBackup CR", func() {
 	const namespace = "default"
+
+	BeforeEach(func() {
+		if ee {
+			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
+		}
+	})
 
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
@@ -59,7 +68,7 @@ var _ = Describe("CronHotBackup CR", func() {
 						Spec: hazelcastv1alpha1.HotBackupSpec{
 							HazelcastResourceName: "hazelcast",
 							BucketURI:             "s3://bucket-name/path/to/folder",
-							Secret:                "bucket-secret",
+							SecretName:            "bucket-secret",
 						},
 					},
 				},
@@ -86,7 +95,7 @@ var _ = Describe("CronHotBackup CR", func() {
 			for _, hb := range hbl.Items {
 				Expect(hb.Spec.HazelcastResourceName).To(Equal("hazelcast"))
 				Expect(hb.Spec.BucketURI).To(Equal("s3://bucket-name/path/to/folder"))
-				Expect(hb.Spec.Secret).To(Equal("bucket-secret"))
+				Expect(hb.Spec.SecretName).To(Equal("bucket-secret"))
 			}
 
 			deleteResource(lookupKey(chb), chb)

@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -24,6 +25,14 @@ var _ = Describe("Cache CR", func() {
 			Spec:       cacheSpec,
 		}
 	}
+
+	BeforeEach(func() {
+		if ee {
+			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
+		}
+	})
 
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
@@ -93,7 +102,8 @@ var _ = Describe("Cache CR", func() {
 					}
 					break
 				}
-				Expect(err).Should(MatchError(ContainSubstring("backupCount cannot be updated")))
+
+				Expect(err).Should(MatchError(ContainSubstring("spec: Forbidden: cannot be updated")))
 
 				deleteResource(lookupKey(cache), cache)
 				deleteResource(lookupKey(hz), hz)

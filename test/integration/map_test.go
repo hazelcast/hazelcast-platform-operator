@@ -3,15 +3,17 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"github.com/hazelcast/hazelcast-platform-operator/test"
+	"fmt"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
 var _ = Describe("Map CR", func() {
@@ -24,6 +26,14 @@ var _ = Describe("Map CR", func() {
 			Spec:       mapSpec,
 		}
 	}
+
+	BeforeEach(func() {
+		if ee {
+			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
+		}
+	})
 
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
@@ -100,7 +110,8 @@ var _ = Describe("Map CR", func() {
 					}
 					break
 				}
-				Expect(err).Should(MatchError(ContainSubstring("backupCount cannot be updated")))
+
+				Expect(err).Should(MatchError(ContainSubstring("spec.backupCount: Forbidden: field cannot be updated")))
 
 				deleteResource(lookupKey(m), m)
 				deleteResource(lookupKey(hz), hz)
