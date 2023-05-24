@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"os"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -24,6 +25,9 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 	BeforeEach(func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
+		}
+		if os.Getenv("HZ_VERSION") == "5.1.6" {
+			Skip("We don't support Jet for 5.1.6 version")
 		}
 		if runningLocally() {
 			return

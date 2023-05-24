@@ -2,6 +2,19 @@ name: Multi Version Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      HZ_5_0_X:
+        description: "5.0.X Hazelcast version"
+        required: false
+      HZ_5_1_X:
+        description: "5.1.X Hazelcast version"
+        required: false
+      MC_5_0_X:
+        description: "5.0.X Management Center version"
+        required: false
+      MC_5_1_X:
+        description: "5.1.X Management Center version"
+        required: false
 
 env:
   GO_VERSION: '1.19.0'
@@ -17,6 +30,11 @@ jobs:
   matrix_preparation:
     name: Test Matrix Preparation
     runs-on: ubuntu-latest
+    env:
+      HZ_5_0_X: ${{ github.event.inputs.HZ_5_0_X }}
+      HZ_5_1_X: ${{ github.event.inputs.HZ_5_1_X }}
+      MC_5_0_X: ${{ github.event.inputs.MC_5_0_X }}
+      MC_5_1_X: ${{ github.event.inputs.MC_5_1_X }}
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -24,10 +42,22 @@ jobs:
         id: set-matrix
         run: |
           echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          HZ_5_0_X=$(gh api $HZ_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.0.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
-          HZ_5_1_X=$(gh api $HZ_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.1.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
-          MC_5_0_X=$(gh api $MC_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.0.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
-          MC_5_1_X=$(gh api $MC_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.1.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
+          if [[ ${HZ_5_0_X} == '' ]]; then
+             HZ_5_0_X=$(gh api $HZ_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.0.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
+             echo "HZ_5_0_X=${HZ_5_0_X}" >> $GITHUB_ENV
+          fi
+          if [[ ${HZ_5_1_X} == '' ]]; then
+             HZ_5_1_X=$(gh api $HZ_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.1.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
+             echo "HZ_5_1_X=${HZ_5_1_X}" >> $GITHUB_ENV
+          fi
+          if [[ ${MC_5_0_X} == '' ]]; then
+             MC_5_0_X=$(gh api $MC_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.0.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
+             echo "MC_5_0_X=${MC_5_0_X}" >> $GITHUB_ENV
+          fi
+          if [[ ${MC_5_1_X} == '' ]]; then
+             MC_5_1_X=$(gh api $MC_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.1.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
+             echo "MC_5_1_X=${MC_5_1_X}" >> $GITHUB_ENV
+          fi
           matrixJson=$(jq -n --argjson NR_OF_SUITES "$NR_OF_SUITES" --argjson editions '["ee", "os"]' '[
                     range($NR_OF_SUITES) as $i |
                     $editions[] as $edition |
