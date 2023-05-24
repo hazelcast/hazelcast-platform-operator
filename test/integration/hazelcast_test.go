@@ -269,6 +269,18 @@ var _ = Describe("Hazelcast CR", func() {
 			Expect(k8sClient.Create(context.Background(), hz)).
 				Should(MatchError(ContainSubstring("Invalid value: 301: may not be greater than 300")))
 		})
+
+		It("should fail if CR name is invalid", Label("fast"), func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "1hz",
+					Namespace: namespace,
+				},
+				Spec: test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+		})
 	})
 
 	Context("with ExposeExternally configuration", func() {
