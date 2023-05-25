@@ -66,7 +66,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		}
 	})
 
-	Context("ManagementCenter CustomResource with default specs", func() {
+	Context("with default configuration", func() {
 		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -74,7 +74,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			Create(mc)
 			fetchedCR := EnsureStatus(mc)
 			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), false)
-			deleteResource(lookupKey(mc), mc)
+			Delete(lookupKey(mc), mc)
 		})
 
 		It("Should handle CR and sub resources correctly", Label("fast"), func() {
@@ -130,7 +130,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.AccessModes).To(Equal(expectedPVCSpec.AccessModes))
 			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.Resources).To(Equal(expectedPVCSpec.Resources))
 
-			deleteResource(lookupKey(mc), mc)
+			Delete(lookupKey(mc), mc)
 		})
 
 		When("applying empty spec", func() {
@@ -153,7 +153,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				}, timeout, interval).Should(Equal(n.MCRepo))
 				Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
 
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -279,7 +279,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					MountPath: "/data",
 				}
 				Expect(fetchedSts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(expectedVolumeMount))
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -302,13 +302,13 @@ var _ = Describe("ManagementCenter CR", func() {
 				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, fetchedSts)
 				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
 
-	Context("with PodScheduling parameters", func() {
-		When("NodeSelector is used", func() {
+	Context("with Scheduling configuration", func() {
+		When("NodeSelector is given", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
@@ -327,11 +327,11 @@ var _ = Describe("ManagementCenter CR", func() {
 					return ss.Spec.Template.Spec.NodeSelector
 				}, timeout, interval).Should(HaveKeyWithValue("node.selector", "1"))
 
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
 		})
 
-		When("Affinity is used", func() {
+		When("Affinity is given", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
@@ -380,11 +380,11 @@ var _ = Describe("ManagementCenter CR", func() {
 					return ss.Spec.Template.Spec.Affinity
 				}, timeout, interval).Should(Equal(spec.Scheduling.Affinity))
 
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
 		})
 
-		When("Toleration is used", func() {
+		When("Toleration is given", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
@@ -406,13 +406,13 @@ var _ = Describe("ManagementCenter CR", func() {
 					return ss.Spec.Template.Spec.Tolerations
 				}, timeout, interval).Should(Equal(spec.Scheduling.Tolerations))
 
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
 
 	Context("with Resources parameters", func() {
-		When("Resources are used", func() {
+		When("resources are used", func() {
 			It("should be set to Container spec", Label("fast"), func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Resources = corev1.ResourceRequirements{
@@ -447,24 +447,17 @@ var _ = Describe("ManagementCenter CR", func() {
 					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("5Gi"))),
 				)
 
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
 
-	Context("ManagementCenter cluster TLS configuration", func() {
-		When("TLS property is configured", func() {
+	Context("with cluster TLS configuration", func() {
+		When("cluster TLS property is configured", func() {
 			It("should be enabled", Label("fast"), func() {
-				secret := &corev1.Secret{
-					ObjectMeta: randomObjectMeta(namespace),
-					Data: map[string][]byte{
-						"tls.crt": []byte(exampleCert),
-						"tls.key": []byte(exampleKey),
-					},
-				}
-
-				Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
-				defer deleteResource(lookupKey(secret), secret)
+				tlsSecret := CreateTLSSecret("tls-secret", namespace)
+				assertExists(lookupKey(tlsSecret), tlsSecret)
+				defer Delete(lookupKey(tlsSecret), tlsSecret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -474,26 +467,20 @@ var _ = Describe("ManagementCenter CR", func() {
 					Name:    "dev",
 					Address: "dummy",
 					TLS: hazelcastv1alpha1.TLS{
-						SecretName: secret.GetName(),
+						SecretName: tlsSecret.GetName(),
 					},
 				}}
 				Create(mc)
 				EnsureStatus(mc)
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
 		})
-		When("TLS with Mutual Authentication property is configured", func() {
-			It("should be enabled", Label("fast"), func() {
-				secret := &corev1.Secret{
-					ObjectMeta: randomObjectMeta(namespace),
-					Data: map[string][]byte{
-						"tls.crt": []byte(exampleCert),
-						"tls.key": []byte(exampleKey),
-					},
-				}
 
-				Expect(k8sClient.Create(context.Background(), secret)).ShouldNot(HaveOccurred())
-				defer deleteResource(lookupKey(secret), secret)
+		When("MutualAuthentication is configured", func() {
+			It("should be enabled", Label("fast"), func() {
+				tlsSecret := CreateTLSSecret("tls-secret", namespace)
+				assertExists(lookupKey(tlsSecret), tlsSecret)
+				defer Delete(lookupKey(tlsSecret), tlsSecret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -503,13 +490,13 @@ var _ = Describe("ManagementCenter CR", func() {
 					Name:    "dev",
 					Address: "dummy",
 					TLS: hazelcastv1alpha1.TLS{
-						SecretName:           secret.GetName(),
+						SecretName:           tlsSecret.GetName(),
 						MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 					},
 				}}
 				Create(mc)
 				EnsureStatus(mc)
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -613,38 +600,8 @@ var _ = Describe("ManagementCenter CR", func() {
 				By("checking if StatefulSet Resources is updated")
 				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(secondSpec.Resources))
 
-				deleteResource(lookupKey(mc), mc)
+				Delete(lookupKey(mc), mc)
 			})
-		})
-	})
-
-	When("TLS with Mutual Authentication property is configured", func() {
-		It("should be enabled", Label("fast"), func() {
-			secret := &corev1.Secret{
-				ObjectMeta: randomObjectMeta(namespace),
-				Data: map[string][]byte{
-					"tls.crt": []byte(exampleCert),
-					"tls.key": []byte(exampleKey),
-				},
-			}
-			Expect(k8sClient.Create(context.Background(), secret)).ShouldNot(HaveOccurred())
-			defer deleteResource(lookupKey(secret), secret)
-
-			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
-			}
-			mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
-				Name:    "dev",
-				Address: "dummy",
-				TLS: hazelcastv1alpha1.TLS{
-					SecretName:           secret.GetName(),
-					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
-				},
-			}}
-			Create(mc)
-			EnsureStatus(mc)
-			deleteResource(lookupKey(mc), mc)
 		})
 	})
 })

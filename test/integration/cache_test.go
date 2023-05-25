@@ -105,8 +105,8 @@ var _ = Describe("Cache CR", func() {
 
 				Expect(err).Should(MatchError(ContainSubstring("spec: Forbidden: cannot be updated")))
 
-				deleteResource(lookupKey(cache), cache)
-				deleteResource(lookupKey(hz), hz)
+				Delete(lookupKey(cache), cache)
+				Delete(lookupKey(hz), hz)
 			})
 		})
 	})

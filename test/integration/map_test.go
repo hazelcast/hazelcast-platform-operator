@@ -61,7 +61,7 @@ var _ = Describe("Map CR", func() {
 			Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
 			Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
 			Expect(ms.EntryListeners).To(BeNil())
-			deleteResource(lookupKey(m), m)
+			Delete(lookupKey(m), m)
 		})
 
 		When("applying empty spec", func() {
@@ -113,8 +113,8 @@ var _ = Describe("Map CR", func() {
 
 				Expect(err).Should(MatchError(ContainSubstring("spec.backupCount: Forbidden: field cannot be updated")))
 
-				deleteResource(lookupKey(m), m)
-				deleteResource(lookupKey(hz), hz)
+				Delete(lookupKey(m), m)
+				Delete(lookupKey(hz), hz)
 			})
 		})
 	})
@@ -136,7 +136,7 @@ var _ = Describe("Map CR", func() {
 
 			By("checking the CR values with native memory")
 			Expect(ms.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
-			deleteResource(lookupKey(m), m)
+			Delete(lookupKey(m), m)
 		})
 	})
 
@@ -188,7 +188,7 @@ var _ = Describe("Map CR", func() {
 			Expect(ms.NearCache.NearCacheEviction.EvictionPolicy).To(Equal(m.Spec.NearCache.NearCacheEviction.EvictionPolicy))
 			Expect(ms.NearCache.NearCacheEviction.Size).To(Equal(m.Spec.NearCache.NearCacheEviction.Size))
 			Expect(ms.NearCache.NearCacheEviction.MaxSizePolicy).To(Equal(m.Spec.NearCache.NearCacheEviction.MaxSizePolicy))
-			deleteResource(lookupKey(m), m)
+			Delete(lookupKey(m), m)
 		})
 	})
 

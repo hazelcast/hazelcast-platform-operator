@@ -56,7 +56,7 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 	}, timeout, interval).Should(Succeed())
 }
 
-func deleteResource(name types.NamespacedName, obj client.Object) {
+func Delete(name types.NamespacedName, obj client.Object) {
 	Eventually(func() error {
 		err := k8sClient.Get(context.Background(), name, obj)
 		if err != nil {
@@ -91,6 +91,8 @@ func getSecret(cr metav1.Object) *corev1.Secret {
 	return s
 }
 
+// randomObjectMeta creates random ObjectMeta with given namespace and annotations.
+// annotations parameter is in key-value pair format  [k,v,...]
 func randomObjectMeta(ns string, annotations ...string) metav1.ObjectMeta {
 	var annotationMap map[string]string
 
@@ -139,7 +141,7 @@ func defaultMcSpecValues() *test.MCSpecValues {
 	}
 }
 
-func CreateLicenseKeySecret(name string, namespace string) *corev1.Secret {
+func CreateLicenseKeySecret(name, namespace string) *corev1.Secret {
 	licenseSec := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -154,6 +156,22 @@ func CreateLicenseKeySecret(name string, namespace string) *corev1.Secret {
 		return err == nil || errors.IsAlreadyExists(err)
 	}, timeout, interval).Should(BeTrue())
 	return licenseSec
+}
+
+func CreateTLSSecret(name, namespace string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			corev1.TLSCertKey:       []byte(exampleCert),
+			corev1.TLSPrivateKeyKey: []byte(exampleKey),
+		},
+		Type: corev1.SecretTypeTLS,
+	}
+	Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+	return secret
 }
 
 // noinspection ALL

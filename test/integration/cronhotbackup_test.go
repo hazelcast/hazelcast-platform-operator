@@ -45,7 +45,7 @@ var _ = Describe("CronHotBackup CR", func() {
 			Expect(*chbs.SuccessfulHotBackupsHistoryLimit).To(Equal(n.DefaultSuccessfulHotBackupsHistoryLimit))
 			Expect(*chbs.FailedHotBackupsHistoryLimit).To(Equal(n.DefaultFailedHotBackupsHistoryLimit))
 
-			deleteResource(lookupKey(chb), chb)
+			Delete(lookupKey(chb), chb)
 		})
 
 		When("applying empty spec", func() {
@@ -98,7 +98,7 @@ var _ = Describe("CronHotBackup CR", func() {
 				Expect(hb.Spec.SecretName).To(Equal("bucket-secret"))
 			}
 
-			deleteResource(lookupKey(chb), chb)
+			Delete(lookupKey(chb), chb)
 			Expect(k8sClient.DeleteAllOf(context.Background(), &hazelcastv1alpha1.HotBackup{}, client.InNamespace(namespace))).Should(Succeed())
 		})
 
@@ -146,7 +146,7 @@ var _ = Describe("CronHotBackup CR", func() {
 				Expect(hbl.Items[0].Annotations).To(Equal(ans))
 				Expect(hbl.Items[0].Labels).To(Equal(labels))
 
-				deleteResource(lookupKey(chb), chb)
+				Delete(lookupKey(chb), chb)
 				Expect(k8sClient.DeleteAllOf(context.Background(), &hazelcastv1alpha1.HotBackup{}, client.InNamespace(namespace))).Should(Succeed())
 			})
 		})

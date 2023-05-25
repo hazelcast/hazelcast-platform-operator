@@ -36,7 +36,7 @@ var _ = Describe("HotBackup CR", func() {
 			By("checking the CR values with default ones")
 			Expect(hb.Spec.HazelcastResourceName).To(Equal("hazelcast"))
 
-			deleteResource(lookupKey(hb), hb)
+			Delete(lookupKey(hb), hb)
 		})
 	})
 })
