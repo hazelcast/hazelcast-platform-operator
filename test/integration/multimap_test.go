@@ -22,6 +22,11 @@ var _ = Describe("MultiMap CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.MultiMap{}, &hazelcastv1alpha1.MultiMapList{}, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
 			mm := &hazelcastv1alpha1.MultiMap{

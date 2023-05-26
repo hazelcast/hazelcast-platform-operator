@@ -23,6 +23,11 @@ var _ = Describe("WanReplication CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.WanReplication{}, &hazelcastv1alpha1.WanReplicationList{}, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
 			wan := &hazelcastv1alpha1.WanReplication{

@@ -22,6 +22,11 @@ var _ = Describe("Queue CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.Queue{}, &hazelcastv1alpha1.QueueList{}, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
 			q := &hazelcastv1alpha1.Queue{

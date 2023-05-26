@@ -3,6 +3,8 @@ package integration
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"time"
 
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -64,6 +66,38 @@ func Delete(name types.NamespacedName, obj client.Object) {
 		}
 		return k8sClient.Delete(context.Background(), obj)
 	}, timeout, interval).Should(Succeed())
+}
+
+func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels map[string]string) {
+	Expect(k8sClient.DeleteAllOf(
+		context.Background(),
+		obj,
+		client.InNamespace(ns),
+		client.MatchingLabels(labels),
+		client.PropagationPolicy(metav1.DeletePropagationBackground),
+	)).Should(Succeed())
+
+	// do not wait if objList is nil
+	if objList == nil {
+		return
+	}
+
+	objListVal := reflect.ValueOf(objList)
+
+	Eventually(func() int {
+		err := k8sClient.List(context.Background(), objList,
+			client.InNamespace(ns),
+			client.MatchingLabels(labels),
+		)
+		if err != nil {
+			return -1
+		}
+		if objListVal.Kind() == reflect.Ptr || objListVal.Kind() == reflect.Interface {
+			objListVal = objListVal.Elem()
+		}
+		items := objListVal.FieldByName("Items")
+		return items.Len()
+	}, time.Minute, interval).Should(Equal(0))
 }
 
 func lookupKey(cr metav1.Object) types.NamespacedName {

@@ -26,6 +26,12 @@ var _ = Describe("CronHotBackup CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.CronHotBackup{}, nil, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.HotBackup{}, nil, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
 			chb := &hazelcastv1alpha1.CronHotBackup{
@@ -44,8 +50,6 @@ var _ = Describe("CronHotBackup CR", func() {
 			By("checking the CR values with default ones")
 			Expect(*chbs.SuccessfulHotBackupsHistoryLimit).To(Equal(n.DefaultSuccessfulHotBackupsHistoryLimit))
 			Expect(*chbs.FailedHotBackupsHistoryLimit).To(Equal(n.DefaultFailedHotBackupsHistoryLimit))
-
-			Delete(lookupKey(chb), chb)
 		})
 
 		When("applying empty spec", func() {
@@ -97,9 +101,6 @@ var _ = Describe("CronHotBackup CR", func() {
 				Expect(hb.Spec.BucketURI).To(Equal("s3://bucket-name/path/to/folder"))
 				Expect(hb.Spec.SecretName).To(Equal("bucket-secret"))
 			}
-
-			Delete(lookupKey(chb), chb)
-			Expect(k8sClient.DeleteAllOf(context.Background(), &hazelcastv1alpha1.HotBackup{}, client.InNamespace(namespace))).Should(Succeed())
 		})
 
 		When("giving labels and annotations to HotBackup Template", func() {
@@ -145,9 +146,6 @@ var _ = Describe("CronHotBackup CR", func() {
 
 				Expect(hbl.Items[0].Annotations).To(Equal(ans))
 				Expect(hbl.Items[0].Labels).To(Equal(labels))
-
-				Delete(lookupKey(chb), chb)
-				Expect(k8sClient.DeleteAllOf(context.Background(), &hazelcastv1alpha1.HotBackup{}, client.InNamespace(namespace))).Should(Succeed())
 			})
 		})
 	})
