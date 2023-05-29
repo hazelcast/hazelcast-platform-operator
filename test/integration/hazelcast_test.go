@@ -1833,17 +1833,17 @@ var _ = Describe("Hazelcast CR", func() {
 					Enabled:               ptr.Bool(true),
 					ResourceUploadEnabled: false,
 					Instance: &hazelcastv1alpha1.JetInstance{
-						CooperativeThreadCount:         1,
+						CooperativeThreadCount:         ptr.Int32(1),
 						FlowControlPeriodMillis:        1,
 						BackupCount:                    1,
 						ScaleUpDelayMillis:             1,
 						LosslessRestartEnabled:         false,
-						MaxProcessorAccumulatedRecords: 1,
+						MaxProcessorAccumulatedRecords: ptr.Int64(1),
 					},
 					EdgeDefaults: &hazelcastv1alpha1.JetEdgeDefaults{
-						QueueSize:               1,
-						PacketSizeLimit:         1,
-						ReceiveWindowMultiplier: 1,
+						QueueSize:               ptr.Int32(1),
+						PacketSizeLimit:         ptr.Int32(1),
+						ReceiveWindowMultiplier: ptr.Int8(1),
 					},
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
