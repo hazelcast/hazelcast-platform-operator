@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -13,6 +14,15 @@ import (
 )
 
 var _ = Describe("Hazelcast webhook", func() {
+	const namespace = "default"
+
+	BeforeEach(func() {
+		if ee {
+			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
+		}
+	})
 
 	Context("JetJob create validation", func() {
 		It("should not create JetJob with State not Running", Label("fast"), func() {

@@ -101,6 +101,7 @@ type PhoneHomeData struct {
 	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
 	AdvancedNetwork               AdvancedNetwork        `json:"an"`
 	JetEngine                     JetEngine              `json:"je"`
+	TLS                           TLS                    `json:"t"`
 	SerializationCount            int                    `json:"serc"`
 }
 
@@ -172,6 +173,11 @@ type McExternalConnectivity struct {
 	RouteEnabledCount       int `json:"rec"`
 }
 
+type TLS struct {
+	Count     int `json:"c"`
+	MTLSCount int `json:"mc"`
+}
+
 func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:           opInfo.UID,
@@ -239,6 +245,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
+		phm.TLS.addUsageMetrics(&hz.Spec.TLS)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -368,6 +375,18 @@ func (je *JetEngine) addUsageMetrics(jec hazelcastv1alpha1.JetEngineConfiguratio
 
 	if jec.Instance != nil && jec.Instance.LosslessRestartEnabled {
 		je.LosslessRestart++
+	}
+}
+
+func (t *TLS) addUsageMetrics(tls *hazelcastv1alpha1.TLS) {
+	if tls.SecretName == "" {
+		return
+	}
+
+	t.Count++
+
+	if tls.MutualAuthentication == hazelcastv1alpha1.MutualAuthenticationRequired {
+		t.MTLSCount++
 	}
 }
 
