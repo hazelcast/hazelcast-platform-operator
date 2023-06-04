@@ -40,6 +40,11 @@ spec:
       kind: JetJob
       name: jetjobs.hazelcast.com
       version: v1alpha1
+    - description: JetJobSnapshot is the Schema for the jetjobsnapshots API
+      displayName: Jet Job Snapshot
+      kind: JetJobSnapshot
+      name: jetjobsnapshots.hazelcast.com
+      version: v1alpha1
     - description: ManagementCenter is the Schema for the managementcenters API
       displayName: Management Center
       kind: ManagementCenter
