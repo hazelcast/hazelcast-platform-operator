@@ -2,8 +2,7 @@ package client
 
 import (
 	"context"
-	"fmt"
-
+	"errors"
 	"github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
@@ -45,6 +44,7 @@ func createHzClient(ctx context.Context, config hazelcast.Config) (*hazelcast.Cl
 	}
 	return hzClient, nil
 }
+
 func (cl *HazelcastClient) OrderedMembers() []cluster.MemberInfo {
 	if cl.client == nil {
 		return nil
@@ -84,7 +84,7 @@ func (cl *HazelcastClient) AreAllMembersAccessible() bool {
 
 func (cl *HazelcastClient) InvokeOnMember(ctx context.Context, req *proto.ClientMessage, uuid hztypes.UUID, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
 	if cl.client == nil {
-		return nil, fmt.Errorf("Hazelcast client is nil")
+		return nil, errors.New("hazelcast client is nil")
 	}
 	client := cl.client
 
@@ -94,7 +94,7 @@ func (cl *HazelcastClient) InvokeOnMember(ctx context.Context, req *proto.Client
 
 func (cl *HazelcastClient) InvokeOnRandomTarget(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
 	if cl.client == nil {
-		return nil, fmt.Errorf("Hazelcast client is nil")
+		return nil, errors.New("hazelcast client is nil")
 	}
 	client := cl.client
 
