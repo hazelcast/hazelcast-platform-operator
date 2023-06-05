@@ -128,7 +128,7 @@ func validateExposeExternally(h *Hazelcast) *field.Error {
 }
 
 func validateCustomConfig(h *Hazelcast) *field.Error {
-	if h.Spec.CustomConfigCmName == "" {
+	if h.Spec.CustomConfigCmName != "" {
 		cmName := types.NamespacedName{
 			Name:      h.Spec.CustomConfigCmName,
 			Namespace: h.Namespace,
