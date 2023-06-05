@@ -10,25 +10,36 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-func ValidateMapSpecUpdate(m *Map) error {
-	allErrs := validateMapSpecUpdate(m)
-	if len(allErrs) == 0 {
+func ValidateMapSpecCreate(m *Map) error {
+	errors := validateDataStructureSpec(&m.Spec.DataStructureSpec)
+	if len(errors) == 0 {
 		return nil
 	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, allErrs)
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, errors)
+}
+
+func ValidateMapSpecUpdate(m *Map) error {
+	var errors field.ErrorList
+	errors = append(errors, validateMapSpecUpdate(m)...)
+	errors = append(errors, validateDataStructureSpec(&m.Spec.DataStructureSpec)...)
+	if len(errors) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, errors)
 }
 
 func ValidateMapSpec(m *Map, h *Hazelcast) error {
-	currentErrs := validateMapSpecCurrent(m, h)
-	updateErrs := validateMapSpecUpdate(m)
-	allErrs := append(currentErrs, updateErrs...)
-	if len(allErrs) == 0 {
+	var errors field.ErrorList
+	errors = append(errors, validateMapSpecCurrent(m, h)...)
+	errors = append(errors, validateMapSpecUpdate(m)...)
+	errors = append(errors, validateDataStructureSpec(&m.Spec.DataStructureSpec)...)
+	if len(errors) == 0 {
 		return nil
 	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, allErrs)
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, errors)
 }
 
-func validateMapSpecCurrent(m *Map, h *Hazelcast) []*field.Error {
+func validateMapSpecCurrent(m *Map, h *Hazelcast) field.ErrorList {
 	var allErrs field.ErrorList
 	allErrs = appendIfNotNil(allErrs, ValidateAppliedPersistence(m.Spec.PersistenceEnabled, h))
 	allErrs = appendIfNotNil(allErrs, ValidateAppliedNativeMemory(m.Spec.InMemoryFormat, h))
@@ -38,20 +49,20 @@ func validateMapSpecCurrent(m *Map, h *Hazelcast) []*field.Error {
 	return allErrs
 }
 
-func validateMapSpecUpdate(m *Map) []*field.Error {
+func validateMapSpecUpdate(m *Map) field.ErrorList {
 	last, ok := m.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
 		return nil
 	}
 	var parsed MapSpec
 	if err := json.Unmarshal([]byte(last), &parsed); err != nil {
-		return []*field.Error{field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last Map spec for update errors: %w", err))}
+		return field.ErrorList{field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last Map spec for update errors: %w", err))}
 	}
 
 	return ValidateNotUpdatableMapFields(&m.Spec, &parsed)
 }
 
-func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) []*field.Error {
+func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) field.ErrorList {
 	var allErrs field.ErrorList
 
 	if current.Name != last.Name {
