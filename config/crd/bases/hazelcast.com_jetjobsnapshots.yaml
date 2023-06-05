@@ -37,14 +37,10 @@ spec:
             properties:
               jetJobResourceName:
                 type: string
-              jobId:
-                format: int64
-                type: integer
               name:
                 type: string
             required:
             - jetJobResourceName
-            - jobId
             type: object
           status:
             description: JetJobSnapshotStatus defines the observed state of JetJobSnapshot

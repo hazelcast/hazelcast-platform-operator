@@ -2544,14 +2544,10 @@ spec:
             properties:
               jetJobResourceName:
                 type: string
-              jobId:
-                format: int64
-                type: integer
               name:
                 type: string
             required:
             - jetJobResourceName
-            - jobId
             type: object
           status:
             description: JetJobSnapshotStatus defines the observed state of JetJobSnapshot
@@ -3994,6 +3990,25 @@ spec:
                   - className
                   type: object
                 type: array
+              eventJournal:
+                description: EventJournal specifies event journal configuration for
+                  map
+                properties:
+                  capacity:
+                    default: 10000
+                    description: Capacity
+                    format: int32
+                    type: integer
+                  enabled:
+                    default: false
+                    description: Enabled
+                    type: boolean
+                  timeToLiveSeconds:
+                    default: 0
+                    description: TimeToLiveSeconds
+                    format: int32
+                    type: integer
+                type: object
               eviction:
                 default:
                   evictionPolicy: NONE

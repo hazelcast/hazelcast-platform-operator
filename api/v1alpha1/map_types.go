@@ -61,6 +61,10 @@ type MapSpec struct {
 	// InMemoryFormat specifies near cache configuration for map
 	// +optional
 	NearCache *NearCache `json:"nearCache"`
+
+	// EventJournal specifies event journal configuration for map
+	// +optional
+	EventJournal EventJournal `json:"eventJournal"`
 }
 
 type NearCache struct {
@@ -331,6 +335,18 @@ const (
 	// Loading is blocked until all partitions are loaded.
 	InitialModeEager InitialModeType = "EAGER"
 )
+
+type EventJournal struct {
+	// Enabled
+	// +kubebuilder:default:=false
+	Enabled bool `json:"enabled,omitempty"`
+	// Capacity
+	// +kubebuilder:default:=10000
+	Capacity int32 `json:"capacity,omitempty"`
+	// TimeToLiveSeconds
+	// +kubebuilder:default:=0
+	TimeToLiveSeconds int32 `json:"timeToLiveSeconds,omitempty"`
+}
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status

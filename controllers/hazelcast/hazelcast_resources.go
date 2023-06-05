@@ -1350,6 +1350,12 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		mc.NearCache.CacheLocalEntries = *ms.NearCache.CacheLocalEntries
 	}
 
+	if ms.EventJournal.Enabled {
+		mc.EventJournal.Enabled = true
+		mc.EventJournal.Capacity = ms.EventJournal.Capacity
+		mc.EventJournal.TimeToLiveSeconds = ms.EventJournal.TimeToLiveSeconds
+	}
+
 	return mc, nil
 }
 
