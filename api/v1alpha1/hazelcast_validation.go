@@ -229,6 +229,8 @@ func validatePersistence(h *Hazelcast) []*field.Error {
 			"PartialStart can be used only with Partial clusterDataRecoveryPolicy"))
 	}
 
+	field.Invalid(field.NewPath("spec").Child("persistence").Child("asd"), "sad", "asd")
+
 	if len(allErrs) == 0 {
 		return nil
 	}

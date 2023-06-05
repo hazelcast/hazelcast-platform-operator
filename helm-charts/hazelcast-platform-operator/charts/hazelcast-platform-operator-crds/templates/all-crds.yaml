@@ -2438,6 +2438,9 @@ spec:
                   resource that this resource is created for.
                 minLength: 1
                 type: string
+              initialSnapshotResourceName:
+                description: InitialSnapshotResourceName
+                type: string
               jarName:
                 description: JarName specify the name of the Jar to run that is present
                   on the member.
