@@ -165,6 +165,11 @@ type HazelcastSpec struct {
 	// Hazelcast TLS configuration
 	// +optional
 	TLS TLS `json:"tls,omitempty"`
+
+	// Name of the ConfigMap with the Hazelcast custom configuration.
+	// This configuration from the ConfigMap might be overridden by the Hazelcast CR configuration.
+	// +optional
+	CustomConfigCmName string `json:"customConfigCmName,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
