@@ -85,6 +85,10 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 		allErrs = append(allErrs, err...)
 	}
 
+	if err := validateCustomConfig(h); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
 	return allErrs
 }
 
@@ -120,6 +124,23 @@ func validateExposeExternally(h *Hazelcast) *field.Error {
 		}
 	}
 
+	return nil
+}
+
+func validateCustomConfig(h *Hazelcast) *field.Error {
+	if h.Spec.CustomConfigCmName == "" {
+		cmName := types.NamespacedName{
+			Name:      h.Spec.CustomConfigCmName,
+			Namespace: h.Namespace,
+		}
+		var cm corev1.ConfigMap
+		err := kubeclient.Get(context.Background(), cmName, &cm)
+		if kerrors.IsNotFound(err) {
+			// we care only about not found error
+			return field.NotFound(field.NewPath("spec").Child("customConfigCmName"),
+				"ConfigMap for Hazelcast custom configs not found")
+		}
+	}
 	return nil
 }
 
