@@ -12,6 +12,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sync"
 
@@ -83,6 +84,7 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	// todo ? can it be triggered multiple times
 	_, createdBefore := jjs.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !createdBefore {
 
@@ -110,18 +112,42 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 
 		// cancel should be taken in cr
-		// jobId should be taken from jetJobCR
-		req := codec.EncodeJetExportSnapshotRequest(jjs.Spec.JobId, jjs.Spec.Name, false)
+		req := codec.EncodeJetExportSnapshotRequest(jetJob.Status.Id, jjs.Spec.Name, false)
 		_, err = c.InvokeOnRandomTarget(ctx, req, nil)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+
 	} else {
 		fmt.Println("----------------------------------------------------")
 		fmt.Println("Update reconciliation")
 	}
 
+	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
+	if err != nil {
+		logger.Info("Could not save the current successful spec as annotation to the custom resource")
+	}
 	return ctrl.Result{}, nil
+}
+
+func (r *JetJobSnapshotReconciler) updateLastSuccessfulConfiguration(ctx context.Context, name types.NamespacedName) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Always fetch the new version of the resource
+		jjs := &hazelcastv1alpha1.JetJobSnapshot{}
+		if err := r.Client.Get(ctx, name, jjs); err != nil {
+			return err
+		}
+		jjss, err := json.Marshal(jjs.Spec)
+		if err != nil {
+			return err
+		}
+		if jjs.ObjectMeta.Annotations == nil {
+			jjs.ObjectMeta.Annotations = make(map[string]string)
+		}
+		jjs.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(jjss)
+
+		return r.Client.Update(ctx, jjs)
+	})
 }
 
 func (r *JetJobSnapshotReconciler) executeFinalizer(ctx context.Context, jjs *hazelcastv1alpha1.JetJobSnapshot, logger logr.Logger) error {

@@ -13,9 +13,6 @@ type JetJobSnapshotSpec struct {
 	// +required
 	JetJobResourceName string `json:"jetJobResourceName"`
 
-	// +required
-	JobId int64 `json:"jobId"`
-
 	// ? Adding other data like CreationTime, Size
 }
 
