@@ -28,7 +28,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 	GetHzConfig := func(h *hazelcastv1alpha1.Hazelcast) map[string]interface{} {
 		s := FetchConfigSecret(h)
 		expectedMap := make(map[string]interface{})
-		yaml.Unmarshal(s.Data["hazelcast.yaml"], expectedMap)
+		Expect(yaml.Unmarshal(s.Data["hazelcast.yaml"], expectedMap)).Should(Succeed())
 		return expectedMap["hazelcast"].(map[string]interface{})
 	}
 
@@ -41,7 +41,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 	})
 
 	Context("with custom configs", func() {
-		FIt("should add new section to config", Label("fast"), func() {
+		It("should add new section to config", Label("fast"), func() {
 			customConfig := make(map[string]interface{})
 			sc := make(map[string]interface{})
 			sc["portable-version"] = 0
@@ -72,7 +72,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			Expect(expectedSer).To(Equal(sc))
 		})
 
-		FIt("should not override CR configs", func() {
+		It("should not override CR configs", func() {
 			customConfig := make(map[string]interface{})
 			uccConf := make(map[string]interface{})
 			uccConf["enabled"] = true
@@ -109,7 +109,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 				Not(HaveKey("class-cache-mode")), Not(HaveKey("provider-filter")), Not(HaveKey("provider-mode"))))
 		})
 
-		FIt("should not override advanced network config", func() {
+		It("should not override advanced network config", func() {
 			customConfig := make(map[string]interface{})
 			uccConf := make(map[string]interface{})
 			uccConf["enabled"] = false
