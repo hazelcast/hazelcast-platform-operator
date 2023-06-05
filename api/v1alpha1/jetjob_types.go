@@ -57,6 +57,10 @@ type JetJobSpec struct {
 	// +optional
 	MainClass string `json:"mainClass,omitempty"`
 
+	// InitialSnapshotResourceName
+	// +optional
+	InitialSnapshotResourceName string `json:"initialSnapshotResourceName,omitempty"`
+
 	// Configuration for downloading the file from remote.
 	// +optional
 	JetRemoteFileConfiguration `json:",inline"`
