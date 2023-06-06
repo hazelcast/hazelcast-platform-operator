@@ -23,9 +23,7 @@ var _ webhook.Validator = &Cache{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (c *Cache) ValidateCreate() error {
 	cachelog.Info("validate create", "name", c.Name)
-
-	// TODO(user): fill in your validation logic upon object creation.
-	return nil
+	return c.ValidateSpecCreate()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -37,7 +35,5 @@ func (c *Cache) ValidateUpdate(runtime.Object) error {
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (c *Cache) ValidateDelete() error {
 	cachelog.Info("validate delete", "name", c.Name)
-
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
