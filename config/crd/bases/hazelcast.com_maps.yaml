@@ -49,12 +49,14 @@ spec:
                 default: 0
                 description: Number of asynchronous backups.
                 format: int32
+                maximum: 6
                 minimum: 0
                 type: integer
               backupCount:
                 default: 1
                 description: Number of synchronous backups.
                 format: int32
+                maximum: 6
                 minimum: 0
                 type: integer
               entryListeners:
