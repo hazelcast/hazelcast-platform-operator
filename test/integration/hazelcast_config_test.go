@@ -72,7 +72,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			Expect(expectedSer).To(Equal(sc))
 		})
 
-		It("should not override CR configs", func() {
+		It("should not override CR configs", Label("fast"), func() {
 			customConfig := make(map[string]interface{})
 			uccConf := make(map[string]interface{})
 			uccConf["enabled"] = true
@@ -109,7 +109,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 				Not(HaveKey("class-cache-mode")), Not(HaveKey("provider-filter")), Not(HaveKey("provider-mode"))))
 		})
 
-		It("should not override advanced network config", func() {
+		It("should not override advanced network config", Label("fast"), func() {
 			customConfig := make(map[string]interface{})
 			uccConf := make(map[string]interface{})
 			uccConf["enabled"] = false
