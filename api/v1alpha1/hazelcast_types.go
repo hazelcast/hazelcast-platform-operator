@@ -165,6 +165,10 @@ type HazelcastSpec struct {
 	// Hazelcast TLS configuration
 	// +optional
 	TLS TLS `json:"tls,omitempty"`
+
+	// Hazelcast serialization configuration
+	// +optional
+	Serialization *SerializationConfig `json:"serialization,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -172,6 +176,138 @@ func (s *HazelcastSpec) GetLicenseKeySecretName() string {
 		return s.DeprecatedLicenseKeySecret
 	}
 	return s.LicenseKeySecretName
+}
+
+// +kubebuilder:validation:Enum=Native;BigEndian;LittleEndian
+type ByteOrder string
+
+const (
+	// NativeByteOrder uses the native byte order of the underlying platform.
+	NativeByteOrder ByteOrder = "Native"
+
+	// BigEndian uses the big-endian byte order.
+	BigEndian ByteOrder = "BigEndian"
+
+	// LittleEndian uses the kittle-endian byte order.
+	LittleEndian ByteOrder = "LittleEndian"
+)
+
+// SerializationConfig contains the configuration for the Hazelcast serialization.
+type SerializationConfig struct {
+
+	// Specifies the byte order that the serialization will use.
+	// +kubebuilder:default:=BigEndian
+	// +optional
+	ByteOrder ByteOrder `json:"byteOrder"`
+
+	// Allows override of built-in default serializers.
+	// +kubebuilder:default:=false
+	// +optional
+	OverrideDefaultSerializers bool `json:"overrideDefaultSerializers,omitempty"`
+
+	// Enables compression when default Java serialization is used.
+	// +kubebuilder:default:=false
+	// +optional
+	EnableCompression bool `json:"enableCompression,omitempty"`
+
+	// Enables shared object when default Java serialization is used.
+	// +kubebuilder:default:=false
+	// +optional
+	EnableSharedObject bool `json:"enableSharedObject,omitempty"`
+
+	// Allow the usage of unsafe.
+	// +kubebuilder:default:=false
+	// +optional
+	AllowUnsafe bool `json:"allowUnsafe,omitempty"`
+
+	// Lists class implementations of Hazelcast's DataSerializableFactory.
+	// +optional
+	DataSerializableFactories []string `json:"dataSerializableFactories,omitempty"`
+
+	// Lists class implementations of Hazelcast's PortableFactory.
+	// +optional
+	PortableFactories []string `json:"portableFactories,omitempty"`
+
+	// List of global serializers.
+	// +optional
+	GlobalSerializer *GlobalSerializer `json:"globalSerializer,omitempty"`
+
+	// List of serializers (classes) that implemented using Hazelcast's StreamSerializer, ByteArraySerializer etc.
+	// +optional
+	Serializers []Serializer `json:"serializers,omitempty"`
+
+	// Configuration attributes the compact serialization.
+	// +optional
+	CompactSerialization *CompactSerializationConfig `json:"compactSerialization,omitempty"`
+
+	// Blacklist and whitelist for deserialized classes when Java serialization is used.
+	// +optional
+	JavaSerializationFilter *JavaSerializationFilter `json:"javaSerializationFilter,omitempty"`
+}
+
+// +kubebuilder:validation:MinProperties:=1
+type JavaSerializationFilter struct {
+
+	// Java deserialization protection Blacklist.
+	// +optional
+	Blacklist *SerializationFilterList `json:"blacklist,omitempty"`
+
+	// Java deserialization protection Whitelist.
+	// +optional
+	Whitelist *SerializationFilterList `json:"whitelist,omitempty"`
+}
+
+// +kubebuilder:validation:MinProperties:=1
+type SerializationFilterList struct {
+
+	// List of class names to be filtered.
+	// +optional
+	Classes []string `json:"classes,omitempty"`
+
+	// List of packages to be filtered
+	// +optional
+	Packages []string `json:"packages,omitempty"`
+
+	// List of prefixes to be filtered.
+	// +optional
+	Prefixes []string `json:"prefixes,omitempty"`
+}
+
+// CompactSerializationConfig is the configuration for the Hazelcast Compact serialization.
+// +kubebuilder:validation:MinProperties:=1
+type CompactSerializationConfig struct {
+
+	// Serializers is the list of explicit serializers to be registered.
+	// +optional
+	Serializers []string `json:"serializers,omitempty"`
+
+	// Classes is the list of class names for which a zero-config serializer will be registered, without implementing an explicit serializer.
+	// +optional
+	Classes []string `json:"classes,omitempty"`
+}
+
+// Serializer allows to plug in a custom serializer for serializing objects.
+type Serializer struct {
+
+	// Name of the class that will be serialized via this implementation.
+	// +required
+	TypeClass string `json:"typeClass"`
+
+	// Class name of the implementation of the serializer class.
+	// +required
+	ClassName string `json:"className"`
+}
+
+// GlobalSerializer is registered as a fallback serializer to handle all other objects if a serializer cannot be located for them.
+type GlobalSerializer struct {
+
+	// If set to true, will replace the internal Java serialization.
+	// +optional
+	OverrideJavaSerialization *bool `json:"overrideJavaSerialization,omitempty"`
+
+	// Class name of the GlobalSerializer.
+	// +required
+	ClassName string `json:"className"`
 }
 
 type ManagementCenterConfig struct {
