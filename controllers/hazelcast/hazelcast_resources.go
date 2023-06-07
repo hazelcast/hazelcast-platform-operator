@@ -1188,10 +1188,13 @@ func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1a
 		byteOrder = "LITTLE_ENDIAN"
 	}
 	cfg.Serialization = config.Serialization{
-		UseNativeByteOrder:        s.ByteOrder == hazelcastv1alpha1.NativeByteOrder,
-		ByteOrder:                 byteOrder,
-		DataSerializableFactories: factories(s.DataSerializableFactories),
-		PortableFactories:         factories(s.PortableFactories),
+		UseNativeByteOrder:         s.ByteOrder == hazelcastv1alpha1.NativeByteOrder,
+		ByteOrder:                  byteOrder,
+		DataSerializableFactories:  factories(s.DataSerializableFactories),
+		PortableFactories:          factories(s.PortableFactories),
+		EnableCompression:          s.EnableCompression,
+		EnableSharedObject:         s.EnableSharedObject,
+		OverrideDefaultSerializers: s.OverrideDefaultSerializers,
 		GlobalSerializer: &config.GlobalSerializer{
 			OverrideJavaSerialization: s.GlobalSerializer.OverrideJavaSerialization,
 			ClassName:                 s.GlobalSerializer.ClassName,
