@@ -357,6 +357,7 @@ type Serialization struct {
 	EnableCompression          bool                     `yaml:"enable-compression"`
 	EnableSharedObject         bool                     `yaml:"enable-shared-object"`
 	OverrideDefaultSerializers bool                     `yaml:"allow-override-default-serializers"`
+	AllowUnsafe                bool                     `yaml:"allow-unsafe"`
 	ByteOrder                  string                   `yaml:"byte-order"`
 	DataSerializableFactories  []ClassFactories         `yaml:"data-serializable-factories,omitempty"`
 	PortableFactories          []ClassFactories         `yaml:"portable-factories,omitempty"`

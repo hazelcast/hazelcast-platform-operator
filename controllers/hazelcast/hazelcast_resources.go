@@ -1195,6 +1195,7 @@ func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1a
 		EnableCompression:          s.EnableCompression,
 		EnableSharedObject:         s.EnableSharedObject,
 		OverrideDefaultSerializers: s.OverrideDefaultSerializers,
+		AllowUnsafe:                s.AllowUnsafe,
 		GlobalSerializer: &config.GlobalSerializer{
 			OverrideJavaSerialization: s.GlobalSerializer.OverrideJavaSerialization,
 			ClassName:                 s.GlobalSerializer.ClassName,
