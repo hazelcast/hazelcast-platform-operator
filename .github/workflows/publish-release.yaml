@@ -90,8 +90,8 @@ jobs:
         run: |
           set +e
           TAG_VERSION=v${RELEASE_VERSION}-operator
-          git push origin --delete ${RELEASE_VERSION} 2>/dev/null || true
-          git push origin --delete ${TAG_VERSION} 2>/dev/null
+          git push origin --delete ${RELEASE_VERSION}
+          git push origin --delete ${TAG_VERSION}
           set -e
           
 
