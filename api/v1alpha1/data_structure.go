@@ -35,13 +35,15 @@ type DataStructureSpec struct {
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 
 	// Number of synchronous backups.
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum:=0
+	// +kubebuilder:validation:Maximum:=6
 	// +kubebuilder:default:=1
 	// +optional
 	BackupCount *int32 `json:"backupCount,omitempty"`
 
 	// Number of asynchronous backups.
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum:=0
+	// +kubebuilder:validation:Maximum:=6
 	// +kubebuilder:default:=0
 	// +optional
 	AsyncBackupCount int32 `json:"asyncBackupCount"`
