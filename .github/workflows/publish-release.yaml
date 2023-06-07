@@ -63,6 +63,6 @@ jobs:
           TAG_VERSION=v${RELEASE_VERSION}-operator
           git tag ${TAG_VERSION}
           git push origin ${TAG_VERSION}
-          git push origin --delete ${RELEASE_VERSION}
+          #git push origin --delete ${RELEASE_VERSION}
 
 
