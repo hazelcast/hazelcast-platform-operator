@@ -25,7 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
 
       - name: Cache Golang Dependencies
         uses: actions/cache@v3
@@ -65,22 +65,10 @@ jobs:
           git tag ${TAG_VERSION}
           git push origin ${TAG_VERSION}
 
-      - name: Package operator chart and add it into index.yaml
-        run: |
-          helm package ./helm-charts/hazelcast-platform-operator
-          helm package ./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds
-          aws s3 cp s3://hazelcast-charts/index.yaml .
-          helm repo index --url=https://hazelcast-charts.s3.amazonaws.com --merge ./index.yaml .
-
-      - name: Push operator chart and index.yaml to S3 bucket
-        run: |
-          for CHART_TGZ in *.tgz; do aws s3 cp ${CHART_TGZ} s3://hazelcast-charts; done
-          aws s3 cp ./index.yaml s3://hazelcast-charts
-
       - name: Checkout 'main' Branch
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
           ref: main
 
       - name: Update Chart Version in Main Branch
@@ -106,22 +94,8 @@ jobs:
 
       - name: Create PR to Main Branch
         run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          echo ${{ secrets.PAT }} | gh auth login --with-token
           gh pr create --title "Update Helm Chart Version to ${REPLACED_APP_VERSION}-snapshot" \
           --label "non-release" \
           --milestone "${RELEASE_VERSION}" \
           --body ""
-
-  slack_notify:
-    name: Slack Notify
-    needs: [ 'create_release' ]
-    runs-on: ubuntu-latest
-    if: always() && needs.create_release.result != 'success' 
-    steps:
-      - uses: 8398a7/action-slack@v3
-        with:
-          fields: repo,commit,author,action,eventName,workflow
-          status: failure
-          channel: "#github-actions-log"
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
