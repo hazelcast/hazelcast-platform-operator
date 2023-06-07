@@ -245,7 +245,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
-		phm.TLS.addUsageMetrics(&hz.Spec.TLS)
+		phm.TLS.addUsageMetrics(hz.Spec.TLS)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -379,7 +379,7 @@ func (je *JetEngine) addUsageMetrics(jec hazelcastv1alpha1.JetEngineConfiguratio
 }
 
 func (t *TLS) addUsageMetrics(tls *hazelcastv1alpha1.TLS) {
-	if tls.SecretName == "" {
+	if tls == nil {
 		return
 	}
 

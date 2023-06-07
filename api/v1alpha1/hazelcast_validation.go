@@ -149,20 +149,29 @@ func validateLicense(h *Hazelcast) *field.Error {
 }
 
 func validateTLS(h *Hazelcast) *field.Error {
-	// make sure secret exists
-	if h.Spec.TLS.SecretName != "" {
-		secretName := types.NamespacedName{
-			Name:      h.Spec.TLS.SecretName,
-			Namespace: h.Namespace,
-		}
+	// skip validation if TLS is not set
+	if h.Spec.TLS == nil {
+		return nil
+	}
 
-		var secret corev1.Secret
-		err := kubeclient.Get(context.Background(), secretName, &secret)
-		if kerrors.IsNotFound(err) {
-			// we care only about not found error
-			return field.NotFound(field.NewPath("spec").Child("tls"),
-				"Hazelcast Enterprise TLS Secret is not found")
-		}
+	p := field.NewPath("spec").Child("tls").Child("secretName")
+
+	// if user skipped validation secretName can be empty
+	if h.Spec.TLS.SecretName == "" {
+		return field.NotFound(p, "Hazelcast Enterprise TLS Secret name is empty")
+	}
+
+	// check if secret exists
+	secretName := types.NamespacedName{
+		Name:      h.Spec.TLS.SecretName,
+		Namespace: h.Namespace,
+	}
+
+	var secret corev1.Secret
+	err := kubeclient.Get(context.Background(), secretName, &secret)
+	if kerrors.IsNotFound(err) {
+		// we care only about not found error
+		return field.NotFound(p, "Hazelcast Enterprise TLS Secret not found")
 	}
 
 	return nil

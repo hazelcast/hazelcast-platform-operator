@@ -423,7 +423,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				TLS: hazelcastv1alpha1.TLS{
+				TLS: &hazelcastv1alpha1.TLS{
 					SecretName: lk.Name + "-tls",
 				},
 			},
@@ -442,7 +442,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				TLS: hazelcastv1alpha1.TLS{
+				TLS: &hazelcastv1alpha1.TLS{
 					SecretName:           lk.Name + "-mtls",
 					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 				},

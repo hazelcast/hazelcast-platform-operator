@@ -164,7 +164,7 @@ type HazelcastSpec struct {
 
 	// Hazelcast TLS configuration
 	// +optional
-	TLS TLS `json:"tls,omitempty"`
+	TLS *TLS `json:"tls,omitempty"`
 
 	// Hazelcast serialization configuration
 	// +optional
@@ -1051,7 +1051,9 @@ const (
 
 type TLS struct {
 	// Name of the secret with TLS certificate and key.
-	SecretName string `json:"secretName,omitempty"`
+	// +kubebuilder:validation:Required
+	// +required
+	SecretName string `json:"secretName"`
 
 	// Mutual authentication configuration. It’s None by default which
 	// means the client side of connection is not authenticated.
