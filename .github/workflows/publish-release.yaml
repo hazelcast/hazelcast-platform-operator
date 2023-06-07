@@ -41,7 +41,7 @@ jobs:
 
       - name: Commit And Push Changes To 'Hazelcast Charts' Repository
         run: |
-          echo ${{ secrets.PAT }} | gh auth login --with-token
+          echo ${{ secrets.PAT2 }} | gh auth login --with-token
           git config user.email "alexander.borschuk@hazelcast.com"
           git config user.name "aborschuk"
           git subtree add --prefix=charts https://github.com/cheels/charts.git $RELEASE_VERSION --squash
@@ -63,6 +63,31 @@ jobs:
           TAG_VERSION=v${RELEASE_VERSION}-operator
           git tag ${TAG_VERSION}
           git push origin ${TAG_VERSION}
-          #git push origin --delete ${RELEASE_VERSION}
+          git push origin --delete ${RELEASE_VERSION}
 
+  revert_changes:
+    name: Revert Release Changes
+    needs: ['helm_chart_release']
+    if: always() && needs.helm_chart_release.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Removing PR from the Main Branch
+        run: |
+         echo ${{ secrets.PAT }} | gh auth login --with-token
+         PR_NUMBER=$(gh pr list --search "update-helm-chart" --json number | jq -r '.[].number')
+         gh pr close $PR_NUMBER
+
+      - name: Checkout to 'Hazelcast Charts' Repository
+        uses: actions/checkout@v3
+        with:
+          repository: hazelcast/charts
+          token: ${{ secrets.PAT }}
+
+      - name: Delete a Tag in 'Hazelcast Charts' Repository
+        run: |
+          TAG_VERSION=v${RELEASE_VERSION}-operator
+          git push --delete origin ${TAG_VERSION}
 
