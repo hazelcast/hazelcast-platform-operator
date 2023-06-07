@@ -27,7 +27,7 @@ jobs:
         with:
           token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
 
-      - name: Cache Golang dependencies
+      - name: Cache Golang Dependencies
         uses: actions/cache@v3
         with:
           path: |
@@ -37,27 +37,87 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Convert latest-snapshot to release version
+      - name: Convert latest-snapshot to Release Version
         run: |
           sed -i "s|ARG version=\"latest-snapshot\"|ARG version=\"${RELEASE_VERSION}\"|" Dockerfile
           sed -i "s|VERSION ?= latest-snapshot|VERSION ?= ${RELEASE_VERSION}|" Makefile
 
-      - name: Commit and push changes
+      - name: Remove 'snapshot' From Chart In Release Branch
+        working-directory: helm-charts/hazelcast-platform-operator
+        run: |
+          sed -i 's/-snapshot//g' charts/hazelcast-platform-operator-crds/Chart.yaml
+          sed -i 's/-snapshot//g' Chart.yaml
+
+      - name: Commit and Push Changes
         run: |
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
 
-          git add Makefile Dockerfile config/
+          git add Makefile Dockerfile config/ helm-charts/hazelcast-platform-operator/
           git commit --signoff -m "${RELEASE_VERSION}"
           
           BRANCH=$( echo ${{ github.ref }} | cut -d '/' -f 3- )
           git push origin $BRANCH
 
-      - name: Create a new tag
+      - name: Create a New Tag
         run: |
           TAG_VERSION=v${RELEASE_VERSION}
           git tag ${TAG_VERSION}
           git push origin ${TAG_VERSION}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Package operator chart and add it into index.yaml
+        run: |
+          helm package ./helm-charts/hazelcast-platform-operator
+          helm package ./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds
+          aws s3 cp s3://hazelcast-charts/index.yaml .
+          helm repo index --url=https://hazelcast-charts.s3.amazonaws.com --merge ./index.yaml .
+
+      - name: Push operator chart and index.yaml to S3 bucket
+        run: |
+          for CHART_TGZ in *.tgz; do aws s3 cp ${CHART_TGZ} s3://hazelcast-charts; done
+          aws s3 cp ./index.yaml s3://hazelcast-charts
+
+      - name: Checkout 'main' Branch
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          ref: main
+
+      - name: Update Chart Version in Main Branch
+        working-directory: helm-charts/hazelcast-platform-operator
+        run: |
+          printf '%s' "$(awk -F'[-.]' '/appVersion/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/appVersion:.*/, "appVersion: \""version"\"")} 1' charts/hazelcast-platform-operator-crds/Chart.yaml)" > charts/hazelcast-platform-operator-crds/Chart.yaml
+          printf '%s' "$(awk -F'[-.]' '/appVersion/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/appVersion:.*/, "appVersion: \""version"\"")} 1' Chart.yaml)" > Chart.yaml
+          printf '%s' "$(awk -F'[-.]' '/version/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/version:.*/, "version: "version)} 1' charts/hazelcast-platform-operator-crds/Chart.yaml)" > charts/hazelcast-platform-operator-crds/Chart.yaml
+          printf '%s' "$(awk -F'[-.]' '/version/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/version:.*/, "version: "version)} 1' Chart.yaml)" > Chart.yaml
+          REPLACED_APP_VERSION=$(awk -F': ' '/appVersion:/ {gsub(/"/, "", $2); gsub(/-snapshot/, "", $2); print $2}' Chart.yaml)
+          echo "REPLACED_APP_VERSION=${REPLACED_APP_VERSION}" >> $GITHUB_ENV
+
+      - name: Commit and Push Changes
+        working-directory: helm-charts/hazelcast-platform-operator
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          BRANCH_NAME=update-helm-chart-to-${REPLACED_APP_VERSION}
+          git checkout -b $BRANCH_NAME
+          git add .
+          git commit --signoff -m "Update helm chart to ${REPLACED_APP_VERSION} version"
+          git push -u origin $BRANCH_NAME
+
+      - name: Create PR to Main Branch
+        run: |
+          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          gh pr create --title "Update Helm Chart Version to ${REPLACED_APP_VERSION}-snapshot" \
+          --label "non-release" \
+          --milestone "${RELEASE_VERSION}" \
+          --body ""
 
   slack_notify:
     name: Slack Notify

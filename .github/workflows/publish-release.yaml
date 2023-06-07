@@ -280,10 +280,63 @@ jobs:
           gh pr create --title "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" \
             --body "" --repo ${REPO_OWNER}/${REPO_NAME}
 
+  helm_chart_release:
+    name: Publish Helm Chart
+    runs-on: ubuntu-latest
+    needs: ['operatorhub_release']
+    steps:
+      - name: Checkout to 'Hazelcast Charts' Repository
+        uses: actions/checkout@v3
+        with:
+          repository: hazelcast/charts
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Create Release Branch
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          git checkout -b $RELEASE_VERSION
+          git push -u origin $RELEASE_VERSION
+
+      - name: Checkout to Hazelcast Platform Repository
+        uses: actions/checkout@v3
+        with:
+          repository: hazelcast/hazelcast-platform-operator
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          ref: ${{ inputs.RELEASE_VERSION }}
+
+      - name: Commit And Push Changes To 'Hazelcast Charts' Repository
+        run: |
+          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          git subtree add --prefix=charts https://github.com/hazelcast/charts.git $RELEASE_VERSION --squash
+          git rm -r charts/stable/hazelcast-platform-operator/*
+          cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
+          git add charts/
+          git commit --signoff -m "Update Operator Chart to $RELEASE_VERSION"
+          git subtree push --prefix=charts https://github.com/hazelcast/charts.git $RELEASE_VERSION
+
+      - name: Checkout to 'Hazelcast Charts' Repository
+        uses: actions/checkout@v3
+        with:
+          repository: hazelcast/charts
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          ref: ${{ inputs.RELEASE_VERSION }}
+
+      - name: Create a New Tag in 'Hazelcast Charts' Repository
+        run: |
+          TAG_VERSION=v${RELEASE_VERSION}-operator
+          git tag ${TAG_VERSION}
+          git push origin ${TAG_VERSION}
+          
+          #remove branch
+          git push origin --delete $RELEASE_VERSION
+
   revert_changes:
     name: Revert Release Changes
-    needs: ['publish_docker_image', 'publish_image_to_redhat']
-    if: always() && (needs.publish_docker_image.result == 'failure' || needs.publish_image_to_redhat.result == 'failure')
+    needs: ['publish_docker_image', 'publish_image_to_redhat', 'helm_chart_release']
+    if: always() && (needs.publish_docker_image.result == 'failure' || needs.publish_image_to_redhat.result == 'failure' || needs.helm_chart_release.result == 'failure')
     runs-on: ubuntu-latest
     env:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
@@ -340,14 +393,34 @@ jobs:
           docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
           make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
 
-      - name: Removing Release Tag
+      - name: Removing Release Tag in 'Hazelcast Operator' Repo
         run: |
           git push --delete origin v${RELEASE_VERSION}
 
+      - name: Removing PR in 'Hazelcast Operator' Repo
+        run: |
+         echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+         PR_NUMBER=$(gh pr list --search "update-helm-chart" --json number | jq -r '.[].number')
+         gh pr close $PR_NUMBER
+
+      - name: Checkout to 'Hazelcast Charts' Repo
+        uses: actions/checkout@v3
+        with:
+          repository: hazelcast/charts
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Deleting Branch and Tag in 'Hazelcast Charts' Repo
+        run: |
+          set +e
+          TAG_VERSION=v${RELEASE_VERSION}-operator
+          git push origin --delete ${RELEASE_VERSION}
+          git push origin --delete ${TAG_VERSION}
+          set -e
+
   slack_notify:
     name: Slack Notify
-    needs: ['publish_docker_image', 'publish_image_to_redhat', 'operatorhub_release', 'redhat_certified_operator_release' ]
-    if: needs.operatorhub_release.result != 'success' && needs.redhat_certified_operator_release.result != 'success'
+    needs: ['publish_docker_image', 'publish_image_to_redhat', 'operatorhub_release', 'redhat_certified_operator_release', 'helm_chart_release']
+    if: needs.operatorhub_release.result != 'success' && needs.redhat_certified_operator_release.result != 'success' && needs.helm_chart_release.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: 8398a7/action-slack@v3
