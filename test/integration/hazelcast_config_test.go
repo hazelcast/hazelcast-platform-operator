@@ -74,14 +74,14 @@ var _ = Describe("Hazelcast Config Secret", func() {
 
 		It("should not override CR configs", Label("fast"), func() {
 			customConfig := make(map[string]interface{})
-			uccConf := make(map[string]interface{})
-			uccConf["enabled"] = true
-			uccConf["class-cache-mode"] = "ETERNAL"
-			uccConf["provider-mode"] = "LOCAL_AND_CACHED_CLASSES"
-			uccConf["blacklist-prefixes"] = "com.foo,com.bar"
-			uccConf["whitelist-prefixes"] = "com.bar.MyClass"
-			uccConf["provider-filter"] = "HAS_ATTRIBUTE:lite"
-			customConfig["user-code-deployment"] = uccConf
+			ucdConf := make(map[string]interface{})
+			ucdConf["enabled"] = true
+			ucdConf["class-cache-mode"] = "ETERNAL"
+			ucdConf["provider-mode"] = "LOCAL_AND_CACHED_CLASSES"
+			ucdConf["blacklist-prefixes"] = "com.foo,com.bar"
+			ucdConf["whitelist-prefixes"] = "com.bar.MyClass"
+			ucdConf["provider-filter"] = "HAS_ATTRIBUTE:lite"
+			customConfig["user-code-deployment"] = ucdConf
 			cm := &v1.ConfigMap{
 				ObjectMeta: randomObjectMeta(namespace),
 			}
@@ -111,9 +111,9 @@ var _ = Describe("Hazelcast Config Secret", func() {
 
 		It("should not override advanced network config", Label("fast"), func() {
 			customConfig := make(map[string]interface{})
-			uccConf := make(map[string]interface{})
-			uccConf["enabled"] = false
-			customConfig["advanced-network"] = uccConf
+			anConf := make(map[string]interface{})
+			anConf["enabled"] = false
+			customConfig["advanced-network"] = anConf
 			cm := &v1.ConfigMap{
 				ObjectMeta: randomObjectMeta(namespace),
 			}
