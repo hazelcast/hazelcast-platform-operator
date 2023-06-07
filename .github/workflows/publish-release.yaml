@@ -41,10 +41,10 @@ jobs:
 
       - name: Commit And Push Changes To 'Hazelcast Charts' Repository
         run: |
-          echo ${{ secrets.PAT2 }} | gh auth login --with-token
+          echo ${{ secrets.PAT }} | gh auth login --with-token
           git config user.email "alexander.borschuk@hazelcast.com"
           git config user.name "aborschuk"
-          git subtree add --prefix=charts https://github.com/cheels/charts.git $RELEASE_VERSION --squash
+          git subtree add --prefix=charts https://github.com/cheels1/charts.git $RELEASE_VERSION --squash
           git rm -r charts/stable/hazelcast-platform-operator/*
           cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
           git add charts/
