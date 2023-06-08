@@ -1,29 +1,39 @@
 package v1alpha1
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 )
 
 func ValidateManagementCenterSpec(mc *ManagementCenter) error {
-	currentErrs := ValidateManagementCenterSpecCurrent(mc)
-	updateErrs := ValidateManagementCenterSpecUpdate(mc)
-	allErrs := append(currentErrs, updateErrs...)
-	if len(allErrs) == 0 {
+	var errors field.ErrorList
+	errors = append(errors, ValidateManagementCenterSpecCurrent(mc)...)
+	errors = append(errors, ValidateManagementCenterSpecUpdate(mc)...)
+	for i := range mc.Spec.HazelcastClusters {
+		err := validateClusterConfigTLS(&mc.Spec.HazelcastClusters[i], mc.Namespace)
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
+	if len(errors) == 0 {
 		return nil
 	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "ManagementCenter"}, mc.Name, allErrs)
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "ManagementCenter"}, mc.Name, errors)
 }
 
-func ValidateManagementCenterSpecCurrent(mc *ManagementCenter) []*field.Error {
+func ValidateManagementCenterSpecCurrent(mc *ManagementCenter) field.ErrorList {
 	var allErrs field.ErrorList
 
 	if mc.Spec.ExternalConnectivity.Route.IsEnabled() {
@@ -32,13 +42,10 @@ func ValidateManagementCenterSpecCurrent(mc *ManagementCenter) []*field.Error {
 				"Route can only be enabled in OpenShift environments."))
 		}
 	}
-	if len(allErrs) == 0 {
-		return nil
-	}
 	return allErrs
 }
 
-func ValidateManagementCenterSpecUpdate(mc *ManagementCenter) []*field.Error {
+func ValidateManagementCenterSpecUpdate(mc *ManagementCenter) field.ErrorList {
 	last, ok := mc.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
 		return nil
@@ -52,7 +59,7 @@ func ValidateManagementCenterSpecUpdate(mc *ManagementCenter) []*field.Error {
 	return ValidateNotUpdatableMcPersistenceFields(mc.Spec.Persistence, parsed.Persistence)
 }
 
-func ValidateNotUpdatableMcPersistenceFields(current, last MCPersistenceConfiguration) []*field.Error {
+func ValidateNotUpdatableMcPersistenceFields(current, last MCPersistenceConfiguration) field.ErrorList {
 	var allErrs field.ErrorList
 
 	if !reflect.DeepEqual(current.Enabled, last.Enabled) {
@@ -71,9 +78,34 @@ func ValidateNotUpdatableMcPersistenceFields(current, last MCPersistenceConfigur
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("persistence").Child("size"), "field cannot be updated"))
 	}
+	return allErrs
+}
 
-	if len(allErrs) == 0 {
+func validateClusterConfigTLS(config *HazelcastClusterConfig, namespace string) *field.Error {
+	// skip validation if TLS is not set
+	if config.TLS == nil {
 		return nil
 	}
-	return allErrs
+
+	p := field.NewPath("spec").Child("hazelcastClusters").Child("tls").Child("secretName")
+
+	// if user skipped validation secretName can be empty
+	if config.TLS.SecretName == "" {
+		return field.NotFound(p, "Management Center Cluster config TLS Secret name is empty")
+	}
+
+	// check if secret exists
+	secretName := types.NamespacedName{
+		Name:      config.TLS.SecretName,
+		Namespace: namespace,
+	}
+
+	var secret corev1.Secret
+	err := kubeclient.Get(context.Background(), secretName, &secret)
+	if kerrors.IsNotFound(err) {
+		// we care only about not found error
+		return field.NotFound(p, "Management Center Cluster config TLS Secret not found")
+	}
+
+	return nil
 }

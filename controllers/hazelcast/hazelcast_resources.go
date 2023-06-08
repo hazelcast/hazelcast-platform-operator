@@ -894,7 +894,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
 	}
 
-	if h.Spec.TLS.SecretName != "" {
+	if h.Spec.TLS != nil && h.Spec.TLS.SecretName != "" {
 		var (
 			jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
 			password = "hazelcast"
@@ -957,7 +957,7 @@ func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha
 		store    = keystore.New()
 		password = []byte("hazelcast")
 	)
-	if h.Spec.TLS.SecretName != "" {
+	if h.Spec.TLS != nil && h.Spec.TLS.SecretName != "" {
 		cert, key, err := loadTLSKeyPair(ctx, c, h)
 		if err != nil {
 			return nil, err

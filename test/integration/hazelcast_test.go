@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/ptr"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -1727,7 +1726,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with TLS configuration", func() {
 		When("TLS property is configured", func() {
-			It("should be enabled", Label("fast"), func() {
+			It("should be enabled when secret is valid", Label("fast"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -1737,7 +1736,7 @@ var _ = Describe("Hazelcast CR", func() {
 				defer Delete(lookupKey(tlsSecret), tlsSecret)
 
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.TLS = hazelcastv1alpha1.TLS{
+				spec.TLS = &hazelcastv1alpha1.TLS{
 					SecretName: tlsSecret.GetName(),
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
@@ -1768,6 +1767,38 @@ var _ = Describe("Hazelcast CR", func() {
 				}, timeout, interval).Should(BeTrue())
 
 				Delete(lookupKey(hz), hz)
+			})
+			It("should error when secretName is empty", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.TLS = &hazelcastv1alpha1.TLS{
+					SecretName: "",
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+			})
+			It("should error when secretName does not exist", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.TLS = &hazelcastv1alpha1.TLS{
+					SecretName: "notfound",
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
 		})
 	})
