@@ -614,7 +614,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
-			config, err := hazelcastConfig(ctx, r.Client, h)
+			config, err := hazelcastConfig(ctx, r.Client, h, logger)
 			if err != nil {
 				return err
 			}
@@ -647,7 +647,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 	})
 }
 
-func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
+func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
 
 	fillHazelcastConfigWithProperties(&cfg, h)
@@ -697,7 +697,42 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		}
 	}
 
+	if h.Spec.CustomConfigCmName != "" {
+		cfgCm := &v1.ConfigMap{}
+		if err := c.Get(ctx, types.NamespacedName{Name: h.Spec.CustomConfigCmName, Namespace: h.Namespace}, cfgCm, nil); err != nil {
+			return nil, err
+		}
+		cfgMap := make(map[string]interface{})
+		if err = yaml.Unmarshal([]byte(cfgCm.Data["hazelcast"]), cfgMap); err != nil {
+			return nil, err
+		}
+		if err = mergeConfig(cfgMap, &cfg, logger); err != nil {
+			return nil, err
+		}
+		hzWrapper := make(map[string]interface{})
+		hzWrapper["hazelcast"] = cfgMap
+		return yaml.Marshal(hzWrapper)
+	}
+
 	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
+}
+
+func mergeConfig(cstCfg map[string]interface{}, cfg *config.Hazelcast, logger logr.Logger) error {
+	out, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	crCfg := make(map[string]interface{})
+	if err = yaml.Unmarshal(out, crCfg); err != nil {
+		return err
+	}
+	for k, v := range crCfg {
+		if _, exist := cstCfg[k]; exist {
+			logger.V(util.WarnLevel).Info("Custom Config section ignored", "section", k)
+		}
+		cstCfg[k] = v
+	}
+	return nil
 }
 
 func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {

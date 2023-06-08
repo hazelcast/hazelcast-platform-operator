@@ -169,6 +169,11 @@ type HazelcastSpec struct {
 	// Hazelcast serialization configuration
 	// +optional
 	Serialization *SerializationConfig `json:"serialization,omitempty"`
+
+	// Name of the ConfigMap with the Hazelcast custom configuration.
+	// This configuration from the ConfigMap might be overridden by the Hazelcast CR configuration.
+	// +optional
+	CustomConfigCmName string `json:"customConfigCmName,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {

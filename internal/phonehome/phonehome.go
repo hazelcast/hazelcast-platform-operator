@@ -103,6 +103,7 @@ type PhoneHomeData struct {
 	JetEngine                     JetEngine              `json:"je"`
 	TLS                           TLS                    `json:"t"`
 	SerializationCount            int                    `json:"serc"`
+	CustomConfigCount             int                    `json:"ccon"`
 }
 
 type JVMConfigUsage struct {
@@ -214,6 +215,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	createdMemberCount := 0
 	executorServiceCount := 0
 	serializationCount := 0
+	customConfigCount := 0
 	clusterUUIDs := []string{}
 	highAvailabilityModes := []string{}
 	nativeMemoryCount := 0
@@ -237,6 +239,10 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 
 		if hz.Spec.Serialization != nil {
 			serializationCount++
+		}
+
+		if hz.Spec.CustomConfigCmName != "" {
+			customConfigCount++
 		}
 
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
@@ -263,6 +269,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.HighAvailabilityMode = highAvailabilityModes
 	phm.NativeMemoryCount = nativeMemoryCount
 	phm.SerializationCount = serializationCount
+	phm.CustomConfigCount = customConfigCount
 }
 
 func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
