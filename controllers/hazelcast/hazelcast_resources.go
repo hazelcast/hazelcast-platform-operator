@@ -614,7 +614,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
-			config, err := hazelcastConfig(ctx, r.Client, h)
+			config, err := hazelcastConfig(ctx, r.Client, h, logger)
 			if err != nil {
 				return err
 			}
@@ -647,7 +647,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 	})
 }
 
-func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
+func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
 
 	fillHazelcastConfigWithProperties(&cfg, h)
@@ -706,7 +706,7 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		if err = yaml.Unmarshal([]byte(cfgCm.Data["hazelcast"]), cfgMap); err != nil {
 			return nil, err
 		}
-		if err = mergeCustomConfig(&cfg, cfgMap); err != nil {
+		if err = mergeConfig(cfgMap, &cfg, logger); err != nil {
 			return nil, err
 		}
 		hzWrapper := make(map[string]interface{})
@@ -717,7 +717,7 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 }
 
-func mergeCustomConfig(cfg *config.Hazelcast, cstCfg map[string]interface{}) error {
+func mergeConfig(cstCfg map[string]interface{}, cfg *config.Hazelcast, logger logr.Logger) error {
 	out, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
@@ -727,6 +727,9 @@ func mergeCustomConfig(cfg *config.Hazelcast, cstCfg map[string]interface{}) err
 		return err
 	}
 	for k, v := range crCfg {
+		if _, exist := cstCfg[k]; exist {
+			logger.V(util.WarnLevel).Info("Custom Config section ignored", "section", k)
+		}
 		cstCfg[k] = v
 	}
 	return nil
