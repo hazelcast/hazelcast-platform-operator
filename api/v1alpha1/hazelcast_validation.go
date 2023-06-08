@@ -175,6 +175,11 @@ func validateTLS(h *Hazelcast) *field.Error {
 		return nil
 	}
 
+	if h.Spec.LicenseKeySecretName == "" {
+		return field.Required(field.NewPath("spec").Child("tls"),
+			"Hazelcast TLS requires enterprise version")
+	}
+
 	p := field.NewPath("spec").Child("tls").Child("secretName")
 
 	// if user skipped validation secretName can be empty

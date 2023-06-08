@@ -1800,6 +1800,22 @@ var _ = Describe("Hazelcast CR", func() {
 
 				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
+			It("should error when not using enterprise version", Label("fast"), func() {
+				if ee {
+					Skip("This test will only run in OS configuration")
+				}
+
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.TLS = &hazelcastv1alpha1.TLS{
+					SecretName: "example",
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+			})
 		})
 	})
 
