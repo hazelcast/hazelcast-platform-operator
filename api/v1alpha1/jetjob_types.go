@@ -4,19 +4,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +kubebuilder:validation:Enum=NotRunning;Starting;Running;Suspended;SuspendedExportingSnapshot;Completing;Failed;Completed
+// +kubebuilder:validation:Enum=Failed;NotRunning;Starting;Running;Suspended;SuspendedExportingSnapshot;Completing;ExecutionFailed;Completed
 type JetJobStatusPhase string
 
 const (
-	JetJobFailed            JetJobStatusPhase = "Failed"                     //6
-	JetJobNotRunning        JetJobStatusPhase = "NotRunning"                 //0
-	JetJobStarting          JetJobStatusPhase = "Starting"                   //1
-	JetJobRunning           JetJobStatusPhase = "Running"                    //2
-	JetJobSuspended         JetJobStatusPhase = "Suspended"                  //3
-	JetJobExportingSnapshot JetJobStatusPhase = "SuspendedExportingSnapshot" //4
-	JetJobCompleting        JetJobStatusPhase = "Completing"                 //5
-	JetJobExecutionFailed   JetJobStatusPhase = "FailedDuringExecution"      //6
-	JetJobCompleted         JetJobStatusPhase = "Completed"                  //7
+	JetJobFailed                     JetJobStatusPhase = "Failed"
+	JetJobNotRunning                 JetJobStatusPhase = "NotRunning"                 //0
+	JetJobStarting                   JetJobStatusPhase = "Starting"                   //1
+	JetJobRunning                    JetJobStatusPhase = "Running"                    //2
+	JetJobSuspended                  JetJobStatusPhase = "Suspended"                  //3
+	JetJobSuspendedExportingSnapshot JetJobStatusPhase = "SuspendedExportingSnapshot" //4
+	JetJobCompleting                 JetJobStatusPhase = "Completing"                 //5
+	JetJobExecutionFailed            JetJobStatusPhase = "ExecutionFailed"            //6
+	JetJobCompleted                  JetJobStatusPhase = "Completed"                  //7
 )
 
 type JetJobState string
@@ -107,7 +107,7 @@ func (jjs JetJobStatusPhase) IsFinished() bool {
 }
 
 func (jjs JetJobStatusPhase) IsSuspended() bool {
-	return jjs == JetJobSuspended || jjs == JetJobExportingSnapshot
+	return jjs == JetJobSuspended || jjs == JetJobSuspendedExportingSnapshot
 }
 
 //+kubebuilder:object:root=true
