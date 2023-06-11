@@ -2545,12 +2545,17 @@ spec:
           spec:
             description: JetJobSnapshotSpec defines the desired state of JetJobSnapshot
             properties:
+              cancelJob:
+                default: false
+                type: boolean
               jetJobResourceName:
                 type: string
               name:
                 type: string
             required:
+            - cancelJob
             - jetJobResourceName
+            - name
             type: object
           status:
             description: JetJobSnapshotStatus defines the observed state of JetJobSnapshot
