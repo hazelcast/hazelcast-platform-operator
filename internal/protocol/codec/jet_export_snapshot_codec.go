@@ -16,16 +16,17 @@
 
 package codec
 
-import proto "github.com/hazelcast/hazelcast-go-client"
+import (
+	proto "github.com/hazelcast/hazelcast-go-client"
+)
 
 const (
 	JetExportSnapshotCodecRequestMessageType  = int32(0xFE0A00)
 	JetExportSnapshotCodecResponseMessageType = int32(0xFE0A01)
 
-	JetExportSnapshotCodecRequestJobIdFieldOffset     = proto.PartitionIDOffset + proto.IntSizeInBytes
-	JetExportSnapshotCodecRequestCancelJobFieldOffset = JetExportSnapshotCodecRequestJobIdFieldOffset + proto.LongSizeInBytes
-	JetExportSnapshotCodecRequestInitialFrameSize     = JetExportSnapshotCodecRequestCancelJobFieldOffset + proto.BooleanSizeInBytes
-	JetExportSnapshotCodecResponseInitialFrameSize    = proto.ResponseBackupAcksOffset + proto.ByteSizeInBytes
+	JetExportSnapshotCodecRequestJobIdOffset      = proto.PartitionIDOffset + proto.IntSizeInBytes
+	JetExportSnapshotCodecRequestCancelJobOffset  = JetExportSnapshotCodecRequestJobIdOffset + proto.LongSizeInBytes
+	JetExportSnapshotCodecRequestInitialFrameSize = JetExportSnapshotCodecRequestCancelJobOffset + proto.BooleanSizeInBytes
 )
 
 func EncodeJetExportSnapshotRequest(jobId int64, name string, cancelJob bool) *proto.ClientMessage {
@@ -33,13 +34,13 @@ func EncodeJetExportSnapshotRequest(jobId int64, name string, cancelJob bool) *p
 	clientMessage.SetRetryable(false)
 
 	initialFrame := proto.NewFrameWith(make([]byte, JetExportSnapshotCodecRequestInitialFrameSize), proto.UnfragmentedMessage)
-	EncodeLong(initialFrame.Content, JetExportSnapshotCodecRequestJobIdFieldOffset, jobId)
-	EncodeBoolean(initialFrame.Content, JetExportSnapshotCodecRequestCancelJobFieldOffset, cancelJob)
+	EncodeLong(initialFrame.Content, JetExportSnapshotCodecRequestJobIdOffset, jobId)
+	EncodeBoolean(initialFrame.Content, JetExportSnapshotCodecRequestCancelJobOffset, cancelJob)
 	clientMessage.AddFrame(initialFrame)
 	clientMessage.SetMessageType(JetExportSnapshotCodecRequestMessageType)
 	clientMessage.SetPartitionId(-1)
 
-	clientMessage.AddFrame(proto.NewFrame([]byte(name)))
+	EncodeString(clientMessage, name)
 
 	return clientMessage
 }

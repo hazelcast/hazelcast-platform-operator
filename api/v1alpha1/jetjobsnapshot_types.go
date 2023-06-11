@@ -6,20 +6,20 @@ import (
 
 // JetJobSnapshotSpec defines the desired state of JetJobSnapshot
 type JetJobSnapshotSpec struct {
-
 	// +required
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
+
+	// +kubebuilder:default:=false
+	CancelJob bool `json:"cancelJob"`
 
 	// +required
 	JetJobResourceName string `json:"jetJobResourceName"`
-
-	// ? Adding other data like CreationTime, Size
 }
 
 // JetJobSnapshotStatus defines the observed state of JetJobSnapshot
 type JetJobSnapshotStatus struct {
 	Message string `json:"message,omitempty"`
-	// Other fields
+	// Other fields like CreationTime, Size
 }
 
 //+kubebuilder:object:root=true

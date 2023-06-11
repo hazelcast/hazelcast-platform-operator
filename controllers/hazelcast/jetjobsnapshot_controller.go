@@ -57,7 +57,6 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return result, nil
 		}
 		logger.Error(err, "Failed to get JetJobSnapshot")
-		// todo return
 		return ctrl.Result{}, err
 	}
 
@@ -84,13 +83,10 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	// todo ? can it be triggered multiple times
+	//TODO: can it be triggered for multiple times?
 	_, createdBefore := jjs.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !createdBefore {
-
-		fmt.Println("----------------------------------------------------")
-		fmt.Println("Exporting Snapshot")
-		// get jetjob
+		logger.Info("exporting jet job snapshot", "name", jjs.Spec.Name, "cancel job", jjs.Spec.CancelJob)
 		jetJobNn := types.NamespacedName{
 			Name:      jjs.Spec.JetJobResourceName,
 			Namespace: jjs.Namespace,
@@ -111,16 +107,15 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 
-		// cancel should be taken in cr
-		req := codec.EncodeJetExportSnapshotRequest(jetJob.Status.Id, jjs.Spec.Name, false)
+		req := codec.EncodeJetExportSnapshotRequest(jetJob.Status.Id, jjs.Spec.Name, jjs.Spec.CancelJob)
 		_, err = c.InvokeOnRandomTarget(ctx, req, nil)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-
+		//TODO: set if  successfully exported
+		//TODO: set data like creation time
 	} else {
-		fmt.Println("----------------------------------------------------")
-		fmt.Println("Update reconciliation")
+		logger.Info("Snapshot is already exported")
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
