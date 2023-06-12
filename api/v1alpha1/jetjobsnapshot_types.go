@@ -4,12 +4,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +kubebuilder:validation:Enum=Waiting;Starting;Running;Suspended;SuspendedExportingSnapshot;Completing;Failed;Completed
+type JetJobSnapshotState string
+
+const (
+	JetJobSnapshotWaiting   JetJobSnapshotState = "Waiting"
+	JetJobSnapshotExporting JetJobSnapshotState = "Exporting"
+	JetJobSnapshotExported  JetJobSnapshotState = "Exported"
+	JetJobSnapshotFailed    JetJobSnapshotState = "Failed"
+)
+
 // JetJobSnapshotSpec defines the desired state of JetJobSnapshot
 type JetJobSnapshotSpec struct {
 	// +required
 	Name string `json:"name"`
 
 	// +kubebuilder:default:=false
+	// +optional
 	CancelJob bool `json:"cancelJob"`
 
 	// +required
@@ -18,8 +29,15 @@ type JetJobSnapshotSpec struct {
 
 // JetJobSnapshotStatus defines the observed state of JetJobSnapshot
 type JetJobSnapshotStatus struct {
+	// +optional
+	State JetJobSnapshotState `json:"state,omitempty"`
+
+	// +optional
 	Message string `json:"message,omitempty"`
-	// Other fields like CreationTime, Size
+
+	// creation time
+
+	// size
 }
 
 //+kubebuilder:object:root=true

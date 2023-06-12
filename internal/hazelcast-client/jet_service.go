@@ -14,6 +14,7 @@ type JetService interface {
 	JobSummaries(ctx context.Context) ([]types.JobAndSqlSummary, error)
 	UpdateJobState(ctx context.Context, job types.JetTerminateJob) error
 	ResumeJob(ctx context.Context, jobId int64) error
+	ExportSnapshot(ctx context.Context, jobId int64, name string, cancelJob bool) error
 }
 
 type HzJetService struct {
@@ -65,4 +66,10 @@ func (h HzJetService) JobSummary(ctx context.Context, job *hazelcastv1alpha1.Jet
 		}
 	}
 	return types.JobAndSqlSummary{}, nil
+}
+
+func (h HzJetService) ExportSnapshot(ctx context.Context, jobId int64, name string, cancelJob bool) error {
+	req := codec.EncodeJetExportSnapshotRequest(jobId, name, cancelJob)
+	_, err := h.client.InvokeOnRandomTarget(ctx, req, nil)
+	return err
 }
