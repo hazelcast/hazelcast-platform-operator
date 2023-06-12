@@ -67,14 +67,11 @@ spec:
               state: Waiting
             description: JetJobSnapshotStatus defines the observed state of JetJobSnapshot
             properties:
-              creation:
+              creationTime:
                 format: date-time
                 type: string
               message:
                 type: string
-              payloadSize:
-                format: int64
-                type: integer
               state:
                 enum:
                 - Waiting

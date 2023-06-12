@@ -36,10 +36,7 @@ type JetJobSnapshotStatus struct {
 	Message string `json:"message,omitempty"`
 
 	// +optional
-	CreationTime *metav1.Time `json:"creation,omitempty"`
-
-	// +optional
-	PayloadSize uint64 `json:"payloadSize,omitempty"`
+	CreationTime *metav1.Time `json:"creationTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true
