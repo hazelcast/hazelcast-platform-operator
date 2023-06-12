@@ -148,12 +148,13 @@ func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *haze
 			updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 				withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExporting))
 			jetService := hzclient.NewJetService(c)
-			err := jetService.ExportSnapshot(exportSnapshotCtx, jetJob.Status.Id, jjs.Spec.Name, jjs.Spec.CancelJob)
+			t, err := jetService.ExportSnapshot(exportSnapshotCtx, jetJob.Status.Id, jjs.Spec.Name, jjs.Spec.CancelJob)
 			if err != nil {
 				updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 					withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotFailed))
 				return
 			}
+			setCreationTime(exportSnapshotCtx, r.Client, n, t)              //nolint:errcheck
 			updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 				withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExported))
 		}(k)

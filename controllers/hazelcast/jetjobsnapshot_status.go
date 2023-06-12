@@ -2,13 +2,17 @@ package hazelcast
 
 import (
 	"context"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers"
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 )
 
 type JetJobSnapshotStatusApplierFunc func(s *hazelcastv1alpha1.JetJobSnapshotStatus)
@@ -59,6 +63,19 @@ func updateJetJobSnapshotStatusRetry(ctx context.Context, c client.Client, nn ty
 		for _, applierFunc := range options {
 			applierFunc(&jjs.Status)
 		}
+		return c.Status().Update(ctx, jjs)
+	})
+}
+
+func setCreationTime(ctx context.Context, c client.Client, nn types.NamespacedName, timeMilli int64) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		jjs := &hazelcastv1alpha1.JetJobSnapshot{}
+		err := c.Get(ctx, nn, jjs)
+		if err != nil {
+			return err
+		}
+		t := metav1.NewTime(time.Unix(0, timeMilli*int64(time.Millisecond)))
+		jjs.Status.CreationTime = &(t)
 		return c.Status().Update(ctx, jjs)
 	})
 }
