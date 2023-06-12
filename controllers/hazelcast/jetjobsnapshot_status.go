@@ -5,6 +5,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,14 +47,18 @@ func updateJetJobSnapshotStatus(ctx context.Context, c client.Client, jjs *hazel
 	return ctrl.Result{}, nil
 }
 
-func updateJetJobSnapshotStatusRetry(ctx context.Context, c client.Client, jjs *hazelcastv1alpha1.JetJobSnapshot,
+func updateJetJobSnapshotStatusRetry(ctx context.Context, c client.Client, nn types.NamespacedName,
 	options ...JetJobSnapshotStatusApplierFunc) error {
 
-	for _, applierFunc := range options {
-		applierFunc(&jjs.Status)
-	}
-
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		jjs := &hazelcastv1alpha1.JetJobSnapshot{}
+		err := c.Get(ctx, nn, jjs)
+		if err != nil {
+			return err
+		}
+		for _, applierFunc := range options {
+			applierFunc(&jjs.Status)
+		}
 		return c.Status().Update(ctx, jjs)
 	})
 }
