@@ -337,7 +337,7 @@ func jobStatusPhase(readStatus int32) hazelcastv1alpha1.JetJobStatusPhase {
 	case 3:
 		return hazelcastv1alpha1.JetJobSuspended
 	case 4:
-		return hazelcastv1alpha1.JetJobExportingSnapshot
+		return hazelcastv1alpha1.JetJobSuspendedExportingSnapshot
 	case 5:
 		return hazelcastv1alpha1.JetJobCompleting
 	case 6:
