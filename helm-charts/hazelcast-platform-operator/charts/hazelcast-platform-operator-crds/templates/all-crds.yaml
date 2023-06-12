@@ -2553,7 +2553,6 @@ spec:
               name:
                 type: string
             required:
-            - cancelJob
             - jetJobResourceName
             - name
             type: object
@@ -2561,6 +2560,17 @@ spec:
             description: JetJobSnapshotStatus defines the observed state of JetJobSnapshot
             properties:
               message:
+                type: string
+              state:
+                enum:
+                - Waiting
+                - Starting
+                - Running
+                - Suspended
+                - SuspendedExportingSnapshot
+                - Completing
+                - Failed
+                - Completed
                 type: string
             type: object
         type: object

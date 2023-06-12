@@ -5,29 +5,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-logr/logr"
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sync"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sync"
+	"time"
 )
 
 // JetJobSnapshotReconciler reconciles a JetJobSnapshot object
 type JetJobSnapshotReconciler struct {
 	client.Client
-	Log                  logr.Logger
-	ClientRegistry       hzclient.ClientRegistry
-	clusterStatusChecker sync.Map
+	log                  logr.Logger
+	clientRegistry       hzclient.ClientRegistry
+	exportingSnapshotMap sync.Map
 	phoneHomeTrigger     chan struct{}
 	mtlsClientRegistry   mtls.HttpClientRegistry
 }
@@ -35,8 +34,8 @@ type JetJobSnapshotReconciler struct {
 func NewJetJobSnapshotReconciler(c client.Client, log logr.Logger, cs hzclient.ClientRegistry, mtlsClientRegistry mtls.HttpClientRegistry, pht chan struct{}) *JetJobSnapshotReconciler {
 	return &JetJobSnapshotReconciler{
 		Client:             c,
-		Log:                log,
-		ClientRegistry:     cs,
+		log:                log,
+		clientRegistry:     cs,
 		mtlsClientRegistry: mtlsClientRegistry,
 		phoneHomeTrigger:   pht,
 	}
@@ -46,76 +45,88 @@ func NewJetJobSnapshotReconciler(c client.Client, log logr.Logger, cs hzclient.C
 //+kubebuilder:rbac:groups=hazelcast.com,resources=jetjobsnapshots/status,verbs=get;update;patch,namespace=watched
 //+kubebuilder:rbac:groups=hazelcast.com,resources=jetjobsnapshots/finalizers,verbs=update,namespace=watched
 
-func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
-	logger := r.Log.WithValues("hazelcast-jet-job-snapshot", req.NamespacedName)
+func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := r.log.WithValues("hazelcast-jet-job-snapshot", req.NamespacedName)
 
 	jjs := &hazelcastv1alpha1.JetJobSnapshot{}
-	err = r.Client.Get(ctx, req.NamespacedName, jjs)
+	err := r.Client.Get(ctx, req.NamespacedName, jjs)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			logger.Info("JetJobSnapshot resource not found. Ignoring since object must be deleted")
-			return result, nil
+			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Failed to get JetJobSnapshot")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get JetJobSnapshot: %w", err)
 	}
 
 	err = util.AddFinalizer(ctx, r.Client, jjs, logger)
 	if err != nil {
-		// todo return
-		return ctrl.Result{}, err
+		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+			withJetJobSnapshotFailedState(err.Error()))
 	}
 
 	//Check if the JetJobSnapshot CR is marked to be deleted
 	if jjs.GetDeletionTimestamp() != nil {
 		err = r.executeFinalizer(ctx, jjs, logger)
 		if err != nil {
-			// todo return
-			return ctrl.Result{}, err
+			return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+				withJetJobSnapshotFailedState(err.Error()))
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
-		return
+		return ctrl.Result{}, nil
 	}
 
-	_, err = json.Marshal(jjs.Spec)
-	if err != nil {
-		// todo return
-		return ctrl.Result{}, err
-	}
-
-	//TODO: can it be triggered for multiple times?
 	_, createdBefore := jjs.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !createdBefore {
-		logger.Info("exporting jet job snapshot", "name", jjs.Spec.Name, "cancel job", jjs.Spec.CancelJob)
+
+		// get JetJob CR
 		jetJobNn := types.NamespacedName{
 			Name:      jjs.Spec.JetJobResourceName,
 			Namespace: jjs.Namespace,
 		}
+
 		jetJob := hazelcastv1alpha1.JetJob{}
-		err := r.Client.Get(ctx, jetJobNn, &jetJob)
+		err = r.Client.Get(ctx, jetJobNn, &jetJob)
 		if err != nil {
+			logger.Error(err, "error on getting jet job", "jetJobResourceName", jetJobNn.Name)
 			return ctrl.Result{}, nil
 		}
 
-		// get hz
+		// requeue, if the jobID is not loaded yet
+		if jetJob.Status.Id == 0 {
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+
+		// get Hazelcast CR and client
 		hzNn := types.NamespacedName{
 			Name:      jetJob.Spec.HazelcastResourceName,
 			Namespace: jetJob.Namespace,
 		}
-		c, err := r.ClientRegistry.GetOrCreate(ctx, hzNn)
+		c, err := r.clientRegistry.GetOrCreate(ctx, hzNn)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 
-		req := codec.EncodeJetExportSnapshotRequest(jetJob.Status.Id, jjs.Spec.Name, jjs.Spec.CancelJob)
-		_, err = c.InvokeOnRandomTarget(ctx, req, nil)
-		if err != nil {
-			return ctrl.Result{}, err
+		// It guarantees that the exporting snapshot process is started only once for each resource.
+		if _, loaded := r.exportingSnapshotMap.LoadOrStore(req.Namespace, new(any)); !loaded {
+			go func() {
+				logger.Info("Exporting jet job snapshot", "name", jjs.Spec.Name, "cancelJob", jjs.Spec.CancelJob)
+				exportSnapshotCtx := context.Background()
+				updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, jjs, //nolint:errcheck
+					withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExporting))
+				jetService := hzclient.NewJetService(c)
+				err := jetService.ExportSnapshot(exportSnapshotCtx, jetJob.Status.Id, jjs.Spec.Name, jjs.Spec.CancelJob)
+				if err != nil {
+					updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, jjs, //nolint:errcheck
+						withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotFailed))
+					return
+				}
+				updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, jjs, //nolint:errcheck
+					withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExported))
+			}()
 		}
-		//TODO: set if  successfully exported
-		//TODO: set data like creation time
 	} else {
-		logger.Info("Snapshot is already exported")
+		logger.Info("exporting JetJobSnapshot process has already been started")
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
