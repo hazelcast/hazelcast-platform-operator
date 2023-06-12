@@ -10,7 +10,19 @@ import (
 )
 
 func ValidateJetJobSnapshotSpecCreate(jjs *JetJobSnapshot) error {
-	return nil
+	var allErrs field.ErrorList
+	if jjs.Spec.Name == "" {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("name"),
+			jjs.Spec.Name, "snapshot name cannot be empty"))
+	}
+	if jjs.Spec.JetJobResourceName == "" {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("jetJobResourceName"),
+			jjs.Spec.Name, "jetJobResourceName cannot be empty"))
+	}
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJobSnapshot"}, jjs.Name, allErrs)
 }
 
 func ValidateJetJobSnapshotSpecUpdate(jjs *JetJobSnapshot, _ *JetJobSnapshot) error {
