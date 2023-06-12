@@ -5,15 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Hazelcast webhook", func() {
+var _ = Describe("JetJob CR", func() {
 	const namespace = "default"
 
 	BeforeEach(func() {
@@ -32,10 +30,7 @@ var _ = Describe("Hazelcast webhook", func() {
 	Context("JetJob create validation", func() {
 		It("should not create JetJob with State not Running", Label("fast"), func() {
 			jj := &hazelcastv1alpha1.JetJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "jetjob-1",
-					Namespace: "default",
-				},
+				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.JetJobSpec{
 					Name:                  "jetjobname",
 					HazelcastResourceName: "hazelcast",
@@ -90,14 +85,8 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 			js, _ := json.Marshal(spec)
 			jj := &hazelcastv1alpha1.JetJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "jetjob-2",
-					Namespace: "default",
-					Annotations: map[string]string{
-						n.LastSuccessfulSpecAnnotation: string(js),
-					},
-				},
-				Spec: spec,
+				ObjectMeta: randomObjectMeta(namespace, n.LastSuccessfulSpecAnnotation, string(js)),
+				Spec:       spec,
 			}
 
 			Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
@@ -117,6 +106,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				MatchError(ContainSubstring("Forbidden: field cannot be updated")),
 			))
 		})
+
 		It("should not allow adding bucket configuration", Label("fast"), func() {
 			spec := hazelcastv1alpha1.JetJobSpec{
 				Name:                  "jetjobname",
@@ -127,14 +117,8 @@ var _ = Describe("Hazelcast webhook", func() {
 			}
 			js, _ := json.Marshal(spec)
 			jj := &hazelcastv1alpha1.JetJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "jetjob-3",
-					Namespace: "default",
-					Annotations: map[string]string{
-						n.LastSuccessfulSpecAnnotation: string(js),
-					},
-				},
-				Spec: spec,
+				ObjectMeta: randomObjectMeta(namespace, n.LastSuccessfulSpecAnnotation, string(js)),
+				Spec:       spec,
 			}
 
 			Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
