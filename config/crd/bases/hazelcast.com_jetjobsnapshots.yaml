@@ -12,10 +12,26 @@ spec:
     kind: JetJobSnapshot
     listKind: JetJobSnapshotList
     plural: jetjobsnapshots
+    shortNames:
+    - jjs
     singular: jetjobsnapshot
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current state of the JetJobSnapshot
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: Time when the JetJobSnapshot was created, if created
+      jsonPath: .status.creationTime
+      name: CreationTime
+      type: string
+    - description: Message for the JetJobSnapshot
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: JetJobSnapshot is the Schema for the jetjobsnapshots API
@@ -47,25 +63,28 @@ spec:
             - name
             type: object
           status:
+            default:
+              state: Waiting
             description: JetJobSnapshotStatus defines the observed state of JetJobSnapshot
             properties:
+              creation:
+                format: date-time
+                type: string
               message:
                 type: string
+              payloadSize:
+                format: int64
+                type: integer
               state:
-                default: Waiting
                 enum:
                 - Waiting
-                - Starting
-                - Running
-                - Suspended
-                - SuspendedExportingSnapshot
-                - Completing
+                - Exporting
+                - Exported
                 - Failed
-                - Completed
                 type: string
-            required:
-            - state
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
