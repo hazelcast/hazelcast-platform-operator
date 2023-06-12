@@ -52,6 +52,7 @@ spec:
               message:
                 type: string
               state:
+                default: Waiting
                 enum:
                 - Waiting
                 - Starting
@@ -62,6 +63,8 @@ spec:
                 - Failed
                 - Completed
                 type: string
+            required:
+            - state
             type: object
         type: object
     served: true

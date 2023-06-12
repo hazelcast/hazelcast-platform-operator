@@ -12,6 +12,7 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -76,62 +77,88 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	_, createdBefore := jjs.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-	if !createdBefore {
-
-		// get JetJob CR
-		jetJobNn := types.NamespacedName{
-			Name:      jjs.Spec.JetJobResourceName,
-			Namespace: jjs.Namespace,
-		}
-
-		jetJob := hazelcastv1alpha1.JetJob{}
-		err = r.Client.Get(ctx, jetJobNn, &jetJob)
-		if err != nil {
-			logger.Error(err, "error on getting jet job", "jetJobResourceName", jetJobNn.Name)
-			return ctrl.Result{}, nil
-		}
-
-		// requeue, if the jobID is not loaded yet
-		if jetJob.Status.Id == 0 {
-			return ctrl.Result{RequeueAfter: time.Second}, nil
-		}
-
-		// get Hazelcast CR and client
-		hzNn := types.NamespacedName{
-			Name:      jetJob.Spec.HazelcastResourceName,
-			Namespace: jetJob.Namespace,
-		}
-		c, err := r.clientRegistry.GetOrCreate(ctx, hzNn)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		// It guarantees that the exporting snapshot process is started only once for each resource.
-		if _, loaded := r.exportingSnapshotMap.LoadOrStore(req.Namespace, new(any)); !loaded {
-			go func() {
-				logger.Info("Exporting jet job snapshot", "name", jjs.Spec.Name, "cancelJob", jjs.Spec.CancelJob)
-				exportSnapshotCtx := context.Background()
-				updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, jjs, //nolint:errcheck
-					withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExporting))
-				jetService := hzclient.NewJetService(c)
-				err := jetService.ExportSnapshot(exportSnapshotCtx, jetJob.Status.Id, jjs.Spec.Name, jjs.Spec.CancelJob)
-				if err != nil {
-					updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, jjs, //nolint:errcheck
-						withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotFailed))
-					return
-				}
-				updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, jjs, //nolint:errcheck
-					withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExported))
-			}()
-		}
-	} else {
+	s, createdBefore := jjs.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if createdBefore {
 		logger.Info("exporting JetJobSnapshot process has already been started")
+		lastSpec := &hazelcastv1alpha1.JetJobSnapshotSpec{}
+		err = json.Unmarshal([]byte(s), lastSpec)
+		if err != nil {
+			err = fmt.Errorf("error unmarshaling Last JetJobSnapshot Spec: %w", err)
+			return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+				withJetJobSnapshotFailedState(err.Error()))
+		}
+		var allErrs = hazelcastv1alpha1.ValidateJetJobSnapshotNonUpdatableFields(jjs.Spec, *lastSpec)
+		if len(allErrs) > 0 {
+			err = apiErrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJobSnapshot"}, req.Name, allErrs)
+			return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+				withJetJobSnapshotFailedState(err.Error()))
+		}
+		return ctrl.Result{}, nil
+	} else {
+		result, err := r.exportSnapshot(ctx, jjs, logger)
+		if err != nil {
+			return result, err
+		}
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *hazelcastv1alpha1.JetJobSnapshot, logger logr.Logger) (ctrl.Result, error) {
+	// get JetJob CR
+	jetJobNn := types.NamespacedName{
+		Name:      jjs.Spec.JetJobResourceName,
+		Namespace: jjs.Namespace,
+	}
+
+	jetJob := hazelcastv1alpha1.JetJob{}
+	err := r.Client.Get(ctx, jetJobNn, &jetJob)
+	if err != nil {
+		logger.Error(err, "error on getting jet job", "jetJobResourceName", jetJobNn.Name)
+		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+			withJetJobSnapshotFailedState(err.Error()))
+	}
+
+	// requeue, if the jobID is not loaded yet
+	if jetJob.Status.Id == 0 {
+		return ctrl.Result{RequeueAfter: time.Second}, nil
+	}
+
+	// get Hazelcast CR and client
+	hzNn := types.NamespacedName{
+		Name:      jetJob.Spec.HazelcastResourceName,
+		Namespace: jetJob.Namespace,
+	}
+	c, err := r.clientRegistry.GetOrCreate(ctx, hzNn)
+	if err != nil {
+		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+			withJetJobSnapshotFailedState(err.Error()))
+	}
+
+	// It guarantees that the exporting snapshot process is started only once for each resource.
+	k := types.NamespacedName{Name: jjs.Name, Namespace: jetJob.Namespace}
+	if _, loaded := r.exportingSnapshotMap.LoadOrStore(k, new(any)); !loaded {
+		go func() {
+			logger.Info("Exporting jet job snapshot", "name", jjs.Spec.Name, "cancelJob", jjs.Spec.CancelJob)
+			exportSnapshotCtx := context.Background()
+			updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, jjs, //nolint:errcheck
+				withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExporting))
+			jetService := hzclient.NewJetService(c)
+			err := jetService.ExportSnapshot(exportSnapshotCtx, jetJob.Status.Id, jjs.Spec.Name, jjs.Spec.CancelJob)
+			if err != nil {
+				updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, jjs, //nolint:errcheck
+					withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotFailed))
+				return
+			}
+			updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, jjs, //nolint:errcheck
+				withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExported))
+		}()
+	} else {
+		logger.Info("Exporting process has already been started", "name", jjs.Spec.Name, "cancelJob", jjs.Spec.CancelJob)
 	}
 	return ctrl.Result{}, nil
 }

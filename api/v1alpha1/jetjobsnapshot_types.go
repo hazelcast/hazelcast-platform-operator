@@ -29,11 +29,11 @@ type JetJobSnapshotSpec struct {
 
 // JetJobSnapshotStatus defines the observed state of JetJobSnapshot
 type JetJobSnapshotStatus struct {
-	// +optional
-	State JetJobSnapshotState `json:"state,omitempty"`
+	// +kubebuilder:default:=Waiting
+	State JetJobSnapshotState `json:"state"`
 
 	// +optional
-	Message string `json:"message,omitempty"`
+	Message string `json:"message"`
 
 	// creation time
 

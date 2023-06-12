@@ -353,6 +353,10 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 		setupLog.Error(err, "unable to create webhook", "webhook", "JetJob")
 		os.Exit(1)
 	}
+	if err := (&hazelcastcomv1alpha1.JetJobSnapshot{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "JetJobSnapshot")
+		os.Exit(1)
+	}
 }
 
 func setManagerWathedNamespaces(mgrOptions *ctrl.Options, operatorNamespace string) util.WatchedNsType {
