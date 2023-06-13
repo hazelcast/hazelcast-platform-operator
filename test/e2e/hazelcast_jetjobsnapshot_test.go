@@ -111,9 +111,17 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("JetJobSnapshot"), func() {
 		}
 
 		By(fmt.Sprintf("asserting size of map Bar is %d", len(entries)))
-		barHzMap, err := cl.GetMap(ctx, barMap.MapName())
-		Expect(err).To(Not(HaveOccurred()))
-		Expect(barHzMap.Size(ctx)).To(Equal(len(entries)))
+		Eventually(func() int {
+			barHzMap, err := cl.GetMap(ctx, barMap.MapName())
+			if err != nil {
+				return 0
+			}
+			size, err := barHzMap.Size(ctx)
+			if err != nil {
+				return 0
+			}
+			return size
+		}, Minute, interval).Should(Equal(len(entries)))
 
 		By("creating JetJobSnapshot CR")
 		jjs := hazelcastconfig.JetJobSnapshot("snapshot", false, jj.Name, jjsLookupKey, labels)
