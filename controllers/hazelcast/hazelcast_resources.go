@@ -1231,11 +1231,13 @@ func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1a
 		EnableSharedObject:         s.EnableSharedObject,
 		OverrideDefaultSerializers: s.OverrideDefaultSerializers,
 		AllowUnsafe:                s.AllowUnsafe,
-		GlobalSerializer: &config.GlobalSerializer{
+		Serializers:                serializers(s.Serializers),
+	}
+	if s.GlobalSerializer != nil {
+		cfg.Serialization.GlobalSerializer = &config.GlobalSerializer{
 			OverrideJavaSerialization: s.GlobalSerializer.OverrideJavaSerialization,
 			ClassName:                 s.GlobalSerializer.ClassName,
-		},
-		Serializers: serializers(s.Serializers),
+		}
 	}
 	if s.JavaSerializationFilter != nil {
 		cfg.Serialization.JavaSerializationFilter = &config.JavaSerializationFilter{
