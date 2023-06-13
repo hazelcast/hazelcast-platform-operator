@@ -17,7 +17,7 @@ import (
 )
 
 var _ = Describe("Hazelcast JetJobSnapshot", Label("JetJobSnapshot"), func() {
-	localPort := strconv.Itoa(8200 + GinkgoParallelProcess())
+	localPort := strconv.Itoa(9100 + GinkgoParallelProcess())
 	jarName := "snapshot-test.jar"
 
 	BeforeEach(func() {
