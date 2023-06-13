@@ -67,14 +67,14 @@ func updateJetJobSnapshotStatusRetry(ctx context.Context, c client.Client, nn ty
 	})
 }
 
-func setCreationTime(ctx context.Context, c client.Client, nn types.NamespacedName, timeMilli int64) error {
+func setCreationTime(ctx context.Context, c client.Client, nn types.NamespacedName, timeMillis int64) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		jjs := &hazelcastv1alpha1.JetJobSnapshot{}
 		err := c.Get(ctx, nn, jjs)
 		if err != nil {
 			return err
 		}
-		t := metav1.NewTime(time.Unix(0, timeMilli*int64(time.Millisecond)))
+		t := metav1.NewTime(time.Unix(0, timeMillis*int64(time.Millisecond)))
 		jjs.Status.CreationTime = &(t)
 		return c.Status().Update(ctx, jjs)
 	})

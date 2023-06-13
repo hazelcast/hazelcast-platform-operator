@@ -203,7 +203,13 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 		jjs := hazelcastv1alpha1.JetJobSnapshot{}
 		err := r.Client.Get(ctx, jjsnn, &jjs)
 		if err != nil {
-			logger.Error(err, "Error getting snapshot custom resource")
+			logger.Error(err, "Error on getting JetJobSnapshot custom resource",
+				"snapshotResourceName", job.Spec.InitialSnapshotResourceName)
+			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+		}
+		if jjs.Status.CreationTime.IsZero() {
+			err := fmt.Errorf("JetJobSnapshot '%s' has not exported", job.Spec.InitialSnapshotResourceName)
+			logger.Error(err, "JetJobSnapshot creation time is zero")
 			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
 		}
 		metaData.SnapshotName = jjs.Spec.Name
