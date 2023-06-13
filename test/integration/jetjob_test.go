@@ -42,11 +42,12 @@ var _ = Describe("JetJob CR", func() {
 	Context("JetJob update validation", func() {
 		It("should not update immutable fields", Label("fast"), func() {
 			spec := hazelcastv1alpha1.JetJobSpec{
-				Name:                  "jetjobname",
-				HazelcastResourceName: "hazelcast",
-				State:                 hazelcastv1alpha1.RunningJobState,
-				JarName:               "myjob.jar",
-				MainClass:             "com.example.MyClass",
+				Name:                        "jetjobname",
+				HazelcastResourceName:       "hazelcast",
+				State:                       hazelcastv1alpha1.RunningJobState,
+				JarName:                     "myjob.jar",
+				MainClass:                   "com.example.MyClass",
+				InitialSnapshotResourceName: "snapshot",
 				JetRemoteFileConfiguration: hazelcastv1alpha1.JetRemoteFileConfiguration{
 					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
 						SecretName: "my-secret",
@@ -66,6 +67,7 @@ var _ = Describe("JetJob CR", func() {
 			jj.Spec.HazelcastResourceName = "my-hazelcast"
 			jj.Spec.JarName = "another.jar"
 			jj.Spec.MainClass = "com.example.AnotherClass"
+			jj.Spec.InitialSnapshotResourceName = "another-snapshot"
 			jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = nil
 			err := k8sClient.Update(context.Background(), jj)
 			Expect(err).Should(And(
@@ -73,6 +75,7 @@ var _ = Describe("JetJob CR", func() {
 				MatchError(ContainSubstring("spec.hazelcastResourceName")),
 				MatchError(ContainSubstring("spec.jarName")),
 				MatchError(ContainSubstring("spec.mainClass")),
+				MatchError(ContainSubstring("spec.initialSnapshotResourceName")),
 				MatchError(ContainSubstring("spec.bucketConfiguration")),
 				MatchError(ContainSubstring("Forbidden: field cannot be updated")),
 			))

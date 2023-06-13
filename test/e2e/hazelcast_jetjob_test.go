@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -29,16 +28,6 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 			return
 		}
 	})
-
-	checkJetJobStatus := func(phase hazelcastv1alpha1.JetJobStatusPhase) {
-		jjCheck := &hazelcastv1alpha1.JetJob{}
-		Eventually(func() hazelcastv1alpha1.JetJobStatusPhase {
-			err := k8sClient.Get(
-				context.Background(), types.NamespacedName{Name: jjLookupKey.Name, Namespace: hzNamespace}, jjCheck)
-			Expect(err).ToNot(HaveOccurred())
-			return jjCheck.Status.Phase
-		}, 5*Minute, interval).Should(Equal(phase))
-	}
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
@@ -69,7 +58,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(hazelcastv1alpha1.JetJobCompleted)
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobCompleted)
 
 		By("Checking the JetJob jar was executed")
 		logs := InitLogs(t, hzLookupKey)
@@ -97,7 +86,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		jj := hazelcastconfig.JetJob(longRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
 
 		By("Checking the JetJob jar is running")
 		logs := InitLogs(t, hzLookupKey)
@@ -110,12 +99,12 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		Expect(k8sClient.Get(context.Background(), jjLookupKey, jj)).Should(Succeed())
 		jj.Spec.State = hazelcastv1alpha1.SuspendedJobState
 		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(hazelcastv1alpha1.JetJobSuspended)
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobSuspended)
 
 		Expect(k8sClient.Get(context.Background(), jjLookupKey, jj)).Should(Succeed())
 		jj.Spec.State = hazelcastv1alpha1.RunningJobState
 		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
 	})
 
 	DescribeTable("should download JAR and execute JetJob", func(secretName, url string) {
@@ -142,7 +131,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(hazelcastv1alpha1.JetJobCompleted)
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobCompleted)
 
 		By("Checking the JetJob jar was executed")
 		logs := InitLogs(t, hzLookupKey)
@@ -174,7 +163,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
 
-		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
 
 		By("Checking the JetJob jar is running")
 		logs := InitLogs(t, hzLookupKey)
@@ -196,7 +185,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		checkJetJobStatus(hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
 
 		By("Checking the JetJob jar is running in new Hazelcast cluster")
 		test.EventuallyInLogsUnordered(logReader, 15*Second, logInterval).

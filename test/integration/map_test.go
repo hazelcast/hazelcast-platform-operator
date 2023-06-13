@@ -61,6 +61,7 @@ var _ = Describe("Map CR", func() {
 			Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
 			Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
 			Expect(ms.EntryListeners).To(BeNil())
+			Expect(ms.EventJournal.Enabled).To(BeFalse())
 			Delete(lookupKey(m), m)
 		})
 
