@@ -64,7 +64,7 @@ type MapSpec struct {
 
 	// EventJournal specifies event journal configuration of the Map
 	// +optional
-	EventJournal *EventJournal `json:"eventJournal"`
+	EventJournal EventJournal `json:"eventJournal"`
 }
 
 type NearCache struct {

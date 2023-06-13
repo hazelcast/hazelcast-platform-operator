@@ -144,18 +144,22 @@ func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *haze
 	// It guarantees that the exporting snapshot process is started only once for each resource.
 	k := types.NamespacedName{Name: jjs.Name, Namespace: jetJob.Namespace}
 	if _, loaded := r.exportingSnapshotMap.LoadOrStore(k, new(any)); !loaded {
+		//goland:noinspection GoUnhandledErrorResult
 		go func(n types.NamespacedName) {
-			logger.Info("Exporting jet job snapshot", "name", jjs.Spec.Name, "cancelJob", jjs.Spec.CancelJob)
+			logger.Info("Exporting snapshot", "name", jjs.Spec.Name, "cancelJob", jjs.Spec.CancelJob,
+				"jetJobResourceName", jjs.Spec.JetJobResourceName)
 			exportSnapshotCtx := context.Background()
 			updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 				withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExporting))
 			jetService := hzclient.NewJetService(c)
 			t, err := jetService.ExportSnapshot(exportSnapshotCtx, jetJob.Status.Id, jjs.Spec.Name, jjs.Spec.CancelJob)
 			if err != nil {
+				logger.Error(err, "Error on exporting snapshot", "name", jjs.Spec.Name)
 				updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 					withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotFailed))
 				return
 			}
+			logger.Info("Snapshot is exported successfully", "name", jjs.Spec.Name)
 			setCreationTime(exportSnapshotCtx, r.Client, n, t)              //nolint:errcheck
 			updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 				withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExported))

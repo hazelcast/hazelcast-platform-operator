@@ -293,6 +293,7 @@ type Cache struct {
 	ValueType         ClassType       `yaml:"value-type,omitempty"`
 	InMemoryFormat    string          `yaml:"in-memory-format"`
 	DataPersistence   DataPersistence `yaml:"data-persistence,omitempty"`
+	EventJournal      EventJournal    `yaml:"event-journal,omitempty"`
 }
 
 type ClassType struct {
