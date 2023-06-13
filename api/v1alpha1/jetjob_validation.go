@@ -116,6 +116,10 @@ func ValidateJetJobNonUpdatableFields(jj JetJobSpec, oldJj JetJobSpec) []*field.
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("mainClass"), "field cannot be updated"))
 	}
+	if jj.InitialSnapshotResourceName != oldJj.InitialSnapshotResourceName {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("initialSnapshotResourceName"), "field cannot be updated"))
+	}
 	if jj.IsBucketEnabled() != oldJj.IsBucketEnabled() {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration"), "field cannot be added or removed"))
