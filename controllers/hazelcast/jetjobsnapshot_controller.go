@@ -141,6 +141,10 @@ func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *haze
 			withJetJobSnapshotFailedState(err.Error()))
 	}
 
+	if !jjs.Status.CreationTime.IsZero() {
+		return ctrl.Result{}, nil
+	}
+
 	// It guarantees that the exporting snapshot process is started only once for each resource.
 	k := types.NamespacedName{Name: jjs.Name, Namespace: jetJob.Namespace}
 	if _, loaded := r.exportingSnapshotMap.LoadOrStore(k, new(any)); !loaded {
@@ -191,6 +195,8 @@ func (r *JetJobSnapshotReconciler) updateLastSuccessfulConfiguration(ctx context
 }
 
 func (r *JetJobSnapshotReconciler) executeFinalizer(ctx context.Context, jjs *hazelcastv1alpha1.JetJobSnapshot, logger logr.Logger) error {
+	k := types.NamespacedName{Name: jjs.Name, Namespace: jjs.Namespace}
+	r.exportingSnapshotMap.Delete(k)
 	if !controllerutil.ContainsFinalizer(jjs, n.Finalizer) {
 		return nil
 	}
