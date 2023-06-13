@@ -87,21 +87,23 @@ spec:
                   type: object
                 type: array
               eventJournal:
-                description: EventJournal specifies event journal configuration for
-                  map
+                description: EventJournal specifies event journal configuration of
+                  the Map
                 properties:
                   capacity:
                     default: 10000
-                    description: Capacity
+                    description: Capacity sets the capacity of the ringbuffer underlying
+                      the event journal.
                     format: int32
                     type: integer
                   enabled:
                     default: false
-                    description: Enabled
+                    description: Enabled defines if event journal is enabled.
                     type: boolean
                   timeToLiveSeconds:
                     default: 0
-                    description: TimeToLiveSeconds
+                    description: TimeToLiveSeconds indicates how long the items remain
+                      in the event journal before they are expired.
                     format: int32
                     type: integer
                 type: object

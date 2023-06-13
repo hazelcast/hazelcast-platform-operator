@@ -3,7 +3,6 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,6 +31,10 @@ type CacheSpec struct {
 	// +kubebuilder:default:=BINARY
 	// +optional
 	InMemoryFormat InMemoryFormatType `json:"inMemoryFormat,omitempty"`
+
+	// EventJournal specifies event journal configuration of the Cache
+	// +optional
+	EventJournal *EventJournal `json:"eventJournal"`
 }
 
 // CacheStatus defines the observed state of Cache
