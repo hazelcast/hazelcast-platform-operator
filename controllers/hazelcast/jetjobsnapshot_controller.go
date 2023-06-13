@@ -4,13 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/go-logr/logr"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
-	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -18,8 +15,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sync"
-	"time"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
 // JetJobSnapshotReconciler reconciles a JetJobSnapshot object

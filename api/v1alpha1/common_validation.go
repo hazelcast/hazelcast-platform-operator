@@ -92,10 +92,7 @@ func isDSSpecUnchanged(obj client.Object) (bool, error) {
 	if err != nil {
 		return false, errors.New("Could not get spec of the data structure")
 	}
-	if newSpec != lastSpec {
-		return false, nil
-	}
-	return true, nil
+	return newSpec == lastSpec, nil
 }
 
 func appendIfNotNil(errs []*field.Error, err *field.Error) []*field.Error {
