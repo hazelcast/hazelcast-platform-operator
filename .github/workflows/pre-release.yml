@@ -29,8 +29,8 @@ jobs:
 
       - name: Create Release Branch
         run: |
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
+          git config user.email "alexander.borschuk@hazelcast.com"
+          git config user.name "aborschuk"
           git checkout -b ${RELEASE_BRANCH}
           git push -u origin ${RELEASE_BRANCH} 
 
@@ -53,8 +53,8 @@ jobs:
 
       - name: Commit and Push Changes
         run: |
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
+          git config user.email "alexander.borschuk@hazelcast.com"
+          git config user.name "aborschuk"
 
           git add Makefile Dockerfile config/ helm-charts/hazelcast-platform-operator/
           git commit --signoff -m "${RELEASE_BRANCH}"
@@ -81,8 +81,8 @@ jobs:
       - name: Commit and Push Changes
         working-directory: helm-charts/hazelcast-platform-operator
         run: |
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
+          git config user.email "alexander.borschuk@hazelcast.com"
+          git config user.name "aborschuk"
           BRANCH_NAME=update-helm-chart-to-${REPLACED_APP_VERSION}
           git checkout -b $BRANCH_NAME
           git add .
