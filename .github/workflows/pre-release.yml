@@ -25,7 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
 
       - name: Create Release Branch
         run: |
@@ -37,7 +37,7 @@ jobs:
       - name: Checkout 'Release' Branch
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
           ref: ${{ inputs.RELEASE_BRANCH }}
 
       - name: Convert latest-snapshot to Release Version
@@ -65,7 +65,7 @@ jobs:
       - name: Checkout 'main' Branch
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
           ref: main
 
       - name: Update Chart Version in Main Branch
@@ -91,7 +91,7 @@ jobs:
 
       - name: Create PR to Main Branch
         run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          echo ${{ secrets.PAT }} | gh auth login --with-token
           gh pr create --title "Update Helm Chart Version to ${REPLACED_APP_VERSION}-snapshot" \
           --label "non-release" \
           --milestone "${RELEASE_BRANCH}" \
