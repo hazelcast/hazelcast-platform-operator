@@ -2,10 +2,6 @@ name: (2) Start Release
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   create_tag_and_package_chart:
     if: ${{ github.ref != 'refs/heads/main' }}
