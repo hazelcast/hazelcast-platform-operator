@@ -58,9 +58,7 @@ jobs:
 
           git add Makefile Dockerfile config/ helm-charts/hazelcast-platform-operator/
           git commit --signoff -m "${RELEASE_BRANCH}"
-          
-          BRANCH=$( echo ${{ github.ref }} | cut -d '/' -f 3- )
-          git push origin $BRANCH
+          git push origin $RELEASE_BRANCH
 
       - name: Checkout 'main' Branch
         uses: actions/checkout@v3
