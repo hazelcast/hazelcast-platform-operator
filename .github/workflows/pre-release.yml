@@ -1,0 +1,112 @@
+name: (1) Release Preparation
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_BRANCH:
+        description: "Branch name in the form of X.Y[.Z]"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create_release_branch:
+    name: Create release branch
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_BRANCH: ${{ github.event.inputs.RELEASE_BRANCH }}
+    steps:
+      - name: Validate version
+        run: |
+          NUMBER='(0|[1-9][0-9]*)'
+          echo ${RELEASE_BRANCH} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Create Release Branch
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          git checkout -b ${RELEASE_BRANCH}
+          git push -u origin ${RELEASE_BRANCH} 
+
+      - name: Checkout 'Release' Branch
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          ref: ${{ inputs.RELEASE_BRANCH }}
+
+      - name: Convert latest-snapshot to Release Version
+        run: |
+          sed -i "s|ARG version=\"latest-snapshot\"|ARG version=\"${RELEASE_BRANCH}\"|" Dockerfile
+          sed -i "s|VERSION ?= latest-snapshot|VERSION ?= ${RELEASE_BRANCH}|" Makefile
+
+      - name: Remove 'snapshot' From Chart In Release Branch
+        working-directory: helm-charts/hazelcast-platform-operator
+        run: |
+          sed -i 's/-snapshot//g' charts/hazelcast-platform-operator-crds/Chart.yaml
+          sed -i 's/-snapshot//g' Chart.yaml
+
+      - name: Commit and Push Changes
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+
+          git add Makefile Dockerfile config/ helm-charts/hazelcast-platform-operator/
+          git commit --signoff -m "${RELEASE_BRANCH}"
+          
+          BRANCH=$( echo ${{ github.ref }} | cut -d '/' -f 3- )
+          git push origin $BRANCH
+
+      - name: Checkout 'main' Branch
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          ref: main
+
+      - name: Update Chart Version in Main Branch
+        working-directory: helm-charts/hazelcast-platform-operator
+        run: |
+          printf '%s' "$(awk -F'[-.]' '/appVersion/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/appVersion:.*/, "appVersion: \""version"\"")} 1' charts/hazelcast-platform-operator-crds/Chart.yaml)" > charts/hazelcast-platform-operator-crds/Chart.yaml
+          printf '%s' "$(awk -F'[-.]' '/appVersion/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/appVersion:.*/, "appVersion: \""version"\"")} 1' Chart.yaml)" > Chart.yaml
+          printf '%s' "$(awk -F'[-.]' '/version/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/version:.*/, "version: "version)} 1' charts/hazelcast-platform-operator-crds/Chart.yaml)" > charts/hazelcast-platform-operator-crds/Chart.yaml
+          printf '%s' "$(awk -F'[-.]' '/version/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/version:.*/, "version: "version)} 1' Chart.yaml)" > Chart.yaml
+          REPLACED_APP_VERSION=$(awk -F': ' '/appVersion:/ {gsub(/"/, "", $2); gsub(/-snapshot/, "", $2); print $2}' Chart.yaml)
+          echo "REPLACED_APP_VERSION=${REPLACED_APP_VERSION}" >> $GITHUB_ENV
+
+      - name: Commit and Push Changes
+        working-directory: helm-charts/hazelcast-platform-operator
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          BRANCH_NAME=update-helm-chart-to-${REPLACED_APP_VERSION}
+          git checkout -b $BRANCH_NAME
+          git add .
+          git commit --signoff -m "Update helm chart to ${REPLACED_APP_VERSION} version"
+          git push -u origin $BRANCH_NAME
+
+      - name: Create PR to Main Branch
+        run: |
+          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          gh pr create --title "Update Helm Chart Version to ${REPLACED_APP_VERSION}-snapshot" \
+          --label "non-release" \
+          --milestone "${RELEASE_BRANCH}" \
+          --body ""
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'create_release_branch' ]
+    runs-on: ubuntu-latest
+    if: always() && needs.create_release_branch.result != 'success' 
+    steps:
+      - uses: 8398a7/action-slack@v3
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
