@@ -1,9 +1,6 @@
 name: (2) Start Release
 on:
   workflow_dispatch:
-  branch_protection_rule:
-    - main
-
 
 permissions:
   contents: write
@@ -11,6 +8,7 @@ permissions:
 
 jobs:
   create_tag_and_package_chart:
+    if: ${{ github.ref != 'refs/heads/main' }}
     name: Create tag
     runs-on: ubuntu-latest
     steps:
