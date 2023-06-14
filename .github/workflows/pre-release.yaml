@@ -1,9 +1,9 @@
-name: (1) Create Release
+name: (1) Release Preparation
 on:
   workflow_dispatch:
     inputs:
-      RELEASE_VERSION:
-        description: "Version in the form of X.Y[.Z]"
+      RELEASE_BRANCH:
+        description: "Release branch name in the form of X.Y[.Z]"
         required: true
 
 permissions:
@@ -11,36 +11,39 @@ permissions:
   pull-requests: write
 
 jobs:
-  create_release:
-    name: Create release
+  create_release_branch:
+    name: Create release branch
     runs-on: ubuntu-latest
     env:
-      RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VERSION }}
+      RELEASE_BRANCH: ${{ github.event.inputs.RELEASE_BRANCH }}
     steps:
       - name: Validate version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+          echo ${RELEASE_BRANCH} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
 
       - name: Checkout
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
 
-      - name: Cache Golang Dependencies
-        uses: actions/cache@v3
+      - name: Create Release Branch
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          git checkout -b ${RELEASE_BRANCH}
+          git push -u origin ${RELEASE_BRANCH} 
+
+      - name: Checkout 'Release' Branch
+        uses: actions/checkout@v3
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          ref: ${{ inputs.RELEASE_BRANCH }}
 
       - name: Convert latest-snapshot to Release Version
         run: |
-          sed -i "s|ARG version=\"latest-snapshot\"|ARG version=\"${RELEASE_VERSION}\"|" Dockerfile
-          sed -i "s|VERSION ?= latest-snapshot|VERSION ?= ${RELEASE_VERSION}|" Makefile
+          sed -i "s|ARG version=\"latest-snapshot\"|ARG version=\"${RELEASE_BRANCH}\"|" Dockerfile
+          sed -i "s|VERSION ?= latest-snapshot|VERSION ?= ${RELEASE_BRANCH}|" Makefile
 
       - name: Remove 'snapshot' From Chart In Release Branch
         working-directory: helm-charts/hazelcast-platform-operator
@@ -54,35 +57,8 @@ jobs:
           git config user.name "devOpsHelm"
 
           git add Makefile Dockerfile config/ helm-charts/hazelcast-platform-operator/
-          git commit --signoff -m "${RELEASE_VERSION}"
-          
-          BRANCH=$( echo ${{ github.ref }} | cut -d '/' -f 3- )
-          git push origin $BRANCH
-
-      - name: Create a New Tag
-        run: |
-          TAG_VERSION=v${RELEASE_VERSION}
-          git tag ${TAG_VERSION}
-          git push origin ${TAG_VERSION}
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Package operator chart and add it into index.yaml
-        run: |
-          helm package ./helm-charts/hazelcast-platform-operator
-          helm package ./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds
-          aws s3 cp s3://hazelcast-charts/index.yaml .
-          helm repo index --url=https://hazelcast-charts.s3.amazonaws.com --merge ./index.yaml .
-
-      - name: Push operator chart and index.yaml to S3 bucket
-        run: |
-          for CHART_TGZ in *.tgz; do aws s3 cp ${CHART_TGZ} s3://hazelcast-charts; done
-          aws s3 cp ./index.yaml s3://hazelcast-charts
+          git commit --signoff -m "${RELEASE_BRANCH}"
+          git push origin $RELEASE_BRANCH
 
       - name: Checkout 'main' Branch
         uses: actions/checkout@v3
@@ -116,14 +92,14 @@ jobs:
           echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title "Update Helm Chart Version to ${REPLACED_APP_VERSION}-snapshot" \
           --label "non-release" \
-          --milestone "${RELEASE_VERSION}" \
+          --milestone "${RELEASE_BRANCH}" \
           --body ""
 
   slack_notify:
     name: Slack Notify
-    needs: [ 'create_release' ]
+    needs: [ 'create_release_branch' ]
     runs-on: ubuntu-latest
-    if: always() && needs.create_release.result != 'success' 
+    if: always() && needs.create_release_branch.result != 'success' 
     steps:
       - uses: 8398a7/action-slack@v3
         with:
