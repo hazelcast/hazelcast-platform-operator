@@ -33,6 +33,11 @@ jobs:
     steps:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v3
+        
+
+      - name: Print GitHub Environment Variables as JSON
+        run: |
+          echo '${{ toJson(env) }}'
 
       - name: Setup Preflight and Get Certification Project ID
         uses: redhat-actions/openshift-tools-installer@v1
