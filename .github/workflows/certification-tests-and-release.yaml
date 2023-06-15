@@ -59,7 +59,7 @@ jobs:
               echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}" >> $GITHUB_OUTPUT
 
   publish_release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: ${{ github.ref == 'refs/heads/$RELEASE_VERSION' }}
     needs: [test_container]
     uses: ./.github/workflows/publish-release.yaml
     with:
