@@ -37,7 +37,7 @@ jobs:
 
       - name: Print GitHub Environment Variables as JSON
         run: |
-          echo '${{ toJson(env) }}'
+          echo "${{ toJson(github) }}"
 
       - name: Setup Preflight and Get Certification Project ID
         uses: redhat-actions/openshift-tools-installer@v1
