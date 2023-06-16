@@ -42,10 +42,10 @@ jobs:
       - name: Set Environment Variables And Job Outputs
         id: setup-envs
         run: |
-          if [[ (${{ github.event_name == 'schedule' }} == true) || (${{ github.ref == 'refs/heads/main' }} == true) ]]; then
+          if [[ ${{ github.event_name == 'schedule' }} == true ]]; then
               echo "RELEASE_VERSION=1.0.0" >> $GITHUB_ENV
               echo "RELEASE_VERSION=1.0.0" >> $GITHUB_OUTPUT
-          elif [[ (${{ github.event_name == 'workflow_dispatch' }} == true) && (${{ github.ref != 'refs/heads/main' }} == true) ]]; then
+          elif [[ ${{ github.event_name == 'workflow_dispatch' }} == true ]]; then
               echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_ENV
               echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_OUTPUT
               echo "ref=refs/heads/${{ inputs.RELEASE_VERSION }}" >> $GITHUB_OUTPUT
