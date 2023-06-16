@@ -1,4 +1,4 @@
-name: (5) Publish Release
+name: (4) Publish Release
 on:
   workflow_call:
     inputs:
@@ -285,6 +285,28 @@ jobs:
     runs-on: ubuntu-latest
     needs: ['operatorhub_release']
     steps:
+      - name: Checkout 'Hazelcast Operator' Repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Package operator chart and add it into index.yaml
+        run: |
+          helm package ./helm-charts/hazelcast-platform-operator
+          helm package ./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds
+          aws s3 cp s3://hazelcast-charts/index.yaml .
+          helm repo index --url=https://hazelcast-charts.s3.amazonaws.com --merge ./index.yaml .
+
+      - name: Push operator chart and index.yaml to S3 bucket
+        run: |
+          for CHART_TGZ in *.tgz; do aws s3 cp ${CHART_TGZ} s3://hazelcast-charts; done
+          aws s3 cp ./index.yaml s3://hazelcast-charts
+
       - name: Checkout to 'Hazelcast Charts' Repository
         uses: actions/checkout@v3
         with:
