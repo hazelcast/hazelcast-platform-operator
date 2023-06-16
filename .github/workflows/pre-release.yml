@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE_BRANCH:
-        description: "Branch name in the form of X.Y[.Z]"
+        description: "Branch name in the form of X.Y"
         required: true
 
 permissions:
@@ -20,7 +20,7 @@ jobs:
       - name: Validate version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${RELEASE_BRANCH} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+          echo ${RELEASE_BRANCH} | egrep "^$NUMBER.$NUMBER?$"
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -69,28 +69,25 @@ jobs:
       - name: Update Chart Version in Main Branch
         working-directory: helm-charts/hazelcast-platform-operator
         run: |
-          printf '%s' "$(awk -F'[-.]' '/appVersion/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/appVersion:.*/, "appVersion: \""version"\"")} 1' charts/hazelcast-platform-operator-crds/Chart.yaml)" > charts/hazelcast-platform-operator-crds/Chart.yaml
-          printf '%s' "$(awk -F'[-.]' '/appVersion/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/appVersion:.*/, "appVersion: \""version"\"")} 1' Chart.yaml)" > Chart.yaml
-          printf '%s' "$(awk -F'[-.]' '/version/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/version:.*/, "version: "version)} 1' charts/hazelcast-platform-operator-crds/Chart.yaml)" > charts/hazelcast-platform-operator-crds/Chart.yaml
-          printf '%s' "$(awk -F'[-.]' '/version/ {version=sprintf("5.%d.0-snapshot", $2+1)} {gsub(/version:.*/, "version: "version)} 1' Chart.yaml)" > Chart.yaml
-          REPLACED_APP_VERSION=$(awk -F': ' '/appVersion:/ {gsub(/"/, "", $2); gsub(/-snapshot/, "", $2); print $2}' Chart.yaml)
-          echo "REPLACED_APP_VERSION=${REPLACED_APP_VERSION}" >> $GITHUB_ENV
+          REPLACED_VERSION=$(echo "$RELEASE_BRANCH" | awk -F'.' '{print $1"."$2+1".0"}')
+          echo "REPLACED_VERSION=${REPLACED_VERSION}" >> $GITHUB_ENV
+          sed -i -e 's/\(version: \)".*"/\1"'$REPLACED_VERSION-snapshot'"/' -e 's/\(appVersion: \)".*"/\1"'$REPLACED_VERSION-snapshot'"/' charts/hazelcast-platform-operator-crds/Chart.yaml Chart.yaml
 
       - name: Commit and Push Changes
         working-directory: helm-charts/hazelcast-platform-operator
         run: |
           git config user.email "alexander.borschuk@hazelcast.com"
           git config user.name "aborschuk"
-          BRANCH_NAME=update-helm-chart-to-${REPLACED_APP_VERSION}
+          BRANCH_NAME=update-helm-chart-to-${REPLACED_VERSION}
           git checkout -b $BRANCH_NAME
           git add .
-          git commit --signoff -m "Update helm chart to ${REPLACED_APP_VERSION} version"
+          git commit --signoff -m "Update helm chart to ${REPLACED_VERSION} version"
           git push -u origin $BRANCH_NAME
 
       - name: Create PR to Main Branch
         run: |
           echo ${{ secrets.PAT }} | gh auth login --with-token
-          gh pr create --title "Update Helm Chart Version to ${REPLACED_APP_VERSION}-snapshot" \
+          gh pr create --title "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" \
           --label "non-release" \
           --milestone "${RELEASE_BRANCH}" \
           --body ""
