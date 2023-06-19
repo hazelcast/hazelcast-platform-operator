@@ -48,6 +48,9 @@ import (
 const (
 	// hzLicenseKey License key for Hazelcast cluster
 	hzLicenseKey = "HZ_LICENSEKEY"
+
+	// passphrase used as a password in temporary jks files
+	passphrase = "hazelcast"
 )
 
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -606,30 +609,31 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 }
 
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	cm := &corev1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metadata(h),
 		Data:       make(map[string][]byte),
 	}
 
-	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
+	err := controllerutil.SetControllerReference(h, secret, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
+	config, err := hazelcastConfig(ctx, r.Client, h, logger)
+	if err != nil {
+		return err
+	}
+
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
-			config, err := hazelcastConfig(ctx, r.Client, h, logger)
-			if err != nil {
+		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, secret, func() error {
+			secret.Data["hazelcast.yaml"] = config
+
+			if err := r.updateKeystoreFromTLS(ctx, secret.Data, h); err != nil {
 				return err
 			}
-			cm.Data["hazelcast.yaml"] = config
 
-			if _, ok := cm.Data["hazelcast.jks"]; !ok {
-				keystore, err := hazelcastKeystore(ctx, r.Client, h)
-				if err != nil {
-					return err
-				}
-				cm.Data["hazelcast.jks"] = keystore
+			if err := r.updateKeystoreFromWAN(ctx, secret.Data, h); err != nil {
+				return err
 			}
 
 			return nil
@@ -660,6 +664,71 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 		return nil
 	})
 	return err
+}
+
+func (r *HazelcastReconciler) updateKeystoreFromTLS(ctx context.Context, dst map[string][]byte, h *hazelcastv1alpha1.Hazelcast) error {
+	if h.Spec.TLS == nil {
+		return nil
+	}
+
+	if h.Spec.TLS.SecretName == "" {
+		return nil
+	}
+
+	// skip if keystore already exists
+	if _, ok := dst["hazelcast.jks"]; ok {
+		return nil
+	}
+
+	name := types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}
+	cert, key, err := decodeTLSSecret(ctx, r.Client, name)
+	if err != nil {
+		return err
+	}
+
+	keystore, err := newKeystore(ctx, cert, key)
+	if err != nil {
+		return err
+	}
+	dst["hazelcast.jks"] = keystore
+
+	return nil
+}
+
+func (r *HazelcastReconciler) updateKeystoreFromWAN(ctx context.Context, dst map[string][]byte, h *hazelcastv1alpha1.Hazelcast) error {
+	replications, err := filterPersistedWanReplications(ctx, r.Client, h)
+	if err != nil {
+		return err
+	}
+
+	for i := range replications {
+		// skip replications without TLS
+		if replications[i].Spec.TLS == nil {
+			continue
+		}
+
+		filename := replications[i].Name + ".jks"
+
+		// skip if keystore already exists
+		if _, ok := dst[filename]; ok {
+			continue
+		}
+
+		secretName := types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}
+		cert, key, err := decodeTLSSecret(ctx, r.Client, secretName)
+		if err != nil {
+			return err
+		}
+
+		keystore, err := newKeystore(ctx, cert, key)
+		if err != nil {
+			return err
+		}
+
+		dst[filename] = keystore
+	}
+
+	return nil
 }
 
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
@@ -886,19 +955,19 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 
 	// WAN Network
 	if h.Spec.AdvancedNetwork != nil && len(h.Spec.AdvancedNetwork.WAN) > 0 {
-		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
+		cfg.AdvancedNetwork.WANServerSocketEndpointConfigs = make(map[string]config.WANServerSocketEndpointConfig)
 		for _, w := range h.Spec.AdvancedNetwork.WAN {
-			cfg.AdvancedNetwork.WanServerSocketEndpointConfig[w.Name] = config.WanPort{
-				PortAndPortCount: config.PortAndPortCount{
+			cfg.AdvancedNetwork.WANServerSocketEndpointConfigs[w.Name] = config.WANServerSocketEndpointConfig{
+				Port: config.PortAndPortCount{
 					Port:      w.Port,
 					PortCount: w.PortCount,
 				},
 			}
 		}
 	} else { //Default WAN Configuration
-		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
-		cfg.AdvancedNetwork.WanServerSocketEndpointConfig["default"] = config.WanPort{
-			PortAndPortCount: config.PortAndPortCount{
+		cfg.AdvancedNetwork.WANServerSocketEndpointConfigs = make(map[string]config.WANServerSocketEndpointConfig)
+		cfg.AdvancedNetwork.WANServerSocketEndpointConfigs["default"] = config.WANServerSocketEndpointConfig{
+			Port: config.PortAndPortCount{
 				Port:      n.WanDefaultPort,
 				PortCount: 1,
 			},
@@ -914,28 +983,41 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 
 	if h.Spec.TLS != nil && h.Spec.TLS.SecretName != "" {
-		var (
-			jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
-			password = "hazelcast"
-		)
+		// we store one cluster certificate and key in hazelcast.jks
+		hazelcastJKS := path.Join(n.HazelcastMountPath, "hazelcast.jks")
+
+		const className = "com.hazelcast.nio.ssl.BasicSSLContextFactory"
 		// require MTLS for member-member communication
 		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
 			Enabled:          pointer.Bool(true),
-			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties:       NewSSLProperties(jksPath, password, "TLS", v1alpha1.MutualAuthenticationRequired),
+			FactoryClassName: className,
+			Properties:       NewSSLProperties(hazelcastJKS, passphrase, v1alpha1.MutualAuthenticationRequired),
 		}
-		// for client-server configuration use only server TLS
+		// for client-server configuration use whatever was selected by user
 		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
 			Enabled:          pointer.Bool(true),
-			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties:       NewSSLProperties(jksPath, password, "TLS", h.Spec.TLS.MutualAuthentication),
+			FactoryClassName: className,
+			Properties:       NewSSLProperties(hazelcastJKS, passphrase, h.Spec.TLS.MutualAuthentication),
+		}
+		// for wan replication enable SSL on all wan replication endpoints
+		// and trust only authenticated connections
+		for i, endpointConfig := range cfg.AdvancedNetwork.WANServerSocketEndpointConfigs {
+			endpointConfig.SSL = config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: className,
+				Properties:       NewSSLProperties(hazelcastJKS, passphrase, v1alpha1.MutualAuthenticationRequired),
+			}
+			cfg.AdvancedNetwork.WANServerSocketEndpointConfigs[i] = endpointConfig
 		}
 	}
 	return cfg
 }
 
-func NewSSLProperties(path, password, protocol string, auth v1alpha1.MutualAuthentication) config.SSLProperties {
-	const typ = "JKS"
+func NewSSLProperties(path, password string, auth v1alpha1.MutualAuthentication) config.SSLProperties {
+	const (
+		typ      = "JKS"
+		protocol = "TLS"
+	)
 	switch auth {
 	case v1alpha1.MutualAuthenticationRequired:
 		return config.SSLProperties{
@@ -971,38 +1053,29 @@ func NewSSLProperties(path, password, protocol string, auth v1alpha1.MutualAuthe
 	}
 }
 
-func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
-	var (
-		store    = keystore.New()
-		password = []byte("hazelcast")
-	)
-	if h.Spec.TLS != nil && h.Spec.TLS.SecretName != "" {
-		cert, key, err := loadTLSKeyPair(ctx, c, h)
-		if err != nil {
-			return nil, err
-		}
-		err = store.SetPrivateKeyEntry("hazelcast", keystore.PrivateKeyEntry{
-			CreationTime: time.Now(),
-			PrivateKey:   key,
-			CertificateChain: []keystore.Certificate{{
-				Type:    "X509",
-				Content: cert,
-			}},
-		}, password)
-		if err != nil {
-			return nil, err
-		}
+func newKeystore(ctx context.Context, cert []byte, key []byte) ([]byte, error) {
+	store := keystore.New()
+	err := store.SetPrivateKeyEntry("hazelcast", keystore.PrivateKeyEntry{
+		CreationTime: time.Now(),
+		PrivateKey:   key,
+		CertificateChain: []keystore.Certificate{{
+			Type:    "X509",
+			Content: cert,
+		}},
+	}, []byte(passphrase))
+	if err != nil {
+		return nil, err
 	}
 	var b bytes.Buffer
-	if err := store.Store(&b, password); err != nil {
+	if err := store.Store(&b, []byte(passphrase)); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
 }
 
-func loadTLSKeyPair(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (cert []byte, key []byte, err error) {
+func decodeTLSSecret(ctx context.Context, c client.Client, name types.NamespacedName) (cert []byte, key []byte, err error) {
 	var s v1.Secret
-	err = c.Get(ctx, types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}, &s)
+	err = c.Get(ctx, name, &s)
 	if err != nil {
 		return
 	}
@@ -1142,14 +1215,37 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 	return nil
 }
 
-func fillHazelcastConfigWithWanReplications(cfg *config.Hazelcast, wrl map[string]hazelcastv1alpha1.WanReplication) {
-	if len(wrl) != 0 {
-		cfg.WanReplication = map[string]config.WanReplicationConfig{}
-		for wanKey, wan := range wrl {
-			_, mapName := splitWanMapKey(wanKey)
-			mapStatus := wan.Status.WanReplicationMapsStatus[wanKey]
-			wanConfig := createWanReplicationConfig(mapStatus.PublisherId, wan)
-			cfg.WanReplication[wanName(mapName)] = wanConfig
+func fillHazelcastConfigWithWanReplications(cfg *config.Hazelcast, replications map[string]hazelcastv1alpha1.WanReplication) {
+	if len(replications) == 0 {
+		return
+	}
+
+	cfg.WANReplication = make(map[string]config.WANReplicationConfig, len(replications))
+	for wanKey, wan := range replications {
+		_, mapName := splitWanMapKey(wanKey)
+		mapStatus := wan.Status.WanReplicationMapsStatus[wanKey]
+		wanConfig := createWanReplicationConfig(mapStatus.PublisherId, wan)
+		cfg.WANReplication[wanName(mapName)] = wanConfig
+	}
+
+	cfg.AdvancedNetwork.WANEndpointConfigs = make(map[string]config.WANEndpointConfig)
+	for i := range replications {
+		if replications[i].Spec.TLS == nil {
+			continue
+		}
+
+		// use replication spec name as identifier in hazelcast config
+		name := replications[i].Name
+
+		// we store WAN endpoint certificates in separate jks files
+		replicationJKS := path.Join(n.HazelcastMountPath, name+".jks")
+
+		cfg.AdvancedNetwork.WANEndpointConfigs[name] = config.WANEndpointConfig{
+			SSL: config.SSL{
+				Enabled:          pointer.Bool(true),
+				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+				Properties:       NewSSLProperties(replicationJKS, passphrase, v1alpha1.MutualAuthenticationRequired),
+			},
 		}
 	}
 }
@@ -1327,7 +1423,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 	}
 
 	if util.IsEnterprise(hz.Spec.Repository) {
-		mc.WanReplicationReference = wanReplicationRef(defaultWanReplicationRefCodec(hz, m))
+		mc.WANReplicationReference = wanReplicationRef(defaultWanReplicationRefCodec(hz, m))
 	}
 
 	if ms.MapStore != nil {
@@ -1374,8 +1470,8 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 	return mc, nil
 }
 
-func wanReplicationRef(ref codecTypes.WanReplicationRef) map[string]config.WanReplicationReference {
-	return map[string]config.WanReplicationReference{
+func wanReplicationRef(ref codecTypes.WanReplicationRef) map[string]config.WANReplicationReference {
+	return map[string]config.WANReplicationReference{
 		ref.Name: {
 			MergePolicyClassName: ref.MergePolicyClassName,
 			RepublishingEnabled:  ref.RepublishingEnabled,
@@ -1517,21 +1613,25 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 	}
 }
 
-func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanReplication) config.WanReplicationConfig {
-	bpc := config.BatchPublisherConfig{
-		ClusterName:           wr.Spec.TargetClusterName,
-		TargetEndpoints:       wr.Spec.Endpoints,
-		ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
-		AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
-		QueueCapacity:         wr.Spec.Queue.Capacity,
-		QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
-		BatchSize:             wr.Spec.Batch.Size,
-		BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
+func createWanReplicationConfig(publisherID string, r hazelcastv1alpha1.WanReplication) config.WANReplicationConfig {
+	batchConfig := config.BatchPublisherConfig{
+		ClusterName:           r.Spec.TargetClusterName,
+		TargetEndpoints:       r.Spec.Endpoints,
+		QueueCapacity:         r.Spec.Queue.Capacity,
+		QueueFullBehavior:     string(r.Spec.Queue.FullBehavior),
+		BatchSize:             r.Spec.Batch.Size,
+		BatchMaxDelayMillis:   r.Spec.Batch.MaximumDelay,
+		ResponseTimeoutMillis: r.Spec.Acknowledgement.Timeout,
+		AcknowledgementType:   string(r.Spec.Acknowledgement.Type),
 	}
-	cfg := config.WanReplicationConfig{
-		BatchPublisher: map[string]config.BatchPublisherConfig{publisherId: bpc},
+	if r.Spec.TLS != nil {
+		batchConfig.Endpoint = r.Name
 	}
-	return cfg
+	return config.WANReplicationConfig{
+		BatchPublisher: map[string]config.BatchPublisherConfig{
+			publisherID: batchConfig,
+		},
+	}
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -1602,7 +1702,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, sts, func() error {
 		sts.Spec.Replicas = h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
-		sts.Spec.Template.Annotations, err = podAnnotations(sts.Spec.Template.Annotations, h)
+		sts.Spec.Template.Annotations, err = r.podAnnotations(ctx, sts.Spec.Template.Annotations, h)
 		if err != nil {
 			return err
 		}
@@ -2355,7 +2455,7 @@ func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	}
 }
 
-func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
+func (r *HazelcastReconciler) podAnnotations(ctx context.Context, annotations map[string]string, h *hazelcastv1alpha1.Hazelcast) (map[string]string, error) {
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
@@ -2365,7 +2465,22 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 		delete(annotations, n.ExposeExternallyAnnotation)
 	}
 
-	cfg := config.HazelcastWrapper{Hazelcast: configForcingRestart(hazelcastBasicConfig(h))}
+	var secret corev1.Secret
+	err := r.Client.Get(ctx, types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &secret)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var hazelcastConfig config.HazelcastWrapper
+	err = yaml.Unmarshal(secret.Data["hazelcast.yaml"], &hazelcastConfig)
+	if err != nil {
+		return nil, fmt.Errorf("persisted Secret is not formatted correctly")
+	}
+
+	cfg := config.HazelcastWrapper{Hazelcast: configForcingRestart(hazelcastConfig.Hazelcast)}
 	cfgYaml, err := yaml.Marshal(cfg)
 	if err != nil {
 		return nil, err
@@ -2409,6 +2524,7 @@ func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
 			MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{
 				SSL: hz.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL,
 			},
+			WANEndpointConfigs: hz.AdvancedNetwork.WANEndpointConfigs,
 		},
 	}
 }

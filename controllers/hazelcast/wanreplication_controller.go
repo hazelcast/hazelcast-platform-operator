@@ -301,7 +301,10 @@ func (r *WanReplicationReconciler) getPublishedMapsFromStatus(ctx context.Contex
 		}
 		m, err := r.getWanMap(ctx, types.NamespacedName{Name: status.ResourceName, Namespace: wan.Namespace})
 		if err != nil {
-			return nil, err
+			if !kerrors.IsNotFound(err) {
+				return nil, err
+			}
+			continue
 		}
 		hzMaps[mapWanKey] = *m
 	}
@@ -518,7 +521,9 @@ func (r *WanReplicationReconciler) stopWanRepForRemovedResources(ctx context.Con
 		// Map is deleted from spec, stop replication.
 		m, err := r.getWanMap(ctx, types.NamespacedName{Name: status.ResourceName, Namespace: wan.Namespace})
 		if err != nil {
-			return err
+			if !kerrors.IsNotFound(err) {
+				return err
+			}
 		}
 		cli, err := getHazelcastClient(ctx, cs, m.Spec.HazelcastResourceName, m.Namespace)
 		if err != nil {
@@ -603,6 +608,14 @@ func wanMapKey(hzName, mapName string) string {
 func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, cli hzclient.Client, wan *hazelcastv1alpha1.WanReplication, mapName, mapWanKey string) (string, error) {
 	publisherId := wan.Name + "-" + mapWanKey
 
+	// If we use TLS we have to depend on config persistance and
+	// Hazelcast reconciler to control WAN Replication
+	if wan.Spec.TLS != nil {
+		return publisherId, nil
+	}
+
+	ws := hzclient.NewWanService(cli, wanName(mapName), publisherId)
+
 	req := &hzclient.AddBatchPublisherRequest{
 		TargetCluster:         wan.Spec.TargetClusterName,
 		Endpoints:             wan.Spec.Endpoints,
@@ -614,11 +627,11 @@ func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, cli 
 		BatchMaxDelayMillis:   wan.Spec.Batch.MaximumDelay,
 	}
 
-	ws := hzclient.NewWanService(cli, wanName(mapName), publisherId)
 	err := ws.AddBatchPublisherConfig(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to apply WAN configuration: %w", err)
 	}
+
 	return publisherId, nil
 }
 
@@ -676,7 +689,7 @@ func (r *WanReplicationReconciler) addWanRepFinalizerToMap(ctx context.Context, 
 }
 
 func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, hzClientMap map[string][]hazelcastv1alpha1.Map) (bool, error) {
-	cmMap := map[string]config.WanReplicationConfig{}
+	cmMap := map[string]config.WANReplicationConfig{}
 
 	// Fill map with WAN configs for each map wan key
 	for hz := range hzClientMap {
@@ -693,7 +706,7 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 		}
 
 		// Add all map wan configs in Hazelcast Secret
-		for wanName, wanConfig := range hzConfig.Hazelcast.WanReplication {
+		for wanName, wanConfig := range hzConfig.Hazelcast.WANReplication {
 			mapName := splitWanName(wanName)
 			cmMap[wanMapKey(hz, mapName)] = wanConfig
 		}

@@ -35,6 +35,10 @@ type WanReplicationSpec struct {
 	// +kubebuilder:default:={type: ACK_ON_OPERATION_COMPLETE, timeout: 60000}
 	// +optional
 	Acknowledgement AcknowledgementSetting `json:"acknowledgement,omitempty"`
+
+	// WAN Endpoint TLS configuration
+	// +optional
+	TLS *TLS `json:"tls,omitempty"`
 }
 
 type ResourceSpec struct {

@@ -1306,7 +1306,7 @@ var _ = Describe("Hazelcast CR", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 					MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
-					WAN: []hazelcastv1alpha1.WANConfig{
+					WAN: []hazelcastv1alpha1.WAN{
 						{
 							Port:        5710,
 							PortCount:   5,
@@ -1365,7 +1365,7 @@ var _ = Describe("Hazelcast CR", func() {
 							Persistence:  config.EndpointGroup{Enabled: pointer.Bool(true)},
 						},
 					},
-					WanServerSocketEndpointConfig: map[string]config.WanPort{
+					WANServerSocketEndpointConfigs: map[string]config.WANPort{
 						"tokyo": {
 							PortAndPortCount: config.PortAndPortCount{
 								Port:      5710,
@@ -1455,7 +1455,7 @@ var _ = Describe("Hazelcast CR", func() {
 							Persistence:  config.EndpointGroup{Enabled: pointer.Bool(true)},
 						},
 					},
-					WanServerSocketEndpointConfig: map[string]config.WanPort{
+					WANServerSocketEndpointConfigs: map[string]config.WANPort{
 						"default": {
 							PortAndPortCount: config.PortAndPortCount{
 								Port:      n.WanDefaultPort,
@@ -1487,7 +1487,7 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should fail to overlap each other", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
-				WAN: []hazelcastv1alpha1.WANConfig{
+				WAN: []hazelcastv1alpha1.WAN{
 					{
 						Port:      5001,
 						PortCount: 3,
@@ -1511,7 +1511,7 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should fail to overlap with other sockets", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
-				WAN: []hazelcastv1alpha1.WANConfig{
+				WAN: []hazelcastv1alpha1.WAN{
 					{
 						Port:      5702,
 						PortCount: 3,
@@ -1531,7 +1531,7 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should fail to set ServiceType to non-existing type value", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
-				WAN: []hazelcastv1alpha1.WANConfig{
+				WAN: []hazelcastv1alpha1.WAN{
 					{
 						Port:        5702,
 						PortCount:   3,
@@ -1791,7 +1791,7 @@ var _ = Describe("Hazelcast CR", func() {
 			}
 			spec.ClusterSize = pointer.Int32(5000)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
-				WAN: []hazelcastv1alpha1.WANConfig{
+				WAN: []hazelcastv1alpha1.WAN{
 					{
 						Port:      5701,
 						PortCount: 20,

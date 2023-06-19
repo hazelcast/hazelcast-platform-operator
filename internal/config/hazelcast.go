@@ -13,7 +13,7 @@ type Hazelcast struct {
 	DurableExecutorService   map[string]DurableExecutorService   `yaml:"durable-executor-service,omitempty"`
 	ScheduledExecutorService map[string]ScheduledExecutorService `yaml:"scheduled-executor-service,omitempty"`
 	UserCodeDeployment       UserCodeDeployment                  `yaml:"user-code-deployment,omitempty"`
-	WanReplication           map[string]WanReplicationConfig     `yaml:"wan-replication,omitempty"`
+	WANReplication           map[string]WANReplicationConfig     `yaml:"wan-replication,omitempty"`
 	Properties               map[string]string                   `yaml:"properties,omitempty"`
 	MultiMap                 map[string]MultiMap                 `yaml:"multimap,omitempty"`
 	Topic                    map[string]Topic                    `yaml:"topic,omitempty"`
@@ -34,12 +34,13 @@ type ManagementCenterConfig struct {
 }
 
 type AdvancedNetwork struct {
-	Enabled                          bool                             `yaml:"enabled,omitempty"`
-	Join                             Join                             `yaml:"join,omitempty"`
-	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `yaml:"member-server-socket-endpoint-config,omitempty"`
-	ClientServerSocketEndpointConfig ClientServerSocketEndpointConfig `yaml:"client-server-socket-endpoint-config,omitempty"`
-	RestServerSocketEndpointConfig   RestServerSocketEndpointConfig   `yaml:"rest-server-socket-endpoint-config,omitempty"`
-	WanServerSocketEndpointConfig    map[string]WanPort               `yaml:"wan-server-socket-endpoint-config,omitempty"`
+	Enabled                          bool                                     `yaml:"enabled,omitempty"`
+	Join                             Join                                     `yaml:"join,omitempty"`
+	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig         `yaml:"member-server-socket-endpoint-config,omitempty"`
+	ClientServerSocketEndpointConfig ClientServerSocketEndpointConfig         `yaml:"client-server-socket-endpoint-config,omitempty"`
+	RestServerSocketEndpointConfig   RestServerSocketEndpointConfig           `yaml:"rest-server-socket-endpoint-config,omitempty"`
+	WANServerSocketEndpointConfigs   map[string]WANServerSocketEndpointConfig `yaml:"wan-server-socket-endpoint-config,omitempty"`
+	WANEndpointConfigs               map[string]WANEndpointConfig             `yaml:"wan-endpoint-config,omitempty"`
 }
 
 type MemberServerSocketEndpointConfig struct {
@@ -59,8 +60,13 @@ type RestServerSocketEndpointConfig struct {
 	SSL            SSL              `yaml:"ssl,omitempty"`
 }
 
-type WanPort struct {
-	PortAndPortCount PortAndPortCount `yaml:"port,omitempty"`
+type WANServerSocketEndpointConfig struct {
+	Port PortAndPortCount `yaml:"port,omitempty"`
+	SSL  SSL              `yaml:"ssl,omitempty"`
+}
+
+type WANEndpointConfig struct {
+	SSL SSL `yaml:"ssl,omitempty"`
 }
 
 type PortAndPortCount struct {
@@ -155,7 +161,7 @@ type Map struct {
 	StatisticsEnabled       bool                               `yaml:"statistics-enabled"`
 	Indexes                 []MapIndex                         `yaml:"indexes,omitempty"`
 	DataPersistence         DataPersistence                    `yaml:"data-persistence,omitempty"`
-	WanReplicationReference map[string]WanReplicationReference `yaml:"wan-replication-ref,omitempty"`
+	WANReplicationReference map[string]WANReplicationReference `yaml:"wan-replication-ref,omitempty"`
 	MapStoreConfig          MapStoreConfig                     `yaml:"map-store,omitempty"`
 	EntryListeners          []EntryListener                    `yaml:"entry-listeners,omitempty"`
 	NearCache               NearCacheConfig                    `yaml:"near-cache,omitempty"`
@@ -190,7 +196,7 @@ type DataPersistence struct {
 	Fsync   bool `yaml:"fsync"`
 }
 
-type WanReplicationReference struct {
+type WANReplicationReference struct {
 	MergePolicyClassName string   `yaml:"merge-policy-class-name"`
 	RepublishingEnabled  bool     `yaml:"republishing-enabled"`
 	Filters              []string `yaml:"filters"`
@@ -304,7 +310,7 @@ type ReplicatedMap struct {
 	MergePolicy       MergePolicy `yaml:"merge-policy"`
 }
 
-type WanReplicationConfig struct {
+type WANReplicationConfig struct {
 	BatchPublisher map[string]BatchPublisherConfig `yaml:"batch-publisher,omitempty"`
 }
 
@@ -318,6 +324,7 @@ type BatchPublisherConfig struct {
 	QueueFullBehavior     string `yaml:"queue-full-behavior,omitempty"`
 	QueueCapacity         int32  `yaml:"queue-capacity,omitempty"`
 	TargetEndpoints       string `yaml:"target-endpoints,omitempty"`
+	Endpoint              string `yaml:"endpoint,omitempty"`
 }
 
 type NativeMemory struct {

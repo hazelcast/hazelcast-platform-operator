@@ -286,7 +286,7 @@ func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (strin
 	return cid.String(), true
 }
 
-func (an *AdvancedNetwork) addUsageMetrics(wc []hazelcastv1alpha1.WANConfig) {
+func (an *AdvancedNetwork) addUsageMetrics(wc []hazelcastv1alpha1.WAN) {
 	for _, w := range wc {
 		an.WANEndpointCount += int(w.PortCount)
 	}
