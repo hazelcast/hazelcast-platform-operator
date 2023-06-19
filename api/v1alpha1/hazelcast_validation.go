@@ -90,7 +90,7 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 	}
 
 	if err := validateNativeMemory(h); err != nil {
-		allErrs = append(allErrs, err)
+		allErrs = append(allErrs, err...)
 	}
 
 	return allErrs
@@ -549,16 +549,24 @@ func validateJetConfig(h *Hazelcast) (errs field.ErrorList) {
 	return errs
 }
 
-func validateNativeMemory(h *Hazelcast) *field.Error {
+func validateNativeMemory(h *Hazelcast) []*field.Error {
 	// skip validation if NativeMemory is not set
 	if h.Spec.NativeMemory == nil {
 		return nil
 	}
-
+	var allErrs field.ErrorList
 	if h.Spec.GetLicenseKeySecretName() == "" {
-		return field.Required(field.NewPath("spec").Child("nativeMemory"),
-			"Hazelcast Native Memory requires enterprise version")
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("nativeMemory"),
+			"Hazelcast Native Memory requires enterprise version"))
 	}
 
-	return nil
+	if h.Spec.Persistence.IsEnabled() && h.Spec.NativeMemory.AllocatorType != NativeMemoryPooled {
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("nativeMemory").Child("allocatorType"),
+			"MemoryAllocatorType.STANDARD cannot be used when Persistence is enabled, Please use MemoryAllocatorType.POOLED!"))
+	}
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return allErrs
 }
