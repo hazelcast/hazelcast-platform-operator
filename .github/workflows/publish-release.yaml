@@ -377,7 +377,7 @@ jobs:
           BRANCH_NAME=update-helm-chart-to-${REPLACED_VERSION}
           git checkout -b $BRANCH_NAME
           git add .
-          git commit --signoff -m "Update helm chart to ${REPLACED_VERSION} version"
+          git commit --signoff -m "$(echo -e "Update helm chart to ${REPLACED_VERSION} version\n\n[no ci]")"
           git push -u origin $BRANCH_NAME
 
       - name: Create and Merge PR to Main Branch
