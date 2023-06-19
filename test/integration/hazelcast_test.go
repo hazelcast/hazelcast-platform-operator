@@ -1621,7 +1621,11 @@ var _ = Describe("Hazelcast CR", func() {
 
 				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
+
 			It("should fail if NativeMemory.AllocatorType is not POOLED when persistence is enabled", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
 					AllocatorType: hazelcastv1alpha1.NativeMemoryStandard,
@@ -1785,6 +1789,9 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 
 			It("should error when not using enterprise version", Label("fast"), func() {
+				if ee {
+					Skip("This test will only run in OS configuration")
+				}
 
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.TLS = &hazelcastv1alpha1.TLS{
