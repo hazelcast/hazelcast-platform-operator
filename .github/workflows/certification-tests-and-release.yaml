@@ -1,4 +1,4 @@
-name: (3) Operator Certification Tests And Releasing
+name: (3) Operator Certification Tests And Releasing2
 on:
   workflow_dispatch:
     inputs:
