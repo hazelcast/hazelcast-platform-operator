@@ -355,6 +355,41 @@ jobs:
           #remove branch
           git push origin --delete $RELEASE_VERSION
 
+      - name: Checkout 'main' Branch
+        repository: hazelcast/hazelcast-platform-operator
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          ref: main
+
+      - name: Update Chart Version in Main Branch
+        working-directory: helm-charts/hazelcast-platform-operator
+        run: |
+          REPLACED_VERSION=$(echo "$RELEASE_BRANCH" | awk -F'.' '{print $1"."$2+1".0"}')
+          echo "REPLACED_VERSION=${REPLACED_VERSION}" >> $GITHUB_ENV
+          sed -i -E -e 's/(version: ).*/\1"'$REPLACED_VERSION-snapshot'"/' -e 's/(appVersion: ).*/\1"'$REPLACED_VERSION-snapshot'"/' charts/hazelcast-platform-operator-crds/Chart.yaml Chart.yaml
+
+      - name: Commit and Push Changes
+        working-directory: helm-charts/hazelcast-platform-operator
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          BRANCH_NAME=update-helm-chart-to-${REPLACED_VERSION}
+          git checkout -b $BRANCH_NAME
+          git add .
+          git commit --signoff -m "Update helm chart to ${REPLACED_VERSION} version"
+          git push -u origin $BRANCH_NAME
+
+      - name: Create and Merge PR to Main Branch
+        run: |
+          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          gh pr create --title "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" \
+          --label "non-release" \
+          --milestone "${RELEASE_BRANCH}" \
+          --body ""
+          PR_NUMBER=$(gh pr list --search "update-helm-chart" --json number | jq -r '.[].number')
+          gh pr merge $PR_NUMBER --admin --squash --delete-branch 
+
   revert_changes:
     name: Revert Release Changes
     needs: ['publish_docker_image', 'publish_image_to_redhat', 'helm_chart_release']
@@ -418,12 +453,6 @@ jobs:
       - name: Removing Release Tag in 'Hazelcast Operator' Repo
         run: |
           git push --delete origin v${RELEASE_VERSION}
-
-      - name: Removing PR in 'Hazelcast Operator' Repo
-        run: |
-         echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-         PR_NUMBER=$(gh pr list --search "update-helm-chart" --json number | jq -r '.[].number')
-         gh pr close $PR_NUMBER
 
       - name: Checkout to 'Hazelcast Charts' Repo
         uses: actions/checkout@v3

@@ -60,38 +60,6 @@ jobs:
           git commit --signoff -m "${RELEASE_BRANCH}"
           git push origin $RELEASE_BRANCH
 
-      - name: Checkout 'main' Branch
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
-          ref: main
-
-      - name: Update Chart Version in Main Branch
-        working-directory: helm-charts/hazelcast-platform-operator
-        run: |
-          REPLACED_VERSION=$(echo "$RELEASE_BRANCH" | awk -F'.' '{print $1"."$2+1".0"}')
-          echo "REPLACED_VERSION=${REPLACED_VERSION}" >> $GITHUB_ENV
-          sed -i -E -e 's/(version: ).*/\1"'$REPLACED_VERSION-snapshot'"/' -e 's/(appVersion: ).*/\1"'$REPLACED_VERSION-snapshot'"/' charts/hazelcast-platform-operator-crds/Chart.yaml Chart.yaml
-
-      - name: Commit and Push Changes
-        working-directory: helm-charts/hazelcast-platform-operator
-        run: |
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
-          BRANCH_NAME=update-helm-chart-to-${REPLACED_VERSION}
-          git checkout -b $BRANCH_NAME
-          git add .
-          git commit --signoff -m "Update helm chart to ${REPLACED_VERSION} version"
-          git push -u origin $BRANCH_NAME
-
-      - name: Create PR to Main Branch
-        run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          gh pr create --title "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" \
-          --label "non-release" \
-          --milestone "${RELEASE_BRANCH}" \
-          --body ""
-
   slack_notify:
     name: Slack Notify
     needs: [ 'create_release_branch' ]
