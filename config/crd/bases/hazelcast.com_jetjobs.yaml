@@ -34,6 +34,16 @@ spec:
       jsonPath: .status.completionTime
       name: CompletionTime
       type: string
+    - description: The text about failure of the JetJob
+      jsonPath: .status.failureText
+      name: FailureText
+      priority: 1
+      type: string
+    - description: The reason why the JetJob is suspended
+      jsonPath: .status.suspensionCause
+      name: SuspensionCause
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:

@@ -116,6 +116,8 @@ func (jjs JetJobStatusPhase) IsSuspended() bool {
 // +kubebuilder:printcolumn:name="Id",type="string",JSONPath=".status.id",description="ID of the JetJob"
 // +kubebuilder:printcolumn:name="SubmissionTime",type="string",JSONPath=".status.submissionTime",description="Time when the JetJob was submitted"
 // +kubebuilder:printcolumn:name="CompletionTime",type="string",JSONPath=".status.completionTime",description="Time when the JetJob was completed"
+// +kubebuilder:printcolumn:name="FailureText",type="string",priority=1,JSONPath=".status.failureText",description="The text about failure of the JetJob"
+// +kubebuilder:printcolumn:name="SuspensionCause",type="string",priority=1,JSONPath=".status.suspensionCause",description="The reason why the JetJob is suspended"
 // +kubebuilder:resource:shortName=jj
 
 // JetJob is the Schema for the jetjobs API
