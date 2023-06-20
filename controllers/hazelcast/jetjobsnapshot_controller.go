@@ -96,22 +96,21 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				withJetJobSnapshotFailedState(err.Error()))
 		}
 		return ctrl.Result{}, nil
-	} else {
-		result, err := r.exportSnapshot(ctx, jjs, logger)
-		if err != nil {
-			return result, err
-		}
+	}
+
+	result, err := r.exportSnapshot(ctx, jjs, logger)
+	if err != nil {
+		return result, err
 	}
 
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *hazelcastv1alpha1.JetJobSnapshot, logger logr.Logger) (ctrl.Result, error) {
-	// get JetJob CR
 	jetJobNn := types.NamespacedName{
 		Name:      jjs.Spec.JetJobResourceName,
 		Namespace: jjs.Namespace,
@@ -125,16 +124,38 @@ func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *haze
 			withJetJobSnapshotFailedState(err.Error()))
 	}
 
-	// requeue, if the jobID is not loaded yet
+	// requeue if the jobID is not loaded yet
 	if jetJob.Status.Id == 0 {
 		return ctrl.Result{RequeueAfter: time.Second}, nil
 	}
 
-	// get Hazelcast CR and client
 	hzNn := types.NamespacedName{
 		Name:      jetJob.Spec.HazelcastResourceName,
 		Namespace: jetJob.Namespace,
 	}
+
+	hz := &hazelcastv1alpha1.Hazelcast{}
+	err = r.Client.Get(ctx, hzNn, hz)
+	if err != nil {
+		logger.Info("Could not find hazelcast cluster", "name", hzNn, "err", err)
+		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+			withJetJobSnapshotFailedState(err.Error()))
+	}
+
+	// EE is required for exporting Snapshot
+	if err := hazelcastv1alpha1.ValidateJetJobSnapshot(hz); err != nil {
+		logger.Info("License Key is not set", "name", hzNn)
+		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+			withJetJobSnapshotFailedState(err.Error()))
+	}
+
+	if hz.Status.Phase != hazelcastv1alpha1.Running {
+		logger.Info("Hazelcast cluster is not ready", "name", hzNn, "phase", hz.Status.Phase)
+		err := fmt.Errorf("Hazelcast CR '%s' status phase is not equal to '%s'", hz.Name, hazelcastv1alpha1.Running)
+		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+			withJetJobSnapshotFailedState(err.Error()))
+	}
+
 	c, err := r.clientRegistry.GetOrCreate(ctx, hzNn)
 	if err != nil {
 		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
@@ -145,7 +166,7 @@ func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *haze
 		return ctrl.Result{}, nil
 	}
 
-	// It guarantees that the exporting snapshot process is started only once for each resource.
+	// It guarantees that the exporting snapshot process is operated only once for each resource.
 	k := types.NamespacedName{Name: jjs.Name, Namespace: jetJob.Namespace}
 	if _, loaded := r.exportingSnapshotMap.LoadOrStore(k, new(any)); !loaded {
 		//goland:noinspection GoUnhandledErrorResult
