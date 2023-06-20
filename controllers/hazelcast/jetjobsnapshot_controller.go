@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-logr/logr"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -28,16 +29,18 @@ import (
 type JetJobSnapshotReconciler struct {
 	client.Client
 	log                  logr.Logger
+	scheme               *runtime.Scheme
 	clientRegistry       hzclient.ClientRegistry
 	exportingSnapshotMap sync.Map
 	phoneHomeTrigger     chan struct{}
 	mtlsClientRegistry   mtls.HttpClientRegistry
 }
 
-func NewJetJobSnapshotReconciler(c client.Client, log logr.Logger, cs hzclient.ClientRegistry, mtlsClientRegistry mtls.HttpClientRegistry, pht chan struct{}) *JetJobSnapshotReconciler {
+func NewJetJobSnapshotReconciler(c client.Client, log logr.Logger, scheme *runtime.Scheme, cs hzclient.ClientRegistry, mtlsClientRegistry mtls.HttpClientRegistry, pht chan struct{}) *JetJobSnapshotReconciler {
 	return &JetJobSnapshotReconciler{
 		Client:             c,
 		log:                log,
+		scheme:             scheme,
 		clientRegistry:     cs,
 		mtlsClientRegistry: mtlsClientRegistry,
 		phoneHomeTrigger:   pht,
@@ -98,26 +101,13 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	result, err := r.exportSnapshot(ctx, jjs, logger)
-	if err != nil {
-		return result, err
-	}
-
-	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
-	if err != nil {
-		logger.Info("Could not save the current successful spec as annotation to the custom resource")
-	}
-	return result, nil
-}
-
-func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *hazelcastv1alpha1.JetJobSnapshot, logger logr.Logger) (ctrl.Result, error) {
 	jetJobNn := types.NamespacedName{
 		Name:      jjs.Spec.JetJobResourceName,
 		Namespace: jjs.Namespace,
 	}
 
 	jetJob := hazelcastv1alpha1.JetJob{}
-	err := r.Client.Get(ctx, jetJobNn, &jetJob)
+	err = r.Client.Get(ctx, jetJobNn, &jetJob)
 	if err != nil {
 		logger.Error(err, "error on getting jet job", "jetJobResourceName", jetJobNn.Name)
 		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
@@ -142,7 +132,13 @@ func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *haze
 			withJetJobSnapshotFailedState(err.Error()))
 	}
 
-	// EE is required for exporting Snapshot
+	err = r.reconcileOwnerReferences(jjs, hz)
+	if err != nil {
+		logger.Info("Could not update owner reference", "name", jjs.Name, "err", err)
+		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+			withJetJobSnapshotFailedState(err.Error()))
+	}
+
 	if err := hazelcastv1alpha1.ValidateJetJobSnapshot(hz); err != nil {
 		logger.Info("License Key is not set", "name", hzNn)
 		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
@@ -162,12 +158,36 @@ func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *haze
 			withJetJobSnapshotFailedState(err.Error()))
 	}
 
+	result, err := r.exportSnapshot(jjs, jetJob.Status.Id, c, logger)
+	if err != nil {
+		return result, err
+	}
+
+	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
+	if err != nil {
+		logger.Info("Could not save the current successful spec as annotation to the custom resource")
+	}
+	return result, nil
+}
+
+func (r *JetJobSnapshotReconciler) reconcileOwnerReferences(jjs *hazelcastv1alpha1.JetJobSnapshot, h *hazelcastv1alpha1.Hazelcast) error {
+	for _, ownerRef := range jjs.OwnerReferences {
+		if ownerRef.Kind == h.Kind && ownerRef.Name == h.Name && ownerRef.UID == h.UID {
+			return nil
+		}
+	}
+
+	return controllerutil.SetOwnerReference(h, jjs, r.Scheme())
+}
+
+func (r *JetJobSnapshotReconciler) exportSnapshot(jjs *hazelcastv1alpha1.JetJobSnapshot, jetJobId int64, c hzclient.Client, logger logr.Logger) (ctrl.Result, error) {
 	if !jjs.Status.CreationTime.IsZero() {
+		logger.Info("Snapshot has already been exported", "name", jjs.Spec.Name)
 		return ctrl.Result{}, nil
 	}
 
 	// It guarantees that the exporting snapshot process is operated only once for each resource.
-	k := types.NamespacedName{Name: jjs.Name, Namespace: jetJob.Namespace}
+	k := types.NamespacedName{Name: jjs.Name, Namespace: jjs.Namespace}
 	if _, loaded := r.exportingSnapshotMap.LoadOrStore(k, new(any)); !loaded {
 		//goland:noinspection GoUnhandledErrorResult
 		go func(n types.NamespacedName) {
@@ -177,7 +197,7 @@ func (r *JetJobSnapshotReconciler) exportSnapshot(ctx context.Context, jjs *haze
 			updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 				withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExporting))
 			jetService := hzclient.NewJetService(c)
-			t, err := jetService.ExportSnapshot(exportSnapshotCtx, jetJob.Status.Id, jjs.Spec.Name, jjs.Spec.CancelJob)
+			t, err := jetService.ExportSnapshot(exportSnapshotCtx, jetJobId, jjs.Spec.Name, jjs.Spec.CancelJob)
 			if err != nil {
 				logger.Error(err, "Error on exporting snapshot", "name", jjs.Spec.Name)
 				updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
