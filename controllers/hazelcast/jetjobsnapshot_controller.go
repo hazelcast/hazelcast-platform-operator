@@ -132,8 +132,7 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			withJetJobSnapshotFailedState(err.Error()))
 	}
 
-	err = r.reconcileOwnerReferences(jjs, hz)
-	if err != nil {
+	if err := r.reconcileOwnerReferences(ctx, jjs, hz); err != nil {
 		logger.Info("Could not update owner reference", "name", jjs.Name, "err", err)
 		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
 			withJetJobSnapshotFailedState(err.Error()))
@@ -170,14 +169,19 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return result, nil
 }
 
-func (r *JetJobSnapshotReconciler) reconcileOwnerReferences(jjs *hazelcastv1alpha1.JetJobSnapshot, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *JetJobSnapshotReconciler) reconcileOwnerReferences(ctx context.Context, jjs *hazelcastv1alpha1.JetJobSnapshot, h *hazelcastv1alpha1.Hazelcast) error {
 	for _, ownerRef := range jjs.OwnerReferences {
 		if ownerRef.Kind == h.Kind && ownerRef.Name == h.Name && ownerRef.UID == h.UID {
 			return nil
 		}
 	}
 
-	return controllerutil.SetOwnerReference(h, jjs, r.Scheme())
+	err := controllerutil.SetOwnerReference(h, jjs, r.Scheme())
+	if err != nil {
+		return err
+	}
+
+	return r.Client.Update(ctx, jjs)
 }
 
 func (r *JetJobSnapshotReconciler) exportSnapshot(jjs *hazelcastv1alpha1.JetJobSnapshot, jetJobId int64, c hzclient.Client, logger logr.Logger) (ctrl.Result, error) {
