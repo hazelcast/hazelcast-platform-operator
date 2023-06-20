@@ -96,10 +96,6 @@ spec:
                       the event journal.
                     format: int32
                     type: integer
-                  enabled:
-                    default: false
-                    description: Enabled defines if event journal is enabled.
-                    type: boolean
                   timeToLiveSeconds:
                     default: 0
                     description: TimeToLiveSeconds indicates how long the items remain

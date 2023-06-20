@@ -16,9 +16,6 @@ const (
 )
 
 type EventJournal struct {
-	// Enabled defines if event journal is enabled.
-	// +kubebuilder:default:=false
-	Enabled bool `json:"enabled,omitempty"`
 	// Capacity sets the capacity of the ringbuffer underlying the event journal.
 	// +kubebuilder:default:=10000
 	Capacity int32 `json:"capacity,omitempty"`

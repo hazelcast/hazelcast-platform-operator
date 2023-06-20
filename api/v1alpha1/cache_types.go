@@ -34,7 +34,7 @@ type CacheSpec struct {
 
 	// EventJournal specifies event journal configuration of the Cache
 	// +optional
-	EventJournal EventJournal `json:"eventJournal"`
+	EventJournal *EventJournal `json:"eventJournal,omitempty"`
 }
 
 // CacheStatus defines the observed state of Cache
