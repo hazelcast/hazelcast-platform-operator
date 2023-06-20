@@ -45,6 +45,10 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("JetJobSnapshot"), func() {
 	})
 
 	It("should export snapshot and initialize new job from that snapshot", Label("fast"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+
 		setLabelAndCRName("jjs-1")
 
 		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
@@ -156,7 +160,11 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("JetJobSnapshot"), func() {
 		Expect(fizzHzMap.Size(ctx)).Should(BeZero())
 	})
 
-	It("should export snapshot and cancel the job", Label("fast"), func() {
+	It("should export a snapshot canceling the job", Label("fast"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+
 		setLabelAndCRName("jjs-2")
 
 		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
