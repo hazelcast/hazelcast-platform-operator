@@ -13,13 +13,9 @@ import (
 
 func ValidateJetJobSnapshotSpecCreate(jjs *JetJobSnapshot) error {
 	var allErrs field.ErrorList
-	if jjs.Spec.Name == "" {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("name"),
-			jjs.Spec.Name, "snapshot name cannot be empty"))
-	}
 	if jjs.Spec.JetJobResourceName == "" {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("jetJobResourceName"),
-			jjs.Spec.Name, "jetJobResourceName cannot be empty"))
+			jjs.Spec.JetJobResourceName, "jetJobResourceName cannot be empty"))
 	}
 	if len(allErrs) == 0 {
 		return nil

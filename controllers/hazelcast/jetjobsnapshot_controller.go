@@ -182,7 +182,7 @@ func (r *JetJobSnapshotReconciler) reconcileOwnerReferences(jjs *hazelcastv1alph
 
 func (r *JetJobSnapshotReconciler) exportSnapshot(jjs *hazelcastv1alpha1.JetJobSnapshot, jetJobId int64, c hzclient.Client, logger logr.Logger) (ctrl.Result, error) {
 	if !jjs.Status.CreationTime.IsZero() {
-		logger.Info("Snapshot has already been exported", "name", jjs.Spec.Name)
+		logger.Info("Snapshot has already been exported", "name", jjs.SnapshotName())
 		return ctrl.Result{}, nil
 	}
 
@@ -191,26 +191,26 @@ func (r *JetJobSnapshotReconciler) exportSnapshot(jjs *hazelcastv1alpha1.JetJobS
 	if _, loaded := r.exportingSnapshotMap.LoadOrStore(k, new(any)); !loaded {
 		//goland:noinspection GoUnhandledErrorResult
 		go func(n types.NamespacedName) {
-			logger.Info("Exporting snapshot", "name", jjs.Spec.Name, "cancelJob", jjs.Spec.CancelJob,
+			logger.Info("Exporting snapshot", "name", jjs.SnapshotName(), "cancelJob", jjs.Spec.CancelJob,
 				"jetJobResourceName", jjs.Spec.JetJobResourceName)
 			exportSnapshotCtx := context.Background()
 			updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 				withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExporting))
 			jetService := hzclient.NewJetService(c)
-			t, err := jetService.ExportSnapshot(exportSnapshotCtx, jetJobId, jjs.Spec.Name, jjs.Spec.CancelJob)
+			t, err := jetService.ExportSnapshot(exportSnapshotCtx, jetJobId, jjs.SnapshotName(), jjs.Spec.CancelJob)
 			if err != nil {
-				logger.Error(err, "Error on exporting snapshot", "name", jjs.Spec.Name)
+				logger.Error(err, "Error on exporting snapshot", "name", jjs.SnapshotName())
 				updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 					withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotFailed))
 				return
 			}
-			logger.Info("Snapshot is exported successfully", "name", jjs.Spec.Name)
+			logger.Info("Snapshot is exported successfully", "name", jjs.SnapshotName())
 			setCreationTime(exportSnapshotCtx, r.Client, n, t)              //nolint:errcheck
 			updateJetJobSnapshotStatusRetry(exportSnapshotCtx, r.Client, n, //nolint:errcheck
 				withJetJobSnapshotState(hazelcastv1alpha1.JetJobSnapshotExported))
 		}(k)
 	} else {
-		logger.Info("Exporting process has already been started", "name", jjs.Spec.Name, "cancelJob", jjs.Spec.CancelJob)
+		logger.Info("Exporting process has already been started", "name", jjs.SnapshotName(), "cancelJob", jjs.Spec.CancelJob)
 	}
 	return ctrl.Result{}, nil
 }

@@ -16,13 +16,15 @@ const (
 
 // JetJobSnapshotSpec defines the desired state of JetJobSnapshot
 type JetJobSnapshotSpec struct {
-	// +required
-	Name string `json:"name"`
+	// Name of the exported snapshot
+	// +optional
+	Name string `json:"name,omitempty"`
 
 	// +kubebuilder:default:=false
 	// +optional
 	CancelJob bool `json:"cancelJob"`
 
+	// JetJob CR name
 	// +required
 	JetJobResourceName string `json:"jetJobResourceName"`
 }
@@ -55,6 +57,13 @@ type JetJobSnapshot struct {
 	// +kubebuilder:default:={state: "Waiting"}
 	// +optional
 	Status JetJobSnapshotStatus `json:"status,omitempty"`
+}
+
+func (jjs *JetJobSnapshot) SnapshotName() string {
+	if jjs.Spec.Name != "" {
+		return jjs.Spec.Name
+	}
+	return jjs.Name
 }
 
 //+kubebuilder:object:root=true

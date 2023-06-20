@@ -55,12 +55,13 @@ spec:
                 default: false
                 type: boolean
               jetJobResourceName:
+                description: JetJob CR name
                 type: string
               name:
+                description: Name of the exported snapshot
                 type: string
             required:
             - jetJobResourceName
-            - name
             type: object
           status:
             default:
