@@ -24,7 +24,7 @@ var _ = Describe("JetJobSnapshot CR", func() {
 	})
 
 	Context("JetJobSnapshot create validation", func() {
-		It("should not create JetJobSnapshot with empty snapshot name", Label("fast"), func() {
+		It("should let create JetJobSnapshot with empty snapshot name", Label("fast"), func() {
 			jjs := &hazelcastv1alpha1.JetJobSnapshot{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.JetJobSnapshotSpec{
@@ -34,8 +34,7 @@ var _ = Describe("JetJobSnapshot CR", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(context.Background(), jjs)).
-				Should(MatchError(ContainSubstring("snapshot name cannot be empty")))
+			Expect(k8sClient.Create(context.Background(), jjs)).Should(Not(HaveOccurred()))
 		})
 
 		It("should not create JetJobSnapshot with empty jetJobResourceName", Label("fast"), func() {
@@ -53,7 +52,7 @@ var _ = Describe("JetJobSnapshot CR", func() {
 		})
 	})
 
-	Context("JetJob update validation", func() {
+	Context("JetJobSnapshot update validation", func() {
 		It("should not update immutable fields", Label("fast"), func() {
 			spec := hazelcastv1alpha1.JetJobSnapshotSpec{
 				Name:               "snapshot-1",

@@ -136,7 +136,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("JetJobSnapshot"), func() {
 		Expect(jjs.Status.CreationTime.IsZero()).To(BeFalse())
 
 		By("ensuring the snapshot is exported on members")
-		snapshotMap, err := cl.GetMap(ctx, fmt.Sprintf("__jet.exportedSnapshot.%s", jjs.Spec.Name))
+		snapshotMap, err := cl.GetMap(ctx, fmt.Sprintf("__jet.exportedSnapshot.%s", jjs.SnapshotName()))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(snapshotMap.Size(ctx)).Should(BeNumerically(">", 0))
 
