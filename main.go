@@ -262,6 +262,7 @@ func main() {
 	if err = hazelcast.NewJetJobSnapshotReconciler(
 		mgr.GetClient(),
 		controllerLogger.WithName("JetJobSnapshot"),
+		scheme,
 		cr,
 		mtlsRegistry,
 		phoneHomeTrigger,
