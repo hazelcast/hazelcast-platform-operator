@@ -584,9 +584,7 @@ var (
 				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 					HazelcastResourceName: hzName,
 				},
-				EventJournal: hazelcastv1alpha1.EventJournal{
-					Enabled: true,
-				},
+				EventJournal: &hazelcastv1alpha1.EventJournal{},
 			},
 		}
 	}

@@ -110,8 +110,8 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 	cacheInput.ValueType = cs.ValueType
 	cacheInput.HotRestartConfig.Enabled = cs.PersistenceEnabled
 	cacheInput.InMemoryFormat = codecTypes.InMemoryFormat(cs.InMemoryFormat)
-	if c.Spec.EventJournal.Enabled {
-		cacheInput.EventJournalConfig.Enabled = c.Spec.EventJournal.Enabled
+	if c.Spec.EventJournal != nil {
+		cacheInput.EventJournalConfig.Enabled = true
 		cacheInput.EventJournalConfig.Capacity = c.Spec.EventJournal.Capacity
 		cacheInput.EventJournalConfig.TimeToLiveSeconds = c.Spec.EventJournal.TimeToLiveSeconds
 	}

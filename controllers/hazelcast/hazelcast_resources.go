@@ -1350,8 +1350,8 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		mc.NearCache.CacheLocalEntries = *ms.NearCache.CacheLocalEntries
 	}
 
-	if ms.EventJournal.Enabled {
-		mc.EventJournal.Enabled = ms.EventJournal.Enabled
+	if ms.EventJournal != nil {
+		mc.EventJournal.Enabled = true
 		mc.EventJournal.Capacity = ms.EventJournal.Capacity
 		mc.EventJournal.TimeToLiveSeconds = ms.EventJournal.TimeToLiveSeconds
 	}
@@ -1476,8 +1476,8 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 			ClassName: cs.ValueType,
 		}
 	}
-	if cs.EventJournal.Enabled {
-		cache.EventJournal.Enabled = cs.EventJournal.Enabled
+	if cs.EventJournal != nil {
+		cache.EventJournal.Enabled = true
 		cache.EventJournal.Capacity = cs.EventJournal.Capacity
 		cache.EventJournal.TimeToLiveSeconds = cs.EventJournal.TimeToLiveSeconds
 	}

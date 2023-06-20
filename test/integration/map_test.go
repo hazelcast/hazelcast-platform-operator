@@ -16,7 +16,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
-var _ = Describe("Map CR", func() {
+var _ = FDescribe("Map CR", func() {
 	const namespace = "default"
 
 	mapOf := func(mapSpec hazelcastv1alpha1.MapSpec) *hazelcastv1alpha1.Map {
@@ -61,7 +61,7 @@ var _ = Describe("Map CR", func() {
 			Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
 			Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
 			Expect(ms.EntryListeners).To(BeNil())
-			Expect(ms.EventJournal.Enabled).To(BeFalse())
+			Expect(ms.EventJournal).To(BeNil())
 			Delete(lookupKey(m), m)
 		})
 

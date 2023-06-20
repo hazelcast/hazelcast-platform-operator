@@ -56,7 +56,7 @@ var _ = Describe("Cache CR", func() {
 			Expect(cs.KeyType).To(BeEmpty())
 			Expect(cs.ValueType).To(BeEmpty())
 			Expect(cs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatBinary))
-			Expect(cs.EventJournal.Enabled).To(BeFalse())
+			Expect(cs.EventJournal).To(BeNil())
 		})
 
 		When("applying empty spec", func() {
