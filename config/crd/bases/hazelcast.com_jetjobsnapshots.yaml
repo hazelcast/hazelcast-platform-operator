@@ -53,9 +53,12 @@ spec:
             properties:
               cancelJob:
                 default: false
+                description: CancelJob determines whether the job is canceled after
+                  exporting snapshot
                 type: boolean
               jetJobResourceName:
-                description: JetJob CR name
+                description: JetJobResourceName is the name of the JetJob CR where
+                  the Snapshot is exported from
                 type: string
               name:
                 description: Name of the exported snapshot
