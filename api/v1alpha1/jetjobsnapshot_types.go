@@ -20,11 +20,12 @@ type JetJobSnapshotSpec struct {
 	// +optional
 	Name string `json:"name,omitempty"`
 
+	// CancelJob determines whether the job is canceled after exporting snapshot
 	// +kubebuilder:default:=false
 	// +optional
 	CancelJob bool `json:"cancelJob"`
 
-	// JetJob CR name
+	// JetJobResourceName is the name of the JetJob CR where the Snapshot is exported from
 	// +required
 	JetJobResourceName string `json:"jetJobResourceName"`
 }
