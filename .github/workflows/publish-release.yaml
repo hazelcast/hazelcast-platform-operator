@@ -356,9 +356,9 @@ jobs:
           git push origin --delete $RELEASE_VERSION
 
       - name: Checkout 'main' Branch
-        repository: hazelcast/hazelcast-platform-operator
         uses: actions/checkout@v3
         with:
+          repository: hazelcast/hazelcast-platform-operator
           token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
           ref: main
 
