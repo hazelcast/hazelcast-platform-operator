@@ -9,3 +9,6 @@ metadata:
     app.kubernetes.io/created-by: hazelcast-platform-operator
   name: jetjobsnapshot-sample
 spec:
+  name: snapshot
+  cancelJob: false
+  jetJobResourceName: jet-job

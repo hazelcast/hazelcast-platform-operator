@@ -16,7 +16,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
-var _ = FDescribe("Map CR", func() {
+var _ = Describe("Map CR", func() {
 	const namespace = "default"
 
 	mapOf := func(mapSpec hazelcastv1alpha1.MapSpec) *hazelcastv1alpha1.Map {
