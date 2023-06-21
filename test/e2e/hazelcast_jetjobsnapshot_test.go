@@ -191,4 +191,47 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("JetJobSnapshot"), func() {
 		By("asserting JetJob is canceled")
 		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobExecutionFailed)
 	})
+
+	It("should set status to 'failed' if exporting snapshot from non-running job", Label("fast"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+
+		setLabelAndCRName("jjs-3")
+
+		hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
+		hazelcast.Spec.ClusterSize = pointer.Int32(1)
+		CreateHazelcastCR(hazelcast)
+
+		By("creating JetJob CR")
+		jj := hazelcastconfig.JetJob(jarName, hzLookupKey.Name, jjLookupKey, labels)
+		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+			SecretName: "br-secret-gcp",
+			BucketURI:  "gs://operator-user-code/jetJobs",
+		}
+		jj.Spec.MainClass = "com.hazelcast.operator.test.jobs.LoggingJob"
+		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
+
+		By("suspending the JetJob")
+		Expect(k8sClient.Get(context.Background(), jjLookupKey, jj)).Should(Succeed())
+		jj.Spec.State = hazelcastv1alpha1.SuspendedJobState
+		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobSuspended)
+
+		By("creating JetJobSnapshot CR")
+		jjs := hazelcastconfig.JetJobSnapshot(jjsLookupKey.Name, true, jj.Name, jjsLookupKey, labels)
+		Expect(k8sClient.Create(context.Background(), jjs)).Should(Succeed())
+
+		By("asserting JetJobSnapshot status is set to 'failed'")
+		checkJetJobSnapshotStatus(jjsLookupKey, hazelcastv1alpha1.JetJobSnapshotFailed)
+		Eventually(func() string {
+			err := k8sClient.Get(context.Background(), jjsLookupKey, jjs)
+			if err != nil {
+				return ""
+			}
+			return jjs.Status.Message
+		}, 5*Minute, interval).Should(ContainSubstring(
+			"JetJob status must be equal to '%s' to be able to export snapshot", hazelcastv1alpha1.JetJobRunning))
+	})
 })
