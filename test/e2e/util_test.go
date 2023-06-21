@@ -146,7 +146,9 @@ func checkJetJobStatus(nn types.NamespacedName, phase hazelcastv1alpha1.JetJobSt
 	jjCheck := &hazelcastv1alpha1.JetJob{}
 	Eventually(func() hazelcastv1alpha1.JetJobStatusPhase {
 		err := k8sClient.Get(context.Background(), nn, jjCheck)
-		Expect(err).ToNot(HaveOccurred())
+		if err != nil {
+			return ""
+		}
 		return jjCheck.Status.Phase
 	}, 5*Minute, interval).Should(Equal(phase))
 }
@@ -155,7 +157,9 @@ func checkJetJobSnapshotStatus(nn types.NamespacedName, state hazelcastv1alpha1.
 	jjsCheck := &hazelcastv1alpha1.JetJobSnapshot{}
 	Eventually(func() hazelcastv1alpha1.JetJobSnapshotState {
 		err := k8sClient.Get(context.Background(), nn, jjsCheck)
-		Expect(err).ToNot(HaveOccurred())
+		if err != nil {
+			return ""
+		}
 		return jjsCheck.Status.State
 	}, 5*Minute, interval).Should(Equal(state))
 	return jjsCheck

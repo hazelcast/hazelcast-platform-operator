@@ -109,14 +109,9 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	jetJob := hazelcastv1alpha1.JetJob{}
 	err = r.Client.Get(ctx, jetJobNn, &jetJob)
 	if err != nil {
-		logger.Error(err, "error on getting jet job", "jetJobResourceName", jetJobNn.Name)
+		logger.Error(err, "error on getting jet job", "jetJob", jetJobNn.Name)
 		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
 			withJetJobSnapshotFailedState(err.Error()))
-	}
-
-	// requeue if the jobID is not loaded yet
-	if jetJob.Status.Id == 0 {
-		return ctrl.Result{RequeueAfter: time.Second}, nil
 	}
 
 	hzNn := types.NamespacedName{
@@ -134,6 +129,18 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if err := r.reconcileOwnerReferences(ctx, jjs, hz); err != nil {
 		logger.Info("Could not update owner reference", "name", jjs.Name, "err", err)
+		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
+			withJetJobSnapshotFailedState(err.Error()))
+	}
+
+	// requeue if the jobID is not loaded yet
+	if jetJob.Status.Id == 0 {
+		return ctrl.Result{RequeueAfter: time.Second}, nil
+	}
+
+	if jetJob.Status.Phase != hazelcastv1alpha1.JetJobRunning {
+		err := fmt.Errorf("JetJob status must be equal to '%s' to be able to export snapshot", hazelcastv1alpha1.JetJobRunning)
+		logger.Info(fmt.Sprintf("jetJob status phase is not '%s'", hazelcastv1alpha1.JetJobRunning), "jetJob", jetJob.Name)
 		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
 			withJetJobSnapshotFailedState(err.Error()))
 	}
