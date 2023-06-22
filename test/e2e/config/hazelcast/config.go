@@ -192,7 +192,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
+				UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
 							SecretName: s,
@@ -216,7 +216,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+				JetEngineConfiguration: &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
 				},
@@ -236,7 +236,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+				JetEngineConfiguration: &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
@@ -262,7 +262,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+				JetEngineConfiguration: &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
@@ -285,7 +285,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+				JetEngineConfiguration: &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
@@ -324,7 +324,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+				JetEngineConfiguration: &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
 					Instance: &hazelcastv1alpha1.JetInstance{
@@ -360,7 +360,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
+				UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						RemoteURLs: urls,
 					},

@@ -29,10 +29,10 @@ var (
 				Repository:           *mcRepo,
 				Version:              *mcVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
-				Persistence: hazelcastv1alpha1.MCPersistenceConfiguration{
+				Persistence: &hazelcastv1alpha1.MCPersistenceConfiguration{
 					Enabled: pointer.Bool(true),
 					Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 				},
@@ -51,7 +51,7 @@ var (
 				Repository:           *mcRepo,
 				Version:              *mcVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
 				HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
@@ -60,7 +60,7 @@ var (
 						Address: "hazelcast",
 					},
 				},
-				Persistence: hazelcastv1alpha1.MCPersistenceConfiguration{
+				Persistence: &hazelcastv1alpha1.MCPersistenceConfiguration{
 					Enabled: pointer.Bool(false),
 				},
 			},
@@ -78,7 +78,7 @@ var (
 				Repository:           *mcRepo,
 				Version:              *mcVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
 				HazelcastClusters: clusterConfigs,
@@ -97,7 +97,7 @@ var (
 				Repository:           *mcRepo,
 				Version:              *mcVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
 
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeClusterIP,
 					Route: &hazelcastv1alpha1.ExternalConnectivityRoute{
@@ -110,7 +110,7 @@ var (
 						Address: "hazelcast",
 					},
 				},
-				Persistence: hazelcastv1alpha1.MCPersistenceConfiguration{
+				Persistence: &hazelcastv1alpha1.MCPersistenceConfiguration{
 					Enabled: pointer.Bool(false),
 				},
 			},
