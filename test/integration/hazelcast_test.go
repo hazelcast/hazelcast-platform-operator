@@ -464,7 +464,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("NodeSelector is given", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
 						"node.selector": "1",
 					},
@@ -485,7 +485,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("Affinity is given", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -536,7 +536,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("Toleration is given", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      "node.zone",
@@ -675,7 +675,7 @@ var _ = Describe("Hazelcast CR", func() {
 			It("should create both of them", Label("fast"), func() {
 				s := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				s.HighAvailabilityMode = "ZONE"
-				s.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				s.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
 						PodAffinity: &corev1.PodAffinity{
 							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
@@ -1054,7 +1054,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("resources are given", func() {
 			It("should be set to Container spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.Resources = corev1.ResourceRequirements{
+				spec.Resources = &corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("500m"),
 						corev1.ResourceMemory: resource.MustParse("10Gi"),
@@ -1144,7 +1144,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Type: hazelcastv1alpha1.ExposeExternallyTypeSmart,
 			},
 			LicenseKeySecretName: "",
-			Scheduling: hazelcastv1alpha1.SchedulingConfiguration{
+			Scheduling: &hazelcastv1alpha1.SchedulingConfiguration{
 				Affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -1159,7 +1159,7 @@ var _ = Describe("Hazelcast CR", func() {
 					},
 				},
 			},
-			Resources: corev1.ResourceRequirements{
+			Resources: &corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceCPU:    resource.MustParse("250m"),
 					corev1.ResourceMemory: resource.MustParse("5Gi"),
@@ -1238,7 +1238,7 @@ var _ = Describe("Hazelcast CR", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						UserCodeDeployment: hazelcastv1alpha1.UserCodeDeploymentConfig{
+						UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
 							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 								ConfigMaps: cms,
 							},
@@ -1338,7 +1338,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("full configuration", func() {
 			It("should create Advanced Network configuration", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+				spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 					MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
 					WAN: []hazelcastv1alpha1.WANConfig{
 						{
@@ -1520,7 +1520,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 		It("should fail to overlap each other", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
 					{
 						Port:      5001,
@@ -1544,7 +1544,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 		It("should fail to overlap with other sockets", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
 					{
 						Port:      5702,
@@ -1564,7 +1564,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 		It("should fail to set ServiceType to non-existing type value", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
 					{
 						Port:        5702,
@@ -1636,7 +1636,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("Management Center property is configured", func() {
 			It("should be enabled", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.ManagementCenterConfig = hazelcastv1alpha1.ManagementCenterConfig{
+				spec.ManagementCenterConfig = &hazelcastv1alpha1.ManagementCenterConfig{
 					ScriptingEnabled:  true,
 					ConsoleEnabled:    true,
 					DataAccessEnabled: true,
@@ -1805,7 +1805,7 @@ var _ = Describe("Hazelcast CR", func() {
 				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 			}
 			spec.ClusterSize = pointer.Int32(5000)
-			spec.AdvancedNetwork = hazelcastv1alpha1.AdvancedNetwork{
+			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
 					{
 						Port:      5701,
@@ -1838,7 +1838,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("fully configured", func() {
 			It("should create jet engine configuration", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               ptr.Bool(true),
 					ResourceUploadEnabled: false,
 					Instance: &hazelcastv1alpha1.JetInstance{
@@ -1896,7 +1896,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 		It("should validate backup count", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+			spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 				Enabled: pointer.Bool(true),
 				Instance: &hazelcastv1alpha1.JetInstance{
 					BackupCount: 7,
@@ -1913,7 +1913,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 		It("should validate if lossless restart enabled without enabling persistence", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+			spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 				Enabled: pointer.Bool(true),
 				Instance: &hazelcastv1alpha1.JetInstance{
 					LosslessRestartEnabled: true,
@@ -1932,7 +1932,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("LosslessRestart is enabled", func() {
 			It("should fail if persistence is not enabled", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled: ptr.Bool(true),
 					Instance: &hazelcastv1alpha1.JetInstance{
 						LosslessRestartEnabled: true,
@@ -1956,7 +1956,7 @@ var _ = Describe("Hazelcast CR", func() {
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
 				}
-				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled: ptr.Bool(true),
 					Instance: &hazelcastv1alpha1.JetInstance{
 						LosslessRestartEnabled: true,
@@ -2020,7 +2020,7 @@ var _ = Describe("Hazelcast CR", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						JetEngineConfiguration: hazelcastv1alpha1.JetEngineConfiguration{
+						JetEngineConfiguration: &hazelcastv1alpha1.JetEngineConfiguration{
 							Enabled:               pointer.Bool(true),
 							ResourceUploadEnabled: true,
 							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{

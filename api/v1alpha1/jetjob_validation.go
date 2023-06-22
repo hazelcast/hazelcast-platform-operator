@@ -42,8 +42,8 @@ func ValidateExistingJobName(jj *JetJob, jjList *JetJobList) error {
 func ValidateJetConfiguration(h *Hazelcast) error {
 	var allErrs field.ErrorList
 	if !h.Spec.JetEngineConfiguration.IsEnabled() {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("jet").Child("enabled"),
-			h.Spec.JetEngineConfiguration.Enabled, "jet engine must be enabled"))
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("jet").Child("enabled"),
+			"jet engine must be enabled"))
 	}
 	if !h.Spec.JetEngineConfiguration.ResourceUploadEnabled {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("jet").Child("resourceUploadEnabled"),

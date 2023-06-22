@@ -297,7 +297,9 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
-		sts.Spec.Template.Spec.Containers[0].Resources = mc.Spec.Resources
+		if mc.Spec.Resources != nil {
+			sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
+		}
 
 		sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
 		sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations

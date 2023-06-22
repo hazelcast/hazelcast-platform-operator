@@ -24,17 +24,17 @@ type WanReplicationSpec struct {
 	// Queue is the configuration for WAN events queue.
 	// +kubebuilder:default:={capacity: 10000, fullBehavior: DISCARD_AFTER_MUTATION}
 	// +optional
-	Queue QueueSetting `json:"queue,omitempty"`
+	Queue *QueueSetting `json:"queue,omitempty"`
 
 	// Batch is the configuration for WAN events batch.
 	// +kubebuilder:default:={size: 500, maximumDelay: 1000}
 	// +optional
-	Batch BatchSetting `json:"batch,omitempty"`
+	Batch *BatchSetting `json:"batch,omitempty"`
 
 	// Acknowledgement is the configuration for the condition when the next batch of WAN events are sent.
 	// +kubebuilder:default:={type: ACK_ON_OPERATION_COMPLETE, timeout: 60000}
 	// +optional
-	Acknowledgement AcknowledgementSetting `json:"acknowledgement,omitempty"`
+	Acknowledgement *AcknowledgementSetting `json:"acknowledgement,omitempty"`
 }
 
 type ResourceSpec struct {

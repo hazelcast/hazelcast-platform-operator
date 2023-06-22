@@ -489,13 +489,13 @@ func validateNotUpdatableFields(current *hazelcastv1alpha1.WanReplicationSpec, l
 	if current.Endpoints != last.Endpoints {
 		return fmt.Errorf("endpoints cannot be updated")
 	}
-	if current.Queue != last.Queue {
+	if *current.Queue != *last.Queue {
 		return fmt.Errorf("queue cannot be updated")
 	}
-	if current.Batch != last.Batch {
+	if *current.Batch != *last.Batch {
 		return fmt.Errorf("batch cannot be updated")
 	}
-	if current.Acknowledgement != last.Acknowledgement {
+	if *current.Acknowledgement != *last.Acknowledgement {
 		return fmt.Errorf("acknowledgement cannot be updated")
 	}
 	return nil
@@ -604,14 +604,20 @@ func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, cli 
 	publisherId := wan.Name + "-" + mapWanKey
 
 	req := &hzclient.AddBatchPublisherRequest{
-		TargetCluster:         wan.Spec.TargetClusterName,
-		Endpoints:             wan.Spec.Endpoints,
-		QueueCapacity:         wan.Spec.Queue.Capacity,
-		BatchSize:             wan.Spec.Batch.Size,
-		BatchMaxDelayMillis:   wan.Spec.Batch.MaximumDelay,
-		ResponseTimeoutMillis: wan.Spec.Acknowledgement.Timeout,
-		AckType:               wan.Spec.Acknowledgement.Type,
-		QueueFullBehavior:     wan.Spec.Queue.FullBehavior,
+		TargetCluster: wan.Spec.TargetClusterName,
+		Endpoints:     wan.Spec.Endpoints,
+	}
+	if wan.Spec.Queue != nil {
+		req.QueueCapacity = wan.Spec.Queue.Capacity
+		req.QueueFullBehavior = wan.Spec.Queue.FullBehavior
+	}
+	if wan.Spec.Batch != nil {
+		req.BatchSize = wan.Spec.Batch.Size
+		req.BatchMaxDelayMillis = wan.Spec.Batch.MaximumDelay
+	}
+	if wan.Spec.Acknowledgement != nil {
+		req.ResponseTimeoutMillis = wan.Spec.Acknowledgement.Timeout
+		req.AckType = wan.Spec.Acknowledgement.Type
 	}
 
 	ws := hzclient.NewWanService(cli, wanName(mapName), publisherId)

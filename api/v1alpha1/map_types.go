@@ -27,7 +27,7 @@ type MapSpec struct {
 	// It can be updated.
 	// +kubebuilder:default:={maxSize: 0, evictionPolicy: NONE, maxSizePolicy: PER_NODE}
 	// +optional
-	Eviction EvictionConfig `json:"eviction,omitempty"`
+	Eviction *EvictionConfig `json:"eviction,omitempty"`
 
 	// Indexes to be created for the map data.
 	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.

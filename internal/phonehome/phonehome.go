@@ -248,7 +248,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
 		phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
-		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
+		phm.UserCodeDeployment.addUsageMetrics(hz.Spec.UserCodeDeployment)
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
 		phm.TLS.addUsageMetrics(hz.Spec.TLS)
@@ -373,7 +373,7 @@ func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration)
 	}
 }
 
-func (je *JetEngine) addUsageMetrics(jec hazelcastv1alpha1.JetEngineConfiguration) {
+func (je *JetEngine) addUsageMetrics(jec *hazelcastv1alpha1.JetEngineConfiguration) {
 	if !jec.IsEnabled() {
 		return
 	}
@@ -412,7 +412,7 @@ func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
 		if mc.Status.Phase == hazelcastv1alpha1.Running {
 			successfullyCreatedMCCount += 1
 		}
-		phm.McExternalConnectivity.addUsageMetrics(&mc.Spec.ExternalConnectivity)
+		phm.McExternalConnectivity.addUsageMetrics(mc.Spec.ExternalConnectivity)
 	}
 	phm.CreatedMCcount = createdMCCount
 }

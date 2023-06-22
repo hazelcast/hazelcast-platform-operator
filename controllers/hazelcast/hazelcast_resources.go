@@ -759,9 +759,11 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				},
 			},
 		},
-		UserCodeDeployment: config.UserCodeDeployment{
+	}
+	if h.Spec.UserCodeDeployment != nil {
+		cfg.UserCodeDeployment = config.UserCodeDeployment{
 			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
-		},
+		}
 	}
 
 	if h.Spec.JetEngineConfiguration.IsConfigured() {
@@ -1303,11 +1305,6 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		AsyncBackupCount:  ms.AsyncBackupCount,
 		TimeToLiveSeconds: ms.TimeToLiveSeconds,
 		ReadBackupData:    false,
-		Eviction: config.MapEviction{
-			Size:           ms.Eviction.MaxSize,
-			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
-			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
-		},
 		InMemoryFormat:    string(ms.InMemoryFormat),
 		Indexes:           copyMapIndexes(ms.Indexes),
 		StatisticsEnabled: true,
@@ -1315,6 +1312,13 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			Enabled: ms.PersistenceEnabled,
 			Fsync:   false,
 		},
+	}
+	if ms.Eviction != nil {
+		mc.Eviction = config.MapEviction{
+			Size:           ms.Eviction.MaxSize,
+			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
+			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
+		}
 	}
 
 	if util.IsEnterprise(hz.Spec.Repository) {
@@ -1509,19 +1513,22 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 }
 
 func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanReplication) config.WanReplicationConfig {
+	bpc := config.BatchPublisherConfig{
+		ClusterName:           wr.Spec.TargetClusterName,
+		TargetEndpoints:       wr.Spec.Endpoints,
+		ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
+		AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
+	}
+	if wr.Spec.Queue != nil {
+		bpc.QueueCapacity = wr.Spec.Queue.Capacity
+		bpc.QueueFullBehavior = string(wr.Spec.Queue.FullBehavior)
+	}
+	if wr.Spec.Batch != nil {
+		bpc.BatchSize = wr.Spec.Batch.Size
+		bpc.BatchMaxDelayMillis = wr.Spec.Batch.MaximumDelay
+	}
 	cfg := config.WanReplicationConfig{
-		BatchPublisher: map[string]config.BatchPublisherConfig{
-			publisherId: {
-				ClusterName:           wr.Spec.TargetClusterName,
-				TargetEndpoints:       wr.Spec.Endpoints,
-				QueueCapacity:         wr.Spec.Queue.Capacity,
-				QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
-				BatchSize:             wr.Spec.Batch.Size,
-				BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
-				ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
-				AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
-			},
-		},
+		BatchPublisher: map[string]config.BatchPublisherConfig{publisherId: bpc},
 	}
 	return cfg
 }
@@ -1602,13 +1609,17 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
-		sts.Spec.Template.Spec.Containers[0].Resources = h.Spec.Resources
+		if h.Spec.Resources != nil {
+			sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
+		}
 		sts.Spec.Template.Spec.Containers[0].Ports = hazelcastContainerPorts(h)
 
-		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
-		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
-		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
-		sts.Spec.Template.Spec.TopologySpreadConstraints = appendHAModeTopologySpreadConstraints(h)
+		if h.Spec.Scheduling != nil {
+			sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
+			sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
+			sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
+			sts.Spec.Template.Spec.TopologySpreadConstraints = appendHAModeTopologySpreadConstraints(h)
+		}
 
 		if semver.Compare(fmt.Sprintf("v%s", h.Spec.Version), "v5.2.0") == 1 {
 			sts.Spec.Template.Spec.Containers[0].ReadinessProbe.ProbeHandler.HTTPGet.Path = "/hazelcast/health/ready"
@@ -2314,8 +2325,10 @@ func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 		path.Join(n.UserCodeBucketPath, "*"),
 		path.Join(n.UserCodeURLPath, "*")}
 
-	for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
-		b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
+	if h.Spec.UserCodeDeployment != nil {
+		for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
+			b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
+		}
 	}
 
 	return strings.Join(b, ":")
