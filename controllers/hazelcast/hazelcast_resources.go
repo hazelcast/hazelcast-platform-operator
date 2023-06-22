@@ -855,7 +855,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		},
 	}
 
-	if len(h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces) != 0 {
+	if h.Spec.AdvancedNetwork != nil && len(h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces) != 0 {
 		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces = config.EnabledAndInterfaces{
 			Enabled:    true,
 			Interfaces: h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces,
@@ -880,7 +880,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.ClusterWrite.Enabled = pointer.Bool(true)
 
 	// WAN Network
-	if len(h.Spec.AdvancedNetwork.WAN) > 0 {
+	if h.Spec.AdvancedNetwork != nil && len(h.Spec.AdvancedNetwork.WAN) > 0 {
 		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
 		for _, w := range h.Spec.AdvancedNetwork.WAN {
 			cfg.AdvancedNetwork.WanServerSocketEndpointConfig[w.Name] = config.WanPort{

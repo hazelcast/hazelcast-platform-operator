@@ -281,6 +281,9 @@ func validateWANServiceTypes(h *Hazelcast) []*field.Error {
 
 func validateWANPorts(h *Hazelcast) []*field.Error {
 	var allErrs field.ErrorList
+	if h.Spec.AdvancedNetwork == nil {
+		return allErrs
+	}
 	if errs := isOverlapWithEachOther(h); errs != nil {
 		allErrs = append(allErrs, errs...)
 	}
