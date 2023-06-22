@@ -152,7 +152,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 				Spec: hazelcastv1alpha1.MapSpec{
 					DataStructureSpec: structureSpec,
 					TimeToLiveSeconds: 10,
-					Eviction: hazelcastv1alpha1.EvictionConfig{
+					Eviction: &hazelcastv1alpha1.EvictionConfig{
 						MaxSize: 0,
 					},
 				},
