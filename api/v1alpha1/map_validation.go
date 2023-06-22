@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 func ValidateMapSpecCreate(m *Map) error {
