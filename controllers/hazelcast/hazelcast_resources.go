@@ -900,10 +900,12 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
-	cfg.ManagementCenter = config.ManagementCenterConfig{
-		ScriptingEnabled:  h.Spec.ManagementCenterConfig.ScriptingEnabled,
-		ConsoleEnabled:    h.Spec.ManagementCenterConfig.ConsoleEnabled,
-		DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
+	if h.Spec.ManagementCenterConfig != nil {
+		cfg.ManagementCenter = config.ManagementCenterConfig{
+			ScriptingEnabled:  h.Spec.ManagementCenterConfig.ScriptingEnabled,
+			ConsoleEnabled:    h.Spec.ManagementCenterConfig.ConsoleEnabled,
+			DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
+		}
 	}
 
 	if h.Spec.TLS != nil && h.Spec.TLS.SecretName != "" {
