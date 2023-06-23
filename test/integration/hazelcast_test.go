@@ -621,6 +621,24 @@ var _ = Describe("Hazelcast CR", func() {
 				Delete(lookupKey(hz), hz)
 			})
 		})
+
+		It("should not create Hazelcast without Jet Bucket Config secretName", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+						BucketURI: "gs://my-bucket",
+					},
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("bucket secret must be set")))
+		})
 	})
 
 	Context("with HighAvailability configuration", func() {

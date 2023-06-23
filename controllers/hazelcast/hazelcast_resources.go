@@ -760,7 +760,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			ResourceUploadEnabled: pointer.Bool(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
 		}
 
-		if h.Spec.JetEngineConfiguration.Instance.IsConfigured() {
+		if h.Spec.JetEngineConfiguration.Instance != nil {
 			i := h.Spec.JetEngineConfiguration.Instance
 			cfg.Jet.Instance = config.JetInstance{
 				CooperativeThreadCount:         i.CooperativeThreadCount,

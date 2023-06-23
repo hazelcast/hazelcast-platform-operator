@@ -78,7 +78,7 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 	}
 
 	if err := validateJetConfig(h); err != nil {
-		allErrs = append(allErrs, err)
+		allErrs = append(allErrs, err...)
 	}
 
 	if err := validateJVMConfig(h); err != nil {
@@ -502,8 +502,8 @@ func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistence
 	return allErrs
 }
 
-func validateJetConfig(h *Hazelcast) *field.Error {
-	var err *field.Error
+func validateJetConfig(h *Hazelcast) []*field.Error {
+	var allErrs field.ErrorList
 
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
@@ -512,14 +512,20 @@ func validateJetConfig(h *Hazelcast) *field.Error {
 		return nil
 	}
 
-	if !j.Instance.IsConfigured() {
+	if j.IsBucketEnabled() && j.BucketConfiguration.GetSecretName() == "" {
+		allErrs = append(allErrs, field.Required(
+			field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+			"bucket secret must be set"))
+	}
+
+	if j.Instance != nil && j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
+				"can be enabled only if persistence enabled"))
+	}
+
+	if len(allErrs) == 0 {
 		return nil
 	}
-
-	if j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
-		err = field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
-			"can be enabled only if persistence enabled")
-	}
-
-	return err
+	return allErrs
 }
