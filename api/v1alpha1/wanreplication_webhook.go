@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -22,6 +24,7 @@ func (r *WanReplication) SetupWebhookWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:webhook:path=/validate-hazelcast-com-v1alpha1-wanreplication,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=wanreplications,verbs=create;update,versions=v1alpha1,name=vwanreplication.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &WanReplication{}
+var _ webhook.Defaulter = &WanReplication{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *WanReplication) ValidateCreate() error {
@@ -45,4 +48,20 @@ func (r *WanReplication) ValidateDelete() error {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
+}
+
+func (r *WanReplication) Default() {
+	WanDefaultOptionalToNil(r)
+}
+
+func WanDefaultOptionalToNil(r *WanReplication) {
+	if r.Spec.Batch != nil && reflect.DeepEqual(*r.Spec.Batch, BatchSetting{}) {
+		r.Spec.Batch = nil
+	}
+	if r.Spec.Acknowledgement != nil && reflect.DeepEqual(*r.Spec.Acknowledgement, AcknowledgementSetting{}) {
+		r.Spec.Acknowledgement = nil
+	}
+	if r.Spec.Queue != nil && reflect.DeepEqual(*r.Spec.Queue, QueueSetting{}) {
+		r.Spec.Queue = nil
+	}
 }
