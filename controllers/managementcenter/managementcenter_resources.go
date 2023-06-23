@@ -301,10 +301,12 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 			sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
 		}
 
-		sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
-		sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
-		sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
-		sts.Spec.Template.Spec.TopologySpreadConstraints = mc.Spec.Scheduling.TopologySpreadConstraints
+		if mc.Spec.Scheduling != nil {
+			sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
+			sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
+			sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
+			sts.Spec.Template.Spec.TopologySpreadConstraints = mc.Spec.Scheduling.TopologySpreadConstraints
+		}
 
 		return nil
 	})

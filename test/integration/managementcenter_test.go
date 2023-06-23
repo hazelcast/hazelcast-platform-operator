@@ -95,13 +95,13 @@ var _ = Describe("ManagementCenter CR", func() {
 			expectedExternalConnectivity := hazelcastv1alpha1.ExternalConnectivityConfiguration{
 				Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 			}
-			Expect(fetchedCR.Spec.ExternalConnectivity).Should(Equal(expectedExternalConnectivity))
+			Expect(*fetchedCR.Spec.ExternalConnectivity).Should(Equal(expectedExternalConnectivity))
 
 			expectedPersistence := hazelcastv1alpha1.MCPersistenceConfiguration{
 				Enabled: pointer.Bool(true),
 				Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 			}
-			Expect(fetchedCR.Spec.Persistence).Should(Equal(expectedPersistence))
+			Expect(*fetchedCR.Spec.Persistence).Should(Equal(expectedPersistence))
 
 			By("creating the sub resources successfully")
 			expectedOwnerReference := metav1.OwnerReference{
@@ -585,7 +585,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				Expect(ss.Spec.Template.Spec.TopologySpreadConstraints).To(Equal(secondSpec.Scheduling.TopologySpreadConstraints))
 
 				By("checking if StatefulSet Resources is updated")
-				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(secondSpec.Resources))
+				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
 			})
 		})
 	})

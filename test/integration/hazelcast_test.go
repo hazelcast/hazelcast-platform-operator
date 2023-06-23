@@ -625,16 +625,12 @@ var _ = Describe("Hazelcast CR", func() {
 					ss := getStatefulSet(hz)
 					return ss.Spec.Template.Spec.TopologySpreadConstraints
 				}, timeout, interval).Should(
-					ConsistOf(WithTransform(func(tsc corev1.TopologySpreadConstraint) corev1.TopologySpreadConstraint {
-						return tsc
-					}, Equal(
-						corev1.TopologySpreadConstraint{
-							MaxSkew:           1,
-							TopologyKey:       "kubernetes.io/hostname",
-							WhenUnsatisfiable: corev1.ScheduleAnyway,
-							LabelSelector:     &metav1.LabelSelector{MatchLabels: labelFilter(hz)},
-						},
-					))),
+					ConsistOf(corev1.TopologySpreadConstraint{
+						MaxSkew:           1,
+						TopologyKey:       "kubernetes.io/hostname",
+						WhenUnsatisfiable: corev1.ScheduleAnyway,
+						LabelSelector:     &metav1.LabelSelector{MatchLabels: labelFilter(hz)},
+					}),
 				)
 			})
 		})
@@ -657,16 +653,12 @@ var _ = Describe("Hazelcast CR", func() {
 					ss := getStatefulSet(hz)
 					return ss.Spec.Template.Spec.TopologySpreadConstraints
 				}, timeout, interval).Should(
-					ConsistOf(WithTransform(func(tsc corev1.TopologySpreadConstraint) corev1.TopologySpreadConstraint {
-						return tsc
-					}, Equal(
-						corev1.TopologySpreadConstraint{
-							MaxSkew:           1,
-							TopologyKey:       "topology.kubernetes.io/zone",
-							WhenUnsatisfiable: corev1.ScheduleAnyway,
-							LabelSelector:     &metav1.LabelSelector{MatchLabels: labelFilter(hz)},
-						},
-					))),
+					ConsistOf(corev1.TopologySpreadConstraint{
+						MaxSkew:           1,
+						TopologyKey:       "topology.kubernetes.io/zone",
+						WhenUnsatisfiable: corev1.ScheduleAnyway,
+						LabelSelector:     &metav1.LabelSelector{MatchLabels: labelFilter(hz)},
+					}),
 				)
 			})
 		})
@@ -1222,7 +1214,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(ss.Spec.Template.Spec.TopologySpreadConstraints).To(Equal(secondSpec.Scheduling.TopologySpreadConstraints))
 
 				By("Checking if StatefulSet Resources is updated")
-				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(secondSpec.Resources))
+				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
 			})
 		})
 	})

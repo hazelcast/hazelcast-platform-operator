@@ -348,7 +348,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
 		// append default wan port to HZ Discovery Service if use did not configure
 		isAddWANPort := false
-		if len(h.Spec.AdvancedNetwork.WAN) == 0 {
+		if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
 			isAddWANPort = true
 		}
 
@@ -364,6 +364,9 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 }
 
 func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if h.Spec.AdvancedNetwork == nil {
+		return nil
+	}
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1620,8 +1623,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
 			sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
 			sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
-			sts.Spec.Template.Spec.TopologySpreadConstraints = appendHAModeTopologySpreadConstraints(h)
 		}
+		sts.Spec.Template.Spec.TopologySpreadConstraints = appendHAModeTopologySpreadConstraints(h)
 
 		if semver.Compare(fmt.Sprintf("v%s", h.Spec.Version), "v5.2.0") == 1 {
 			sts.Spec.Template.Spec.Containers[0].ReadinessProbe.ProbeHandler.HTTPGet.Path = "/hazelcast/health/ready"
@@ -1735,8 +1738,16 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 }
 
 func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
-	var c []v1.ContainerPort
+	// If WAN is not configured, use the default port for it
+	if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
+		return []v1.ContainerPort{{
+			ContainerPort: n.WanDefaultPort,
+			Name:          n.WanDefaultPortName,
+			Protocol:      v1.ProtocolTCP,
+		}}
+	}
 
+	var c []v1.ContainerPort
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		for i := 0; i < int(w.PortCount); i++ {
 			c = append(c, v1.ContainerPort{
@@ -1745,15 +1756,6 @@ func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.Containe
 				Protocol:      v1.ProtocolTCP,
 			})
 		}
-	}
-
-	// If WAN is not configured, use the default port for it
-	if len(h.Spec.AdvancedNetwork.WAN) == 0 {
-		c = append(c, v1.ContainerPort{
-			ContainerPort: n.WanDefaultPort,
-			Name:          n.WanDefaultPortName,
-			Protocol:      v1.ProtocolTCP,
-		})
 	}
 
 	return c
@@ -2205,7 +2207,10 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 }
 
 func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.TopologySpreadConstraint {
-	topologySpreadConstraints := h.Spec.Scheduling.TopologySpreadConstraints
+	var topologySpreadConstraints []v1.TopologySpreadConstraint
+	if h.Spec.Scheduling != nil {
+		topologySpreadConstraints = append(topologySpreadConstraints, h.Spec.Scheduling.TopologySpreadConstraints...)
+	}
 	if h.Spec.HighAvailabilityMode != "" {
 		switch h.Spec.HighAvailabilityMode {
 		case "NODE":
