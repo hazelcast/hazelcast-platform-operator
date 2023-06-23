@@ -249,6 +249,9 @@ func validateClusterSize(h *Hazelcast) *field.Error {
 
 func validateAdvancedNetwork(h *Hazelcast) []*field.Error {
 	var allErrs field.ErrorList
+	if h.Spec.AdvancedNetwork == nil {
+		return allErrs
+	}
 
 	if errs := validateWANServiceTypes(h); errs != nil {
 		allErrs = append(allErrs, errs...)
@@ -281,9 +284,7 @@ func validateWANServiceTypes(h *Hazelcast) []*field.Error {
 
 func validateWANPorts(h *Hazelcast) []*field.Error {
 	var allErrs field.ErrorList
-	if h.Spec.AdvancedNetwork == nil {
-		return allErrs
-	}
+
 	if errs := isOverlapWithEachOther(h); errs != nil {
 		allErrs = append(allErrs, errs...)
 	}
