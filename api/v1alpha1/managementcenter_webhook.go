@@ -49,10 +49,10 @@ func (r *ManagementCenter) ValidateDelete() error {
 }
 
 func (r *ManagementCenter) Default() {
-	MCDefaultOptionalToNil(r)
+	r.defaultOptionalToNil()
 }
 
-func MCDefaultOptionalToNil(r *ManagementCenter) {
+func (r *ManagementCenter) defaultOptionalToNil() {
 	if r.Spec.ExternalConnectivity != nil && reflect.DeepEqual(*r.Spec.ExternalConnectivity, ExternalConnectivityConfiguration{}) {
 		r.Spec.ExternalConnectivity = nil
 	}

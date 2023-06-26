@@ -42,10 +42,6 @@ func (m *Map) ValidateDelete() error {
 }
 
 func (m *Map) Default() {
-	MapDefaultOptionalToNil(m)
-}
-
-func MapDefaultOptionalToNil(m *Map) {
 	if m.Spec.Eviction != nil && reflect.DeepEqual(*m.Spec.Eviction, EvictionConfig{}) {
 		m.Spec.Eviction = nil
 	}
