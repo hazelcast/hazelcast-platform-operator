@@ -77,7 +77,6 @@ type HazelcastSpec struct {
 	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
-	// +kubebuilder:default:={}
 	// +optional
 	ExposeExternally *ExposeExternallyConfiguration `json:"exposeExternally,omitempty"`
 
@@ -87,17 +86,14 @@ type HazelcastSpec struct {
 	ClusterName string `json:"clusterName,omitempty"`
 
 	// Scheduling details
-	// +kubebuilder:default:={}
 	// +optional
 	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
 
 	// Compute Resources required by the Hazelcast container.
-	// +kubebuilder:default:={}
 	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Persistence configuration
-	//+kubebuilder:default:={}
 	//+optional
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
@@ -111,7 +107,6 @@ type HazelcastSpec struct {
 	JetEngineConfiguration *JetEngineConfiguration `json:"jet,omitempty"`
 
 	// User Codes to Download into CLASSPATH
-	//+kubebuilder:default:={}
 	// +optional
 	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
 
@@ -137,27 +132,22 @@ type HazelcastSpec struct {
 	LoggingLevel LoggingLevel `json:"loggingLevel,omitempty"`
 
 	// Configuration to create clusters resilient to node and zone failures
-	// +kubebuilder:default:={}
 	// +optional
 	HighAvailabilityMode HighAvailabilityMode `json:"highAvailabilityMode,omitempty"`
 
 	// Hazelcast JVM configuration
-	// +kubebuilder:default:={}
 	// +optional
 	JVM *JVMConfiguration `json:"jvm,omitempty"`
 
 	// Hazelcast Native Memory (HD Memory) configuration
-	// +kubebuilder:default:={}
 	// +optional
 	NativeMemory *NativeMemoryConfiguration `json:"nativeMemory,omitempty"`
 
 	// Hazelcast Advanced Network configuration
-	// +kubebuilder:default:={}
 	// +optional
 	AdvancedNetwork *AdvancedNetwork `json:"advancedNetwork,omitempty"`
 
 	// Hazelcast Management Center Configuration
-	// +kubebuilder:default:={}
 	// +optional
 	ManagementCenterConfig *ManagementCenterConfig `json:"managementCenter,omitempty"`
 

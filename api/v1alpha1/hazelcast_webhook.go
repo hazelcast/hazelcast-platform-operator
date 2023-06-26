@@ -57,9 +57,6 @@ func HzDefaultOptionalToNil(r *Hazelcast) {
 	if r.Spec.Resources != nil && reflect.DeepEqual(*r.Spec.Resources, corev1.ResourceRequirements{}) {
 		r.Spec.Resources = nil
 	}
-	if r.Spec.JetEngineConfiguration != nil && reflect.DeepEqual(*r.Spec.JetEngineConfiguration, JetEngineConfiguration{}) {
-		r.Spec.JetEngineConfiguration = nil
-	}
 	if r.Spec.UserCodeDeployment != nil && reflect.DeepEqual(*r.Spec.UserCodeDeployment, UserCodeDeploymentConfig{}) {
 		r.Spec.UserCodeDeployment = nil
 	}
