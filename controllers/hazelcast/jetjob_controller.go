@@ -388,7 +388,7 @@ func (r *JetJobReconciler) executeFinalizer(ctx context.Context, jj *hazelcastv1
 
 	// If Hazelcast CR is getting deleted, the finalizer doesn't cancel the actual job
 	if hz.DeletionTimestamp == nil {
-		if err := r.stopJetExecution(ctx, jj, hz, logger); err != nil {
+		if err := r.stopJetExecution(ctx, jj, hzNn, logger); err != nil {
 			return fmt.Errorf("failed to remove finalizer: %w", err)
 		}
 	} else {
@@ -403,14 +403,10 @@ func (r *JetJobReconciler) executeFinalizer(ctx context.Context, jj *hazelcastv1
 	return nil
 }
 
-func (r *JetJobReconciler) stopJetExecution(ctx context.Context, jj *hazelcastv1alpha1.JetJob, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *JetJobReconciler) stopJetExecution(ctx context.Context, jj *hazelcastv1alpha1.JetJob, hzNn types.NamespacedName, logger logr.Logger) error {
 	if jj.Status.Id == 0 {
 		logger.Info("Jet job ID is 0", "name", jj.Name, "namespace", jj.Namespace)
 		return nil
-	}
-	hzNn := types.NamespacedName{
-		Name:      h.Name,
-		Namespace: h.Namespace,
 	}
 	c, err := r.ClientRegistry.GetOrCreate(ctx, hzNn)
 	if err != nil {
