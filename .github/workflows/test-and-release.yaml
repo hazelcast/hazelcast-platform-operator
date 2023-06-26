@@ -74,7 +74,7 @@ jobs:
 
       - name: Build Image
         id: build-image
-        uses: docker/build-push-action@v4.0.0
+        uses: docker/build-push-action@v4.1.1
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
