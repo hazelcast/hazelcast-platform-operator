@@ -222,7 +222,7 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 
 func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alpha1.JetJob, hazelcastName types.NamespacedName, jjnn types.NamespacedName, client hzclient.Client, logger logr.Logger) error {
 	g, groupCtx := errgroup.WithContext(ctx)
-	mtlsClient, ok := r.mtlsClientRegistry.Get(ctx, hazelcastName)
+	mtlsClient, ok := r.mtlsClientRegistry.Get(hazelcastName.Namespace)
 	if !ok {
 		returnErr := errors.New("failed to get MTLS client")
 		_, _ = r.updateStatus(ctx, jjnn, failedJetJobStatus(returnErr))

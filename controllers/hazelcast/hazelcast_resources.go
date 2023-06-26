@@ -37,7 +37,6 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -69,7 +68,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	r.statusServiceRegistry.Delete(lk)
-	r.mtlsClientRegistry.Delete(lk)
+	r.mtlsClientRegistry.Delete(lk.Namespace)
 	if err := r.clientRegistry.Delete(ctx, lk); err != nil {
 		return fmt.Errorf("Hazelcast client could not be deleted:  %w", err)
 	}
@@ -628,16 +627,6 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 				cm.Data["hazelcast.jks"] = keystore
 			}
 
-			if _, ok := cm.Data["ca.crt"]; !ok {
-				mtlsCert, mtlsKey, err := mtls.NewCertificateAuthority()
-				if err != nil {
-					return err
-				}
-				cm.Data["ca.crt"] = mtlsCert
-				cm.Data["tls.crt"] = mtlsCert
-				cm.Data["tls.key"] = mtlsKey
-			}
-
 			return nil
 		})
 		if result != controllerutil.OperationResultNone {
@@ -645,6 +634,27 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 		}
 		return err
 	})
+}
+
+func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+	_, err := r.mtlsClientRegistry.Create(ctx, r.Client, h.Namespace)
+	if err != nil {
+		return err
+	}
+	secret := &v1.Secret{}
+	secretName := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: h.Namespace}
+	err = r.Client.Get(ctx, secretName, secret)
+	if err != nil {
+		return err
+	}
+	err = controllerutil.SetControllerReference(h, secret, r.Scheme)
+	if err != nil {
+		return err
+	}
+	_, err = util.CreateOrUpdateForce(ctx, r.Client, secret, func() error {
+		return nil
+	})
+	return err
 }
 
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
@@ -1680,21 +1690,21 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		Env: []v1.EnvVar{
 			{
 				Name:  "BACKUP_CA",
-				Value: path.Join(n.HazelcastMountPath, "ca.crt"),
+				Value: path.Join(n.MTLSCertPath, "ca.crt"),
 			},
 			{
 				Name:  "BACKUP_CERT",
-				Value: path.Join(n.HazelcastMountPath, "tls.crt"),
+				Value: path.Join(n.MTLSCertPath, "tls.crt"),
 			},
 			{
 				Name:  "BACKUP_KEY",
-				Value: path.Join(n.HazelcastMountPath, "tls.key"),
+				Value: path.Join(n.MTLSCertPath, "tls.key"),
 			},
 		},
 		VolumeMounts: []v1.VolumeMount{
 			{
-				Name:      n.HazelcastStorageName,
-				MountPath: n.HazelcastMountPath,
+				Name:      n.MTLSCertSecretName,
+				MountPath: n.MTLSCertPath,
 			},
 			jetJobJarsVolumeMount(),
 		},
@@ -2006,6 +2016,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		emptyDirVolume(n.UserCodeBucketVolumeName),
 		emptyDirVolume(n.UserCodeURLVolumeName),
 		emptyDirVolume(n.JetJobJarsVolumeName),
+		tlsVolume(h),
 	}
 
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
@@ -2032,6 +2043,18 @@ func emptyDirVolume(name string) v1.Volume {
 		Name: name,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+func tlsVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
+	return v1.Volume{
+		Name: n.MTLSCertSecretName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName:  n.MTLSCertSecretName,
+				DefaultMode: &[]int32{420}[0],
+			},
 		},
 	}
 }
