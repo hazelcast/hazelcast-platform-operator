@@ -44,10 +44,14 @@ func (r *Hazelcast) ValidateDelete() error {
 }
 
 func (r *Hazelcast) Default() {
-	HzDefaultOptionalToNil(r)
+	if r.Spec.LicenseKeySecretName == "" && r.Spec.DeprecatedLicenseKeySecret != "" {
+		r.Spec.LicenseKeySecretName = r.Spec.DeprecatedLicenseKeySecret
+		r.Spec.DeprecatedLicenseKeySecret = ""
+	}
+	r.defaultOptionalToNil()
 }
 
-func HzDefaultOptionalToNil(r *Hazelcast) {
+func (r *Hazelcast) defaultOptionalToNil() {
 	if r.Spec.TLS != nil && r.Spec.TLS.SecretName == "" {
 		r.Spec.TLS = nil
 	}
