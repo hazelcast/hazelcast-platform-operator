@@ -1045,8 +1045,6 @@ const (
 
 type TLS struct {
 	// Name of the secret with TLS certificate and key.
-	// +kubebuilder:validation:Required
-	// +required
 	SecretName string `json:"secretName"`
 
 	// Mutual authentication configuration. It’s None by default which

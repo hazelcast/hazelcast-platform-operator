@@ -10,6 +10,7 @@ func HazelcastSpec(h *hazelcastv1alpha1.Hazelcast) (mutated bool) {
 		h.Spec.Repository = n.HazelcastEERepo
 		mutated = true
 	}
+	hazelcastv1alpha1.HzDefaultOptionalToNil(h)
 
 	return
 }
