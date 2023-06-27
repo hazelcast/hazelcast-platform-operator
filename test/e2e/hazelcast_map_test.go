@@ -155,7 +155,7 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		By("updating the map config")
 		m.Spec.TimeToLiveSeconds = 150
 		m.Spec.MaxIdleSeconds = 100
-		m.Spec.Eviction = &hazelcastcomv1alpha1.EvictionConfig{
+		m.Spec.Eviction = hazelcastcomv1alpha1.EvictionConfig{
 			EvictionPolicy: hazelcastcomv1alpha1.EvictionPolicyLFU,
 			MaxSize:        500,
 			MaxSizePolicy:  hazelcastcomv1alpha1.MaxSizePolicyFreeHeapSize,

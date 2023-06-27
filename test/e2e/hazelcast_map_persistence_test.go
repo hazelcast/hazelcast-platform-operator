@@ -110,7 +110,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		By("creating the map configs")
 		for i, mapp := range maps {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapp, Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
-			m.Spec.Eviction = &hazelcastv1alpha1.EvictionConfig{MaxSize: int32(i) * 100}
+			m.Spec.Eviction = hazelcastv1alpha1.EvictionConfig{MaxSize: int32(i) * 100}
 			m.Spec.HazelcastResourceName = hazelcast.Name
 			if mapp == "mapfail" {
 				m.Spec.HazelcastResourceName = "failedHz"

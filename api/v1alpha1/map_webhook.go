@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"reflect"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -21,7 +19,6 @@ func (m *Map) SetupWebhookWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:webhook:path=/validate-hazelcast-com-v1alpha1-map,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=maps,verbs=create;update,versions=v1alpha1,name=vmap.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Map{}
-var _ webhook.Defaulter = &Map{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (m *Map) ValidateCreate() error {
@@ -39,10 +36,4 @@ func (m *Map) ValidateUpdate(old runtime.Object) error {
 func (m *Map) ValidateDelete() error {
 	maplog.Info("validate delete", "name", m.Name)
 	return nil
-}
-
-func (m *Map) Default() {
-	if m.Spec.Eviction != nil && reflect.DeepEqual(*m.Spec.Eviction, EvictionConfig{}) {
-		m.Spec.Eviction = nil
-	}
 }

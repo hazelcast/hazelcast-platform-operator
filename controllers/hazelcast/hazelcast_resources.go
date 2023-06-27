@@ -1317,13 +1317,11 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			Enabled: ms.PersistenceEnabled,
 			Fsync:   false,
 		},
-	}
-	if ms.Eviction != nil {
-		mc.Eviction = config.MapEviction{
+		Eviction: config.MapEviction{
 			Size:           ms.Eviction.MaxSize,
 			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
 			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
-		}
+		},
 	}
 
 	if util.IsEnterprise(hz.Spec.Repository) {
@@ -1523,14 +1521,10 @@ func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanRepl
 		TargetEndpoints:       wr.Spec.Endpoints,
 		ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
 		AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
-	}
-	if wr.Spec.Queue != nil {
-		bpc.QueueCapacity = wr.Spec.Queue.Capacity
-		bpc.QueueFullBehavior = string(wr.Spec.Queue.FullBehavior)
-	}
-	if wr.Spec.Batch != nil {
-		bpc.BatchSize = wr.Spec.Batch.Size
-		bpc.BatchMaxDelayMillis = wr.Spec.Batch.MaximumDelay
+		QueueCapacity:         wr.Spec.Queue.Capacity,
+		QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
+		BatchSize:             wr.Spec.Batch.Size,
+		BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
 	}
 	cfg := config.WanReplicationConfig{
 		BatchPublisher: map[string]config.BatchPublisherConfig{publisherId: bpc},
