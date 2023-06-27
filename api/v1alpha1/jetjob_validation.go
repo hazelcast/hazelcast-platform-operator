@@ -70,11 +70,11 @@ func validateJetStatusChange(newState JetJobState, oldState JetJobStatusPhase) *
 	if oldState == "" {
 		return nil
 	}
-	if oldState != JetJobRunning && newState != RunningJobState {
-		return field.Invalid(field.NewPath("spec").Child("state"), newState, fmt.Sprintf("can be set only for JetJob with %v status", JetJobRunning))
-	}
 	if oldState.IsFinished() || oldState == JetJobCompleting {
 		return field.Forbidden(field.NewPath("spec").Child("state"), "job execution is finished or being finished, state change is not allowed")
+	}
+	if oldState != JetJobRunning && newState != RunningJobState {
+		return field.Invalid(field.NewPath("spec").Child("state"), newState, fmt.Sprintf("can be set only for JetJob with %v status", JetJobRunning))
 	}
 	return nil
 }
