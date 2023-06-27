@@ -243,7 +243,7 @@ jobs:
       - name: Setup Preflight and Operator SDK
         uses: redhat-actions/openshift-tools-installer@v1
         with:
-          preflight: "1.6.6"
+          preflight: "latest"
           source: github
           skip_cache: true
 
