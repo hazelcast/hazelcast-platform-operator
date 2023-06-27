@@ -68,6 +68,9 @@ const (
 	JetBucketAgent      = "jet-bucket-agent"
 	JetUrlAgent         = "jet-url-agent"
 
+	MTLSCertSecretName = "hazelcast-agent-cert"
+	MTLSCertPath       = "/var/run/secrets/hazelcast"
+
 	UserCodeBucketPath    = "/opt/hazelcast/userCode/bucket"
 	UserCodeURLPath       = "/opt/hazelcast/userCode/urls"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"

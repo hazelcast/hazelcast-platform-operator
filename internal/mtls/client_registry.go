@@ -7,37 +7,46 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 type HttpClientRegistry interface {
-	Get(ctx context.Context, name types.NamespacedName) (*http.Client, bool)
-	Delete(name types.NamespacedName)
+	Create(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error)
+	Get(ns string) (*http.Client, bool)
+	Delete(ns string)
 }
 
-func NewHttpClientRegistry(kubeClient client.Client) HttpClientRegistry {
-	return &httpClientRegistry{
-		kubeClient: kubeClient,
-	}
+func NewHttpClientRegistry() HttpClientRegistry {
+	return &httpClientRegistry{}
 }
 
 type httpClientRegistry struct {
-	kubeClient client.Client
-	clients    sync.Map
+	clients sync.Map
 }
 
-func (cr *httpClientRegistry) Get(ctx context.Context, name types.NamespacedName) (*http.Client, bool) {
-	v, ok := cr.clients.Load(name)
-	if !ok {
-		c, err := NewClient(ctx, cr.kubeClient, name)
-		if err != nil {
-			return nil, false
-		}
-		cr.clients.Store(name, c)
-		return c, true
+func (cr *httpClientRegistry) Create(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error) {
+	c, ok := cr.Get(ns)
+	if ok {
+		return c, nil
 	}
-	return v.(*http.Client), true
+	nn := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}
+	c, err := NewClient(ctx, kubeClient, nn)
+	if err != nil {
+		return nil, err
+	}
+	cr.clients.Store(nn, c)
+	return c, nil
 }
 
-func (cr *httpClientRegistry) Delete(name types.NamespacedName) {
-	cr.clients.Delete(name)
+func (cr *httpClientRegistry) Get(ns string) (*http.Client, bool) {
+	nn := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}
+	if v, ok := cr.clients.Load(nn); ok {
+		return v.(*http.Client), true
+	}
+	return nil, false
+}
+
+func (cr *httpClientRegistry) Delete(ns string) {
+	cr.clients.Delete(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns})
 }
