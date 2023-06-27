@@ -220,7 +220,7 @@ type MapStoreConfig struct {
 	WriteDelaySeconds int32             `yaml:"write-delay-seconds"`
 	WriteBatchSize    int32             `yaml:"write-batch-size"`
 	ClassName         string            `yaml:"class-name"`
-	Properties        map[string]string `yaml:"properties"`
+	Properties        map[string]string `yaml:"properties,omitempty"`
 	InitialLoadMode   string            `yaml:"initial-mode"`
 }
 
