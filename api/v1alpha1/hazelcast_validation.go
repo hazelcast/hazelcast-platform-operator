@@ -78,7 +78,7 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 	}
 
 	if err := validateJetConfig(h); err != nil {
-		allErrs = append(allErrs, err)
+		allErrs = append(allErrs, err...)
 	}
 
 	if err := validateJVMConfig(h); err != nil {
@@ -506,26 +506,42 @@ func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistence
 	return allErrs
 }
 
-func validateJetConfig(h *Hazelcast) *field.Error {
-	var err *field.Error
-
+func validateJetConfig(h *Hazelcast) (errs field.ErrorList) {
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
 
 	if !j.IsEnabled() {
-		return nil
+		return
 	}
 
 	if !j.Instance.IsConfigured() {
-		return nil
+		return
 	}
 
 	if j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
-		err = field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
-			"can be enabled only if persistence enabled")
+		errs = append(errs, field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
+			"can be enabled only if persistence enabled"))
 	}
 
-	return err
+	if j.BucketConfiguration != nil {
+		if j.BucketConfiguration.SecretName == "" {
+			errs = append(errs, field.Forbidden(field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+				"Bucket credentials Secret name is empty"))
+		}
+		secretName := types.NamespacedName{
+			Name:      j.BucketConfiguration.SecretName,
+			Namespace: h.Namespace,
+		}
+		var secret corev1.Secret
+		err := kubeclient.Get(context.Background(), secretName, &secret)
+		if kerrors.IsNotFound(err) {
+			// we care only about not found error
+			errs = append(errs, field.Required(field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+				"Bucket credentials Secret not found"))
+		}
+	}
+
+	return errs
 }
 
 func validateNativeMemory(h *Hazelcast) *field.Error {
