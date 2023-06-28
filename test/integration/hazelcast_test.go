@@ -1626,6 +1626,9 @@ var _ = Describe("Hazelcast CR", func() {
 	Context("with NativeMemory configuration", func() {
 		When("Native Memory property is configured", func() {
 			It("should be enabled", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
 					AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
@@ -1650,6 +1653,22 @@ var _ = Describe("Hazelcast CR", func() {
 				}, timeout, interval).Should(BeTrue())
 
 				Delete(lookupKey(hz), hz)
+			})
+			It("should error when not using enterprise version", Label("fast"), func() {
+				if ee {
+					Skip("This test will only run in OS configuration")
+				}
+
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
+					AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
 		})
 	})

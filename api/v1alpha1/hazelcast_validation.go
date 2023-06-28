@@ -89,6 +89,10 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 		allErrs = append(allErrs, err)
 	}
 
+	if err := validateNativeMemory(h); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
 	return allErrs
 }
 
@@ -522,4 +526,18 @@ func validateJetConfig(h *Hazelcast) *field.Error {
 	}
 
 	return err
+}
+
+func validateNativeMemory(h *Hazelcast) *field.Error {
+	// skip validation if NativeMemory is not set
+	if h.Spec.NativeMemory == nil {
+		return nil
+	}
+
+	if h.Spec.GetLicenseKeySecretName() == "" {
+		return field.Required(field.NewPath("spec").Child("nativeMemory"),
+			"Hazelcast Native Memory requires enterprise version")
+	}
+
+	return nil
 }
