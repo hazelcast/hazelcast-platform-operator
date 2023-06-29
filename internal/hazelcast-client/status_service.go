@@ -104,6 +104,9 @@ func (ss *HzStatusService) Start() {
 		done:   make(chan bool),
 	}
 
+	ss.initMembers(ctx)
+	ss.triggerReconcile()
+
 	go func(ctx context.Context, s *StatusTicker) {
 		for {
 			select {
@@ -127,6 +130,25 @@ func (ss *HzStatusService) triggerReconcile() {
 
 func (ss *HzStatusService) GetStatus() *Status {
 	return ss.status
+}
+
+func (ss *HzStatusService) initMembers(ctx context.Context) {
+	if ss.client == nil {
+		return
+	}
+
+	ss.log.V(util.DebugLevel).Info("Initializing Hazelcast status", "CR", ss.namespacedName)
+
+	activeMemberList := ss.client.OrderedMembers()
+	activeMembers := make(map[hztypes.UUID]*MemberData, len(activeMemberList))
+
+	for _, memberInfo := range activeMemberList {
+		activeMembers[memberInfo.UUID] = newMemberData(memberInfo)
+	}
+
+	ss.statusLock.Lock()
+	ss.status.MemberDataMap = activeMembers
+	ss.statusLock.Unlock()
 }
 
 func (ss *HzStatusService) UpdateMembers(ctx context.Context) {
