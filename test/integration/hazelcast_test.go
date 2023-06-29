@@ -2019,6 +2019,43 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
+		When("bucketConfig is configured", func() {
+			It("should error when secretName is empty", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled: ptr.Bool(true),
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							SecretName: "",
+						},
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+			})
+			It("should error when secretName does not exist", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled: ptr.Bool(true),
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							SecretName: "notfound",
+						},
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+			})
+		})
+
 		When("ConfigMaps are given", func() {
 			It("should put correct fields in StatefulSet", Label("fast"), func() {
 				cms := []string{
