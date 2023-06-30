@@ -1365,15 +1365,15 @@ var _ = Describe("Hazelcast CR", func() {
 							Persistence:  config.EndpointGroup{Enabled: pointer.Bool(true)},
 						},
 					},
-					WANServerSocketEndpointConfigs: map[string]config.WANPort{
+					WANServerSocketEndpointConfigs: map[string]config.WANServerSocketEndpointConfig{
 						"tokyo": {
-							PortAndPortCount: config.PortAndPortCount{
+							Port: config.PortAndPortCount{
 								Port:      5710,
 								PortCount: 5,
 							},
 						},
 						"istanbul": {
-							PortAndPortCount: config.PortAndPortCount{
+							Port: config.PortAndPortCount{
 								Port:      5720,
 								PortCount: 5,
 							},
@@ -1455,9 +1455,9 @@ var _ = Describe("Hazelcast CR", func() {
 							Persistence:  config.EndpointGroup{Enabled: pointer.Bool(true)},
 						},
 					},
-					WANServerSocketEndpointConfigs: map[string]config.WANPort{
+					WANServerSocketEndpointConfigs: map[string]config.WANServerSocketEndpointConfig{
 						"default": {
-							PortAndPortCount: config.PortAndPortCount{
+							Port: config.PortAndPortCount{
 								Port:      n.WanDefaultPort,
 								PortCount: 1,
 							},
