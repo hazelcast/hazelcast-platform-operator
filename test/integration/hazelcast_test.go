@@ -1644,6 +1644,9 @@ var _ = Describe("Hazelcast CR", func() {
 	Context("with NativeMemory configuration", func() {
 		When("Native Memory property is configured", func() {
 			It("should be enabled", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
 					AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
@@ -1668,6 +1671,22 @@ var _ = Describe("Hazelcast CR", func() {
 				}, timeout, interval).Should(BeTrue())
 
 				Delete(lookupKey(hz), hz)
+			})
+			It("should error when not using enterprise version", Label("fast"), func() {
+				if ee {
+					Skip("This test will only run in OS configuration")
+				}
+
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
+					AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
 		})
 	})
@@ -2015,6 +2034,43 @@ var _ = Describe("Hazelcast CR", func() {
 
 				Expect(hz.Spec.JetEngineConfiguration.Instance.LosslessRestartEnabled).Should(BeTrue())
 				Delete(lookupKey(hz), hz)
+			})
+		})
+
+		When("bucketConfig is configured", func() {
+			It("should error when secretName is empty", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled: ptr.Bool(true),
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							SecretName: "",
+						},
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+			})
+			It("should error when secretName does not exist", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+					Enabled: ptr.Bool(true),
+					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							SecretName: "notfound",
+						},
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
 		})
 

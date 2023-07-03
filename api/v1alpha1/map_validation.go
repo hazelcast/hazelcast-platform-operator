@@ -43,6 +43,9 @@ func validateMapSpecCurrent(m *Map, h *Hazelcast) field.ErrorList {
 	var allErrs field.ErrorList
 	allErrs = appendIfNotNil(allErrs, ValidateAppliedPersistence(m.Spec.PersistenceEnabled, h))
 	allErrs = appendIfNotNil(allErrs, ValidateAppliedNativeMemory(m.Spec.InMemoryFormat, h))
+	if m.Spec.NearCache != nil {
+		allErrs = appendIfNotNil(allErrs, ValidateAppliedNativeMemory(m.Spec.NearCache.InMemoryFormat, h))
+	}
 	if len(allErrs) == 0 {
 		return nil
 	}

@@ -89,6 +89,10 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 		allErrs = append(allErrs, err)
 	}
 
+	if err := validateNativeMemory(h); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
 	return allErrs
 }
 
@@ -502,30 +506,39 @@ func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistence
 	return allErrs
 }
 
-func validateJetConfig(h *Hazelcast) []*field.Error {
-	var allErrs field.ErrorList
-
+func validateJetConfig(h *Hazelcast) (errs field.ErrorList) {
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
 
 	if !j.IsEnabled() {
-		return nil
+		return
 	}
 
 	if j.IsBucketEnabled() && j.BucketConfiguration.GetSecretName() == "" {
-		allErrs = append(allErrs, field.Required(
+		errs = append(errs, field.Required(
 			field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
 			"bucket secret must be set"))
 	}
 
 	if j.Instance != nil && j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
-		allErrs = append(allErrs,
+		errs = append(errs,
 			field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
 				"can be enabled only if persistence enabled"))
 	}
 
-	if len(allErrs) == 0 {
+	return
+}
+
+func validateNativeMemory(h *Hazelcast) *field.Error {
+	// skip validation if NativeMemory is not set
+	if h.Spec.NativeMemory == nil {
 		return nil
 	}
-	return allErrs
+
+	if h.Spec.GetLicenseKeySecretName() == "" {
+		return field.Required(field.NewPath("spec").Child("nativeMemory"),
+			"Hazelcast Native Memory requires enterprise version")
+	}
+
+	return nil
 }

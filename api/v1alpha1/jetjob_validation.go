@@ -62,12 +62,28 @@ func ValidateJetConfiguration(h *Hazelcast) error {
 	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Hazelcast"}, h.Name, allErrs)
 }
 
-func ValidateJetJobUpdateSpec(jj *JetJob, _ *JetJob) error {
+func ValidateJetJobUpdateSpec(jj *JetJob, oldJj *JetJob) error {
 	var allErrs = validateJetJobUpdateSpec(jj)
+	if err := validateJetStatusChange(jj.Spec.State, oldJj.Status.Phase); err != nil {
+		allErrs = append(allErrs, err)
+	}
 	if len(allErrs) == 0 {
 		return nil
 	}
 	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"}, jj.Name, allErrs)
+}
+
+func validateJetStatusChange(newState JetJobState, oldState JetJobStatusPhase) *field.Error {
+	if oldState == "" {
+		return nil
+	}
+	if oldState.IsFinished() || oldState == JetJobCompleting {
+		return field.Forbidden(field.NewPath("spec").Child("state"), "job execution is finished or being finished, state change is not allowed")
+	}
+	if oldState != JetJobRunning && newState != RunningJobState {
+		return field.Invalid(field.NewPath("spec").Child("state"), newState, fmt.Sprintf("can be set only for JetJob with %v status", JetJobRunning))
+	}
+	return nil
 }
 
 func validateJetJobUpdateSpec(jj *JetJob) []*field.Error {
