@@ -16,7 +16,7 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-var _ = FDescribe("CronHotBackup CR", func() {
+var _ = Describe("CronHotBackup CR", func() {
 	const namespace = "default"
 
 	filterHotBackupsByName := func(chb hazelcastv1alpha1.CronHotBackup, hbs []hazelcastv1alpha1.HotBackup) []hazelcastv1alpha1.HotBackup {
