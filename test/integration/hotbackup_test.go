@@ -22,6 +22,11 @@ var _ = Describe("HotBackup CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.HotBackup{}, &hazelcastv1alpha1.HotBackupList{}, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
 			hb := &hazelcastv1alpha1.HotBackup{
@@ -35,8 +40,6 @@ var _ = Describe("HotBackup CR", func() {
 
 			By("checking the CR values with default ones")
 			Expect(hb.Spec.HazelcastResourceName).To(Equal("hazelcast"))
-
-			Delete(lookupKey(hb), hb)
 		})
 	})
 })

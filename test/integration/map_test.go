@@ -35,6 +35,11 @@ var _ = Describe("Map CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.Map{}, &hazelcastv1alpha1.MapList{}, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
 			m := &hazelcastv1alpha1.Map{
@@ -61,7 +66,6 @@ var _ = Describe("Map CR", func() {
 			Expect(ms.PersistenceEnabled).To(Equal(n.DefaultMapPersistenceEnabled))
 			Expect(ms.HazelcastResourceName).To(Equal("hazelcast"))
 			Expect(ms.EntryListeners).To(BeNil())
-			Delete(lookupKey(m), m)
 		})
 
 		When("applying empty spec", func() {
@@ -112,9 +116,6 @@ var _ = Describe("Map CR", func() {
 				}
 
 				Expect(err).Should(MatchError(ContainSubstring("spec.backupCount: Forbidden: field cannot be updated")))
-
-				Delete(lookupKey(m), m)
-				Delete(lookupKey(hz), hz)
 			})
 		})
 	})
@@ -132,8 +133,8 @@ var _ = Describe("Map CR", func() {
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-			Delete(lookupKey(m), m)
 		})
+
 		It("should error with backupCount over 6", Label("fast"), func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -146,6 +147,7 @@ var _ = Describe("Map CR", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
+
 		It("should error with asyncBackupCount over 6", Label("fast"), func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -158,6 +160,7 @@ var _ = Describe("Map CR", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
+
 		It("should error with sum of two values over 6", Label("fast"), func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -190,7 +193,6 @@ var _ = Describe("Map CR", func() {
 
 			By("checking the CR values with native memory")
 			Expect(ms.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
-			Delete(lookupKey(m), m)
 		})
 	})
 
@@ -242,7 +244,6 @@ var _ = Describe("Map CR", func() {
 			Expect(ms.NearCache.NearCacheEviction.EvictionPolicy).To(Equal(m.Spec.NearCache.NearCacheEviction.EvictionPolicy))
 			Expect(ms.NearCache.NearCacheEviction.Size).To(Equal(m.Spec.NearCache.NearCacheEviction.Size))
 			Expect(ms.NearCache.NearCacheEviction.MaxSizePolicy).To(Equal(m.Spec.NearCache.NearCacheEviction.MaxSizePolicy))
-			Delete(lookupKey(m), m)
 		})
 	})
 

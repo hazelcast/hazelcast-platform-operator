@@ -40,6 +40,10 @@ var _ = Describe("Hazelcast Config Secret", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with custom configs", func() {
 		It("should add new section to config", Label("fast"), func() {
 			customConfig := make(map[string]interface{})

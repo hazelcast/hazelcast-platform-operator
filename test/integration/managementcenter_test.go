@@ -66,6 +66,10 @@ var _ = Describe("ManagementCenter CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.ManagementCenter{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with default configuration", func() {
 		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
@@ -74,7 +78,6 @@ var _ = Describe("ManagementCenter CR", func() {
 			Create(mc)
 			fetchedCR := EnsureStatus(mc)
 			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), false)
-			Delete(lookupKey(mc), mc)
 		})
 
 		It("Should handle CR and sub resources correctly", Label("fast"), func() {
@@ -129,8 +132,6 @@ var _ = Describe("ManagementCenter CR", func() {
 			}
 			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.AccessModes).To(Equal(expectedPVCSpec.AccessModes))
 			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.Resources).To(Equal(expectedPVCSpec.Resources))
-
-			Delete(lookupKey(mc), mc)
 		})
 
 		When("applying empty spec", func() {
@@ -152,8 +153,6 @@ var _ = Describe("ManagementCenter CR", func() {
 					return fetchedCR.Spec.Repository
 				}, timeout, interval).Should(Equal(n.MCRepo))
 				Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
-
-				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -279,7 +278,6 @@ var _ = Describe("ManagementCenter CR", func() {
 					MountPath: "/data",
 				}
 				Expect(fetchedSts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(expectedVolumeMount))
-				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -302,7 +300,6 @@ var _ = Describe("ManagementCenter CR", func() {
 				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, fetchedSts)
 				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
-				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -326,8 +323,6 @@ var _ = Describe("ManagementCenter CR", func() {
 					ss := getStatefulSet(mc)
 					return ss.Spec.Template.Spec.NodeSelector
 				}, timeout, interval).Should(HaveKeyWithValue("node.selector", "1"))
-
-				Delete(lookupKey(mc), mc)
 			})
 		})
 
@@ -379,8 +374,6 @@ var _ = Describe("ManagementCenter CR", func() {
 					ss := getStatefulSet(mc)
 					return ss.Spec.Template.Spec.Affinity
 				}, timeout, interval).Should(Equal(spec.Scheduling.Affinity))
-
-				Delete(lookupKey(mc), mc)
 			})
 		})
 
@@ -405,8 +398,6 @@ var _ = Describe("ManagementCenter CR", func() {
 					ss := getStatefulSet(mc)
 					return ss.Spec.Template.Spec.Tolerations
 				}, timeout, interval).Should(Equal(spec.Scheduling.Tolerations))
-
-				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -446,8 +437,6 @@ var _ = Describe("ManagementCenter CR", func() {
 					HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("250m")),
 					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("5Gi"))),
 				)
-
-				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -457,7 +446,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			It("should be enabled", Label("fast"), func() {
 				tlsSecret := CreateTLSSecret("tls-secret", namespace)
 				assertExists(lookupKey(tlsSecret), tlsSecret)
-				defer Delete(lookupKey(tlsSecret), tlsSecret)
+				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -472,7 +461,6 @@ var _ = Describe("ManagementCenter CR", func() {
 				}}
 				Create(mc)
 				EnsureStatus(mc)
-				Delete(lookupKey(mc), mc)
 			})
 		})
 
@@ -480,7 +468,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			It("should be enabled", Label("fast"), func() {
 				tlsSecret := CreateTLSSecret("tls-secret", namespace)
 				assertExists(lookupKey(tlsSecret), tlsSecret)
-				defer Delete(lookupKey(tlsSecret), tlsSecret)
+				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -496,7 +484,6 @@ var _ = Describe("ManagementCenter CR", func() {
 				}}
 				Create(mc)
 				EnsureStatus(mc)
-				Delete(lookupKey(mc), mc)
 			})
 		})
 	})
@@ -599,8 +586,6 @@ var _ = Describe("ManagementCenter CR", func() {
 
 				By("checking if StatefulSet Resources is updated")
 				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(secondSpec.Resources))
-
-				Delete(lookupKey(mc), mc)
 			})
 		})
 	})

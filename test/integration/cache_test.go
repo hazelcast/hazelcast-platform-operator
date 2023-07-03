@@ -34,6 +34,11 @@ var _ = Describe("Cache CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
 			c := &hazelcastv1alpha1.Cache{
@@ -104,9 +109,6 @@ var _ = Describe("Cache CR", func() {
 				}
 
 				Expect(err).Should(MatchError(ContainSubstring("spec: Forbidden: cannot be updated")))
-
-				Delete(lookupKey(cache), cache)
-				Delete(lookupKey(hz), hz)
 			})
 		})
 	})
@@ -144,8 +146,8 @@ var _ = Describe("Cache CR", func() {
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-			Delete(lookupKey(m), m)
 		})
+
 		It("should error with backupCount over 6", Label("fast"), func() {
 			m := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -158,6 +160,7 @@ var _ = Describe("Cache CR", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
+
 		It("should error with asyncBackupCount over 6", Label("fast"), func() {
 			m := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -170,6 +173,7 @@ var _ = Describe("Cache CR", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
+
 		It("should error with sum of two values over 6", Label("fast"), func() {
 			m := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),

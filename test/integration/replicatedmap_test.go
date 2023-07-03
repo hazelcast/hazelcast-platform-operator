@@ -22,6 +22,11 @@ var _ = Describe("ReplicatedMap CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.ReplicatedMap{}, &hazelcastv1alpha1.ReplicatedMapList{}, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("with default configuration", func() {
 		It("should create successfully", Label("fast"), func() {
 			rm := &hazelcastv1alpha1.ReplicatedMap{
