@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -17,6 +18,16 @@ import (
 
 var _ = Describe("CronHotBackup CR", func() {
 	const namespace = "default"
+
+	filterHotBackupsByName := func(chb hazelcastv1alpha1.CronHotBackup, hbs []hazelcastv1alpha1.HotBackup) []hazelcastv1alpha1.HotBackup {
+		fhbs := make([]hazelcastv1alpha1.HotBackup, 0)
+		for _, hb := range hbs {
+			if strings.HasPrefix(hb.Name, chb.GetName()) {
+				fhbs = append(fhbs, hb)
+			}
+		}
+		return fhbs
+	}
 
 	BeforeEach(func() {
 		if ee {
@@ -93,7 +104,11 @@ var _ = Describe("CronHotBackup CR", func() {
 				if len(hbl.Items) < 1 {
 					return ""
 				}
-				return hbl.Items[0].Name
+				filteredHbs := filterHotBackupsByName(*chb, hbl.Items)
+				if len(filteredHbs) == 0 {
+					return ""
+				}
+				return filteredHbs[0].Name
 			}, timeout, interval).Should(ContainSubstring(chb.Name))
 
 			for _, hb := range hbl.Items {
@@ -132,8 +147,9 @@ var _ = Describe("CronHotBackup CR", func() {
 				Expect(k8sClient.Get(context.Background(), types.NamespacedName{Name: chb.Name, Namespace: chb.Namespace}, chb)).Should(Succeed())
 				// Wait for at least two HotBackups to get created
 				time.Sleep(2 * time.Second)
-				hbl := &hazelcastv1alpha1.HotBackupList{}
+				var hotBackupItem *hazelcastv1alpha1.HotBackup
 				Eventually(func() string {
+					hbl := &hazelcastv1alpha1.HotBackupList{}
 					err := k8sClient.List(context.Background(), hbl, client.InNamespace(namespace), client.MatchingLabels(labels))
 					if err != nil {
 						return ""
@@ -141,11 +157,16 @@ var _ = Describe("CronHotBackup CR", func() {
 					if len(hbl.Items) < 1 {
 						return ""
 					}
-					return hbl.Items[0].Name
+					filteredHbs := filterHotBackupsByName(*chb, hbl.Items)
+					if len(filteredHbs) == 0 {
+						return ""
+					}
+					hotBackupItem = &filteredHbs[0]
+					return filteredHbs[0].Name
 				}, timeout, interval).Should(ContainSubstring(chb.Name))
 
-				Expect(hbl.Items[0].Annotations).To(Equal(ans))
-				Expect(hbl.Items[0].Labels).To(Equal(labels))
+				Expect(hotBackupItem.Annotations).To(Equal(ans))
+				Expect(hotBackupItem.Labels).To(Equal(labels))
 			})
 		})
 	})
