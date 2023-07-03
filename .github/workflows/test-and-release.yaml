@@ -15,8 +15,86 @@ env:
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
+  GKE_ZONE: us-east1-b
 
 jobs:
+  migration-test:
+    name: Run migration test
+    runs-on: ubuntu-latest
+    env:
+      GCP_NETWORK: operator-test-network
+    steps:
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v1.1.1'
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Create GKE cluster
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
+          gcloud container clusters create ${CLUSTER_NAME} \
+            --zone=${{ env.GKE_ZONE }} \
+            --project=${{ env.GAR_PROJECT }} \
+            --network=${{ env.GCP_NETWORK }} \
+            --machine-type=n1-standard-1 \
+            --num-nodes=1
+          sleep 30
+
+      - name: Connect to the GKE cluster
+        uses: 'google-github-actions/get-gke-credentials@v1'
+        with:
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          project_id: ${{ env.GAR_PROJECT }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Deploy and Run Migration test
+        run: |
+          STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$STABLE_VERSION"
+          ((MINOR++))
+          LATEST_VERSION="$MAJOR.$MINOR.$PATCH-snapshot"
+          
+          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com/
+          helm repo update
+          helm install operator hazelcast/hazelcast-platform-operator --version=$STABLE_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          
+          kubectl create secret generic hazelcast-license-key --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+          
+          echo '
+          apiVersion: hazelcast.com/v1alpha1
+          kind: Hazelcast
+          metadata:
+            name: hazelcast
+          spec:
+            scheduling:
+              nodeSelector:
+                topology.kubernetes.io/region: ${{ env.GAR_REGION }}
+            nativeMemory:
+              allocatorType: POOLED
+              size: 100M
+            clusterSize: 1
+            repository: 'docker.io/hazelcast/hazelcast-enterprise'
+            exposeExternally:
+              discoveryServiceType: LoadBalancer
+              memberAccess: NodePortExternalIP
+            licenseKeySecret: hazelcast-license-key
+            persistence:
+              baseDir: "/data/hot-restart/"
+              clusterDataRecoveryPolicy: "FullRecoveryOnly"
+              pvc:
+                accessModes: ["ReadWriteOnce"]
+                requestStorage: 10Mi
+          ' | kubectl apply -f -
+          
+          helm upgrade operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          sleep 60 && kubectl logs deployment.apps/operator-hazelcast-platform-operator | awk '/"level":"error"/ {count++; if(count == 10) {exit 1}} END {if(count == 10) {system("kubectl logs deployment.apps/operator-hazelcast-platform-operator")} else {print "No error detected."}}'
+
+      - name: Delete GKE cluster
+        if: always()
+        run: |
+          gcloud container clusters delete ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --quiet
+
   test_container:
     name: Build and Test Container
     defaults:
