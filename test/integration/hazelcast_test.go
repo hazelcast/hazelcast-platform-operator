@@ -1969,7 +1969,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("bucketConfig is configured", func() {
 			It("should error when secretName is empty", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled: ptr.Bool(true),
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
@@ -1986,7 +1986,7 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 			It("should error when secretName does not exist", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.JetEngineConfiguration = hazelcastv1alpha1.JetEngineConfiguration{
+				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled: ptr.Bool(true),
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
