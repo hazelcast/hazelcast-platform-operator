@@ -47,7 +47,7 @@ func assertExistsAndBeAsExpected[o client.Object](name types.NamespacedName, obj
 	}, timeout, interval).Should(BeTrue())
 }
 
-func Delete(name types.NamespacedName, obj client.Object) {
+func DeleteIfExists(name types.NamespacedName, obj client.Object) {
 	Eventually(func() error {
 		err := k8sClient.Get(context.Background(), name, obj)
 		if err != nil {

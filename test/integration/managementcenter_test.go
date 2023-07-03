@@ -446,7 +446,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			It("should be enabled", Label("fast"), func() {
 				tlsSecret := CreateTLSSecret("tls-secret", namespace)
 				assertExists(lookupKey(tlsSecret), tlsSecret)
-				defer Delete(lookupKey(tlsSecret), tlsSecret)
+				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -468,7 +468,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			It("should be enabled", Label("fast"), func() {
 				tlsSecret := CreateTLSSecret("tls-secret", namespace)
 				assertExists(lookupKey(tlsSecret), tlsSecret)
-				defer Delete(lookupKey(tlsSecret), tlsSecret)
+				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),

@@ -74,8 +74,8 @@ var _ = Describe("MultiMap CR", func() {
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-			Delete(lookupKey(m), m)
 		})
+
 		It("should error with backupCount over 6", Label("fast"), func() {
 			m := &hazelcastv1alpha1.MultiMap{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -88,6 +88,7 @@ var _ = Describe("MultiMap CR", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
+
 		It("should error with asyncBackupCount over 6", Label("fast"), func() {
 			m := &hazelcastv1alpha1.MultiMap{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -100,6 +101,7 @@ var _ = Describe("MultiMap CR", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
+
 		It("should error with sum of two values over 6", Label("fast"), func() {
 			m := &hazelcastv1alpha1.MultiMap{
 				ObjectMeta: randomObjectMeta(namespace),

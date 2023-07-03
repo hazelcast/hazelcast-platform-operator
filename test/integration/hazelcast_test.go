@@ -195,7 +195,7 @@ var _ = Describe("Hazelcast CR", func() {
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].ImagePullPolicy).Should(Equal(fetchedCR.Spec.ImagePullPolicy))
 
-			Delete(lookupKey(hz), hz)
+			DeleteIfExists(lookupKey(hz), hz)
 
 			By("expecting to ClusterRole and ClusterRoleBinding removed via finalizer")
 			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRole{})
@@ -1709,7 +1709,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 				tlsSecret := CreateTLSSecret("tls-secret", namespace)
 				assertExists(lookupKey(tlsSecret), tlsSecret)
-				defer Delete(lookupKey(tlsSecret), tlsSecret)
+				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
 
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.TLS = &hazelcastv1alpha1.TLS{
@@ -1742,6 +1742,7 @@ var _ = Describe("Hazelcast CR", func() {
 					return true
 				}, timeout, interval).Should(BeTrue())
 			})
+
 			It("should error when secretName is empty", Label("fast"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
@@ -1758,6 +1759,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
+
 			It("should error when secretName does not exist", Label("fast"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
@@ -1774,6 +1776,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
+
 			It("should error when not using enterprise version", Label("fast"), func() {
 				if ee {
 					Skip("This test will only run in OS configuration")
