@@ -514,13 +514,27 @@ func validateJetConfig(h *Hazelcast) (errs field.ErrorList) {
 		return
 	}
 
-	if j.IsBucketEnabled() && j.BucketConfiguration.GetSecretName() == "" {
-		errs = append(errs, field.Required(
-			field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
-			"bucket secret must be set"))
+	if j.IsBucketEnabled() {
+		if j.BucketConfiguration.GetSecretName() == "" {
+			errs = append(errs, field.Required(
+				field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+				"bucket secret must be set"))
+		} else {
+			secretName := types.NamespacedName{
+				Name:      j.BucketConfiguration.SecretName,
+				Namespace: h.Namespace,
+			}
+			var secret corev1.Secret
+			err := kubeclient.Get(context.Background(), secretName, &secret)
+			if kerrors.IsNotFound(err) {
+				// we care only about not found error
+				errs = append(errs, field.Required(field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+					"Bucket credentials Secret not found"))
+			}
+		}
 	}
 
-	if j.Instance != nil && j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
+	if j.Instance.IsConfigured() && j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
 		errs = append(errs,
 			field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
 				"can be enabled only if persistence enabled"))

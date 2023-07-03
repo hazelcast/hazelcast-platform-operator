@@ -43,7 +43,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				Should(MatchError(ContainSubstring("Invalid value: \"Suspended\": should be set to Running on creation")))
 		})
 
-		It("should not create JetJob without Bucket Config secretName", Label("fast"), func() {
+		It("should error when secretName is empty", Label("fast"), func() {
 			jj := &hazelcastv1alpha1.JetJob{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "jetjob-1",
@@ -56,7 +56,8 @@ var _ = Describe("Hazelcast webhook", func() {
 					JarName:               "myjob.jar",
 					JetRemoteFileConfiguration: hazelcastv1alpha1.JetRemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-							BucketURI: "gs://my-bucket",
+							BucketURI:  "gs://my-bucket",
+							SecretName: "",
 						},
 					},
 				},

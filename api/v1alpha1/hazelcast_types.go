@@ -402,6 +402,11 @@ type JetInstance struct {
 	MaxProcessorAccumulatedRecords *int64 `json:"maxProcessorAccumulatedRecords,omitempty"`
 }
 
+// Returns true if Jet Instance section is configured.
+func (j *JetInstance) IsConfigured() bool {
+	return j != nil && !(*j == (JetInstance{}))
+}
+
 type JetEdgeDefaults struct {
 	// Sets the capacity of processor-to-processor concurrent queues.
 	// +optional
