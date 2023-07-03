@@ -95,7 +95,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			cm.Data["hazelcast"] = string(out)
 			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.UserCodeDeployment = hazelcastv1alpha1.UserCodeDeploymentConfig{
+			spec.UserCodeDeployment = &hazelcastv1alpha1.UserCodeDeploymentConfig{
 				ClientEnabled: pointer.Bool(false),
 			}
 			hz := &hazelcastv1alpha1.Hazelcast{

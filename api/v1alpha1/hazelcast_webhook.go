@@ -1,6 +1,9 @@
 package v1alpha1
 
 import (
+	"reflect"
+
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -20,6 +23,7 @@ func (r *Hazelcast) SetupWebhookWithManager(mgr ctrl.Manager) error {
 // Role related to webhooks
 
 var _ webhook.Validator = &Hazelcast{}
+var _ webhook.Defaulter = &Hazelcast{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Hazelcast) ValidateCreate() error {
@@ -37,4 +41,33 @@ func (r *Hazelcast) ValidateUpdate(old runtime.Object) error {
 func (r *Hazelcast) ValidateDelete() error {
 	hazelcastlog.Info("validate delete", "name", r.Name)
 	return nil
+}
+
+func (r *Hazelcast) Default() {
+	if r.Spec.LicenseKeySecretName == "" && r.Spec.DeprecatedLicenseKeySecret != "" {
+		r.Spec.LicenseKeySecretName = r.Spec.DeprecatedLicenseKeySecret
+		r.Spec.DeprecatedLicenseKeySecret = ""
+	}
+	r.defaultOptionalToNil()
+}
+
+func (r *Hazelcast) defaultOptionalToNil() {
+	if r.Spec.TLS != nil && r.Spec.TLS.SecretName == "" {
+		r.Spec.TLS = nil
+	}
+	if r.Spec.Scheduling != nil && reflect.DeepEqual(*r.Spec.Scheduling, SchedulingConfiguration{}) {
+		r.Spec.Scheduling = nil
+	}
+	if r.Spec.Resources != nil && reflect.DeepEqual(*r.Spec.Resources, corev1.ResourceRequirements{}) {
+		r.Spec.Resources = nil
+	}
+	if r.Spec.UserCodeDeployment != nil && reflect.DeepEqual(*r.Spec.UserCodeDeployment, UserCodeDeploymentConfig{}) {
+		r.Spec.UserCodeDeployment = nil
+	}
+	if r.Spec.AdvancedNetwork != nil && reflect.DeepEqual(*r.Spec.AdvancedNetwork, AdvancedNetwork{}) {
+		r.Spec.AdvancedNetwork = nil
+	}
+	if r.Spec.ManagementCenterConfig != nil && reflect.DeepEqual(*r.Spec.ManagementCenterConfig, ManagementCenterConfig{}) {
+		r.Spec.ManagementCenterConfig = nil
+	}
 }

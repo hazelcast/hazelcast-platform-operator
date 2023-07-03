@@ -175,11 +175,12 @@ func validateLicense(h *Hazelcast) *field.Error {
 
 func validateTLS(h *Hazelcast) *field.Error {
 	// skip validation if TLS is not set
-	if h.Spec.TLS == nil {
+	// deepequal for migration from 5.7 when TLS was not a pointer
+	if h.Spec.TLS == nil || reflect.DeepEqual(*h.Spec.TLS, TLS{}) {
 		return nil
 	}
 
-	if h.Spec.LicenseKeySecretName == "" {
+	if h.Spec.GetLicenseKeySecretName() == "" {
 		return field.Required(field.NewPath("spec").Child("tls"),
 			"Hazelcast TLS requires enterprise version")
 	}
@@ -188,7 +189,7 @@ func validateTLS(h *Hazelcast) *field.Error {
 
 	// if user skipped validation secretName can be empty
 	if h.Spec.TLS.SecretName == "" {
-		return field.NotFound(p, "Hazelcast Enterprise TLS Secret name is empty")
+		return field.Required(p, "Hazelcast Enterprise TLS Secret name must be set")
 	}
 
 	// check if secret exists
@@ -249,6 +250,9 @@ func validateClusterSize(h *Hazelcast) *field.Error {
 
 func validateAdvancedNetwork(h *Hazelcast) []*field.Error {
 	var allErrs field.ErrorList
+	if h.Spec.AdvancedNetwork == nil {
+		return allErrs
+	}
 
 	if errs := validateWANServiceTypes(h); errs != nil {
 		allErrs = append(allErrs, errs...)
@@ -281,6 +285,7 @@ func validateWANServiceTypes(h *Hazelcast) []*field.Error {
 
 func validateWANPorts(h *Hazelcast) []*field.Error {
 	var allErrs field.ErrorList
+
 	if errs := isOverlapWithEachOther(h); errs != nil {
 		allErrs = append(allErrs, errs...)
 	}
