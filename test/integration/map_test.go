@@ -120,6 +120,60 @@ var _ = Describe("Map CR", func() {
 		})
 	})
 
+	When("applying spec with backupCount and/or asyncBackupCount", func() {
+		It("should be successfully with both values under 6", Label("fast"), func() {
+			m := &hazelcastv1alpha1.Map{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.MapSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+						BackupCount:           pointer.Int32(2),
+						AsyncBackupCount:      2,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			Delete(lookupKey(m), m)
+		})
+		It("should error with backupCount over 6", Label("fast"), func() {
+			m := &hazelcastv1alpha1.Map{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.MapSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+						BackupCount:           pointer.Int32(7),
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+		})
+		It("should error with asyncBackupCount over 6", Label("fast"), func() {
+			m := &hazelcastv1alpha1.Map{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.MapSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+						AsyncBackupCount:      6,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+		})
+		It("should error with sum of two values over 6", Label("fast"), func() {
+			m := &hazelcastv1alpha1.Map{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.MapSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+						BackupCount:           pointer.Int32(5),
+						AsyncBackupCount:      5,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+		})
+	})
+
 	Context("with InMemoryFormat value", func() {
 		It("should create successfully with NativeMemory", Label("fast"), func() {
 			m := &hazelcastv1alpha1.Map{

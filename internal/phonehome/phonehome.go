@@ -101,6 +101,9 @@ type PhoneHomeData struct {
 	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
 	AdvancedNetwork               AdvancedNetwork        `json:"an"`
 	JetEngine                     JetEngine              `json:"je"`
+	TLS                           TLS                    `json:"t"`
+	SerializationCount            int                    `json:"serc"`
+	CustomConfigCount             int                    `json:"ccon"`
 }
 
 type JVMConfigUsage struct {
@@ -171,6 +174,11 @@ type McExternalConnectivity struct {
 	RouteEnabledCount       int `json:"rec"`
 }
 
+type TLS struct {
+	Count     int `json:"c"`
+	MTLSCount int `json:"mc"`
+}
+
 func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:           opInfo.UID,
@@ -206,6 +214,8 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	createdClusterCount := 0
 	createdMemberCount := 0
 	executorServiceCount := 0
+	serializationCount := 0
+	customConfigCount := 0
 	clusterUUIDs := []string{}
 	highAvailabilityModes := []string{}
 	nativeMemoryCount := 0
@@ -227,12 +237,21 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 			nativeMemoryCount++
 		}
 
+		if hz.Spec.Serialization != nil {
+			serializationCount++
+		}
+
+		if hz.Spec.CustomConfigCmName != "" {
+			customConfigCount++
+		}
+
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
 		phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
 		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
+		phm.TLS.addUsageMetrics(hz.Spec.TLS)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -249,6 +268,8 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.ClusterUUIDs = clusterUUIDs
 	phm.HighAvailabilityMode = highAvailabilityModes
 	phm.NativeMemoryCount = nativeMemoryCount
+	phm.SerializationCount = serializationCount
+	phm.CustomConfigCount = customConfigCount
 }
 
 func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
@@ -361,6 +382,18 @@ func (je *JetEngine) addUsageMetrics(jec hazelcastv1alpha1.JetEngineConfiguratio
 
 	if jec.Instance != nil && jec.Instance.LosslessRestartEnabled {
 		je.LosslessRestart++
+	}
+}
+
+func (t *TLS) addUsageMetrics(tls *hazelcastv1alpha1.TLS) {
+	if tls == nil {
+		return
+	}
+
+	t.Count++
+
+	if tls.MutualAuthentication == hazelcastv1alpha1.MutualAuthenticationRequired {
+		t.MTLSCount++
 	}
 }
 

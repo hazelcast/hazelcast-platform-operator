@@ -132,4 +132,58 @@ var _ = Describe("Cache CR", func() {
 			Expect(cs.InMemoryFormat).To(Equal(hazelcastv1alpha1.InMemoryFormatNative))
 		})
 	})
+
+	When("applying spec with backupCount and/or asyncBackupCount", func() {
+		It("should be successfully with both values under 6", Label("fast"), func() {
+			m := &hazelcastv1alpha1.Cache{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.CacheSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+						BackupCount:           pointer.Int32(2),
+						AsyncBackupCount:      2,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			Delete(lookupKey(m), m)
+		})
+		It("should error with backupCount over 6", Label("fast"), func() {
+			m := &hazelcastv1alpha1.Cache{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.CacheSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+						BackupCount:           pointer.Int32(7),
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+		})
+		It("should error with asyncBackupCount over 6", Label("fast"), func() {
+			m := &hazelcastv1alpha1.Cache{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.CacheSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+						AsyncBackupCount:      6,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+		})
+		It("should error with sum of two values over 6", Label("fast"), func() {
+			m := &hazelcastv1alpha1.Cache{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.CacheSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+						BackupCount:           pointer.Int32(5),
+						AsyncBackupCount:      5,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+		})
+	})
 })

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
@@ -133,6 +135,22 @@ func randomObjectMeta(ns string, annotations ...string) metav1.ObjectMeta {
 		Namespace:   ns,
 		Annotations: annotationMap,
 	}
+}
+
+func ensureHzStatusIsPending(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+	By("ensuring that the status is correct")
+	Eventually(func() hazelcastv1alpha1.Phase {
+		hz = fetchHz(hz)
+		return hz.Status.Phase
+	}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
+	return hz
+}
+
+func fetchHz(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+	By("fetching Hazelcast CR")
+	fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+	assertExists(lookupKey(hz), fetchedCR)
+	return fetchedCR
 }
 
 func defaultHazelcastSpecValues() *test.HazelcastSpecValues {

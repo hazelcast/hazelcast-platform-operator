@@ -130,6 +130,8 @@ spec:
                           description: Name of the secret with TLS certificate and
                             key.
                           type: string
+                      required:
+                      - secretName
                       type: object
                   required:
                   - address

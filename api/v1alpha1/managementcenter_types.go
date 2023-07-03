@@ -83,7 +83,7 @@ type HazelcastClusterConfig struct {
 	// TLS client configuration.
 	// +kubebuilder:default:={}
 	// +optional
-	TLS TLS `json:"tls,omitempty"`
+	TLS *TLS `json:"tls,omitempty"`
 }
 
 // ExternalConnectivityConfiguration defines how to expose Management Center pod.

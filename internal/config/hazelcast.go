@@ -24,6 +24,7 @@ type Hazelcast struct {
 	NativeMemory             NativeMemory                        `yaml:"native-memory,omitempty"`
 	AdvancedNetwork          AdvancedNetwork                     `yaml:"advanced-network,omitempty"`
 	ManagementCenter         ManagementCenterConfig              `yaml:"management-center,omitempty"`
+	Serialization            Serialization                       `yaml:"serialization,omitempty"`
 }
 
 type ManagementCenterConfig struct {
@@ -219,7 +220,7 @@ type MapStoreConfig struct {
 	WriteDelaySeconds int32             `yaml:"write-delay-seconds"`
 	WriteBatchSize    int32             `yaml:"write-batch-size"`
 	ClassName         string            `yaml:"class-name"`
-	Properties        map[string]string `yaml:"properties"`
+	Properties        map[string]string `yaml:"properties,omitempty"`
 	InitialLoadMode   string            `yaml:"initial-mode"`
 }
 
@@ -348,4 +349,52 @@ type SSLProperties struct {
 	TrustStore           string `yaml:"trustStore,omitempty"`
 	TrustStorePassword   string `yaml:"trustStorePassword,omitempty"`
 	TrustStoreType       string `yaml:"trustStoreType,omitempty"`
+}
+
+type Serialization struct {
+	PortableVersion            int32                    `yaml:"portable-version"`
+	UseNativeByteOrder         bool                     `yaml:"use-native-byte-order"`
+	EnableCompression          bool                     `yaml:"enable-compression"`
+	EnableSharedObject         bool                     `yaml:"enable-shared-object"`
+	OverrideDefaultSerializers bool                     `yaml:"allow-override-default-serializers"`
+	AllowUnsafe                bool                     `yaml:"allow-unsafe"`
+	ByteOrder                  string                   `yaml:"byte-order"`
+	DataSerializableFactories  []ClassFactories         `yaml:"data-serializable-factories,omitempty"`
+	PortableFactories          []ClassFactories         `yaml:"portable-factories,omitempty"`
+	GlobalSerializer           *GlobalSerializer        `yaml:"global-serializer,omitempty"`
+	Serializers                []Serializer             `yaml:"serializers,omitempty"`
+	JavaSerializationFilter    *JavaSerializationFilter `yaml:"java-serialization-filter,omitempty"`
+	CompactSerialization       *CompactSerialization    `yaml:"compact-serialization,omitempty"`
+}
+
+type CompactSerialization struct {
+	Serializers []string `yaml:"serializers,omitempty"`
+	Classes     []string `yaml:"classes,omitempty"`
+}
+
+type JavaSerializationFilter struct {
+	DefaultsDisable bool        `yaml:"defaults-disabled"`
+	Blacklist       *FilterList `yaml:"blacklist,omitempty"`
+	Whitelist       *FilterList `yaml:"whitelist,omitempty"`
+}
+
+type FilterList struct {
+	Classes  []string `yaml:"classes,omitempty"`
+	Packages []string `yaml:"packages,omitempty"`
+	Prefixes []string `yaml:"prefixes,omitempty"`
+}
+
+type Serializer struct {
+	TypeClass string `yaml:"type-class"`
+	ClassName string `yaml:"class-name"`
+}
+
+type GlobalSerializer struct {
+	OverrideJavaSerialization *bool  `yaml:"override-java-serialization,omitempty"`
+	ClassName                 string `yaml:"class-name"`
+}
+
+type ClassFactories struct {
+	FactoryId int32  `yaml:"factory-id"`
+	ClassName string `yaml:"class-name"`
 }

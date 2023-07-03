@@ -15,7 +15,7 @@ import (
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
-	keystore "github.com/pavlo-v-chernykh/keystore-go/v4"
+	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -37,7 +37,6 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -69,7 +68,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	r.statusServiceRegistry.Delete(lk)
-	r.mtlsClientRegistry.Delete(lk)
+	r.mtlsClientRegistry.Delete(lk.Namespace)
 	if err := r.clientRegistry.Delete(ctx, lk); err != nil {
 		return fmt.Errorf("Hazelcast client could not be deleted:  %w", err)
 	}
@@ -614,7 +613,7 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
-			config, err := hazelcastConfig(ctx, r.Client, h)
+			config, err := hazelcastConfig(ctx, r.Client, h, logger)
 			if err != nil {
 				return err
 			}
@@ -628,16 +627,6 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 				cm.Data["hazelcast.jks"] = keystore
 			}
 
-			if _, ok := cm.Data["ca.crt"]; !ok {
-				mtlsCert, mtlsKey, err := mtls.NewCertificateAuthority()
-				if err != nil {
-					return err
-				}
-				cm.Data["ca.crt"] = mtlsCert
-				cm.Data["tls.crt"] = mtlsCert
-				cm.Data["tls.key"] = mtlsKey
-			}
-
 			return nil
 		})
 		if result != controllerutil.OperationResultNone {
@@ -647,11 +636,33 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 	})
 }
 
-func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
+func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+	_, err := r.mtlsClientRegistry.Create(ctx, r.Client, h.Namespace)
+	if err != nil {
+		return err
+	}
+	secret := &v1.Secret{}
+	secretName := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: h.Namespace}
+	err = r.Client.Get(ctx, secretName, secret)
+	if err != nil {
+		return err
+	}
+	err = controllerutil.SetControllerReference(h, secret, r.Scheme)
+	if err != nil {
+		return err
+	}
+	_, err = util.CreateOrUpdateForce(ctx, r.Client, secret, func() error {
+		return nil
+	})
+	return err
+}
+
+func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
 
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
+	fillHazelcastConfigWithSerialization(&cfg, h)
 
 	ml, err := filterPersistedMaps(ctx, c, h)
 	if err != nil {
@@ -696,7 +707,42 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		}
 	}
 
+	if h.Spec.CustomConfigCmName != "" {
+		cfgCm := &v1.ConfigMap{}
+		if err := c.Get(ctx, types.NamespacedName{Name: h.Spec.CustomConfigCmName, Namespace: h.Namespace}, cfgCm, nil); err != nil {
+			return nil, err
+		}
+		cfgMap := make(map[string]interface{})
+		if err = yaml.Unmarshal([]byte(cfgCm.Data["hazelcast"]), cfgMap); err != nil {
+			return nil, err
+		}
+		if err = mergeConfig(cfgMap, &cfg, logger); err != nil {
+			return nil, err
+		}
+		hzWrapper := make(map[string]interface{})
+		hzWrapper["hazelcast"] = cfgMap
+		return yaml.Marshal(hzWrapper)
+	}
+
 	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
+}
+
+func mergeConfig(cstCfg map[string]interface{}, cfg *config.Hazelcast, logger logr.Logger) error {
+	out, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	crCfg := make(map[string]interface{})
+	if err = yaml.Unmarshal(out, crCfg); err != nil {
+		return err
+	}
+	for k, v := range crCfg {
+		if _, exist := cstCfg[k]; exist {
+			logger.V(util.WarnLevel).Info("Custom Config section ignored", "section", k)
+		}
+		cstCfg[k] = v
+	}
+	return nil
 }
 
 func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
@@ -727,21 +773,21 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		if h.Spec.JetEngineConfiguration.Instance.IsConfigured() {
 			i := h.Spec.JetEngineConfiguration.Instance
 			cfg.Jet.Instance = config.JetInstance{
-				CooperativeThreadCount:         &i.CooperativeThreadCount,
+				CooperativeThreadCount:         i.CooperativeThreadCount,
 				FlowControlPeriodMillis:        &i.FlowControlPeriodMillis,
 				BackupCount:                    &i.BackupCount,
 				ScaleUpDelayMillis:             &i.ScaleUpDelayMillis,
 				LosslessRestartEnabled:         &i.LosslessRestartEnabled,
-				MaxProcessorAccumulatedRecords: &i.MaxProcessorAccumulatedRecords,
+				MaxProcessorAccumulatedRecords: i.MaxProcessorAccumulatedRecords,
 			}
 		}
 
 		if h.Spec.JetEngineConfiguration.EdgeDefaults.IsConfigured() {
 			e := h.Spec.JetEngineConfiguration.EdgeDefaults
 			cfg.Jet.EdgeDefaults = config.EdgeDefaults{
-				QueueSize:               &e.QueueSize,
-				PacketSizeLimit:         &e.PacketSizeLimit,
-				ReceiveWindowMultiplier: &e.ReceiveWindowMultiplier,
+				QueueSize:               e.QueueSize,
+				PacketSizeLimit:         e.PacketSizeLimit,
+				ReceiveWindowMultiplier: e.ReceiveWindowMultiplier,
 			}
 		}
 	}
@@ -858,7 +904,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
 	}
 
-	if h.Spec.TLS.SecretName != "" {
+	if h.Spec.TLS != nil && h.Spec.TLS.SecretName != "" {
 		var (
 			jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
 			password = "hazelcast"
@@ -921,7 +967,7 @@ func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha
 		store    = keystore.New()
 		password = []byte("hazelcast")
 	)
-	if h.Spec.TLS.SecretName != "" {
+	if h.Spec.TLS != nil && h.Spec.TLS.SecretName != "" {
 		cert, key, err := loadTLSKeyPair(ctx, c, h)
 		if err != nil {
 			return nil, err
@@ -1175,6 +1221,79 @@ func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcast
 			cfg.ScheduledExecutorService[sescfg.Name] = createScheduledExecutorServiceConfig(&sescfg)
 		}
 	}
+}
+
+func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
+	if h.Spec.Serialization == nil {
+		return
+	}
+	s := h.Spec.Serialization
+	byteOrder := "BIG_ENDIAN"
+	if s.ByteOrder == hazelcastv1alpha1.LittleEndian {
+		byteOrder = "LITTLE_ENDIAN"
+	}
+	cfg.Serialization = config.Serialization{
+		UseNativeByteOrder:         s.ByteOrder == hazelcastv1alpha1.NativeByteOrder,
+		ByteOrder:                  byteOrder,
+		DataSerializableFactories:  factories(s.DataSerializableFactories),
+		PortableFactories:          factories(s.PortableFactories),
+		EnableCompression:          s.EnableCompression,
+		EnableSharedObject:         s.EnableSharedObject,
+		OverrideDefaultSerializers: s.OverrideDefaultSerializers,
+		AllowUnsafe:                s.AllowUnsafe,
+		Serializers:                serializers(s.Serializers),
+	}
+	if s.GlobalSerializer != nil {
+		cfg.Serialization.GlobalSerializer = &config.GlobalSerializer{
+			OverrideJavaSerialization: s.GlobalSerializer.OverrideJavaSerialization,
+			ClassName:                 s.GlobalSerializer.ClassName,
+		}
+	}
+	if s.JavaSerializationFilter != nil {
+		cfg.Serialization.JavaSerializationFilter = &config.JavaSerializationFilter{
+			Blacklist: filterList(s.JavaSerializationFilter.Blacklist),
+			Whitelist: filterList(s.JavaSerializationFilter.Whitelist),
+		}
+	}
+	if s.CompactSerialization != nil {
+		cfg.Serialization.CompactSerialization = &config.CompactSerialization{
+			Serializers: s.CompactSerialization.Serializers,
+			Classes:     s.CompactSerialization.Classes,
+		}
+	}
+}
+
+func filterList(jsf *hazelcastv1alpha1.SerializationFilterList) *config.FilterList {
+	if jsf == nil {
+		return nil
+	}
+	return &config.FilterList{
+		Classes:  jsf.Classes,
+		Packages: jsf.Packages,
+		Prefixes: jsf.Prefixes,
+	}
+}
+
+func serializers(srs []hazelcastv1alpha1.Serializer) []config.Serializer {
+	var res []config.Serializer
+	for _, sr := range srs {
+		res = append(res, config.Serializer{
+			TypeClass: sr.TypeClass,
+			ClassName: sr.ClassName,
+		})
+	}
+	return res
+}
+
+func factories(factories []string) []config.ClassFactories {
+	var classFactories []config.ClassFactories
+	for i, f := range factories {
+		classFactories = append(classFactories, config.ClassFactories{
+			FactoryId: int32(i),
+			ClassName: f,
+		})
+	}
+	return classFactories
 }
 
 func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
@@ -1571,21 +1690,21 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 		Env: []v1.EnvVar{
 			{
 				Name:  "BACKUP_CA",
-				Value: path.Join(n.HazelcastMountPath, "ca.crt"),
+				Value: path.Join(n.MTLSCertPath, "ca.crt"),
 			},
 			{
 				Name:  "BACKUP_CERT",
-				Value: path.Join(n.HazelcastMountPath, "tls.crt"),
+				Value: path.Join(n.MTLSCertPath, "tls.crt"),
 			},
 			{
 				Name:  "BACKUP_KEY",
-				Value: path.Join(n.HazelcastMountPath, "tls.key"),
+				Value: path.Join(n.MTLSCertPath, "tls.key"),
 			},
 		},
 		VolumeMounts: []v1.VolumeMount{
 			{
-				Name:      n.HazelcastStorageName,
-				MountPath: n.HazelcastMountPath,
+				Name:      n.MTLSCertSecretName,
+				MountPath: n.MTLSCertPath,
 			},
 			jetJobJarsVolumeMount(),
 		},
@@ -1897,6 +2016,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		emptyDirVolume(n.UserCodeBucketVolumeName),
 		emptyDirVolume(n.UserCodeURLVolumeName),
 		emptyDirVolume(n.JetJobJarsVolumeName),
+		tlsVolume(h),
 	}
 
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
@@ -1923,6 +2043,18 @@ func emptyDirVolume(name string) v1.Volume {
 		Name: name,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+func tlsVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
+	return v1.Volume{
+		Name: n.MTLSCertSecretName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName:  n.MTLSCertSecretName,
+				DefaultMode: &[]int32{420}[0],
+			},
 		},
 	}
 }

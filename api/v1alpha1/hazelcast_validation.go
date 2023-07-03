@@ -78,11 +78,19 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 	}
 
 	if err := validateJetConfig(h); err != nil {
-		allErrs = append(allErrs, err)
+		allErrs = append(allErrs, err...)
 	}
 
 	if err := validateJVMConfig(h); err != nil {
 		allErrs = append(allErrs, err...)
+	}
+
+	if err := validateCustomConfig(h); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
+	if err := validateNativeMemory(h); err != nil {
+		allErrs = append(allErrs, err)
 	}
 
 	return allErrs
@@ -123,6 +131,23 @@ func validateExposeExternally(h *Hazelcast) *field.Error {
 	return nil
 }
 
+func validateCustomConfig(h *Hazelcast) *field.Error {
+	if h.Spec.CustomConfigCmName != "" {
+		cmName := types.NamespacedName{
+			Name:      h.Spec.CustomConfigCmName,
+			Namespace: h.Namespace,
+		}
+		var cm corev1.ConfigMap
+		err := kubeclient.Get(context.Background(), cmName, &cm)
+		if kerrors.IsNotFound(err) {
+			// we care only about not found error
+			return field.NotFound(field.NewPath("spec").Child("customConfigCmName"),
+				"ConfigMap for Hazelcast custom configs not found")
+		}
+	}
+	return nil
+}
+
 func validateLicense(h *Hazelcast) *field.Error {
 	if checkEnterprise(h.Spec.Repository) && len(h.Spec.GetLicenseKeySecretName()) == 0 {
 		return field.Required(field.NewPath("spec").Child("licenseKeySecretName"),
@@ -149,20 +174,34 @@ func validateLicense(h *Hazelcast) *field.Error {
 }
 
 func validateTLS(h *Hazelcast) *field.Error {
-	// make sure secret exists
-	if h.Spec.TLS.SecretName != "" {
-		secretName := types.NamespacedName{
-			Name:      h.Spec.TLS.SecretName,
-			Namespace: h.Namespace,
-		}
+	// skip validation if TLS is not set
+	if h.Spec.TLS == nil {
+		return nil
+	}
 
-		var secret corev1.Secret
-		err := kubeclient.Get(context.Background(), secretName, &secret)
-		if kerrors.IsNotFound(err) {
-			// we care only about not found error
-			return field.NotFound(field.NewPath("spec").Child("tls"),
-				"Hazelcast Enterprise TLS Secret is not found")
-		}
+	if h.Spec.LicenseKeySecretName == "" {
+		return field.Required(field.NewPath("spec").Child("tls"),
+			"Hazelcast TLS requires enterprise version")
+	}
+
+	p := field.NewPath("spec").Child("tls").Child("secretName")
+
+	// if user skipped validation secretName can be empty
+	if h.Spec.TLS.SecretName == "" {
+		return field.NotFound(p, "Hazelcast Enterprise TLS Secret name is empty")
+	}
+
+	// check if secret exists
+	secretName := types.NamespacedName{
+		Name:      h.Spec.TLS.SecretName,
+		Namespace: h.Namespace,
+	}
+
+	var secret corev1.Secret
+	err := kubeclient.Get(context.Background(), secretName, &secret)
+	if kerrors.IsNotFound(err) {
+		// we care only about not found error
+		return field.NotFound(p, "Hazelcast Enterprise TLS Secret not found")
 	}
 
 	return nil
@@ -467,24 +506,54 @@ func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistence
 	return allErrs
 }
 
-func validateJetConfig(h *Hazelcast) *field.Error {
-	var err *field.Error
-
+func validateJetConfig(h *Hazelcast) (errs field.ErrorList) {
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
 
 	if !j.IsEnabled() {
-		return nil
+		return
 	}
 
 	if !j.Instance.IsConfigured() {
-		return nil
+		return
 	}
 
 	if j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
-		err = field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
-			"can be enabled only if persistence enabled")
+		errs = append(errs, field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
+			"can be enabled only if persistence enabled"))
 	}
 
-	return err
+	if j.BucketConfiguration != nil {
+		if j.BucketConfiguration.SecretName == "" {
+			errs = append(errs, field.Forbidden(field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+				"Bucket credentials Secret name is empty"))
+		}
+		secretName := types.NamespacedName{
+			Name:      j.BucketConfiguration.SecretName,
+			Namespace: h.Namespace,
+		}
+		var secret corev1.Secret
+		err := kubeclient.Get(context.Background(), secretName, &secret)
+		if kerrors.IsNotFound(err) {
+			// we care only about not found error
+			errs = append(errs, field.Required(field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+				"Bucket credentials Secret not found"))
+		}
+	}
+
+	return errs
+}
+
+func validateNativeMemory(h *Hazelcast) *field.Error {
+	// skip validation if NativeMemory is not set
+	if h.Spec.NativeMemory == nil {
+		return nil
+	}
+
+	if h.Spec.GetLicenseKeySecretName() == "" {
+		return field.Required(field.NewPath("spec").Child("nativeMemory"),
+			"Hazelcast Native Memory requires enterprise version")
+	}
+
+	return nil
 }

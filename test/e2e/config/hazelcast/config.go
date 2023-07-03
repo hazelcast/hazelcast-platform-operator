@@ -296,8 +296,8 @@ var (
 					},
 					Instance: &hazelcastv1alpha1.JetInstance{
 						LosslessRestartEnabled:         true,
-						CooperativeThreadCount:         1,
-						MaxProcessorAccumulatedRecords: 1000000000,
+						CooperativeThreadCount:         pointer.Int32(1),
+						MaxProcessorAccumulatedRecords: pointer.Int64(1000000000),
 					},
 				},
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
@@ -329,8 +329,8 @@ var (
 					ResourceUploadEnabled: true,
 					Instance: &hazelcastv1alpha1.JetInstance{
 						LosslessRestartEnabled:         true,
-						CooperativeThreadCount:         1,
-						MaxProcessorAccumulatedRecords: 1000000000,
+						CooperativeThreadCount:         pointer.Int32(1),
+						MaxProcessorAccumulatedRecords: pointer.Int64(1000000000),
 					},
 				},
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
@@ -423,7 +423,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				TLS: hazelcastv1alpha1.TLS{
+				TLS: &hazelcastv1alpha1.TLS{
 					SecretName: lk.Name + "-tls",
 				},
 			},
@@ -442,7 +442,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				TLS: hazelcastv1alpha1.TLS{
+				TLS: &hazelcastv1alpha1.TLS{
 					SecretName:           lk.Name + "-mtls",
 					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 				},

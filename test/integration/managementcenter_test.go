@@ -455,7 +455,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
 					Name:    "dev",
 					Address: "dummy",
-					TLS: hazelcastv1alpha1.TLS{
+					TLS: &hazelcastv1alpha1.TLS{
 						SecretName: tlsSecret.GetName(),
 					},
 				}}
@@ -477,7 +477,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
 					Name:    "dev",
 					Address: "dummy",
-					TLS: hazelcastv1alpha1.TLS{
+					TLS: &hazelcastv1alpha1.TLS{
 						SecretName:           tlsSecret.GetName(),
 						MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 					},

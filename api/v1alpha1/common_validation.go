@@ -58,8 +58,12 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) *field.Er
 	return nil
 }
 
-func validateDSSpecUnchanged(obj client.Object) error {
+func validateDSSpecUnchanged(obj client.Object, errorLists ...field.ErrorList) error {
 	var allErrs field.ErrorList
+
+	for i := range errorLists {
+		allErrs = append(allErrs, errorLists[i]...)
+	}
 
 	ok, err := isDSSpecUnchanged(obj)
 	if err != nil {
