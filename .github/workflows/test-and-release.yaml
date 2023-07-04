@@ -55,13 +55,14 @@ jobs:
           ((MINOR++))
           LATEST_VERSION="$MAJOR.$MINOR.$PATCH-snapshot"
           
-          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com/
-          helm repo update
-          helm install operator hazelcast/hazelcast-platform-operator --version=$STABLE_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
-          
           kubectl create secret generic hazelcast-license-key --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
+          helm repo update && \
+          helm install operator hazelcast/hazelcast-platform-operator --version=$STABLE_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          echo "Checking Operator before upgrade"
+          kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
           
-          echo '
+          kubectl apply -f - <<EOF
           apiVersion: hazelcast.com/v1alpha1
           kind: Hazelcast
           metadata:
@@ -74,7 +75,7 @@ jobs:
               allocatorType: POOLED
               size: 100M
             clusterSize: 1
-            repository: 'docker.io/hazelcast/hazelcast-enterprise'
+            repository: "docker.io/hazelcast/hazelcast-enterprise"
             exposeExternally:
               discoveryServiceType: LoadBalancer
               memberAccess: NodePortExternalIP
@@ -85,10 +86,33 @@ jobs:
               pvc:
                 accessModes: ["ReadWriteOnce"]
                 requestStorage: 10Mi
-          ' | kubectl apply -f -
+          ---
+          apiVersion: hazelcast.com/v1alpha1
+          kind: Map
+          metadata:
+            name: persistent
+          spec:
+            hazelcastResourceName: hazelcast
+            persistenceEnabled: false
+            backupCount: 4
+            nearCache:
+              inMemoryFormat: NATIVE
+              eviction:
+                evictionPolicy: LRU
+                maxSizePolicy: USED_NATIVE_MEMORY_SIZE
+                size: 5000
+          EOF
+          
+          echo "Checking Hazelcast CR before upgrade"
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=120s hazelcast/hazelcast
+          echo "Checking Map CR before upgrade"
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=120s map/persistent
           
           helm upgrade operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
-          sleep 60 && kubectl logs deployment.apps/operator-hazelcast-platform-operator | awk '/"level":"error"/ {count++; if(count == 10) {exit 1}} END {if(count == 10) {system("kubectl logs deployment.apps/operator-hazelcast-platform-operator")} else {print "No error detected."}}'
+          echo "Checking Hazelcast CR after upgrade"
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=120s hazelcast/hazelcast
+          echo "Checking Map CR after upgrade"
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=120s map/persistent
 
       - name: Delete GKE cluster
         if: always()
