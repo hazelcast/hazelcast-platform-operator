@@ -24,6 +24,11 @@ var _ = Describe("Hazelcast webhook", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.JetJob{}, &hazelcastv1alpha1.JetJobList{}, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("JetJob create validation", func() {
 		It("should not create JetJob with State not Running", Label("fast"), func() {
 			jj := &hazelcastv1alpha1.JetJob{

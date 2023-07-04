@@ -59,12 +59,15 @@ func ValidateManagementCenterSpecUpdate(mc *ManagementCenter) field.ErrorList {
 	return ValidateNotUpdatableMcPersistenceFields(mc.Spec.Persistence, parsed.Persistence)
 }
 
-func ValidateNotUpdatableMcPersistenceFields(current, last MCPersistenceConfiguration) field.ErrorList {
+func ValidateNotUpdatableMcPersistenceFields(current, last *MCPersistenceConfiguration) field.ErrorList {
 	var allErrs field.ErrorList
 
-	if !reflect.DeepEqual(current.Enabled, last.Enabled) {
+	if current.IsEnabled() != last.IsEnabled() {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("persistence").Child("enabled"), "field cannot be updated"))
+	}
+	if current == nil || last == nil {
+		return allErrs
 	}
 	if current.ExistingVolumeClaimName != last.ExistingVolumeClaimName {
 		allErrs = append(allErrs,

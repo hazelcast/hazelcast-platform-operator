@@ -77,7 +77,6 @@ type HazelcastSpec struct {
 	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
-	// +kubebuilder:default:={}
 	// +optional
 	ExposeExternally *ExposeExternallyConfiguration `json:"exposeExternally,omitempty"`
 
@@ -87,34 +86,29 @@ type HazelcastSpec struct {
 	ClusterName string `json:"clusterName,omitempty"`
 
 	// Scheduling details
-	// +kubebuilder:default:={}
 	// +optional
-	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
+	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
 
 	// Compute Resources required by the Hazelcast container.
-	// +kubebuilder:default:={}
 	// +optional
-	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Persistence configuration
-	//+kubebuilder:default:={}
 	//+optional
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
 	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.20"}
-	// +optional
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
 	// +kubebuilder:default:={enabled: true, resourceUploadEnabled: false}
 	// +optional
-	JetEngineConfiguration JetEngineConfiguration `json:"jet,omitempty"`
+	JetEngineConfiguration *JetEngineConfiguration `json:"jet,omitempty"`
 
 	// User Codes to Download into CLASSPATH
-	//+kubebuilder:default:={}
 	// +optional
-	UserCodeDeployment UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
+	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
 
 	// Java Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/executor-service
 	// +optional
@@ -139,28 +133,23 @@ type HazelcastSpec struct {
 
 	// Configuration to create clusters resilient to node and zone failures
 	// +optional
-	// +kubebuilder:default:={}
 	HighAvailabilityMode HighAvailabilityMode `json:"highAvailabilityMode,omitempty"`
 
 	// Hazelcast JVM configuration
 	// +optional
-	// +kubebuilder:default:={}
 	JVM *JVMConfiguration `json:"jvm,omitempty"`
 
 	// Hazelcast Native Memory (HD Memory) configuration
 	// +optional
-	// +kubebuilder:default:={}
 	NativeMemory *NativeMemoryConfiguration `json:"nativeMemory,omitempty"`
 
 	// Hazelcast Advanced Network configuration
 	// +optional
-	// +kubebuilder:default:={}
-	AdvancedNetwork AdvancedNetwork `json:"advancedNetwork,omitempty"`
+	AdvancedNetwork *AdvancedNetwork `json:"advancedNetwork,omitempty"`
 
 	// Hazelcast Management Center Configuration
 	// +optional
-	// +kubebuilder:default:={}
-	ManagementCenterConfig ManagementCenterConfig `json:"managementCenter,omitempty"`
+	ManagementCenterConfig *ManagementCenterConfig `json:"managementCenter,omitempty"`
 
 	// Hazelcast TLS configuration
 	// +optional
@@ -1056,8 +1045,6 @@ const (
 
 type TLS struct {
 	// Name of the secret with TLS certificate and key.
-	// +kubebuilder:validation:Required
-	// +required
 	SecretName string `json:"secretName"`
 
 	// Mutual authentication configuration. It’s None by default which

@@ -606,12 +606,12 @@ func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, cli 
 	req := &hzclient.AddBatchPublisherRequest{
 		TargetCluster:         wan.Spec.TargetClusterName,
 		Endpoints:             wan.Spec.Endpoints,
-		QueueCapacity:         wan.Spec.Queue.Capacity,
-		BatchSize:             wan.Spec.Batch.Size,
-		BatchMaxDelayMillis:   wan.Spec.Batch.MaximumDelay,
 		ResponseTimeoutMillis: wan.Spec.Acknowledgement.Timeout,
 		AckType:               wan.Spec.Acknowledgement.Type,
+		QueueCapacity:         wan.Spec.Queue.Capacity,
 		QueueFullBehavior:     wan.Spec.Queue.FullBehavior,
+		BatchSize:             wan.Spec.Batch.Size,
+		BatchMaxDelayMillis:   wan.Spec.Batch.MaximumDelay,
 	}
 
 	ws := hzclient.NewWanService(cli, wanName(mapName), publisherId)

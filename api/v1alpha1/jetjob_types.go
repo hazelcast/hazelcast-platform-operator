@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // +kubebuilder:validation:Enum=Failed;NotRunning;Starting;Running;Suspended;SuspendedExportingSnapshot;Completing;ExecutionFailed;Completed
@@ -141,6 +142,14 @@ type JetJobList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []JetJob `json:"items"`
+}
+
+func (jjl *JetJobList) GetItems() []client.Object {
+	l := make([]client.Object, 0, len(jjl.Items))
+	for _, item := range jjl.Items {
+		l = append(l, client.Object(&item))
+	}
+	return l
 }
 
 func init() {

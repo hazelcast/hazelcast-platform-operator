@@ -64,7 +64,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		It("Should create ManagementCenter resources", Label("fast"), func() {
 			setLabelAndCRName("mc-1")
 			mc := mcconfig.Default(mcLookupKey, ee, labels)
-			mc.Spec.Resources = corev1.ResourceRequirements{
+			mc.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse("1Gi")},
 			}
@@ -99,7 +99,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		It("Should create ManagementCenter resources and no PVC", Label("fast"), func() {
 			setLabelAndCRName("mc-2")
 			mc := mcconfig.PersistenceDisabled(mcLookupKey, ee, labels)
-			mc.Spec.Resources = corev1.ResourceRequirements{
+			mc.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse("1Gi")},
 			}

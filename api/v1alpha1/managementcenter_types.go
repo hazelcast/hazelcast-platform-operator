@@ -44,22 +44,22 @@ type ManagementCenterSpec struct {
 	// Configuration to expose Management Center to outside.
 	// +kubebuilder:default:={type: "LoadBalancer"}
 	// +optional
-	ExternalConnectivity ExternalConnectivityConfiguration `json:"externalConnectivity,omitempty"`
+	ExternalConnectivity *ExternalConnectivityConfiguration `json:"externalConnectivity,omitempty"`
 
 	// Configuration for Management Center persistence.
 	// +kubebuilder:default:={enabled: true, size: "10Gi"}
 	// +optional
-	Persistence MCPersistenceConfiguration `json:"persistence,omitempty"`
+	Persistence *MCPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// Scheduling details
 	// +kubebuilder:default:={}
 	// +optional
-	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
+	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
 
 	// Compute Resources required by the MC container.
 	// +kubebuilder:default:={}
 	// +optional
-	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 func (s *ManagementCenterSpec) GetLicenseKeySecretName() string {
