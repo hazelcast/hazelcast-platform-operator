@@ -476,7 +476,8 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}}
 
-				Expect(k8sClient.Create(context.Background(), mc)).Should(HaveOccurred())
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center Cluster config TLS Secret name is empty")))
 			})
 
 			It("should error when secretName does not exist", Label("fast"), func() {
@@ -492,7 +493,8 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}}
 
-				Expect(k8sClient.Create(context.Background(), mc)).Should(HaveOccurred())
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center Cluster config TLS Secret not found")))
 			})
 		})
 
