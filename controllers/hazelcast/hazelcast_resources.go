@@ -1728,16 +1728,6 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	return c
 }
 
-func sidecarVolumeMounts() []v1.VolumeMount {
-	return []v1.VolumeMount{
-		{
-			Name:      n.MTLSCertSecretName,
-			MountPath: n.MTLSCertPath,
-		},
-		jetJobJarsVolumeMount(),
-	}
-}
-
 func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
 	// If WAN is not configured, use the default port for it
 	if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
@@ -2103,6 +2093,16 @@ func configMapVolumes(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFi
 		})
 	}
 	return vols
+}
+
+func sidecarVolumeMounts() []v1.VolumeMount {
+	return []v1.VolumeMount{
+		{
+			Name:      n.MTLSCertSecretName,
+			MountPath: n.MTLSCertPath,
+		},
+		jetJobJarsVolumeMount(),
+	}
 }
 
 func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
