@@ -1974,6 +1974,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Enabled: ptr.Bool(true),
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							BucketURI:  "gs://my-bucket",
 							SecretName: "",
 						},
 					},
