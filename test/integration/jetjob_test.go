@@ -32,10 +32,7 @@ var _ = Describe("Hazelcast webhook", func() {
 	Context("JetJob create validation", func() {
 		It("should not create JetJob with State not Running", Label("fast"), func() {
 			jj := &hazelcastv1alpha1.JetJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "jetjob-1",
-					Namespace: "default",
-				},
+				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.JetJobSpec{
 					Name:                  "jetjobname",
 					HazelcastResourceName: "hazelcast",
@@ -48,28 +45,48 @@ var _ = Describe("Hazelcast webhook", func() {
 				Should(MatchError(ContainSubstring("Invalid value: \"Suspended\": should be set to Running on creation")))
 		})
 
-		It("should error when secretName is empty", Label("fast"), func() {
-			jj := &hazelcastv1alpha1.JetJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "jetjob-1",
-					Namespace: "default",
-				},
-				Spec: hazelcastv1alpha1.JetJobSpec{
-					Name:                  "jetjobname",
-					HazelcastResourceName: "hazelcast",
-					State:                 hazelcastv1alpha1.SuspendedJobState,
-					JarName:               "myjob.jar",
-					JetRemoteFileConfiguration: hazelcastv1alpha1.JetRemoteFileConfiguration{
-						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-							BucketURI:  "gs://my-bucket",
-							SecretName: "",
+		When("bucket is configured", func() {
+			It("should error when secretName is empty", Label("fast"), func() {
+				jj := &hazelcastv1alpha1.JetJob{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec: hazelcastv1alpha1.JetJobSpec{
+						Name:                  "jetjobname",
+						HazelcastResourceName: "hazelcast",
+						State:                 hazelcastv1alpha1.SuspendedJobState,
+						JarName:               "myjob.jar",
+						JetRemoteFileConfiguration: hazelcastv1alpha1.JetRemoteFileConfiguration{
+							BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+								BucketURI:  "gs://my-bucket",
+								SecretName: "",
+							},
 						},
 					},
-				},
-			}
+				}
 
-			Expect(k8sClient.Create(context.Background(), jj)).
-				Should(MatchError(ContainSubstring("bucket secret must be set")))
+				Expect(k8sClient.Create(context.Background(), jj)).
+					Should(MatchError(ContainSubstring("bucket secret must be set")))
+			})
+
+			It("should error when secret doesn't exist with the given bucket secretName", Label("fast"), func() {
+				jj := &hazelcastv1alpha1.JetJob{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec: hazelcastv1alpha1.JetJobSpec{
+						Name:                  "jetjobname",
+						HazelcastResourceName: "hazelcast",
+						State:                 hazelcastv1alpha1.SuspendedJobState,
+						JarName:               "myjob.jar",
+						JetRemoteFileConfiguration: hazelcastv1alpha1.JetRemoteFileConfiguration{
+							BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+								BucketURI:  "gs://my-bucket",
+								SecretName: "notfound",
+							},
+						},
+					},
+				}
+
+				Expect(k8sClient.Create(context.Background(), jj)).
+					Should(MatchError(ContainSubstring("Bucket credentials Secret not found")))
+			})
 		})
 	})
 
@@ -88,16 +105,12 @@ var _ = Describe("Hazelcast webhook", func() {
 					},
 				},
 			}
+			CreateBucketSecret("my-secret", namespace)
+
 			js, _ := json.Marshal(spec)
 			jj := &hazelcastv1alpha1.JetJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "jetjob-2",
-					Namespace: "default",
-					Annotations: map[string]string{
-						n.LastSuccessfulSpecAnnotation: string(js),
-					},
-				},
-				Spec: spec,
+				ObjectMeta: randomObjectMeta(namespace, n.LastSuccessfulSpecAnnotation, string(js)),
+				Spec:       spec,
 			}
 
 			Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
@@ -117,6 +130,7 @@ var _ = Describe("Hazelcast webhook", func() {
 				MatchError(ContainSubstring("Forbidden: field cannot be updated")),
 			))
 		})
+
 		It("should not allow adding bucket configuration", Label("fast"), func() {
 			spec := hazelcastv1alpha1.JetJobSpec{
 				Name:                  "jetjobname",
