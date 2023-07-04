@@ -1632,6 +1632,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		}
 		sts.Spec.Template.Spec.Volumes = volumes(h)
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h)
+		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts()
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -1713,13 +1714,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Value: path.Join(n.MTLSCertPath, "tls.key"),
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{
-			{
-				Name:      n.MTLSCertSecretName,
-				MountPath: n.MTLSCertPath,
-			},
-			jetJobJarsVolumeMount(),
-		},
+		VolumeMounts:    sidecarVolumeMounts(),
 		SecurityContext: containerSecurityContext(),
 	}
 
@@ -1731,6 +1726,16 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 
 	return c
+}
+
+func sidecarVolumeMounts() []v1.VolumeMount {
+	return []v1.VolumeMount{
+		{
+			Name:      n.MTLSCertSecretName,
+			MountPath: n.MTLSCertPath,
+		},
+		jetJobJarsVolumeMount(),
+	}
 }
 
 func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
