@@ -462,6 +462,40 @@ var _ = Describe("ManagementCenter CR", func() {
 				Create(mc)
 				EnsureStatus(mc)
 			})
+
+			It("should error when secretName is empty", Label("fast"), func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+					Name:    "dev",
+					Address: "dummy",
+					TLS: &hazelcastv1alpha1.TLS{
+						SecretName: "",
+					},
+				}}
+
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center Cluster config TLS Secret name is empty")))
+			})
+
+			It("should error when secretName does not exist", Label("fast"), func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+					Name:    "dev",
+					Address: "dummy",
+					TLS: &hazelcastv1alpha1.TLS{
+						SecretName: "notfound",
+					},
+				}}
+
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center Cluster config TLS Secret not found")))
+			})
 		})
 
 		When("MutualAuthentication is configured", func() {
