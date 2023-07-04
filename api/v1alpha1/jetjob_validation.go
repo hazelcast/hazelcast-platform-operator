@@ -13,11 +13,18 @@ import (
 
 func ValidateJetJobCreateSpec(jj *JetJob) error {
 	var allErrs field.ErrorList
+
 	if jj.Spec.State != RunningJobState {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("state"),
 			jj.Spec.State,
 			fmt.Sprintf("should be set to %s on creation", RunningJobState)))
 	}
+	if jj.Spec.IsBucketEnabled() && jj.Spec.BucketConfiguration.GetSecretName() == "" {
+		allErrs = append(allErrs, field.Required(
+			field.NewPath("spec").Child("bucketConfig").Child("secretName"),
+			"bucket secret must be set"))
+	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}

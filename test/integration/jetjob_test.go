@@ -47,6 +47,30 @@ var _ = Describe("Hazelcast webhook", func() {
 			Expect(k8sClient.Create(context.Background(), jj)).
 				Should(MatchError(ContainSubstring("Invalid value: \"Suspended\": should be set to Running on creation")))
 		})
+
+		It("should error when secretName is empty", Label("fast"), func() {
+			jj := &hazelcastv1alpha1.JetJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "jetjob-1",
+					Namespace: "default",
+				},
+				Spec: hazelcastv1alpha1.JetJobSpec{
+					Name:                  "jetjobname",
+					HazelcastResourceName: "hazelcast",
+					State:                 hazelcastv1alpha1.SuspendedJobState,
+					JarName:               "myjob.jar",
+					JetRemoteFileConfiguration: hazelcastv1alpha1.JetRemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							BucketURI:  "gs://my-bucket",
+							SecretName: "",
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), jj)).
+				Should(MatchError(ContainSubstring("bucket secret must be set")))
+		})
 	})
 
 	Context("JetJob update validation", func() {

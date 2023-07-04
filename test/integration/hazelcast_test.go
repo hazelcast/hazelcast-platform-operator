@@ -580,32 +580,6 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
-	Context("with JetEngine configuration", func() {
-		When("Jet is not configured", func() {
-			It("should be enabled by default", Label("fast"), func() {
-				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       spec,
-				}
-
-				Create(hz)
-				_ = ensureHzStatusIsPending(hz)
-
-				Eventually(func() bool {
-					cfg := getSecret(hz)
-					a := &config.HazelcastWrapper{}
-
-					if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
-						return false
-					}
-
-					return *a.Hazelcast.Jet.Enabled
-				}, timeout, interval).Should(BeTrue())
-			})
-		})
-	})
-
 	Context("with HighAvailability configuration", func() {
 		When("HighAvailabilityMode is configured as NODE", func() {
 			It("should create topologySpreadConstraints", Label("fast"), func() {
@@ -1905,6 +1879,30 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
+		When("Jet is not configured", func() {
+			It("should be enabled by default", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				_ = ensureHzStatusIsPending(hz)
+
+				Eventually(func() bool {
+					cfg := getSecret(hz)
+					a := &config.HazelcastWrapper{}
+
+					if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+						return false
+					}
+
+					return *a.Hazelcast.Jet.Enabled
+				}, timeout, interval).Should(BeTrue())
+			})
+		})
+
 		It("should validate backup count", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
@@ -1922,39 +1920,23 @@ var _ = Describe("Hazelcast CR", func() {
 				ContainSubstring("Invalid value: 7: spec.jet.instance.backupCount in body should be less than or equal to 6")))
 		})
 
-		It("should validate if lossless restart enabled without enabling persistence", Label("fast"), func() {
-			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
-				Enabled: pointer.Bool(true),
-				Instance: &hazelcastv1alpha1.JetInstance{
-					LosslessRestartEnabled: true,
-				},
-			}
-
-			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       spec,
-			}
-
-			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("Forbidden: can be enabled only if persistence enabled")))
-		})
-
 		When("LosslessRestart is enabled", func() {
 			It("should fail if persistence is not enabled", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
-					Enabled: ptr.Bool(true),
+					Enabled: pointer.Bool(true),
 					Instance: &hazelcastv1alpha1.JetInstance{
 						LosslessRestartEnabled: true,
 					},
 				}
+
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
 
-				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("can be enabled only if persistence enabled")))
 			})
 
 			It("should be created successfully if persistence is enabled", Label("fast"), func() {
@@ -1992,6 +1974,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Enabled: ptr.Bool(true),
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							BucketURI:  "gs://my-bucket",
 							SecretName: "",
 						},
 					},
@@ -2001,9 +1984,11 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("bucket secret must be set")))
 			})
-			It("should error when secretName does not exist", Label("fast"), func() {
+
+			It("should error when secret doesn't exist with the given bucket secretName", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled: ptr.Bool(true),
