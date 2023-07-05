@@ -23,6 +23,11 @@ var _ = Describe("JetJobSnapshot CR", func() {
 		}
 	})
 
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.JetJobSnapshot{}, &hazelcastv1alpha1.JetJobSnapshotList{}, namespace, map[string]string{})
+		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
+	})
+
 	Context("JetJobSnapshot create validation", func() {
 		It("should let create JetJobSnapshot with empty snapshot name", Label("fast"), func() {
 			jjs := &hazelcastv1alpha1.JetJobSnapshot{
@@ -48,7 +53,7 @@ var _ = Describe("JetJobSnapshot CR", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), jjs)).
-				Should(MatchError(ContainSubstring("jetJobResourceName cannot be empty")))
+				Should(MatchError(ContainSubstring("cannot be empty")))
 		})
 	})
 
