@@ -2456,7 +2456,8 @@ spec:
                 minLength: 1
                 type: string
               initialSnapshotResourceName:
-                description: InitialSnapshotResourceName
+                description: InitialSnapshotResourceName specify the name of the JetJobSnapshot
+                  object from which the JetJob is initialized.
                 type: string
               jarName:
                 description: JarName specify the name of the Jar to run that is present

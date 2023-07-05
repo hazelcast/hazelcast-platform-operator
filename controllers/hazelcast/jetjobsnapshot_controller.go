@@ -169,6 +169,10 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return result, err
 	}
 
+	if !util.IsSuccessfullyApplied(jjs) {
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
+	}
+
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
@@ -247,11 +251,13 @@ func (r *JetJobSnapshotReconciler) updateLastSuccessfulConfiguration(ctx context
 }
 
 func (r *JetJobSnapshotReconciler) executeFinalizer(ctx context.Context, jjs *hazelcastv1alpha1.JetJobSnapshot, logger logr.Logger) error {
-	k := types.NamespacedName{Name: jjs.Name, Namespace: jjs.Namespace}
-	r.exportingSnapshotMap.Delete(k)
 	if !controllerutil.ContainsFinalizer(jjs, n.Finalizer) {
 		return nil
 	}
+
+	k := types.NamespacedName{Name: jjs.Name, Namespace: jjs.Namespace}
+	r.exportingSnapshotMap.Delete(k)
+
 	controllerutil.RemoveFinalizer(jjs, n.Finalizer)
 	if err := r.Update(ctx, jjs); err != nil {
 		return fmt.Errorf("failed to remove finalizer from custom resource: %w", err)

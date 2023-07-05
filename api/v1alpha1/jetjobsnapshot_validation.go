@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -15,7 +16,7 @@ func ValidateJetJobSnapshotSpecCreate(jjs *JetJobSnapshot) error {
 	var allErrs field.ErrorList
 	if jjs.Spec.JetJobResourceName == "" {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("jetJobResourceName"),
-			jjs.Spec.JetJobResourceName, "jetJobResourceName cannot be empty"))
+			jjs.Spec.JetJobResourceName, "cannot be empty"))
 	}
 	if len(allErrs) == 0 {
 		return nil
@@ -58,17 +59,9 @@ func ValidateJetJobSnapshot(h *Hazelcast) error {
 func ValidateJetJobSnapshotNonUpdatableFields(jjs JetJobSnapshotSpec, oldJjs JetJobSnapshotSpec) []*field.Error {
 	var allErrs field.ErrorList
 
-	if jjs.Name != oldJjs.Name {
+	if !reflect.DeepEqual(jjs, oldJjs) {
 		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("name"), "field cannot be updated"))
-	}
-	if jjs.JetJobResourceName != oldJjs.JetJobResourceName {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("jetJobResourceName"), "field cannot be updated"))
-	}
-	if jjs.CancelJob != oldJjs.CancelJob {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("cancelJob"), "field cannot be updated"))
+			field.Forbidden(field.NewPath("spec"), "field cannot be updated"))
 	}
 
 	return allErrs

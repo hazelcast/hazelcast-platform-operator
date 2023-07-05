@@ -1,12 +1,6 @@
 apiVersion: hazelcast.com/v1alpha1
 kind: JetJobSnapshot
 metadata:
-  labels:
-    app.kubernetes.io/name: jetjobsnapshot
-    app.kubernetes.io/instance: jetjobsnapshot-sample
-    app.kubernetes.io/part-of: hazelcast-platform-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: hazelcast-platform-operator
   name: jetjobsnapshot-sample
 spec:
   name: snapshot
