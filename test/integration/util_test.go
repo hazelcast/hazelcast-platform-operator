@@ -3,6 +3,8 @@ package integration
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -45,27 +47,46 @@ func assertExistsAndBeAsExpected[o client.Object](name types.NamespacedName, obj
 	}, timeout, interval).Should(BeTrue())
 }
 
-func deleteIfExists(name types.NamespacedName, obj client.Object) {
+func DeleteIfExists(name types.NamespacedName, obj client.Object) {
 	Eventually(func() error {
 		err := k8sClient.Get(context.Background(), name, obj)
 		if err != nil {
-			if errors.IsNotFound(err) {
-				return nil
-			}
 			return err
 		}
 		return k8sClient.Delete(context.Background(), obj)
 	}, timeout, interval).Should(Succeed())
 }
 
-func Delete(name types.NamespacedName, obj client.Object) {
-	Eventually(func() error {
-		err := k8sClient.Get(context.Background(), name, obj)
+func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels map[string]string) {
+	Expect(k8sClient.DeleteAllOf(
+		context.Background(),
+		obj,
+		client.InNamespace(ns),
+		client.MatchingLabels(labels),
+		client.PropagationPolicy(metav1.DeletePropagationBackground),
+	)).Should(Succeed())
+
+	// do not wait if objList is nil
+	if objList == nil {
+		return
+	}
+
+	objListVal := reflect.ValueOf(objList)
+
+	Eventually(func() int {
+		err := k8sClient.List(context.Background(), objList,
+			client.InNamespace(ns),
+			client.MatchingLabels(labels),
+		)
 		if err != nil {
-			return err
+			return -1
 		}
-		return k8sClient.Delete(context.Background(), obj)
-	}, timeout, interval).Should(Succeed())
+		if objListVal.Kind() == reflect.Ptr || objListVal.Kind() == reflect.Interface {
+			objListVal = objListVal.Elem()
+		}
+		items := objListVal.FieldByName("Items")
+		return items.Len()
+	}, time.Minute, interval).Should(Equal(0))
 }
 
 func lookupKey(cr metav1.Object) types.NamespacedName {

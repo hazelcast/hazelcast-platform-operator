@@ -98,7 +98,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
@@ -132,7 +132,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
@@ -167,7 +167,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
@@ -205,7 +205,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
@@ -238,7 +238,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Resources = corev1.ResourceRequirements{
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}

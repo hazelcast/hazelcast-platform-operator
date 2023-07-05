@@ -1,12 +1,9 @@
-name: (2) Operator Certification Tests And Releasing
+name: (2) Test And Release
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       RELEASE_VERSION:
-        description: "Version in the form of X.Y[.Z]"
+        description: "Release version in the form of X.Y[.Z]"
         required: true
   schedule:
     - cron: "0 9 * * *"
@@ -30,6 +27,7 @@ jobs:
       RELEASE_VERSION: ${{ steps.setup-envs.outputs.RELEASE_VERSION }}
       CONTAINER_IMAGE: ${{ steps.setup-envs.outputs.CONTAINER_IMAGE }}
       CONTAINER_IMAGE_DIGEST: ${{ steps.build-image.outputs.digest }}
+      REFS: ${{ steps.setup-envs.outputs.ref }}
     steps:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v3
@@ -50,9 +48,7 @@ jobs:
           elif [[ ${{ github.event_name == 'workflow_dispatch' }} == true ]]; then
               echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_ENV
               echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_OUTPUT
-          elif [[ ${{ github.event_name == 'push' }} == true ]]; then
-              echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV
-              echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_OUTPUT
+              echo "ref=refs/heads/${{ inputs.RELEASE_VERSION }}" >> $GITHUB_OUTPUT
           fi
               CONTAINER_IMAGE=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d
               echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}" >> $GITHUB_ENV
@@ -286,9 +282,26 @@ jobs:
     with:
       BUNDLE_VERSION: ${{ needs.build_bundle.outputs.BUNDLE_VERSION }}
 
+  create_operator_tag:
+    if: needs.test_container.outputs.REFS == github.ref && github.ref != 'refs/heads/main'
+    needs: [ test_container, test_operator, community_operators_test_suite ]
+    name: Create Operator Tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Create a New Tag
+        run: |
+          TAG_VERSION=v${{ needs.test_container.outputs.RELEASE_VERSION }}
+          git tag ${TAG_VERSION}
+          git push origin ${TAG_VERSION}
+
   publish_release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [test_container, test_operator, community_operators_test_suite]
+    if: needs.test_container.outputs.REFS == github.ref && github.ref != 'refs/heads/main'
+    needs: [create_operator_tag, test_container, test_operator, community_operators_test_suite]
     uses: ./.github/workflows/publish-release.yaml
     with:
       RELEASE_VERSION: ${{ needs.test_container.outputs.RELEASE_VERSION }}

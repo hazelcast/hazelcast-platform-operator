@@ -189,6 +189,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
+	err = r.reconcileMTLSSecret(ctx, h)
+	if err != nil {
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+	}
+
 	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
@@ -392,6 +397,12 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			hzResources = append(hzResources, hzName)
 		}
 		return hzResources
+	}); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.JetJob{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.JetJob)
+		return []string{m.Spec.HazelcastResourceName}
 	}); err != nil {
 		return err
 	}

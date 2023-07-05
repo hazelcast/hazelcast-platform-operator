@@ -78,7 +78,7 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 	}
 
 	if err := validateJetConfig(h); err != nil {
-		allErrs = append(allErrs, err)
+		allErrs = append(allErrs, err...)
 	}
 
 	if err := validateJVMConfig(h); err != nil {
@@ -87,6 +87,10 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
 
 	if err := validateCustomConfig(h); err != nil {
 		allErrs = append(allErrs, err)
+	}
+
+	if err := validateNativeMemory(h); err != nil {
+		allErrs = append(allErrs, err...)
 	}
 
 	return allErrs
@@ -171,11 +175,12 @@ func validateLicense(h *Hazelcast) *field.Error {
 
 func validateTLS(h *Hazelcast) *field.Error {
 	// skip validation if TLS is not set
-	if h.Spec.TLS == nil {
+	// deepequal for migration from 5.7 when TLS was not a pointer
+	if h.Spec.TLS == nil || reflect.DeepEqual(*h.Spec.TLS, TLS{}) {
 		return nil
 	}
 
-	if h.Spec.LicenseKeySecretName == "" {
+	if h.Spec.GetLicenseKeySecretName() == "" {
 		return field.Required(field.NewPath("spec").Child("tls"),
 			"Hazelcast TLS requires enterprise version")
 	}
@@ -184,7 +189,7 @@ func validateTLS(h *Hazelcast) *field.Error {
 
 	// if user skipped validation secretName can be empty
 	if h.Spec.TLS.SecretName == "" {
-		return field.NotFound(p, "Hazelcast Enterprise TLS Secret name is empty")
+		return field.Required(p, "Hazelcast Enterprise TLS Secret name must be set")
 	}
 
 	// check if secret exists
@@ -245,6 +250,9 @@ func validateClusterSize(h *Hazelcast) *field.Error {
 
 func validateAdvancedNetwork(h *Hazelcast) []*field.Error {
 	var allErrs field.ErrorList
+	if h.Spec.AdvancedNetwork == nil {
+		return allErrs
+	}
 
 	if errs := validateWANServiceTypes(h); errs != nil {
 		allErrs = append(allErrs, errs...)
@@ -277,6 +285,7 @@ func validateWANServiceTypes(h *Hazelcast) []*field.Error {
 
 func validateWANPorts(h *Hazelcast) []*field.Error {
 	var allErrs field.ErrorList
+
 	if errs := isOverlapWithEachOther(h); errs != nil {
 		allErrs = append(allErrs, errs...)
 	}
@@ -502,24 +511,61 @@ func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistence
 	return allErrs
 }
 
-func validateJetConfig(h *Hazelcast) *field.Error {
-	var err *field.Error
-
+func validateJetConfig(h *Hazelcast) (errs field.ErrorList) {
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
 
 	if !j.IsEnabled() {
+		return
+	}
+
+	if j.IsBucketEnabled() {
+		if j.BucketConfiguration.GetSecretName() == "" {
+			errs = append(errs, field.Required(
+				field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+				"bucket secret must be set"))
+		} else {
+			secretName := types.NamespacedName{
+				Name:      j.BucketConfiguration.SecretName,
+				Namespace: h.Namespace,
+			}
+			var secret corev1.Secret
+			err := kubeclient.Get(context.Background(), secretName, &secret)
+			if kerrors.IsNotFound(err) {
+				// we care only about not found error
+				errs = append(errs, field.Required(field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+					"Bucket credentials Secret not found"))
+			}
+		}
+	}
+
+	if j.Instance.IsConfigured() && j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
+		errs = append(errs,
+			field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
+				"can be enabled only if persistence enabled"))
+	}
+
+	return
+}
+
+func validateNativeMemory(h *Hazelcast) []*field.Error {
+	// skip validation if NativeMemory is not set
+	if h.Spec.NativeMemory == nil {
 		return nil
 	}
+	var allErrs field.ErrorList
+	if h.Spec.GetLicenseKeySecretName() == "" {
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("nativeMemory"),
+			"Hazelcast Native Memory requires enterprise version"))
+	}
 
-	if !j.Instance.IsConfigured() {
+	if h.Spec.Persistence.IsEnabled() && h.Spec.NativeMemory.AllocatorType != NativeMemoryPooled {
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("nativeMemory").Child("allocatorType"),
+			"MemoryAllocatorType.STANDARD cannot be used when Persistence is enabled, Please use MemoryAllocatorType.POOLED!"))
+	}
+
+	if len(allErrs) == 0 {
 		return nil
 	}
-
-	if j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
-		err = field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
-			"can be enabled only if persistence enabled")
-	}
-
-	return err
+	return allErrs
 }

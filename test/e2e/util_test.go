@@ -139,7 +139,7 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 		}
 		items := objListVal.FieldByName("Items")
 		return items.Len()
-	}, 10*Minute, interval).Should(Equal(int(0)))
+	}, 10*Minute, interval).Should(Equal(0))
 }
 
 func checkJetJobStatus(nn types.NamespacedName, phase hazelcastv1alpha1.JetJobStatusPhase) {

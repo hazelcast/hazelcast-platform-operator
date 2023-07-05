@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 func ValidateMapSpecCreate(m *Map) error {
@@ -43,6 +44,9 @@ func validateMapSpecCurrent(m *Map, h *Hazelcast) field.ErrorList {
 	var allErrs field.ErrorList
 	allErrs = appendIfNotNil(allErrs, ValidateAppliedPersistence(m.Spec.PersistenceEnabled, h))
 	allErrs = appendIfNotNil(allErrs, ValidateAppliedNativeMemory(m.Spec.InMemoryFormat, h))
+	if m.Spec.NearCache != nil {
+		allErrs = appendIfNotNil(allErrs, ValidateAppliedNativeMemory(m.Spec.NearCache.InMemoryFormat, h))
+	}
 	if len(allErrs) == 0 {
 		return nil
 	}
