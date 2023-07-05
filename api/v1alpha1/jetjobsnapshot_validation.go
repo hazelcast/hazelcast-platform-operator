@@ -12,18 +12,6 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-func ValidateJetJobSnapshotSpecCreate(jjs *JetJobSnapshot) error {
-	var allErrs field.ErrorList
-	if jjs.Spec.JetJobResourceName == "" {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("jetJobResourceName"),
-			jjs.Spec.JetJobResourceName, "cannot be empty"))
-	}
-	if len(allErrs) == 0 {
-		return nil
-	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJobSnapshot"}, jjs.Name, allErrs)
-}
-
 func ValidateJetJobSnapshotSpecUpdate(jjs *JetJobSnapshot, _ *JetJobSnapshot) error {
 	var allErrs = validateJetJobSnapshotUpdateSpec(jjs)
 	if len(allErrs) == 0 {

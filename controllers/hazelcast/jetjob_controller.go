@@ -208,7 +208,7 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
 		}
 		if jjs.Status.CreationTime.IsZero() {
-			err := fmt.Errorf("JetJobSnapshot '%s' has not exported", job.Spec.InitialSnapshotResourceName)
+			err := fmt.Errorf("JetJobSnapshot '%s' is not exported", job.Spec.InitialSnapshotResourceName)
 			logger.Error(err, "JetJobSnapshot creation time is zero")
 			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
 		}

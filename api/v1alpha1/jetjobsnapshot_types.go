@@ -26,6 +26,7 @@ type JetJobSnapshotSpec struct {
 	CancelJob bool `json:"cancelJob"`
 
 	// JetJobResourceName is the name of the JetJob CR where the Snapshot is exported from
+	// +kubebuilder:validation:MinLength:=1
 	// +required
 	JetJobResourceName string `json:"jetJobResourceName"`
 }

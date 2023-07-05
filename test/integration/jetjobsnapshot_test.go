@@ -29,7 +29,7 @@ var _ = Describe("JetJobSnapshot CR", func() {
 	})
 
 	Context("JetJobSnapshot create validation", func() {
-		It("should let create JetJobSnapshot with empty snapshot name", Label("fast"), func() {
+		It("should create JetJobSnapshot with empty snapshot name", Label("fast"), func() {
 			jjs := &hazelcastv1alpha1.JetJobSnapshot{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.JetJobSnapshotSpec{
@@ -53,7 +53,7 @@ var _ = Describe("JetJobSnapshot CR", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), jjs)).
-				Should(MatchError(ContainSubstring("cannot be empty")))
+				Should(MatchError(ContainSubstring("spec.jetJobResourceName in body should be at least 1 chars long")))
 		})
 	})
 

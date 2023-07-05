@@ -23,7 +23,7 @@ var _ webhook.Validator = &JetJobSnapshot{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (jjs *JetJobSnapshot) ValidateCreate() error {
 	jetjobsnapshotlog.Info("validate create", "name", jjs.Name)
-	return ValidateJetJobSnapshotSpecCreate(jjs)
+	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type

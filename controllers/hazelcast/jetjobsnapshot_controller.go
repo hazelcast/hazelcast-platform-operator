@@ -151,13 +151,6 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			withJetJobSnapshotFailedState(err.Error()))
 	}
 
-	if hz.Status.Phase != hazelcastv1alpha1.Running {
-		logger.Info("Hazelcast cluster is not ready", "name", hzNn, "phase", hz.Status.Phase)
-		err := fmt.Errorf("Hazelcast CR '%s' status phase is not equal to '%s'", hz.Name, hazelcastv1alpha1.Running)
-		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
-			withJetJobSnapshotFailedState(err.Error()))
-	}
-
 	c, err := r.clientRegistry.GetOrCreate(ctx, hzNn)
 	if err != nil {
 		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),

@@ -2587,6 +2587,7 @@ spec:
               jetJobResourceName:
                 description: JetJobResourceName is the name of the JetJob CR where
                   the Snapshot is exported from
+                minLength: 1
                 type: string
               name:
                 description: Name of the exported snapshot
