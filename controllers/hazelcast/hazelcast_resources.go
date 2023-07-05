@@ -1632,7 +1632,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		}
 		sts.Spec.Template.Spec.Volumes = volumes(h)
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h)
-		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts()
+		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts(h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -1663,7 +1663,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 }
 
 func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
-	c := v1.Container{
+	return v1.Container{
 		Name:  n.SidecarAgent,
 		Image: h.AgentDockerImage(),
 		Ports: []v1.ContainerPort{{
@@ -1714,18 +1714,8 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Value: path.Join(n.MTLSCertPath, "tls.key"),
 			},
 		},
-		VolumeMounts:    sidecarVolumeMounts(),
 		SecurityContext: containerSecurityContext(),
 	}
-
-	if h.Spec.Persistence.IsEnabled() {
-		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
-			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
-		})
-	}
-
-	return c
 }
 
 func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
@@ -2095,14 +2085,21 @@ func configMapVolumes(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFi
 	return vols
 }
 
-func sidecarVolumeMounts() []v1.VolumeMount {
-	return []v1.VolumeMount{
+func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
+	vm := []v1.VolumeMount{
 		{
 			Name:      n.MTLSCertSecretName,
 			MountPath: n.MTLSCertPath,
 		},
 		jetJobJarsVolumeMount(),
 	}
+	if h.Spec.Persistence.IsEnabled() {
+		vm = append(vm, v1.VolumeMount{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		})
+	}
+	return vm
 }
 
 func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
