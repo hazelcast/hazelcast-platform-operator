@@ -57,7 +57,8 @@ type JetJobSpec struct {
 	// +optional
 	MainClass string `json:"mainClass,omitempty"`
 
-	// InitialSnapshotResourceName
+	// InitialSnapshotResourceName specify the name of the JetJobSnapshot object from which
+	// the JetJob is initialized.
 	// +optional
 	InitialSnapshotResourceName string `json:"initialSnapshotResourceName,omitempty"`
 

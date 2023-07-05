@@ -97,7 +97,7 @@ func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) field.ErrorL
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("inMemoryFormat"), "field cannot be updated"))
 	}
-	if current.EventJournal != last.EventJournal {
+	if *current.EventJournal != *last.EventJournal {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("eventJournal"), "field cannot be updated"))
 	}
