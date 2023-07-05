@@ -104,6 +104,10 @@ var _ = Describe("Hazelcast", func() {
 		)
 	})
 	Describe("Phone Home table with installed Management Center", Serial, func() {
+		BeforeEach(func() {
+			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+			assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		})
 		AfterEach(func() {
 			DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, &hazelcastcomv1alpha1.ManagementCenterList{}, hzNamespace, labels)
 			assertDoesNotExist(mcLookupKey, &hazelcastcomv1alpha1.ManagementCenter{})
@@ -119,7 +123,7 @@ var _ = Describe("Hazelcast", func() {
 			CreateMC(mc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
 			assertAnnotationExists(mc)
-			time.Sleep(35 * time.Second)
+			time.Sleep(40 * time.Second)
 
 			bigQueryTable := getBigQueryTable()
 			Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
