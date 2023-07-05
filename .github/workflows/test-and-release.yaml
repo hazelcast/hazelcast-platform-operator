@@ -59,8 +59,10 @@ jobs:
           helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
           helm repo update && \
           helm install operator hazelcast/hazelcast-platform-operator --version=$STABLE_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
-          echo "Checking Operator before upgrade"
+          echo "Checking Operator Deployment  before upgrade"
           kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
+          echo "Checking Operator Pod before  upgrade"
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=120s
           
           kubectl apply -f - <<EOF
           apiVersion: hazelcast.com/v1alpha1
@@ -74,7 +76,7 @@ jobs:
             nativeMemory:
               allocatorType: POOLED
               size: 100M
-            clusterSize: 1
+            clusterSize: 3
             repository: "docker.io/hazelcast/hazelcast-enterprise"
             exposeExternally:
               discoveryServiceType: LoadBalancer
@@ -109,6 +111,9 @@ jobs:
           kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=120s map/persistent
           
           helm upgrade operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          
+          echo "Checking Operator Pod after upgrade"
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=120s
           echo "Checking Hazelcast CR after upgrade"
           kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=120s hazelcast/hazelcast
           echo "Checking Map CR after upgrade"
