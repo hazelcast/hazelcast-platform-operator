@@ -197,6 +197,21 @@ func CreateLicenseKeySecret(name, namespace string) *corev1.Secret {
 	return licenseSec
 }
 
+func CreateBucketSecret(name, namespace string) *corev1.Secret {
+	sec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{},
+	}
+	Eventually(func() bool {
+		err := k8sClient.Create(context.Background(), sec)
+		return err == nil || errors.IsAlreadyExists(err)
+	}, timeout, interval).Should(BeTrue())
+	return sec
+}
+
 func CreateTLSSecret(name, namespace string) *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

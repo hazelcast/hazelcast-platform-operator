@@ -1994,6 +1994,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Enabled: ptr.Bool(true),
 					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							BucketURI:  "gs://my-bucket",
 							SecretName: "notfound",
 						},
 					},
@@ -2003,7 +2004,8 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("Bucket credentials Secret not found")))
 			})
 		})
 
