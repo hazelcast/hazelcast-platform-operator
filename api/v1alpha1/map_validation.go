@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -97,7 +98,7 @@ func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) field.ErrorL
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("inMemoryFormat"), "field cannot be updated"))
 	}
-	if *current.EventJournal != *last.EventJournal {
+	if !reflect.DeepEqual(current.EventJournal, last.EventJournal) {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("eventJournal"), "field cannot be updated"))
 	}

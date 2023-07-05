@@ -8,11 +8,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
 var _ = Describe("Cache CR", func() {
@@ -78,19 +78,9 @@ var _ = Describe("Cache CR", func() {
 	Context("with BackupCount value", func() {
 		When("updating BackupCount", func() {
 			It("should fail to update", Label("fast"), func() {
-				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       spec,
-				}
-
-				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-				test.CheckHazelcastCR(hz, defaultHazelcastSpecValues(), ee)
-
 				cache := cacheOf(hazelcastv1alpha1.CacheSpec{
 					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-						HazelcastResourceName: hz.Name,
+						HazelcastResourceName: "hazelcast",
 						BackupCount:           pointer.Int32(3),
 					},
 				})
@@ -187,6 +177,65 @@ var _ = Describe("Cache CR", func() {
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
+		})
+	})
+
+	Context("with EventJournal configuration", func() {
+		It("should create Cache CR with eventJournal configuration", Label("fast"), func() {
+			c := &hazelcastv1alpha1.Cache{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.CacheSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+					EventJournal: &hazelcastv1alpha1.EventJournal{
+						Capacity:          10000,
+						TimeToLiveSeconds: 30,
+					},
+				},
+			}
+
+			By("creating Cache CR successfully")
+			Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
+			cs := c.Spec
+
+			By("checking the Cache CR values")
+			Expect(cs.EventJournal).ToNot(BeNil())
+			Expect(cs.EventJournal.Capacity).To(Equal(int32(10000)))
+			Expect(cs.EventJournal.TimeToLiveSeconds).To(Equal(int32(30)))
+		})
+
+		It("should fail to update", Label("fast"), func() {
+			c := cacheOf(hazelcastv1alpha1.CacheSpec{
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: "hazelcast",
+				},
+				EventJournal: &hazelcastv1alpha1.EventJournal{
+					Capacity:          10000,
+					TimeToLiveSeconds: 30,
+				},
+			})
+
+			By("creating Cache CR successfully")
+			Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
+
+			By("trying to update eventJournal")
+			var err error
+			for {
+				Expect(k8sClient.Get(
+					context.Background(), types.NamespacedName{Namespace: c.Namespace, Name: c.Name}, c)).Should(Succeed())
+
+				c.Spec.EventJournal.Capacity = 9000
+				c.Spec.EventJournal.TimeToLiveSeconds = 0
+
+				err = k8sClient.Update(context.Background(), c)
+				if errors.IsConflict(err) {
+					continue
+				}
+				break
+			}
+
+			Expect(err).Should(MatchError(ContainSubstring("Forbidden: cannot be updated")))
 		})
 	})
 })
