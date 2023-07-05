@@ -44,12 +44,13 @@ func validateJetJobSnapshotUpdateSpec(jjs *JetJobSnapshot) []*field.Error {
 	return ValidateJetJobSnapshotNonUpdatableFields(jjs.Spec, parsed)
 }
 
-func ValidateJetJobSnapshot(h *Hazelcast) error {
+func ValidateHazelcastLicenseKey(h *Hazelcast) error {
 	var allErrs field.ErrorList
 	if h.Spec.GetLicenseKeySecretName() == "" {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("licenseKeySecretName"),
 			"license key must be set"))
 	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}

@@ -145,7 +145,7 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			withJetJobSnapshotFailedState(err.Error()))
 	}
 
-	if err := hazelcastv1alpha1.ValidateJetJobSnapshot(hz); err != nil {
+	if err := hazelcastv1alpha1.ValidateHazelcastLicenseKey(hz); err != nil {
 		logger.Info("License Key is not set", "name", hzNn)
 		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
 			withJetJobSnapshotFailedState(err.Error()))
