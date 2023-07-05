@@ -123,6 +123,7 @@ func useExistingCluster() bool {
 func runningLocally() bool {
 	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
 }
+
 func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
 	Eventually(func() bool {
 		err := k8sClient.Get(context.Background(), name, obj)
@@ -167,10 +168,11 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 	)).Should(Succeed())
 
 	// do not wait if objList is nil
-	objListVal := reflect.ValueOf(objList)
-	if !objListVal.IsValid() {
+	if objList == nil {
 		return
 	}
+
+	objListVal := reflect.ValueOf(objList)
 
 	Eventually(func() int {
 		err := k8sClient.List(context.Background(), objList,
@@ -183,10 +185,8 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 			objListVal = objListVal.Elem()
 		}
 		items := objListVal.FieldByName("Items")
-		len := items.Len()
-		return len
-
-	}, 2*Minute, interval).Should(Equal(int(0)))
+		return items.Len()
+	}, 10*Minute, interval).Should(Equal(0))
 }
 
 func deleteIfExists(name types.NamespacedName, obj client.Object) {

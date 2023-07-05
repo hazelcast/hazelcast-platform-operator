@@ -68,6 +68,7 @@ var _ = Describe("Hazelcast", func() {
 				default:
 					Fail("Incorrect input configuration")
 				}
+
 				CreateHazelcastCR(cfg)
 				hzCreationTime := time.Now().UTC().Truncate(time.Hour)
 				evaluateReadyMembers(hzLookupKey)
@@ -103,6 +104,7 @@ var _ = Describe("Hazelcast", func() {
 			Entry("with ExposeExternallySmartNodePortNodeName configuration", Label("fast"), "smartNodePortNodeName", 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
+
 	Describe("Phone Home table with installed Management Center", func() {
 		AfterEach(func() {
 			DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, &hazelcastcomv1alpha1.ManagementCenterList{}, hzNamespace, labels)
@@ -113,6 +115,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 			deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
 		})
+
 		It("should have correct metrics", Label("fast"), func() {
 			setLabelAndCRName("phmc")
 			mc := mcconfig.Default(mcLookupKey, ee, labels)
