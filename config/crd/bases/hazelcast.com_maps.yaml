@@ -310,6 +310,8 @@ spec:
                     description: TimeToLiveSeconds maximum number of seconds for each
                       entry to stay in the Near Cache
                     type: integer
+                required:
+                - eviction
                 type: object
               persistenceEnabled:
                 default: false

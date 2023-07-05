@@ -91,8 +91,7 @@ type NearCache struct {
 
 	// NearCacheEviction specifies the eviction behavior in Near Cache
 	// +kubebuilder:default:={evictionPolicy: NONE, maxSizePolicy: ENTRY_COUNT}
-	// +optional
-	NearCacheEviction NearCacheEviction `json:"eviction,omitempty"`
+	NearCacheEviction NearCacheEviction `json:"eviction"`
 
 	// CacheLocalEntries specifies whether the local entries are cached
 	// +kubebuilder:default:=true
