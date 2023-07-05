@@ -115,7 +115,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	err = hazelcastv1alpha1.ValidateHazelcastSpec(h)
 	if err != nil {
-		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error validating new Spec: %s", err)))
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error validating Spec: %s", err)))
 	}
 
 	err = r.reconcileServiceAccount(ctx, h, logger)
@@ -171,7 +171,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	s, createdBefore := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-
 	var newExecutorServices map[string]interface{}
 	if createdBefore {
 		lastSpec, err := r.unmarshalHazelcastSpec(h, s)
@@ -182,10 +181,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		newExecutorServices, err = r.detectNewExecutorServices(h, lastSpec)
 		if err != nil {
 			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
-		}
-		err = hazelcastv1alpha1.ValidateNotUpdatableHazelcastFields(&h.Spec, lastSpec)
-		if err != nil {
-			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error validating new Spec: %s", err)))
 		}
 	}
 
@@ -402,6 +397,12 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			hzResources = append(hzResources, hzName)
 		}
 		return hzResources
+	}); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.JetJob{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.JetJob)
+		return []string{m.Spec.HazelcastResourceName}
 	}); err != nil {
 		return err
 	}

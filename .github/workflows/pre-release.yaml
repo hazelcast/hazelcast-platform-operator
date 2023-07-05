@@ -1,0 +1,75 @@
+name: (1) Release Preparation
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_BRANCH:
+        description: "Release branch name in the form of X.Y"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create_release_branch:
+    name: Create release branch
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_BRANCH: ${{ github.event.inputs.RELEASE_BRANCH }}
+    steps:
+      - name: Validate version
+        run: |
+          NUMBER='(0|[1-9][0-9]*)'
+          echo ${RELEASE_BRANCH} | egrep "^$NUMBER.$NUMBER?$"
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Create Release Branch
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          git checkout -b ${RELEASE_BRANCH}
+          git push -u origin ${RELEASE_BRANCH} 
+
+      - name: Checkout 'Release' Branch
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          ref: ${{ inputs.RELEASE_BRANCH }}
+
+      - name: Convert latest-snapshot to Release Version
+        run: |
+          sed -i "s|ARG version=\"latest-snapshot\"|ARG version=\"${RELEASE_BRANCH}\"|" Dockerfile
+          sed -i "s|VERSION ?= latest-snapshot|VERSION ?= ${RELEASE_BRANCH}|" Makefile
+
+      - name: Remove 'snapshot' From Chart In Release Branch
+        working-directory: helm-charts/hazelcast-platform-operator
+        run: |
+          sed -i 's/-snapshot//g' charts/hazelcast-platform-operator-crds/Chart.yaml
+          sed -i 's/-snapshot//g' Chart.yaml
+
+      - name: Commit and Push Changes
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+
+          git add Makefile Dockerfile config/ helm-charts/hazelcast-platform-operator/
+          git commit --signoff -m "${RELEASE_BRANCH}"
+          git push origin $RELEASE_BRANCH
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ 'create_release_branch' ]
+    runs-on: ubuntu-latest
+    if: always() && needs.create_release_branch.result != 'success' 
+    steps:
+      - uses: 8398a7/action-slack@v3
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

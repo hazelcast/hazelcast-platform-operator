@@ -6,9 +6,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"io"
-	"k8s.io/apimachinery/pkg/watch"
 	"log"
 	"net"
 	"net/http"
@@ -20,6 +18,10 @@ import (
 	"strings"
 	"time"
 	. "time"
+
+	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
@@ -43,7 +45,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -694,7 +695,7 @@ func printDebugState() {
 }
 
 func printDebugStateForContext() {
-	allCRs := "hazelcast,map,hotbackup,wanreplication,managementcenter,pvc,topic,queue,cache,multimap,replicatedmap"
+	allCRs := "hazelcast,map,hotbackup,wanreplication,managementcenter,pvc,topic,queue,cache,multimap,replicatedmap,jetjob"
 	printKubectlCommand("KUBECTL GET CLUSTER WIDE RESOURCES", "kubectl", "get", "node,validatingwebhookconfigurations")
 	printKubectlCommand("KUBECTL GET CRS RELATED TO TEST OUTPUT WIDE", "kubectl", "get", allCRs, "-o=wide", "-l="+labelsString(), "-A")
 	for _, ns := range []string{hzNamespace, sourceNamespace, targetNamespace} {
@@ -782,14 +783,14 @@ func assertHotBackupSuccess(hb *hazelcastcomv1alpha1.HotBackup, t Duration) *haz
 }
 
 func assertDataStructureStatus(lk types.NamespacedName, st hazelcastcomv1alpha1.DataStructureConfigState, obj client.Object) client.Object {
-	temp := fmt.Sprintf("waiting for %v CR status", obj.(hazelcast.Type).GetKind())
+	temp := fmt.Sprintf("waiting for %v CR status", hazelcastcomv1alpha1.GetKind(obj))
 	By(temp, func() {
 		Eventually(func() hazelcastcomv1alpha1.DataStructureConfigState {
 			err := k8sClient.Get(context.Background(), lk, obj)
 			if err != nil {
 				return ""
 			}
-			return obj.(hazelcast.DataStructure).GetStatus().State
+			return obj.(hazelcastcomv1alpha1.DataStructure).GetStatus().State
 		}, 1*Minute, interval).Should(Equal(st))
 	})
 	return obj
@@ -903,8 +904,8 @@ func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bo
 	if useBucketConfig {
 		return hazelcastcomv1alpha1.RestoreConfiguration{
 			BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
-				BucketURI: hotBackup.Status.GetBucketURI(),
-				Secret:    hotBackup.Spec.Secret,
+				BucketURI:  hotBackup.Status.GetBucketURI(),
+				SecretName: hotBackup.Spec.GetSecretName(),
 			},
 		}
 	}

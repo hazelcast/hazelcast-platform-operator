@@ -61,8 +61,7 @@ jobs:
             exit 0
           fi
 
-          COMMIT_MESSAGE='${{ github.event.commits[0].message }}'
-          PR_NUMBER=$(echo $COMMIT_MESSAGE | grep -oP '\(#\K[0-9]*(?=\))')
+          PR_NUMBER=$(echo "$COMMIT_MESSAGE" | grep -oP '\(#\K[0-9]*(?=\))')
           PR_LABELS=$( (gh pr view https://github.com/${{github.repository}}/pull/${PR_NUMBER} --json labels  | jq .labels[].name) || echo "Could not get PR labels")
           for label in $PR_LABELS; do
             # if full suite is ran before 
@@ -75,6 +74,7 @@ jobs:
           echo "RUN_TESTS=true" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_MESSAGE: ${{ github.event.commits[0].message }}
 
       - name: Print decision
         run: echo "Run tests= ${{ steps.should-run-tests.outputs.RUN_TESTS }}"
@@ -175,19 +175,19 @@ jobs:
       - name: Run integration tests
         run: |
           case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
+            os) COVER_OUT='cover-it-os.out';GO_TEST_FLAGS='-ee=false';;
+            ee) COVER_OUT='cover-it-ee.out';GO_TEST_FLAGS='-ee=true';;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          echo "GO_TEST_FLAGS=${GO_TEST_FLAGS}" >> $GITHUB_ENV
-          make GO_TEST_FLAGS=${GO_TEST_FLAGS} test-it
+          echo "COVER_OUT=${COVER_OUT}" >> $GITHUB_ENV
+          make GO_TEST_FLAGS=${GO_TEST_FLAGS} COVER_OUT=${COVER_OUT} test-it
 
       - name: Upload Integration Coverage Report
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: test-coverage
-          path: cover_it${{ env.GO_TEST_FLAGS }}.out
+          path: ${{ env.COVER_OUT }}
           retention-days: 1
 
   upload-coverage:
@@ -208,7 +208,7 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: cover_it-ee=true.out,cover_it-ee=false.out
+          files: cover-it-ee.out,cover-it-os.out
           flags: integration
           name: Integration Tests Report
           fail_ci_if_error: true
@@ -226,11 +226,12 @@ jobs:
   slack_notify:
     name: Slack Notify
     timeout-minutes: 15
-    needs: ["update-test-run-status-badges"]
+    needs: ["update-test-run-status-badges","upload-coverage"]
     if: failure() && github.event_name == 'push'
     runs-on: ubuntu-latest
     env:
       ACTION_API_URL: ${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/k8s-dist-tests.yaml/runs?branch=main
+      ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - name: decide to notify
         id: decide
@@ -267,7 +268,7 @@ jobs:
         env:
           SLACK_CHANNEL: cloud-native-dev
           SLACK_COLOR: red # or a specific color like 'green' or '#ff00ff'
-          SLACK_MESSAGE: '${{ github.actor}} broke the main branch :bomb: previous successful run number was ${{ steps.decide.outputs.LAST_RUN_NUMBER }}'
+          SLACK_MESSAGE: '${{ github.actor}} broke the <${{ env.ACTION_RUN_URL }}|main branch> :bomb: previous successful run number was ${{ steps.decide.outputs.LAST_RUN_NUMBER }}'
           SLACK_TITLE: Main Branch Broken
           SLACK_USERNAME: rtCamp
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CLOUD_NATIVE }}

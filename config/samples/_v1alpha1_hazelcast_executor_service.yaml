@@ -5,7 +5,7 @@ metadata:
 spec:
   userCodeDeployment:
     bucketConfig:
-      secret: br-secret-gcp
+      secretName: br-secret-gcp
       bucketURI: "gs://operator-custom-class/executorService"
   executorServices:
     - name: service1

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
@@ -30,7 +31,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 	}
 
 	hzConfig := &config.HazelcastWrapper{}
-	err := yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+	err := yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 	if err != nil {
 		t.Errorf("Error unmarshalling Hazelcast config")
 	}
@@ -170,7 +171,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			}
 			objects = append(objects, cm, h)
 			c := fakeK8sClient(objects...)
-			data, err := hazelcastConfig(context.Background(), c, h)
+			data, err := hazelcastConfig(context.Background(), c, h, logr.Discard())
 			if err != nil {
 				t.Errorf("Error retreiving Secret data")
 			}

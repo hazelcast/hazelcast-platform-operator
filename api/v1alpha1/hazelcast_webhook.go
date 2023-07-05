@@ -1,15 +1,13 @@
 package v1alpha1
 
 import (
+	"reflect"
+
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
-	"encoding/json"
-	"fmt"
-
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 // log is for logging in this package.
@@ -25,6 +23,7 @@ func (r *Hazelcast) SetupWebhookWithManager(mgr ctrl.Manager) error {
 // Role related to webhooks
 
 var _ webhook.Validator = &Hazelcast{}
+var _ webhook.Defaulter = &Hazelcast{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Hazelcast) ValidateCreate() error {
@@ -35,25 +34,40 @@ func (r *Hazelcast) ValidateCreate() error {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Hazelcast) ValidateUpdate(old runtime.Object) error {
 	hazelcastlog.Info("validate update", "name", r.Name)
-
-	// use last successfully applied spec
-	if last, ok := r.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
-		var parsed HazelcastSpec
-		if err := json.Unmarshal([]byte(last), &parsed); err != nil {
-			return fmt.Errorf("error parsing last Hazelcast spec: %w", err)
-		}
-		return ValidateNotUpdatableHazelcastFields(&r.Spec, &parsed)
-	}
-
-	if err := ValidateHazelcastSpec(r); err != nil {
-		return err
-	}
-
-	return nil
+	return ValidateHazelcastSpec(r)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *Hazelcast) ValidateDelete() error {
 	hazelcastlog.Info("validate delete", "name", r.Name)
 	return nil
+}
+
+func (r *Hazelcast) Default() {
+	if r.Spec.LicenseKeySecretName == "" && r.Spec.DeprecatedLicenseKeySecret != "" {
+		r.Spec.LicenseKeySecretName = r.Spec.DeprecatedLicenseKeySecret
+		r.Spec.DeprecatedLicenseKeySecret = ""
+	}
+	r.defaultOptionalToNil()
+}
+
+func (r *Hazelcast) defaultOptionalToNil() {
+	if r.Spec.TLS != nil && r.Spec.TLS.SecretName == "" {
+		r.Spec.TLS = nil
+	}
+	if r.Spec.Scheduling != nil && reflect.DeepEqual(*r.Spec.Scheduling, SchedulingConfiguration{}) {
+		r.Spec.Scheduling = nil
+	}
+	if r.Spec.Resources != nil && reflect.DeepEqual(*r.Spec.Resources, corev1.ResourceRequirements{}) {
+		r.Spec.Resources = nil
+	}
+	if r.Spec.UserCodeDeployment != nil && reflect.DeepEqual(*r.Spec.UserCodeDeployment, UserCodeDeploymentConfig{}) {
+		r.Spec.UserCodeDeployment = nil
+	}
+	if r.Spec.AdvancedNetwork != nil && reflect.DeepEqual(*r.Spec.AdvancedNetwork, AdvancedNetwork{}) {
+		r.Spec.AdvancedNetwork = nil
+	}
+	if r.Spec.ManagementCenterConfig != nil && reflect.DeepEqual(*r.Spec.ManagementCenterConfig, ManagementCenterConfig{}) {
+		r.Spec.ManagementCenterConfig = nil
+	}
 }

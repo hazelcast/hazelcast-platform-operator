@@ -29,9 +29,13 @@ type ManagementCenterSpec struct {
 	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
+	// licenseKeySecret is a deprecated alias for licenseKeySecretName.
+	// +optional
+	DeprecatedLicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +optional
-	LicenseKeySecret string `json:"licenseKeySecret,omitempty"`
+	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
 
 	// Connection configuration for the Hazelcast clusters that Management Center will monitor.
 	// +optional
@@ -40,22 +44,29 @@ type ManagementCenterSpec struct {
 	// Configuration to expose Management Center to outside.
 	// +kubebuilder:default:={type: "LoadBalancer"}
 	// +optional
-	ExternalConnectivity ExternalConnectivityConfiguration `json:"externalConnectivity,omitempty"`
+	ExternalConnectivity *ExternalConnectivityConfiguration `json:"externalConnectivity,omitempty"`
 
 	// Configuration for Management Center persistence.
 	// +kubebuilder:default:={enabled: true, size: "10Gi"}
 	// +optional
-	Persistence PersistenceConfiguration `json:"persistence,omitempty"`
+	Persistence *MCPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// Scheduling details
 	// +kubebuilder:default:={}
 	// +optional
-	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
+	Scheduling *SchedulingConfiguration `json:"scheduling,omitempty"`
 
 	// Compute Resources required by the MC container.
 	// +kubebuilder:default:={}
 	// +optional
-	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+func (s *ManagementCenterSpec) GetLicenseKeySecretName() string {
+	if s.LicenseKeySecretName == "" {
+		return s.DeprecatedLicenseKeySecret
+	}
+	return s.LicenseKeySecretName
 }
 
 type HazelcastClusterConfig struct {
@@ -72,7 +83,7 @@ type HazelcastClusterConfig struct {
 	// TLS client configuration.
 	// +kubebuilder:default:={}
 	// +optional
-	TLS TLS `json:"tls,omitempty"`
+	TLS *TLS `json:"tls,omitempty"`
 }
 
 // ExternalConnectivityConfiguration defines how to expose Management Center pod.
@@ -164,7 +175,7 @@ func (ecr *ExternalConnectivityRoute) IsEnabled() bool {
 	return ecr != nil
 }
 
-type PersistenceConfiguration struct {
+type MCPersistenceConfiguration struct {
 	// When true, MC will use a PersistentVolumeClaim to store data.
 	// +kubebuilder:default:=true
 	// +optional
@@ -186,7 +197,7 @@ type PersistenceConfiguration struct {
 }
 
 // IsEnabled returns true if persistence configuration is specified.
-func (pc *PersistenceConfiguration) IsEnabled() bool {
+func (pc *MCPersistenceConfiguration) IsEnabled() bool {
 	return pc != nil && pc.Enabled != nil && *pc.Enabled
 }
 

@@ -86,6 +86,7 @@ type PhoneHomeData struct {
 	ExposeExternally              ExposeExternally       `json:"xe"`
 	Map                           Map                    `json:"m"`
 	Cache                         Cache                  `json:"c"`
+	Jet                           Jet                    `json:"jet"`
 	WanReplicationCount           int                    `json:"wrc"`
 	BackupAndRestore              BackupAndRestore       `json:"br"`
 	UserCodeDeployment            UserCodeDeployment     `json:"ucd"`
@@ -99,6 +100,10 @@ type PhoneHomeData struct {
 	NativeMemoryCount             int                    `json:"nmc"`
 	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
 	AdvancedNetwork               AdvancedNetwork        `json:"an"`
+	JetEngine                     JetEngine              `json:"je"`
+	TLS                           TLS                    `json:"t"`
+	SerializationCount            int                    `json:"serc"`
+	CustomConfigCount             int                    `json:"ccon"`
 }
 
 type JVMConfigUsage struct {
@@ -108,6 +113,11 @@ type JVMConfigUsage struct {
 
 type AdvancedNetwork struct {
 	WANEndpointCount int `json:"wec"`
+}
+
+type JetEngine struct {
+	EnabledCount    int `json:"ec"`
+	LosslessRestart int `json:"lr"`
 }
 
 type ExposeExternally struct {
@@ -134,6 +144,10 @@ type Cache struct {
 	NativeMemoryCount int `json:"nmc"`
 }
 
+type Jet struct {
+	Count int `json:"c"`
+}
+
 type BackupAndRestore struct {
 	LocalBackupCount    int `json:"lb"`
 	ExternalBackupCount int `json:"eb"`
@@ -149,6 +163,7 @@ type UserCodeDeployment struct {
 	ClientEnabled int `json:"ce"`
 	FromBucket    int `json:"fb"`
 	FromConfigMap int `json:"fcm"`
+	FromURL       int `json:"fu"`
 }
 
 type McExternalConnectivity struct {
@@ -157,6 +172,11 @@ type McExternalConnectivity struct {
 	ServiceTypeLoadBalancer int `json:"stlb"`
 	IngressEnabledCount     int `json:"iec"`
 	RouteEnabledCount       int `json:"rec"`
+}
+
+type TLS struct {
+	Count     int `json:"c"`
+	MTLSCount int `json:"mc"`
 }
 
 func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
@@ -180,6 +200,7 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillReplicatedMapMetrics(cl)
 	phd.fillCronHotBackupMetrics(cl)
 	phd.fillTopicMetrics(cl)
+	phd.fillJetMetrics(cl)
 	return phd
 }
 
@@ -193,6 +214,8 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	createdClusterCount := 0
 	createdMemberCount := 0
 	executorServiceCount := 0
+	serializationCount := 0
+	customConfigCount := 0
 	clusterUUIDs := []string{}
 	highAvailabilityModes := []string{}
 	nativeMemoryCount := 0
@@ -214,11 +237,23 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 			nativeMemoryCount++
 		}
 
+		if hz.Spec.Serialization != nil {
+			serializationCount++
+		}
+
+		if hz.Spec.CustomConfigCmName != "" {
+			customConfigCount++
+		}
+
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
-		phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
+		if hz.Spec.AdvancedNetwork != nil {
+			phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
+		}
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
-		phm.UserCodeDeployment.addUsageMetrics(&hz.Spec.UserCodeDeployment)
+		phm.UserCodeDeployment.addUsageMetrics(hz.Spec.UserCodeDeployment)
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
+		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
+		phm.TLS.addUsageMetrics(hz.Spec.TLS)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -235,6 +270,8 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.ClusterUUIDs = clusterUUIDs
 	phm.HighAvailabilityMode = highAvailabilityModes
 	phm.NativeMemoryCount = nativeMemoryCount
+	phm.SerializationCount = serializationCount
+	phm.CustomConfigCount = customConfigCount
 }
 
 func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
@@ -308,6 +345,9 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 	if hucd.IsConfigMapEnabled() {
 		ucd.FromConfigMap++
 	}
+	if hucd.IsRemoteURLsEnabled() {
+		ucd.FromURL++
+	}
 }
 
 func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration) {
@@ -335,6 +375,30 @@ func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration)
 	}
 }
 
+func (je *JetEngine) addUsageMetrics(jec *hazelcastv1alpha1.JetEngineConfiguration) {
+	if !jec.IsEnabled() {
+		return
+	}
+
+	je.EnabledCount++
+
+	if jec.Instance != nil && jec.Instance.LosslessRestartEnabled {
+		je.LosslessRestart++
+	}
+}
+
+func (t *TLS) addUsageMetrics(tls *hazelcastv1alpha1.TLS) {
+	if tls == nil {
+		return
+	}
+
+	t.Count++
+
+	if tls.MutualAuthentication == hazelcastv1alpha1.MutualAuthenticationRequired {
+		t.MTLSCount++
+	}
+}
+
 func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
 	createdMCCount := 0
 	successfullyCreatedMCCount := 0
@@ -350,7 +414,7 @@ func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
 		if mc.Status.Phase == hazelcastv1alpha1.Running {
 			successfullyCreatedMCCount += 1
 		}
-		phm.McExternalConnectivity.addUsageMetrics(&mc.Spec.ExternalConnectivity)
+		phm.McExternalConnectivity.addUsageMetrics(mc.Spec.ExternalConnectivity)
 	}
 	phm.CreatedMCcount = createdMCCount
 }
@@ -503,6 +567,15 @@ func (phm *PhoneHomeData) fillReplicatedMapMetrics(cl client.Client) {
 		return
 	}
 	phm.ReplicatedMapCount = len(rml.Items)
+}
+
+func (phm *PhoneHomeData) fillJetMetrics(cl client.Client) {
+	jjl := &hazelcastv1alpha1.JetJobList{}
+	err := cl.List(context.Background(), jjl, listOptions()...)
+	if err != nil || jjl.Items == nil {
+		return
+	}
+	phm.Jet.Count = len(jjl.Items)
 }
 
 func listOptions() []client.ListOption {

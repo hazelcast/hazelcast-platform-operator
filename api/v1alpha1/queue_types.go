@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -15,6 +17,7 @@ type QueueSpec struct {
 
 	// Max size of the queue.
 	// +kubebuilder:default:=0
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MaxSize int32 `json:"maxSize"`
 
@@ -86,6 +89,24 @@ func (q *Queue) SetSpec(spec string) error {
 		return err
 	}
 	return nil
+}
+
+func (q *Queue) ValidateSpecCurrent(_ *Hazelcast) error {
+	return nil
+}
+
+func (q *Queue) ValidateSpecCreate() error {
+	errors := validateDataStructureSpec(&q.Spec.DataStructureSpec)
+	if len(errors) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Queue"}, q.Name, errors)
+}
+
+func (q *Queue) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(q,
+		validateDataStructureSpec(&q.Spec.DataStructureSpec),
+	)
 }
 
 //+kubebuilder:object:root=true

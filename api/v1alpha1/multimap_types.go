@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -89,6 +91,24 @@ func (mm *MultiMap) SetSpec(spec string) error {
 		return err
 	}
 	return nil
+}
+
+func (mm *MultiMap) ValidateSpecCurrent(_ *Hazelcast) error {
+	return nil
+}
+
+func (mm *MultiMap) ValidateSpecCreate() error {
+	errors := validateDataStructureSpec(&mm.Spec.DataStructureSpec)
+	if len(errors) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "MultiMap"}, mm.Name, errors)
+}
+
+func (mm *MultiMap) ValidateSpecUpdate() error {
+	return validateDSSpecUnchanged(mm,
+		validateDataStructureSpec(&mm.Spec.DataStructureSpec),
+	)
 }
 
 //+kubebuilder:object:root=true

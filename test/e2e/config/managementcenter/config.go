@@ -26,13 +26,13 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          *mcVersion,
-				LicenseKeySecret: licenseKey(ee),
-				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Repository:           *mcRepo,
+				Version:              *mcVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
-				Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+				Persistence: &hazelcastv1alpha1.MCPersistenceConfiguration{
 					Enabled: pointer.Bool(true),
 					Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 				},
@@ -48,10 +48,10 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          *mcVersion,
-				LicenseKeySecret: licenseKey(ee),
-				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Repository:           *mcRepo,
+				Version:              *mcVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
 				HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
@@ -60,7 +60,7 @@ var (
 						Address: "hazelcast",
 					},
 				},
-				Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+				Persistence: &hazelcastv1alpha1.MCPersistenceConfiguration{
 					Enabled: pointer.Bool(false),
 				},
 			},
@@ -75,10 +75,10 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          *mcVersion,
-				LicenseKeySecret: licenseKey(ee),
-				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Repository:           *mcRepo,
+				Version:              *mcVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
 				HazelcastClusters: clusterConfigs,
@@ -94,10 +94,10 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          *mcVersion,
-				LicenseKeySecret: licenseKey(ee),
-				ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Repository:           *mcRepo,
+				Version:              *mcVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
 
 					Type: hazelcastv1alpha1.ExternalConnectivityTypeClusterIP,
 					Route: &hazelcastv1alpha1.ExternalConnectivityRoute{
@@ -110,7 +110,7 @@ var (
 						Address: "hazelcast",
 					},
 				},
-				Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+				Persistence: &hazelcastv1alpha1.MCPersistenceConfiguration{
 					Enabled: pointer.Bool(false),
 				},
 			},
@@ -125,9 +125,9 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.ManagementCenterSpec{
-				Repository:       *mcRepo,
-				Version:          "not-exists",
-				LicenseKeySecret: licenseKey(ee),
+				Repository:           *mcRepo,
+				Version:              "not-exists",
+				LicenseKeySecretName: licenseKey(ee),
 			},
 		}
 	}

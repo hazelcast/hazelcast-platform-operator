@@ -4,8 +4,7 @@ metadata:
   name: managementcenter
 spec:
   repository: 'hazelcast/management-center'
-  version: '5.2.0'
-  licenseKeySecret: hazelcast-license-key
+  licenseKeySecretName: hazelcast-license-key
   externalConnectivity:
     type: ClusterIP
     route:

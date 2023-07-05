@@ -61,8 +61,8 @@ func SpecLabelsChecker() {
 			log.Fatal(err)
 		}
 		scanner := bufio.NewScanner(file)
-		buf := make([]byte, 0, 2097152)
-		scanner.Buffer(buf, 5242880)
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, 10*1024*1024)
 
 		lbl, lblErr := regexp.Compile(`(^(.*?)\s+It|^(.*?)\s+Entry\()(.*?)Label\((.*?)$`)
 		noLbl, noLblErr := regexp.Compile(`((^(.*?)\s+It)(.*?)func(.*?){$)|((^(.*?)\s+Entry\()(.*?),$)`)

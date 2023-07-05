@@ -8,11 +8,10 @@ on:
       CLUSTER_NAME:
         required: true
         type: string
-        
+
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  CLEANUP_TIMEOUT: 20
-  GITHUB_PAGES_URL: https://${{ github.repository_owner }}.github.io/hazelcast-platform-operator
+  REPORT_PAGE_URL: http://reportboard.s3-website-us-east-1.amazonaws.com
 
 jobs:
   report-creation:
@@ -23,18 +22,24 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: report
-      url: ${{ env.GITHUB_PAGES_URL }}
+      url: ${{ env.REPORT_PAGE_URL }}/${{ inputs.WORKFLOW_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Get Test Run History
-        uses: actions/checkout@v3
-        if: always()
-        continue-on-error: true
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
         with:
-          ref: test-report-pages
-          path: test-report-pages
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Get Test Run History
+        run: |
+          aws s3 sync s3://reportboard/${{ inputs.WORKFLOW_ID }}/last-history test-report-history/${{ inputs.WORKFLOW_ID }}/last-history
+          aws s3 cp s3://reportboard/styles.css test-report-history/styles.css
+          aws s3 cp s3://reportboard/favicon.ico test-report-history/favicon.ico
+          sed -i 's%//\#testresult%/\#testresult%g' test-report-history/${{ inputs.WORKFLOW_ID }}/last-history/history.json
 
       - name: Download test-report.xml
         if: always()
@@ -56,30 +61,32 @@ jobs:
 
       - name: Create environment.properties
         run: |-
-          echo "GKE=$GITHUB_PAGES_URL/gke" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "EKS=$GITHUB_PAGES_URL/eks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "AKS=$GITHUB_PAGES_URL/aks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "OCP=$GITHUB_PAGES_URL/ocp" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "WAN=$GITHUB_PAGES_URL/wan" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "BACKUP=$GITHUB_PAGES_URL/backup" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "PHONE_HOME=$GITHUB_PAGES_URL/ph" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "KIND=$GITHUB_PAGES_URL/pr" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
-          echo "CLUSTER_SCOPE=$GITHUB_PAGES_URL/cluster_scope" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "GKE=$REPORT_PAGE_URL/gke" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "EKS=$REPORT_PAGE_URL/eks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "AKS=$REPORT_PAGE_URL/aks" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "OCP=$REPORT_PAGE_URL/ocp" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "WAN=$REPORT_PAGE_URL/wan" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "BACKUP=$REPORT_PAGE_URL/backup" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "PHONE_HOME=$REPORT_PAGE_URL/ph" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "KIND=$REPORT_PAGE_URL/pr" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
+          echo "CLUSTER_SCOPE=$REPORT_PAGE_URL/cluster_scope" >> allure-results/${{ inputs.WORKFLOW_ID }}/environment.properties
 
       - name: Create Custom Defects Classification
         run: |-
           echo "[{\"name\":\"Backup Slow Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_backup_slow_test.*\"},{\"name\":\"Expose Externally Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_expose_externally_test.*\"},{\"name\":\"Map Custom Class Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_custom_class_test.*\"},{\"name\":\"Map Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_persistence_test.*\"},{\"name\":\"Map Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_test.*\"},{\"name\":\"Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_persistence_test.*\"},{\"name\":\"Hazelcast Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_test.*\"},{\"name\":\"Hazelcast Wan Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_wan_test.*\"},{\"name\":\"Management Center Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*management_center_test.*\"},{\"name\":\"Phone Home Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*phone_home_test.*\"}]" > allure-results/${{ inputs.WORKFLOW_ID }}/categories.json
 
       - name: Generate Test Report
+        id: generate-report
         uses: simple-elf/allure-report-action@master
         if: always()
         with:
           allure_results: allure-results/${{ inputs.WORKFLOW_ID }}
-          gh_pages: test-report-pages
+          gh_pages: test-report-history
           allure_report: allure-report
           allure_history: allure-history
-          keep_reports: 10
+          keep_reports: 100
           subfolder: ${{ inputs.WORKFLOW_ID }}
+          report_url: http://reportboard.s3-website-us-east-1.amazonaws.com/${{ inputs.WORKFLOW_ID }}
 
       - name: Update 'allure-history' Folder Permission
         run: |
@@ -105,73 +112,16 @@ jobs:
           sed -i "s/>Allure</></g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/app.js
           sed -i "s/Allure Report/Hazelcast Operator Test Report/g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/index.html
           sed -i "s/<link rel=\"favicon\" href=\"favicon.ico?v=2\">/<link rel=\"shortcut icon\" type=\"image\/x-icon\" href=\"favicon.ico\">/g" allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}/index.html
-          mv -f test-report-pages/styles.css allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
-          mv -f test-report-pages/favicon.ico allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
+          mv -f test-report-history/styles.css allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
+          mv -f test-report-history/favicon.ico allure-history/${{ inputs.WORKFLOW_ID }}/${GITHUB_RUN_NUMBER}
 
-      - name: Update The 'test-report-pages' Branch
+      - name: Upload Report to AWS S3
+        if: steps.generate-report.outcome == 'success'
         run: |
-          git fetch origin test-report-pages
-
-      - name: Deploy Report to Github Pages
-        if: always()
-        uses: JamesIves/github-pages-deploy-action@v4.4.1
-        with:
-          branch: test-report-pages
-          folder: allure-history
-          token: ${{ secrets.GITHUB_TOKEN }}
-          force: false
-          commit-message: deploy report with run number ${{ github.run_number }} and commit
-
-      - name: Cleanup Page Publish Runs
-        if: ${{ !cancelled() }}
-        run: |
-          source .github/scripts/utils.sh
-          cleanup_page_publish_runs ${GITHUB_REPOSITORY} "pages-build-deployment" ${{ github.run_number }} $CLEANUP_TIMEOUT
-
+          aws s3 sync ./allure-history s3://reportboard
+          
       - name: Add Test Report Summary To PR
         if: ${{ contains(inputs.WORKFLOW_ID, 'pr') }}
         run: |
-          sudo apt-get install libxml2-utils
-          # Define an array to store test run status
-          declare -a test_run_status
-          
-          # Define an associative array to map report names to suite IDs
-          declare -A suite_ids=(
-              ["test_report_ee_01.xml"]="fb850ba25ceb06c7b2b56dd821744585"
-              ["test_report_os_01.xml"]="0b301d038a17885b818e60273771cfeb"
-          )
-
-          # Initialize the table header
-          comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
-
-          # Loop through the test reports and generate a table row for each one
-          for report in "${!suite_ids[@]}"
-          do
-              # Extract the relevant data from the test report using xmllint
-              tests=$(xmllint --xpath 'string(//testsuites/testsuite/@tests)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-              failures=$(xmllint --xpath 'string(//testsuites/testsuite/@failures)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-              errors=$(xmllint --xpath 'string(//testsuites/testsuite/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-              skipped=$(xmllint --xpath 'string(//testsuites/testsuite/@skipped)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
-          
-              # Save status of the test run
-              test_run_status+=("$([ "$failures" -gt 0 ] && echo true || echo false)" "$([ "$errors" -gt 0 ] && echo true || echo false)")
-
-              # Get the suite ID from the array
-              suite_id=${suite_ids[$report]}
-
-              # Extract the substring "EE" or "OS" from the report name
-              type="${report#test_report_}"
-              type="${type%_01.xml}"
-
-              # Construct a table row with a link to the test report
-              link="$GITHUB_PAGES_URL/pr/${{ github.run_number }}/#suites/${suite_id}"
-              row="| [${type^^}](${link}) | $tests | $failures | $errors| $skipped |\n"
-
-              # Append the row to the output
-              comment+="$row"
-          done
-
-          # Send the output as a comment on the pull request using gh
-          if [[ "${test_run_status[*]}" == *"true"* ]]; then
-             echo -e "$comment" | gh pr comment ${{ github.event.pull_request.number }} -F -
-          fi
+          source .github/scripts/utils.sh
+          post_test_result ${{ github.event.pull_request.number }}

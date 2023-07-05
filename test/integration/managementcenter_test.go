@@ -12,50 +12,24 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
-var _ = Describe("ManagementCenter controller", func() {
-	const (
-		namespace = "default"
-	)
+var _ = Describe("ManagementCenter CR", func() {
+	const namespace = "default"
 
-	defaultSpecValues := &test.MCSpecValues{
-		Repository:      n.MCRepo,
-		Version:         n.MCVersion,
-		LicenseKey:      n.LicenseKeySecret,
-		ImagePullPolicy: n.MCImagePullPolicy,
-	}
-
-	GetRandomObjectMeta := func() metav1.ObjectMeta {
-		return metav1.ObjectMeta{
-			Name:      fmt.Sprintf("mc-test-%s", uuid.NewUUID()),
-			Namespace: namespace,
-		}
-	}
-
-	Create := func(obj client.Object) {
-		By("creating the CR with specs successfully")
-		Expect(k8sClient.Create(context.Background(), obj)).Should(Succeed())
+	Create := func(mc *hazelcastv1alpha1.ManagementCenter) {
+		By("creating the ManagementCenter CR with specs successfully")
+		Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
 	}
 
 	Update := func(mc *hazelcastv1alpha1.ManagementCenter) {
-		By("updating the CR with specs successfully")
+		By("updating the ManagementCenter CR with specs successfully")
 		Expect(k8sClient.Update(context.Background(), mc)).Should(Succeed())
-	}
-
-	Delete := func(obj client.Object) {
-		By("expecting to delete CR successfully")
-		deleteIfExists(lookupKey(obj), obj)
-
-		By("expecting to CR delete finish")
-		assertDoesNotExist(lookupKey(obj), obj)
 	}
 
 	Fetch := func(mc *hazelcastv1alpha1.ManagementCenter) *hazelcastv1alpha1.ManagementCenter {
@@ -84,39 +58,50 @@ var _ = Describe("ManagementCenter controller", func() {
 		return svc
 	}
 
-	Context("ManagementCenter CustomResource with default specs", func() {
+	BeforeEach(func() {
+		if ee {
+			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
+		}
+	})
+
+	AfterEach(func() {
+		DeleteAllOf(&hazelcastv1alpha1.ManagementCenter{}, nil, namespace, map[string]string{})
+	})
+
+	Context("with default configuration", func() {
 		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
+				ObjectMeta: randomObjectMeta(namespace),
 			}
 			Create(mc)
 			fetchedCR := EnsureStatus(mc)
-			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues, false)
-			Delete(mc)
+			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), false)
 		})
 
 		It("Should handle CR and sub resources correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
-				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 			}
 
 			Create(mc)
 			fetchedCR := EnsureStatus(mc)
-			test.CheckManagementCenterCR(fetchedCR, defaultSpecValues, ee)
+			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), ee)
 
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(BeNil())
 
 			expectedExternalConnectivity := hazelcastv1alpha1.ExternalConnectivityConfiguration{
 				Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 			}
-			Expect(fetchedCR.Spec.ExternalConnectivity).Should(Equal(expectedExternalConnectivity))
+			Expect(*fetchedCR.Spec.ExternalConnectivity).Should(Equal(expectedExternalConnectivity))
 
-			expectedPersistence := hazelcastv1alpha1.PersistenceConfiguration{
+			expectedPersistence := hazelcastv1alpha1.MCPersistenceConfiguration{
 				Enabled: pointer.Bool(true),
 				Size:    &[]resource.Quantity{resource.MustParse("10Gi")}[0],
 			}
-			Expect(fetchedCR.Spec.Persistence).Should(Equal(expectedPersistence))
+			Expect(*fetchedCR.Spec.Persistence).Should(Equal(expectedPersistence))
 
 			By("creating the sub resources successfully")
 			expectedOwnerReference := metav1.OwnerReference{
@@ -147,44 +132,41 @@ var _ = Describe("ManagementCenter controller", func() {
 			}
 			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.AccessModes).To(Equal(expectedPVCSpec.AccessModes))
 			Expect(fetchedSts.Spec.VolumeClaimTemplates[0].Spec.Resources).To(Equal(expectedPVCSpec.Resources))
-
-			Delete(mc)
-
 		})
-		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
-			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
-				Spec: hazelcastv1alpha1.ManagementCenterSpec{
-					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
-				},
-			}
-			Create(mc)
 
-			fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
-			Eventually(func() string {
-				err := k8sClient.Get(context.Background(), lookupKey(mc), fetchedCR)
-				if err != nil {
-					return ""
+		When("applying empty spec", func() {
+			It("should create CR with default values", Label("fast"), func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec: hazelcastv1alpha1.ManagementCenterSpec{
+						HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
+					},
 				}
-				return fetchedCR.Spec.Repository
-			}, timeout, interval).Should(Equal(n.MCRepo))
-			Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
+				Create(mc)
 
-			Delete(mc)
+				fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
+				Eventually(func() string {
+					err := k8sClient.Get(context.Background(), lookupKey(mc), fetchedCR)
+					if err != nil {
+						return ""
+					}
+					return fetchedCR.Spec.Repository
+				}, timeout, interval).Should(Equal(n.MCRepo))
+				Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
+			})
 		})
 	})
 
-	Context("ManagementCenter CustomResource with ExternalConnectivity", func() {
-
+	Context("with ExternalConnectivity configuration", func() {
 		It("should create and update service correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
-				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 			}
 
 			Create(mc)
 			fetchedMc := EnsureStatus(mc)
-			test.CheckManagementCenterCR(fetchedMc, defaultSpecValues, ee)
+			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
 			EnsureServiceType(mc, corev1.ServiceTypeLoadBalancer)
 
 			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeNodePort
@@ -198,15 +180,15 @@ var _ = Describe("ManagementCenter controller", func() {
 			EnsureServiceType(mc, corev1.ServiceTypeClusterIP)
 		})
 
-		It("should handle ingress correctly", Label("fast"), func() {
+		It("should handle Ingress correctly", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
-				ObjectMeta: GetRandomObjectMeta(),
-				Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 			}
 
 			Create(mc)
 			fetchedMc := EnsureStatus(mc)
-			test.CheckManagementCenterCR(fetchedMc, defaultSpecValues, ee)
+			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
 
 			ing := &networkingv1.Ingress{}
 			assertDoesNotExist(lookupKey(mc), ing)
@@ -265,13 +247,13 @@ var _ = Describe("ManagementCenter controller", func() {
 		})
 	})
 
-	Context("ManagementCenter CustomResource with Persistence", func() {
+	Context("with Persistence configuration", func() {
 		When("persistence is enabled with existing Volume Claim", func() {
 			It("should add existing Volume Claim to statefulset", Label("fast"), func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
-						Persistence: hazelcastv1alpha1.PersistenceConfiguration{
+						Persistence: &hazelcastv1alpha1.MCPersistenceConfiguration{
 							Enabled:                 pointer.Bool(true),
 							ExistingVolumeClaimName: "ClaimName",
 						},
@@ -296,11 +278,11 @@ var _ = Describe("ManagementCenter controller", func() {
 					MountPath: "/data",
 				}
 				Expect(fetchedSts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(expectedVolumeMount))
-				Delete(mc)
 			})
 		})
 	})
-	Context("ManagementCenter Image configuration", func() {
+
+	Context("with Image configuration", func() {
 		When("ImagePullSecrets are defined", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
 				pullSecrets := []corev1.LocalObjectReference{
@@ -308,7 +290,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					{Name: "mc-secret2"},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
 						ImagePullSecrets: pullSecrets,
 					},
@@ -318,22 +300,21 @@ var _ = Describe("ManagementCenter controller", func() {
 				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, fetchedSts)
 				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
-				Delete(mc)
 			})
 		})
 	})
 
-	Context("Pod scheduling parameters", func() {
-		When("NodeSelector is used", func() {
+	Context("with Scheduling configuration", func() {
+		When("NodeSelector is given", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
-				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
 						"node.selector": "1",
 					},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
 				Create(mc)
@@ -342,15 +323,13 @@ var _ = Describe("ManagementCenter controller", func() {
 					ss := getStatefulSet(mc)
 					return ss.Spec.Template.Spec.NodeSelector
 				}, timeout, interval).Should(HaveKeyWithValue("node.selector", "1"))
-
-				Delete(mc)
 			})
 		})
 
-		When("Affinity is used", func() {
+		When("Affinity is given", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
-				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -386,7 +365,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
 				Create(mc)
@@ -395,15 +374,13 @@ var _ = Describe("ManagementCenter controller", func() {
 					ss := getStatefulSet(mc)
 					return ss.Spec.Template.Spec.Affinity
 				}, timeout, interval).Should(Equal(spec.Scheduling.Affinity))
-
-				Delete(mc)
 			})
 		})
 
-		When("Toleration is used", func() {
+		When("Toleration is given", func() {
 			It("should pass the values to StatefulSet spec", Label("fast"), func() {
-				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
+				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      "node.zone",
@@ -412,7 +389,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
 				Create(mc)
@@ -421,17 +398,15 @@ var _ = Describe("ManagementCenter controller", func() {
 					ss := getStatefulSet(mc)
 					return ss.Spec.Template.Spec.Tolerations
 				}, timeout, interval).Should(Equal(spec.Scheduling.Tolerations))
-
-				Delete(mc)
 			})
 		})
 	})
 
-	Context("Resources context", func() {
-		When("Resources are used", func() {
+	Context("with Resources parameters", func() {
+		When("resources are used", func() {
 			It("should be set to Container spec", Label("fast"), func() {
-				spec := test.ManagementCenterSpec(defaultSpecValues, ee)
-				spec.Resources = corev1.ResourceRequirements{
+				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
+				spec.Resources = &corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("500m"),
 						corev1.ResourceMemory: resource.MustParse("10Gi"),
@@ -442,7 +417,7 @@ var _ = Describe("ManagementCenter controller", func() {
 					},
 				}
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
 				Create(mc)
@@ -462,51 +437,99 @@ var _ = Describe("ManagementCenter controller", func() {
 					HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("250m")),
 					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("5Gi"))),
 				)
-
-				Delete(mc)
 			})
 		})
 	})
 
-	Context("ManagementCenter cluster TLS configuration", func() {
-		When("TLS property is configured", func() {
+	Context("with cluster TLS configuration", func() {
+		When("cluster TLS property is configured", func() {
 			It("should be enabled", Label("fast"), func() {
-				secret := &corev1.Secret{
-					ObjectMeta: GetRandomObjectMeta(),
-					Data: map[string][]byte{
-						"tls.crt": []byte(exampleCert),
-						"tls.key": []byte(exampleKey),
-					},
-				}
-				Create(secret)
-				defer Delete(secret)
+				tlsSecret := CreateTLSSecret("tls-secret", namespace)
+				assertExists(lookupKey(tlsSecret), tlsSecret)
+				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
 
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
-					Spec:       test.ManagementCenterSpec(defaultSpecValues, ee),
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 				}
 				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
 					Name:    "dev",
 					Address: "dummy",
-					TLS: hazelcastv1alpha1.TLS{
-						SecretName: secret.GetName(),
+					TLS: &hazelcastv1alpha1.TLS{
+						SecretName: tlsSecret.GetName(),
 					},
 				}}
 				Create(mc)
 				EnsureStatus(mc)
-				Delete(mc)
+			})
+
+			It("should error when secretName is empty", Label("fast"), func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+					Name:    "dev",
+					Address: "dummy",
+					TLS: &hazelcastv1alpha1.TLS{
+						SecretName: "",
+					},
+				}}
+
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center Cluster config TLS Secret name is empty")))
+			})
+
+			It("should error when secretName does not exist", Label("fast"), func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+					Name:    "dev",
+					Address: "dummy",
+					TLS: &hazelcastv1alpha1.TLS{
+						SecretName: "notfound",
+					},
+				}}
+
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center Cluster config TLS Secret not found")))
+			})
+		})
+
+		When("MutualAuthentication is configured", func() {
+			It("should be enabled", Label("fast"), func() {
+				tlsSecret := CreateTLSSecret("tls-secret", namespace)
+				assertExists(lookupKey(tlsSecret), tlsSecret)
+				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
+
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{{
+					Name:    "dev",
+					Address: "dummy",
+					TLS: &hazelcastv1alpha1.TLS{
+						SecretName:           tlsSecret.GetName(),
+						MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
+					},
+				}}
+				Create(mc)
+				EnsureStatus(mc)
 			})
 		})
 	})
 
-	Context("Statefulset Updates", func() {
+	Context("StatefulSet", func() {
 		firstSpec := hazelcastv1alpha1.ManagementCenterSpec{
-			Repository:        "hazelcast/management-center-1",
-			Version:           "5.2",
-			ImagePullPolicy:   corev1.PullAlways,
-			ImagePullSecrets:  nil,
-			LicenseKeySecret:  "key-secret",
-			HazelcastClusters: nil,
+			Repository:           "hazelcast/management-center-1",
+			Version:              "5.2",
+			ImagePullPolicy:      corev1.PullAlways,
+			ImagePullSecrets:     nil,
+			LicenseKeySecretName: "key-secret",
+			HazelcastClusters:    nil,
 		}
 		secondSpec := hazelcastv1alpha1.ManagementCenterSpec{
 			Repository:      "hazelcast/management-center",
@@ -517,12 +540,12 @@ var _ = Describe("ManagementCenter controller", func() {
 				{Name: "secret2"},
 			},
 
-			LicenseKeySecret: "",
+			LicenseKeySecretName: "",
 			HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
 				{Name: "dev", Address: "cluster-address"},
 			},
 
-			Scheduling: hazelcastv1alpha1.SchedulingConfiguration{
+			Scheduling: &hazelcastv1alpha1.SchedulingConfiguration{
 				Affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -537,17 +560,18 @@ var _ = Describe("ManagementCenter controller", func() {
 					},
 				},
 			},
-			Resources: corev1.ResourceRequirements{
+			Resources: &corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceCPU:    resource.MustParse("250m"),
 					corev1.ResourceMemory: resource.MustParse("5Gi"),
 				},
 			},
 		}
-		When("Management Center Spec is updated", func() {
-			It("Should forward changes to StatefulSet", Label("fast"), func() {
+
+		When("updating", func() {
+			It("should forward changes to StatefulSet", Label("fast"), func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
-					ObjectMeta: GetRandomObjectMeta(),
+					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       firstSpec,
 				}
 
@@ -581,10 +605,10 @@ var _ = Describe("ManagementCenter controller", func() {
 						}
 					}
 				}
-				By("checking if StatefulSet LicenseKeySecret is updated")
+				By("checking if StatefulSet LicenseKeySecretName is updated")
 				for _, env := range el {
 					if env.Name == "MC_LICENSEKEY" {
-						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.LicenseKeySecret))
+						Expect(env.ValueFrom.SecretKeyRef.Key).To(Equal(secondSpec.GetLicenseKeySecretName()))
 					}
 				}
 
@@ -595,9 +619,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				Expect(ss.Spec.Template.Spec.TopologySpreadConstraints).To(Equal(secondSpec.Scheduling.TopologySpreadConstraints))
 
 				By("checking if StatefulSet Resources is updated")
-				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(secondSpec.Resources))
-
-				Delete(mc)
+				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
 			})
 		})
 	})

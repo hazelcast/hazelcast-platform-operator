@@ -84,7 +84,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		By("failing to update ReplicatedMap config")
 		rm.Spec.InMemoryFormat = hazelcastcomv1alpha1.RMInMemoryFormatObject
 		rm.Spec.AsyncFillup = pointer.Bool(true)
-		Expect(k8sClient.Update(context.Background(), rm)).Should(Succeed())
-		assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.ReplicatedMap{})
+		Expect(k8sClient.Update(context.Background(), rm)).
+			Should(MatchError(ContainSubstring("spec: Forbidden: cannot be updated")))
 	})
 })

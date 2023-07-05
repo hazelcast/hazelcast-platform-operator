@@ -1,0 +1,8 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  userCodeDeployment:
+    remoteURLs:
+      - https://storage.googleapis.com/operator-user-code-urls-public/mapStore_mapstore-1.0.0.jar

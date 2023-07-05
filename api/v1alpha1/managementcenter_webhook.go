@@ -1,9 +1,9 @@
 package v1alpha1
 
 import (
-	"errors"
+	"reflect"
 
-	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -19,12 +19,10 @@ func (r *ManagementCenter) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-hazelcast-com-v1alpha1-managementcenter,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=managementcenters,verbs=create;update,versions=v1alpha1,name=vmanagementcenter.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &ManagementCenter{}
+var _ webhook.Defaulter = &ManagementCenter{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *ManagementCenter) ValidateCreate() error {
@@ -44,19 +42,27 @@ func (r *ManagementCenter) ValidateUpdate(old runtime.Object) error {
 	return nil
 }
 
-func ValidateManagementCenterSpec(mc *ManagementCenter) error {
-	if mc.Spec.ExternalConnectivity.Route.IsEnabled() {
-		if platform.GetType() != platform.OpenShift {
-			return errors.New("Route can only be enabled in OpenShift environments.")
-		}
-	}
-	return nil
-}
-
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *ManagementCenter) ValidateDelete() error {
 	managementcenterlog.Info("validate delete", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
+}
+
+func (r *ManagementCenter) Default() {
+	r.defaultOptionalToNil()
+}
+
+func (r *ManagementCenter) defaultOptionalToNil() {
+	if r.Spec.ExternalConnectivity != nil && reflect.DeepEqual(*r.Spec.ExternalConnectivity, ExternalConnectivityConfiguration{}) {
+		r.Spec.ExternalConnectivity = nil
+	}
+	if r.Spec.Persistence != nil && reflect.DeepEqual(*r.Spec.Persistence, MCPersistenceConfiguration{}) {
+		r.Spec.Persistence = nil
+	}
+	if r.Spec.Scheduling != nil && reflect.DeepEqual(*r.Spec.Scheduling, SchedulingConfiguration{}) {
+		r.Spec.Scheduling = nil
+	}
+	if r.Spec.Resources != nil && reflect.DeepEqual(*r.Spec.Resources, corev1.ResourceRequirements{}) {
+		r.Spec.Resources = nil
+	}
 }

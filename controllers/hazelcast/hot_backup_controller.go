@@ -322,7 +322,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				BucketURI:     hb.Spec.BucketURI,
 				BackupBaseDir: hz.Spec.Persistence.BaseDir,
 				HazelcastName: hb.Spec.HazelcastResourceName,
-				SecretName:    hb.Spec.Secret,
+				SecretName:    hb.Spec.GetSecretName(),
 				MemberID:      i,
 			})
 			if err != nil {

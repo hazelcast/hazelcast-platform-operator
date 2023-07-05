@@ -327,10 +327,11 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			hzResourceName = m.Spec.HazelcastResourceName
 		}
 
-		statusService, ok := r.statusServiceRegistry.Get(types.NamespacedName{
+		name := types.NamespacedName{
 			Namespace: req.Namespace,
 			Name:      hzResourceName,
-		})
+		}
+		statusService, ok := r.statusServiceRegistry.Get(name)
 		if !ok {
 			return fmt.Errorf("get Hazelcast Status Service failed for Hazelcast CR %s", hzResourceName)
 		}
@@ -605,12 +606,12 @@ func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, cli 
 	req := &hzclient.AddBatchPublisherRequest{
 		TargetCluster:         wan.Spec.TargetClusterName,
 		Endpoints:             wan.Spec.Endpoints,
-		QueueCapacity:         wan.Spec.Queue.Capacity,
-		BatchSize:             wan.Spec.Batch.Size,
-		BatchMaxDelayMillis:   wan.Spec.Batch.MaximumDelay,
 		ResponseTimeoutMillis: wan.Spec.Acknowledgement.Timeout,
 		AckType:               wan.Spec.Acknowledgement.Type,
+		QueueCapacity:         wan.Spec.Queue.Capacity,
 		QueueFullBehavior:     wan.Spec.Queue.FullBehavior,
+		BatchSize:             wan.Spec.Batch.Size,
+		BatchMaxDelayMillis:   wan.Spec.Batch.MaximumDelay,
 	}
 
 	ws := hzclient.NewWanService(cli, wanName(mapName), publisherId)

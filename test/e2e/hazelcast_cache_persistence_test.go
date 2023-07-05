@@ -52,7 +52,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertDataStructureStatus(chLookupKey, hazelcastv1alpha1.DataStructureFailed, m)
 
-		Expect(m.Status.Message).To(Equal(fmt.Sprintf("error validating new Spec: persistence is not enabled for the Hazelcast resource %s", hazelcast.Name)))
+		Expect(m.Status.Message).To(ContainSubstring("data structure persistence must match with Hazelcast persistence"))
 	})
 
 	It("should keep the entries after a Hot Backup", Label("slow"), func() {

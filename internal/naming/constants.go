@@ -53,20 +53,28 @@ const (
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
 	PersistenceVolumeName       = "hot-restart-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
+	JetJobJarsVolumeName        = "jet-job-jars-bucket"
+	JetConfigMapNamePrefix      = "jet-cm-"
+	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 
-	SidecarAgent          = "sidecar-agent"
-	BackupAgentPortName   = "backup-agent-port"
-	RestoreAgent          = "restore-agent"
-	RestoreLocalAgent     = "restore-local-agent"
-	BucketSecret          = "br-secret"
-	UserCodeDownloadAgent = "ucd-agent"
+	SidecarAgent        = "sidecar-agent"
+	BackupAgentPortName = "backup-agent-port"
+	RestoreAgent        = "restore-agent"
+	RestoreLocalAgent   = "restore-local-agent"
+	BucketSecret        = "br-secret"
+	UserCodeBucketAgent = "ucd-bucket-agent"
+	UserCodeURLAgent    = "ucd-url-agent"
+	JetBucketAgent      = "jet-bucket-agent"
+	JetUrlAgent         = "jet-url-agent"
 
-	MTLSCertSecretName = "hazelcast-mtls-cert"
+	MTLSCertSecretName = "hazelcast-agent-cert"
 	MTLSCertPath       = "/var/run/secrets/hazelcast"
 
 	UserCodeBucketPath    = "/opt/hazelcast/userCode/bucket"
+	UserCodeURLPath       = "/opt/hazelcast/userCode/urls"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
+	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
 )
 
 // Hazelcast default configurations
@@ -82,7 +90,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.2.3"
+	HazelcastVersion = "5.3.0-BETA-2"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
@@ -213,4 +221,9 @@ const (
 	ClientServerSocketPort = 5701
 	RestServerSocketPort   = 8081
 	WanDefaultPort         = 5710
+)
+
+// Jet Engine Config Constants
+const (
+	MaxBackupCount = 6
 )

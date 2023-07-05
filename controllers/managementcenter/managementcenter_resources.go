@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -296,12 +297,16 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
-		sts.Spec.Template.Spec.Containers[0].Resources = mc.Spec.Resources
+		if mc.Spec.Resources != nil {
+			sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
+		}
 
-		sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
-		sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
-		sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
-		sts.Spec.Template.Spec.TopologySpreadConstraints = mc.Spec.Scheduling.TopologySpreadConstraints
+		if mc.Spec.Scheduling != nil {
+			sts.Spec.Template.Spec.Affinity = mc.Spec.Scheduling.Affinity
+			sts.Spec.Template.Spec.Tolerations = mc.Spec.Scheduling.Tolerations
+			sts.Spec.Template.Spec.NodeSelector = mc.Spec.Scheduling.NodeSelector
+			sts.Spec.Template.Spec.TopologySpreadConstraints = mc.Spec.Scheduling.TopologySpreadConstraints
+		}
 
 		return nil
 	})
@@ -324,12 +329,13 @@ func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *ha
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, secret, func() error {
 		files := make(map[string][]byte)
 		for _, cluster := range mc.Spec.HazelcastClusters {
-			keystore, err := hazelcastKeystore(ctx, r.Client, mc, cluster.TLS.SecretName)
-			if err != nil {
-				return err
+			if cluster.TLS != nil {
+				keystore, err := hazelcastKeystore(ctx, r.Client, mc, cluster.TLS.SecretName)
+				if err != nil {
+					return err
+				}
+				files[cluster.Name+".jks"] = keystore
 			}
-			files[cluster.Name+".jks"] = keystore
-
 			clientConfig, err := hazelcastClientConfig(ctx, r.Client, &cluster)
 			if err != nil {
 				return err
@@ -461,14 +467,14 @@ func configMount() corev1.VolumeMount {
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{{Name: mcInitCmd, Value: clusterAddCommand(mc)}}
 
-	if mc.Spec.LicenseKeySecret != "" {
+	if mc.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: mcLicenseKey,
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
 						LocalObjectReference: v1.LocalObjectReference{
-							Name: mc.Spec.LicenseKeySecret,
+							Name: mc.Spec.GetLicenseKeySecretName(),
 						},
 						Key: n.LicenseDataKey,
 					},
@@ -574,17 +580,14 @@ func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelca
 		},
 	}
 
-	if config.TLS.SecretName != "" {
+	if config.TLS != nil && config.TLS.SecretName != "" {
 		clientConfig.Network.SSL = SSL{
 			Enabled:          "true",
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: Properties{
-				Properties: []Property{
-					{Name: "protocol", Text: "TLSv1.2"},
-					{Name: "trustStore", Text: path.Join("/config", config.Name+".jks")},
-					{Name: "trustStorePassword", Text: "hazelcast"},
-				},
-			},
+			Properties: NewSSLProperties(
+				path.Join("/config", config.Name+".jks"),
+				config.TLS.MutualAuthentication,
+			),
 		}
 	}
 
@@ -630,4 +633,28 @@ type Properties struct {
 type Property struct {
 	Text string `xml:",chardata"`
 	Name string `xml:"name,attr"`
+}
+
+func NewSSLProperties(path string, auth v1alpha1.MutualAuthentication) Properties {
+	const pass = "hazelcast"
+	switch auth {
+	case v1alpha1.MutualAuthenticationRequired:
+		return Properties{
+			Properties: []Property{
+				{Name: "protocol", Text: "TLSv1.2"},
+				{Name: "trustStore", Text: path},
+				{Name: "trustStorePassword", Text: pass},
+				{Name: "keyStore", Text: path},
+				{Name: "keyStorePassword", Text: pass},
+			},
+		}
+	default:
+		return Properties{
+			Properties: []Property{
+				{Name: "protocol", Text: "TLSv1.2"},
+				{Name: "trustStore", Text: path},
+				{Name: "trustStorePassword", Text: pass},
+			},
+		}
+	}
 }

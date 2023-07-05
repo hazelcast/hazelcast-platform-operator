@@ -130,34 +130,6 @@ checking_image_grade()
     done
 }
 
-# This function will delete completed 'pages-build-deployment' runs using 'run_number' located in a custom head_commit message
-cleanup_page_publish_runs()
-{
-    sleep 2
-    local GITHUB_REPOSITORY=$1
-    local JOB_NAME=$2
-    local MASTER_JOB_RUN_NUMBER=$3
-    local TIMEOUT_IN_MINS=$4
-    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
-    local WORKFLOW_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/workflows | jq '.workflows[] | select(.["name"] | contains("'${JOB_NAME}'")) | .id')
-
-    for i in `seq 1 ${NOF_RETRIES}`; do
-            RUN_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW_ID}/runs --paginate | jq '.workflow_runs[] | select(.["status"] | contains("completed")) | select(.head_commit.message | select(contains("'${MASTER_JOB_RUN_NUMBER}'"))) | .id')
-            if [[ ${RUN_ID} -ne "" ]]; then
-                    echo "Deleting Run ID $RUN_ID for the workflow ID $WORKFLOW_ID"
-                    gh api repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID} -X DELETE >/dev/null
-                return 0
-            else
-                echo "The '${JOB_NAME}' job that was triggered by job with run number '${MASTER_JOB_RUN_NUMBER}' is not finished yet. Waiting..."
-            fi
-            if [[ ${i} == ${NOF_RETRIES} ]]; then
-                echo "Timeout! 'pages-build-deployment' job still not completed."
-                return 42
-            fi
-            sleep 20
-    done
-}
-
 # The function waits until all EKS stacks will be deleted. Takes 2 arguments - cluster name and timeout.
 wait_for_eks_stack_deleted()
 {
@@ -236,6 +208,65 @@ wait_for_elb_deleted()
     fi
 }
 
+post_test_result()
+{
+    local PR_NUMBER=$1
+    sudo apt-get update
+    sudo apt-get install libxml2-utils
+    # Define an array to store test run status
+    declare -a test_run_status
+    local failed_tests
+
+    # Define an associative array to map report names to suite IDs
+    declare -A suite_ids=(
+        ["test_report_ee_01.xml"]="c27ecdc7f61258eff0f1de9e8de22e20"
+        ["test_report_os_01.xml"]="5d60bbdb1d132c4d168b7ea248b808b2"
+    )
+
+    # Initialize the table header
+    comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | ---- | :----: | :----: |\n"
+    # Initialize the failed test section
+    failed_test_block="\n<details><summary>Failed Tests</summary>\n\n|||\n| :----: | ---- |\n"
+
+    # Loop through the test reports and generate a table row for each one
+    for report in "${!suite_ids[@]}"
+    do
+        # Extract the relevant data from the test report using xmllint
+        tests=$(xmllint --xpath 'string(//testsuites/testsuite/@tests)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+        failures=$(xmllint --xpath 'string(//testsuites/testsuite/@failures)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+        errors=$(xmllint --xpath 'string(//testsuites/testsuite/@errors)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+        skipped=$(xmllint --xpath 'string(//testsuites/testsuite/@skipped)' "${GITHUB_WORKSPACE}/allure-results/pr/${report}")
+
+        # Save status of the test run
+        test_run_status+=("$([ "$failures" -gt 0 ] && echo true || echo false)" "$([ "$errors" -gt 0 ] && echo true || echo false)")
+
+        if [ "$failures" -gt 0 ]; then
+            failed_tests=$(xmllint --xpath "//testcase[@status='failed']/@name" "${GITHUB_WORKSPACE}/allure-results/pr/${report}" | cut -d '"' -f 2 |sed -n 's/.*\[It\] \(.*\) \[.*\]/<li>\1<\/li>/p' | tr '\n' ' ')
+        fi
+
+        # Get the suite ID from the array
+        suite_id=${suite_ids[$report]}
+
+        # Extract the substring "EE" or "OS" from the report name
+        type="${report#test_report_}"
+        type="${type%_01.xml}"
+
+        # Construct a table row with a link to the test report
+        link="${REPORT_PAGE_URL}/pr/${GITHUB_RUN_NUMBER}/#suites/${suite_id}"
+        row="| [${type^^}](${link}) | $tests | $failures | $errors| $skipped |\n"
+        failed_tests_row="| ${type^^} | $failed_tests |\n"
+
+        # Append the row to the output
+        comment+="$row"
+        failed_test_block+="$failed_tests_row"
+    done
+    comment+="$failed_test_block"
+    # Send the output as a comment on the pull request using gh
+    if [[ "${test_run_status[*]}" == *"true"* ]]; then
+       echo -e "$comment" | gh pr comment ${PR_NUMBER} -F -
+    fi
+}
+
 # This function will restart all instances that are not in ready status and wait until it will be ready
 wait_for_instance_restarted()
 {
@@ -275,9 +306,8 @@ wait_for_instance_restarted()
 # Returns the specified number of files with name test_suite_XX where XX - suffix number of file starting with '01'. The tests will be equally splitted between files.
 generate_test_suites()
 {
+   make ginkgo
    mkdir suite_files
-   local GINKGO_VERSION=v2.1.6
-   make ginkgo GINKGO_VERSION=$GINKGO_VERSION
    SUITE_LIST=$(find test/e2e -type f \
      -name "*_test.go" \
    ! -name "hazelcast_backup_slow_test.go" \
@@ -290,7 +320,7 @@ generate_test_suites()
    ! -name "util_test.go" \
    ! -name "options_test.go")
    for SUITE_NAME in $SUITE_LIST; do
-       $(go env GOBIN)/ginkgo/$GINKGO_VERSION/ginkgo outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
+       $(make ginkgo PRINT_TOOL_NAME=true) outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
    done
    split --number=r/$1 TESTS_LIST suite_files/test_suite_ --numeric-suffixes=1 -a 2
    for i in $(ls suite_files/); do

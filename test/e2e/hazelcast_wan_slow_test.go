@@ -23,10 +23,10 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			err := k8sClient.Get(context.Background(), name, hz)
 			Expect(err).ToNot(HaveOccurred())
-			return hz.Status.ExternalAddresses
+			return hz.Status.WanAddresses
 		}, 3*Minute, interval).Should(Not(BeEmpty()))
 		Expect(k8sClient.Get(context.Background(), name, hz)).To(Succeed())
-		return hz.Status.ExternalAddresses
+		return hz.Status.WanAddresses
 	}
 
 	BeforeEach(func() {
@@ -63,7 +63,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 
 		By("creating source Hazelcast cluster")
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
-		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
 		}
@@ -74,7 +74,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 
 		By("creating target Hazelcast cluster")
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
-		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
+		hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
 		}
@@ -131,7 +131,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 
 		By("creating source Hazelcast cluster")
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
-		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
 		}
@@ -142,7 +142,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 
 		By("creating target Hazelcast cluster")
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
-		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
+		hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
 		}
@@ -265,7 +265,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		SwitchContext(context1)
 		setupEnv()
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
-		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
 		}
@@ -278,7 +278,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		SwitchContext(context2)
 		setupEnv()
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
-		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
+		hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
 		}
@@ -340,7 +340,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		SwitchContext(context1)
 		setupEnv()
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
-		hazelcastSource.Spec.Resources = corev1.ResourceRequirements{
+		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
 		}
@@ -353,7 +353,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 		SwitchContext(context2)
 		setupEnv()
 		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
-		hazelcastTarget.Spec.Resources = corev1.ResourceRequirements{
+		hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
 		}

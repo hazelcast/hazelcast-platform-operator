@@ -176,4 +176,34 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 
 	})
 
+	When("Native Memory is not enabled for Hazelcast CR", func() {
+		It("should fail with InMemoryFormat value is set to NativeMemory", Label("fast"), func() {
+			setLabelAndCRName("hm-5")
+			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			CreateHazelcastCR(hazelcast)
+
+			By("creating the map config with NativeMemory")
+			m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+			m.Spec.InMemoryFormat = hazelcastcomv1alpha1.InMemoryFormatNative
+
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			m = assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
+			Expect(m.Status.Message).To(ContainSubstring("Native Memory must be enabled at Hazelcast"))
+		})
+
+		It("should fail with InMemoryFormat value is set to NativeMemory in near cache configuration", Label("fast"), func() {
+			setLabelAndCRName("hm-6")
+			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			CreateHazelcastCR(hazelcast)
+
+			By("creating the map config with NativeMemory enabled for near cache")
+			m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+			m.Spec.NearCache = &hazelcastcomv1alpha1.NearCache{InMemoryFormat: hazelcastcomv1alpha1.InMemoryFormatNative}
+
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			m = assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
+			Expect(m.Status.Message).To(ContainSubstring("Native Memory must be enabled at Hazelcast"))
+		})
+	})
+
 })

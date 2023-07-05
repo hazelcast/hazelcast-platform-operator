@@ -15,7 +15,7 @@ import (
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
-	keystore "github.com/pavlo-v-chernykh/keystore-go/v4"
+	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -28,10 +28,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
@@ -66,7 +68,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 
 	lk := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	r.statusServiceRegistry.Delete(lk)
-
+	r.mtlsClientRegistry.Delete(lk.Namespace)
 	if err := r.clientRegistry.Delete(ctx, lk); err != nil {
 		return fmt.Errorf("Hazelcast client could not be deleted:  %w", err)
 	}
@@ -88,7 +90,9 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 		"ReplicatedMap": &hazelcastv1alpha1.ReplicatedMapList{},
 		"Queue":         &hazelcastv1alpha1.QueueList{},
 		"Cache":         &hazelcastv1alpha1.CacheList{},
+		"JetJob":        &hazelcastv1alpha1.JetJobList{},
 	}
+
 	for crKind, crList := range dependentCRs {
 		if err := r.deleteDependentCR(ctx, h, crKind, crList); err != nil {
 			return err
@@ -105,7 +109,7 @@ func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcas
 		return fmt.Errorf("could not get Hazelcast dependent %v resources %w", crKind, err)
 	}
 
-	dsItems := objList.(CRLister).GetItems()
+	dsItems := objList.(hazelcastv1alpha1.CRLister).GetItems()
 	if len(dsItems) == 0 {
 		return nil
 	}
@@ -129,7 +133,7 @@ func (r *HazelcastReconciler) deleteDependentCR(ctx context.Context, h *hazelcas
 		return fmt.Errorf("hazelcast dependent %v resources are not deleted yet %w", crKind, err)
 	}
 
-	dsItems = objList.(CRLister).GetItems()
+	dsItems = objList.(hazelcastv1alpha1.CRLister).GetItems()
 	if len(dsItems) != 0 {
 		return fmt.Errorf("hazelcast dependent %v resources are not deleted yet", crKind)
 	}
@@ -346,7 +350,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
 		// append default wan port to HZ Discovery Service if use did not configure
 		isAddWANPort := false
-		if len(h.Spec.AdvancedNetwork.WAN) == 0 {
+		if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
 			isAddWANPort = true
 		}
 
@@ -362,6 +366,9 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 }
 
 func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if h.Spec.AdvancedNetwork == nil {
+		return nil
+	}
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
@@ -601,6 +608,7 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	cm := &corev1.Secret{
 		ObjectMeta: metadata(h),
+		Data:       make(map[string][]byte),
 	}
 
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
@@ -608,32 +616,58 @@ func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv
 		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
-	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, cm, func() error {
-		config, err := hazelcastConfig(ctx, r.Client, h)
-		if err != nil {
-			return err
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
+			config, err := hazelcastConfig(ctx, r.Client, h, logger)
+			if err != nil {
+				return err
+			}
+			cm.Data["hazelcast.yaml"] = config
+
+			if _, ok := cm.Data["hazelcast.jks"]; !ok {
+				keystore, err := hazelcastKeystore(ctx, r.Client, h)
+				if err != nil {
+					return err
+				}
+				cm.Data["hazelcast.jks"] = keystore
+			}
+
+			return nil
+		})
+		if result != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Secret", h.Name, "result", result)
 		}
-		keystore, err := hazelcastKeystore(ctx, r.Client, h)
-		if err != nil {
-			return err
-		}
-		cm.Data = map[string][]byte{
-			"hazelcast.yaml": config,
-			"hazelcast.jks":  keystore,
-		}
+		return err
+	})
+}
+
+func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
+	_, err := r.mtlsClientRegistry.Create(ctx, r.Client, h.Namespace)
+	if err != nil {
+		return err
+	}
+	secret := &v1.Secret{}
+	secretName := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: h.Namespace}
+	err = r.Client.Get(ctx, secretName, secret)
+	if err != nil {
+		return err
+	}
+	err = controllerutil.SetControllerReference(h, secret, r.Scheme)
+	if err != nil {
+		return err
+	}
+	_, err = util.CreateOrUpdateForce(ctx, r.Client, secret, func() error {
 		return nil
 	})
-	if opResult != controllerutil.OperationResultNone {
-		logger.Info("Operation result", "Secret", h.Name, "result", opResult)
-	}
 	return err
 }
 
-func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
+func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
 
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
+	fillHazelcastConfigWithSerialization(&cfg, h)
 
 	ml, err := filterPersistedMaps(ctx, c, h)
 	if err != nil {
@@ -664,7 +698,7 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		if len(filteredDSList) == 0 {
 			continue
 		}
-		switch filteredDSList[0].(Type).GetKind() {
+		switch hazelcastv1alpha1.GetKind(filteredDSList[0]) {
 		case "MultiMap":
 			fillHazelcastConfigWithMultiMaps(&cfg, filteredDSList)
 		case "Topic":
@@ -678,7 +712,42 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		}
 	}
 
+	if h.Spec.CustomConfigCmName != "" {
+		cfgCm := &v1.ConfigMap{}
+		if err := c.Get(ctx, types.NamespacedName{Name: h.Spec.CustomConfigCmName, Namespace: h.Namespace}, cfgCm, nil); err != nil {
+			return nil, err
+		}
+		cfgMap := make(map[string]interface{})
+		if err = yaml.Unmarshal([]byte(cfgCm.Data["hazelcast"]), cfgMap); err != nil {
+			return nil, err
+		}
+		if err = mergeConfig(cfgMap, &cfg, logger); err != nil {
+			return nil, err
+		}
+		hzWrapper := make(map[string]interface{})
+		hzWrapper["hazelcast"] = cfgMap
+		return yaml.Marshal(hzWrapper)
+	}
+
 	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
+}
+
+func mergeConfig(cstCfg map[string]interface{}, cfg *config.Hazelcast, logger logr.Logger) error {
+	out, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	crCfg := make(map[string]interface{})
+	if err = yaml.Unmarshal(out, crCfg); err != nil {
+		return err
+	}
+	for k, v := range crCfg {
+		if _, exist := cstCfg[k]; exist {
+			logger.V(util.WarnLevel).Info("Custom Config section ignored", "section", k)
+		}
+		cstCfg[k] = v
+	}
+	return nil
 }
 
 func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
@@ -695,15 +764,38 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				},
 			},
 		},
-		UserCodeDeployment: config.UserCodeDeployment{
+	}
+	if h.Spec.UserCodeDeployment != nil {
+		cfg.UserCodeDeployment = config.UserCodeDeployment{
 			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
-		},
+		}
 	}
 
 	if h.Spec.JetEngineConfiguration.IsConfigured() {
 		cfg.Jet = config.Jet{
 			Enabled:               h.Spec.JetEngineConfiguration.Enabled,
 			ResourceUploadEnabled: pointer.Bool(h.Spec.JetEngineConfiguration.ResourceUploadEnabled),
+		}
+
+		if h.Spec.JetEngineConfiguration.Instance.IsConfigured() {
+			i := h.Spec.JetEngineConfiguration.Instance
+			cfg.Jet.Instance = config.JetInstance{
+				CooperativeThreadCount:         i.CooperativeThreadCount,
+				FlowControlPeriodMillis:        &i.FlowControlPeriodMillis,
+				BackupCount:                    &i.BackupCount,
+				ScaleUpDelayMillis:             &i.ScaleUpDelayMillis,
+				LosslessRestartEnabled:         &i.LosslessRestartEnabled,
+				MaxProcessorAccumulatedRecords: i.MaxProcessorAccumulatedRecords,
+			}
+		}
+
+		if h.Spec.JetEngineConfiguration.EdgeDefaults.IsConfigured() {
+			e := h.Spec.JetEngineConfiguration.EdgeDefaults
+			cfg.Jet.EdgeDefaults = config.EdgeDefaults{
+				QueueSize:               e.QueueSize,
+				PacketSizeLimit:         e.PacketSizeLimit,
+				ReceiveWindowMultiplier: e.ReceiveWindowMultiplier,
+			}
 		}
 	}
 
@@ -768,7 +860,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		},
 	}
 
-	if len(h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces) != 0 {
+	if h.Spec.AdvancedNetwork != nil && len(h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces) != 0 {
 		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces = config.EnabledAndInterfaces{
 			Enabled:    true,
 			Interfaces: h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces,
@@ -793,7 +885,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.EndpointGroups.ClusterWrite.Enabled = pointer.Bool(true)
 
 	// WAN Network
-	if len(h.Spec.AdvancedNetwork.WAN) > 0 {
+	if h.Spec.AdvancedNetwork != nil && len(h.Spec.AdvancedNetwork.WAN) > 0 {
 		cfg.AdvancedNetwork.WanServerSocketEndpointConfig = make(map[string]config.WanPort)
 		for _, w := range h.Spec.AdvancedNetwork.WAN {
 			cfg.AdvancedNetwork.WanServerSocketEndpointConfig[w.Name] = config.WanPort{
@@ -813,13 +905,15 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
-	cfg.ManagementCenter = config.ManagementCenterConfig{
-		ScriptingEnabled:  h.Spec.ManagementCenterConfig.ScriptingEnabled,
-		ConsoleEnabled:    h.Spec.ManagementCenterConfig.ConsoleEnabled,
-		DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
+	if h.Spec.ManagementCenterConfig != nil {
+		cfg.ManagementCenter = config.ManagementCenterConfig{
+			ScriptingEnabled:  h.Spec.ManagementCenterConfig.ScriptingEnabled,
+			ConsoleEnabled:    h.Spec.ManagementCenterConfig.ConsoleEnabled,
+			DataAccessEnabled: h.Spec.ManagementCenterConfig.DataAccessEnabled,
+		}
 	}
 
-	if h.Spec.TLS.SecretName != "" {
+	if h.Spec.TLS != nil && h.Spec.TLS.SecretName != "" {
 		var (
 			jksPath  = path.Join(n.HazelcastMountPath, "hazelcast.jks")
 			password = "hazelcast"
@@ -828,32 +922,53 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL = config.SSL{
 			Enabled:          pointer.Bool(true),
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: config.SSLProperties{
-				Protocol:             "TLSv1.2",
-				MutualAuthentication: "REQUIRED",
-				// server cert + key
-				KeyStoreType:     "JKS",
-				KeyStore:         jksPath,
-				KeyStorePassword: password,
-				// trusted cert pool (we use the same file for convince)
-				TrustStoreType:     "JKS",
-				TrustStore:         jksPath,
-				TrustStorePassword: password,
-			},
+			Properties:       NewSSLProperties(jksPath, password, "TLS", v1alpha1.MutualAuthenticationRequired),
 		}
 		// for client-server configuration use only server TLS
 		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL = config.SSL{
 			Enabled:          pointer.Bool(true),
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-			Properties: config.SSLProperties{
-				Protocol:         "TLS",
-				KeyStoreType:     "JKS",
-				KeyStore:         jksPath,
-				KeyStorePassword: password,
-			},
+			Properties:       NewSSLProperties(jksPath, password, "TLS", h.Spec.TLS.MutualAuthentication),
 		}
 	}
 	return cfg
+}
+
+func NewSSLProperties(path, password, protocol string, auth v1alpha1.MutualAuthentication) config.SSLProperties {
+	const typ = "JKS"
+	switch auth {
+	case v1alpha1.MutualAuthenticationRequired:
+		return config.SSLProperties{
+			Protocol:             protocol,
+			MutualAuthentication: "REQUIRED",
+			// server cert + key
+			KeyStoreType:     typ,
+			KeyStore:         path,
+			KeyStorePassword: password,
+			// trusted cert pool (we use the same file for convince)
+			TrustStoreType:     typ,
+			TrustStore:         path,
+			TrustStorePassword: password,
+		}
+	case v1alpha1.MutualAuthenticationOptional:
+		return config.SSLProperties{
+			Protocol:             protocol,
+			MutualAuthentication: "OPTIONAL",
+			KeyStoreType:         typ,
+			KeyStore:             path,
+			KeyStorePassword:     password,
+			TrustStoreType:       typ,
+			TrustStore:           path,
+			TrustStorePassword:   password,
+		}
+	default:
+		return config.SSLProperties{
+			Protocol:         protocol,
+			KeyStoreType:     typ,
+			KeyStore:         path,
+			KeyStorePassword: password,
+		}
+	}
 }
 
 func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]byte, error) {
@@ -861,7 +976,7 @@ func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha
 		store    = keystore.New()
 		password = []byte("hazelcast")
 	)
-	if h.Spec.TLS.SecretName != "" {
+	if h.Spec.TLS != nil && h.Spec.TLS.SecretName != "" {
 		cert, key, err := loadTLSKeyPair(ctx, c, h)
 		if err != nil {
 			return nil, err
@@ -974,7 +1089,7 @@ func filterPersistedDS(ctx context.Context, c client.Client, h *hazelcastv1alpha
 		return nil, err
 	}
 	l := make([]client.Object, 0)
-	for _, obj := range objList.(CRLister).GetItems() {
+	for _, obj := range objList.(hazelcastv1alpha1.CRLister).GetItems() {
 		if isDSPersisted(obj) {
 			l = append(l, obj)
 		}
@@ -1117,6 +1232,79 @@ func fillHazelcastConfigWithExecutorServices(cfg *config.Hazelcast, h *hazelcast
 	}
 }
 
+func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
+	if h.Spec.Serialization == nil {
+		return
+	}
+	s := h.Spec.Serialization
+	byteOrder := "BIG_ENDIAN"
+	if s.ByteOrder == hazelcastv1alpha1.LittleEndian {
+		byteOrder = "LITTLE_ENDIAN"
+	}
+	cfg.Serialization = config.Serialization{
+		UseNativeByteOrder:         s.ByteOrder == hazelcastv1alpha1.NativeByteOrder,
+		ByteOrder:                  byteOrder,
+		DataSerializableFactories:  factories(s.DataSerializableFactories),
+		PortableFactories:          factories(s.PortableFactories),
+		EnableCompression:          s.EnableCompression,
+		EnableSharedObject:         s.EnableSharedObject,
+		OverrideDefaultSerializers: s.OverrideDefaultSerializers,
+		AllowUnsafe:                s.AllowUnsafe,
+		Serializers:                serializers(s.Serializers),
+	}
+	if s.GlobalSerializer != nil {
+		cfg.Serialization.GlobalSerializer = &config.GlobalSerializer{
+			OverrideJavaSerialization: s.GlobalSerializer.OverrideJavaSerialization,
+			ClassName:                 s.GlobalSerializer.ClassName,
+		}
+	}
+	if s.JavaSerializationFilter != nil {
+		cfg.Serialization.JavaSerializationFilter = &config.JavaSerializationFilter{
+			Blacklist: filterList(s.JavaSerializationFilter.Blacklist),
+			Whitelist: filterList(s.JavaSerializationFilter.Whitelist),
+		}
+	}
+	if s.CompactSerialization != nil {
+		cfg.Serialization.CompactSerialization = &config.CompactSerialization{
+			Serializers: s.CompactSerialization.Serializers,
+			Classes:     s.CompactSerialization.Classes,
+		}
+	}
+}
+
+func filterList(jsf *hazelcastv1alpha1.SerializationFilterList) *config.FilterList {
+	if jsf == nil {
+		return nil
+	}
+	return &config.FilterList{
+		Classes:  jsf.Classes,
+		Packages: jsf.Packages,
+		Prefixes: jsf.Prefixes,
+	}
+}
+
+func serializers(srs []hazelcastv1alpha1.Serializer) []config.Serializer {
+	var res []config.Serializer
+	for _, sr := range srs {
+		res = append(res, config.Serializer{
+			TypeClass: sr.TypeClass,
+			ClassName: sr.ClassName,
+		})
+	}
+	return res
+}
+
+func factories(factories []string) []config.ClassFactories {
+	var classFactories []config.ClassFactories
+	for i, f := range factories {
+		classFactories = append(classFactories, config.ClassFactories{
+			FactoryId: int32(i),
+			ClassName: f,
+		})
+	}
+	return classFactories
+}
+
 func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) (config.Map, error) {
 	ms := m.Spec
 	mc := config.Map{
@@ -1124,17 +1312,17 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		AsyncBackupCount:  ms.AsyncBackupCount,
 		TimeToLiveSeconds: ms.TimeToLiveSeconds,
 		ReadBackupData:    false,
-		Eviction: config.MapEviction{
-			Size:           ms.Eviction.MaxSize,
-			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
-			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
-		},
 		InMemoryFormat:    string(ms.InMemoryFormat),
 		Indexes:           copyMapIndexes(ms.Indexes),
 		StatisticsEnabled: true,
 		DataPersistence: config.DataPersistence{
 			Enabled: ms.PersistenceEnabled,
 			Fsync:   false,
+		},
+		Eviction: config.MapEviction{
+			Size:           ms.Eviction.MaxSize,
+			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
+			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
 		},
 	}
 
@@ -1330,42 +1518,20 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 }
 
 func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanReplication) config.WanReplicationConfig {
+	bpc := config.BatchPublisherConfig{
+		ClusterName:           wr.Spec.TargetClusterName,
+		TargetEndpoints:       wr.Spec.Endpoints,
+		ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
+		AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
+		QueueCapacity:         wr.Spec.Queue.Capacity,
+		QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
+		BatchSize:             wr.Spec.Batch.Size,
+		BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
+	}
 	cfg := config.WanReplicationConfig{
-		BatchPublisher: map[string]config.BatchPublisherConfig{
-			publisherId: {
-				ClusterName:           wr.Spec.TargetClusterName,
-				TargetEndpoints:       wr.Spec.Endpoints,
-				QueueCapacity:         wr.Spec.Queue.Capacity,
-				QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
-				BatchSize:             wr.Spec.Batch.Size,
-				BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
-				ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
-				AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
-			},
-		},
+		BatchPublisher: map[string]config.BatchPublisherConfig{publisherId: bpc},
 	}
 	return cfg
-}
-
-func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
-	_, err := r.mtlsClientRegistry.Create(ctx, r.Client, h.Namespace)
-	if err != nil {
-		return err
-	}
-	secret := &v1.Secret{}
-	secretName := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: h.Namespace}
-	err = r.Client.Get(ctx, secretName, secret)
-	if err != nil {
-		return err
-	}
-	err = controllerutil.SetControllerReference(h, secret, r.Scheme)
-	if err != nil {
-		return err
-	}
-	_, err = util.CreateOrUpdateForce(ctx, r.Client, secret, func() error {
-		return nil
-	})
-	return err
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -1444,12 +1610,16 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
-		sts.Spec.Template.Spec.Containers[0].Resources = h.Spec.Resources
+		if h.Spec.Resources != nil {
+			sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
+		}
 		sts.Spec.Template.Spec.Containers[0].Ports = hazelcastContainerPorts(h)
 
-		sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
-		sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
-		sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
+		if h.Spec.Scheduling != nil {
+			sts.Spec.Template.Spec.Affinity = h.Spec.Scheduling.Affinity
+			sts.Spec.Template.Spec.Tolerations = h.Spec.Scheduling.Tolerations
+			sts.Spec.Template.Spec.NodeSelector = h.Spec.Scheduling.NodeSelector
+		}
 		sts.Spec.Template.Spec.TopologySpreadConstraints = appendHAModeTopologySpreadConstraints(h)
 
 		if semver.Compare(fmt.Sprintf("v%s", h.Spec.Version), "v5.2.0") == 1 {
@@ -1462,6 +1632,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		}
 		sts.Spec.Template.Spec.Volumes = volumes(h)
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h)
+		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts(h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -1492,7 +1663,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 }
 
 func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
-	c := v1.Container{
+	return v1.Container{
 		Name:  n.SidecarAgent,
 		Image: h.AgentDockerImage(),
 		Ports: []v1.ContainerPort{{
@@ -1543,28 +1714,21 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 				Value: path.Join(n.MTLSCertPath, "tls.key"),
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{
-			{
-				Name:      n.MTLSCertSecretName,
-				MountPath: n.MTLSCertPath,
-			},
-		},
 		SecurityContext: containerSecurityContext(),
 	}
-
-	if h.Spec.Persistence.IsEnabled() {
-		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
-			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
-		})
-	}
-
-	return c
 }
 
 func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
-	var c []v1.ContainerPort
+	// If WAN is not configured, use the default port for it
+	if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
+		return []v1.ContainerPort{{
+			ContainerPort: n.WanDefaultPort,
+			Name:          n.WanDefaultPortName,
+			Protocol:      v1.ProtocolTCP,
+		}}
+	}
 
+	var c []v1.ContainerPort
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		for i := 0; i < int(w.PortCount); i++ {
 			c = append(c, v1.ContainerPort{
@@ -1573,15 +1737,6 @@ func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.Containe
 				Protocol:      v1.ProtocolTCP,
 			})
 		}
-	}
-
-	// If WAN is not configured, use the default port for it
-	if len(h.Spec.AdvancedNetwork.WAN) == 0 {
-		c = append(c, v1.ContainerPort{
-			ContainerPort: n.WanDefaultPort,
-			Name:          n.WanDefaultPortName,
-			Protocol:      v1.ProtocolTCP,
-		})
 	}
 
 	return c
@@ -1621,7 +1776,25 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
-		containers = append(containers, ucdAgentContainer(h))
+		containers = append(containers, bucketDownloadContainer(
+			n.UserCodeBucketAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
+	}
+
+	if h.Spec.UserCodeDeployment.IsRemoteURLsEnabled() {
+		containers = append(containers, urlDownloadContainer(
+			n.UserCodeURLAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
+	}
+
+	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
+		containers = append(containers, bucketDownloadContainer(
+			n.JetBucketAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
+	}
+
+	if h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
+		containers = append(containers, urlDownloadContainer(
+			n.JetUrlAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
 	}
 
 	if !h.Spec.Persistence.IsRestoreEnabled() {
@@ -1640,7 +1813,7 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	}
 
 	// restoring from bucket config
-	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.Secret,
+	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
 		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
 
 	return containers, nil
@@ -1660,7 +1833,7 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 	var cont corev1.Container
 	if hb.Spec.IsExternal() {
 		bucketURI := hb.Status.GetBucketURI()
-		cont = restoreAgentContainer(h, hb.Spec.Secret, bucketURI)
+		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI)
 	} else {
 		backupFolder := hb.Status.GetBackupFolder()
 		cont = restoreLocalAgentContainer(h, backupFolder)
@@ -1692,7 +1865,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 			},
 			{
 				Name:  "RESTORE_ID",
-				Value: string(h.Spec.Persistence.Restore.Hash()),
+				Value: h.Spec.Persistence.Restore.Hash(),
 			},
 			{
 				Name: "RESTORE_HOSTNAME",
@@ -1755,33 +1928,73 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 	}
 }
 
-func ucdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
 	return v1.Container{
-		Name:  n.UserCodeDownloadAgent + h.Spec.UserCodeDeployment.TriggerSequence,
-		Image: h.AgentDockerImage(),
-		Args:  []string{"user-code-deployment"},
+		Name:  name,
+		Image: image,
+		Args:  []string{"jar-download-bucket"},
 		Env: []v1.EnvVar{
 			{
-				Name:  "UCD_SECRET_NAME",
-				Value: h.Spec.UserCodeDeployment.BucketConfiguration.Secret,
+				Name:  "JDB_SECRET_NAME",
+				Value: rfc.BucketConfiguration.GetSecretName(),
 			},
 			{
-				Name:  "UCD_BUCKET",
-				Value: h.Spec.UserCodeDeployment.BucketConfiguration.BucketURI,
+				Name:  "JDB_BUCKET_URI",
+				Value: rfc.BucketConfiguration.BucketURI,
 			},
 			{
-				Name:  "UCD_DESTINATION",
-				Value: n.UserCodeBucketPath,
+				Name:  "JDB_DESTINATION",
+				Value: vm.MountPath,
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{ucdAgentVolumeMount(h)},
+		VolumeMounts:             []v1.VolumeMount{vm},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
+		SecurityContext:          containerSecurityContext(),
 	}
 }
 
-func ucdAgentVolumeMount(_ *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
+func ucdBucketAgentVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UserCodeBucketVolumeName,
 		MountPath: n.UserCodeBucketPath,
+	}
+}
+
+func jetJobJarsVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.JetJobJarsVolumeName,
+		MountPath: n.JetJobJarsPath,
+	}
+}
+
+func urlDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
+	return v1.Container{
+		Name:            name,
+		Args:            []string{"file-download-url"},
+		Image:           image,
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Env: []v1.EnvVar{
+			{
+				Name:  "FDU_URLS",
+				Value: strings.Join(rfc.RemoteURLs, ","),
+			},
+			{
+				Name:  "FDU_DESTINATION",
+				Value: vm.MountPath,
+			},
+		},
+		VolumeMounts:             []v1.VolumeMount{vm},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
+		SecurityContext:          containerSecurityContext(),
+	}
+}
+
+func ucdURLAgentVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.UserCodeURLVolumeName,
+		MountPath: n.UserCodeURLPath,
 	}
 }
 
@@ -1796,12 +2009,18 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 				},
 			},
 		},
-		userCodeAgentVolume(h),
+		emptyDirVolume(n.UserCodeBucketVolumeName),
+		emptyDirVolume(n.UserCodeURLVolumeName),
+		emptyDirVolume(n.JetJobJarsVolumeName),
 		tlsVolume(h),
 	}
 
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		vols = append(vols, userCodeConfigMapVolumes(h)...)
+		vols = append(vols, configMapVolumes(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration)...)
+	}
+
+	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
+		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
 	}
 
 	if !h.Spec.Persistence.IsEnabled() {
@@ -1810,23 +2029,14 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 
 	// Add tmpDir because Hazelcast wit persistence enabled fails with read-only root file system error
 	// when it tries to write to /tmp dir.
-	vols = append(vols, tmpDirVolume())
+	vols = append(vols, emptyDirVolume(n.TmpDirVolName))
 
 	return vols
 }
 
-func userCodeAgentVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
+func emptyDirVolume(name string) v1.Volume {
 	return v1.Volume{
-		Name: n.UserCodeBucketVolumeName,
-		VolumeSource: v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-func tmpDirVolume() v1.Volume {
-	return v1.Volume{
-		Name: n.TmpDirVolName,
+		Name: name,
 		VolumeSource: v1.VolumeSource{
 			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
@@ -1845,11 +2055,23 @@ func tlsVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	}
 }
 
-func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
+type ConfigMapVolumeName func(cm string) string
+
+func jetConfigMapName(cm string) string {
+	return n.JetConfigMapNamePrefix + cm
+}
+
+func ucdConfigMapName(h *hazelcastv1alpha1.Hazelcast) ConfigMapVolumeName {
+	return func(cm string) string {
+		return n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence
+	}
+}
+
+func configMapVolumes(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFileConfiguration) []corev1.Volume {
 	var vols []corev1.Volume
-	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+	for _, cm := range rfc.ConfigMaps {
 		vols = append(vols, corev1.Volume{
-			Name: n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
+			Name: nameFn(cm),
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -1863,13 +2085,32 @@ func userCodeConfigMapVolumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
 	return vols
 }
 
+func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
+	vm := []v1.VolumeMount{
+		{
+			Name:      n.MTLSCertSecretName,
+			MountPath: n.MTLSCertPath,
+		},
+		jetJobJarsVolumeMount(),
+	}
+	if h.Spec.Persistence.IsEnabled() {
+		vm = append(vm, v1.VolumeMount{
+			Name:      n.PersistenceVolumeName,
+			MountPath: h.Spec.Persistence.BaseDir,
+		})
+	}
+	return vm
+}
+
 func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,
 			MountPath: n.HazelcastMountPath,
 		},
-		ucdAgentVolumeMount(h),
+		ucdBucketAgentVolumeMount(),
+		ucdURLAgentVolumeMount(),
+		jetJobJarsVolumeMount(),
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
@@ -1885,17 +2126,23 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	}
 
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		mounts = append(mounts, userCodeConfigMapVolumeMounts(h)...)
+		mounts = append(mounts,
+			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
+	}
+
+	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
+		mounts = append(mounts,
+			configMapVolumeMounts(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration, n.JetJobJarsPath)...)
 	}
 	return mounts
 }
 
-func userCodeConfigMapVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func configMapVolumeMounts(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFileConfiguration, mountPath string) []corev1.VolumeMount {
 	var vms []corev1.VolumeMount
-	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
+	for _, cm := range rfc.ConfigMaps {
 		vms = append(vms, corev1.VolumeMount{
-			Name:      n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence,
-			MountPath: path.Join(n.UserCodeConfigMapPath, cm),
+			Name:      nameFn(cm),
+			MountPath: path.Join(mountPath, cm),
 		})
 	}
 	return vms
@@ -1958,7 +2205,10 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 }
 
 func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.TopologySpreadConstraint {
-	topologySpreadConstraints := h.Spec.Scheduling.TopologySpreadConstraints
+	var topologySpreadConstraints []v1.TopologySpreadConstraint
+	if h.Spec.Scheduling != nil {
+		topologySpreadConstraints = append(topologySpreadConstraints, h.Spec.Scheduling.TopologySpreadConstraints...)
+	}
 	if h.Spec.HighAvailabilityMode != "" {
 		switch h.Spec.HighAvailabilityMode {
 		case "NODE":
@@ -2009,14 +2259,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Value: javaClassPath(h),
 		},
 	}
-	if h.Spec.LicenseKeySecret != "" {
+	if h.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
 			v1.EnvVar{
 				Name: hzLicenseKey,
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
 						LocalObjectReference: v1.LocalObjectReference{
-							Name: h.Spec.LicenseKeySecret,
+							Name: h.Spec.GetLicenseKeySecretName(),
 						},
 						Key: n.LicenseDataKey,
 					},
@@ -2076,14 +2326,14 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
-	b := []string{path.Join(n.UserCodeBucketPath, "*")}
+	b := []string{
+		path.Join(n.UserCodeBucketPath, "*"),
+		path.Join(n.UserCodeURLPath, "*")}
 
-	if !h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		return b[0]
-	}
-
-	for _, cm := range h.Spec.UserCodeDeployment.ConfigMaps {
-		b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
+	if h.Spec.UserCodeDeployment != nil {
+		for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
+			b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
+		}
 	}
 
 	return strings.Join(b, ":")
@@ -2154,6 +2404,14 @@ func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
 		Jet:                hz.Jet,
 		UserCodeDeployment: hz.UserCodeDeployment,
 		Properties:         hz.Properties,
+		AdvancedNetwork: config.AdvancedNetwork{
+			ClientServerSocketEndpointConfig: config.ClientServerSocketEndpointConfig{
+				SSL: hz.AdvancedNetwork.ClientServerSocketEndpointConfig.SSL,
+			},
+			MemberServerSocketEndpointConfig: config.MemberServerSocketEndpointConfig{
+				SSL: hz.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL,
+			},
+		},
 	}
 }
 

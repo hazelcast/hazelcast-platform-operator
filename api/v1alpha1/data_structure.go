@@ -1,5 +1,27 @@
 package v1alpha1
 
+import "sigs.k8s.io/controller-runtime/pkg/client"
+
+// +k8s:deepcopy-gen=false
+type CRLister interface {
+	GetItems() []client.Object
+}
+
+func GetKind(obj client.Object) string {
+	return obj.GetObjectKind().GroupVersionKind().Kind
+}
+
+// +k8s:deepcopy-gen=false
+type DataStructure interface {
+	GetDSName() string
+	GetHZResourceName() string
+	GetStatus() *DataStructureStatus
+	GetSpec() (string, error)
+	SetSpec(string) error
+	ValidateSpecCurrent(h *Hazelcast) error
+	ValidateSpecUpdate() error
+}
+
 type DataStructureSpec struct {
 	// Name of the data structure config to be created. If empty, CR name will be used.
 	// It cannot be updated after the config is created successfully.
@@ -13,13 +35,15 @@ type DataStructureSpec struct {
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 
 	// Number of synchronous backups.
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum:=0
+	// +kubebuilder:validation:Maximum:=6
 	// +kubebuilder:default:=1
 	// +optional
 	BackupCount *int32 `json:"backupCount,omitempty"`
 
 	// Number of asynchronous backups.
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum:=0
+	// +kubebuilder:validation:Maximum:=6
 	// +kubebuilder:default:=0
 	// +optional
 	AsyncBackupCount int32 `json:"asyncBackupCount"`

@@ -42,69 +42,79 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should use the MapStore implementation correctly", Label("fast"), func() {
-		setLabelAndCRName("hmcc-1")
-		propSecretName := "prop-secret"
-		msClassName := "SimpleStore"
+	DescribeTable("should use the MapStore implementation correctly", Label("slow"),
+		func(secretName, url string) {
+			setLabelAndCRName("hmcc-1")
+			propSecretName := "prop-secret"
+			msClassName := "SimpleStore"
 
-		By("creating the Hazelcast CR")
-		hazelcast := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/mapStore", labels)
-		CreateHazelcastCR(hazelcast)
+			By("creating the Hazelcast CR")
+			var hazelcast *hazelcastcomv1alpha1.Hazelcast
+			if secretName != "" {
+				hazelcast = hazelcastconfig.UserCodeBucket(hzLookupKey, ee, secretName, url, labels)
+			} else {
+				hazelcast = hazelcastconfig.UserCodeURL(hzLookupKey, ee, []string{url}, labels)
+			}
+			CreateHazelcastCR(hazelcast)
 
-		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
+			By("port-forwarding to Hazelcast master pod")
+			stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+			defer closeChannel(stopChan)
 
-		By("creating mapStore properties secret")
-		secretData := map[string]string{"username": "user1", "password": "pass1"}
-		s := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: propSecretName, Namespace: hazelcast.Namespace, Labels: labels}, StringData: secretData}
-		Expect(k8sClient.Create(context.Background(), s)).Should(Succeed())
+			By("creating mapStore properties secret")
+			secretData := map[string]string{"username": "user1", "password": "pass1"}
+			s := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: propSecretName, Namespace: hazelcast.Namespace, Labels: labels}, StringData: secretData}
+			Expect(k8sClient.Create(context.Background(), s)).Should(Succeed())
 
-		By("creating map with MapStore")
-		ms := hazelcastcomv1alpha1.MapSpec{
-			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
-				HazelcastResourceName: hzLookupKey.Name,
-			},
-			MapStore: &hazelcastcomv1alpha1.MapStoreConfig{
-				ClassName:            msClassName,
-				PropertiesSecretName: propSecretName,
-			},
-		}
-		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
-		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		t := Now()
+			By("creating map with MapStore")
+			ms := hazelcastcomv1alpha1.MapSpec{
+				DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzLookupKey.Name,
+				},
+				MapStore: &hazelcastcomv1alpha1.MapStoreConfig{
+					ClassName:            msClassName,
+					PropertiesSecretName: propSecretName,
+				},
+			}
+			m := hazelcastconfig.Map(ms, mapLookupKey, labels)
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			t := Now()
 
-		By("filling the map with entries")
-		entryCount := 5
-		cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
-		defer func() {
-			Expect(cl.Shutdown(context.Background())).Should(Succeed())
-		}()
-		mp, err := cl.GetMap(context.Background(), m.MapName())
-		Expect(err).To(BeNil())
+			By("filling the map with entries")
+			entryCount := 5
+			cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
+			defer func() {
+				Expect(cl.Shutdown(context.Background())).Should(Succeed())
+			}()
+			mp, err := cl.GetMap(context.Background(), m.MapName())
+			Expect(err).To(BeNil())
 
-		entries := make([]hzTypes.Entry, entryCount)
-		for i := 0; i < entryCount; i++ {
-			entries[i] = hzTypes.NewEntry(strconv.Itoa(i), "val")
-		}
-		err = mp.PutAll(context.Background(), entries...)
-		Expect(err).To(BeNil())
-		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
+			entries := make([]hzTypes.Entry, entryCount)
+			for i := 0; i < entryCount; i++ {
+				entries[i] = hzTypes.NewEntry(strconv.Itoa(i), "val")
+			}
+			err = mp.PutAll(context.Background(), entries...)
+			Expect(err).To(BeNil())
+			Expect(mp.Size(context.Background())).Should(Equal(entryCount))
 
-		By("checking the logs")
-		logs := InitLogs(t, hzLookupKey)
-		logReader := test.NewLogReader(logs)
-		defer logReader.Close()
-		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - Properties are"))
-		line := logReader.History[len(logReader.History)-1]
-		for k, v := range secretData {
-			Expect(line).To(ContainSubstring(k + "=" + v))
-		}
-		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
-		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
-		test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
-	})
+			By("checking the logs")
+			logs := InitLogs(t, hzLookupKey)
+			logReader := test.NewLogReader(logs)
+			defer logReader.Close()
+			test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - Properties are"))
+			line := logReader.History[len(logReader.History)-1]
+			for k, v := range secretData {
+				Expect(line).To(ContainSubstring(k + "=" + v))
+			}
+			test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - Map name is %s", m.MapName())))
+			test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
+			test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
+
+		},
+		Entry("using user code from bucket", Label("slow"), "br-secret-gcp", "gs://operator-user-code/mapStore"),
+		Entry("using user code from remote url", Label("slow"), "", "https://storage.googleapis.com/operator-user-code-urls-public/mapStore_mapstore-1.0.0.jar"),
+	)
 
 	It("should add executor services both initially and dynamically", Label("fast"), func() {
 		setLabelAndCRName("hcc-1")
@@ -179,7 +189,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 	It("should add entry listeners", Label("fast"), func() {
 		setLabelAndCRName("hel-1")
 
-		h := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)
+		h := hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)
 		CreateHazelcastCR(h)
 
 		By("creating map with Map with entry listener")
@@ -199,12 +209,12 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		t := Now()
 
 		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels).Name+"-0", hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/mapStore", labels).Namespace, localPort+":5701")
+		stopChan := portForwardPod(hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels).Name+"-0", hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/mapStore", labels).Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
 
 		By("filling the map with entries")
 		entryCount := 5
-		cl := newHazelcastClientPortForward(context.Background(), hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels), localPort)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels), localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()
