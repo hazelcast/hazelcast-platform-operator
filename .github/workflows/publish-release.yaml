@@ -57,9 +57,9 @@ jobs:
           }'| jq -r '.token')
 
           CURRENT_LATEST_TAG=$(curl --fail -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
-          -H "Authorization: Bearer $token" | jq -r  '.results[] | select((.tags | length == 2) and .tags[].tag =="latest") | select(.tags[1].is_current == true) | .tags[].tag | select(. !="latest")')
-          echo "CURRENT_LATEST_TAG=$CURRENT_LATEST_TAG" >> $GITHUB_ENV
-          echo "CURRENT_LATEST_TAG=$CURRENT_LATEST_TAG" >> $GITHUB_OUTPUT
+          -H "Authorization: Bearer $token" | jq -r  '.results[] | select((.tags | length == 2) and .tags[].tag =="latest" and .tags[0].is_current == true and .tags[1].is_current == true)| .tags[].tag | select(. !="latest")')
+          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
+          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_OUTPUT
 
       - name: Build Operator Image
         run: |
@@ -365,7 +365,7 @@ jobs:
       - name: Update Chart Version in Main Branch
         working-directory: helm-charts/hazelcast-platform-operator
         run: |
-          REPLACED_VERSION=$(echo "$RELEASE_BRANCH" | awk -F'.' '{print $1"."$2+1".0"}')
+          REPLACED_VERSION=$(echo "$RELEASE_VERSION" | awk -F'.' '{print $1"."$2+1".0"}')
           echo "REPLACED_VERSION=${REPLACED_VERSION}" >> $GITHUB_ENV
           sed -i -E -e 's/(version: ).*/\1"'$REPLACED_VERSION-snapshot'"/' -e 's/(appVersion: ).*/\1"'$REPLACED_VERSION-snapshot'"/' charts/hazelcast-platform-operator-crds/Chart.yaml Chart.yaml
 
@@ -385,10 +385,8 @@ jobs:
           echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" \
           --label "non-release" \
-          --milestone "${RELEASE_BRANCH}" \
+          --milestone "${RELEASE_VERSION}" \
           --body ""
-          PR_NUMBER=$(gh pr list --search "update-helm-chart" --json number | jq -r '.[].number')
-          gh pr merge $PR_NUMBER --admin --squash --delete-branch 
 
   revert_changes:
     name: Revert Release Changes
@@ -450,9 +448,11 @@ jobs:
           docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
           make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
 
-      - name: Removing Release Tag in 'Hazelcast Operator' Repo
+      - name: Removing Release Notes and Tag in 'Hazelcast Operator' Repo
+        if: always()
         run: |
-          git push --delete origin v${RELEASE_VERSION}
+          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          gh release delete v${RELEASE_VERSION} --cleanup-tag --yes
 
       - name: Checkout to 'Hazelcast Charts' Repo
         uses: actions/checkout@v3
