@@ -1968,6 +1968,13 @@ func jetJobJarsVolumeMount() v1.VolumeMount {
 	}
 }
 
+func tmpDirVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.TmpDirVolName,
+		MountPath: "/tmp",
+	}
+}
+
 func urlDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
 	return v1.Container{
 		Name:            name,
@@ -2012,6 +2019,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		emptyDirVolume(n.UserCodeBucketVolumeName),
 		emptyDirVolume(n.UserCodeURLVolumeName),
 		emptyDirVolume(n.JetJobJarsVolumeName),
+		emptyDirVolume(n.TmpDirVolName),
 		tlsVolume(h),
 	}
 
@@ -2022,14 +2030,6 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
 		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
 	}
-
-	if !h.Spec.Persistence.IsEnabled() {
-		return vols
-	}
-
-	// Add tmpDir because Hazelcast wit persistence enabled fails with read-only root file system error
-	// when it tries to write to /tmp dir.
-	vols = append(vols, emptyDirVolume(n.TmpDirVolName))
 
 	return vols
 }
@@ -2111,17 +2111,16 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 		ucdBucketAgentVolumeMount(),
 		ucdURLAgentVolumeMount(),
 		jetJobJarsVolumeMount(),
+		// /tmp dir is overriden with emptyDir because Hazelcast fails to start with
+		// read-only rootFileSystem when persistence is enabled because it tries to write
+		// into /tmp dir.
+		// /tmp dir is also needed for Jet Job submission and UCD from client/CLC.
+		tmpDirVolumeMount(),
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
 			MountPath: h.Spec.Persistence.BaseDir,
-		}, v1.VolumeMount{
-			// /tmp dir is overriden with emptyDir because Hazelcast fails to start with
-			// read-only rootFileSystem when persistence is enabled because it tries to write
-			// into /tmp dir.
-			Name:      n.TmpDirVolName,
-			MountPath: "/tmp",
 		})
 	}
 
