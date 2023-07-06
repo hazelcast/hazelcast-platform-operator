@@ -23,7 +23,7 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 RUN microdnf upgrade -y && \
     microdnf clean all
 
-ARG version="latest-snapshot"
+ARG version="5.8"
 ARG pardotID="dockerhub"
 ENV OPERATOR_VERSION=${version}
 ENV PARDOT_ID=${pardotID}
