@@ -64,6 +64,27 @@ var _ = Describe("JetJob CR", func() {
 			Expect(k8sClient.Create(context.Background(), jj)).
 				Should(MatchError(ContainSubstring("bucket secret must be set")))
 		})
+
+		It("should error when secret doesn't exist with the given bucket secretName", Label("fast"), func() {
+			jj := &hazelcastv1alpha1.JetJob{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.JetJobSpec{
+					Name:                  "jetjobname",
+					HazelcastResourceName: "hazelcast",
+					State:                 hazelcastv1alpha1.SuspendedJobState,
+					JarName:               "myjob.jar",
+					JetRemoteFileConfiguration: hazelcastv1alpha1.JetRemoteFileConfiguration{
+						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+							BucketURI:  "gs://my-bucket",
+							SecretName: "notfound",
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), jj)).
+				Should(MatchError(ContainSubstring("Bucket credentials Secret not found")))
+		})
 	})
 
 	Context("JetJob update validation", func() {
@@ -82,6 +103,9 @@ var _ = Describe("JetJob CR", func() {
 					},
 				},
 			}
+
+			CreateBucketSecret("my-secret", namespace)
+
 			js, _ := json.Marshal(spec)
 			jj := &hazelcastv1alpha1.JetJob{
 				ObjectMeta: randomObjectMeta(namespace, n.LastSuccessfulSpecAnnotation, string(js)),
