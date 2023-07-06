@@ -7,7 +7,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -47,10 +46,7 @@ var _ = Describe("JetJob CR", func() {
 
 		It("should error when secretName is empty", Label("fast"), func() {
 			jj := &hazelcastv1alpha1.JetJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "jetjob-1",
-					Namespace: "default",
-				},
+				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.JetJobSpec{
 					Name:                  "jetjobname",
 					HazelcastResourceName: "hazelcast",
