@@ -1,11 +1,15 @@
 package v1alpha1
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
+	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -19,10 +23,25 @@ func ValidateJetJobCreateSpec(jj *JetJob) error {
 			jj.Spec.State,
 			fmt.Sprintf("should be set to %s on creation", RunningJobState)))
 	}
-	if jj.Spec.IsBucketEnabled() && jj.Spec.BucketConfiguration.GetSecretName() == "" {
-		allErrs = append(allErrs, field.Required(
-			field.NewPath("spec").Child("bucketConfig").Child("secretName"),
-			"bucket secret must be set"))
+
+	if jj.Spec.IsBucketEnabled() {
+		if jj.Spec.BucketConfiguration.GetSecretName() == "" {
+			allErrs = append(allErrs, field.Required(
+				field.NewPath("spec").Child("bucketConfig").Child("secretName"),
+				"bucket secret must be set"))
+		} else {
+			secretName := types.NamespacedName{
+				Name:      jj.Spec.BucketConfiguration.SecretName,
+				Namespace: jj.Namespace,
+			}
+			var secret corev1.Secret
+			err := kubeclient.Get(context.Background(), secretName, &secret)
+			if kerrors.IsNotFound(err) {
+				// we care only about not found error
+				allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("bucketConfig").Child("secretName"),
+					"Bucket credentials Secret not found"))
+			}
+		}
 	}
 
 	if len(allErrs) == 0 {

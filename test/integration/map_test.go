@@ -187,6 +187,20 @@ var _ = Describe("Map CR", func() {
 	})
 
 	Context("with NearCache configuration", func() {
+		It("should not fail with empty near cache configuration", Label("fast"), func() {
+			m := &hazelcastv1alpha1.Map{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.MapSpec{
+					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+						HazelcastResourceName: "hazelcast",
+					},
+					NearCache: &hazelcastv1alpha1.NearCache{},
+				},
+			}
+			By("creating Map CR successfully")
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		})
+
 		It("should create Map CR with near cache configuration", Label("fast"), func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -200,7 +214,7 @@ var _ = Describe("Map CR", func() {
 						InvalidateOnChange: pointer.Bool(false),
 						TimeToLiveSeconds:  300,
 						MaxIdleSeconds:     300,
-						NearCacheEviction: &hazelcastv1alpha1.NearCacheEviction{
+						NearCacheEviction: hazelcastv1alpha1.NearCacheEviction{
 							EvictionPolicy: "NONE",
 							MaxSizePolicy:  "ENTRY_COUNT",
 							Size:           10,

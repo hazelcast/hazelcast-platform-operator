@@ -1813,11 +1813,7 @@ func (in *NearCache) DeepCopyInto(out *NearCache) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.NearCacheEviction != nil {
-		in, out := &in.NearCacheEviction, &out.NearCacheEviction
-		*out = new(NearCacheEviction)
-		**out = **in
-	}
+	out.NearCacheEviction = in.NearCacheEviction
 	if in.CacheLocalEntries != nil {
 		in, out := &in.CacheLocalEntries, &out.CacheLocalEntries
 		*out = new(bool)

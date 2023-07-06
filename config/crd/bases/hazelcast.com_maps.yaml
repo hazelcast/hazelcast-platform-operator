@@ -259,6 +259,9 @@ spec:
                       are cached
                     type: boolean
                   eviction:
+                    default:
+                      evictionPolicy: NONE
+                      maxSizePolicy: ENTRY_COUNT
                     description: NearCacheEviction specifies the eviction behavior
                       in Near Cache
                     properties:
@@ -290,6 +293,7 @@ spec:
                         - ENTRY_COUNT
                         type: string
                       size:
+                        default: 0
                         description: Size is maximum size of the Near Cache used for
                           max-size-policy
                         format: int32
@@ -323,6 +327,8 @@ spec:
                     description: TimeToLiveSeconds maximum number of seconds for each
                       entry to stay in the Near Cache
                     type: integer
+                required:
+                - eviction
                 type: object
               persistenceEnabled:
                 default: false

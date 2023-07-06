@@ -56,25 +56,22 @@ func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
 }
 
 func GetClientSet() *kubernetes.Clientset {
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
 	restConfig, _ := kubeConfig.ClientConfig()
-	clientSet, err := kubernetes.NewForConfig(restConfig)
+	clientSet := kubernetes.NewForConfigOrDie(restConfig)
+	return clientSet
+}
+
+func getOperatorId() string {
+	clientSet := GetClientSet()
+	deploymentsClient := clientSet.AppsV1().Deployments(hzNamespace)
+	deployment, err := deploymentsClient.Get(context.Background(), GetControllerManagerName(), metav1.GetOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}
-	return clientSet
-}
-func getOperatorId() string {
-	var uid string
-	By("getting operatorId", func() {
-		operatorUid, _ := GetClientSet().AppsV1().Deployments(hzNamespace).List(context.Background(), metav1.ListOptions{})
-		for _, item := range operatorUid.Items {
-			if item.Name == GetControllerManagerName() {
-				uid = string(item.UID)
-			}
-		}
-	})
-	return uid
+	GinkgoWriter.Printf("Operator ID is: %s\n", deployment.UID)
+	return string(deployment.UID)
 }
 
 func GetSuiteName() string {
@@ -107,13 +104,17 @@ func getBigQueryTable() OperatorPhoneHome {
 		if err != nil {
 			log.Fatal(err)
 		}
-		iterErr := rows.Next(&row)
-		if iterErr == iterator.Done {
-			log.Fatalf("No more items in iterator: %v", iterErr)
+		for {
+			err := rows.Next(&row)
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				log.Fatalf("Error iterating over rows: %v", err)
+			}
 		}
 	})
 	return row
-
 }
 
 func useExistingCluster() bool {
