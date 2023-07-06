@@ -159,6 +159,7 @@ type Map struct {
 	MapStoreConfig          MapStoreConfig                     `yaml:"map-store,omitempty"`
 	EntryListeners          []EntryListener                    `yaml:"entry-listeners,omitempty"`
 	NearCache               NearCacheConfig                    `yaml:"near-cache,omitempty"`
+	EventJournal            EventJournal                       `yaml:"event-journal,omitempty"`
 }
 
 type EntryListener struct {
@@ -239,6 +240,12 @@ type NearCacheEviction struct {
 	EvictionPolicy string `yaml:"eviction-policy,omitempty"`
 }
 
+type EventJournal struct {
+	Enabled           bool  `json:"enabled"`
+	Capacity          int32 `json:"capacity"`
+	TimeToLiveSeconds int32 `json:"time-to-live-seconds"`
+}
+
 type Topic struct {
 	GlobalOrderingEnabled bool     `yaml:"global-ordering-enabled"`
 	MultiThreadingEnabled bool     `yaml:"multi-threading-enabled"`
@@ -286,6 +293,7 @@ type Cache struct {
 	ValueType         ClassType       `yaml:"value-type,omitempty"`
 	InMemoryFormat    string          `yaml:"in-memory-format"`
 	DataPersistence   DataPersistence `yaml:"data-persistence,omitempty"`
+	EventJournal      EventJournal    `yaml:"event-journal,omitempty"`
 }
 
 type ClassType struct {

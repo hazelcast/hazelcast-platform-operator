@@ -573,6 +573,22 @@ var (
 		}
 	}
 
+	MapWithEventJournal = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastv1alpha1.Map {
+		return &hazelcastv1alpha1.Map{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.MapSpec{
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
+				EventJournal: &hazelcastv1alpha1.EventJournal{},
+			},
+		}
+	}
+
 	DefaultWanReplication = func(wan types.NamespacedName, mapName, targetClusterName, endpoints string, lbls map[string]string) *hazelcastv1alpha1.WanReplication {
 		return &hazelcastv1alpha1.WanReplication{
 			ObjectMeta: v1.ObjectMeta{
@@ -760,6 +776,38 @@ var (
 				HazelcastResourceName: hz,
 				State:                 hazelcastv1alpha1.RunningJobState,
 				JarName:               jarName,
+			},
+		}
+	}
+
+	JetJobWithInitialSnapshot = func(jarName string, hz string, snapshotResourceName string, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.JetJob {
+		return &hazelcastv1alpha1.JetJob{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.JetJobSpec{
+				Name:                        lk.Name,
+				HazelcastResourceName:       hz,
+				State:                       hazelcastv1alpha1.RunningJobState,
+				JarName:                     jarName,
+				InitialSnapshotResourceName: snapshotResourceName,
+			},
+		}
+	}
+
+	JetJobSnapshot = func(name string, cancel bool, jetJobResourceName string, lk types.NamespacedName, lbls map[string]string) *hazelcastv1alpha1.JetJobSnapshot {
+		return &hazelcastv1alpha1.JetJobSnapshot{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.JetJobSnapshotSpec{
+				Name:               name,
+				CancelJob:          cancel,
+				JetJobResourceName: jetJobResourceName,
 			},
 		}
 	}

@@ -11,4 +11,5 @@ resources:
 - _v1alpha1_queue.yaml
 - _v1alpha1_cache.yaml
 - _v1alpha1_jetjob.yaml
+- _v1alpha1_jetjobsnapshot.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

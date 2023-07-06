@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"os"
 	"reflect"
 	"strings"
@@ -17,6 +16,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 func useExistingCluster() bool {
@@ -38,11 +40,11 @@ func GetSuiteName() string {
 	}
 	hazelcastVersion := os.Getenv("HZ_VERSION")
 	if hazelcastVersion == "" {
-		hazelcastVersion = naming.HazelcastVersion
+		hazelcastVersion = n.HazelcastVersion
 	}
 	managementCenterVersion := os.Getenv("MC_VERSION")
 	if managementCenterVersion == "" {
-		managementCenterVersion = naming.MCVersion
+		managementCenterVersion = n.MCVersion
 	}
 	return fmt.Sprintf("Operator Suite %s (HZ:%s; MC:%s)", edition, hazelcastVersion, managementCenterVersion)
 }
@@ -138,4 +140,27 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 		items := objListVal.FieldByName("Items")
 		return items.Len()
 	}, 10*Minute, interval).Should(Equal(0))
+}
+
+func checkJetJobStatus(nn types.NamespacedName, phase hazelcastv1alpha1.JetJobStatusPhase) {
+	jjCheck := &hazelcastv1alpha1.JetJob{}
+	Eventually(func() hazelcastv1alpha1.JetJobStatusPhase {
+		err := k8sClient.Get(context.Background(), nn, jjCheck)
+		if err != nil {
+			return ""
+		}
+		return jjCheck.Status.Phase
+	}, 5*Minute, interval).Should(Equal(phase))
+}
+
+func checkJetJobSnapshotStatus(nn types.NamespacedName, state hazelcastv1alpha1.JetJobSnapshotState) *hazelcastv1alpha1.JetJobSnapshot {
+	jjsCheck := &hazelcastv1alpha1.JetJobSnapshot{}
+	Eventually(func() hazelcastv1alpha1.JetJobSnapshotState {
+		err := k8sClient.Get(context.Background(), nn, jjsCheck)
+		if err != nil {
+			return ""
+		}
+		return jjsCheck.Status.State
+	}, 5*Minute, interval).Should(Equal(state))
+	return jjsCheck
 }

@@ -198,12 +198,27 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 	if job.Spec.MainClass != "" {
 		metaData.MainClass = job.Spec.MainClass
 	}
+	if job.Spec.InitialSnapshotResourceName != "" {
+		jjsnn := types.NamespacedName{Name: job.Spec.InitialSnapshotResourceName, Namespace: job.Namespace}
+		jjs := hazelcastv1alpha1.JetJobSnapshot{}
+		err := r.Client.Get(ctx, jjsnn, &jjs)
+		if err != nil {
+			logger.Error(err, "Error on getting JetJobSnapshot custom resource",
+				"snapshotResourceName", job.Spec.InitialSnapshotResourceName)
+			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+		}
+		if jjs.Status.CreationTime.IsZero() {
+			err := fmt.Errorf("JetJobSnapshot '%s' is not exported", job.Spec.InitialSnapshotResourceName)
+			logger.Error(err, "JetJobSnapshot creation time is zero")
+			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+		}
+		metaData.SnapshotName = jjs.Spec.Name
+	}
 	if job.Spec.IsDownloadEnabled() {
 		logger.V(util.DebugLevel).Info("Downloading the JAR file before running the JetJob", "jj", jjnn)
 		if err = r.downloadFile(ctx, job, hazelcastName, jjnn, c, logger); err != nil {
 			logger.Error(err, "Error downloading Jar for JetJob")
 			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
-
 		}
 		logger.V(util.DebugLevel).Info("JAR downloaded, starting the JetJob", "jj", jjnn)
 	}

@@ -61,6 +61,10 @@ type MapSpec struct {
 	// InMemoryFormat specifies near cache configuration for map
 	// +optional
 	NearCache *NearCache `json:"nearCache"`
+
+	// EventJournal specifies event journal configuration of the Map
+	// +optional
+	EventJournal *EventJournal `json:"eventJournal,omitempty"`
 }
 
 type NearCache struct {
