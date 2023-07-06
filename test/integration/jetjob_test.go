@@ -101,6 +101,7 @@ var _ = Describe("JetJob CR", func() {
 			jj.Spec.InitialSnapshotResourceName = "another-snapshot"
 			jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = nil
 			err := k8sClient.Update(context.Background(), jj)
+
 			Expect(err).Should(And(
 				MatchError(ContainSubstring("spec.name")),
 				MatchError(ContainSubstring("spec.hazelcastResourceName")),
