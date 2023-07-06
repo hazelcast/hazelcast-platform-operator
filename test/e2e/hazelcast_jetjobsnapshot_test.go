@@ -203,7 +203,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("JetJobSnapshot"), func() {
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
 		CreateHazelcastCR(hazelcast)
 
-		By("creating JetJob CR")
+		By("creating JetJob CR which is in non-running status")
 		jj := hazelcastconfig.JetJob(jarName, hzLookupKey.Name, jjLookupKey, labels)
 		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
 			SecretName: "br-secret-gcp",
@@ -220,7 +220,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("JetJobSnapshot"), func() {
 		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobSuspended)
 
 		By("creating JetJobSnapshot CR")
-		jjs := hazelcastconfig.JetJobSnapshot(jjsLookupKey.Name, true, jj.Name, jjsLookupKey, labels)
+		jjs := hazelcastconfig.JetJobSnapshot(jjsLookupKey.Name, false, jj.Name, jjsLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), jjs)).Should(Succeed())
 
 		By("asserting JetJobSnapshot status is set to 'failed'")

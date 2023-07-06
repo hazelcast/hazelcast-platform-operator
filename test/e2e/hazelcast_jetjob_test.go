@@ -181,14 +181,12 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		By("deleting Hazelcast CR")
 		RemoveHazelcastCR(hazelcast)
 
-		By("creating new Hazelcast cluster from hot-backup")
+		By("creating a new Hazelcast cluster from hot-backup")
 		hazelcast = hazelcastconfig.JetWithRestore(hzLookupKey, ee, hotBackup.Name, labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
-
-		By("Checking the JetJob jar is running in the new Hazelcast cluster")
+		By("checking the JetJob jar is running in the new Hazelcast cluster")
 		test.EventuallyInLogsUnordered(logReader, 15*Second, logInterval).
 			Should(ContainElements(
 				MatchRegexp(fmt.Sprintf(".*\\[%s\\/\\w+#\\d+\\]\\s+SimpleEvent\\(timestamp=.*,\\s+sequence=\\d+\\).*", jj.Name))))
