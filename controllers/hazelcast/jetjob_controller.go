@@ -144,7 +144,7 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	if h.Status.Phase != hazelcastv1alpha1.Running {
 		logger.Info("Hazelcast cluster is not ready", "name", hazelcastName, "phase", h.Status.Phase)
-		return r.updateStatus(ctx, req.NamespacedName, jetJobWithStatus(hazelcastv1alpha1.JetJobNotRunning))
+		return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(fmt.Errorf("hazelcast cluster %s cluster is not ready", h.Name)))
 	}
 
 	if err = hazelcastv1alpha1.ValidateJetConfiguration(h); err != nil {

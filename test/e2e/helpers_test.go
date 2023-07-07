@@ -407,7 +407,7 @@ func mapLoaderImage() string {
 }
 
 func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
-	return hz.Status.Phase == "Running"
+	return hz.Status.Phase == hazelcastcomv1alpha1.Running
 }
 
 // assertMemberLogs check that the given expected string can be found in the logs.
