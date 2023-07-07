@@ -193,7 +193,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 	})
 
 	It("should fail the job if Hz cluster is failing", Label("slow"), func() {
-		setLabelAndCRName("jj-1")
+		setLabelAndCRName("jj-5")
 
 		hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://wrong-bucket-name/jetJobs", labels)
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
@@ -209,7 +209,7 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		By("creating JetJob CR")
 		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(hazelcastv1alpha1.JetJobFailed)
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobFailed)
 
 		By("Update Hazelcast cluster with correct configuration")
 		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
@@ -219,6 +219,6 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 		By("checking Hazelcast CR in Running state", func() {
 			evaluateReadyMembers(hzLookupKey)
 		})
-		checkJetJobStatus(hazelcastv1alpha1.JetJobCompleted)
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobCompleted)
 	})
 })
