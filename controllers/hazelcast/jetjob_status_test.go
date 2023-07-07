@@ -110,3 +110,7 @@ func (f fakeJetService) UpdateJobState(_ context.Context, _ codecTypes.JetTermin
 func (f fakeJetService) ResumeJob(_ context.Context, _ int64) error {
 	return nil
 }
+
+func (f fakeJetService) ExportSnapshot(_ context.Context, _ int64, _ string, _ bool) (int64, error) {
+	return 0, nil
+}

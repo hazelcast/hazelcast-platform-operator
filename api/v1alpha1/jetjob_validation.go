@@ -83,9 +83,14 @@ func ValidateJetConfiguration(h *Hazelcast) error {
 
 func ValidateJetJobUpdateSpec(jj *JetJob, oldJj *JetJob) error {
 	var allErrs = validateJetJobUpdateSpec(jj)
-	if err := validateJetStatusChange(jj.Spec.State, oldJj.Status.Phase); err != nil {
-		allErrs = append(allErrs, err)
+
+	if jj.Spec.State != oldJj.Spec.State {
+		err := validateJetStatusChange(jj.Spec.State, oldJj.Status.Phase)
+		if err != nil {
+			allErrs = append(allErrs, err)
+		}
 	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}
@@ -134,6 +139,10 @@ func ValidateJetJobNonUpdatableFields(jj JetJobSpec, oldJj JetJobSpec) []*field.
 	if jj.MainClass != oldJj.MainClass {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("mainClass"), "field cannot be updated"))
+	}
+	if jj.InitialSnapshotResourceName != oldJj.InitialSnapshotResourceName {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("initialSnapshotResourceName"), "field cannot be updated"))
 	}
 	if jj.IsBucketEnabled() != oldJj.IsBucketEnabled() {
 		allErrs = append(allErrs,

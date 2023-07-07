@@ -6,8 +6,8 @@ spec:
   name: my-test-jet-job
   hazelcastResourceName: hazelcast
   state: Running
+  initialSnapshotResourceName: jet-job-snapshot
   jarName: jet-pipeline-1.0.2.jar
   bucketConfig:
     bucketURI: "gs://operator-user-code/jetJobs"
     secretName: br-secret-gcp
-

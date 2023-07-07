@@ -61,6 +61,10 @@ type MapSpec struct {
 	// InMemoryFormat specifies near cache configuration for map
 	// +optional
 	NearCache *NearCache `json:"nearCache"`
+
+	// EventJournal specifies event journal configuration of the Map
+	// +optional
+	EventJournal *EventJournal `json:"eventJournal,omitempty"`
 }
 
 type NearCache struct {
@@ -90,8 +94,8 @@ type NearCache struct {
 	MaxIdleSeconds uint `json:"maxIdleSeconds,omitempty"`
 
 	// NearCacheEviction specifies the eviction behavior in Near Cache
-	// +optional
-	NearCacheEviction *NearCacheEviction `json:"eviction,omitempty"`
+	// +kubebuilder:default:={evictionPolicy: NONE, maxSizePolicy: ENTRY_COUNT}
+	NearCacheEviction NearCacheEviction `json:"eviction"`
 
 	// CacheLocalEntries specifies whether the local entries are cached
 	// +kubebuilder:default:=true
@@ -111,8 +115,9 @@ type NearCacheEviction struct {
 	MaxSizePolicy MaxSizePolicyType `json:"maxSizePolicy,omitempty"`
 
 	// Size is maximum size of the Near Cache used for max-size-policy
+	// +kubebuilder:default:=0
 	// +optional
-	Size uint32 `json:"size,omitempty"`
+	Size uint32 `json:"size"`
 }
 
 type EntryListenerConfiguration struct {

@@ -1,0 +1,8 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: JetJobSnapshot
+metadata:
+  name: jetjobsnapshot-sample
+spec:
+  name: snapshot
+  cancelJob: false
+  jetJobResourceName: jet-job

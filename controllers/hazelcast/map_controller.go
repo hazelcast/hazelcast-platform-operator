@@ -322,9 +322,19 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 				StoreInitialDelaySeconds: 600,
 				StoreIntervalSeconds:     600,
 			}
-		mapInput.NearCacheConfig.EvictionConfigHolder.EvictionPolicy = string(ms.NearCache.NearCacheEviction.EvictionPolicy)
-		mapInput.NearCacheConfig.EvictionConfigHolder.MaxSizePolicy = string(ms.NearCache.NearCacheEviction.MaxSizePolicy)
-		mapInput.NearCacheConfig.EvictionConfigHolder.Size = int32(ms.NearCache.NearCacheEviction.Size)
+
+		mapInput.NearCacheConfig.EvictionConfigHolder = codecTypes.EvictionConfigHolder{
+			EvictionPolicy: string(ms.NearCache.NearCacheEviction.EvictionPolicy),
+			MaxSizePolicy:  string(ms.NearCache.NearCacheEviction.MaxSizePolicy),
+			Size:           int32(ms.NearCache.NearCacheEviction.Size),
+		}
+
+	}
+
+	if m.Spec.EventJournal != nil {
+		mapInput.EventJournalConfig.Enabled = true
+		mapInput.EventJournalConfig.Capacity = m.Spec.EventJournal.Capacity
+		mapInput.EventJournalConfig.TimeToLiveSeconds = m.Spec.EventJournal.TimeToLiveSeconds
 	}
 
 	return nil

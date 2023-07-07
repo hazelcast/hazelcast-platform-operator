@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -97,8 +98,12 @@ func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) field.ErrorL
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("inMemoryFormat"), "field cannot be updated"))
 	}
+	if !reflect.DeepEqual(current.EventJournal, last.EventJournal) {
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("eventJournal"), "field cannot be updated"))
+	}
 
-	if isNearCacheUpdated(current, last) {
+	if !reflect.DeepEqual(current.NearCache, last.NearCache) {
 		allErrs = append(allErrs,
 			field.Forbidden(field.NewPath("spec").Child("nearCache"), "field cannot be updated"))
 	}
@@ -107,37 +112,6 @@ func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) field.ErrorL
 		return nil
 	}
 	return allErrs
-}
-
-func isNearCacheUpdated(current *MapSpec, last *MapSpec) bool {
-	if current.NearCache != nil && last.NearCache != nil {
-		if *current.NearCache.InvalidateOnChange != *last.NearCache.InvalidateOnChange ||
-			current.NearCache.Name != last.NearCache.Name ||
-			*current.NearCache.CacheLocalEntries != *last.NearCache.CacheLocalEntries ||
-			current.NearCache.TimeToLiveSeconds != last.NearCache.TimeToLiveSeconds ||
-			current.NearCache.MaxIdleSeconds != last.NearCache.MaxIdleSeconds ||
-			current.NearCache.InMemoryFormat != last.NearCache.InMemoryFormat {
-			return true
-		}
-
-		if current.NearCache.NearCacheEviction != nil && last.NearCache.NearCacheEviction != nil {
-			if current.NearCache.NearCacheEviction.EvictionPolicy != last.NearCache.NearCacheEviction.EvictionPolicy ||
-				current.NearCache.NearCacheEviction.Size != last.NearCache.NearCacheEviction.Size ||
-				current.NearCache.NearCacheEviction.MaxSizePolicy != last.NearCache.NearCacheEviction.MaxSizePolicy {
-				return true
-			}
-		}
-
-		if current.NearCache.NearCacheEviction == nil && last.NearCache.NearCacheEviction != nil {
-			return true
-		}
-	}
-
-	if current.NearCache == nil && last.NearCache != nil {
-		return true
-	}
-
-	return false
 }
 
 func indexConfigSliceEquals(a, b []IndexConfig) bool {

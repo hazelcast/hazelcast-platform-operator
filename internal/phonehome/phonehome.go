@@ -104,6 +104,7 @@ type PhoneHomeData struct {
 	TLS                           TLS                    `json:"t"`
 	SerializationCount            int                    `json:"serc"`
 	CustomConfigCount             int                    `json:"ccon"`
+	JetJobSnapshotCount           int                    `json:"jjsc"`
 }
 
 type JVMConfigUsage struct {
@@ -201,6 +202,7 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillCronHotBackupMetrics(cl)
 	phd.fillTopicMetrics(cl)
 	phd.fillJetMetrics(cl)
+	phd.fillSnapshotMetrics(cl)
 	return phd
 }
 
@@ -576,6 +578,15 @@ func (phm *PhoneHomeData) fillJetMetrics(cl client.Client) {
 		return
 	}
 	phm.Jet.Count = len(jjl.Items)
+}
+
+func (phm *PhoneHomeData) fillSnapshotMetrics(cl client.Client) {
+	jjsl := &hazelcastv1alpha1.JetJobSnapshotList{}
+	err := cl.List(context.Background(), jjsl, listOptions()...)
+	if err != nil || jjsl.Items == nil {
+		return
+	}
+	phm.JetJobSnapshotCount = len(jjsl.Items)
 }
 
 func listOptions() []client.ListOption {

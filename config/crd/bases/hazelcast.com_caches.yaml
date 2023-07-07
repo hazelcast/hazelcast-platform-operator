@@ -62,6 +62,23 @@ spec:
                 maximum: 6
                 minimum: 0
                 type: integer
+              eventJournal:
+                description: EventJournal specifies event journal configuration of
+                  the Cache
+                properties:
+                  capacity:
+                    default: 10000
+                    description: Capacity sets the capacity of the ringbuffer underlying
+                      the event journal.
+                    format: int32
+                    type: integer
+                  timeToLiveSeconds:
+                    default: 0
+                    description: TimeToLiveSeconds indicates how long the items remain
+                      in the event journal before they are expired.
+                    format: int32
+                    type: integer
+                type: object
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource that this resource is created for.

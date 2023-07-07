@@ -247,6 +247,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Cache")
 		os.Exit(1)
 	}
+
 	if err = hazelcast.NewJetJobReconciler(
 		mgr.GetClient(),
 		controllerLogger.WithName("JetJob"),
@@ -255,6 +256,18 @@ func main() {
 		phoneHomeTrigger,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "JetJob")
+		os.Exit(1)
+	}
+
+	if err = hazelcast.NewJetJobSnapshotReconciler(
+		mgr.GetClient(),
+		controllerLogger.WithName("JetJobSnapshot"),
+		scheme,
+		cr,
+		mtlsRegistry,
+		phoneHomeTrigger,
+	).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "JetJobSnapshot")
 		os.Exit(1)
 	}
 
@@ -341,6 +354,10 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 		setupLog.Error(err, "unable to create webhook", "webhook", "JetJob")
 		os.Exit(1)
 	}
+	if err := (&hazelcastcomv1alpha1.JetJobSnapshot{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "JetJobSnapshot")
+		os.Exit(1)
+	}
 }
 
 func setManagerWathedNamespaces(mgrOptions *ctrl.Options, operatorNamespace string) util.WatchedNsType {
@@ -355,7 +372,7 @@ func setManagerWathedNamespaces(mgrOptions *ctrl.Options, operatorNamespace stri
 		mgrOptions.Namespace = watchedNamespaces[0]
 	case util.WatchedNsTypeSingle, util.WatchedNsTypeMulti:
 		setupLog.Info("Watching namespaces", "watched_namespaces", watchedNamespaces, "operator_namespace", operatorNamespace)
-		// Operator should be able watch resources in its own namespace
+		// Operator should be able to watch resources in its own namespace
 		watchedNamespaces = append(watchedNamespaces, operatorNamespace)
 		mgrOptions.NewCache = cache.MultiNamespacedCacheBuilder(watchedNamespaces)
 	default:

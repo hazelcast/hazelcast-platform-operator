@@ -86,6 +86,23 @@ spec:
                   - className
                   type: object
                 type: array
+              eventJournal:
+                description: EventJournal specifies event journal configuration of
+                  the Map
+                properties:
+                  capacity:
+                    default: 10000
+                    description: Capacity sets the capacity of the ringbuffer underlying
+                      the event journal.
+                    format: int32
+                    type: integer
+                  timeToLiveSeconds:
+                    default: 0
+                    description: TimeToLiveSeconds indicates how long the items remain
+                      in the event journal before they are expired.
+                    format: int32
+                    type: integer
+                type: object
               eviction:
                 default:
                   evictionPolicy: NONE
@@ -242,6 +259,9 @@ spec:
                       are cached
                     type: boolean
                   eviction:
+                    default:
+                      evictionPolicy: NONE
+                      maxSizePolicy: ENTRY_COUNT
                     description: NearCacheEviction specifies the eviction behavior
                       in Near Cache
                     properties:
@@ -273,6 +293,7 @@ spec:
                         - ENTRY_COUNT
                         type: string
                       size:
+                        default: 0
                         description: Size is maximum size of the Near Cache used for
                           max-size-policy
                         format: int32
@@ -306,6 +327,8 @@ spec:
                     description: TimeToLiveSeconds maximum number of seconds for each
                       entry to stay in the Near Cache
                     type: integer
+                required:
+                - eviction
                 type: object
               persistenceEnabled:
                 default: false
