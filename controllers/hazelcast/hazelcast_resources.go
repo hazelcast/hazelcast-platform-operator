@@ -48,6 +48,8 @@ import (
 const (
 	// hzLicenseKey License key for Hazelcast cluster
 	hzLicenseKey = "HZ_LICENSEKEY"
+	// javaOpts java options for Hazelcast
+	javaOpts = "JAVA_OPTS"
 )
 
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -2245,7 +2247,7 @@ func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
-			Name:  "JAVA_OPTS",
+			Name:  javaOpts,
 			Value: javaOPTS(h),
 		},
 		{
