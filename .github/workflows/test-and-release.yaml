@@ -408,7 +408,7 @@ jobs:
 
   publish_release:
     if: needs.test_container.outputs.REFS == github.ref && github.ref != 'refs/heads/main'
-    needs: [create_operator_tag, test_container, test_operator, community_operators_test_suite]
+    needs: [migration-test, create_operator_tag, test_container, test_operator, community_operators_test_suite]
     uses: ./.github/workflows/publish-release.yaml
     with:
       RELEASE_VERSION: ${{ needs.test_container.outputs.RELEASE_VERSION }}
