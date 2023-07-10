@@ -113,12 +113,14 @@ jobs:
           git commit --signoff -m "Update docs to ${RELEASE_VERSION}"
           git push -u origin $BRANCH_NAME
 
-      - name: Update snapshot version for Operator chart
+      - name: Update versions in the main branch(latest-snapshot)
         run: |
           git checkout main
           git pull origin main
           
           sed -i "s/operator-chart-version: .*/operator-chart-version: '${UPCOMING_MAJOR_MINOR_VERSION}.0-snapshot'/" docs/antora.yml
+          sed -i "s/page-latest-supported-hazelcast:.*/page-latest-supported-hazelcast: '${{ github.event.inputs.LATEST_SUPPORTED_HAZELCAST }}'/" docs/antora.yml
+          sed -i "s/page-latest-supported-mc:.*/page-latest-supported-mc: '${{ github.event.inputs.LATEST_SUPPORTED_MC }}'/" docs/antora.yml
           
           # Commit and push changes
           git add docs/antora.yml
