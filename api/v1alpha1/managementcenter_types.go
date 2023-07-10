@@ -60,6 +60,10 @@ type ManagementCenterSpec struct {
 	// +kubebuilder:default:={}
 	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// ManagementCenter JVM configuration
+	// +optional
+	JVM *MCJVMConfiguration `json:"jvm,omitempty"`
 }
 
 func (s *ManagementCenterSpec) GetLicenseKeySecretName() string {
@@ -199,6 +203,17 @@ type MCPersistenceConfiguration struct {
 // IsEnabled returns true if persistence configuration is specified.
 func (pc *MCPersistenceConfiguration) IsEnabled() bool {
 	return pc != nil && pc.Enabled != nil && *pc.Enabled
+}
+
+// MCJVMConfiguration is a ManagementCenter JVM configuration
+type MCJVMConfiguration struct {
+	// Args is for arbitrary JVM arguments
+	// +optional
+	Args []string `json:"args,omitempty"`
+}
+
+func (c *MCJVMConfiguration) IsConfigured() bool {
+	return c != nil && c.Args != nil && len(c.Args) > 0
 }
 
 // ManagementCenterStatus defines the observed state of ManagementCenter.

@@ -38,7 +38,8 @@ const (
 	mcLicenseKey = "MC_LICENSE_KEY"
 	// mcInitCmd init command for Management Center
 	mcInitCmd = "MC_INIT_CMD"
-	javaOpts  = "JAVA_OPTS"
+	// javaOpts java options for Management Center
+	javaOpts = "JAVA_OPTS"
 )
 
 func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter) error {
@@ -465,7 +466,12 @@ func configMount() corev1.VolumeMount {
 }
 
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
-	envs := []v1.EnvVar{{Name: mcInitCmd, Value: clusterAddCommand(mc)}}
+	envs := []v1.EnvVar{
+		{
+			Name:  mcInitCmd,
+			Value: clusterAddCommand(mc),
+		},
+	}
 
 	if mc.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
@@ -480,21 +486,18 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 					},
 				},
 			},
-			v1.EnvVar{
-				Name: javaOpts,
-				Value: fmt.Sprintf("-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true"+
-					" -Dhazelcast.mc.lock.skip=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
-			},
-		)
-	} else {
-		envs = append(envs,
-			v1.EnvVar{
-				Name: javaOpts,
-				Value: fmt.Sprintf("-Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"+
-					" -Dhazelcast.mc.lock.skip=true -Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
-			},
 		)
 	}
+
+	// This env must be set after MC_LICENSE_KEY env var since it might have a reference
+	// to MC_LICENSE_KEY (e.g. -Dhazelcast.mc.license=$(MC_LICENSE_KEY)).
+	envs = append(envs,
+		v1.EnvVar{
+			Name:  javaOpts,
+			Value: javaOPTS(mc),
+		},
+	)
+
 	return envs
 }
 
@@ -504,6 +507,26 @@ func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
 		commands = append(commands, fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data --client-config %s", path.Join("/config", cluster.Name+".xml")))
 	}
 	return strings.Join(commands, " && ")
+}
+
+func javaOPTS(mc *hazelcastv1alpha1.ManagementCenter) string {
+	args := []string{
+		"-Dhazelcast.mc.healthCheck.enable=true",
+		"-Dhazelcast.mc.lock.skip=true",
+		"-Dhazelcast.mc.tls.enabled=false",
+		"-Dmancenter.ssl=false",
+		fmt.Sprintf("-Dhazelcast.mc.phone.home.enabled=%t", util.IsPhoneHomeEnabled()),
+	}
+
+	if mc.Spec.GetLicenseKeySecretName() != "" {
+		args = append(args, "-Dhazelcast.mc.license=$(MC_LICENSE_KEY)")
+	}
+
+	if mc.Spec.JVM.IsConfigured() {
+		args = append(args, mc.Spec.JVM.Args...)
+	}
+
+	return strings.Join(args, " ")
 }
 
 func hazelcastKeystore(ctx context.Context, c client.Client, mc *hazelcastv1alpha1.ManagementCenter, secretName string) ([]byte, error) {

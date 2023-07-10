@@ -3,7 +3,6 @@ package integration
 import (
 	"context"
 	"fmt"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -13,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+	"strings"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -39,7 +39,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		return fetchedCR
 	}
 
-	EnsureStatus := func(mc *hazelcastv1alpha1.ManagementCenter) *hazelcastv1alpha1.ManagementCenter {
+	EnsureStatusIsPending := func(mc *hazelcastv1alpha1.ManagementCenter) *hazelcastv1alpha1.ManagementCenter {
 		By("ensuring that the status is correct")
 		Eventually(func() hazelcastv1alpha1.Phase {
 			mc = Fetch(mc)
@@ -76,7 +76,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				ObjectMeta: randomObjectMeta(namespace),
 			}
 			Create(mc)
-			fetchedCR := EnsureStatus(mc)
+			fetchedCR := EnsureStatusIsPending(mc)
 			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), false)
 		})
 
@@ -87,7 +87,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			}
 
 			Create(mc)
-			fetchedCR := EnsureStatus(mc)
+			fetchedCR := EnsureStatusIsPending(mc)
 			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), ee)
 
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(BeNil())
@@ -165,18 +165,18 @@ var _ = Describe("ManagementCenter CR", func() {
 			}
 
 			Create(mc)
-			fetchedMc := EnsureStatus(mc)
+			fetchedMc := EnsureStatusIsPending(mc)
 			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
 			EnsureServiceType(mc, corev1.ServiceTypeLoadBalancer)
 
 			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeNodePort
 			Update(fetchedMc)
-			fetchedMc = EnsureStatus(mc)
+			fetchedMc = EnsureStatusIsPending(mc)
 			EnsureServiceType(mc, corev1.ServiceTypeNodePort)
 
 			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeClusterIP
 			Update(fetchedMc)
-			EnsureStatus(mc)
+			EnsureStatusIsPending(mc)
 			EnsureServiceType(mc, corev1.ServiceTypeClusterIP)
 		})
 
@@ -187,7 +187,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			}
 
 			Create(mc)
-			fetchedMc := EnsureStatus(mc)
+			fetchedMc := EnsureStatusIsPending(mc)
 			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
 
 			ing := &networkingv1.Ingress{}
@@ -210,7 +210,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			}
 
 			Update(fetchedMc)
-			fetchedMc = EnsureStatus(mc)
+			fetchedMc = EnsureStatusIsPending(mc)
 			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(externalConnectivityIngress))
 			assertExists(lookupKey(mc), ing)
 			Expect(*ing.Spec.IngressClassName).Should(Equal(externalConnectivityIngress.IngressClassName))
@@ -229,7 +229,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			}
 			fetchedMc.Spec.ExternalConnectivity.Ingress = updatedExternalConnectivityIngress
 			Update(fetchedMc)
-			fetchedMc = EnsureStatus(mc)
+			fetchedMc = EnsureStatusIsPending(mc)
 			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(updatedExternalConnectivityIngress))
 			assertExistsAndBeAsExpected(lookupKey(mc), ing, func(ing *networkingv1.Ingress) bool {
 				return *ing.Spec.IngressClassName == updatedExternalConnectivityIngress.IngressClassName
@@ -242,7 +242,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			fetchedMc.Spec.ExternalConnectivity.Ingress = nil
 			Update(fetchedMc)
 			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(BeNil())
-			EnsureStatus(mc)
+			EnsureStatusIsPending(mc)
 			assertDoesNotExist(lookupKey(mc), ing)
 		})
 	})
@@ -260,7 +260,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}
 				Create(mc)
-				fetchedCR := EnsureStatus(mc)
+				fetchedCR := EnsureStatusIsPending(mc)
 				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(lookupKey(fetchedCR), fetchedSts)
 				expectedVolume := corev1.Volume{
@@ -296,7 +296,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}
 				Create(mc)
-				EnsureStatus(mc)
+				EnsureStatusIsPending(mc)
 				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, fetchedSts)
 				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
@@ -460,7 +460,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}}
 				Create(mc)
-				EnsureStatus(mc)
+				EnsureStatusIsPending(mc)
 			})
 
 			It("should error when secretName is empty", Label("fast"), func() {
@@ -517,7 +517,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}}
 				Create(mc)
-				EnsureStatus(mc)
+				EnsureStatusIsPending(mc)
 			})
 		})
 	})
@@ -576,7 +576,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				}
 
 				Create(mc)
-				mc = EnsureStatus(mc)
+				mc = EnsureStatusIsPending(mc)
 				mc.Spec = secondSpec
 
 				Expect(k8sClient.Update(context.Background(), mc)).Should(Succeed())
@@ -623,4 +623,43 @@ var _ = Describe("ManagementCenter CR", func() {
 			})
 		})
 	})
+
+	Context("JVM args configuration", func() {
+		It("should set the given jvm args to java opts env in pod template", Label("fast"), func() {
+			jvmArgs := []string{
+				"-arg1=value1",
+				"-arg2=value2",
+				"-arg3=value3",
+			}
+
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.ManagementCenterSpec{
+					JVM: &hazelcastv1alpha1.MCJVMConfiguration{
+						Args: jvmArgs,
+					},
+				},
+			}
+			Create(mc)
+			mc = EnsureStatusIsPending(mc)
+
+			Expect(k8sClient.Get(context.Background(), lookupKey(mc), mc)).Should(Succeed())
+			Expect(mc.Spec.JVM.Args).Should(Equal(jvmArgs))
+
+			sts := appsv1.StatefulSet{}
+			Expect(k8sClient.Get(context.Background(), lookupKey(mc), &sts)).Should(Succeed())
+			envs := sts.Spec.Template.Spec.Containers[0].Env
+			matched := false
+			for i := 0; i < len(envs) && !matched; i++ {
+				envVars := strings.Split(envs[i].Value, " ")
+				argsMatched, err := ContainElements(jvmArgs).Match(envVars)
+				if err != nil {
+					Fail(err.Error())
+				}
+				matched = argsMatched
+			}
+			Expect(matched).To(BeTrue())
+		})
+	})
+
 })
