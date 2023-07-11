@@ -120,10 +120,8 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			withWanRepFailedState(err.Error()))
 	}
 
-	if _, successfullyAppliedBefore := wan.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; successfullyAppliedBefore {
-		if err := hazelcastv1alpha1.ValidateWanReplicationSpec(wan); err != nil {
-			return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
-		}
+	if err := hazelcastv1alpha1.ValidateWanReplicationSpec(wan); err != nil {
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 	}
 
 	if err := r.checkWanEndpoint(ctx, wan); err != nil {
