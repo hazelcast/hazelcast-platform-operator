@@ -16,7 +16,7 @@ func ValidateWanReplicationSpec(w *WanReplication) error {
 	if len(errors) == 0 {
 		return nil
 	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "WanReplication"}, r.Name, errors)
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "WanReplication"}, w.Name, errors)
 }
 
 func validateNonUpdatableWanFields(w *WanReplication) field.ErrorList {
