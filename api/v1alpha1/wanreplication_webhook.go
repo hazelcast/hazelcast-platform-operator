@@ -26,23 +26,17 @@ var _ webhook.Validator = &WanReplication{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *WanReplication) ValidateCreate() error {
 	wanreplicationlog.Info("validate create", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object creation.
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *WanReplication) ValidateUpdate(old runtime.Object) error {
+func (r *WanReplication) ValidateUpdate(_ runtime.Object) error {
 	wanreplicationlog.Info("validate update", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object update.
-	return nil
+	return ValidateWanReplicationSpec(r)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *WanReplication) ValidateDelete() error {
 	wanreplicationlog.Info("validate delete", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
