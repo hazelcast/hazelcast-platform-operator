@@ -39,13 +39,16 @@ Hazelcast Platform Operator supports the features below:
   clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/latest/clients/java#java-client-operation-modes))
 * Backup Hazelcast persistence data to cloud storage with the possibility of scheduling it and restoring the data accordingly
 * WAN Replication feature when you need to synchronize multiple Hazelcast clusters, which are connected by WANs
-* User Code Deployment feature, which allows you to deploy custom and domain classes from cloud storages to Hazelcast members
+* User Code Deployment feature, which allows you to deploy custom and domain classes from cloud storages and URLs to Hazelcast members
 * Support the configuration of advanced networking options
 * Support Multi-namespace configuration
 * ExecutorService and EntryProcessor support
 * Support several data structures like Map, Topic, MultiMap, ReplicatedMap, Queue and Cache which can be created dynamically via specific Custom Resources
-* MapStore, Near Cache and Native Memory support for the Map CR
-* Native memory support for the Cache CR
+* MapStore, Near Cache and off-heap memory (HD memory and native memory) support for the Map CR
+* Native Memory support for the Cache CR
+* Support Jet configuration and Jet Job submission using the JetJob CR
+* Support for exporting the snapshots of JetJob CRs using JetJobSnapshot CR
+* Support for custom configurations using ConfigMap
 
 For Hazelcast Platform Enterprise, you can request a trial license key from [here](https://trialrequest.hazelcast.com).
 
