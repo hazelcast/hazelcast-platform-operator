@@ -191,4 +191,34 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 			Should(ContainElements(
 				MatchRegexp(fmt.Sprintf(".*\\[%s\\/\\w+#\\d+\\]\\s+SimpleEvent\\(timestamp=.*,\\s+sequence=\\d+\\).*", jj.Name))))
 	})
+
+	It("should fail the job if Hz cluster is failing", Label("slow"), func() {
+		setLabelAndCRName("jj-5")
+
+		hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://wrong-bucket-name/jetJobs", labels)
+		hazelcast.Spec.ClusterSize = pointer.Int32(1)
+		CreateHazelcastCRWithoutCheck(hazelcast)
+		By("checking Hazelcast CR in Pending state", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{}
+			Eventually(func() hazelcastv1alpha1.Phase {
+				_ = k8sClient.Get(context.Background(), hzLookupKey, hz)
+				return hz.Status.Phase
+			}, 10*Minute, interval).Should(Equal(hazelcastv1alpha1.Pending))
+		})
+
+		By("creating JetJob CR")
+		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
+		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobFailed)
+
+		By("Update Hazelcast cluster with correct configuration")
+		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+			hazelcast.Spec.JetEngineConfiguration.RemoteFileConfiguration.BucketConfiguration.BucketURI = "gs://operator-user-code/jetJobs"
+			return hazelcast
+		})
+		By("checking Hazelcast CR in Running state", func() {
+			evaluateReadyMembers(hzLookupKey)
+		})
+		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobCompleted)
+	})
 })
