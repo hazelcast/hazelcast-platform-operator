@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -126,24 +127,30 @@ var _ = Describe("WanReplication CR", func() {
 					ObjectMeta: randomObjectMeta(namespace, n.LastSuccessfulSpecAnnotation, string(wrs)),
 					Spec:       spec,
 				}
+
 				Expect(k8sClient.Create(context.Background(), wr)).Should(Succeed())
 
-				wr.Spec.TargetClusterName = "prod"
-				wr.Spec.Endpoints = "203.0.113.52:5701"
-				wr.Spec.Queue = hazelcastv1alpha1.QueueSetting{
-					Capacity:     20,
-					FullBehavior: hazelcastv1alpha1.ThrowException,
-				}
-				wr.Spec.Batch = hazelcastv1alpha1.BatchSetting{
-					Size:         200,
-					MaximumDelay: 2000,
-				}
-				wr.Spec.Acknowledgement = hazelcastv1alpha1.AcknowledgementSetting{
-					Type:    hazelcastv1alpha1.AckOnReceipt,
-					Timeout: 10000,
-				}
-				err := k8sClient.Update(context.Background(), wr)
-				Expect(err).Should(And(
+				Expect(retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					err := k8sClient.Get(context.Background(), types.NamespacedName{Name: wr.Name, Namespace: wr.Namespace}, wr)
+					if err != nil {
+						return nil
+					}
+					wr.Spec.TargetClusterName = "prod"
+					wr.Spec.Endpoints = "203.0.113.52:5701"
+					wr.Spec.Queue = hazelcastv1alpha1.QueueSetting{
+						Capacity:     20,
+						FullBehavior: hazelcastv1alpha1.ThrowException,
+					}
+					wr.Spec.Batch = hazelcastv1alpha1.BatchSetting{
+						Size:         200,
+						MaximumDelay: 2000,
+					}
+					wr.Spec.Acknowledgement = hazelcastv1alpha1.AcknowledgementSetting{
+						Type:    hazelcastv1alpha1.AckOnReceipt,
+						Timeout: 10000,
+					}
+					return k8sClient.Update(context.Background(), wr)
+				})).Should(And(
 					MatchError(ContainSubstring("spec.targetClusterName")),
 					MatchError(ContainSubstring("spec.endpoints")),
 					MatchError(ContainSubstring("spec.queue")),
