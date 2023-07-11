@@ -44,12 +44,11 @@ Hazelcast Platform Operator supports the features below:
 * Support Multi-namespace configuration
 * ExecutorService and EntryProcessor support
 * Support several data structures like Map, Topic, MultiMap, ReplicatedMap, Queue and Cache which can be created dynamically via specific Custom Resources
-* MapStore, Near Cache, off-heap memory (HD memory and native memory) and EventJournal support for the Map CR
-* Native Memory and EventJournal support for the Cache CR
+* MapStore, Near Cache and off-heap memory (HD memory and native memory) support for the Map CR
+* Native Memory support for the Cache CR
 * Support Jet configuration and Jet Job submission using the JetJob CR
 * Support for exporting the snapshots of JetJob CRs using JetJobSnapshot CR
 * Support for custom configurations using ConfigMap
-* Support for serialization configuration in the Hazelcast CR
 
 For Hazelcast Platform Enterprise, you can request a trial license key from [here](https://trialrequest.hazelcast.com).
 
