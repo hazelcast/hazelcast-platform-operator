@@ -120,18 +120,8 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			withWanRepFailedState(err.Error()))
 	}
 
-	if s, successfullyAppliedBefore := wan.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]; successfullyAppliedBefore {
-		lastSpec := &hazelcastv1alpha1.WanReplicationSpec{}
-		err = json.Unmarshal([]byte(s), lastSpec)
-		if err != nil {
-			err = fmt.Errorf("error unmarshaling Last WanReplication Spec: %w", err)
-			return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
-		}
-
-		err = validateNotUpdatableFields(&wan.Spec, lastSpec)
-		if err != nil {
-			return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
-		}
+	if err := hazelcastv1alpha1.ValidateWanReplicationSpec(wan); err != nil {
+		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err), withWanRepFailedState(err.Error()))
 	}
 
 	if err := r.checkWanEndpoint(ctx, wan); err != nil {
@@ -478,25 +468,6 @@ func (r *WanReplicationReconciler) removeOwnerReference(ctx context.Context, wan
 	m.OwnerReferences = newOwnerRef
 	if err := r.Update(ctx, m); err != nil {
 		return err
-	}
-	return nil
-}
-
-func validateNotUpdatableFields(current *hazelcastv1alpha1.WanReplicationSpec, last *hazelcastv1alpha1.WanReplicationSpec) error {
-	if current.TargetClusterName != last.TargetClusterName {
-		return fmt.Errorf("targetClusterName cannot be updated")
-	}
-	if current.Endpoints != last.Endpoints {
-		return fmt.Errorf("endpoints cannot be updated")
-	}
-	if current.Queue != last.Queue {
-		return fmt.Errorf("queue cannot be updated")
-	}
-	if current.Batch != last.Batch {
-		return fmt.Errorf("batch cannot be updated")
-	}
-	if current.Acknowledgement != last.Acknowledgement {
-		return fmt.Errorf("acknowledgement cannot be updated")
 	}
 	return nil
 }

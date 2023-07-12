@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -178,6 +179,17 @@ func defaultMcSpecValues() *test.MCSpecValues {
 		LicenseKey:      n.LicenseKeySecret,
 		ImagePullPolicy: n.MCImagePullPolicy,
 	}
+}
+
+func updateCR[CR client.Object](obj CR, updFn func(object CR)) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj)
+		if err != nil {
+			return err
+		}
+		updFn(obj)
+		return k8sClient.Update(context.Background(), obj)
+	})
 }
 
 func CreateLicenseKeySecret(name, namespace string) *corev1.Secret {
