@@ -1,0 +1,6 @@
+{{- if .Values.imagePullSecrets }}
+#################################################################################
+######   WARNING: `imagePullSecrets` has been deprecated!                   #####
+######            It has been moved and renamed to `image.pullSecrets`.     #####
+#################################################################################
+{{- end }}
