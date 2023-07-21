@@ -61,7 +61,7 @@ var _ = Describe("WanReplication CR", func() {
 				wan := &hazelcastv1alpha1.WanReplication{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
-				By("failing to create Cache CR")
+				By("trying to create WAN CR")
 				Expect(k8sClient.Create(context.Background(), wan)).ShouldNot(Succeed())
 			})
 		})

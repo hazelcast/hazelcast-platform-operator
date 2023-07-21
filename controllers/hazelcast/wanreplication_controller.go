@@ -684,7 +684,7 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 		}
 
 		// WAN is in Config but is not correct
-		realWan := createWanReplicationConfig(v.PublisherId, *wan)
+		realWan := createWanReplicationConfig(v.PublisherId, []hazelcastv1alpha1.WanReplication{*wan})
 		if !reflect.DeepEqual(realWan, wanRep) {
 			continue
 		}
