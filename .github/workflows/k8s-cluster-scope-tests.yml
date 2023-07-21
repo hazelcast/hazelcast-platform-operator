@@ -29,7 +29,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2.4.1
+        uses: docker/setup-buildx-action@v2.9.1
         with:
           install: true
 
@@ -98,7 +98,7 @@ jobs:
           - role: worker
           EOT
       - name: Create Kind Cluster
-        uses: helm/kind-action@v1.5.0
+        uses: helm/kind-action@v1.8.0
         with:
           config: ./kind-config.yaml
           cluster_name: ${{ env.CLUSTER_NAME }}
