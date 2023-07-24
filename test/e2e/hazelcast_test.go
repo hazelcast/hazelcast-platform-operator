@@ -4,13 +4,11 @@ import (
 	"context"
 	. "time"
 
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
@@ -173,7 +171,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		})
 	})
 
-	Describe("Hazelcast CR TLS configuration", func() {
+	FDescribe("Hazelcast CR TLS configuration", func() {
 		When("TLS property is configured", func() {
 			It("should form a cluster and be able to connect", Label("fast"), func() {
 				if !ee {
@@ -182,22 +180,17 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				setLabelAndCRName("h-8")
 				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
 
-				secret := &corev1.Secret{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      hz.Spec.TLS.SecretName,
-						Namespace: hz.Namespace,
-					},
-					Data: map[string][]byte{
-						"tls.crt": []byte(hazelcastconfig.ExampleCert),
-						"tls.key": []byte(hazelcastconfig.ExampleKey),
-					},
+				tlsSecretNn := types.NamespacedName{
+					Name:      hz.Spec.TLS.SecretName,
+					Namespace: hz.Namespace,
 				}
-
+				secret := hazelcastconfig.TLSSecret(tlsSecretNn, map[string]string{})
 				By("creating TLS secret", func() {
 					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
-					assertExists(types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, &corev1.Secret{})
+					assertExists(tlsSecretNn, &corev1.Secret{})
 				})
 
+				hz.Spec.Version = "5.3.0"
 				CreateHazelcastCR(hz)
 				evaluateReadyMembers(hzLookupKey)
 			})
@@ -211,21 +204,17 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				setLabelAndCRName("h-8")
 				hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
 
-				secret := &corev1.Secret{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      hz.Spec.TLS.SecretName,
-						Namespace: hz.Namespace,
-					},
-					Data: map[string][]byte{
-						"tls.crt": []byte(hazelcastconfig.ExampleCert),
-						"tls.key": []byte(hazelcastconfig.ExampleKey),
-					},
+				tlsSecretNn := types.NamespacedName{
+					Name:      hz.Spec.TLS.SecretName,
+					Namespace: hz.Namespace,
 				}
-
+				secret := hazelcastconfig.TLSSecret(tlsSecretNn, map[string]string{})
 				By("creating TLS secret", func() {
 					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+					assertExists(tlsSecretNn, &corev1.Secret{})
 				})
 
+				hz.Spec.Version = "5.3.0"
 				CreateHazelcastCR(hz)
 				evaluateReadyMembers(hzLookupKey)
 			})
