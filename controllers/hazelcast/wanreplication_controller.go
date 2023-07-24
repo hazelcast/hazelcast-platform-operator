@@ -682,10 +682,14 @@ func (r *WanReplicationReconciler) validateWanConfigPersistence(ctx context.Cont
 		if !ok {
 			continue
 		}
+		wanPub, ok := wanRep.BatchPublisher[v.PublisherId]
+		if !ok {
+			continue
+		}
 
-		// WAN is in Config but is not correct
-		realWan := createWanReplicationConfig(v.PublisherId, []hazelcastv1alpha1.WanReplication{*wan})
-		if !reflect.DeepEqual(realWan, wanRep) {
+		// WAN publisher is in Config but is not correct
+		realPub := createBatchPublisherConfig(*wan)
+		if !reflect.DeepEqual(realPub, wanPub) {
 			continue
 		}
 		mapWanStatus[mapWanKey] = wanMapSuccessStatus{}

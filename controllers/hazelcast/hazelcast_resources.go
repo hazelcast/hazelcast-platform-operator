@@ -1538,20 +1538,25 @@ func createWanReplicationConfig(wanKey string, wrs []hazelcastv1alpha1.WanReplic
 	}
 	if len(wrs) != 0 {
 		for _, wr := range wrs {
-			bpc := config.BatchPublisherConfig{
-				ClusterName:           wr.Spec.TargetClusterName,
-				TargetEndpoints:       wr.Spec.Endpoints,
-				ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
-				AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
-				QueueCapacity:         wr.Spec.Queue.Capacity,
-				QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
-				BatchSize:             wr.Spec.Batch.Size,
-				BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
-			}
+			bpc := createBatchPublisherConfig(wr)
 			cfg.BatchPublisher[wr.Status.WanReplicationMapsStatus[wanKey].PublisherId] = bpc
 		}
 	}
 	return cfg
+}
+
+func createBatchPublisherConfig(wr hazelcastv1alpha1.WanReplication) config.BatchPublisherConfig {
+	bpc := config.BatchPublisherConfig{
+		ClusterName:           wr.Spec.TargetClusterName,
+		TargetEndpoints:       wr.Spec.Endpoints,
+		ResponseTimeoutMillis: wr.Spec.Acknowledgement.Timeout,
+		AcknowledgementType:   string(wr.Spec.Acknowledgement.Type),
+		QueueCapacity:         wr.Spec.Queue.Capacity,
+		QueueFullBehavior:     string(wr.Spec.Queue.FullBehavior),
+		BatchSize:             wr.Spec.Batch.Size,
+		BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
+	}
+	return bpc
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
