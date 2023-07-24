@@ -171,7 +171,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		})
 	})
 
-	FDescribe("Hazelcast CR TLS configuration", func() {
+	Describe("Hazelcast CR TLS configuration", func() {
 		When("TLS property is configured", func() {
 			It("should form a cluster and be able to connect", Label("fast"), func() {
 				if !ee {
@@ -190,7 +190,6 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 					assertExists(tlsSecretNn, &corev1.Secret{})
 				})
 
-				hz.Spec.Version = "5.3.0"
 				CreateHazelcastCR(hz)
 				evaluateReadyMembers(hzLookupKey)
 			})
@@ -214,7 +213,6 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 					assertExists(tlsSecretNn, &corev1.Secret{})
 				})
 
-				hz.Spec.Version = "5.3.0"
 				CreateHazelcastCR(hz)
 				evaluateReadyMembers(hzLookupKey)
 			})
