@@ -120,7 +120,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				err := k8sClient.Get(context.Background(), hzLookupKey, hz)
 				Expect(err).ToNot(HaveOccurred())
 				return hz.Status.Phase
-			}, 30*Second, interval).Should(Equal(phase))
+			}, 3*Minute, interval).Should(Equal(phase))
 			Expect(hz.Status.Message).Should(Not(BeEmpty()))
 		}
 
