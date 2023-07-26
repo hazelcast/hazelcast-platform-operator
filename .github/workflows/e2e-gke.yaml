@@ -35,6 +35,7 @@ jobs:
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-2 \
             --num-nodes=3
+            --monitoring=SYSTEM,API_SERVER,SCHEDULER,CONTROLLER_MANAGER
           sleep 30
 
   grafana-setup:
