@@ -320,7 +320,7 @@ type MapStoreConfig struct {
 	// reflected to MapStore.
 	// +kubebuilder:default:=true
 	// +optional
-	WriteCoealescing *bool `json:"writeCoealescing,omitempty"`
+	WriteCoealescing *bool `json:"writeCoalescing,omitempty"`
 
 	// Properties can be used for giving information to the MapStore implementation
 	// +optional
