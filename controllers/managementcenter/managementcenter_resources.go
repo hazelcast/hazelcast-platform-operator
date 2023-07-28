@@ -604,27 +604,32 @@ func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelca
 		clientConfig.HazelcastClient.Network.SSL = SSL{
 			Enabled:          true,
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
-
 			Properties: NewSSLProperties(
 				path.Join("/config", config.Name+".jks"),
 				config.TLS.MutualAuthentication,
 			),
 		}
-
 	}
 
 	var b bytes.Buffer
 	enc := yaml.NewEncoder(&b)
-	defer enc.Close()
 	if err := enc.Encode(clientConfig); err != nil {
 		return nil, err
 	}
+	defer func(enc *yaml.Encoder) {
+		err := enc.Close()
+		if err != nil {
+			fmt.Errorf("error closing yaml encoder: %v", err)
+		}
+	}(enc)
+
 	return b.Bytes(), nil
 }
 
 type HazelcastClientWrapper struct {
 	HazelcastClient HazelcastClient `yaml:"hazelcast-client"`
 }
+
 type HazelcastClient struct {
 	ClusterName string  `yaml:"cluster-name"`
 	Network     Network `yaml:"network"`
