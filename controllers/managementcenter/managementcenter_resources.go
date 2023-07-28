@@ -341,8 +341,6 @@ func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *ha
 			if err != nil {
 				return err
 			}
-			clientConfig = append(clientConfig, []byte("\n\n")...)
-
 			files[cluster.Name+".yaml"] = clientConfig
 		}
 		secret.Data = files
