@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"path"
 	"strings"
 	"time"
@@ -617,13 +616,9 @@ func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelca
 	if err := enc.Encode(clientConfig); err != nil {
 		return nil, err
 	}
-	defer func(enc *yaml.Encoder) {
-		err := enc.Close()
-		if err != nil {
-			log.Printf("error closing yaml encoder: %v", err)
-		}
-	}(enc)
-
+	if err := enc.Close(); err != nil {
+		return nil, err
+	}
 	return b.Bytes(), nil
 }
 
