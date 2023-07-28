@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/pem"
-	"encoding/xml"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"path"
 	"strings"
 	"time"
@@ -341,7 +341,9 @@ func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *ha
 			if err != nil {
 				return err
 			}
-			files[cluster.Name+".xml"] = clientConfig
+			clientConfig = append(clientConfig, []byte("\n\n")...)
+
+			files[cluster.Name+".yaml"] = clientConfig
 		}
 		secret.Data = files
 		return nil
@@ -504,7 +506,7 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {
 	var commands []string
 	for _, cluster := range mc.Spec.HazelcastClusters {
-		commands = append(commands, fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data --client-config %s", path.Join("/config", cluster.Name+".xml")))
+		commands = append(commands, fmt.Sprintf("./bin/mc-conf.sh cluster add --lenient=true -H /data --client-config %s", path.Join("/config", cluster.Name+".yaml")))
 	}
 	return strings.Join(commands, " && ")
 }
@@ -587,97 +589,78 @@ func decodePEM(data []byte, typ string) ([]byte, error) {
 }
 
 func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelcastv1alpha1.HazelcastClusterConfig) ([]byte, error) {
-	clientConfig := HazelcastClient{
-		XMLNS:          "http://www.hazelcast.com/schema/client-config",
-		XMLNSXSI:       "http://www.w3.org/2001/XMLSchema-instance",
-		SchemaLocation: "http://www.hazelcast.com/schema/client-config http://www.hazelcast.com/schema/client-config/hazelcast-client-config-4.0.xsd",
-		ClusterName:    config.Name,
+	clientConfig := HazelcastClientWrapper{HazelcastClient{
+		ClusterName: config.Name,
 		Network: Network{
-			ClusterMembers: []ClusterMembers{{
-				Address: config.Address,
-			}},
+			ClusterMembers: []string{
+				config.Address,
+			},
 			SSL: SSL{
-				Enabled:          "false",
+				Enabled:          false,
 				FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
 			},
 		},
-	}
+	}}
 
 	if config.TLS != nil && config.TLS.SecretName != "" {
-		clientConfig.Network.SSL = SSL{
-			Enabled:          "true",
+		clientConfig.HazelcastClient.Network.SSL = SSL{
+			Enabled:          true,
 			FactoryClassName: "com.hazelcast.nio.ssl.BasicSSLContextFactory",
+
 			Properties: NewSSLProperties(
 				path.Join("/config", config.Name+".jks"),
 				config.TLS.MutualAuthentication,
 			),
 		}
+
 	}
 
 	var b bytes.Buffer
-	b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-	enc := xml.NewEncoder(&b)
-	enc.Indent("", "  ")
+	b.WriteString("# YAML version=\"1.2\" encoding=\"UTF-8\" #\n")
+	b.WriteString("---\n")
+	enc := yaml.NewEncoder(&b)
+	defer enc.Close()
 	if err := enc.Encode(clientConfig); err != nil {
 		return nil, err
 	}
-
 	return b.Bytes(), nil
 }
 
+type HazelcastClientWrapper struct {
+	HazelcastClient HazelcastClient `yaml:"hazelcast-client"`
+}
 type HazelcastClient struct {
-	XMLName        xml.Name `xml:"hazelcast-client"`
-	XMLNS          string   `xml:"xmlns,attr"`
-	XMLNSXSI       string   `xml:"xmlns:xsi,attr"`
-	SchemaLocation string   `xml:"xsi:schemaLocation,attr"`
-	ClusterName    string   `xml:"cluster-name"`
-	Network        Network  `xml:"network"`
+	ClusterName string  `yaml:"cluster-name"`
+	Network     Network `yaml:"network"`
 }
 
 type Network struct {
-	ClusterMembers []ClusterMembers `xml:"cluster-members"`
-	SSL            SSL              `xml:"ssl,omitempty"`
-}
-
-type ClusterMembers struct {
-	Address string `xml:"address"`
+	ClusterMembers []string `yaml:"cluster-members,omitempty"`
+	SSL            SSL      `yaml:"ssl,omitempty,omitempty"`
 }
 
 type SSL struct {
-	Enabled          string     `xml:"enabled,attr"`
-	FactoryClassName string     `xml:"factory-class-name"`
-	Properties       Properties `xml:"properties"`
+	Enabled          bool              `yaml:"enabled"`
+	FactoryClassName string            `yaml:"factory-class-name"`
+	Properties       map[string]string `yaml:"properties"`
 }
 
-type Properties struct {
-	Properties []Property `xml:"property"`
-}
-
-type Property struct {
-	Text string `xml:",chardata"`
-	Name string `xml:"name,attr"`
-}
-
-func NewSSLProperties(path string, auth v1alpha1.MutualAuthentication) Properties {
+func NewSSLProperties(path string, auth v1alpha1.MutualAuthentication) map[string]string {
 	const pass = "hazelcast"
 	switch auth {
 	case v1alpha1.MutualAuthenticationRequired:
-		return Properties{
-			Properties: []Property{
-				{Name: "protocol", Text: "TLSv1.2"},
-				{Name: "trustStore", Text: path},
-				{Name: "trustStorePassword", Text: pass},
-				{Name: "keyStore", Text: path},
-				{Name: "keyStorePassword", Text: pass},
-			},
+		return map[string]string{
+			"protocol":           "TLSv1.2",
+			"keyStore":           path,
+			"keyStorePassword":   pass,
+			"trustStore":         path,
+			"trustStorePassword": pass,
 		}
 	default:
-		return Properties{
-			Properties: []Property{
-				{Name: "protocol", Text: "TLSv1.2"},
-				{Name: "trustStore", Text: path},
-				{Name: "trustStorePassword", Text: pass},
-			},
+		return map[string]string{
+			"protocol":           "TLSv1.2",
+			"trustStore":         path,
+			"trustStorePassword": pass,
 		}
 	}
 }
