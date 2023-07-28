@@ -617,7 +617,6 @@ func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelca
 
 	var b bytes.Buffer
 	b.WriteString("# YAML version=\"1.2\" encoding=\"UTF-8\" #\n")
-	b.WriteString("---\n")
 	enc := yaml.NewEncoder(&b)
 	defer enc.Close()
 	if err := enc.Encode(clientConfig); err != nil {
