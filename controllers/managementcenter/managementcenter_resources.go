@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/pem"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"path"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/pavlo-v-chernykh/keystore-go/v4"
+	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -616,7 +616,6 @@ func hazelcastClientConfig(ctx context.Context, c client.Client, config *hazelca
 	}
 
 	var b bytes.Buffer
-	b.WriteString("# YAML version=\"1.2\" encoding=\"UTF-8\" #\n")
 	enc := yaml.NewEncoder(&b)
 	defer enc.Close()
 	if err := enc.Encode(clientConfig); err != nil {
