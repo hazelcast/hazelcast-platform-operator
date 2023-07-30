@@ -9,6 +9,7 @@ env:
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
+  AWS_REGION: us-east-1
 
 jobs:
   create-gke-cluster:
@@ -19,10 +20,23 @@ jobs:
     env:
       GCP_NETWORK: operator-test-network
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GCP
         uses: 'google-github-actions/auth@v1.1.1'
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Create GKE cluster
         id: set-cluster-name
@@ -63,12 +77,25 @@ jobs:
         with:
           install: true
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GAR
         uses: docker/login-action@v2
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Generate Image Name
         id: get-image-tag
@@ -121,17 +148,32 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
+            AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
+
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v1.1.1"
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Authenticate to GAR
         uses: docker/login-action@v2
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
@@ -154,7 +196,7 @@ jobs:
         if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
-            --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+            --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
           kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
             --from-literal=region=us-east-1 \
@@ -163,11 +205,11 @@ jobs:
 
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
-            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
+            --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
 
       - name: Create secret for both OS and EE tests
         run: |
-          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
 
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
@@ -199,10 +241,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            TEST_STATUSES_GIST_ID,CN/TEST_STATUSES_GIST_ID
+            GIST_CREATION_TOKEN,CN/GIST_CREATION_TOKEN
+
       - name: Update Status Badge
         run: |
           source .github/scripts/utils.sh
-          update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+          update_status_badges ${{ github.run_id }} ${{ env.TEST_STATUSES_GIST_ID }} ${{ env.GIST_CREATION_TOKEN }}
 
   report-generation:
     needs: ["gke-e2e-tests","create-gke-cluster"]
@@ -231,10 +287,23 @@ jobs:
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v1.1.1"
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Delete GKE cluster
         if: always()
@@ -247,10 +316,23 @@ jobs:
     if: always() && ( needs.gke-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
       - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
           channel: "#github-actions-log"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

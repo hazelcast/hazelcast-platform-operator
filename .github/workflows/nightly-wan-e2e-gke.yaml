@@ -9,10 +9,10 @@ env:
   GKE_ZONE: us-east1-b
   NUMBER_OF_NODES: 3
   GCP_NETWORK: operator-test-network
-  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
+  AWS_REGION: us-east-1
 
 jobs:
   get-image:
@@ -29,12 +29,25 @@ jobs:
         with:
           install: true
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GAR
         uses: docker/login-action@v2
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Generate Image Name
         id: get-image-tag
@@ -82,10 +95,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
         uses: 'google-github-actions/auth@v1.1.1'
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Create ${{ matrix.cluster }} GKE Cluster
         id: set-cluster-data
@@ -135,10 +161,24 @@ jobs:
         with:
           go-version: ">=1.19.0"
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
+
       - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
         uses: 'google-github-actions/auth@v1.1.1'
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect To The ${{ matrix.cluster }} GKE Cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
@@ -152,7 +192,7 @@ jobs:
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Deploy CRDs
         if: matrix.namespace == 'trg-ns'
@@ -171,7 +211,7 @@ jobs:
         run: |
           kubectl create secret generic hazelcast-license-key \
             --namespace ${{ matrix.namespace }} \
-            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+            --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
   wan-gke-tests:
     name: Run Wan Test
@@ -195,10 +235,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GCP
         uses: 'google-github-actions/auth@v1.1.1'
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Set Cluster And Context Name Variables
         run: |
@@ -278,10 +331,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate To GCP
         uses: 'google-github-actions/auth@v1.1.1'
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect To ${{ matrix.cluster }} GCP Cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
@@ -316,10 +382,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate To GCP
         uses: 'google-github-actions/auth@v1.1.1'
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect To ${{ matrix.cluster }} GCP Cluster
         uses: 'google-github-actions/get-gke-credentials@v1'

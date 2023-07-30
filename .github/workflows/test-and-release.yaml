@@ -9,13 +9,13 @@ on:
     - cron: "0 9 * * *"
 
 env:
-  PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
   NAMESPACE: oc-test-operator-${{ github.run_id }}
   PARDOT_ID: redhat
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
   GKE_ZONE: us-east1-b
+  AWS_REGION: us-east-1
 
 jobs:
   migration-test:
@@ -24,10 +24,24 @@ jobs:
     env:
       GCP_NETWORK: operator-test-network
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
+
       - name: Authenticate to GCP
         uses: 'google-github-actions/auth@v1.1.1'
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Create GKE cluster
         run: |-
@@ -55,7 +69,7 @@ jobs:
           ((MINOR++))
           LATEST_VERSION="$MAJOR.$MINOR.$PATCH-snapshot"
           
-          kubectl create secret generic hazelcast-license-key --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+          kubectl create secret generic hazelcast-license-key --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
           helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
           helm repo update && \
           helm install operator hazelcast/hazelcast-platform-operator --version=$STABLE_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
@@ -139,6 +153,20 @@ jobs:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v3
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Setup Preflight and Get Certification Project ID
         uses: redhat-actions/openshift-tools-installer@v1
         with:
@@ -177,7 +205,7 @@ jobs:
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Build Image
         id: build-image
@@ -210,20 +238,36 @@ jobs:
       CONTAINER_IMAGE: ${{ needs.test_container.outputs.CONTAINER_IMAGE }}
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            OPENSCAP_SCANHOST,CN/OPENSCAP_SCANHOST
+            OPENSCAP_PRIVATE_KEY,CN/OPENSCAP_PRIVATE_KEY
+            OPENSCAP_FINGERPRINT,CN/OPENSCAP_FINGERPRINT
+
       - name: Authenticate to GAR
         uses: docker/login-action@v2
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Run OpenSCAP Vulnerability Scan
         id: vulnerabilityScan
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.SCANHOST }}
+          host: ${{ env.OPENSCAP_SCANHOST }}
           username: ec2-user
-          key: ${{ secrets.KEY }}
+          key: ${{ env.OPENSCAP_PRIVATE_KEY }}
           envs: CONTAINER_IMAGE
           script: |
             sudo podman pull $CONTAINER_IMAGE
@@ -234,10 +278,10 @@ jobs:
         uses: nicklasfrahm/scp-action@v1.0.1
         with:
           direction: download
-          host: ${{ secrets.SCANHOST }}
+          host: ${{ env.OPENSCAP_SCANHOST }}
           username: ec2-user
-          fingerprint: ${{ secrets.FINGERPRINT }}
-          key: ${{ secrets.KEY }}
+          fingerprint: ${{ env.OPENSCAP_FINGERPRINT }}
+          key: ${{ env.OPENSCAP_PRIVATE_KEY }}
           source: ~/vulnerability_report.html
           target: vulnerability_report.html
 
@@ -280,12 +324,25 @@ jobs:
           opm: "latest"
           skip_cache: true
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GAR
         uses: docker/login-action@v2
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Set Environment Variables And Job Outputs
         id: build-bundle-outputs
@@ -339,13 +396,27 @@ jobs:
       PFLT_INDEXIMAGE: ${{ needs.build_bundle.outputs.PFLT_INDEXIMAGE }}
       BUNDLE_IMAGE: ${{ needs.build_bundle.outputs.BUNDLE_IMAGE }}
       BUNDLE_IMAGE_DIGEST: ${{ needs.build_bundle.outputs.BUNDLE_IMAGE_DIGEST }}
-      OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
-      OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
-      OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
       KUBECONFIG: $HOME/.kube/config
     steps:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            OCP_CLUSTER_URL,CN/OCP_CLUSTER_URL
+            OCP_USERNAME,CN/OCP_USERNAME
+            OCP_PASSWORD,CN/OCP_PASSWORD
 
       - name: Setup Preflight and Operator SDK
         uses: redhat-actions/openshift-tools-installer@v1
@@ -364,12 +435,12 @@ jobs:
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Login to OCP and Create New Project
         id: project_creation
         run: |
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc login ${{ env.OCP_CLUSTER_URL }} -u=${{ env.OCP_USERNAME }} -p=${{ env.OCP_PASSWORD }} --insecure-skip-tls-verify
           oc new-project ${NAMESPACE}
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
@@ -395,10 +466,23 @@ jobs:
     name: Create Operator Tag
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Create a New Tag
         run: |
@@ -426,10 +510,24 @@ jobs:
           name: |
             bundle-artifacts
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            OPENSCAP_SCANHOST,CN/OPENSCAP_SCANHOST
+            OPENSCAP_PRIVATE_KEY,CN/OPENSCAP_PRIVATE_KEY
+
       - name: Delete Test Image For Security Scan
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.SCANHOST }}
+          host: ${{ env.OPENSCAP_SCANHOST }}
           username: ec2-user
-          key: ${{ secrets.KEY }}
+          key: ${{ env.OPENSCAP_PRIVATE_KEY }}
           script: sudo podman image prune -af
