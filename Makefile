@@ -208,7 +208,7 @@ E2E_TEST_LABELS =
 else 
 E2E_TEST_LABELS = && $(E2E_TEST_SUITE)
 endif
-GINKGO_PARALLEL_PROCESSES ?= 16
+GINKGO_PARALLEL_PROCESSES ?= 4
 
 test-e2e-split-kind: generate fmt vet ginkgo ## Run end-to-end tests on Kind
 	USE_EXISTING_CLUSTER=true DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --flake-attempts 2 --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
