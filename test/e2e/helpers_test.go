@@ -165,7 +165,9 @@ func CreateHazelcastCRWithoutCheck(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 
 func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	By("removing hazelcast CR", func() {
-		Expect(k8sClient.Delete(context.Background(), hazelcast, client.PropagationPolicy(metav1.DeletePropagationForeground))).Should(Succeed())
+		Eventually(func() error {
+			return k8sClient.Delete(context.Background(), hazelcast, client.PropagationPolicy(metav1.DeletePropagationForeground))
+		}, Minute, interval).Should(Succeed())
 		assertDoesNotExist(types.NamespacedName{
 			Name:      hazelcast.Name + "-0",
 			Namespace: hazelcast.Namespace,
