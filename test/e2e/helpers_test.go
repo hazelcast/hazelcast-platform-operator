@@ -111,7 +111,9 @@ func SidecarAgentLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 
 func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	By("creating Hazelcast CR", func() {
-		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
+		Eventually(func() error {
+			return k8sClient.Create(context.Background(), hazelcast)
+		}, 10*Minute, interval).Should(Succeed())
 	})
 	lk := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
 	message := ""
@@ -155,7 +157,9 @@ func UpdateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast, fns ...UpdateF
 
 func CreateHazelcastCRWithoutCheck(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	By("creating Hazelcast CR", func() {
-		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
+		Eventually(func() error {
+			return k8sClient.Create(context.Background(), hazelcast)
+		}, 10*Minute, interval).Should(Succeed())
 	})
 }
 
@@ -177,6 +181,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 		}, 2*Minute, interval).ShouldNot(Succeed())
 	})
 }
+
 func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 	By(fmt.Sprintf("deleting POD with name '%s'", podName), func() {
 		deleteOptions := metav1.DeleteOptions{
@@ -433,8 +438,9 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
-		err := k8sClient.Get(context.Background(), lookupKey, hz)
-		Expect(err).ToNot(HaveOccurred())
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), lookupKey, hz)
+		}, Minute, interval).ShouldNot(HaveOccurred())
 		membersCount := int(*hz.Spec.ClusterSize)
 		Eventually(func() string {
 			err := k8sClient.Get(context.Background(), lookupKey, hz)
