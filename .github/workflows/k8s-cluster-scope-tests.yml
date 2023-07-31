@@ -87,7 +87,7 @@ jobs:
         with:
           ref: ${{steps.decide-ref.outputs.ref}}
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ format('>={0}', env.GO_VERSION) }}
 
