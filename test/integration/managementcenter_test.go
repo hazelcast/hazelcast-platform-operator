@@ -600,7 +600,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				for _, env := range el {
 					if env.Name == "MC_INIT_CMD" {
 						for _, cl := range hzcl {
-							Expect(env.Value).To(ContainSubstring(fmt.Sprintf("--client-config /config/%s.xml", cl.Name)))
+							Expect(env.Value).To(ContainSubstring(fmt.Sprintf("--client-config /config/%s.yaml", cl.Name)))
 
 						}
 					}

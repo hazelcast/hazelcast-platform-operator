@@ -811,6 +811,21 @@ var (
 			},
 		}
 	}
+
+	TLSSecret = func(lk types.NamespacedName, lbls map[string]string) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Type: corev1.SecretTypeTLS,
+			Data: map[string][]byte{
+				corev1.TLSCertKey:       []byte(ExampleCert),
+				corev1.TLSPrivateKeyKey: []byte(ExampleKey),
+			},
+		}
+	}
 )
 
 func repo(ee bool) string {

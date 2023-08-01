@@ -1099,7 +1099,7 @@ func filterPersistedDS(ctx context.Context, c client.Client, h *hazelcastv1alpha
 	return l, nil
 }
 
-func filterPersistedWanReplications(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (map[string]hazelcastv1alpha1.WanReplication, error) {
+func filterPersistedWanReplications(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (map[string][]hazelcastv1alpha1.WanReplication, error) {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
 
@@ -1108,7 +1108,7 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, h *haz
 		return nil, err
 	}
 
-	l := make(map[string]hazelcastv1alpha1.WanReplication, 0)
+	l := make(map[string][]hazelcastv1alpha1.WanReplication, 0)
 	for _, wr := range wrList.Items {
 		for wanKey, mapStatus := range wr.Status.WanReplicationMapsStatus {
 			hzName, _ := splitWanMapKey(wanKey)
@@ -1117,7 +1117,10 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, h *haz
 			}
 			switch mapStatus.Status {
 			case hazelcastv1alpha1.WanStatusPersisting, hazelcastv1alpha1.WanStatusSuccess:
-				l[wanKey] = wr
+				if l[wanKey] == nil {
+					l[wanKey] = make([]hazelcastv1alpha1.WanReplication, 0)
+				}
+				l[wanKey] = append(l[wanKey], wr)
 			default: // TODO, might want to do something for the other cases
 			}
 		}
@@ -1144,13 +1147,12 @@ func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *conf
 	return nil
 }
 
-func fillHazelcastConfigWithWanReplications(cfg *config.Hazelcast, wrl map[string]hazelcastv1alpha1.WanReplication) {
+func fillHazelcastConfigWithWanReplications(cfg *config.Hazelcast, wrl map[string][]hazelcastv1alpha1.WanReplication) {
 	if len(wrl) != 0 {
 		cfg.WanReplication = map[string]config.WanReplicationConfig{}
 		for wanKey, wan := range wrl {
 			_, mapName := splitWanMapKey(wanKey)
-			mapStatus := wan.Status.WanReplicationMapsStatus[wanKey]
-			wanConfig := createWanReplicationConfig(mapStatus.PublisherId, wan)
+			wanConfig := createWanReplicationConfig(wanKey, wan)
 			cfg.WanReplication[wanName(mapName)] = wanConfig
 		}
 	}
@@ -1530,7 +1532,20 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 	}
 }
 
-func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanReplication) config.WanReplicationConfig {
+func createWanReplicationConfig(wanKey string, wrs []hazelcastv1alpha1.WanReplication) config.WanReplicationConfig {
+	cfg := config.WanReplicationConfig{
+		BatchPublisher: make(map[string]config.BatchPublisherConfig),
+	}
+	if len(wrs) != 0 {
+		for _, wr := range wrs {
+			bpc := createBatchPublisherConfig(wr)
+			cfg.BatchPublisher[wr.Status.WanReplicationMapsStatus[wanKey].PublisherId] = bpc
+		}
+	}
+	return cfg
+}
+
+func createBatchPublisherConfig(wr hazelcastv1alpha1.WanReplication) config.BatchPublisherConfig {
 	bpc := config.BatchPublisherConfig{
 		ClusterName:           wr.Spec.TargetClusterName,
 		TargetEndpoints:       wr.Spec.Endpoints,
@@ -1541,10 +1556,7 @@ func createWanReplicationConfig(publisherId string, wr hazelcastv1alpha1.WanRepl
 		BatchSize:             wr.Spec.Batch.Size,
 		BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
 	}
-	cfg := config.WanReplicationConfig{
-		BatchPublisher: map[string]config.BatchPublisherConfig{publisherId: bpc},
-	}
-	return cfg
+	return bpc
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
