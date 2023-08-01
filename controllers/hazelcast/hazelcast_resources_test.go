@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -186,6 +187,117 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
+	hz := &hazelcastv1alpha1.Hazelcast{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "hazelcast",
+			Namespace: "default",
+		},
+	}
+	wrs := &hazelcastv1alpha1.WanReplicationList{}
+	wrs.Items = []hazelcastv1alpha1.WanReplication{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "wan-1",
+				Namespace: "default",
+			},
+			Spec: hazelcastv1alpha1.WanReplicationSpec{
+				Resources: []hazelcastv1alpha1.ResourceSpec{
+					{
+						Name: hz.Name,
+						Kind: hazelcastv1alpha1.ResourceKindHZ,
+					},
+				},
+				TargetClusterName: "dev",
+				Endpoints:         "10.0.0.1:5701",
+			},
+			Status: hazelcastv1alpha1.WanReplicationStatus{
+				WanReplicationMapsStatus: map[string]hazelcastv1alpha1.WanReplicationMapStatus{
+					hz.Name + "__map": {
+						PublisherId: "map-wan-1",
+						Status:      hazelcastv1alpha1.WanStatusSuccess,
+					},
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "wan-2",
+				Namespace: "default",
+			},
+			Spec: hazelcastv1alpha1.WanReplicationSpec{
+				Resources: []hazelcastv1alpha1.ResourceSpec{
+					{
+						Name: hz.Name,
+						Kind: hazelcastv1alpha1.ResourceKindHZ,
+					},
+				},
+				TargetClusterName: "dev",
+				Endpoints:         "10.0.0.2:5701",
+			},
+			Status: hazelcastv1alpha1.WanReplicationStatus{
+				WanReplicationMapsStatus: map[string]hazelcastv1alpha1.WanReplicationMapStatus{
+					hz.Name + "__map": {
+						PublisherId: "map-wan-2",
+						Status:      hazelcastv1alpha1.WanStatusSuccess,
+					},
+				},
+			},
+		},
+	}
+	objects := []client.Object{
+		hz,
+		&hazelcastv1alpha1.Map{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "map",
+				Namespace: "default",
+			},
+			Spec: hazelcastv1alpha1.MapSpec{
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hz.Name,
+				},
+			},
+		},
+	}
+	c := &mockK8sClient{Client: fakeK8sClient(objects...)}
+	c.list = wrs
+
+	bytes, err := hazelcastConfig(context.TODO(), c, hz, logr.Discard())
+	if err != nil {
+		t.Errorf("unable to build Config, %e", err)
+	}
+	hzConfig := &config.HazelcastWrapper{}
+	err = yaml.Unmarshal(bytes, hzConfig)
+	if err != nil {
+		t.Error(err)
+	}
+	wrConf, ok := hzConfig.Hazelcast.WanReplication["map-default"]
+	if !ok {
+		t.Errorf("wan config for map-default not found")
+	}
+	if _, ok := wrConf.BatchPublisher["map-wan-1"]; !ok {
+		t.Errorf("butch publisher map-wan-1 not found")
+	}
+	if _, ok := wrConf.BatchPublisher["map-wan-2"]; !ok {
+		t.Errorf("butch publisher map-wan-2 not found")
+	}
+}
+
+// Client used to mock List() method for the WanReplicationList CR
+// Needed since the List() method uses the indexed filed "hazelcastResourceName" not available in the fakeClient.
+type mockK8sClient struct {
+	client.Client
+	list *hazelcastv1alpha1.WanReplicationList
+}
+
+func (c *mockK8sClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if list == nil || reflect.TypeOf(list) != reflect.TypeOf(c.list) {
+		return c.Client.List(ctx, list, opts...)
+	}
+	list.(*hazelcastv1alpha1.WanReplicationList).Items = c.list.Items
+	return nil
 }
 
 type listKeys func(h config.Hazelcast) []string
