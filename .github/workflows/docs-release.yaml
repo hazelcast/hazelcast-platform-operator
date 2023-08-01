@@ -82,7 +82,7 @@ jobs:
           sed -i '/prerelease/d' docs/antora.yml
           sed -i "s/page-latest-supported-hazelcast:.*/page-latest-supported-hazelcast: '${{ github.event.inputs.LATEST_SUPPORTED_HAZELCAST }}'/" docs/antora.yml
           sed -i "s/page-latest-supported-mc:.*/page-latest-supported-mc: '${{ github.event.inputs.LATEST_SUPPORTED_MC }}'/" docs/antora.yml
-          sed -i "s/release-notes.adoc.*/release-notes.adoc[${RELEASE_VERSION}]/" docs/modules/ROOT/nav.adoc
+          printf "\n\n.Release Notes\n* xref:release-notes.adoc[${RELEASE_VERSION}]" >> docs/modules/ROOT/nav.adoc
           sed -i "s/operator-chart-version: .*/operator-chart-version: '${MAJOR_MINOR_VERSION}.0'/" docs/antora.yml
 
       - name: Generate API Reference Docs
