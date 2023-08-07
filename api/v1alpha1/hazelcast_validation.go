@@ -46,92 +46,72 @@ func ValidateHazelcastSpec(h *Hazelcast) error {
 	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Hazelcast"}, h.Name, allErrs)
 }
 
-func ValidateHazelcastSpecCurrent(h *Hazelcast) []*field.Error {
-	var allErrs field.ErrorList
+func ValidateHazelcastSpecCurrent(h *Hazelcast) field.ErrorList {
+	v := hazelcastValidator{}
 
-	if err := validateMetadata(h); err != nil {
-		allErrs = append(allErrs, err)
-	}
+	v.validateMetadata(h)
+	v.validateExposeExternally(h)
+	v.validateLicense(h)
+	v.validateTLS(h)
+	v.validatePersistence(h)
+	v.validateClusterSize(h)
+	v.validateAdvancedNetwork(h)
+	v.validateJetConfig(h)
+	v.validateJVMConfig(h)
+	v.validateCustomConfig(h)
+	v.validateNativeMemory(h)
 
-	if err := validateExposeExternally(h); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if err := validateLicense(h); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if err := validateTLS(h); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if err := validatePersistence(h); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := validateClusterSize(h); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if err := validateAdvancedNetwork(h); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := validateJetConfig(h); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := validateJVMConfig(h); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := validateCustomConfig(h); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if err := validateNativeMemory(h); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	return allErrs
+	return field.ErrorList(v)
 }
 
-func validateMetadata(h *Hazelcast) *field.Error {
+type hazelcastValidator field.ErrorList
+
+func (v *hazelcastValidator) addErr(err ...*field.Error) {
+	*v = append(*v, err...)
+}
+
+func (v *hazelcastValidator) validateMetadata(h *Hazelcast) {
 	// RFC 1035
 	matched, _ := regexp.MatchString(`^[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$`, h.Name)
 	if !matched {
-		return field.Invalid(field.NewPath("metadata").Child("name"),
+		v.addErr(field.Invalid(field.NewPath("metadata").Child("name"),
 			h.Name, "Hazelcast name has the same constraints as DNS-1035 label."+
 				" It must consist of lower case alphanumeric characters or '-',"+
 				" start with an alphabetic character, and end with an alphanumeric character"+
-				" (e.g. 'my-name',  or 'abc-123', regex used for validation is 'a-z?'")
+				" (e.g. 'my-name',  or 'abc-123', regex used for validation is 'a-z?'"))
 	}
-
-	return nil
 }
 
-func validateExposeExternally(h *Hazelcast) *field.Error {
+func (v *hazelcastValidator) validateExposeExternally(h *Hazelcast) {
 	ee := h.Spec.ExposeExternally
 	if ee == nil {
-		return nil
+		return
 	}
 
 	if ee.Type == ExposeExternallyTypeUnisocket && ee.MemberAccess != "" {
-		return field.Forbidden(field.NewPath("spec").Child("exposeExternally").Child("memberAccess"),
-			"can't be set when exposeExternally.type is set to \"Unisocket\"")
+		v.addErr(field.Forbidden(field.NewPath("spec").Child("exposeExternally").Child("memberAccess"),
+			"can't be set when exposeExternally.type is set to \"Unisocket\""))
 	}
 
 	if ee.Type == ExposeExternallyTypeSmart && ee.MemberAccess == MemberAccessNodePortExternalIP {
 		if !util.NodeDiscoveryEnabled() {
-			return field.Invalid(field.NewPath("spec").Child("exposeExternally").Child("memberAccess"),
-				ee.MemberAccess, "value not supported when Hazelcast node discovery is not enabled")
+			v.addErr(field.Invalid(field.NewPath("spec").Child("exposeExternally").Child("memberAccess"),
+				ee.MemberAccess, "value not supported when Hazelcast node discovery is not enabled"))
 		}
 	}
 
-	return nil
+	supportedTypes := map[corev1.ServiceType]bool{
+		corev1.ServiceTypeNodePort:     true,
+		corev1.ServiceTypeLoadBalancer: true,
+	}
+
+	if ok := supportedTypes[ee.DiscoveryServiceType]; !ok {
+		v.addErr(field.Invalid(field.NewPath("spec").Child("exposeExternally").Child("discoveryServiceType"),
+			ee.DiscoveryServiceType, "service type not supported"))
+	}
 }
 
-func validateCustomConfig(h *Hazelcast) *field.Error {
+func (v *hazelcastValidator) validateCustomConfig(h *Hazelcast) {
 	if h.Spec.CustomConfigCmName != "" {
 		cmName := types.NamespacedName{
 			Name:      h.Spec.CustomConfigCmName,
@@ -141,17 +121,17 @@ func validateCustomConfig(h *Hazelcast) *field.Error {
 		err := kubeclient.Get(context.Background(), cmName, &cm)
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
-			return field.NotFound(field.NewPath("spec").Child("customConfigCmName"),
-				"ConfigMap for Hazelcast custom configs not found")
+			v.addErr(field.NotFound(field.NewPath("spec").Child("customConfigCmName"),
+				"ConfigMap for Hazelcast custom configs not found"))
 		}
 	}
-	return nil
 }
 
-func validateLicense(h *Hazelcast) *field.Error {
+func (v *hazelcastValidator) validateLicense(h *Hazelcast) {
 	if checkEnterprise(h.Spec.Repository) && len(h.Spec.GetLicenseKeySecretName()) == 0 {
-		return field.Required(field.NewPath("spec").Child("licenseKeySecretName"),
-			"must be set when Hazelcast Enterprise is deployed")
+		v.addErr(field.Required(field.NewPath("spec").Child("licenseKeySecretName"),
+			"must be set when Hazelcast Enterprise is deployed"))
+		return
 	}
 
 	// make sure secret exists
@@ -165,31 +145,32 @@ func validateLicense(h *Hazelcast) *field.Error {
 		err := kubeclient.Get(context.Background(), secretName, &secret)
 		if kerrors.IsNotFound(err) {
 			// we care only about not found error
-			return field.NotFound(field.NewPath("spec").Child("licenseKeySecretName"),
-				"Hazelcast Enterprise licenseKeySecret is not found")
+			v.addErr(field.NotFound(field.NewPath("spec").Child("licenseKeySecretName"),
+				"Hazelcast Enterprise licenseKeySecret is not found"))
+			return
 		}
 	}
-
-	return nil
 }
 
-func validateTLS(h *Hazelcast) *field.Error {
+func (v *hazelcastValidator) validateTLS(h *Hazelcast) {
 	// skip validation if TLS is not set
 	// deepequal for migration from 5.7 when TLS was not a pointer
 	if h.Spec.TLS == nil || reflect.DeepEqual(*h.Spec.TLS, TLS{}) {
-		return nil
+		return
 	}
 
 	if h.Spec.GetLicenseKeySecretName() == "" {
-		return field.Required(field.NewPath("spec").Child("tls"),
-			"Hazelcast TLS requires enterprise version")
+		v.addErr(field.Required(field.NewPath("spec").Child("tls"),
+			"Hazelcast TLS requires enterprise version"))
+		return
 	}
 
 	p := field.NewPath("spec").Child("tls").Child("secretName")
 
 	// if user skipped validation secretName can be empty
 	if h.Spec.TLS.SecretName == "" {
-		return field.Required(p, "Hazelcast Enterprise TLS Secret name must be set")
+		v.addErr(field.Required(p, "Hazelcast Enterprise TLS Secret name must be set"))
+		return
 	}
 
 	// check if secret exists
@@ -202,10 +183,9 @@ func validateTLS(h *Hazelcast) *field.Error {
 	err := kubeclient.Get(context.Background(), secretName, &secret)
 	if kerrors.IsNotFound(err) {
 		// we care only about not found error
-		return field.NotFound(p, "Hazelcast Enterprise TLS Secret not found")
+		v.addErr(field.NotFound(p, "Hazelcast Enterprise TLS Secret not found"))
+		return
 	}
-
-	return nil
 }
 
 func checkEnterprise(repo string) bool {
@@ -216,56 +196,43 @@ func checkEnterprise(repo string) bool {
 	return strings.HasSuffix(path[len(path)-1], "-enterprise")
 }
 
-func validatePersistence(h *Hazelcast) []*field.Error {
+func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	p := h.Spec.Persistence
 	if !p.IsEnabled() {
-		return nil
+		return
 	}
-	var allErrs field.ErrorList
 
 	// if hostPath and PVC are both empty or set
 	if p.Pvc.IsEmpty() {
-		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("persistence").Child("pvc"),
+		v.addErr(field.Required(field.NewPath("spec").Child("persistence").Child("pvc"),
 			"must be set when persistence is enabled"))
 	}
 
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("persistence").Child("startupAction"),
+		v.addErr(field.Forbidden(field.NewPath("spec").Child("persistence").Child("startupAction"),
 			"PartialStart can be used only with Partial clusterDataRecoveryPolicy"))
 	}
-
-	if len(allErrs) == 0 {
-		return nil
-	}
-	return allErrs
 }
 
-func validateClusterSize(h *Hazelcast) *field.Error {
+func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {
 	if *h.Spec.ClusterSize > naming.ClusterSizeLimit {
-		return field.Invalid(field.NewPath("spec").Child("clusterSize"), h.Spec.ClusterSize,
-			fmt.Sprintf("may not be greater than %d", naming.ClusterSizeLimit))
+		v.addErr(field.Invalid(field.NewPath("spec").Child("clusterSize"), h.Spec.ClusterSize,
+			fmt.Sprintf("may not be greater than %d", naming.ClusterSizeLimit)))
 	}
-	return nil
 }
 
-func validateAdvancedNetwork(h *Hazelcast) []*field.Error {
-	var allErrs field.ErrorList
+func (v *hazelcastValidator) validateAdvancedNetwork(h *Hazelcast) {
 	if h.Spec.AdvancedNetwork == nil {
-		return allErrs
+		return
 	}
 
 	if errs := validateWANServiceTypes(h); errs != nil {
-		allErrs = append(allErrs, errs...)
+		v.addErr(errs...)
 	}
 
 	if errs := validateWANPorts(h); errs != nil {
-		allErrs = append(allErrs, errs...)
+		v.addErr(errs...)
 	}
-
-	if len(allErrs) == 0 {
-		return nil
-	}
-	return allErrs
 }
 
 func validateWANServiceTypes(h *Hazelcast) []*field.Error {
@@ -357,26 +324,20 @@ func isOverlapWithOtherSockets(h *Hazelcast) []*field.Error {
 	return allErrs
 }
 
-func validateJVMConfig(h *Hazelcast) []*field.Error {
+func (v *hazelcastValidator) validateJVMConfig(h *Hazelcast) {
 	jvm := h.Spec.JVM
 	if jvm == nil {
-		return nil
+		return
 	}
-	var allErrs field.ErrorList
 	args := jvm.Args
 
-	if err := validateJVMMemoryArgs(jvm.Memory, args); err != nil {
-		allErrs = append(allErrs, err...)
+	if errs := validateJVMMemoryArgs(jvm.Memory, args); errs != nil {
+		v.addErr(errs...)
 	}
 
-	if err := validateJVMGCArgs(jvm.GC, args); err != nil {
-		allErrs = append(allErrs, err...)
+	if errs := validateJVMGCArgs(jvm.GC, args); errs != nil {
+		v.addErr(errs...)
 	}
-
-	if len(allErrs) == 0 {
-		return nil
-	}
-	return allErrs
 }
 
 func validateJVMMemoryArgs(m *JVMMemoryConfiguration, args []string) []*field.Error {
@@ -511,7 +472,7 @@ func ValidateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistence
 	return allErrs
 }
 
-func validateJetConfig(h *Hazelcast) (errs field.ErrorList) {
+func (v *hazelcastValidator) validateJetConfig(h *Hazelcast) {
 	j := h.Spec.JetEngineConfiguration
 	p := h.Spec.Persistence
 
@@ -521,7 +482,7 @@ func validateJetConfig(h *Hazelcast) (errs field.ErrorList) {
 
 	if j.IsBucketEnabled() {
 		if j.BucketConfiguration.GetSecretName() == "" {
-			errs = append(errs, field.Required(
+			v.addErr(field.Required(
 				field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
 				"bucket secret must be set"))
 		} else {
@@ -533,39 +494,31 @@ func validateJetConfig(h *Hazelcast) (errs field.ErrorList) {
 			err := kubeclient.Get(context.Background(), secretName, &secret)
 			if kerrors.IsNotFound(err) {
 				// we care only about not found error
-				errs = append(errs, field.Required(field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
+				v.addErr(field.Required(field.NewPath("spec").Child("jet").Child("bucketConfig").Child("secretName"),
 					"Bucket credentials Secret not found"))
 			}
 		}
 	}
 
 	if j.Instance.IsConfigured() && j.Instance.LosslessRestartEnabled && !p.IsEnabled() {
-		errs = append(errs,
-			field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
-				"can be enabled only if persistence enabled"))
+		v.addErr(field.Forbidden(field.NewPath("spec").Child("jet").Child("instance").Child("losslessRestartEnabled"),
+			"can be enabled only if persistence enabled"))
 	}
-
-	return
 }
 
-func validateNativeMemory(h *Hazelcast) []*field.Error {
+func (v *hazelcastValidator) validateNativeMemory(h *Hazelcast) {
 	// skip validation if NativeMemory is not set
 	if h.Spec.NativeMemory == nil {
-		return nil
+		return
 	}
-	var allErrs field.ErrorList
+
 	if h.Spec.GetLicenseKeySecretName() == "" {
-		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("nativeMemory"),
+		v.addErr(field.Required(field.NewPath("spec").Child("nativeMemory"),
 			"Hazelcast Native Memory requires enterprise version"))
 	}
 
 	if h.Spec.Persistence.IsEnabled() && h.Spec.NativeMemory.AllocatorType != NativeMemoryPooled {
-		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("nativeMemory").Child("allocatorType"),
+		v.addErr(field.Required(field.NewPath("spec").Child("nativeMemory").Child("allocatorType"),
 			"MemoryAllocatorType.STANDARD cannot be used when Persistence is enabled, Please use MemoryAllocatorType.POOLED!"))
 	}
-
-	if len(allErrs) == 0 {
-		return nil
-	}
-	return allErrs
 }

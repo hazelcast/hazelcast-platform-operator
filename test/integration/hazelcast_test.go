@@ -1786,7 +1786,7 @@ var _ = Describe("Hazelcast CR", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				DiscoveryServiceType: "InvalidServiceType",
 				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 			}
 			spec.ClusterSize = pointer.Int32(5000)
@@ -1816,6 +1816,8 @@ var _ = Describe("Hazelcast CR", func() {
 				ContainSubstring("spec.advancedNetwork.wan:")))
 			Expect(err).Should(MatchError(
 				ContainSubstring("spec.advancedNetwork.wan[0]:")))
+			Expect(err).Should(MatchError(
+				ContainSubstring("spec.exposeExternally.discoveryServiceType:")))
 		})
 	})
 
