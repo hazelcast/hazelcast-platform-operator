@@ -99,6 +99,16 @@ func (v *hazelcastValidator) validateExposeExternally(h *Hazelcast) {
 				ee.MemberAccess, "value not supported when Hazelcast node discovery is not enabled"))
 		}
 	}
+
+	supportedTypes := map[corev1.ServiceType]bool{
+		corev1.ServiceTypeNodePort:     true,
+		corev1.ServiceTypeLoadBalancer: true,
+	}
+
+	if ok := supportedTypes[ee.DiscoveryServiceType]; !ok {
+		v.addErr(field.Invalid(field.NewPath("spec").Child("exposeExternally").Child("discoveryServiceType"),
+			ee.DiscoveryServiceType, "service type not supported"))
+	}
 }
 
 func (v *hazelcastValidator) validateCustomConfig(h *Hazelcast) {
