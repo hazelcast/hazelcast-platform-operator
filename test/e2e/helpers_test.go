@@ -21,6 +21,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/watch"
 
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	"github.com/hazelcast/hazelcast-go-client/logger"
@@ -45,7 +47,6 @@ import (
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
