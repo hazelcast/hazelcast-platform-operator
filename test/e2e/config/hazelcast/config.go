@@ -150,7 +150,7 @@ var (
 				Labels:    labels,
 			},
 			Spec: hazelcastv1alpha1.HazelcastSpec{
-				ClusterSize:          &[]int32{clusterSize}[0],
+				ClusterSize:          pointer.Int32(clusterSize),
 				Repository:           repo(true),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(true),
@@ -445,6 +445,33 @@ var (
 				TLS: &hazelcastv1alpha1.TLS{
 					SecretName:           lk.Name + "-mtls",
 					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
+				},
+			},
+		}
+	}
+
+	HazelcastSQLPersistence = func(lk types.NamespacedName, clusterSize int32, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    labels,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:          pointer.Int32(clusterSize),
+				Repository:           repo(true),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(true),
+				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+					},
+				},
+				SQL: &hazelcastv1alpha1.SQL{
+					CatalogPersistence: true,
 				},
 			},
 		}

@@ -60,6 +60,7 @@ func ValidateHazelcastSpecCurrent(h *Hazelcast) field.ErrorList {
 	v.validateJVMConfig(h)
 	v.validateCustomConfig(h)
 	v.validateNativeMemory(h)
+	v.validateSQL(h)
 
 	return field.ErrorList(v)
 }
@@ -520,5 +521,17 @@ func (v *hazelcastValidator) validateNativeMemory(h *Hazelcast) {
 	if h.Spec.Persistence.IsEnabled() && h.Spec.NativeMemory.AllocatorType != NativeMemoryPooled {
 		v.addErr(field.Required(field.NewPath("spec").Child("nativeMemory").Child("allocatorType"),
 			"MemoryAllocatorType.STANDARD cannot be used when Persistence is enabled, Please use MemoryAllocatorType.POOLED!"))
+	}
+}
+
+func (v *hazelcastValidator) validateSQL(h *Hazelcast) {
+	// skip validation if SQL is not set
+	if h.Spec.SQL == nil {
+		return
+	}
+
+	if h.Spec.SQL.CatalogPersistence && !h.Spec.Persistence.IsEnabled() {
+		v.addErr(field.Forbidden(field.NewPath("spec").Child("sql").Child("catalogPersistence"),
+			"catalogPersistence requires Hazelcast persistence enabled"))
 	}
 }
