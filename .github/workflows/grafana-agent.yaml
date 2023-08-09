@@ -65,12 +65,6 @@ jobs:
       AWS_REGION: ${{ inputs.aws_region }}
       AZURE_RESOURCE_GROUP: ${{ inputs.azure_resource_group }}
       GCP_PROJECT_ID: ${{ inputs.gcp_project_id }}
-      GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
-      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
-      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-      GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
-      GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
-      GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
       NAMESPACE: grafana
       NAMESPACES: ${{ inputs.namespaces }}
     runs-on: ubuntu-latest
@@ -78,11 +72,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            GRAFANA_REMOTE_WRITE_URL,CN/GRAFANA_REMOTE_WRITE_URL
+            GRAFANA_PROM_REMOTE_WRITE_URL,CN/GRAFANA_PROM_REMOTE_WRITE_URL
+            GRAFANA_PROM_USERNAME,CN/GRAFANA_PROM_USERNAME
+            GRAFANA_PROM_PASSWORD,CN/GRAFANA_PROM_PASSWORD
+            LOKI_USERNAME,CN/GRAFANA_LOKI_USERNAME
+            LOKI_PASSWORD,CN/GRAFANA_LOKI_PASSWORD
+            AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
+
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v1.1.1"
         if: ${{ contains(inputs.cluster_type, 'gke') }}
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
@@ -91,14 +105,6 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
-        if: ${{ contains(inputs.cluster_type, 'eks') }}
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - name: Update kubeconfig
         if: ${{ contains(inputs.cluster_type, 'eks') }}
@@ -109,7 +115,7 @@ jobs:
         uses: azure/login@v1
         if: ${{ contains(inputs.cluster_type, 'aks') }}
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Update kubeconfig
         if: ${{ contains(inputs.cluster_type, 'aks') }}

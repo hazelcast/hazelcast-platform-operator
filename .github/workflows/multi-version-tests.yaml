@@ -12,6 +12,7 @@ env:
   GAR_REPO: hazelcast-platform-operator
   HZ_TAGS: repos/hazelcast/hazelcast/git/matching-refs/tags
   MC_TAGS: repos/hazelcast/management-center/git/matching-refs/tags
+  AWS_REGION: us-east-1
 
 jobs:
   matrix_preparation:
@@ -20,10 +21,23 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
+
       - name: Create Test Matrix
         id: set-matrix
         run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           HZ_5_0_X=$(gh api $HZ_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.0.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
           HZ_5_1_X=$(gh api $HZ_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.1.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
           MC_5_0_X=$(gh api $MC_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.0.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
@@ -92,12 +106,25 @@ jobs:
         with:
           install: true
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Login to GAR
         uses: docker/login-action@v2
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Generate Image Name
         id: get-image-tag
@@ -135,6 +162,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${AWS_REGION}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GRAFANA_REMOTE_WRITE_URL,CN/GRAFANA_REMOTE_WRITE_URL
+            GRAFANA_PROM_REMOTE_WRITE_URL,CN/GRAFANA_PROM_REMOTE_WRITE_URL
+            GRAFANA_PROM_USERNAME,CN/GRAFANA_PROM_USERNAME
+            GRAFANA_PROM_PASSWORD,CN/GRAFANA_PROM_PASSWORD
+            LOKI_USERNAME,CN/GRAFANA_LOKI_USERNAME
+            LOKI_PASSWORD,CN/GRAFANA_LOKI_PASSWORD
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
+            AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
+            GKE_SA_KEY,CN/GKE_SA_KEY
 
       - uses: actions/setup-go@v4
         with:
@@ -174,12 +222,6 @@ jobs:
           GH_RUN_ID: ${{ github.run_id }}
           GH_RUN_NUMBER: ${{ github.run_number }}
           GH_SHA: ${{ github.sha }}
-          GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
-          LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
-          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-          GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
-          GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
-          GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
           NAMESPACES: ${{ env.NAMESPACE }}
           GRAFANA_NS: grafana
         run: |
@@ -231,7 +273,7 @@ jobs:
         run: |
           kubectl create secret generic hazelcast-license-key \
              --namespace ${{ env.NAMESPACE }} \
-             --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+             --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
           kubectl create secret generic br-secret-s3 \
             --namespace ${{ env.NAMESPACE }} \
@@ -242,13 +284,13 @@ jobs:
           kubectl create secret generic br-secret-az \
             --namespace ${{ env.NAMESPACE }} \
             --from-literal=storage-account=operatortest \
-            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
+            --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
 
       - name: Create Secret For Both OS and EE Tests
         run: |
           kubectl create secret generic br-secret-gcp \
           --namespace ${{ env.NAMESPACE }} \
-          --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+          --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
 
       - name: Load Image
         run: |

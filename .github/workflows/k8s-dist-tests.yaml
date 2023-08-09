@@ -30,6 +30,9 @@ permissions:
   id-token: write
   actions: write
 
+env:
+  AWS_REGION: us-east-1
+
 jobs:
   decide-run-tests:
     name: Decide to run tests
@@ -102,13 +105,27 @@ jobs:
     if: always() && needs.decide-run-tests.outputs.RUN_TESTS == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            TEST_STATUSES_GIST_ID,CN/TEST_STATUSES_GIST_ID
+            GIST_CREATION_TOKEN,CN/GIST_CREATION_TOKEN
+
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Update Status Badges
         run: |
           source .github/scripts/utils.sh
-          update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+          update_status_badges ${{ github.run_id }} ${{ env.TEST_STATUSES_GIST_ID }} ${{ env.GIST_CREATION_TOKEN }}
 
   unit-tests:
     name: Unit Tests
@@ -196,6 +213,19 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'push'
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            CODECOV_TOKEN,CN/CODECOV_TOKEN
+
       - name: Checkout
         uses: actions/checkout@v3
 
@@ -207,7 +237,7 @@ jobs:
       - name: Publish Integration Test results to Codecov
         uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
           files: cover-it-ee.out,cover-it-os.out
           flags: integration
           name: Integration Tests Report
@@ -216,7 +246,7 @@ jobs:
       - name: Publish Unit Test results to Codecov
         uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
           files: cover-controllers.out,cover-internal.out,cover-api.out
           flags: unit
           name: Unit Tests Report
@@ -233,6 +263,19 @@ jobs:
       ACTION_API_URL: ${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/k8s-dist-tests.yaml/runs?branch=main
       ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL_CLOUD_NATIVE,CN/SLACK_WEBHOOK_URL_CLOUD_NATIVE
+
       - name: decide to notify
         id: decide
         run: |
@@ -271,6 +314,6 @@ jobs:
           SLACK_MESSAGE: '${{ github.actor}} broke the <${{ env.ACTION_RUN_URL }}|main branch> :bomb: previous successful run number was ${{ steps.decide.outputs.LAST_RUN_NUMBER }}'
           SLACK_TITLE: Main Branch Broken
           SLACK_USERNAME: rtCamp
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CLOUD_NATIVE }}
+          SLACK_WEBHOOK: ${{ env.SLACK_WEBHOOK_URL_CLOUD_NATIVE }}
           MSG_MINIMAL: true
 
