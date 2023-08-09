@@ -289,9 +289,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            OCP_CLUSTER_URL,CN/OCP_CLUSTER_URL
+            OCP_USERNAME,CN/OCP_USERNAME
+            OCP_PASSWORD,CN/OCP_PASSWORD
       - name: Image Prune And 'ksm-kube-state-metrics' Cleanup
         run: |
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc login ${{ env.OCP_CLUSTER_URL }} -u=${{ env.OCP_USERNAME }} -p=${{ env.OCP_PASSWORD }} --insecure-skip-tls-verify
           helm uninstall ksm --namespace ${GRAFANA_NS}
           kubectl delete namespace ${GRAFANA_NS} --grace-period=0 --force
           for NODE in $(oc get nodes --no-headers -o name); do
