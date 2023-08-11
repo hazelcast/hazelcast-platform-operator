@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -209,6 +211,28 @@ func TestHotBackupReconciler_shouldNotSetStatusToFailedIfHazelcastCRNotFound(t *
 	Expect(hb.Status.State).ShouldNot(Equal(hazelcastv1alpha1.HotBackupFailure))
 }
 
+func TestHotBackupReconciler_shouldFailIfPersistenceNotEnabledAtHazelcast(t *testing.T) {
+	RegisterFailHandler(Fail)
+	nn, h, hb := defaultCRs()
+	h.Spec = hazelcastv1alpha1.HazelcastSpec{}
+	hs, _ := json.Marshal(h.Spec)
+	h.ObjectMeta.Annotations = map[string]string{
+		n.LastSuccessfulSpecAnnotation: string(hs),
+	}
+
+	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, &fakeHttpClientRegistry{}, h, hb)
+	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	if err == nil {
+		t.Errorf("Error expecting Reconcile to return error")
+	}
+
+	Eventually(func() hazelcastv1alpha1.HotBackupState {
+		_ = r.Client.Get(context.TODO(), nn, hb)
+		return hb.Status.State
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+	Expect(hb.Status.Message).Should(ContainSubstring("Persistence must be enabled at Hazelcast"))
+}
+
 func fail(t *testing.T) func(message string, callerSkip ...int) {
 	return func(message string, callerSkip ...int) {
 		t.Errorf(message)
@@ -294,6 +318,10 @@ func defaultCRs() (types.NamespacedName, *hazelcastv1alpha1.Hazelcast, *hazelcas
 		Status: hazelcastv1alpha1.HazelcastStatus{
 			Phase: hazelcastv1alpha1.Running,
 		},
+	}
+	hs, _ := json.Marshal(h.Spec)
+	h.ObjectMeta.Annotations = map[string]string{
+		n.LastSuccessfulSpecAnnotation: string(hs),
 	}
 	hb := &hazelcastv1alpha1.HotBackup{
 		ObjectMeta: metav1.ObjectMeta{
