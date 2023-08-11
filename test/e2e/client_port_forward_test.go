@@ -190,6 +190,7 @@ func waitForSQLMappingsPortForward(ctx context.Context, hz *hazelcastcomv1alpha1
 				return "", err
 			}
 
+			//nolint:staticcheck
 			for iter.HasNext() {
 				row, err := iter.Next()
 				if err != nil {
