@@ -127,6 +127,12 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
 	}
 
+	fieldErr := hazelcastv1alpha1.ValidateAppliedPersistence(true, h)
+	if fieldErr != nil {
+		return r.updateStatus(ctx, req.NamespacedName, recoptions.Error(fieldErr),
+			withHotBackupFailedState(fieldErr.Error()))
+	}
+
 	err = r.updateLastSuccessfulConfiguration(ctx, req.NamespacedName)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
