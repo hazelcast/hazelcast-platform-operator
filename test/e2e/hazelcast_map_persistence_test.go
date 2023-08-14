@@ -49,7 +49,7 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		m = assertMapStatus(m, hazelcastv1alpha1.MapFailed)
-		Expect(m.Status.Message).To(ContainSubstring("data structure persistence must match with Hazelcast persistence"))
+		Expect(m.Status.Message).To(ContainSubstring("Persistence must be enabled at Hazelcast"))
 	})
 
 	It("should keep the entries after a Hot Backup", Label("slow"), func() {

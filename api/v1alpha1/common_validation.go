@@ -52,7 +52,7 @@ func ValidateAppliedPersistence(persistenceEnabled bool, h *Hazelcast) *field.Er
 
 	if !lastSpec.Persistence.IsEnabled() {
 		return field.Invalid(field.NewPath("spec").Child("persistenceEnabled"), lastSpec.Persistence.IsEnabled(),
-			"data structure persistence must match with Hazelcast persistence")
+			"Persistence must be enabled at Hazelcast")
 	}
 
 	return nil

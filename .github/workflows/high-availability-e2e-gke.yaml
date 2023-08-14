@@ -8,6 +8,7 @@ env:
   GCP_PROJECT_ID: hazelcast-33
   CLOUD_KEY_SECRET_NAME: cloud-key-secret
   CHAOS_MESH_NAMESPACE: chaos-mesh
+  AWS_REGION: us-east-1
 
 jobs:
   create-gke-cluster:
@@ -20,10 +21,23 @@ jobs:
       GCP_NETWORK: operator-test-network
       GKE_REGION: europe-west1
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GCP
         uses: 'google-github-actions/auth@v1.1.1'
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Create GKE cluster
         id: set-cluster-name
@@ -103,10 +117,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
+
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v1.1.1"
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
@@ -134,9 +162,9 @@ jobs:
       - name: Create secrets
         run: |
           kubectl create secret generic hazelcast-license-key \
-            --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+            --namespace ${NAMESPACE} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
-          GKE_SA_BASE64=$(echo -E '${{ secrets.GKE_SA_KEY }}' | base64)
+          GKE_SA_BASE64=$(echo -E '${{ env.GKE_SA_KEY }}' | base64)
           kubectl create secret generic ${CLOUD_KEY_SECRET_NAME} \
             --namespace ${CHAOS_MESH_NAMESPACE} --from-literal=service_account="$GKE_SA_BASE64"
 
@@ -188,10 +216,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v1.1.1"
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Delete GKE cluster
         run: |-
@@ -203,10 +244,23 @@ jobs:
     if: always() &&  ( needs.gke-high-availability-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
       - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
           channel: "#github-actions-log"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

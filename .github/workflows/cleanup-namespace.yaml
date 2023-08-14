@@ -47,11 +47,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
+
       - name: Authenticate to GCP
         uses: "google-github-actions/auth@v1.1.1"
         if: ${{ contains(inputs.cluster_type, 'gke') }}
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
         uses: 'google-github-actions/get-gke-credentials@v1'
@@ -78,7 +92,7 @@ jobs:
         uses: azure/login@v1
         if: ${{ contains(inputs.cluster_type, 'aks') }}
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Update kubeconfig
         if: ${{ contains(inputs.cluster_type, 'aks') }}
