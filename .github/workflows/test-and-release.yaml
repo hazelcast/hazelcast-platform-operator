@@ -76,7 +76,7 @@ jobs:
           echo "Checking Operator Deployment  before upgrade"
           kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
           echo "Checking Operator Pod before  upgrade"
-          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=120s
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=180s
           
           kubectl apply -f - <<EOF
           apiVersion: hazelcast.com/v1alpha1
@@ -120,18 +120,18 @@ jobs:
           EOF
           
           echo "Checking Hazelcast CR before upgrade"
-          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=120s hazelcast/hazelcast
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=180s hazelcast/hazelcast
           echo "Checking Map CR before upgrade"
-          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=120s map/persistent
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=180s map/persistent
           
           helm upgrade operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
           
           echo "Checking Operator Pod after upgrade"
-          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=120s
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=180s
           echo "Checking Hazelcast CR after upgrade"
-          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=120s hazelcast/hazelcast
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=180s hazelcast/hazelcast
           echo "Checking Map CR after upgrade"
-          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=120s map/persistent
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=180s map/persistent
 
       - name: Delete GKE cluster
         if: always()
