@@ -530,7 +530,7 @@ func (v *hazelcastValidator) validateSQL(h *Hazelcast) {
 		return
 	}
 
-	if h.Spec.SQL.CatalogPersistence && !h.Spec.Persistence.IsEnabled() {
+	if h.Spec.SQL.CatalogPersistenceEnabled && !h.Spec.Persistence.IsEnabled() {
 		v.addErr(field.Forbidden(field.NewPath("spec").Child("sql").Child("catalogPersistence"),
 			"catalogPersistence requires Hazelcast persistence enabled"))
 	}

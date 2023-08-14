@@ -2067,7 +2067,7 @@ var _ = Describe("Hazelcast CR", func() {
 			It("should fail if Hazelcast persistence is not enabled", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.SQL = &hazelcastv1alpha1.SQL{
-					CatalogPersistence: true,
+					CatalogPersistenceEnabled: true,
 				}
 
 				hz := &hazelcastv1alpha1.Hazelcast{
@@ -2090,7 +2090,7 @@ var _ = Describe("Hazelcast CR", func() {
 					},
 				}
 				spec.SQL = &hazelcastv1alpha1.SQL{
-					CatalogPersistence: true,
+					CatalogPersistenceEnabled: true,
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -2100,7 +2100,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Create(hz)
 				hz = ensureHzStatusIsPending(hz)
 
-				Expect(hz.Spec.SQL.CatalogPersistence).Should(BeTrue())
+				Expect(hz.Spec.SQL.CatalogPersistenceEnabled).Should(BeTrue())
 			})
 		})
 	})

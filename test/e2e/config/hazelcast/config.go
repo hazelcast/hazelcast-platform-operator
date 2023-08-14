@@ -471,7 +471,7 @@ var (
 					},
 				},
 				SQL: &hazelcastv1alpha1.SQL{
-					CatalogPersistence: true,
+					CatalogPersistenceEnabled: true,
 				},
 			},
 		}

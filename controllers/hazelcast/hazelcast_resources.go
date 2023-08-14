@@ -937,7 +937,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	if h.Spec.SQL != nil {
 		cfg.SQL = config.SQL{
 			StatementTimeout:   h.Spec.SQL.StatementTimeout,
-			CatalogPersistence: h.Spec.SQL.CatalogPersistence,
+			CatalogPersistence: h.Spec.SQL.CatalogPersistenceEnabled,
 		}
 	}
 

@@ -1065,7 +1065,7 @@ type SQL struct {
 	// +optional
 	StatementTimeout int32 `json:"statementTimeout"`
 
-	// CatalogPersistence sets whether SQL Catalog persistence is enabled for the node.
+	// CatalogPersistenceEnabled sets whether SQL Catalog persistence is enabled for the node.
 	// With SQL Catalog persistence enabled you can restart the whole cluster without
 	// losing schema definition objects (such as MAPPINGs, TYPEs, VIEWs and DATA CONNECTIONs).
 	// The feature is implemented on top of the Hot Restart feature of Hazelcast
@@ -1073,7 +1073,7 @@ type SQL struct {
 	// Hot Restart. Feature is disabled by default.
 	// +kubebuilder:default:=false
 	// +optional
-	CatalogPersistence bool `json:"catalogPersistence"`
+	CatalogPersistenceEnabled bool `json:"catalogPersistenceEnabled"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
