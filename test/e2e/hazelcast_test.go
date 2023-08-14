@@ -186,7 +186,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				}
 				secret := hazelcastconfig.TLSSecret(tlsSecretNn, map[string]string{})
 				By("creating TLS secret", func() {
-					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+					Eventually(func() error {
+						return k8sClient.Create(context.Background(), secret)
+					}, Minute, interval).Should(Succeed())
 					assertExists(tlsSecretNn, &corev1.Secret{})
 				})
 
@@ -209,7 +211,9 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				}
 				secret := hazelcastconfig.TLSSecret(tlsSecretNn, map[string]string{})
 				By("creating TLS secret", func() {
-					Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+					Eventually(func() error {
+						return k8sClient.Create(context.Background(), secret)
+					}, Minute, interval).Should(Succeed())
 					assertExists(tlsSecretNn, &corev1.Secret{})
 				})
 
