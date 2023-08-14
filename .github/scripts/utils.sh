@@ -90,6 +90,33 @@ wait_for_container_publish()
     done
 }
 
+wait_for_container_unpublish()
+{
+    local PROJECT_ID=$1
+    local VERSION=$2
+    local RHEL_API_KEY=$3
+    local TIMEOUT_IN_MINS=$4
+
+    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 6 ))
+    # Wait until the image is unpublished
+    for i in `seq 1 ${NOF_RETRIES}`; do
+        local IS_NOT_PUBLISHED=$(get_image not_published "${PROJECT_ID}" "${VERSION}" "${RHEL_API_KEY}" | jq -r '.total')
+
+        if [[ $IS_NOT_PUBLISHED == "1" ]]; then
+            echo "Image is unpublished, exiting."
+            return 0
+        else
+            echo "Image is still unpublishing, waiting..."
+        fi
+
+        if [[ $i == $NOF_RETRIES ]]; then
+            echo "Timeout! Unpublishing could not be finished"
+            return 42
+        fi
+        sleep 10
+    done
+}
+
 checking_image_grade()
 {
     local PROJECT_ID=$1
@@ -128,6 +155,35 @@ checking_image_grade()
         fi
         sleep 20
     done
+}
+
+delete_container_image()
+{
+    local PROJECT_ID=$1
+    local VERSION=$2
+    local RHEL_API_KEY=$3
+    local TIMEOUT_IN_MINS=$4
+
+    IMAGE_ID=$(curl -X 'GET' --silent \
+    -H "X-API-KEY: $RHEL_API_KEY" \
+    -H 'Content-Type: application/json' \
+    "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/requests/images" | jq -r 'del(.data[] | select(.status =="completed" and (.operation == "sync-tags")|not))|.data[-1].image_id')
+
+    echo "Unpublishing certified image..."
+    curl --request POST "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/requests/images" \
+    -H 'content-type: application/json' \
+    -H "X-API-KEY: $RHEL_API_KEY" \
+    --data-raw '{"image_id":"'$IMAGE_ID'","operation":"unpublish"}' \
+    --compressed
+
+    wait_for_container_unpublish $PROJECT_ID $VERSION $RHEL_API_KEY $TIMEOUT_IN_MINS
+
+    echo "Deleting certified image..."
+    curl --request POST "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/requests/images" \
+    -H 'content-type: application/json' \
+    -H "X-API-KEY: $RHEL_API_KEY" \
+    --data-raw '{"image_id":"'$IMAGE_ID'","operation":"delete"}' \
+    --compressed
 }
 
 # The function waits until all EKS stacks will be deleted. Takes 2 arguments - cluster name and timeout.
