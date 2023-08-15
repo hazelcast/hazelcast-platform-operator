@@ -158,7 +158,7 @@ var (
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					},
@@ -303,7 +303,7 @@ var (
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -336,7 +336,7 @@ var (
 				Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},

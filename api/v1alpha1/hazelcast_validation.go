@@ -202,10 +202,14 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 		return
 	}
 
-	// if hostPath and PVC are both empty or set
-	if p.Pvc.IsEmpty() {
+	if p.Pvc == nil {
 		v.addErr(field.Required(field.NewPath("spec").Child("persistence").Child("pvc"),
 			"must be set when persistence is enabled"))
+	} else {
+		if p.Pvc.AccessModes == nil {
+			v.addErr(field.Required(field.NewPath("spec").Child("persistence").Child("pvc").Child("accessModes"),
+				"must be set when persistence is enabled"))
+		}
 	}
 
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {

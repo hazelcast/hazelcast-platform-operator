@@ -627,9 +627,8 @@ type HazelcastPersistenceConfiguration struct {
 	DataRecoveryTimeout int32 `json:"dataRecoveryTimeout,omitempty"`
 
 	// Configuration of PersistenceVolumeClaim.
-	// +kubebuilder:default:={}
-	// +optional
-	Pvc PersistencePvcConfiguration `json:"pvc,omitempty"`
+	// +required
+	Pvc *PersistencePvcConfiguration `json:"pvc,omitempty"`
 
 	// Restore configuration
 	// +kubebuilder:default:={}
@@ -681,16 +680,13 @@ type PersistencePvcConfiguration struct {
 	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
 
 	// A description of the PVC request capacity.
+	// +kubebuilder:default:="8Gi"
 	// +optional
 	RequestStorage *resource.Quantity `json:"requestStorage,omitempty"`
 
 	// Name of StorageClass which this persistent volume belongs to.
 	// +optional
 	StorageClassName *string `json:"storageClassName,omitempty"`
-}
-
-func (pvc PersistencePvcConfiguration) IsEmpty() bool {
-	return pvc.AccessModes == nil && pvc.RequestStorage == nil && pvc.StorageClassName == nil
 }
 
 // DataRecoveryPolicyType represents the options for data recovery policy when the whole cluster restarts.
