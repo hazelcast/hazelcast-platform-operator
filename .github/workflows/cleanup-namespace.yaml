@@ -29,7 +29,9 @@ on:
         required: false
         default: operator-test
     secrets:
-      GKE_SA_KEY:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
         required: true
 jobs:
   cleanup-namespaces:
