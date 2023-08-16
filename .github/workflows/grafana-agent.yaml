@@ -38,19 +38,9 @@ on:
         required: false
         default: operator-test
     secrets:
-      GKE_SA_KEY:
+      AWS_ACCESS_KEY_ID:
         required: true
-      GRAFANA_REMOTE_WRITE_URL:
-        required: true
-      LOKI_USERNAME:
-        required: true
-      LOKI_PASSWORD:
-        required: true
-      GRAFANA_PROM_REMOTE_WRITE_URL:
-        required: true
-      GRAFANA_PROM_USERNAME:
-        required: true
-      GRAFANA_PROM_PASSWORD:
+      AWS_SECRET_ACCESS_KEY:
         required: true
 jobs:
   grafana-setup:
