@@ -131,3 +131,80 @@ func clusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazel
 	})
 	return state
 }
+
+func createSQLMappingPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mappingName string) {
+	By(fmt.Sprintf("creating the '%s' sqk mapping using '%s' lookup name and '%s' namespace", mappingName, hz.Name, hz.Namespace), func() {
+		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+
+		client := newHazelcastClientPortForward(ctx, hz, localPort)
+		defer func() {
+			err := client.Shutdown(ctx)
+			Expect(err).To(BeNil())
+		}()
+
+		sql := client.SQL()
+
+		r, err := sql.Execute(ctx, fmt.Sprintf(createMapping, mappingName))
+		Expect(err).ToNot(HaveOccurred())
+		r.Close()
+	})
+}
+
+const createMapping = `CREATE MAPPING IF NOT EXISTS "%s" (
+	__key BIGINT,
+	name VARCHAR
+)
+TYPE IMAP
+OPTIONS (
+	'keyFormat' = 'bigint',
+	'valueFormat' = 'json-flat'
+)`
+
+func waitForSQLMappingsPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mappingName string, timeout Duration) {
+	By(fmt.Sprintf("waiting for the '%s' sql mapping using lookup name '%s'", mappingName, hz.Name), func() {
+		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+
+		client := newHazelcastClientPortForward(ctx, hz, localPort)
+		defer func() {
+			err := client.Shutdown(ctx)
+			Expect(err).To(BeNil())
+		}()
+
+		if timeout == 0 {
+			timeout = 10 * Minute
+		}
+
+		sql := client.SQL()
+
+		Eventually(func() (string, error) {
+			r, err := sql.Execute(ctx, `SHOW MAPPINGS`)
+			if err != nil {
+				return "", err
+			}
+			defer r.Close()
+
+			iter, err := r.Iterator()
+			if err != nil {
+				return "", err
+			}
+
+			//nolint:staticcheck
+			for iter.HasNext() {
+				row, err := iter.Next()
+				if err != nil {
+					return "", err
+				}
+				name, err := row.Get(0)
+				if err != nil {
+					return "", err
+				}
+
+				return name.(string), nil
+			}
+
+			return "", nil
+		}, timeout, 10*Second).Should(Equal(mappingName))
+	})
+}

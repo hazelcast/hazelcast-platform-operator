@@ -933,6 +933,14 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			Properties:       NewSSLProperties(jksPath, password, "TLS", h.Spec.TLS.MutualAuthentication),
 		}
 	}
+
+	if h.Spec.SQL != nil {
+		cfg.SQL = config.SQL{
+			StatementTimeout:   h.Spec.SQL.StatementTimeout,
+			CatalogPersistence: h.Spec.SQL.CatalogPersistenceEnabled,
+		}
+	}
+
 	return cfg
 }
 

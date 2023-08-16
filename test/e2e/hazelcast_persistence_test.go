@@ -230,4 +230,31 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 		assertHotBackupSuccess(hotBackup, 1*Minute)
 	})
+
+	It("should persist SQL mappings", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hp-9")
+
+		hazelcast := hazelcastconfig.HazelcastSQLPersistence(hzLookupKey, 1, labels)
+
+		By("creating cluster with sql mapping persistance enabled")
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("creating sql mapping")
+		createSQLMappingPortForward(context.Background(), hazelcast, localPort, hzLookupKey.Name)
+
+		By("removing Hazelcast CR")
+		RemoveHazelcastCR(hazelcast)
+
+		By("recreating cluster")
+		hazelcast = hazelcastconfig.HazelcastSQLPersistence(hzLookupKey, 1, labels)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("checking the sql mappings")
+		waitForSQLMappingsPortForward(context.Background(), hazelcast, localPort, hzLookupKey.Name, 1*Minute)
+	})
 })

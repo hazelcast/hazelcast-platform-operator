@@ -25,6 +25,7 @@ type Hazelcast struct {
 	AdvancedNetwork          AdvancedNetwork                     `yaml:"advanced-network,omitempty"`
 	ManagementCenter         ManagementCenterConfig              `yaml:"management-center,omitempty"`
 	Serialization            Serialization                       `yaml:"serialization,omitempty"`
+	SQL                      SQL                                 `yaml:"sql,omitempty"`
 }
 
 type ManagementCenterConfig struct {
@@ -405,4 +406,9 @@ type GlobalSerializer struct {
 type ClassFactories struct {
 	FactoryId int32  `yaml:"factory-id"`
 	ClassName string `yaml:"class-name"`
+}
+
+type SQL struct {
+	StatementTimeout   int32 `yaml:"statement-timeout-millis"`
+	CatalogPersistence bool  `yaml:"catalog-persistence-enabled"`
 }

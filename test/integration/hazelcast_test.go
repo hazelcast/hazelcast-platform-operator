@@ -2107,5 +2107,46 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(ss.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElements(expectedVolMounts))
 			})
 		})
+
+		When("SQL catalogPersistence is enabled", func() {
+			It("should fail if Hazelcast persistence is not enabled", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.SQL = &hazelcastv1alpha1.SQL{
+					CatalogPersistenceEnabled: true,
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("catalogPersistence requires Hazelcast persistence enabled")))
+			})
+
+			It("should be created successfully if Hazelcast persistence is enabled", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+					},
+				}
+				spec.SQL = &hazelcastv1alpha1.SQL{
+					CatalogPersistenceEnabled: true,
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				hz = ensureHzStatusIsPending(hz)
+
+				Expect(hz.Spec.SQL.CatalogPersistenceEnabled).Should(BeTrue())
+			})
+		})
 	})
 })

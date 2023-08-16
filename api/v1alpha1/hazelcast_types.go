@@ -163,6 +163,10 @@ type HazelcastSpec struct {
 	// This configuration from the ConfigMap might be overridden by the Hazelcast CR configuration.
 	// +optional
 	CustomConfigCmName string `json:"customConfigCmName,omitempty"`
+
+	// Hazelcast SQL configuration
+	// +optional
+	SQL *SQL `json:"sql,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -1048,6 +1052,24 @@ type TLS struct {
 	// +kubebuilder:default:="None"
 	// +optional
 	MutualAuthentication MutualAuthentication `json:"mutualAuthentication,omitempty"`
+}
+
+type SQL struct {
+	// StatementTimeout defines the timeout in milliseconds that is applied
+	// to queries without an explicit timeout.
+	// +kubebuilder:default:=0
+	// +optional
+	StatementTimeout int32 `json:"statementTimeout"`
+
+	// CatalogPersistenceEnabled sets whether SQL Catalog persistence is enabled for the node.
+	// With SQL Catalog persistence enabled you can restart the whole cluster without
+	// losing schema definition objects (such as MAPPINGs, TYPEs, VIEWs and DATA CONNECTIONs).
+	// The feature is implemented on top of the Hot Restart feature of Hazelcast
+	// which persists the data to disk. If enabled, you have to also configure
+	// Hot Restart. Feature is disabled by default.
+	// +kubebuilder:default:=false
+	// +optional
+	CatalogPersistenceEnabled bool `json:"catalogPersistenceEnabled"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
