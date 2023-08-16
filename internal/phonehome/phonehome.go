@@ -326,7 +326,7 @@ func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersis
 	if !p.IsEnabled() {
 		return
 	}
-	if !p.Pvc.IsEmpty() {
+	if p.Pvc != nil {
 		br.PvcCount += 1
 	}
 	if p.IsRestoreEnabled() {
