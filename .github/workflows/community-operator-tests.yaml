@@ -21,7 +21,6 @@ jobs:
       matrix:
         testType: [ kiwi, lemon, orange ]
       fail-fast: true
-
     steps:
       - name: Checkout community-operators
         uses: actions/checkout@v3

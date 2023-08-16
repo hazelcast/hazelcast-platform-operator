@@ -91,15 +91,6 @@ jobs:
         with:
           go-version: ${{ format('>={0}', env.GO_VERSION) }}
 
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - name: Create Kind Config
         run: |
           cat <<EOT >> ./kind-config.yaml

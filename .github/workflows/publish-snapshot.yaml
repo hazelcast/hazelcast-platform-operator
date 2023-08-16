@@ -13,20 +13,9 @@ jobs:
   publish-snapshot-image:
     name: Publish Snapshot to Docker Hub
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: Build Operator Image
         run: make docker-build IMG="hazelcast/hazelcast-platform-operator:latest-snapshot" VERSION="latest-snapshot"

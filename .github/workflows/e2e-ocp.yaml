@@ -205,16 +205,6 @@ jobs:
         with:
           go-version: ">=1.19.0"
 
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
       - name: Update kubeconfig
         run: |-
           oc login ${{ env.OCP_CLUSTER_URL }} -u=${{ env.OCP_USERNAME }} -p=${{ env.OCP_PASSWORD }} --insecure-skip-tls-verify
