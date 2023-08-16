@@ -31,7 +31,43 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{},
 			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.Secret{}).
 		Build()
-	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+	builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&hazelcastv1alpha1.CronHotBackup{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.CronHotBackup)
+		return []string{m.Spec.HotBackupTemplate.Spec.HazelcastResourceName}
+	}).WithIndex(&hazelcastv1alpha1.Map{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.Map)
+		return []string{m.Spec.HazelcastResourceName}
+	}).WithIndex(&hazelcastv1alpha1.HotBackup{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		hb := rawObj.(*hazelcastv1alpha1.HotBackup)
+		return []string{hb.Spec.HazelcastResourceName}
+	}).WithIndex(&hazelcastv1alpha1.MultiMap{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.MultiMap)
+		return []string{m.Spec.HazelcastResourceName}
+	}).WithIndex(&hazelcastv1alpha1.Topic{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		t := rawObj.(*hazelcastv1alpha1.Topic)
+		return []string{t.Spec.HazelcastResourceName}
+	}).WithIndex(&hazelcastv1alpha1.ReplicatedMap{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.ReplicatedMap)
+		return []string{m.Spec.HazelcastResourceName}
+	}).WithIndex(&hazelcastv1alpha1.Queue{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.Queue)
+		return []string{m.Spec.HazelcastResourceName}
+	}).WithIndex(&hazelcastv1alpha1.Cache{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.Cache)
+		return []string{m.Spec.HazelcastResourceName}
+	}).WithIndex(&hazelcastv1alpha1.WanReplication{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		wr := rawObj.(*hazelcastv1alpha1.WanReplication)
+		hzResources := []string{}
+		for k := range wr.Status.WanReplicationMapsStatus {
+			hzName, _ := splitWanMapKey(k)
+			hzResources = append(hzResources, hzName)
+		}
+		return hzResources
+	}).WithIndex(&hazelcastv1alpha1.JetJob{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.JetJob)
+		return []string{m.Spec.HazelcastResourceName}
+	})
+	return builder.Build()
 }
 
 func fakeHttpServer(url string, handler http.HandlerFunc) (*httptest.Server, error) {

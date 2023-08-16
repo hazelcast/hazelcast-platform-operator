@@ -196,9 +196,20 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	wrs := &hazelcastv1alpha1.WanReplicationList{}
-	wrs.Items = []hazelcastv1alpha1.WanReplication{
-		{
+	objects := []client.Object{
+		hz,
+		&hazelcastv1alpha1.Map{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "map",
+				Namespace: "default",
+			},
+			Spec: hazelcastv1alpha1.MapSpec{
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hz.Name,
+				},
+			},
+		},
+		&hazelcastv1alpha1.WanReplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "wan-1",
 				Namespace: "default",
@@ -222,7 +233,7 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 				},
 			},
 		},
-		{
+		&hazelcastv1alpha1.WanReplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "wan-2",
 				Namespace: "default",
@@ -247,22 +258,7 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 			},
 		},
 	}
-	objects := []client.Object{
-		hz,
-		&hazelcastv1alpha1.Map{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "map",
-				Namespace: "default",
-			},
-			Spec: hazelcastv1alpha1.MapSpec{
-				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-					HazelcastResourceName: hz.Name,
-				},
-			},
-		},
-	}
-	c := &mockK8sClient{Client: fakeK8sClient(objects...)}
-	c.list = wrs
+	c := fakeK8sClient(objects...)
 
 	bytes, err := hazelcastConfig(context.TODO(), c, hz, logr.Discard())
 	if err != nil {

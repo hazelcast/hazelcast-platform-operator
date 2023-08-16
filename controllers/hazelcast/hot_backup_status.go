@@ -4,11 +4,12 @@ import (
 	"context"
 	"time"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 )
 
 type HotBackupStatusApplier interface {

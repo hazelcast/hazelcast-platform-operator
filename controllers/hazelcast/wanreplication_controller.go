@@ -26,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
@@ -765,7 +764,7 @@ func getLogger(ctx context.Context) logr.Logger {
 func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.WanReplication{}).
-		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForSuccessfulMap),
+		Watches(&hazelcastv1alpha1.Map{}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForSuccessfulMap),
 			builder.WithPredicates(predicate.Funcs{
 				CreateFunc: func(createEvent event.CreateEvent) bool {
 					return false
@@ -790,11 +789,11 @@ func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			}),
 		).
-		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForTerminationCandidateMap)).
+		Watches(&hazelcastv1alpha1.Map{}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForTerminationCandidateMap)).
 		Complete(r)
 }
 
-func (r *WanReplicationReconciler) wanRequestsForSuccessfulMap(m client.Object) []reconcile.Request {
+func (r *WanReplicationReconciler) wanRequestsForSuccessfulMap(ctx context.Context, m client.Object) []reconcile.Request {
 	hzMap, ok := m.(*hazelcastv1alpha1.Map)
 	if !ok || hzMap.Status.State != hazelcastv1alpha1.MapSuccess {
 		return []reconcile.Request{}
@@ -837,7 +836,7 @@ func (r *WanReplicationReconciler) wanRequestsForSuccessfulMap(m client.Object) 
 	return requests
 }
 
-func (r *WanReplicationReconciler) wanRequestsForTerminationCandidateMap(m client.Object) []reconcile.Request {
+func (r *WanReplicationReconciler) wanRequestsForTerminationCandidateMap(ctx context.Context, m client.Object) []reconcile.Request {
 	mp, ok := m.(*hazelcastv1alpha1.Map)
 	if !ok {
 		return []reconcile.Request{}
