@@ -2,13 +2,13 @@ package e2e
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"strconv"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -49,18 +49,18 @@ var _ = Describe("Hazelcast Backup", Label("backup"), func() {
 		var pvcSizeInMb = 1
 		var bucketURI = "gs://operator-e2e-external-backup"
 		var secretName = "br-incorrect-secret-gcp"
-		var credential = `{
-  "type": "service_account",
-  "project_id": "project",
-  "private_key_id": "12345678910111213",
-  "private_key": PRIVATE KEY",
-  "client_email": "sa@project.iam.gserviceaccount.com",
-  "client_id": "123456789",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sa%40project.iam.gserviceaccount.com"
-}`
+		var credential = "{" +
+			"  \"type\": \"service_account\"," +
+			"  \"project_id\": \"project\"," +
+			"  \"private_key_id\": \"12345678910111213\"," +
+			"  \"private_key\": PRIVATE KEY\"," +
+			"  \"client_email\": \"sa@project.iam.gserviceaccount.com\"," +
+			"  \"client_id\": \"123456789\"," +
+			"  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\"," +
+			"  \"token_uri\": \"https://oauth2.googleapis.com/token\"," +
+			"  \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\"," +
+			"  \"client_x509_cert_url\": \"https://www.googleapis.com/robot/v1/metadata/x509/sa%40project.iam.gserviceaccount.com\"" +
+			"}"
 
 		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
