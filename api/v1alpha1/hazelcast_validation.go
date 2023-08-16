@@ -217,6 +217,12 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 		v.addErr(field.Forbidden(field.NewPath("spec").Child("persistence").Child("startupAction"),
 			"PartialStart can be used only with Partial clusterDataRecoveryPolicy"))
 	}
+
+	if !strings.HasPrefix(p.BaseDir, "/") {
+		v.addErr(field.Invalid(field.NewPath("spec").Child("persistence").Child("baseDir"),
+			p.BaseDir, "must start with /"))
+	}
+
 }
 
 func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {
