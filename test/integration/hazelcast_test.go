@@ -2129,7 +2129,7 @@ var _ = Describe("Hazelcast CR", func() {
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: hazelcastv1alpha1.PersistencePvcConfiguration{
+					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
