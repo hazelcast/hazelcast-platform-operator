@@ -222,7 +222,7 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 		v.addErr(field.Required(field.NewPath("spec").Child("persistence").Child("baseDir"), "must be set when persistence is enabled"))
 	}
 
-	if !strings.HasPrefix(p.BaseDir, "/") {
+	if !strings.HasPrefix(p.BaseDir, "/") && p.BaseDir != "" {
 		p.BaseDir = "/" + p.BaseDir
 	}
 
