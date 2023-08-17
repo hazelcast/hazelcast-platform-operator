@@ -53,7 +53,7 @@ var _ = Describe("Hazelcast Backup", Label("backup"), func() {
 			"  \"type\": \"service_account\"," +
 			"  \"project_id\": \"project\"," +
 			"  \"private_key_id\": \"12345678910111213\"," +
-			"  \"private_key\": PRIVATE KEY\"," +
+			"  \"private_key\": \"-----BEGIN PRIVATE KEY-----\"," +
 			"  \"client_email\": \"sa@project.iam.gserviceaccount.com\"," +
 			"  \"client_id\": \"123456789\"," +
 			"  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\"," +
@@ -94,5 +94,6 @@ var _ = Describe("Hazelcast Backup", Label("backup"), func() {
 			Expect(err).ToNot(HaveOccurred())
 			return hotBackup.Status.State
 		}, 20*Second, interval).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+		Expect(hotBackup.Status.Message).Should(ContainSubstring("Upload failed"))
 	})
 })
