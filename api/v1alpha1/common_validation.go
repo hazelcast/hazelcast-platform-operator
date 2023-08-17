@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
 func ValidateAppliedNativeMemory(inMemoryFormat InMemoryFormatType, h *Hazelcast) *field.Error {
