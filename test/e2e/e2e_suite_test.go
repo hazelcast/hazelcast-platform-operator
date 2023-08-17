@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -65,6 +66,7 @@ func setupEnv() *rest.Config {
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{}
 
+	os.Setenv("USE_EXISTING_CLUSTER", "true")
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())

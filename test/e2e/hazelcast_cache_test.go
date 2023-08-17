@@ -16,15 +16,6 @@ import (
 var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 	localPort := strconv.Itoa(8000 + GinkgoParallelProcess())
 
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
-
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {

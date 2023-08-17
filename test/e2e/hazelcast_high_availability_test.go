@@ -21,17 +21,9 @@ import (
 )
 
 var _ = Describe("Hazelcast High Availability", Label("high_availability"), func() {
+	ctx := context.Background()
 
 	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-
-		ctx := context.Background()
-
 		By("checking chaos-mesh-operator running", func() {
 			var podList corev1.PodList
 			err := k8sClient.List(ctx, &podList, client.InNamespace(chaosMeshNamespace))

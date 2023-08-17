@@ -17,14 +17,6 @@ import (
 
 var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_persistence"), func() {
 	localPort := strconv.Itoa(8400 + GinkgoParallelProcess())
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())

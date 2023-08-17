@@ -18,14 +18,6 @@ import (
 
 var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence"), func() {
 	localPort := strconv.Itoa(8100 + GinkgoParallelProcess())
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
