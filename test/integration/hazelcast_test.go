@@ -749,7 +749,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       spec,
 			}
 
-			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+			Expect(k8sClient.Create(context.Background(), hz)).ShouldNot(Succeed())
 		})
 	})
 

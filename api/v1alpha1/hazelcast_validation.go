@@ -223,7 +223,7 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	}
 
 	if !strings.HasPrefix(p.BaseDir, "/") && p.BaseDir != "" {
-		p.BaseDir = "/" + p.BaseDir
+		v.addErr(field.Invalid(field.NewPath("spec").Child("persistence").Child("baseDir"), p.BaseDir, " must include `/` "))
 	}
 
 }
