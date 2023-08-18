@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"reflect"
 	"regexp"
 	"sort"
@@ -218,14 +219,9 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 			"PartialStart can be used only with Partial clusterDataRecoveryPolicy"))
 	}
 
-	if p.BaseDir == "" {
-		v.addErr(field.Required(field.NewPath("spec").Child("persistence").Child("baseDir"), "must be set when persistence is enabled"))
+	if !path.IsAbs(p.BaseDir) {
+		v.addErr(field.Invalid(field.NewPath("spec").Child("persistence").Child("baseDir"), p.BaseDir, " must be absolute path "))
 	}
-
-	if !strings.HasPrefix(p.BaseDir, "/") && p.BaseDir != "" {
-		v.addErr(field.Invalid(field.NewPath("spec").Child("persistence").Child("baseDir"), p.BaseDir, " must include `/` "))
-	}
-
 }
 
 func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {
