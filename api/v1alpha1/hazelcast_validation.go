@@ -220,7 +220,7 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	}
 
 	if !path.IsAbs(p.BaseDir) {
-		v.addErr(field.Invalid(field.NewPath("spec").Child("persistence").Child("baseDir"), p.BaseDir, " must be absolute path "))
+		v.addErr(field.Invalid(field.NewPath("spec").Child("persistence").Child("baseDir"), p.BaseDir, "must be absolute path"))
 	}
 }
 
