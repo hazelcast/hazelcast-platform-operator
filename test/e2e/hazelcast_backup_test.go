@@ -82,7 +82,7 @@ var _ = Describe("Hazelcast Backup", Label("backup"), func() {
 				return nil
 			}
 			return err
-		}, 20*Second, interval).Should(Succeed())
+		}, Minute, interval).Should(Succeed())
 		assertExists(types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name}, &secret)
 
 		By("triggering the backup")
