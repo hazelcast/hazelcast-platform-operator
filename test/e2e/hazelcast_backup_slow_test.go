@@ -309,13 +309,13 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertMapStatus(m, hazelcastv1alpha1.MapSuccess)
 		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
 
-		By("triggering first backup as external")
+		By("triggering first backup as local")
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, "", "")
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
 		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
 
-		By("triggering second backup as local")
+		By("triggering second backup as external")
 		hbLookupKey2 := types.NamespacedName{Name: hbLookupKey.Name + "2", Namespace: hbLookupKey.Namespace}
 		hotBackup2 := hazelcastconfig.HotBackupBucket(hbLookupKey2, hazelcast.Name, labels, "gs://operator-e2e-external-backup", "br-secret-gcp")
 		Expect(k8sClient.Create(context.Background(), hotBackup2)).Should(Succeed())
