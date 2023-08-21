@@ -425,6 +425,8 @@ github.com/hazelcast/hazelcast-go-client v1.4.0 h1:8+fvcG+Owf5mi3qezc8FN9CG6Vpb6
 github.com/hazelcast/hazelcast-go-client v1.4.0/go.mod h1:PJ38lqXJ18S0YpkrRznPDlUH8GnnMAQCx3jpQtBPZ6Q=
 github.com/hazelcast/hazelcast-go-client v1.4.1-0.20230818090945-cc9175ec4272 h1:yHzdYr6gmEyGdDzaqXJR4uMkVRn3tKjPRZnLXhFme48=
 github.com/hazelcast/hazelcast-go-client v1.4.1-0.20230818090945-cc9175ec4272/go.mod h1:PJ38lqXJ18S0YpkrRznPDlUH8GnnMAQCx3jpQtBPZ6Q=
+github.com/hazelcast/hazelcast-go-client v1.4.1-0.20230819052804-bc944bb0b3a9 h1:NHG8ulYb2SHMqr/yR6ApEdSYGz0KNhFq5T7VdJw/ry8=
+github.com/hazelcast/hazelcast-go-client v1.4.1-0.20230819052804-bc944bb0b3a9/go.mod h1:PJ38lqXJ18S0YpkrRznPDlUH8GnnMAQCx3jpQtBPZ6Q=
 github.com/hazelcast/platform-operator-agent v0.1.20 h1:/tU4SsihHh1mCz4VGuihYt6v9F0PrWVZBoiIxYogu44=
 github.com/hazelcast/platform-operator-agent v0.1.20/go.mod h1:2ZOXva174+fjjkSYHEP31arfxcMKijLqGU6IEtsJTtM=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
