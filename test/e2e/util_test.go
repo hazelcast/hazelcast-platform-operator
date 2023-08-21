@@ -21,14 +21,6 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-func useExistingCluster() bool {
-	return strings.ToLower(os.Getenv("USE_EXISTING_CLUSTER")) == "true"
-}
-
-func runningLocally() bool {
-	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
-}
-
 func GetControllerManagerName() string {
 	return os.Getenv("DEPLOYMENT_NAME")
 }

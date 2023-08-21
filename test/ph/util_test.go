@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"strings"
 	. "time"
 
 	"cloud.google.com/go/bigquery"
@@ -117,13 +116,6 @@ func getBigQueryTable() OperatorPhoneHome {
 	return row
 }
 
-func useExistingCluster() bool {
-	return strings.ToLower(os.Getenv("USE_EXISTING_CLUSTER")) == "true"
-}
-
-func runningLocally() bool {
-	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
-}
 func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
 	Eventually(func() bool {
 		err := k8sClient.Get(context.Background(), name, obj)

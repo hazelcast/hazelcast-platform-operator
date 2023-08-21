@@ -20,15 +20,6 @@ var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
 	fastRunJar := "jet-pipeline-1.0.2.jar"
 	longRunJar := "jet-pipeline-longrun-2.0.0.jar"
 
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
-
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
