@@ -255,20 +255,7 @@ docker-push-latest:
 
 sync-manifests: manifests yq
 # Move CRDs into helm template
-	@cat config/crd/bases/hazelcast.com_caches.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_cronhotbackups.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_hazelcasts.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_hotbackups.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_jetjobs.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_jetjobsnapshots.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_managementcenters.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_maps.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_multimaps.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_queues.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_replicatedmaps.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_topics.yaml >> all-crds.yaml
-	@cat config/crd/bases/hazelcast.com_wanreplications.yaml >> all-crds.yaml
-	mv all-crds.yaml $(CRD_CHART)/templates/
+	@cat config/crd/bases/* >> all-crds.yaml && mv all-crds.yaml $(CRD_CHART)/templates/
 # Role and ClusterRole syncing is done manually
 
 install-crds: helm sync-manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config. NOTE: 'default' namespace is used for the CRD chart release since we are checking if the CRDs is installed before, then we are skipping CRDs installation. To be able to achieve this, we need static CRD_RELEASE_NAME and namespace
