@@ -22,6 +22,7 @@ jobs:
       IMAGE_NAME: ${{ steps.set-outputs.outputs.IMAGE_NAME }}
       IMAGE_DIGEST: ${{ steps.push-operator-image.outputs.IMAGE_DIGEST }}
       CURRENT_LATEST_TAG: ${{ steps.get-current-latest-tag.outputs.CURRENT_LATEST_TAG }}
+      BUNDLE_RELEASE_VERSION: ${{ steps.set-outputs.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2.0.0
@@ -44,6 +45,9 @@ jobs:
         id: set-outputs
         run: |
           IMAGE_NAME=docker.io/hazelcast/${OPERATOR_NAME}:${RELEASE_VERSION}
+          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
+          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_ENV
+          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_OUTPUT
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
@@ -152,8 +156,7 @@ jobs:
       REPO_OWNER: redhat-openshift-ecosystem
       RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.RELEASE_VERSION }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
-    outputs:
-      BUNDLE_RELEASE_VERSION: ${{ steps.set-bundle-release.outputs.BUNDLE_RELEASE_VERSION }}
+      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -200,13 +203,6 @@ jobs:
           git pull upstream main
           git push origin main
 
-      - name: Set Bundle Release Version
-        id: set-bundle-release
-        run: |
-          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
-          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_ENV
-          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_OUTPUT
-
       - name: Commit and push changes to bundle
         working-directory: ${{ env.REPO_NAME }}
         run: |
@@ -249,7 +245,7 @@ jobs:
       REPO_OWNER: ${{ matrix.repo-owner }}
       RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.RELEASE_VERSION }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
-      BUNDLE_RELEASE_VERSION: ${{ needs.redhat_certified_operator_release.outputs.BUNDLE_RELEASE_VERSION }}
+      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -445,7 +441,7 @@ jobs:
     env:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
-      BUNDLE_RELEASE_VERSION: ${{ needs.redhat_certified_operator_release.outputs.BUNDLE_RELEASE_VERSION }}
+      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
