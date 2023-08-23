@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"reflect"
 	"regexp"
 	"sort"
@@ -216,6 +217,10 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
 		v.addErr(field.Forbidden(field.NewPath("spec").Child("persistence").Child("startupAction"),
 			"PartialStart can be used only with Partial clusterDataRecoveryPolicy"))
+	}
+
+	if !path.IsAbs(p.BaseDir) {
+		v.addErr(field.Invalid(field.NewPath("spec").Child("persistence").Child("baseDir"), p.BaseDir, "must be absolute path"))
 	}
 }
 

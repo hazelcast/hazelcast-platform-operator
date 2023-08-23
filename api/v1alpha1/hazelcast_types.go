@@ -647,7 +647,7 @@ func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 
 // Returns true if Persistence configuration is specified.
 func (p *HazelcastPersistenceConfiguration) IsEnabled() bool {
-	return p != nil && p.BaseDir != ""
+	return p != nil
 }
 
 // IsRestoreEnabled returns true if Restore configuration is specified
