@@ -6,7 +6,7 @@ on:
         description: "Version in the form of X.Y"
         required: true
       UPCOMING_RELEASE_VERSION:
-        description: "Version in the form of X.Y"
+        description: "Upcoming version in the form of X.Y"
         required: true
       LATEST_SUPPORTED_HAZELCAST:
         description: "Latest supported Hazelcast Version in the form of X.Y[.Z]"
@@ -110,8 +110,12 @@ jobs:
           git config user.name "devOpsHelm"
           BRANCH_NAME=v/${MAJOR_MINOR_VERSION}
           if [[ ${MAJOR_MINOR_VERSION} == ${RELEASE_VERSION} ]] ;then
-            git checkout -b $BRANCH_NAME
-            git pull origin main
+            if git fetch origin $BRANCH_NAME; then
+              git checkout $BRANCH_NAME
+              git pull origin $BRANCH_NAME
+            else
+              git checkout -b $BRANCH_NAME origin/main
+            fi
           fi
 
           # Commit and push changes
