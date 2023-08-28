@@ -52,6 +52,11 @@ const (
 	javaOpts = "JAVA_OPTS"
 )
 
+var blockListProperties = map[string]struct{}{
+	// TODO: Add properties which should not be exposed.
+	"": {},
+}
+
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
@@ -1053,7 +1058,7 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 func filterProperties(p map[string]string) map[string]string {
 	filteredProperties := map[string]string{}
 	for propertyKey, value := range p {
-		if _, ok := hazelcastv1alpha1.BlackListProperties[propertyKey]; !ok {
+		if _, ok := blockListProperties[propertyKey]; !ok {
 			filteredProperties[propertyKey] = value
 		}
 	}
