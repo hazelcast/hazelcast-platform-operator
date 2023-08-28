@@ -34,7 +34,6 @@ const (
 
 type hazelcastValidator struct {
 	fieldValidator
-
 	name string
 }
 
