@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -78,7 +78,7 @@ jobs:
           location: ${{ env.GKE_ZONE }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         if: ${{ contains(inputs.cluster_type, 'eks') }}
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
