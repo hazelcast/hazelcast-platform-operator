@@ -62,8 +62,10 @@ func isDSSpecUnchanged(obj client.Object) (bool, error) {
 }
 
 func appendIfNotNil(errs []*field.Error, moreErrs ...*field.Error) []*field.Error {
-	if moreErrs != nil {
-		errs = append(errs, moreErrs...)
+	for _, e := range moreErrs {
+		if e != nil {
+			errs = append(errs, e)
+		}
 	}
 	return errs
 }
