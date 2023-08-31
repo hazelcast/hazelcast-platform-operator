@@ -383,6 +383,11 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			},
 		}
 
+		err := controllerutil.SetControllerReference(h, service, r.Scheme)
+		if err != nil {
+			return err
+		}
+
 		var i uint
 		var ports []corev1.ServicePort
 		for i = 0; i < w.PortCount; i++ {
