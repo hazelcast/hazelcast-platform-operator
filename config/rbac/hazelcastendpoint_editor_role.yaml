@@ -1,0 +1,31 @@
+# permissions for end users to edit hazelcastendpoints.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: hazelcastendpoint-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: hazelcast-platform-operator
+    app.kubernetes.io/part-of: hazelcast-platform-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: hazelcastendpoint-editor-role
+rules:
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - hazelcastendpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - hazelcastendpoints/status
+  verbs:
+  - get

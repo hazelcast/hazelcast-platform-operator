@@ -22,6 +22,9 @@ const (
 	LastSuccessfulSpecAnnotation                 = "hazelcast.com/last-successful-spec"
 	CurrentHazelcastConfigForcingRestartChecksum = "hazelcast.com/current-hazelcast-config-forcing-restart-checksum"
 
+	// HazelcastEndpointServiceLabelName defines the name of the service referred by the HazelcastEndpoint
+	HazelcastEndpointServiceLabelName = "hazelcast.com/hazelcast-endpoint-service"
+
 	// PodNameLabel label that represents the name of the pod in the StatefulSet
 	PodNameLabel = "statefulset.kubernetes.io/pod-name"
 	// ApplicationNameLabel label for the name of the application

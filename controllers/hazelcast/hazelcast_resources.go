@@ -180,7 +180,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   h.ClusterScopedName(),
-			Labels: labels(h),
+			Labels: util.Labels(h),
 		},
 	}
 
@@ -207,7 +207,7 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      h.Name,
 			Namespace: h.Namespace,
-			Labels:    labels(h),
+			Labels:    util.Labels(h),
 		},
 	}
 
@@ -269,7 +269,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   csName,
-			Labels: labels(h),
+			Labels: util.Labels(h),
 		},
 	}
 
@@ -300,7 +300,7 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      h.Name,
 			Namespace: h.Namespace,
-			Labels:    labels(h),
+			Labels:    util.Labels(h),
 		},
 	}
 
@@ -335,7 +335,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	service := &corev1.Service{
 		ObjectMeta: metadata(h),
 		Spec: corev1.ServiceSpec{
-			Selector: labels(h),
+			Selector: util.Labels(h),
 		},
 	}
 
@@ -364,7 +364,21 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Service", h.Name, "result", opResult)
 	}
-	return err
+	if err != nil {
+		return err
+	}
+
+	if h.Spec.ExposeExternally.IsEnabled() {
+		hzEndpoints := hazelcastEndpointsByService(h, service, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, clientPort().Port)
+		for _, hzEndpoint := range hzEndpoints {
+			err := r.Client.Create(ctx, &hzEndpoint)
+			if err != nil && !kerrors.IsAlreadyExists(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -376,10 +390,10 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      h.Name + "-" + w.Name,
 				Namespace: h.Namespace,
-				Labels:    labels(h),
+				Labels:    util.Labels(h),
 			},
 			Spec: corev1.ServiceSpec{
-				Selector: labels(h),
+				Selector: util.Labels(h),
 			},
 		}
 
@@ -405,11 +419,23 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			}
 			return nil
 		})
+		if opResult != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Service", h.Name, "result", opResult)
+		}
 		if err != nil {
 			return err
 		}
-		if opResult != controllerutil.OperationResultNone {
-			logger.Info("Operation result", "Service", h.Name, "result", opResult)
+
+		var portsInt []int32
+		for _, port := range ports {
+			portsInt = append(portsInt, port.Port)
+		}
+		hzEndpoints := hazelcastEndpointsByService(h, service, hazelcastv1alpha1.HazelcastEndpointTypeWAN, portsInt...)
+		for _, hzEndpoint := range hzEndpoints {
+			err := r.Client.Create(ctx, &hzEndpoint)
+			if err != nil && !kerrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 	}
 
@@ -456,8 +482,17 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		if opResult != controllerutil.OperationResultNone {
 			logger.Info("Operation result", "Service", servicePerPodName(i, h), "result", opResult)
 		}
+
 		if err != nil {
 			return err
+		}
+
+		hzEndpoints := hazelcastEndpointsByService(h, service, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port)
+		for _, hzEndpoint := range hzEndpoints {
+			err := r.Client.Create(ctx, &hzEndpoint)
+			if err != nil && !kerrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 	}
 
@@ -515,13 +550,13 @@ func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func servicePerPodSelector(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := labels(h)
+	ls := util.Labels(h)
 	ls[n.PodNameLabel] = servicePerPodName(i, h)
 	return ls
 }
 
 func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := labels(h)
+	ls := util.Labels(h)
 	ls[n.ServicePerPodLabelName] = n.LabelValueTrue
 	return ls
 }
@@ -605,6 +640,35 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	}
 
 	return true
+}
+
+func hazelcastEndpointsByService(hz *hazelcastv1alpha1.Hazelcast, svc *corev1.Service,
+	endpointType hazelcastv1alpha1.HazelcastEndpointType, ports ...int32) []hazelcastv1alpha1.HazelcastEndpoint {
+	var hzEndpoints []hazelcastv1alpha1.HazelcastEndpoint
+	lbls := util.Labels(hz)
+	lbls[n.HazelcastEndpointServiceLabelName] = svc.Name
+	for i, port := range ports {
+		name := svc.Name
+		if len(ports) > 1 {
+			name += fmt.Sprintf("-%d", i)
+		}
+
+		hzEndpoint := hazelcastv1alpha1.HazelcastEndpoint{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: svc.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.HazelcastEndpointSpec{
+				Type:    endpointType,
+				Port:    port,
+				Address: "",
+			},
+		}
+		hzEndpoints = append(hzEndpoints, hzEndpoint)
+	}
+
+	return hzEndpoints
 }
 
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -1568,7 +1632,7 @@ func createBatchPublisherConfig(wr hazelcastv1alpha1.WanReplication) config.Batc
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	ls := labels(h)
+	ls := util.Labels(h)
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metadata(h),
 		Spec: appsv1.StatefulSetSpec{
@@ -1680,7 +1744,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      n.PersistenceVolumeName,
 				Namespace: h.Namespace,
-				Labels:    labels(h),
+				Labels:    util.Labels(h),
 			},
 			Spec: v1.PersistentVolumeClaimSpec{
 				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
@@ -2249,7 +2313,7 @@ func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.
 					MaxSkew:           1,
 					TopologyKey:       "kubernetes.io/hostname",
 					WhenUnsatisfiable: v1.ScheduleAnyway,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels(h)},
+					LabelSelector:     &metav1.LabelSelector{MatchLabels: util.Labels(h)},
 				})
 		case "ZONE":
 			topologySpreadConstraints = append(topologySpreadConstraints,
@@ -2257,7 +2321,7 @@ func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.
 					MaxSkew:           1,
 					TopologyKey:       "topology.kubernetes.io/zone",
 					WhenUnsatisfiable: v1.ScheduleAnyway,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels(h)},
+					LabelSelector:     &metav1.LabelSelector{MatchLabels: util.Labels(h)},
 				})
 		}
 	}
@@ -2371,14 +2435,6 @@ func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 	return strings.Join(b, ":")
 }
 
-func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	return map[string]string{
-		n.ApplicationNameLabel:         n.Hazelcast,
-		n.ApplicationInstanceNameLabel: h.Name,
-		n.ApplicationManagedByLabel:    n.OperatorName,
-	}
-}
-
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	if !h.Spec.ExposeExternally.IsSmart() {
 		return nil
@@ -2451,7 +2507,7 @@ func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:      h.Name,
 		Namespace: h.Namespace,
-		Labels:    labels(h),
+		Labels:    util.Labels(h),
 	}
 }
 
