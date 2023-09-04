@@ -18,10 +18,7 @@ type HazelcastEndpointSpec struct {
 	// +required
 	Type HazelcastEndpointType `json:"type"`
 
-	// +optional
-	Address string `json:"foo,omitempty"`
-
-	// +optional
+	// +required
 	Port int32 `json:"port,omitempty"`
 
 	// HazelcastResourceName defines the name of the Hazelcast resource that this resource is
@@ -33,14 +30,23 @@ type HazelcastEndpointSpec struct {
 
 // HazelcastEndpointStatus defines the observed state of HazelcastEndpoint
 type HazelcastEndpointStatus struct {
+	// Message about the HazelcastEndpoint
 	// +optional
 	Message string `json:"message,omitempty"`
+
+	// Address of the HazelcastEndpoint
+	// +optional
+	Address string `json:"address,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
 // HazelcastEndpoint is the Schema for the hazelcastendpoints API
+// +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="Type of the HazelcastEndpoint"
+// +kubebuilder:printcolumn:name="Address",type="string",JSONPath=".status.address",description="Address of the HazelcastEndpoint"
+// +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current HazelcastEndpoint"
+// +kubebuilder:resource:shortName=hzep
 type HazelcastEndpoint struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

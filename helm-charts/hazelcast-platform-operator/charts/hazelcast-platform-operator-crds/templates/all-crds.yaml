@@ -287,10 +287,26 @@ spec:
     kind: HazelcastEndpoint
     listKind: HazelcastEndpointList
     plural: hazelcastendpoints
+    shortNames:
+    - hzep
     singular: hazelcastendpoint
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Type of the HazelcastEndpoint
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    - description: Address of the HazelcastEndpoint
+      jsonPath: .status.address
+      name: Address
+      type: string
+    - description: Message for the current HazelcastEndpoint
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: HazelcastEndpoint is the Schema for the hazelcastendpoints API
@@ -310,8 +326,6 @@ spec:
           spec:
             description: HazelcastEndpointSpec defines the desired state of HazelcastEndpoint
             properties:
-              foo:
-                type: string
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource that this resource is created for.
@@ -333,7 +347,11 @@ spec:
           status:
             description: HazelcastEndpointStatus defines the observed state of HazelcastEndpoint
             properties:
+              address:
+                description: Address of the HazelcastEndpoint
+                type: string
               message:
+                description: Message about the HazelcastEndpoint
                 type: string
             type: object
         type: object

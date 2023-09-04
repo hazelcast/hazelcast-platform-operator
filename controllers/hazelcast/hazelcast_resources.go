@@ -660,9 +660,9 @@ func hazelcastEndpointsByService(hz *hazelcastv1alpha1.Hazelcast, svc *corev1.Se
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.HazelcastEndpointSpec{
-				Type:    endpointType,
-				Port:    port,
-				Address: "",
+				Type:                  endpointType,
+				Port:                  port,
+				HazelcastResourceName: hz.Name,
 			},
 		}
 		hzEndpoints = append(hzEndpoints, hzEndpoint)

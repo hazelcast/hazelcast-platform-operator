@@ -218,12 +218,7 @@ type ExternalAddresser interface {
 	ExternalAddressEnabled() bool
 }
 
-func GetExternalAddresses(
-	ctx context.Context,
-	cli client.Client,
-	cr ExternalAddresser,
-	logger logr.Logger,
-) ([]string, []string) {
+func GetExternalAddresses(ctx context.Context, cli client.Client, cr ExternalAddresser, logger logr.Logger) ([]string, []string) {
 	svcList, err := getRelatedServices(ctx, cli, cr)
 	if err != nil {
 		logger.Error(err, "Could not get the service")
@@ -238,12 +233,12 @@ func GetExternalAddresses(
 		}
 
 		for _, ingress := range svc.Status.LoadBalancer.Ingress {
-			addr := getLoadBalancerAddress(&ingress)
+			addr := GetLoadBalancerAddress(&ingress)
 			if addr == "" {
 				continue
 			}
 			for _, port := range svc.Spec.Ports {
-				// we don't want to print these ports as the output of "kubectl get hz" command
+				// we don't want to print these ports as the output of "kubectl get hz" command,
 				// and we want to print wan addresses with a separate title (WAN-Addresses)
 				if strings.HasPrefix(port.Name, n.WanPortNamePrefix) {
 					wanAddrs = append(wanAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
@@ -309,7 +304,7 @@ func GetExternalAddressesForMC(
 
 	externalAddrs := make([]string, 0, len(svc.Status.LoadBalancer.Ingress)*len(svc.Spec.Ports))
 	for _, ingress := range svc.Status.LoadBalancer.Ingress {
-		addr := getLoadBalancerAddress(&ingress)
+		addr := GetLoadBalancerAddress(&ingress)
 		if addr == "" {
 			continue
 		}
@@ -332,7 +327,7 @@ func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddr
 	return &svc, nil
 }
 
-func getLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
+func GetLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
 	if lb.IP != "" {
 		return lb.IP
 	}
