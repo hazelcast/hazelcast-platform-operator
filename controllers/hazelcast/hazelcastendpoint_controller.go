@@ -32,9 +32,9 @@ func NewHazelcastEndpointReconciler(c client.Client, log logr.Logger, s *runtime
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/finalizers,verbs=update
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/status,verbs=get;update;patch,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/finalizers,verbs=update,namespace=watched
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch,namespace=watched
 
 func (r *HazelcastEndpointReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
