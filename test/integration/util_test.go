@@ -2,7 +2,10 @@ package integration
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
+	"net"
 	"reflect"
 	"time"
 
@@ -238,6 +241,48 @@ func CreateTLSSecret(name, namespace string) *corev1.Secret {
 	}
 	Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
 	return secret
+}
+
+func AssignLoadBalancerAddress(ctx context.Context, c client.Client, interval time.Duration, opts ...client.ListOption) {
+	for {
+		select {
+		case <-time.After(interval):
+			svcs := &corev1.ServiceList{}
+			err := c.List(ctx, svcs, opts...)
+			if err != nil {
+				fmt.Println(err.Error())
+				break
+			}
+
+			fmt.Println(len(svcs.Items))
+			for _, svc := range svcs.Items {
+				buf := make([]byte, 4)
+				ip := rand.Uint32()
+				binary.LittleEndian.PutUint32(buf, ip)
+				ipAddr := net.IP(buf).String()
+				if svc.Spec.Type == corev1.ServiceTypeLoadBalancer && len(svc.Status.LoadBalancer.Ingress) == 0 {
+					svc.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+						{
+							IP: ipAddr,
+							Ports: []corev1.PortStatus{
+								{
+									Port:     svc.Spec.Ports[0].Port,
+									Protocol: svc.Spec.Ports[0].Protocol,
+								},
+							},
+						},
+					}
+					err := c.Status().Update(ctx, &svc)
+					if err != nil {
+						fmt.Println(err.Error())
+					}
+					fmt.Println(ipAddr)
+				}
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 // noinspection ALL

@@ -82,6 +82,12 @@ func (r *HazelcastEndpointReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	addr, err := r.getExternalAddress(ctx, hzep)
 	return r.updateStatus(ctx, hzep, recoptions.Error(err), withHazelcastEndpointAddress(addr), withHazelcastEndpointMessageByError(err))
+
+	//TODO: webhook validation
+	//TODO: remove unused endpoints
+	//TODO: e2e tests
+	//TODO: state
+	//TODO: test reconcile triggers
 }
 
 func (r *HazelcastEndpointReconciler) reconcileOwnerReferences(ctx context.Context, hzep *hazelcastcomv1alpha1.HazelcastEndpoint,

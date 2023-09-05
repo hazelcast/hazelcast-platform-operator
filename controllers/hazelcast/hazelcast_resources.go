@@ -487,6 +487,10 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			return err
 		}
 
+		if h.Spec.ExposeExternally.MemberAccess != hazelcastv1alpha1.MemberAccessLoadBalancer {
+			continue
+		}
+
 		hzEndpoints := hazelcastEndpointsByService(h, service, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port)
 		for _, hzEndpoint := range hzEndpoints {
 			err := r.Client.Create(ctx, &hzEndpoint)
