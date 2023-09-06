@@ -3,12 +3,15 @@ package integration
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -17,46 +20,38 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
 
-var _ = Describe("HazelcastEndpoint CR", func() {
+var _ = FDescribe("HazelcastEndpoint CR", func() {
 	const namespace = "default"
 
-	listHazelcastEndpoints := func(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast) []hazelcastv1alpha1.HazelcastEndpoint {
-		hzEndpointList := &hazelcastv1alpha1.HazelcastEndpointList{}
-		labels := util.Labels(hz)
-		nsOpt := client.InNamespace(hz.Namespace)
-		lblOpt := client.MatchingLabels(labels)
-		err := k8sClient.List(ctx, hzEndpointList, nsOpt, lblOpt)
-		Expect(err).To(Not(HaveOccurred()))
-		return hzEndpointList.Items
-	}
-
-	getHazelcastService := func(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast) *corev1.Service {
+	getHazelcastService := func(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast, timeout Duration) *corev1.Service {
+		By("Listing the Hazelcast service")
 		svc := &corev1.Service{}
-		err := k8sClient.Get(ctx, lookupKey(hz), svc)
-		if kerrors.IsNotFound(err) {
-			return nil
-		}
-		Expect(err).To(Not(HaveOccurred()))
-		return svc
-	}
-
-	waitForHazelcastService := func(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast, timeout Duration) *corev1.Service {
-		By("Waiting for the Hazelcast service")
-		var svc *corev1.Service
 		Eventually(func() *corev1.Service {
-			svc = getHazelcastService(ctx, hz)
+			err := k8sClient.Get(ctx, lookupKey(hz), svc)
+			if kerrors.IsNotFound(err) {
+				return nil
+			}
+			Expect(err).To(Not(HaveOccurred()))
 			return svc
 		}, timeout, interval).Should(Not(BeNil()))
 		return svc
 	}
 
-	waitForHazelcastEndpoints := func(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast, timeout Duration, expectedLen int) []hazelcastv1alpha1.HazelcastEndpoint {
-		By("Waiting for the HazelcastEndpoints")
-		var hzEndpoints []hazelcastv1alpha1.HazelcastEndpoint
+	listHazelcastEndpoints := func(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast, timeout Duration, expectedLen int) []*hazelcastv1alpha1.HazelcastEndpoint {
+		By("Listing the HazelcastEndpoints")
+		hzEndpointList := &hazelcastv1alpha1.HazelcastEndpointList{}
+		labels := util.Labels(hz)
+		nsOpt := client.InNamespace(hz.Namespace)
+		lblOpt := client.MatchingLabels(labels)
 		Eventually(func() []hazelcastv1alpha1.HazelcastEndpoint {
-			hzEndpoints = listHazelcastEndpoints(ctx, hz)
-			return hzEndpoints
+			err := k8sClient.List(ctx, hzEndpointList, nsOpt, lblOpt)
+			Expect(err).To(Not(HaveOccurred()))
+			return hzEndpointList.Items
 		}, timeout, interval).Should(HaveLen(expectedLen))
+		var hzEndpoints []*hazelcastv1alpha1.HazelcastEndpoint
+		for _, hzep := range hzEndpointList.Items {
+			hzEndpoints = append(hzEndpoints, hzep.DeepCopy())
+		}
 		return hzEndpoints
 	}
 
@@ -99,8 +94,49 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			}
 		}
 		Expect(hzep.Status.Address).Should(Not(BeEmpty()))
-		//Expect(addr).Should(Equal(hzep.Status.Address))
-		//Expect(svc.Spec.Ports)
+		hzepHost, hzepPort, err := net.SplitHostPort(hzep.Status.Address)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(hzepHost).Should(Equal(addr))
+		var ports []int32
+		for _, svcPort := range svc.Spec.Ports {
+			ports = append(ports, svcPort.Port)
+		}
+		hzPortInt, err := strconv.Atoi(hzepPort)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(ports).Should(ContainElement(int32(hzPortInt)))
+	}
+
+	getHazelcastMemberServices := func(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast, timeout Duration) []corev1.Service {
+		lbls := util.Labels(hz)
+		lbls[n.ServicePerPodLabelName] = n.LabelValueTrue
+		lblOpt := client.MatchingLabels(lbls)
+		nsOpt := client.InNamespace(hz.Namespace)
+		svcList := &corev1.ServiceList{}
+		Eventually(func() []corev1.Service {
+			err := k8sClient.List(ctx, svcList, lblOpt, nsOpt)
+			Expect(err).ToNot(HaveOccurred())
+			return svcList.Items
+		}, timeout, interval).Should(HaveLen(int(*hz.Spec.ClusterSize)))
+		return svcList.Items
+	}
+
+	getWanServices := func(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast, timeout Duration) []*corev1.Service {
+		By("Getting WAN services")
+		var services []*corev1.Service
+		for _, wan := range hz.Spec.AdvancedNetwork.WAN {
+			svc := &corev1.Service{}
+			svcName := fmt.Sprintf("%s-%s", hz.GetName(), wan.Name)
+			Eventually(func() error {
+				svcNn := types.NamespacedName{
+					Namespace: hz.Namespace,
+					Name:      svcName,
+				}
+				err := k8sClient.Get(ctx, svcNn, svc)
+				return err
+			}, timeout, interval).Should(Not(HaveOccurred()))
+			services = append(services, svc)
+		}
+		return services
 	}
 
 	BeforeEach(func() {
@@ -125,18 +161,18 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			By("creating the Hazelcast CR with specs successfully")
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 
-			waitForHazelcastService(ctx, hz, Minute)
+			getHazelcastService(ctx, hz, Minute)
 
-			hzEndpoints := listHazelcastEndpoints(ctx, hz)
+			hzEndpoints := listHazelcastEndpoints(ctx, hz, Minute, 0)
 			Expect(hzEndpoints).Should(BeEmpty())
 		})
 	})
 
-	Context("Hazelcast which expose external endpoints", func() {
+	Context("Hazelcast that exposes external endpoints", func() {
 		When("creating Hazelcast with expose externally enabled", func() {
 			It("should create HazelcastEndpoint whose type is Discovery", Label("fast"), func() {
 				lbCtx, cancel := context.WithCancel(ctx)
-				go AssignLoadBalancerAddress(lbCtx, k8sClient, 5*Second, client.InNamespace(namespace))
+				go AssignLoadBalancerAddress(lbCtx, k8sClient, Second, client.InNamespace(namespace))
 				defer cancel()
 
 				hz := &hazelcastv1alpha1.Hazelcast{
@@ -152,14 +188,117 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 				By("creating the Hazelcast CR with specs successfully")
 				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 
-				svc := waitForHazelcastService(ctx, hz, Minute)
-				hzEndpoints := waitForHazelcastEndpoints(ctx, hz, Minute, 1)
+				svc := getHazelcastService(ctx, hz, Minute)
+				hzEndpoints := listHazelcastEndpoints(ctx, hz, Minute, 1)
 
-				waitForServiceToBeAssignedLoadBalancerAddress(ctx, svc, Minute)
-				waitForHazelcastEndpointToHaveAddress(ctx, &hzEndpoints[0], Minute)
+				waitForServiceToBeAssignedLoadBalancerAddress(ctx, svc, 20*Second)
+				waitForHazelcastEndpointToHaveAddress(ctx, hzEndpoints[0], 20*Second)
 
-				expectHazelcastEndpointMatchedWithService(&hzEndpoints[0], svc)
-				Expect(hzEndpoints)
+				expectHazelcastEndpointMatchedWithService(hzEndpoints[0], svc)
+				Expect(hzEndpoints[0].Spec.Type).Should(Equal(hazelcastv1alpha1.HazelcastEndpointTypeDiscovery))
+			})
+
+			It("should create HazelcastEndpoint with Discovery and Member type", Label("fast"), func() {
+				lbCtx, cancel := context.WithCancel(ctx)
+				go AssignLoadBalancerAddress(lbCtx, k8sClient, Second, client.InNamespace(namespace))
+				defer cancel()
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				}
+				hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+					MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+				}
+
+				By("creating the Hazelcast CR with specs successfully")
+				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+
+				svc := getHazelcastService(ctx, hz, Minute)
+				hzEndpoints := listHazelcastEndpoints(ctx, hz, Minute, 4)
+
+				waitForServiceToBeAssignedLoadBalancerAddress(ctx, svc, 20*Second)
+				waitForHazelcastEndpointToHaveAddress(ctx, hzEndpoints[0], 20*Second)
+
+				memberServices := getHazelcastMemberServices(ctx, hz, Minute)
+				for _, memberSvc := range memberServices {
+					waitForServiceToBeAssignedLoadBalancerAddress(ctx, &memberSvc, 20*Second)
+				}
+
+				for _, hzEndpoint := range hzEndpoints {
+					waitForHazelcastEndpointToHaveAddress(ctx, hzEndpoint, 20*Second)
+				}
+
+				hzep, ok := FindResourceByName(hzEndpoints, svc.Name)
+				Expect(ok).To(BeTrue())
+				expectHazelcastEndpointMatchedWithService(hzep, svc)
+				Expect(hzep.Spec.Type).Should(Equal(hazelcastv1alpha1.HazelcastEndpointTypeDiscovery))
+
+				for _, memberSvc := range memberServices {
+					hzep, ok := FindResourceByName(hzEndpoints, memberSvc.Name)
+					Expect(ok).To(BeTrue())
+					expectHazelcastEndpointMatchedWithService(hzep, &memberSvc)
+					Expect(hzep.Spec.Type).Should(Equal(hazelcastv1alpha1.HazelcastEndpointTypeMember))
+				}
+			})
+		})
+
+		When("creating Hazelcast with WAN", func() {
+			It("should create HazelcastEndpoint in WAN type", Label("fast"), func() {
+				lbCtx, cancel := context.WithCancel(ctx)
+				go AssignLoadBalancerAddress(lbCtx, k8sClient, Second, client.InNamespace(namespace))
+				defer cancel()
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				}
+
+				hz.Spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
+					WAN: []hazelcastv1alpha1.WANConfig{
+						{
+							Name:        "miami",
+							Port:        5710,
+							PortCount:   3,
+							ServiceType: corev1.ServiceTypeLoadBalancer,
+						},
+						{
+							Name:        "new-york-city",
+							Port:        5720,
+							PortCount:   5,
+							ServiceType: corev1.ServiceTypeLoadBalancer,
+						},
+					},
+				}
+
+				By("creating the Hazelcast CR with specs successfully")
+				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+
+				wanServices := getWanServices(ctx, hz, Minute)
+				hzEndpoints := listHazelcastEndpoints(ctx, hz, Minute, 8)
+
+				for _, wanSvc := range wanServices {
+					waitForServiceToBeAssignedLoadBalancerAddress(ctx, wanSvc, 20*Second)
+				}
+
+				for _, hzep := range hzEndpoints {
+					waitForHazelcastEndpointToHaveAddress(ctx, hzep, 20*Second)
+				}
+
+				for _, wan := range hz.Spec.AdvancedNetwork.WAN {
+					for i := 0; i < int(wan.PortCount); i++ {
+						svcName := fmt.Sprintf("%s-%s", hz.GetName(), wan.Name)
+						svc, ok := FindResourceByName(wanServices, svcName)
+						Expect(ok).To(BeTrue())
+						hzepName := fmt.Sprintf("%s-%d", svcName, i)
+						hzep, ok := FindResourceByName(hzEndpoints, hzepName)
+						Expect(ok).To(BeTrue())
+						expectHazelcastEndpointMatchedWithService(hzep, svc)
+						Expect(hzep.Spec.Type).Should(Equal(hazelcastv1alpha1.HazelcastEndpointTypeWAN))
+					}
+				}
 			})
 		})
 	})

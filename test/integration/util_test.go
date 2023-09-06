@@ -243,6 +243,16 @@ func CreateTLSSecret(name, namespace string) *corev1.Secret {
 	return secret
 }
 
+func FindResourceByName[T metav1.Object](resources []T, n string) (T, bool) {
+	for _, res := range resources {
+		if res.GetName() == n {
+			return res, true
+		}
+	}
+	var res T
+	return res, false
+}
+
 func AssignLoadBalancerAddress(ctx context.Context, c client.Client, interval time.Duration, opts ...client.ListOption) {
 	for {
 		select {
@@ -250,11 +260,9 @@ func AssignLoadBalancerAddress(ctx context.Context, c client.Client, interval ti
 			svcs := &corev1.ServiceList{}
 			err := c.List(ctx, svcs, opts...)
 			if err != nil {
-				fmt.Println(err.Error())
 				break
 			}
 
-			fmt.Println(len(svcs.Items))
 			for _, svc := range svcs.Items {
 				buf := make([]byte, 4)
 				ip := rand.Uint32()
@@ -272,11 +280,7 @@ func AssignLoadBalancerAddress(ctx context.Context, c client.Client, interval ti
 							},
 						},
 					}
-					err := c.Status().Update(ctx, &svc)
-					if err != nil {
-						fmt.Println(err.Error())
-					}
-					fmt.Println(ipAddr)
+					c.Status().Update(ctx, &svc)
 				}
 			}
 		case <-ctx.Done():
