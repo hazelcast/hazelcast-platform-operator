@@ -1287,9 +1287,17 @@ func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1a
 		}
 	}
 	if s.CompactSerialization != nil {
+		classes := make([]string, 0, len(s.CompactSerialization.Classes))
+		for _, class := range s.CompactSerialization.Classes {
+			classes = append(classes, fmt.Sprintf("class: %s", class))
+		}
+		serializers := make([]string, 0, len(s.CompactSerialization.Serializers))
+		for _, serializer := range s.CompactSerialization.Serializers {
+			serializers = append(serializers, fmt.Sprintf("serializer: %s", serializer))
+		}
 		cfg.Serialization.CompactSerialization = &config.CompactSerialization{
-			Serializers: s.CompactSerialization.Serializers,
-			Classes:     s.CompactSerialization.Classes,
+			Serializers: serializers,
+			Classes:     classes,
 		}
 	}
 }
