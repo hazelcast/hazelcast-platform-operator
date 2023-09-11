@@ -212,7 +212,7 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 			logger.Error(err, "JetJobSnapshot creation time is zero")
 			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
 		}
-		metaData.SnapshotName = jjs.Spec.Name
+		metaData.SnapshotName = jjs.SnapshotName()
 	}
 	if job.Spec.IsDownloadEnabled() {
 		logger.V(util.DebugLevel).Info("Downloading the JAR file before running the JetJob", "jj", jjnn)
