@@ -127,7 +127,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
 	}
 
-	if err := hazelcastv1alpha1.ValidateAppliedPersistence(true, h); err != nil {
+	if err := hazelcastv1alpha1.ValidateHotBackupPersistence(h); err != nil {
 		return r.updateStatus(ctx, req.NamespacedName, recoptions.Error(err),
 			withHotBackupFailedState(err.Error()))
 	}
