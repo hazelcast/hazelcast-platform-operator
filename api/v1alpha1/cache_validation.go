@@ -10,60 +10,75 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-func ValidateCacheSpecCurrent(c *Cache, h *Hazelcast) error {
-	var allErrs field.ErrorList
-	allErrs = appendIfNotNil(allErrs, validateCachePersistence(c, h))
-	allErrs = appendIfNotNil(allErrs, validateCacheNativeMemory(c, h))
-	if len(allErrs) == 0 {
-		return nil
-	}
-
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Cache"}, c.Name, allErrs)
+type cacheValidator struct {
+	fieldValidator
+	name string
 }
 
-func validateCachePersistence(c *Cache, h *Hazelcast) *field.Error {
+func (v *cacheValidator) Err() error {
+	if len(v.fieldValidator) != 0 {
+		return kerrors.NewInvalid(
+			schema.GroupKind{Group: "hazelcast.com", Kind: "Cache"},
+			v.name,
+			field.ErrorList(v.fieldValidator),
+		)
+	}
+	return nil
+}
+
+func ValidateCacheSpecCurrent(c *Cache, h *Hazelcast) error {
+	v := cacheValidator{
+		name: c.Name,
+	}
+	v.validateCachePersistence(c, h)
+	v.validateCacheNativeMemory(c, h)
+	return v.Err()
+}
+
+func (v *cacheValidator) validateCachePersistence(c *Cache, h *Hazelcast) {
 	if !c.Spec.PersistenceEnabled {
-		return nil
+		return
 	}
 
 	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		return
 	}
 
 	lastSpec := &HazelcastSpec{}
 	err := json.Unmarshal([]byte(s), lastSpec)
 	if err != nil {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		return
 	}
 
 	if !lastSpec.Persistence.IsEnabled() {
-		return field.Invalid(field.NewPath("spec").Child("persistenceEnabled"), lastSpec.Persistence.IsEnabled(),
-			"Persistence must be enabled at Hazelcast")
+		v.Invalid(Path("spec", "persistenceEnabled"), lastSpec.Persistence.IsEnabled(), "Persistence must be enabled at Hazelcast")
+		return
 	}
-
-	return nil
 }
 
-func validateCacheNativeMemory(c *Cache, h *Hazelcast) *field.Error {
+func (v *cacheValidator) validateCacheNativeMemory(c *Cache, h *Hazelcast) {
 	if c.Spec.InMemoryFormat != InMemoryFormatNative {
-		return nil
+		return
 	}
 
 	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		return
 	}
 
 	lastSpec := &HazelcastSpec{}
 	err := json.Unmarshal([]byte(s), lastSpec)
 	if err != nil {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		return
 	}
 
 	if !lastSpec.NativeMemory.IsEnabled() {
-		return field.Invalid(field.NewPath("spec").Child("inMemoryFormat"), lastSpec.NativeMemory.IsEnabled(),
-			"Native Memory must be enabled at Hazelcast")
+		v.Invalid(Path("spec", "inMemoryFormat"), lastSpec.NativeMemory.IsEnabled(), "Native Memory must be enabled at Hazelcast")
+		return
 	}
-	return nil
 }
