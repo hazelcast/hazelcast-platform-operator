@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -109,7 +110,16 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			logger.Info("JetJob was already applied.", "name", jj.Name, "namespace", jj.Namespace)
 			return
 		}
-		if err := hazelcastv1alpha1.ValidateJetJobUpdateSpec(jj); err != nil {
+
+		lastSpec := &hazelcastv1alpha1.JetJobSpec{}
+		err = json.Unmarshal([]byte(s), lastSpec)
+		if err != nil {
+			err = fmt.Errorf("error unmarshaling Last JetJob Spec: %w", err)
+			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
+		}
+		var allErrs = hazelcastv1alpha1.ValidateJetJobNonUpdatableFields(jj.Spec, *lastSpec)
+		if len(allErrs) > 0 {
+			err = apiErrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"}, req.Name, allErrs)
 			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
 		}
 	} else {

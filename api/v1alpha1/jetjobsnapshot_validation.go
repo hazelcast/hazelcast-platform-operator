@@ -12,56 +12,46 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-type jetJobSnapshotValidator struct {
-	fieldValidator
-	name string
-}
-
-func (v *jetJobSnapshotValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "JetJobSnapshot"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
-}
-
 func ValidateJetJobSnapshotSpecUpdate(jjs *JetJobSnapshot, _ *JetJobSnapshot) error {
-	v := jetJobSnapshotValidator{
-		name: jjs.Name,
+	var allErrs = validateJetJobSnapshotUpdateSpec(jjs)
+	if len(allErrs) == 0 {
+		return nil
 	}
-	v.validateJetJobSnapshotUpdateSpec(jjs)
-	return v.Err()
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJobSnapshot"}, jjs.Name, allErrs)
 }
 
-func (v *jetJobSnapshotValidator) validateJetJobSnapshotUpdateSpec(jjs *JetJobSnapshot) {
+func validateJetJobSnapshotUpdateSpec(jjs *JetJobSnapshot) []*field.Error {
 	last, ok := jjs.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return
+		return nil
 	}
 	var parsed JetJobSnapshotSpec
 	if err := json.Unmarshal([]byte(last), &parsed); err != nil {
-		v.InternalError(Path("spec"), fmt.Errorf("error parsing last JetJobSnapshot spec for update errors: %w", err))
-		return
+		return []*field.Error{field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last JetJobSnapshot spec for update errors: %w", err))}
 	}
-
-	v.validateJetJobSnapshotNonUpdatableFields(jjs.Spec, parsed)
+	return ValidateJetJobSnapshotNonUpdatableFields(jjs.Spec, parsed)
 }
 
 func ValidateHazelcastLicenseKey(h *Hazelcast) error {
-	v := hazelcastValidator{
-		name: h.Name,
-	}
+	var allErrs field.ErrorList
 	if h.Spec.GetLicenseKeySecretName() == "" {
-		v.Required(Path("spec", "licenseKeySecretName"), "license key must be set")
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("licenseKeySecretName"),
+			"license key must be set"))
 	}
-	return v.Err()
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Hazelcast"}, h.Name, allErrs)
 }
 
-func (v *jetJobSnapshotValidator) validateJetJobSnapshotNonUpdatableFields(jjs JetJobSnapshotSpec, oldJjs JetJobSnapshotSpec) {
+func ValidateJetJobSnapshotNonUpdatableFields(jjs JetJobSnapshotSpec, oldJjs JetJobSnapshotSpec) []*field.Error {
+	var allErrs field.ErrorList
+
 	if !reflect.DeepEqual(jjs, oldJjs) {
-		v.Forbidden(Path("spec"), "field cannot be updated")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec"), "field cannot be updated"))
 	}
+
+	return allErrs
 }

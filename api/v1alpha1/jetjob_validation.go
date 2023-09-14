@@ -15,34 +15,20 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-type jetjobValidator struct {
-	fieldValidator
-	name string
-}
-
-func (v *jetjobValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
-}
-
 func ValidateJetJobCreateSpec(jj *JetJob) error {
-	v := jetjobValidator{
-		name: jj.Name,
-	}
+	var allErrs field.ErrorList
 
 	if jj.Spec.State != RunningJobState {
-		v.Invalid(Path("spec", "state"), jj.Spec.State, fmt.Sprintf("should be set to %s on creation", RunningJobState))
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("state"),
+			jj.Spec.State,
+			fmt.Sprintf("should be set to %s on creation", RunningJobState)))
 	}
 
 	if jj.Spec.IsBucketEnabled() {
 		if jj.Spec.BucketConfiguration.GetSecretName() == "" {
-			v.Required(Path("spec", "bucketConfig", "secretName"), "bucket secret must be set")
+			allErrs = append(allErrs, field.Required(
+				field.NewPath("spec").Child("bucketConfig").Child("secretName"),
+				"bucket secret must be set"))
 		} else {
 			secretName := types.NamespacedName{
 				Name:      jj.Spec.BucketConfiguration.SecretName,
@@ -52,12 +38,16 @@ func ValidateJetJobCreateSpec(jj *JetJob) error {
 			err := kubeclient.Get(context.Background(), secretName, &secret)
 			if kerrors.IsNotFound(err) {
 				// we care only about not found error
-				v.Required(Path("spec", "bucketConfig", "secretName"), "Bucket credentials Secret not found")
+				allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("bucketConfig").Child("secretName"),
+					"Bucket credentials Secret not found"))
 			}
 		}
 	}
 
-	return v.Err()
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"}, jj.Name, allErrs)
 }
 
 func ValidateExistingJobName(jj *JetJob, jjList *JetJobList) error {
@@ -68,7 +58,7 @@ func ValidateExistingJobName(jj *JetJob, jjList *JetJobList) error {
 		}
 		if job.JobName() == jj.JobName() && job.Spec.HazelcastResourceName == jj.Spec.HazelcastResourceName {
 			return kerrors.NewConflict(schema.GroupResource{Group: "hazelcast.com", Resource: "JetJob"},
-				jj.Name, field.Invalid(Path("spec", "name"), job.JobName(),
+				jj.Name, field.Invalid(field.NewPath("spec").Child("name"), job.JobName(),
 					fmt.Sprintf("JetJob %s already uses the same name", job.Name)))
 		}
 	}
@@ -76,97 +66,106 @@ func ValidateExistingJobName(jj *JetJob, jjList *JetJobList) error {
 }
 
 func ValidateJetConfiguration(h *Hazelcast) error {
-	v := hazelcastValidator{
-		name: h.Name,
-	}
+	var allErrs field.ErrorList
 	if !h.Spec.JetEngineConfiguration.IsEnabled() {
-		v.Required(Path("spec", "jet", "enabled"), "jet engine must be enabled")
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("jet").Child("enabled"),
+			"jet engine must be enabled"))
 	}
 	if !h.Spec.JetEngineConfiguration.ResourceUploadEnabled {
-		v.Invalid(Path("spec", "jet", "resourceUploadEnabled"), h.Spec.JetEngineConfiguration.ResourceUploadEnabled, "jet engine resource upload must be enabled")
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("jet").Child("resourceUploadEnabled"),
+			h.Spec.JetEngineConfiguration.ResourceUploadEnabled, "jet engine resource upload must be enabled"))
 	}
-	return v.Err()
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Hazelcast"}, h.Name, allErrs)
 }
 
-func ValidateJetJobUpdateStateSpec(jj *JetJob, oldJj *JetJob) error {
-	v := jetjobValidator{
-		name: jj.Name,
+func ValidateJetJobUpdateSpec(jj *JetJob, oldJj *JetJob) error {
+	var allErrs = validateJetJobUpdateSpec(jj)
+
+	err := validateJetStateChange(jj.Spec.State, oldJj.Spec.State, oldJj.Status.Phase)
+	if err != nil {
+		allErrs = append(allErrs, err)
 	}
 
-	v.validateJetJobUpdateSpec(jj)
-	v.validateJetStateChange(jj.Spec.State, oldJj.Spec.State, oldJj.Status.Phase)
-
-	return v.Err()
-}
-
-func ValidateJetJobUpdateSpec(jj *JetJob) error {
-	v := jetjobValidator{
-		name: jj.Name,
+	if len(allErrs) == 0 {
+		return nil
 	}
-	v.validateJetJobUpdateSpec(jj)
-	return v.Err()
+	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"}, jj.Name, allErrs)
 }
 
-func (v *jetjobValidator) validateJetStateChange(newState JetJobState, oldState JetJobState, oldStatus JetJobStatusPhase) {
+func validateJetStateChange(newState JetJobState, oldState JetJobState, oldStatus JetJobStatusPhase) *field.Error {
 	if newState == oldState || oldStatus == "" {
-		return
+		return nil
 	}
 	if oldStatus.IsFinished() || oldStatus == JetJobCompleting {
-		v.Forbidden(Path("spec", "state"), "job execution is finished or being finished, state change is not allowed")
-		return
+		return field.Forbidden(field.NewPath("spec").Child("state"), "job execution is finished or being finished, state change is not allowed")
 	}
 	if oldStatus != JetJobRunning && newState != RunningJobState {
-		v.Invalid(Path("spec", "state"), newState, fmt.Sprintf("can be set only for JetJob with %v status", JetJobRunning))
-		return
+		return field.Invalid(field.NewPath("spec").Child("state"), newState, fmt.Sprintf("can be set only for JetJob with %v status", JetJobRunning))
 	}
+	return nil
 }
 
-func (v *jetjobValidator) validateJetJobUpdateSpec(jj *JetJob) {
+func validateJetJobUpdateSpec(jj *JetJob) []*field.Error {
 	last, ok := jj.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return
+		return nil
 	}
 	var parsed JetJobSpec
 	if err := json.Unmarshal([]byte(last), &parsed); err != nil {
-		v.InternalError(Path("spec"), fmt.Errorf("error parsing last JetJob spec for update errors: %w", err))
-		return
+		return []*field.Error{field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last JetJob spec for update errors: %w", err))}
 	}
-
-	v.ValidateJetJobNonUpdatableFields(jj.Spec, parsed)
+	return ValidateJetJobNonUpdatableFields(jj.Spec, parsed)
 }
 
-func (v *jetjobValidator) ValidateJetJobNonUpdatableFields(jj JetJobSpec, oldJj JetJobSpec) {
+func ValidateJetJobNonUpdatableFields(jj JetJobSpec, oldJj JetJobSpec) []*field.Error {
+	var allErrs field.ErrorList
 	if jj.Name != oldJj.Name {
-		v.Forbidden(Path("spec", "name"), "field cannot be updated")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("name"), "field cannot be updated"))
 	}
 	if jj.HazelcastResourceName != oldJj.HazelcastResourceName {
-		v.Forbidden(Path("spec", "hazelcastResourceName"), "field cannot be updated")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("hazelcastResourceName"), "field cannot be updated"))
 	}
 	if jj.JarName != oldJj.JarName {
-		v.Forbidden(Path("spec", "jarName"), "field cannot be updated")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("jarName"), "field cannot be updated"))
 	}
 	if jj.MainClass != oldJj.MainClass {
-		v.Forbidden(Path("spec", "mainClass"), "field cannot be updated")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("mainClass"), "field cannot be updated"))
 	}
 	if jj.InitialSnapshotResourceName != oldJj.InitialSnapshotResourceName {
-		v.Forbidden(Path("spec", "initialSnapshotResourceName"), "field cannot be updated")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("initialSnapshotResourceName"), "field cannot be updated"))
 	}
 	if jj.IsBucketEnabled() != oldJj.IsBucketEnabled() {
-		v.Forbidden(Path("spec", "bucketConfiguration"), "field cannot be added or removed")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration"), "field cannot be added or removed"))
 	}
 	if jj.IsBucketEnabled() && oldJj.IsBucketEnabled() {
-		v.validateBucketFields(jj.JetRemoteFileConfiguration.BucketConfiguration, oldJj.JetRemoteFileConfiguration.BucketConfiguration)
+		allErrs = append(allErrs,
+			ValidateBucketFields(jj.JetRemoteFileConfiguration.BucketConfiguration, oldJj.JetRemoteFileConfiguration.BucketConfiguration)...)
 	}
 	if jj.IsRemoteURLsEnabled() != oldJj.IsRemoteURLsEnabled() {
-		v.Forbidden(Path("spec", "remoteURL"), "field cannot be updated")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("remoteURL"), "field cannot be updated"))
 	}
+	return allErrs
 }
 
-func (v *jetjobValidator) validateBucketFields(jjbc *BucketConfiguration, old *BucketConfiguration) {
+func ValidateBucketFields(jjbc *BucketConfiguration, old *BucketConfiguration) []*field.Error {
+	var allErrs field.ErrorList
 	if jjbc.BucketURI != old.BucketURI {
-		v.Forbidden(Path("spec", "bucketConfiguration", "bucketURI"), "field cannot be updated")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("bucketURI"), "field cannot be updated"))
 	}
 	if jjbc.GetSecretName() != old.GetSecretName() {
-		v.Forbidden(Path("spec", "bucketConfiguration", "secret"), "field cannot be updated")
+		allErrs = append(allErrs,
+			field.Forbidden(field.NewPath("spec").Child("bucketConfiguration").Child("secret"), "field cannot be updated"))
 	}
+	return allErrs
 }
