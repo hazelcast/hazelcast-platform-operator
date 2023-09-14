@@ -12,178 +12,173 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-func ValidateMapSpecCreate(m *Map) error {
-	errors := validateDataStructureSpec(&m.Spec.DataStructureSpec)
-	if len(errors) == 0 {
-		return nil
+type mapValidator struct {
+	datastructValidator
+	name string
+}
+
+func (v *mapValidator) Err() error {
+	if len(v.fieldValidator) != 0 {
+		return kerrors.NewInvalid(
+			schema.GroupKind{Group: "hazelcast.com", Kind: "Map"},
+			v.name,
+			field.ErrorList(v.fieldValidator),
+		)
 	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, errors)
+	return nil
+}
+
+func ValidateMapSpecCreate(m *Map) error {
+	v := mapValidator{
+		name: m.Name,
+	}
+	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)
+	return v.Err()
 }
 
 func ValidateMapSpecUpdate(m *Map) error {
-	var errors field.ErrorList
-	errors = append(errors, validateMapSpecUpdate(m)...)
-	errors = append(errors, validateDataStructureSpec(&m.Spec.DataStructureSpec)...)
-	if len(errors) == 0 {
-		return nil
+	v := mapValidator{
+		name: m.Name,
 	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, errors)
+	v.validateMapSpecUpdate(m)
+	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)
+	return v.Err()
 }
 
 func ValidateMapSpec(m *Map, h *Hazelcast) error {
-	var errors field.ErrorList
-	errors = append(errors, validateMapSpecCurrent(m, h)...)
-	errors = append(errors, validateMapSpecUpdate(m)...)
-	errors = append(errors, validateDataStructureSpec(&m.Spec.DataStructureSpec)...)
-	if len(errors) == 0 {
-		return nil
+	v := mapValidator{
+		name: m.Name,
 	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, errors)
+	v.validateMapSpecCurrent(m, h)
+	v.validateMapSpecUpdate(m)
+	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)
+	return v.Err()
 }
 
-func validateMapSpecCurrent(m *Map, h *Hazelcast) field.ErrorList {
-	var allErrs field.ErrorList
-	allErrs = appendIfNotNil(allErrs, validateMapPersistence(m, h))
-	allErrs = appendIfNotNil(allErrs, validateMapNativeMemory(m, h))
-	allErrs = appendIfNotNil(allErrs, validateNearCacheMemory(m, h))
-	if len(allErrs) == 0 {
-		return nil
-	}
-	return allErrs
+func (v *mapValidator) validateMapSpecCurrent(m *Map, h *Hazelcast) {
+	v.validateMapPersistence(m, h)
+	v.validateMapNativeMemory(m, h)
+	v.validateNearCacheMemory(m, h)
 }
 
-func validateMapPersistence(m *Map, h *Hazelcast) *field.Error {
+func (v *mapValidator) validateMapPersistence(m *Map, h *Hazelcast) {
 	if !m.Spec.PersistenceEnabled {
-		return nil
+		return
 	}
 
 	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		return
 	}
 
 	lastSpec := &HazelcastSpec{}
 	err := json.Unmarshal([]byte(s), lastSpec)
 	if err != nil {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		return
 	}
 
 	if !lastSpec.Persistence.IsEnabled() {
-		return field.Invalid(field.NewPath("spec").Child("persistenceEnabled"), lastSpec.Persistence.IsEnabled(),
-			"Persistence must be enabled at Hazelcast")
+		v.Invalid(Path("spec", "persistenceEnabled"), lastSpec.Persistence.IsEnabled(), "Persistence must be enabled at Hazelcast")
+		return
 	}
-
-	return nil
 }
 
-func validateNearCacheMemory(m *Map, h *Hazelcast) *field.Error {
+func (v *mapValidator) validateNearCacheMemory(m *Map, h *Hazelcast) {
 	if m.Spec.NearCache == nil {
-		return nil
+		return
 	}
 
 	if m.Spec.NearCache.InMemoryFormat != InMemoryFormatNative {
-		return nil
+		return
 	}
 
 	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		return
 	}
 
 	lastSpec := &HazelcastSpec{}
 	err := json.Unmarshal([]byte(s), lastSpec)
 	if err != nil {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		return
 	}
 
 	if !lastSpec.NativeMemory.IsEnabled() {
-		return field.Invalid(field.NewPath("spec").Child("inMemoryFormat"), lastSpec.NativeMemory.IsEnabled(),
-			"Native Memory must be enabled at Hazelcast")
+		v.Invalid(Path("spec", "inMemoryFormat"), lastSpec.NativeMemory.IsEnabled(), "Native Memory must be enabled at Hazelcast")
+		return
 	}
-	return nil
 }
 
-func validateMapNativeMemory(m *Map, h *Hazelcast) *field.Error {
+func (v *mapValidator) validateMapNativeMemory(m *Map, h *Hazelcast) {
 	if m.Spec.InMemoryFormat != InMemoryFormatNative {
-		return nil
+		return
 	}
 
 	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		return
 	}
 
 	lastSpec := &HazelcastSpec{}
 	err := json.Unmarshal([]byte(s), lastSpec)
 	if err != nil {
-		return field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+		return
 	}
 
 	if !lastSpec.NativeMemory.IsEnabled() {
-		return field.Invalid(field.NewPath("spec").Child("inMemoryFormat"), lastSpec.NativeMemory.IsEnabled(),
-			"Native Memory must be enabled at Hazelcast")
+		v.Invalid(Path("spec", "inMemoryFormat"), lastSpec.NativeMemory.IsEnabled(), "Native Memory must be enabled at Hazelcast")
+		return
 	}
-	return nil
 }
 
-func validateMapSpecUpdate(m *Map) field.ErrorList {
+func (v *mapValidator) validateMapSpecUpdate(m *Map) {
 	last, ok := m.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return nil
+		return
 	}
 	var parsed MapSpec
 	if err := json.Unmarshal([]byte(last), &parsed); err != nil {
-		return field.ErrorList{field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last Map spec for update errors: %w", err))}
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Map spec for update errors: %w", err))
+		return
 	}
 
-	return ValidateNotUpdatableMapFields(&m.Spec, &parsed)
+	v.validateNotUpdatableMapFields(&m.Spec, &parsed)
 }
 
-func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) field.ErrorList {
-	var allErrs field.ErrorList
-
+func (v *mapValidator) validateNotUpdatableMapFields(current *MapSpec, last *MapSpec) {
 	if current.Name != last.Name {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("name"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "name"), "field cannot be updated")
 	}
 	if *current.BackupCount != *last.BackupCount {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("backupCount"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "backupCount"), "field cannot be updated")
 	}
 	if current.AsyncBackupCount != last.AsyncBackupCount {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("asyncBackupCount"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "asyncBackupCount"), "field cannot be updated")
 	}
 	if !indexConfigSliceEquals(current.Indexes, last.Indexes) {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("indexes"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "indexes"), "field cannot be updated")
 	}
 	if current.PersistenceEnabled != last.PersistenceEnabled {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("persistenceEnabled"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "persistenceEnabled"), "field cannot be updated")
 	}
 	if current.HazelcastResourceName != last.HazelcastResourceName {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("hazelcastResourceName"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "hazelcastResourceName"), "field cannot be updated")
 	}
 	if current.InMemoryFormat != last.InMemoryFormat {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("inMemoryFormat"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "inMemoryFormat"), "field cannot be updated")
 	}
 	if !reflect.DeepEqual(current.EventJournal, last.EventJournal) {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("eventJournal"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "eventJournal"), "field cannot be updated")
 	}
-
 	if !reflect.DeepEqual(current.NearCache, last.NearCache) {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("nearCache"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "nearCache"), "field cannot be updated")
 	}
-
-	if len(allErrs) == 0 {
-		return nil
-	}
-	return allErrs
 }
 
 func indexConfigSliceEquals(a, b []IndexConfig) bool {
