@@ -11,7 +11,7 @@ import (
 )
 
 type cacheValidator struct {
-	fieldValidator
+	datastructValidator
 	name string
 }
 
@@ -24,6 +24,23 @@ func (v *cacheValidator) Err() error {
 		)
 	}
 	return nil
+}
+
+func validateCacheSpecCreate(c *Cache) error {
+	v := cacheValidator{
+		name: c.Name,
+	}
+	v.validateDataStructureSpec(&c.Spec.DataStructureSpec)
+	return v.Err()
+}
+
+func validateCacheSpecUpdate(c *Cache) error {
+	v := cacheValidator{
+		name: c.Name,
+	}
+	v.validateDSSpecUnchanged(c)
+	v.validateDataStructureSpec(&c.Spec.DataStructureSpec)
+	return v.Err()
 }
 
 func ValidateCacheSpecCurrent(c *Cache, h *Hazelcast) error {

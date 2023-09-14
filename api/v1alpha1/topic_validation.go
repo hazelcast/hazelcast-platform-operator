@@ -6,15 +6,36 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-func ValidateTopicSpecCurrent(t *Topic) error {
-	var allErrs field.ErrorList
+type topicValidator struct {
+	datastructValidator
+	name string
+}
 
+func (v *topicValidator) Err() error {
+	if len(v.fieldValidator) != 0 {
+		return kerrors.NewInvalid(
+			schema.GroupKind{Group: "hazelcast.com", Kind: "Topic"},
+			v.name,
+			field.ErrorList(v.fieldValidator),
+		)
+	}
+	return nil
+}
+
+func validateTopicSpecCurrent(t *Topic) error {
+	v := topicValidator{
+		name: t.Name,
+	}
 	if t.Spec.GlobalOrderingEnabled && t.Spec.MultiThreadingEnabled {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("multiThreadingEnabled"), t.Spec.MultiThreadingEnabled,
-			"multi threading can not be enabled when global ordering is used."))
+		v.Invalid(Path("spec", "multiThreadingEnabled"), t.Spec.MultiThreadingEnabled, "multi threading can not be enabled when global ordering is used.")
 	}
-	if len(allErrs) == 0 {
-		return nil
+	return v.Err()
+}
+
+func validateTopicSpecUpdate(t *Topic) error {
+	v := topicValidator{
+		name: t.Name,
 	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Topic"}, t.Name, allErrs)
+	v.validateDSSpecUnchanged(t)
+	return v.Err()
 }

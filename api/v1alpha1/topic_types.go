@@ -4,10 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -93,17 +90,11 @@ func (t *Topic) SetSpec(spec string) error {
 }
 
 func (t *Topic) ValidateSpecCurrent(_ *Hazelcast) error {
-	return ValidateTopicSpecCurrent(t)
+	return validateTopicSpecCurrent(t)
 }
 
 func (t *Topic) ValidateSpecUpdate() error {
-	var allErrs field.ErrorList
-	allErrs = appendIfNotNil(allErrs, validateDSSpecUnchanged(t)...)
-	if len(allErrs) == 0 {
-		return nil
-	}
-
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Topic"}, t.Name, allErrs)
+	return validateTopicSpecUpdate(t)
 }
 
 //+kubebuilder:object:root=true
