@@ -10,6 +10,29 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
+type datastructValidator struct {
+	fieldValidator
+}
+
+func (v *datastructValidator) validateDataStructureSpec(ds *DataStructureSpec) {
+	if pointer.Int32Deref(ds.BackupCount, 0)+ds.AsyncBackupCount > 6 {
+		detail := "the sum of backupCount and asyncBackupCount can't be larger than than 6"
+		v.Invalid(Path("spec", "backupCount"), ds.BackupCount, detail)
+		v.Invalid(Path("spec", "asyncBackupCount"), ds.AsyncBackupCount, detail)
+	}
+}
+
+func (v *datastructValidator) validateDSSpecUnchanged(obj client.Object) {
+	ok, err := isDSSpecUnchanged(obj)
+	if err != nil {
+		v.InternalError(Path("spec"), err)
+		return
+	}
+	if !ok {
+		v.Forbidden(Path("spec"), "cannot be updated")
+	}
+}
+
 func validateDataStructureSpec(ds *DataStructureSpec) field.ErrorList {
 	var errors field.ErrorList
 
@@ -26,23 +49,6 @@ func validateDataStructureSpec(ds *DataStructureSpec) field.ErrorList {
 	}
 
 	return errors
-}
-
-func validateDSSpecUnchanged(obj client.Object) field.ErrorList {
-	var allErrs field.ErrorList
-
-	ok, err := isDSSpecUnchanged(obj)
-	if err != nil {
-		allErrs = append(allErrs, field.InternalError(field.NewPath("spec"), err))
-		return allErrs
-	}
-	if !ok {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec"), "cannot be updated"))
-	}
-	if len(allErrs) == 0 {
-		return nil
-	}
-	return allErrs
 }
 
 func isDSSpecUnchanged(obj client.Object) (bool, error) {
