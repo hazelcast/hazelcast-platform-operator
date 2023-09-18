@@ -11,40 +11,56 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-func ValidateWanReplicationSpec(w *WanReplication) error {
-	errors := validateNonUpdatableWanFields(w)
-	if len(errors) == 0 {
-		return nil
-	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "WanReplication"}, w.Name, errors)
+type wanreplicationValidator struct {
+	fieldValidator
+	name string
 }
 
-func validateNonUpdatableWanFields(w *WanReplication) field.ErrorList {
-	var allErrs field.ErrorList
+func (v *wanreplicationValidator) Err() error {
+	if len(v.fieldValidator) != 0 {
+		return kerrors.NewInvalid(
+			schema.GroupKind{Group: "hazelcast.com", Kind: "WanReplication"},
+			v.name,
+			field.ErrorList(v.fieldValidator),
+		)
+	}
+	return nil
+}
+
+func ValidateWanReplicationSpec(w *WanReplication) error {
+	v := wanreplicationValidator{
+		name: w.Name,
+	}
+	v.validateNonUpdatableWanFields(w)
+	return v.Err()
+}
+
+func (v *wanreplicationValidator) validateNonUpdatableWanFields(w *WanReplication) {
 	last, ok := w.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return allErrs
+		return
 	}
+
 	lastSpec := &WanReplicationSpec{}
 	err := json.Unmarshal([]byte(last), lastSpec)
 	if err != nil {
-		return field.ErrorList{field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last WanReplication spec for update errors: %w", err))}
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last WanReplication spec for update errors: %w", err))
+		return
 	}
 
 	if w.Spec.TargetClusterName != lastSpec.TargetClusterName {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("targetClusterName"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "targetClusterName"), "field cannot be updated")
 	}
 	if w.Spec.Endpoints != lastSpec.Endpoints {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("endpoints"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "endpoints"), "field cannot be updated")
 	}
 	if w.Spec.Queue != lastSpec.Queue {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("queue"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "queue"), "field cannot be updated")
 	}
 	if w.Spec.Batch != lastSpec.Batch {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("batch"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "batch"), "field cannot be updated")
 	}
 	if w.Spec.Acknowledgement != lastSpec.Acknowledgement {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("acknowledgement"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "acknowledgement"), "field cannot be updated")
 	}
-	return allErrs
 }
