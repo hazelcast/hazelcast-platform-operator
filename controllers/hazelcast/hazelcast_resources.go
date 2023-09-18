@@ -52,11 +52,6 @@ const (
 	javaOpts = "JAVA_OPTS"
 )
 
-var blockListProperties = map[string]struct{}{
-	// TODO: Add properties which should not be exposed.
-	"": {},
-}
-
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
@@ -1060,16 +1055,6 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 	return "FULL_RECOVERY_ONLY"
 }
 
-func filterProperties(p map[string]string) map[string]string {
-	filteredProperties := map[string]string{}
-	for propertyKey, value := range p {
-		if _, ok := blockListProperties[propertyKey]; !ok {
-			filteredProperties[propertyKey] = value
-		}
-	}
-	return filteredProperties
-}
-
 func filterPersistedMaps(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.Map, error) {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
@@ -1148,7 +1133,7 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, h *haz
 }
 
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
-	cfg.Properties = filterProperties(h.Spec.Properties)
+	cfg.Properties = h.Spec.Properties
 }
 
 func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
