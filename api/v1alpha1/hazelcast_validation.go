@@ -360,6 +360,7 @@ func (v *hazelcastValidator) validateNotUpdatableHazelcastFields(current *Hazelc
 	}
 
 	v.validateNotUpdatableHzPersistenceFields(current.Persistence, last.Persistence)
+	v.validateNotUpdatableSQLFields(current.SQL, last.SQL)
 }
 
 func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistenceConfiguration) {
@@ -383,6 +384,12 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 	}
 	if current.Restore != last.Restore {
 		v.Forbidden(Path("spec", "persistence", "restore"), "field cannot be updated")
+	}
+}
+
+func (v *hazelcastValidator) validateNotUpdatableSQLFields(current, last *SQL) {
+	if last != nil && last.CatalogPersistenceEnabled && (current == nil || !current.CatalogPersistenceEnabled) {
+		v.Forbidden(Path("spec", "sql", "catalogPersistenceEnabled"), "field cannot be disabled after it has been enabled")
 	}
 }
 

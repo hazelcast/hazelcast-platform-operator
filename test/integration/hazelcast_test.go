@@ -2185,6 +2185,36 @@ var _ = Describe("Hazelcast CR", func() {
 
 				Expect(hz.Spec.SQL.CatalogPersistenceEnabled).Should(BeTrue())
 			})
+
+			It("should fail to disable catalogPersistence", Label("fast"), func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					BaseDir:                   "/data/hot-restart/",
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+					},
+				}
+				spec.SQL = &hazelcastv1alpha1.SQL{
+					CatalogPersistenceEnabled: true,
+				}
+
+				hzSpec, _ := json.Marshal(&spec)
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace, n.LastSuccessfulSpecAnnotation, string(hzSpec)),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				hz = ensureHzStatusIsPending(hz)
+				Expect(hz.Spec.SQL.CatalogPersistenceEnabled).Should(BeTrue())
+
+				hz.Spec.SQL.CatalogPersistenceEnabled = false
+				err := k8sClient.Update(context.Background(), hz)
+				Expect(err).Should(MatchError(ContainSubstring("field cannot be disabled after it has been enabled")))
+			})
 		})
 	})
 })
