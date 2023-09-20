@@ -389,7 +389,7 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 
 func (v *hazelcastValidator) validateNotUpdatableSQLFields(current, last *SQL) {
 	if last.CatalogPersistenceEnabled && !current.CatalogPersistenceEnabled {
-		v.Forbidden(Path("spec", "catalogPersistenceEnabled"), "field cannot be disabled after it has been enabled")
+		v.Forbidden(Path("spec", "sql", "catalogPersistenceEnabled"), "field cannot be disabled after it has been enabled")
 	}
 }
 
