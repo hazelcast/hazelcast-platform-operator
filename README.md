@@ -1,7 +1,9 @@
+
+<img src="https://hazelcast.com/files/brand-images/logo/hazelcast-logo.png">
+<br />
+
 # Hazelcast Platform Operator #
 [![GKE](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FdevOpsHelm%2Fe513bc27d500818292261e4235723e5b%2Fraw%2FGKE.json%3Fcachebust%3D1)](http://reportboard.s3-website-us-east-1.amazonaws.com/gke)&nbsp; [![EKS](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FdevOpsHelm%2Fe513bc27d500818292261e4235723e5b%2Fraw%2FEKS.json%3Fcachebust%3D1)](http://reportboard.s3-website-us-east-1.amazonaws.com/eks)&nbsp; [![AKS](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FdevOpsHelm%2Fe513bc27d500818292261e4235723e5b%2Fraw%2FAKS.json%3Fcachebust%3D1)](http://reportboard.s3-website-us-east-1.amazonaws.com/aks)&nbsp; [![OCP](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FdevOpsHelm%2Fe513bc27d500818292261e4235723e5b%2Fraw%2FOCP.json%3Fcachebust%3D1)](http://reportboard.s3-website-us-east-1.amazonaws.com/ocp)&nbsp; [![KinD](https://img.shields.io/github/actions/workflow/status/hazelcast/hazelcast-platform-operator/pull-request.yml?label=KinD&style=flat)](http://reportboard.s3-website-us-east-1.amazonaws.com/pr)
-
-<img align="right" src="https://hazelcast.com/brand-assets/files/hazelcast-stacked-flat-sm.png">
 
 Easily deploy Hazelcast clusters and Management Center into Kubernetes/OpenShift environments and manage their lifecycles.
 
