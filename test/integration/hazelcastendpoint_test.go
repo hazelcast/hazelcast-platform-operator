@@ -84,7 +84,7 @@ var _ = FDescribe("HazelcastEndpoint CR", func() {
 
 	expectHazelcastEndpointMatchedWithService := func(hzep *hazelcastv1alpha1.HazelcastEndpoint, svc *corev1.Service) {
 		By(fmt.Sprintf("Matching HazelcastEndpoints '%s' with Service '%s'", hzep.Name, svc.Name))
-		Expect(hzep.Labels[n.HazelcastEndpointServiceLabelName]).Should(Equal(svc.Name))
+		//Expect(hzep.Labels[n.HazelcastEndpointServiceLabelName]).Should(Equal(svc.Name))
 		Expect(svc.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
 		var addr string
 		for _, ingress := range svc.Status.LoadBalancer.Ingress {

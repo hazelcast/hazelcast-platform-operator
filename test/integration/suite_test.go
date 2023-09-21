@@ -157,13 +157,6 @@ var _ = BeforeSuite(func() {
 	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = hazelcast.NewHazelcastEndpointReconciler(
-		k8sManager.GetClient(),
-		controllerLogger.WithName("Hazelcast Endpoint"),
-		k8sManager.GetScheme(),
-	).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
-
 	err = (&hazelcastcomv1alpha1.Hazelcast{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 	err = (&hazelcastcomv1alpha1.Map{}).SetupWebhookWithManager(k8sManager)

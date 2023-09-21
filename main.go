@@ -271,15 +271,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = hazelcast.NewHazelcastEndpointReconciler(
-		mgr.GetClient(),
-		controllerLogger.WithName("HazelcastEndpoint"),
-		scheme,
-	).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "HazelcastEndpoint")
-		os.Exit(1)
-	}
-
 	setupWithWebhookOrDie(mgr)
 
 	//+kubebuilder:scaffold:builder

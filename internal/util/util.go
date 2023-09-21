@@ -219,7 +219,7 @@ type ExternalAddresser interface {
 }
 
 func GetExternalAddresses(ctx context.Context, cli client.Client, cr ExternalAddresser, logger logr.Logger) ([]string, []string) {
-	svcList, err := getRelatedServices(ctx, cli, cr)
+	svcList, err := GetRelatedServices(ctx, cli, cr)
 	if err != nil {
 		logger.Error(err, "Could not get the service")
 		return nil, nil
@@ -262,7 +262,7 @@ func GetExternalAddresses(ctx context.Context, cli client.Client, cr ExternalAdd
 	return externalAddrs, wanAddrs
 }
 
-func getRelatedServices(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.ServiceList, error) {
+func GetRelatedServices(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.ServiceList, error) {
 	nsMatcher := client.InNamespace(cr.GetNamespace())
 	labelMatcher := client.MatchingLabels(Labels(cr))
 
@@ -325,6 +325,18 @@ func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddr
 		return nil, err
 	}
 	return &svc, nil
+}
+
+func GetExternalAddress(svc *corev1.Service) string {
+	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+		for _, ingress := range svc.Status.LoadBalancer.Ingress {
+			add := GetLoadBalancerAddress(&ingress)
+			if add != "" {
+				return add
+			}
+		}
+	}
+	return ""
 }
 
 func GetLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
