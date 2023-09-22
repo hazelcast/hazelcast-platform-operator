@@ -243,50 +243,11 @@ func CreateTLSSecret(name, namespace string) *corev1.Secret {
 	return secret
 }
 
-func FindResourceByName[T metav1.Object](resources []T, n string) (T, bool) {
-	for _, res := range resources {
-		if res.GetName() == n {
-			return res, true
-		}
-	}
-	var res T
-	return res, false
-}
-
-func AssignLoadBalancerAddress(ctx context.Context, c client.Client, interval time.Duration, opts ...client.ListOption) {
-	for {
-		select {
-		case <-time.After(interval):
-			svcs := &corev1.ServiceList{}
-			err := c.List(ctx, svcs, opts...)
-			if err != nil {
-				break
-			}
-
-			for _, svc := range svcs.Items {
-				buf := make([]byte, 4)
-				ip := rand.Uint32()
-				binary.LittleEndian.PutUint32(buf, ip)
-				ipAddr := net.IP(buf).String()
-				if svc.Spec.Type == corev1.ServiceTypeLoadBalancer && len(svc.Status.LoadBalancer.Ingress) == 0 {
-					svc.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
-						{
-							IP: ipAddr,
-							Ports: []corev1.PortStatus{
-								{
-									Port:     svc.Spec.Ports[0].Port,
-									Protocol: svc.Spec.Ports[0].Protocol,
-								},
-							},
-						},
-					}
-					c.Status().Update(ctx, &svc)
-				}
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
+func RandomIpAddress() string {
+	buf := make([]byte, 4)
+	ip := rand.Uint32()
+	binary.LittleEndian.PutUint32(buf, ip)
+	return net.IP(buf).String()
 }
 
 // noinspection ALL

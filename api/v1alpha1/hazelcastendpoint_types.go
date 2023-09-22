@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,10 +32,6 @@ type HazelcastEndpointSpec struct {
 
 // HazelcastEndpointStatus defines the observed state of HazelcastEndpoint
 type HazelcastEndpointStatus struct {
-	// Message about the HazelcastEndpoint
-	// +optional
-	Message string `json:"message,omitempty"`
-
 	// Address of the HazelcastEndpoint
 	// +optional
 	Address string `json:"address,omitempty"`
@@ -53,6 +51,14 @@ type HazelcastEndpoint struct {
 
 	Spec   HazelcastEndpointSpec   `json:"spec,omitempty"`
 	Status HazelcastEndpointStatus `json:"status,omitempty"`
+}
+
+func (hzEndpoint *HazelcastEndpoint) SetAddress(address string) {
+	if address == "" {
+		hzEndpoint.Status.Address = ""
+	} else {
+		hzEndpoint.Status.Address = fmt.Sprintf("%s:%d", address, hzEndpoint.Spec.Port)
+	}
 }
 
 //+kubebuilder:object:root=true

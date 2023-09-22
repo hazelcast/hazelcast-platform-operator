@@ -350,9 +350,6 @@ spec:
               address:
                 description: Address of the HazelcastEndpoint
                 type: string
-              message:
-                description: Message about the HazelcastEndpoint
-                type: string
             type: object
         type: object
     served: true

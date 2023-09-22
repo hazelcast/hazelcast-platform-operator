@@ -344,7 +344,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		service.Spec.ClusterIP = "None"
 	}
 
-	if h.Spec.ExposeExternally.IsEnabled() {
+	if h.Spec.ExposeExternally.IsSmart() && h.Spec.ExposeExternally.DiscoveryK8ServiceType() == corev1.ServiceTypeLoadBalancer {
 		service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeDiscoveryLabelValue
 	}
 
@@ -388,7 +388,9 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			},
 		}
 
-		service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
+		if w.ServiceType == corev1.ServiceTypeLoadBalancer {
+			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
+		}
 
 		var i uint
 		var ports []corev1.ServicePort
@@ -449,7 +451,9 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			},
 		}
 
-		service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeMemberLabelValue
+		if h.Spec.ExposeExternally.MemberAccessServiceType() == corev1.ServiceTypeLoadBalancer {
+			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeMemberLabelValue
+		}
 
 		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
@@ -459,6 +463,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
 			service.Spec.Ports = util.EnrichServiceNodePorts([]corev1.ServicePort{clientPort()}, service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
+
 			return nil
 		})
 
@@ -475,7 +480,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 }
 
 func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	svcList, err := util.GetRelatedServices(ctx, r.Client, h)
+	svcList, err := util.ListRelatedEndpointServices(ctx, r.Client, h)
 	if err != nil {
 		return err
 	}
@@ -490,15 +495,15 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 
 		switch endpointType {
 		case n.ServiceEndpointTypeDiscoveryLabelValue:
-			hzEndpoints = hazelcastEndpointsByService(h, &svc, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, clientPort().Port)
+			hzEndpoints = hazelcastEndpointsFromService(h, &svc, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, clientPort().Port)
 		case n.ServiceEndpointTypeMemberLabelValue:
-			hzEndpoints = hazelcastEndpointsByService(h, &svc, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port)
+			hzEndpoints = hazelcastEndpointsFromService(h, &svc, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port)
 		case n.ServiceEndpointTypeWANLabelValue:
 			var portsInt []int32
 			for _, port := range svc.Spec.Ports {
 				portsInt = append(portsInt, port.Port)
 			}
-			hzEndpoints = hazelcastEndpointsByService(h, &svc, hazelcastv1alpha1.HazelcastEndpointTypeWAN, portsInt...)
+			hzEndpoints = hazelcastEndpointsFromService(h, &svc, hazelcastv1alpha1.HazelcastEndpointTypeWAN, portsInt...)
 		default:
 			return fmt.Errorf("service endpoint type label values '%s' is not matched", endpointType)
 		}
@@ -510,12 +515,17 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 			}
 
 			opResult, err := util.CreateOrUpdateForce(ctx, r.Client, hzEndpoint, func() error {
-				hzEndpoint.Status.Address = util.GetExternalAddress(&svc)
 				return nil
 			})
 			if opResult != controllerutil.OperationResultNone {
 				logger.Info("Operation result", "HazelcastEndpoint", hzEndpoint.Name, "result", opResult)
 			}
+			if err != nil {
+				return err
+			}
+
+			hzEndpoint.SetAddress(util.GetExternalAddress(&svc))
+			err = r.Client.Status().Update(ctx, hzEndpoint)
 			if err != nil {
 				return err
 			}
@@ -668,8 +678,8 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	return true
 }
 
-func hazelcastEndpointsByService(hz *hazelcastv1alpha1.Hazelcast, svc *corev1.Service,
-	endpointType hazelcastv1alpha1.HazelcastEndpointType, ports ...int32) []*hazelcastv1alpha1.HazelcastEndpoint {
+func hazelcastEndpointsFromService(hz *hazelcastv1alpha1.Hazelcast, svc *corev1.Service, endpointType hazelcastv1alpha1.HazelcastEndpointType,
+	ports ...int32) []*hazelcastv1alpha1.HazelcastEndpoint {
 
 	hzEndpoints := make([]*hazelcastv1alpha1.HazelcastEndpoint, 0, len(ports))
 	for i, port := range ports {
