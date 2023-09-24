@@ -74,6 +74,7 @@ jobs:
           make sync-manifests
           if ! cmp -s $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old; then
               echo "Please make sure your branch is up to date with main and run 'make sync-manifests'"
+              diff -u $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
               exit 1
           fi
 
