@@ -4,32 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 type hotbackupValidator struct {
 	fieldValidator
-	name string
 }
 
-func (v *hotbackupValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "Hazelcast"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
+func NewHotBackupValidator(o client.Object) hotbackupValidator {
+	return hotbackupValidator{NewFieldValidator(o)}
 }
 
 func ValidateHotBackupPersistence(h *Hazelcast) error {
-	v := hotbackupValidator{
-		name: h.Name,
-	}
+	v := NewHotBackupValidator(h)
 	v.validateHotBackupPersistence(h)
 	return v.Err()
 }
