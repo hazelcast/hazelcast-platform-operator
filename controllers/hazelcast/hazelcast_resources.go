@@ -390,9 +390,9 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 
 		if w.ServiceType == corev1.ServiceTypeLoadBalancer {
 			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
-    }
+		}
 
-    err := controllerutil.SetControllerReference(h, service, r.Scheme)
+		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
 			return err
 		}
