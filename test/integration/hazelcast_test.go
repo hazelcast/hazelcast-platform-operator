@@ -2207,7 +2207,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				hz = ensureHzStatusIsPending(hz)
 				Expect(hz.Spec.SQL.CatalogPersistenceEnabled).Should(BeTrue())
 
