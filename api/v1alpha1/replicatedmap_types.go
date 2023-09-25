@@ -104,7 +104,7 @@ func (rm *ReplicatedMap) ValidateSpecCurrent(_ *Hazelcast) error {
 }
 
 func (rm *ReplicatedMap) ValidateSpecUpdate() error {
-	return validateDSSpecUnchanged(rm)
+	return validateReplicatedMapSpecUpdate(rm)
 }
 
 //+kubebuilder:object:root=true

@@ -16,7 +16,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast JetJobSnapshot", Label("JetJobSnapshot"), func() {
+var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 	localPort := strconv.Itoa(9100 + GinkgoParallelProcess())
 	jarName := "snapshot-test.jar"
 

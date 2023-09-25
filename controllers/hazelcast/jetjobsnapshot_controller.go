@@ -10,7 +10,6 @@ import (
 	"github.com/go-logr/logr"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -92,9 +91,7 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
 				withJetJobSnapshotFailedState(err.Error()))
 		}
-		var allErrs = hazelcastv1alpha1.ValidateJetJobSnapshotNonUpdatableFields(jjs.Spec, *lastSpec)
-		if len(allErrs) > 0 {
-			err = apiErrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJobSnapshot"}, req.Name, allErrs)
+		if err := hazelcastv1alpha1.ValidateJetJobSnapshotSpecUpdate(jjs, nil); err != nil {
 			return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
 				withJetJobSnapshotFailedState(err.Error()))
 		}

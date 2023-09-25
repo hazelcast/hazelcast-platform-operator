@@ -90,11 +90,11 @@ func (t *Topic) SetSpec(spec string) error {
 }
 
 func (t *Topic) ValidateSpecCurrent(_ *Hazelcast) error {
-	return ValidateTopicSpecCurrent(t)
+	return validateTopicSpecCurrent(t)
 }
 
 func (t *Topic) ValidateSpecUpdate() error {
-	return validateDSSpecUnchanged(t)
+	return validateTopicSpecUpdate(t)
 }
 
 //+kubebuilder:object:root=true

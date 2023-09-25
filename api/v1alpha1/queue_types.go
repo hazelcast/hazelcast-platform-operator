@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -96,17 +94,11 @@ func (q *Queue) ValidateSpecCurrent(_ *Hazelcast) error {
 }
 
 func (q *Queue) ValidateSpecCreate() error {
-	errors := validateDataStructureSpec(&q.Spec.DataStructureSpec)
-	if len(errors) == 0 {
-		return nil
-	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Queue"}, q.Name, errors)
+	return validateQueueSpecCreate(q)
 }
 
 func (q *Queue) ValidateSpecUpdate() error {
-	return validateDSSpecUnchanged(q,
-		validateDataStructureSpec(&q.Spec.DataStructureSpec),
-	)
+	return validateQueueSpecUpdate(q)
 }
 
 //+kubebuilder:object:root=true

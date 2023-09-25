@@ -15,7 +15,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast JetJob", Label("JetJob"), func() {
+var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 	//localPort := strconv.Itoa(9000 + GinkgoParallelProcess())
 	fastRunJar := "jet-pipeline-1.0.2.jar"
 	longRunJar := "jet-pipeline-longrun-2.0.0.jar"

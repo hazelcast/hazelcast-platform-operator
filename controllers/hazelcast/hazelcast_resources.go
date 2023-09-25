@@ -390,6 +390,11 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 
 		if w.ServiceType == corev1.ServiceTypeLoadBalancer {
 			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
+    }
+
+    err := controllerutil.SetControllerReference(h, service, r.Scheme)
+		if err != nil {
+			return err
 		}
 
 		var i uint
@@ -1149,16 +1154,6 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 	return "FULL_RECOVERY_ONLY"
 }
 
-func filterProperties(p map[string]string) map[string]string {
-	filteredProperties := map[string]string{}
-	for propertyKey, value := range p {
-		if _, ok := hazelcastv1alpha1.BlackListProperties[propertyKey]; !ok {
-			filteredProperties[propertyKey] = value
-		}
-	}
-	return filteredProperties
-}
-
 func filterPersistedMaps(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.Map, error) {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
@@ -1237,7 +1232,7 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, h *haz
 }
 
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
-	cfg.Properties = filterProperties(h.Spec.Properties)
+	cfg.Properties = h.Spec.Properties
 }
 
 func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
@@ -1376,9 +1371,17 @@ func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1a
 		}
 	}
 	if s.CompactSerialization != nil {
+		classes := make([]string, 0, len(s.CompactSerialization.Classes))
+		for _, class := range s.CompactSerialization.Classes {
+			classes = append(classes, fmt.Sprintf("class: %s", class))
+		}
+		serializers := make([]string, 0, len(s.CompactSerialization.Serializers))
+		for _, serializer := range s.CompactSerialization.Serializers {
+			serializers = append(serializers, fmt.Sprintf("serializer: %s", serializer))
+		}
 		cfg.Serialization.CompactSerialization = &config.CompactSerialization{
-			Serializers: s.CompactSerialization.Serializers,
-			Classes:     s.CompactSerialization.Classes,
+			Serializers: serializers,
+			Classes:     classes,
 		}
 	}
 }
