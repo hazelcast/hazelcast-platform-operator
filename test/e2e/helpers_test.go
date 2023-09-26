@@ -985,3 +985,44 @@ func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLo
 	assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 	return m
 }
+
+func validateCacheEntriesPortForward(h *hazelcastcomv1alpha1.Hazelcast, localPort, cacheName string, entryCount int) {
+	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
+	defer closeChannel(stopChan)
+	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
+	cli := hzClient.NewClientInternal(cl)
+	for i := 0; i < entryCount; i++ {
+		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
+		Expect(err).To(BeNil())
+		value := fmt.Sprintf("myvalue%d", i)
+		getRequest := codec.EncodeCacheGetRequest("/hz/"+cacheName, key, nil)
+		resp, err := cli.InvokeOnKey(context.Background(), getRequest, key, nil)
+		pairs := codec.DecodeCacheGetResponse(resp)
+		Expect(err).To(BeNil())
+		data, err := cli.DecodeData(pairs)
+		Expect(err).To(BeNil())
+		Expect(fmt.Sprintf("%v", data)).Should(Equal(value))
+	}
+}
+
+func fillCachePortForward(h *hazelcastcomv1alpha1.Hazelcast, cacheName, localPort string, entryCount int) {
+	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
+	defer closeChannel(stopChan)
+	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
+	cli := hzClient.NewClientInternal(cl)
+
+	for _, mi := range cli.OrderedMembers() {
+		configRequest := codec.EncodeCacheGetConfigRequest("/hz/"+cacheName, cacheName)
+		_, _ = cli.InvokeOnMember(context.Background(), configRequest, mi.UUID, nil)
+	}
+
+	for i := 0; i < entryCount; i++ {
+		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
+		Expect(err).To(BeNil())
+		value, err := cli.EncodeData(fmt.Sprintf("myvalue%d", i))
+		Expect(err).To(BeNil())
+		cpr := codec.EncodeCachePutRequest("/hz/"+cacheName, key, value, nil, false, 0)
+		_, err = cli.InvokeOnKey(context.Background(), cpr, key, nil)
+		Expect(err).To(BeNil())
+	}
+}

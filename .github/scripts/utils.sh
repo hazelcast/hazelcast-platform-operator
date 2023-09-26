@@ -409,26 +409,26 @@ merge_xml_test_reports() {
       for ALLURE_SUITE_FILE in $(find ${GITHUB_WORKSPACE}/allure-results/$WORKFLOW_ID/test_report_* -type f \
               -name 'test_report_'$group'_?[0-9].xml' \
             ! -name 'test_report_'$group'_01.xml'); do
-          local TEST_CASES=$(sed '1,/<\/properties/d;/<\/testsuite/,$d' $ALLURE_SUITE_FILE)
-          # insert extracted test cases into parent_test_report_file
-          printf '%s\n' '0?<\/testcase>?a' $TEST_CASES . x | ex $PARENT_TEST_REPORT_FILE
+          TEST_CASES=$(xmlstarlet sel -t -c "//testcase" $ALLURE_SUITE_FILE) &&
+          cat <<<$(xmlstarlet ed -s "/testsuites/testsuite" -t elem -n testcase -v "$TEST_CASES" $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE &&
       done
-      #remove 'SynchronizedBeforeSuite' and 'AfterSuite' xml tags from the final report
-      cat <<<$(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
-      cat <<<$(xmlstarlet ed -d '//testcase[@name="[AfterSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
-
+          cat <<<$(xmlstarlet ed --delete '//system-out' ${PARENT_TEST_REPORT_FILE}) > $PARENT_TEST_REPORT_FILE &&
+          sed -i '' 's/system-err/system-out/g' ${PARENT_TEST_REPORT_FILE} &&
+          #remove 'SynchronizedBeforeSuite' and 'AfterSuite' xml tags from the final report
+          cat <<<$(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE &&
+          cat <<<$(xmlstarlet ed -d '//testcase[@name="[AfterSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
       # for each test name verify status
-      for TEST_NAME in $(xmlstarlet sel -t -v "//testcase/@name" $PARENT_TEST_REPORT_FILE); do
+      for TEST_NAME in $(xmlstarlet sel -t -v "//testcase/@name" ${PARENT_TEST_REPORT_FILE}); do
           local IS_PASSED=$(xmlstarlet sel -t -v 'count(//testcase[@name="'"${TEST_NAME}"'" and @status="passed"])' $PARENT_TEST_REPORT_FILE)
           local IS_FAILED=$(xmlstarlet sel -t -v 'count(//testcase[@name="'"${TEST_NAME}"'" and @status="failed"])' $PARENT_TEST_REPORT_FILE)
           if [[ "$IS_PASSED" -ge 1 || "$IS_FAILED" -ge 1 ]]; then
               # if test is 'passed' or 'failed' then remove all tests with 'skipped' status and remove duplicated tags with 'passed' and 'failed' statuses except one
-              cat <<<$(xmlstarlet ed -d '//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
-              cat <<<$(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="passed"])[position()>1]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
-              cat <<<$(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="failed"])[position()>1]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
+              cat <<<$(xmlstarlet ed -d '//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+              cat <<<$(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="passed"])[position()>1]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+              cat <<<$(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="failed"])[position()>1]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
           else
               # if tests in not in 'passed' or 'failed' statuses, then remove all duplicated tags with 'skipped' statuses except one
-              cat <<<$(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"])[position()>1]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
+              cat <<<$(xmlstarlet ed -d '(//testcase[@name="'"${TEST_NAME}"'" and @status="skipped"])[position()>1]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
           fi
       done
       # count 'total' and 'skipped' number of tests and update the values in the final report
@@ -458,39 +458,26 @@ update_test_files()
       local BEGIN_TIME=$(date +%s000 -d "- 3 hours")
       local END_TIME=$(date +%s000 -d "+ 1 hours")
       for i in $(ls); do
-          cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not))))
-                               |.testStage.steps[].name |= sub("&{Text:";"")
-                               |.testStage.steps[].name |= sub("}";"")
-                               |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
-                               |.testStage.steps[].name |= sub(" Duration.*";"")
-                               |.testStage.steps[].time.duration |= sub(".*Duration:";"")
-                               |.testStage.steps[].time.duration |= (if contains("CR_ID") then . elif contains("ms") then split("ms") | .[0]|tonumber elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
-                               |.testStage.steps[]+={status: "passed"}
-                               |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
-                               |to_entries
-                               |walk(if type == "object" and (.value | select(contains("hazelcast-platform-operator/hazelcast-platform-operator"))) then . else . end)
-                               |del(.[].key)
-                               |.[].value|=sub("\\t";"")
-                               |.[].value|=sub("\\+0.*";"")
-                               |.[].value|=sub(" ";"")
-                               |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/'${REPOSITORY_OWNER}'/hazelcast-platform-operator/blob/main")
-                               |.[].value|= sub(".go:";".go#L")
-                               |unique
-                               |to_entries[]
-                               |.+={name: ("ERROR_LINE"+ "_" + (.key|tonumber+1|tostring))}
-                               |.url+=.value[]
-                               |del(.key)|del(.value)
-                               |.+={type: "issue"}]}
-                               |.testStage.steps[-1]+={status: "failed"} else . end)' $i) > $i
+      local TEST_STATUS=$(jq -r '.status' $i)
+        if [[ ${TEST_STATUS} != "skipped" ]]; then
 
-         local NUMBER_OF_TEST_RUNS=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))] | length' $i)
-         if [[ ${NUMBER_OF_TEST_RUNS} -gt 1 ]]; then
-               local START_INDEX_OF_LAST_RETRY=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))][-1].key-1' $i)
-               cat <<< $(jq -e 'del(.testStage.steps[0:'${START_INDEX_OF_LAST_RETRY}'])' $i) > $i
-         fi
-         local TEST_STATUS=$(jq -r '.status' $i)
-         if [[ ${TEST_STATUS} != "skipped" ]]; then
-            cat <<< $(jq -e '.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")}|del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))' $i) > $i
+          cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("STEP") or contains("END STEP") or contains("CR_ID")|not))))
+                            |.testStage.steps[].name |= sub("STEP: ";"")
+                            |.testStage.steps[].name |= sub("END ";"")
+                            |.testStage.steps[].name |= sub("}";"")
+                            |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
+                            |.testStage.steps[].name |= sub(" - .*"; "")
+                            |.testStage.steps[].time.duration |= (capture(".*\\((?<content>[^)]+)\\)"; "g") | .content)
+                            |.testStage.steps[].time.duration |= (if type == "string" then (if contains("ms") then (split("ms") | .[0] | tonumber) elif contains("m") then (split("m") | ((.[0] | tonumber) * 60 + (.[1] | sub("s$";"") | tonumber)) * 1000) elif contains("s") then (split("s") | .[0] | tonumber * 1000) else . end) else . end)
+                            |.testStage.steps[]+={status: "passed"}
+                            |.extra.tags = {"tag": (first(.testStage.steps[].name | select(contains("CR_ID")) |= sub("CR_ID:";"")))}
+                            |del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")))))
+                            |.+={type: "issue"}
+                            |(if .status=="failed" then .testStage.steps[-1]+={status: "failed"} else . end)
+                            |.testStage.steps |= reduce .[] as $item (.; if ((. | map(select(.name == $item.name)) | length) > 1 and $item.time.duration == null) then map(select(. != $item)) else . end)
+                            |del(.testStage.steps[] | select(.name | select(contains("setting the label and CR with name"))))
+                            |walk(if type == "object" then (if has("name") then .name |= sub("^ *"; "") else . end) | (if has("extra") then .extra.tags.tag |= sub("^ *"; "") else . end) else . end)' $i) > $i
+
             local CR_ID=$(jq -r '.extra.tags.tag' $i)
             local LINK=$(echo $GRAFANA_BASE_URL\/d\/-Lz9w3p4z\/all-logs\?orgId=1\&var-cluster="$CLUSTER_NAME"\&var-cr_id="$CR_ID"\&var-text=\&from="$BEGIN_TIME"\&to="$END_TIME")
             cat <<< $(jq -e '.links|= [{"name":"LOGS","url":"'"$LINK"'",type: "tms"}] + .' $i) > $i

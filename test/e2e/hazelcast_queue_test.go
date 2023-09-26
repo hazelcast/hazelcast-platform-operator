@@ -29,16 +29,6 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should create Queue Config", Label("fast"), func() {
-		setLabelAndCRName("hq-1")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-
-		q := hazelcastconfig.DefaultQueue(qLookupKey, hazelcast.Name, labels)
-		Expect(k8sClient.Create(context.Background(), q)).Should(Succeed())
-		assertDataStructureStatus(qLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Queue{})
-	})
-
 	It("should create Queue Config with correct default values", Label("fast"), func() {
 		setLabelAndCRName("hq-2")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)

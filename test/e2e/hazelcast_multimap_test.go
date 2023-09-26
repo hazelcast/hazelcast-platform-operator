@@ -29,16 +29,6 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should create MultiMap Config", Label("fast"), func() {
-		setLabelAndCRName("hmm-1")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-
-		mm := hazelcastconfig.DefaultMultiMap(mmLookupKey, hazelcast.Name, labels)
-		Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
-		assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{})
-	})
-
 	It("should create MultiMap Config with correct default values", Label("fast"), func() {
 		setLabelAndCRName("hmm-2")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
