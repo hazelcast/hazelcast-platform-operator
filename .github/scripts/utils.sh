@@ -413,7 +413,7 @@ merge_xml_test_reports() {
           cat <<<$(xmlstarlet ed -s "/testsuites/testsuite" -t elem -n testcase -v "$TEST_CASES" $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE &&
       done
           cat <<<$(xmlstarlet ed --delete '//system-out' ${PARENT_TEST_REPORT_FILE}) > $PARENT_TEST_REPORT_FILE &&
-          sed -i '' 's/system-err/system-out/g' ${PARENT_TEST_REPORT_FILE} &&
+          sed -i 's/system-err/system-out/g' ${PARENT_TEST_REPORT_FILE} &&
           #remove 'SynchronizedBeforeSuite' and 'AfterSuite' xml tags from the final report
           cat <<<$(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE &&
           cat <<<$(xmlstarlet ed -d '//testcase[@name="[AfterSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
