@@ -485,7 +485,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 }
 
 func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	svcList, err := util.ListRelatedEndpointServices(ctx, r.Client, h)
+	svcList, err := util.ListRelatedServices(ctx, r.Client, h)
 	if err != nil {
 		return err
 	}
@@ -493,7 +493,7 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 	for _, svc := range svcList.Items {
 		endpointType, ok := svc.Labels[n.ServiceEndpointTypeLabelName]
 		if !ok {
-			return fmt.Errorf("label '%s' is not found in the service '%s'", n.ServicePerPodLabelName, svc.Name)
+			continue
 		}
 
 		var hzEndpoints []*hazelcastv1alpha1.HazelcastEndpoint

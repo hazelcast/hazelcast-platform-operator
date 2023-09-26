@@ -274,19 +274,6 @@ func ListRelatedServices(ctx context.Context, cli client.Client, cr ExternalAddr
 	return &svcList, nil
 }
 
-func ListRelatedEndpointServices(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.ServiceList, error) {
-	nsMatcher := client.InNamespace(cr.GetNamespace())
-	labelMatcher := client.MatchingLabels(Labels(cr))
-	hasLabelMatcher := client.HasLabels{n.ServiceEndpointTypeLabelName}
-
-	var svcList corev1.ServiceList
-	if err := cli.List(ctx, &svcList, nsMatcher, labelMatcher, hasLabelMatcher); err != nil {
-		return nil, err
-	}
-
-	return &svcList, nil
-}
-
 func Labels(cr ExternalAddresser) map[string]string {
 	return map[string]string{
 		n.ApplicationNameLabel:         n.Hazelcast,

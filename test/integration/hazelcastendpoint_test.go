@@ -96,9 +96,14 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 	expectLenOfHazelcastEndpointServices := func(ctx context.Context, hz *hazelcastv1alpha1.Hazelcast, expectedLen int) []corev1.Service {
 		var services []corev1.Service
 		Eventually(func() []corev1.Service {
-			svcList, err := util.ListRelatedEndpointServices(ctx, k8sClient, hz)
+			svcList, err := util.ListRelatedServices(ctx, k8sClient, hz)
 			Expect(err).ToNot(HaveOccurred())
-			services = svcList.Items
+			services = []corev1.Service{}
+			for _, svc := range svcList.Items {
+				if _, ok := svc.Labels[n.ServiceEndpointTypeLabelName]; ok {
+					services = append(services, svc)
+				}
+			}
 			return services
 		}, timeout, interval).Should(HaveLen(expectedLen))
 
