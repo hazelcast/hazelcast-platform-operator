@@ -409,13 +409,13 @@ merge_xml_test_reports() {
       for ALLURE_SUITE_FILE in $(find ${GITHUB_WORKSPACE}/allure-results/$WORKFLOW_ID/test_report_* -type f \
               -name 'test_report_'$group'_?[0-9].xml' \
             ! -name 'test_report_'$group'_01.xml'); do
-          TEST_CASES=$(xmlstarlet sel -t -c "//testcase" $ALLURE_SUITE_FILE) &&
-          cat <<<$(xmlstarlet ed -s "/testsuites/testsuite" -t elem -n testcase -v "$TEST_CASES" $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE &&
+          TEST_CASES=$(xmlstarlet sel -t -c "//testcase" $ALLURE_SUITE_FILE)
+          cat <<<$(xmlstarlet ed -s "/testsuites/testsuite" -t elem -n testcase -v "$TEST_CASES" $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
       done
-          cat <<<$(xmlstarlet ed --delete '//system-out' ${PARENT_TEST_REPORT_FILE}) > $PARENT_TEST_REPORT_FILE &&
-          sed -i 's/system-err/system-out/g' ${PARENT_TEST_REPORT_FILE} &&
+          cat <<<$(xmlstarlet ed --delete '//system-out' ${PARENT_TEST_REPORT_FILE}) > $PARENT_TEST_REPORT_FILE
+          sed -i 's/system-err/system-out/g' ${PARENT_TEST_REPORT_FILE}
           #remove 'SynchronizedBeforeSuite' and 'AfterSuite' xml tags from the final report
-          cat <<<$(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE &&
+          cat <<<$(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
           cat <<<$(xmlstarlet ed -d '//testcase[@name="[AfterSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
       # for each test name verify status
       for TEST_NAME in $(xmlstarlet sel -t -v "//testcase/@name" ${PARENT_TEST_REPORT_FILE}); do
