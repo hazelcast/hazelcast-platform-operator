@@ -120,7 +120,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, 1); !ok {
 		if err == nil {
-			return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.Pending))
+			return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.McPending))
 		} else {
 			return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 		}
@@ -137,7 +137,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	externalAddrs := util.GetExternalAddressesForMC(ctx, r.Client, mc, logger)
 	enrichedAddrs := enrichPublicAddresses(ctx, r.Client, mc, externalAddrs)
-	return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.Running), withMcExternalAddresses(enrichedAddrs))
+	return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.McRunning), withMcExternalAddresses(enrichedAddrs))
 }
 
 // SetupWithManager sets up the controller with the Manager.

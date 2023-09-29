@@ -3,6 +3,8 @@ package integration
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -12,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-	"strings"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -41,7 +42,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	EnsureStatusIsPending := func(mc *hazelcastv1alpha1.ManagementCenter) *hazelcastv1alpha1.ManagementCenter {
 		By("ensuring that the status is correct")
-		Eventually(func() hazelcastv1alpha1.Phase {
+		Eventually(func() hazelcastv1alpha1.McPhase {
 			mc = Fetch(mc)
 			return mc.Status.Phase
 		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
