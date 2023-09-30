@@ -45,7 +45,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		Eventually(func() hazelcastv1alpha1.McPhase {
 			mc = Fetch(mc)
 			return mc.Status.Phase
-		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
+		}, timeout, interval).Should(Equal(hazelcastv1alpha1.McPending))
 		return mc
 	}
 
@@ -438,6 +438,87 @@ var _ = Describe("ManagementCenter CR", func() {
 					HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("250m")),
 					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("5Gi"))),
 				)
+			})
+		})
+	})
+
+	Context("with LDAP security provider", func() {
+		When("LDAP security provider is configured", func() {
+			It("should be enabled", Label("fast"), func() {
+				ldapSecret := CreateLdapSecret("ldap-credential", namespace)
+				assertExists(lookupKey(ldapSecret), ldapSecret)
+				defer DeleteIfExists(lookupKey(ldapSecret), ldapSecret)
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.SecurityProviders = &hazelcastv1alpha1.SecurityProviders{
+					LDAP: &hazelcastv1alpha1.LDAPProvider{
+						URL:                   "ldap://10.124.0.27:1389",
+						CredentialsSecretName: ldapSecret.Name,
+						GroupDN:               "ou=users,dc=example,dc=org",
+						GroupSearchFilter:     "member={0}",
+						NestedGroupSearch:     false,
+						UserDN:                "ou=users,dc=example,dc=org",
+						UserGroups:            []string{"readers"},
+						MetricsOnlyGroups:     []string{"readers"},
+						AdminGroups:           []string{"readers"},
+						ReadonlyUserGroups:    []string{"readers"},
+						UserSearchFilter:      "cn={0}",
+					},
+				}
+				Create(mc)
+				EnsureStatusIsPending(mc)
+			})
+
+			It("should error when credentialsSecretName is empty", Label("fast"), func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.SecurityProviders = &hazelcastv1alpha1.SecurityProviders{
+					LDAP: &hazelcastv1alpha1.LDAPProvider{
+						URL:                   "ldap://10.124.0.27:1389",
+						CredentialsSecretName: "",
+						GroupDN:               "ou=users,dc=example,dc=org",
+						GroupSearchFilter:     "member={0}",
+						NestedGroupSearch:     false,
+						UserDN:                "ou=users,dc=example,dc=org",
+						UserGroups:            []string{"readers"},
+						MetricsOnlyGroups:     []string{"readers"},
+						AdminGroups:           []string{"readers"},
+						ReadonlyUserGroups:    []string{"readers"},
+						UserSearchFilter:      "cn={0}",
+					},
+				}
+
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center LDAP credentials Secret name is empty")))
+			})
+
+			It("should error when credentialsSecretName does not exist", Label("fast"), func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.SecurityProviders = &hazelcastv1alpha1.SecurityProviders{
+					LDAP: &hazelcastv1alpha1.LDAPProvider{
+						URL:                   "ldap://10.124.0.27:1389",
+						CredentialsSecretName: "ldap-credential",
+						GroupDN:               "ou=users,dc=example,dc=org",
+						GroupSearchFilter:     "member={0}",
+						NestedGroupSearch:     false,
+						UserDN:                "ou=users,dc=example,dc=org",
+						UserGroups:            []string{"readers"},
+						MetricsOnlyGroups:     []string{"readers"},
+						AdminGroups:           []string{"readers"},
+						ReadonlyUserGroups:    []string{"readers"},
+						UserSearchFilter:      "cn={0}",
+					},
+				}
+
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center LDAP credentials Secret not found")))
 			})
 		})
 	})

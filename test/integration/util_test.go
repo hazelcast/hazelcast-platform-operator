@@ -250,6 +250,22 @@ func RandomIpAddress() string {
 	return net.IP(buf).String()
 }
 
+func CreateLdapSecret(name, namespace string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			"username": "username",
+			"password": "password",
+		},
+		Type: corev1.SecretTypeOpaque,
+	}
+	Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+	return secret
+}
+
 // noinspection ALL
 const (
 	exampleCert = `-----BEGIN CERTIFICATE-----
