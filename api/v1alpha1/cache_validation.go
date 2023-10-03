@@ -4,49 +4,34 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 type cacheValidator struct {
 	datastructValidator
-	name string
 }
 
-func (v *cacheValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "Cache"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
+func NewCacheValidator(o client.Object) cacheValidator {
+	return cacheValidator{NewDatastructValidator(o)}
 }
 
 func validateCacheSpecCreate(c *Cache) error {
-	v := cacheValidator{
-		name: c.Name,
-	}
+	v := NewCacheValidator(c)
 	v.validateDataStructureSpec(&c.Spec.DataStructureSpec)
 	return v.Err()
 }
 
 func validateCacheSpecUpdate(c *Cache) error {
-	v := cacheValidator{
-		name: c.Name,
-	}
+	v := NewCacheValidator(c)
 	v.validateDSSpecUnchanged(c)
 	v.validateDataStructureSpec(&c.Spec.DataStructureSpec)
 	return v.Err()
 }
 
 func ValidateCacheSpecCurrent(c *Cache, h *Hazelcast) error {
-	v := cacheValidator{
-		name: c.Name,
-	}
+	v := NewCacheValidator(c)
 	v.validateCachePersistence(c, h)
 	v.validateCacheNativeMemory(c, h)
 	return v.Err()

@@ -4,33 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
-
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type wanreplicationValidator struct {
 	fieldValidator
-	name string
 }
 
-func (v *wanreplicationValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "WanReplication"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
+func NewWanReplicationValidator(o client.Object) wanreplicationValidator {
+	return wanreplicationValidator{NewFieldValidator(o)}
 }
 
 func ValidateWanReplicationSpec(w *WanReplication) error {
-	v := wanreplicationValidator{
-		name: w.Name,
-	}
+	v := NewWanReplicationValidator(w)
 	v.validateNonUpdatableWanFields(w)
 	return v.Err()
 }
