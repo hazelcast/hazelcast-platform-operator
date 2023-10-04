@@ -236,4 +236,33 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			})
 		})
 	})
+
+	When("HazelcastEndpoint spec is updated", func() {
+		It("should fail", Label("fast"), func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+			}
+			hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
+			}
+
+			By("creating the Hazelcast CR with specs successfully")
+			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+
+			services := expectLenOfHazelcastEndpointServices(ctx, hz, 1)
+			hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 1)
+
+			setLoadBalancerIngressAddress(ctx, services)
+			expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
+			expectAddressInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
+
+			hzEndpoint := hzEndpoints[0]
+			hzEndpoint.Spec.Port = 5790
+			err := k8sClient.Update(ctx, &hzEndpoint)
+			Expect(err).Should(MatchError(ContainSubstring("field cannot be updated")))
+		})
+	})
 })
