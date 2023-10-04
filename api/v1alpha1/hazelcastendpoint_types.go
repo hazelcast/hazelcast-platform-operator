@@ -17,11 +17,13 @@ const (
 
 // HazelcastEndpointSpec defines the desired state of HazelcastEndpoint
 type HazelcastEndpointSpec struct {
+	// Type defines the endpoint connection. It is used to identify the target of the endpoint.
 	// +required
 	Type HazelcastEndpointType `json:"type"`
 
+	// Port of the endpoint.
 	// +required
-	Port int32 `json:"port,omitempty"`
+	Port int32 `json:"port"`
 
 	// HazelcastResourceName defines the name of the Hazelcast resource that this resource is
 	// created for.
@@ -32,7 +34,7 @@ type HazelcastEndpointSpec struct {
 
 // HazelcastEndpointStatus defines the observed state of HazelcastEndpoint
 type HazelcastEndpointStatus struct {
-	// Address of the HazelcastEndpoint
+	// Address is the external address of the endpoint. It is taken from the corresponding service.
 	// +optional
 	Address string `json:"address,omitempty"`
 }

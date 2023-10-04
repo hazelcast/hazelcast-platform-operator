@@ -57,9 +57,12 @@ spec:
                 minLength: 1
                 type: string
               port:
+                description: Port of the endpoint.
                 format: int32
                 type: integer
               type:
+                description: Type defines the endpoint connection. It is used to identify
+                  the target of the endpoint.
                 enum:
                 - Discovery
                 - Member
@@ -67,13 +70,15 @@ spec:
                 type: string
             required:
             - hazelcastResourceName
+            - port
             - type
             type: object
           status:
             description: HazelcastEndpointStatus defines the observed state of HazelcastEndpoint
             properties:
               address:
-                description: Address of the HazelcastEndpoint
+                description: Address is the external address of the endpoint. It is
+                  taken from the corresponding service.
                 type: string
             type: object
         type: object

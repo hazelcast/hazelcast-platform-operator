@@ -344,16 +344,16 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		service.Spec.ClusterIP = "None"
 	}
 
-	if h.Spec.ExposeExternally.IsSmart() && h.Spec.ExposeExternally.DiscoveryK8ServiceType() == corev1.ServiceTypeLoadBalancer {
-		service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeDiscoveryLabelValue
-	}
-
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Service: %w", err)
 	}
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
+		if h.Spec.ExposeExternally.IsSmart() && h.Spec.ExposeExternally.DiscoveryK8ServiceType() == corev1.ServiceTypeLoadBalancer {
+			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeDiscoveryLabelValue
+		}
+
 		// append default wan port to HZ Discovery Service if use did not configure
 		isAddWANPort := false
 		if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
@@ -388,10 +388,6 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			},
 		}
 
-		if w.ServiceType == corev1.ServiceTypeLoadBalancer {
-			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
-		}
-
 		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
 			return err
@@ -411,6 +407,10 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 		}
 
 		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+			if w.ServiceType == corev1.ServiceTypeLoadBalancer {
+				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
+			}
+
 			service.Spec.Ports = util.EnrichServiceNodePorts(ports, service.Spec.Ports)
 			if w.ServiceType == "" {
 				service.Spec.Type = v1.ServiceTypeLoadBalancer
@@ -456,16 +456,16 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			},
 		}
 
-		if h.Spec.ExposeExternally.MemberAccessServiceType() == corev1.ServiceTypeLoadBalancer {
-			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeMemberLabelValue
-		}
-
 		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
 			return err
 		}
 
 		opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
+			if h.Spec.ExposeExternally.MemberAccessServiceType() == corev1.ServiceTypeLoadBalancer {
+				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeMemberLabelValue
+			}
+
 			service.Spec.Ports = util.EnrichServiceNodePorts([]corev1.ServicePort{clientPort()}, service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 
