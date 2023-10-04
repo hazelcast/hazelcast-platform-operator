@@ -148,7 +148,28 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 
 	Context("Hazelcast that exposes external endpoints", func() {
 		When("creating Hazelcast with expose externally enabled", func() {
-			It("should create HazelcastEndpoint with Discovery type", Label("fast"), func() {
+			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Unisocket", Label("fast"), func() {
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				}
+				hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				}
+
+				By("creating the Hazelcast CR with specs successfully")
+				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+
+				services := expectLenOfHazelcastEndpointServices(ctx, hz, 1)
+				hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 1)
+
+				setLoadBalancerIngressAddress(ctx, services)
+				expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
+				expectAddressInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
+			})
+
+			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Smart", Label("fast"), func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -170,7 +191,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 				expectAddressInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
 			})
 
-			It("should create HazelcastEndpoint with Discovery and Member type", Label("fast"), func() {
+			It("should create HazelcastEndpoint with Discovery and Member type when per member is exposed", Label("fast"), func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
