@@ -25,6 +25,11 @@ spec:
       kind: CronHotBackup
       name: cronhotbackups.hazelcast.com
       version: v1alpha1
+    - description: HazelcastEndpoint is the Schema for the hazelcastendpoints API
+      displayName: Hazelcast Endpoint
+      kind: HazelcastEndpoint
+      name: hazelcastendpoints.hazelcast.com
+      version: v1alpha1
     - description: Hazelcast is the Schema for the hazelcasts API
       displayName: Hazelcast
       kind: Hazelcast

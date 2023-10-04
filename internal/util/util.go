@@ -10,7 +10,6 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +24,7 @@ func CreateOrUpdateForce(ctx context.Context, c client.Client, obj client.Object
 	opResult, err := controllerutil.CreateOrUpdate(ctx, c, obj, f)
 	if kerrors.IsAlreadyExists(err) {
 		// Ignore "already exists" error.
-		// Inside createOrUpdate() there's is a race condition between Get() and Create(), so this error is expected from time to time.
+		// Inside createOrUpdate() there's a race condition between Get() and Create(), so this error is expected from time to time.
 		return opResult, nil
 	}
 	if kerrors.IsInvalid(err) {
@@ -43,7 +42,7 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 	opResult, err := controllerutil.CreateOrUpdate(ctx, c, obj, f)
 	if kerrors.IsAlreadyExists(err) {
 		// Ignore "already exists" error.
-		// Inside createOrUpdate() there's is a race condition between Get() and Create(), so this error is expected from time to time.
+		// Inside createOrUpdate() there's a race condition between Get() and Create(), so this error is expected from time to time.
 		return opResult, nil
 	}
 	return opResult, err
@@ -219,13 +218,8 @@ type ExternalAddresser interface {
 	ExternalAddressEnabled() bool
 }
 
-func GetExternalAddresses(
-	ctx context.Context,
-	cli client.Client,
-	cr ExternalAddresser,
-	logger logr.Logger,
-) ([]string, []string) {
-	svcList, err := getRelatedServices(ctx, cli, cr)
+func GetExternalAddresses(ctx context.Context, cli client.Client, cr ExternalAddresser, logger logr.Logger) ([]string, []string) {
+	svcList, err := ListRelatedServices(ctx, cli, cr)
 	if err != nil {
 		logger.Error(err, "Could not get the service")
 		return nil, nil
@@ -239,12 +233,12 @@ func GetExternalAddresses(
 		}
 
 		for _, ingress := range svc.Status.LoadBalancer.Ingress {
-			addr := getLoadBalancerAddress(&ingress)
+			addr := GetLoadBalancerAddress(&ingress)
 			if addr == "" {
 				continue
 			}
 			for _, port := range svc.Spec.Ports {
-				// we don't want to print these ports as the output of "kubectl get hz" command
+				// we don't want to print these ports as the output of "kubectl get hz" command,
 				// and we want to print wan addresses with a separate title (WAN-Addresses)
 				if strings.HasPrefix(port.Name, n.WanPortNamePrefix) {
 					wanAddrs = append(wanAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
@@ -268,9 +262,9 @@ func GetExternalAddresses(
 	return externalAddrs, wanAddrs
 }
 
-func getRelatedServices(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.ServiceList, error) {
+func ListRelatedServices(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.ServiceList, error) {
 	nsMatcher := client.InNamespace(cr.GetNamespace())
-	labelMatcher := client.MatchingLabels(labels(cr))
+	labelMatcher := client.MatchingLabels(Labels(cr))
 
 	var svcList corev1.ServiceList
 	if err := cli.List(ctx, &svcList, nsMatcher, labelMatcher); err != nil {
@@ -280,7 +274,7 @@ func getRelatedServices(ctx context.Context, cli client.Client, cr ExternalAddre
 	return &svcList, nil
 }
 
-func labels(cr ExternalAddresser) map[string]string {
+func Labels(cr ExternalAddresser) map[string]string {
 	return map[string]string{
 		n.ApplicationNameLabel:         n.Hazelcast,
 		n.ApplicationInstanceNameLabel: cr.GetName(),
@@ -310,7 +304,7 @@ func GetExternalAddressesForMC(
 
 	externalAddrs := make([]string, 0, len(svc.Status.LoadBalancer.Ingress)*len(svc.Spec.Ports))
 	for _, ingress := range svc.Status.LoadBalancer.Ingress {
-		addr := getLoadBalancerAddress(&ingress)
+		addr := GetLoadBalancerAddress(&ingress)
 		if addr == "" {
 			continue
 		}
@@ -333,7 +327,17 @@ func getDiscoveryService(ctx context.Context, cli client.Client, cr ExternalAddr
 	return &svc, nil
 }
 
-func getLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
+func GetExternalAddress(svc *corev1.Service) string {
+	for _, ingress := range svc.Status.LoadBalancer.Ingress {
+		addr := GetLoadBalancerAddress(&ingress)
+		if addr != "" {
+			return addr
+		}
+	}
+	return ""
+}
+
+func GetLoadBalancerAddress(lb *corev1.LoadBalancerIngress) string {
 	if lb.IP != "" {
 		return lb.IP
 	}
@@ -369,8 +373,8 @@ func NodeDiscoveryEnabled() bool {
 	return watching == "true"
 }
 
-func EnrichServiceNodePorts(newPorts []v1.ServicePort, existing []v1.ServicePort) []v1.ServicePort {
-	existingMap := map[string]v1.ServicePort{}
+func EnrichServiceNodePorts(newPorts []corev1.ServicePort, existing []corev1.ServicePort) []corev1.ServicePort {
+	existingMap := map[string]corev1.ServicePort{}
 	for _, port := range existing {
 		existingMap[port.Name] = port
 	}

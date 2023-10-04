@@ -2,7 +2,10 @@ package integration
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
+	"net"
 	"reflect"
 	"time"
 
@@ -238,6 +241,13 @@ func CreateTLSSecret(name, namespace string) *corev1.Secret {
 	}
 	Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
 	return secret
+}
+
+func RandomIpAddress() string {
+	buf := make([]byte, 4)
+	ip := rand.Uint32()
+	binary.LittleEndian.PutUint32(buf, ip)
+	return net.IP(buf).String()
 }
 
 // noinspection ALL

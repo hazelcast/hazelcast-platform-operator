@@ -74,6 +74,10 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 //+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;secrets;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=create;update;watch;get;list,namespace=watched
+// Role related to Reconcile() HazelcastEndpoint
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints,verbs=get;list;watch;create;update;patch;delete,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/status,verbs=get;update;patch,namespace=watched
+//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/finalizers,verbs=update,namespace=watched
 
 func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast", req.NamespacedName)
@@ -156,6 +160,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	err = r.reconcileServicePerPod(ctx, h, logger)
+	if err != nil {
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+	}
+
+	err = r.reconcileHazelcastEndpoints(ctx, h, logger)
 	if err != nil {
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
