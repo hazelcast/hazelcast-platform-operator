@@ -140,9 +140,9 @@ func Test_mcInitCmd(t *testing.T) {
 				Name:      "ldap-credentials",
 				Namespace: "default",
 			},
-			StringData: map[string]string{
-				"username": "my-username",
-				"password": "very-secret-password",
+			Data: map[string][]byte{
+				"username": []byte("my-username"),
+				"password": []byte("very-secret-password"),
 			},
 		}
 		c := fakeK8sClient(secret)
