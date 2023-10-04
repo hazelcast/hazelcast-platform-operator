@@ -129,9 +129,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 	})
 
 	AfterEach(func() {
-		DeleteAllOf(&hazelcastv1alpha1.HazelcastEndpoint{}, &hazelcastv1alpha1.HazelcastEndpointList{}, namespace, map[string]string{})
 		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, namespace, map[string]string{})
-		DeleteAllOf(&corev1.Service{}, &corev1.ServiceList{}, namespace, map[string]string{})
 	})
 
 	Context("Hazelcast which doesn't expose any external endpoints", func() {

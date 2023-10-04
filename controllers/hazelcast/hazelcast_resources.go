@@ -500,15 +500,33 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 
 		switch endpointType {
 		case n.ServiceEndpointTypeDiscoveryLabelValue:
-			hzEndpoints = hazelcastEndpointsFromService(h, &svc, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, clientPort().Port)
-		case n.ServiceEndpointTypeMemberLabelValue:
-			hzEndpoints = hazelcastEndpointsFromService(h, &svc, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port)
-		case n.ServiceEndpointTypeWANLabelValue:
-			var portsInt []int32
-			for _, port := range svc.Spec.Ports {
-				portsInt = append(portsInt, port.Port)
+			endpointNn := types.NamespacedName{
+				Name:      svc.Name,
+				Namespace: svc.Namespace,
 			}
-			hzEndpoints = hazelcastEndpointsFromService(h, &svc, hazelcastv1alpha1.HazelcastEndpointTypeWAN, portsInt...)
+			hzEndpoints = []*hazelcastv1alpha1.HazelcastEndpoint{
+				hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, clientPort().Port),
+			}
+		case n.ServiceEndpointTypeMemberLabelValue:
+			endpointNn := types.NamespacedName{
+				Name:      svc.Name,
+				Namespace: svc.Namespace,
+			}
+			hzEndpoints = []*hazelcastv1alpha1.HazelcastEndpoint{
+				hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port),
+			}
+		case n.ServiceEndpointTypeWANLabelValue:
+			for i, port := range svc.Spec.Ports {
+				endpointNn := types.NamespacedName{
+					Name:      svc.Name,
+					Namespace: svc.Namespace,
+				}
+				if len(svc.Spec.Ports) > 1 {
+					endpointNn.Name = fmt.Sprintf("%s-%d", endpointNn.Name, i)
+				}
+
+				hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+			}
 		default:
 			return fmt.Errorf("service endpoint type label values '%s' is not matched", endpointType)
 		}
@@ -683,32 +701,19 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	return true
 }
 
-func hazelcastEndpointsFromService(hz *hazelcastv1alpha1.Hazelcast, svc *corev1.Service, endpointType hazelcastv1alpha1.HazelcastEndpointType,
-	ports ...int32) []*hazelcastv1alpha1.HazelcastEndpoint {
-
-	hzEndpoints := make([]*hazelcastv1alpha1.HazelcastEndpoint, 0, len(ports))
-	for i, port := range ports {
-		name := svc.Name
-		if len(ports) > 1 {
-			name += fmt.Sprintf("-%d", i)
-		}
-
-		hzEndpoint := &hazelcastv1alpha1.HazelcastEndpoint{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: svc.Namespace,
-				Labels:    util.Labels(hz),
-			},
-			Spec: hazelcastv1alpha1.HazelcastEndpointSpec{
-				Type:                  endpointType,
-				Port:                  port,
-				HazelcastResourceName: hz.Name,
-			},
-		}
-		hzEndpoints = append(hzEndpoints, hzEndpoint)
+func hazelcastEndpointFromService(nn types.NamespacedName, hz *hazelcastv1alpha1.Hazelcast, endpointType hazelcastv1alpha1.HazelcastEndpointType, port int32) *hazelcastv1alpha1.HazelcastEndpoint {
+	return &hazelcastv1alpha1.HazelcastEndpoint{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+			Labels:    util.Labels(hz),
+		},
+		Spec: hazelcastv1alpha1.HazelcastEndpointSpec{
+			Type:                  endpointType,
+			Port:                  port,
+			HazelcastResourceName: hz.Name,
+		},
 	}
-
-	return hzEndpoints
 }
 
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
