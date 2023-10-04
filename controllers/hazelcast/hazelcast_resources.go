@@ -350,7 +350,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	}
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
-		if h.Spec.ExposeExternally.IsSmart() && h.Spec.ExposeExternally.DiscoveryK8ServiceType() == corev1.ServiceTypeLoadBalancer {
+		if h.Spec.ExposeExternally.IsEnabled() && h.Spec.ExposeExternally.DiscoveryK8ServiceType() == corev1.ServiceTypeLoadBalancer {
 			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeDiscoveryLabelValue
 		}
 
