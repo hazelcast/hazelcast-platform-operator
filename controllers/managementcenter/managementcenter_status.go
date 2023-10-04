@@ -24,6 +24,12 @@ func (w withMcPhase) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus)
 	}
 }
 
+type withConfigured bool
+
+func (w withConfigured) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus) {
+	ms.Configured = bool(w)
+}
+
 type withMcFailedPhase string
 
 func (w withMcFailedPhase) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus) {

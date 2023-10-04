@@ -4135,6 +4135,10 @@ spec:
           status:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
             properties:
+              configured:
+                description: Configured is a flag that indicates if the configuration
+                  step has successfully passed
+                type: boolean
               externalAddresses:
                 description: External addresses of the Management Center instance
                 type: string
@@ -4147,6 +4151,7 @@ spec:
                 - Running
                 - Failed
                 - Pending
+                - Configuring
                 - Terminating
                 type: string
             type: object

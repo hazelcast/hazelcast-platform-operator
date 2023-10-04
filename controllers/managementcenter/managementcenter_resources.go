@@ -506,7 +506,7 @@ func buildMcInitCmd(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter,
 	if addCluster := clusterAddCommand(mc); addCluster != "" {
 		commands = append(commands, addCluster)
 	}
-	if mc.Spec.SecurityProviders != nil && mc.Spec.SecurityProviders.LDAP != nil {
+	if mc.Spec.SecurityProviders.IsEnabled() && !mc.Status.Configured {
 		commands = append(commands, ldapConfigure(ctx, mc, c, logger)...)
 	}
 	return strings.Join(commands, " && ")
@@ -523,7 +523,7 @@ func ldapConfigure(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, 
 		fmt.Sprintf("./bin/hz-mc conf ldap configure -H /data --url=%s --ldap-username=%s "+
 			"--ldap-password=%s --user-dn=%s --group-dn=%s --user-search-filter=%s --group-search-filter=%s "+
 			"--admin-groups=%s --read-write-groups=%s --read-only-groups=%s --metrics-only-groups=%s",
-			ldap.URL, s.StringData["username"], s.StringData["password"], ldap.UserDN, ldap.GroupDN,
+			ldap.URL, string(s.Data["username"]), string(s.Data["password"]), ldap.UserDN, ldap.GroupDN,
 			ldap.UserSearchFilter, ldap.GroupSearchFilter, strings.Join(ldap.AdminGroups, ","),
 			strings.Join(ldap.UserGroups, ","), strings.Join(ldap.ReadonlyUserGroups, ","),
 			strings.Join(ldap.MetricsOnlyGroups, ","))}

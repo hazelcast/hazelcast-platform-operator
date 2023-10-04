@@ -119,11 +119,13 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, 1); !ok {
-		if err == nil {
-			return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.McPending))
-		} else {
+		if mc.Status.Phase == hazelcastv1alpha1.McConfiguring {
+			return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.McConfiguring))
+		}
+		if err != nil {
 			return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 		}
+		return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.McPending))
 	}
 
 	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(mc) {
@@ -137,6 +139,9 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	externalAddrs := util.GetExternalAddressesForMC(ctx, r.Client, mc, logger)
 	enrichedAddrs := enrichPublicAddresses(ctx, r.Client, mc, externalAddrs)
+	if mc.Spec.SecurityProviders.IsEnabled() && mc.Status.Phase == hazelcastv1alpha1.McPending {
+		return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.McConfiguring), withConfigured(true))
+	}
 	return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.McRunning), withMcExternalAddresses(enrichedAddrs))
 }
 

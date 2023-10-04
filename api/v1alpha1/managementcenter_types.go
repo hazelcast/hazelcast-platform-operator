@@ -275,18 +275,24 @@ func (c *MCJVMConfiguration) IsConfigured() bool {
 	return c != nil && c.Args != nil && len(c.Args) > 0
 }
 
+func (sp *SecurityProviders) IsEnabled() bool {
+	return sp != nil && sp.LDAP != nil
+}
+
 // McPhase represents the current state of the cluster
-// +kubebuilder:validation:Enum=Running;Failed;Pending;Terminating
+// +kubebuilder:validation:Enum=Running;Failed;Pending;Configuring;Terminating
 type McPhase string
 
 const (
-	// Running phase is the state when the ManagementCenter is successfully started
+	// McRunning phase is the state when the ManagementCenter is successfully started
 	McRunning McPhase = "Running"
-	// Failed phase is the state of error during the ManagementCenter startup
+	// McFailed phase is the state of error during the ManagementCenter startup
 	McFailed McPhase = "Failed"
-	// Pending phase is the state of starting the cluster when the ManagementCenter is not started yet
+	// McConfiguring phase is the state of cofiguring the ManagementCenter and might be restated
+	McConfiguring McPhase = "Configuring"
+	// McPending phase is the state of starting the cluster when the ManagementCenter is not started yet
 	McPending McPhase = "Pending"
-	// Terminating phase is the state where deletion of ManagementCenter and dependent resources happen
+	// McTerminating phase is the state where deletion of ManagementCenter and dependent resources happen
 	McTerminating McPhase = "Terminating"
 )
 
@@ -295,6 +301,10 @@ type ManagementCenterStatus struct {
 	// Phase of the Management Center
 	// +optional
 	Phase McPhase `json:"phase,omitempty"`
+
+	// Configured is a flag that indicates if the configuration step has successfully passed
+	// +optional
+	Configured bool `json:"configured"`
 
 	// Message about the Management Center state
 	// +optional
