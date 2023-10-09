@@ -253,10 +253,6 @@ func GetExternalAddresses(ctx context.Context, cli client.Client, cr ExternalAdd
 				externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
 			}
 		}
-
-		if len(externalAddrs) == 0 {
-			logger.Info("Load Balancer external IP is not ready.")
-		}
 	}
 
 	return externalAddrs, wanAddrs
