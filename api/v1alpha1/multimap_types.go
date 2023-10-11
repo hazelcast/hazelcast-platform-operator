@@ -44,6 +44,7 @@ type MultiMapStatus struct {
 
 // MultiMap is the Schema for the multimaps API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the MultiMap Config"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current MultiMap Config"
 // +kubebuilder:resource:shortName=mmap
 type MultiMap struct {

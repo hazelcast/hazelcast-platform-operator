@@ -22,6 +22,11 @@ spec:
       jsonPath: .status.state
       name: Status
       type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
+      type: string
     - description: Message for the current Queue Config
       jsonPath: .status.message
       name: Message

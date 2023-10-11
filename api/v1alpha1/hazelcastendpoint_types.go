@@ -45,6 +45,7 @@ type HazelcastEndpointStatus struct {
 // HazelcastEndpoint is the Schema for the hazelcastendpoints API
 // +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="Type of the HazelcastEndpoint"
 // +kubebuilder:printcolumn:name="Address",type="string",JSONPath=".status.address",description="Address of the HazelcastEndpoint"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current HazelcastEndpoint"
 // +kubebuilder:resource:shortName=hzep
 type HazelcastEndpoint struct {
