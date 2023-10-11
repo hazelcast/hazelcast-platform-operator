@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
@@ -134,9 +134,9 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 	}, 10*Minute, interval).Should(Equal(0))
 }
 
-func checkJetJobStatus(nn types.NamespacedName, phase hazelcastv1alpha1.JetJobStatusPhase) {
-	jjCheck := &hazelcastv1alpha1.JetJob{}
-	Eventually(func() hazelcastv1alpha1.JetJobStatusPhase {
+func checkJetJobStatus(nn types.NamespacedName, phase hazelcastcomv1alpha1.JetJobStatusPhase) {
+	jjCheck := &hazelcastcomv1alpha1.JetJob{}
+	Eventually(func() hazelcastcomv1alpha1.JetJobStatusPhase {
 		err := k8sClient.Get(context.Background(), nn, jjCheck)
 		if err != nil {
 			return ""
@@ -145,9 +145,9 @@ func checkJetJobStatus(nn types.NamespacedName, phase hazelcastv1alpha1.JetJobSt
 	}, 5*Minute, interval).Should(Equal(phase))
 }
 
-func checkJetJobSnapshotStatus(nn types.NamespacedName, state hazelcastv1alpha1.JetJobSnapshotState) *hazelcastv1alpha1.JetJobSnapshot {
-	jjsCheck := &hazelcastv1alpha1.JetJobSnapshot{}
-	Eventually(func() hazelcastv1alpha1.JetJobSnapshotState {
+func checkJetJobSnapshotStatus(nn types.NamespacedName, state hazelcastcomv1alpha1.JetJobSnapshotState) *hazelcastcomv1alpha1.JetJobSnapshot {
+	jjsCheck := &hazelcastcomv1alpha1.JetJobSnapshot{}
+	Eventually(func() hazelcastcomv1alpha1.JetJobSnapshotState {
 		err := k8sClient.Get(context.Background(), nn, jjsCheck)
 		if err != nil {
 			return ""
