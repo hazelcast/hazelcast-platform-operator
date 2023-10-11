@@ -8,13 +8,11 @@ import (
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
-	"time"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
+	"log"
 	"strconv"
 	. "time"
 )
@@ -69,15 +67,10 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 		CreateAndFillMaps(ctx, numMaps, mapSizeInMb, mapNameSuffix, hazelcast)
 
 		By("making rollout StatefulSet restart")
-		clientSet := getClientSet()
-		statefulSets, err := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).List(ctx, metav1.ListOptions{})
+		err := RolloutRestart(ctx, hazelcast)
 		if err != nil {
-			panic(err.Error())
+			log.Fatalf("Failed to perform rollout restart: %v", err)
 		}
-		sts, _ := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Get(ctx, statefulSets.Items[0].Name, metav1.GetOptions{})
-		sts.Spec.Template.Annotations["kubectl-rollout-restart"] = time.Now().Format(time.RFC3339)
-		clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
-		Sleep(10 * Second)
 
 		By("checking HZ status after rollout sts restart")
 		Eventually(func() hazelcastcomv1alpha1.Phase {
@@ -125,15 +118,10 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 		CreateAndFillMaps(ctx, numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
 
 		By("making rollout StatefulSet restart")
-		clientSet := getClientSet()
-		statefulSets, err := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).List(ctx, metav1.ListOptions{})
+		err := RolloutRestart(ctx, hazelcast)
 		if err != nil {
-			panic(err.Error())
+			log.Fatalf("Failed to perform rollout restart: %v", err)
 		}
-		sts, _ := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Get(ctx, statefulSets.Items[0].Name, metav1.GetOptions{})
-		sts.Spec.Template.Annotations["kubectl-rollout-restart"] = time.Now().Format(time.RFC3339)
-		clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
-		Sleep(10 * Second)
 
 		By("checking HZ status after rollout sts restart")
 		Eventually(func() hazelcastcomv1alpha1.Phase {

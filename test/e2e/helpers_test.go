@@ -1010,6 +1010,34 @@ func ScaleStatefulSet(namespace string, resourceName string, replicas int32) {
 	WaitForReplicaSize(namespace, resourceName, replicas)
 }
 
+func RolloutRestart(ctx context.Context, hazelcast *hazelcastcomv1alpha1.Hazelcast) error {
+	clientSet := getClientSet()
+	statefulSets, err := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list stateful sets: %w", err)
+	}
+	if len(statefulSets.Items) == 0 {
+		return fmt.Errorf("no stateful sets found")
+	}
+
+	sts, err := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Get(ctx, statefulSets.Items[0].Name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get stateful set: %w", err)
+	}
+
+	if sts.Spec.Template.Annotations == nil {
+		sts.Spec.Template.Annotations = make(map[string]string)
+	}
+	sts.Spec.Template.Annotations["kubectl-rollout-restart"] = time.Now().Format(time.RFC3339)
+
+	_, err = clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update stateful set: %w", err)
+	}
+	time.Sleep(10 * time.Second)
+	return nil
+}
+
 func WaitForReplicaSize(namespace string, resourceName string, replicas int32) {
 	sts, _ := getClientSet().AppsV1().StatefulSets(namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
 	Eventually(func() int32 {
