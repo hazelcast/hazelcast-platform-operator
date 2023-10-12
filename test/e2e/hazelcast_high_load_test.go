@@ -33,16 +33,16 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 
 	DescribeTable("Hazelcast", func(policyType hazelcastcomv1alpha1.DataRecoveryPolicyType, mapNameSuffix string) {
 		setLabelAndCRName("hl-1")
-		var mapSizeInMb = 250
-		var pvcSizeInMb = 10500
-		var numMaps = 40
+		var mapSizeInMb = 500
+		var pvcSizeInMb = 14500
+		var numMaps = 28
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
 		clusterSize := int32(3)
 
-		By("creating Hazelcast cluster with 4999 partition count and 10Gb in 40 maps")
+		By("creating Hazelcast cluster with 7999 partition count and 14Gb in 28 maps")
 		jvmArgs := []string{
-			"-Dhazelcast.partition.count=4999",
+			"-Dhazelcast.partition.count=7999",
 		}
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.JVM = &hazelcastcomv1alpha1.JVMConfiguration{
@@ -77,24 +77,24 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 			err := k8sClient.Get(ctx, hzLookupKey, hazelcast)
 			Expect(err).ToNot(HaveOccurred())
 			return hazelcast.Status.Phase
-		}, 8*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
+		}, 10*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
 
 		By("checking map size after rollout sts restart")
 		for i := 0; i < numMaps; i++ {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, mapNameSuffix), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 1*Minute)
+			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
 		}
 	},
 		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Serial, Label("slow"), hazelcastcomv1alpha1.FullRecovery, "fr"),
-		PEntry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Serial, Label("slow"), hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Serial, Label("slow"), hazelcastcomv1alpha1.MostRecent, "pr"),
 	)
 
-	It("should perform rollout restart with 10Gb data", Serial, Label("slow"), func() {
+	It("should perform rollout restart with 14Gb data", Serial, Label("slow"), func() {
 		setLabelAndCRName("hl-2")
-		var mapSizeInMb = 250
-		var pvcSizeInMb = 10500
-		var numMaps = 40
+		var mapSizeInMb = 500
+		var pvcSizeInMb = 14500
+		var numMaps = 28
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
 		clusterSize := int32(3)
@@ -132,17 +132,17 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 
 		By("checking map size after rollout sts restart")
 		for i := 0; i < numMaps; i++ {
-			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, "hl2"), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
+			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
 			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
 		}
 	})
 
-	It("should upgrade HZ version after pause/resume with 4999 partition count", Serial, Label("slow"), func() {
+	It("should upgrade HZ version after pause/resume with 7999 partition count", Serial, Label("slow"), func() {
 		setLabelAndCRName("hl-4")
-		var mapSizeInMb = 250
-		var numMaps = 40
-		var pvcSizeInMb = 10500
+		var mapSizeInMb = 500
+		var pvcSizeInMb = 14500
+		var numMaps = 28
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
 		clusterSize := int32(3)
@@ -172,11 +172,11 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 
 		create(mc)
 
-		By("creating Hazelcast cluster with partition count 4999 and 40 maps")
+		By("creating Hazelcast cluster with partition count 7999 and 28 maps")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.Version = "5.2.4"
 		jvmArgs := []string{
-			"-Dhazelcast.partition.count=4999",
+			"-Dhazelcast.partition.count=7999",
 		}
 		hazelcast.Spec.JVM = &hazelcastcomv1alpha1.JVMConfiguration{
 			Args: jvmArgs,
