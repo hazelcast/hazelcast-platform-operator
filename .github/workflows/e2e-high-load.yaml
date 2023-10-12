@@ -1,4 +1,4 @@
-name: (E2E) AWS Tests
+name: (E2E) High Load Tests
 on:
   workflow_dispatch:
   workflow_call:
