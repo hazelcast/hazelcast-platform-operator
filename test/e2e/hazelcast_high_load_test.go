@@ -32,6 +32,9 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 	})
 
 	DescribeTable("Hazelcast", func(policyType hazelcastcomv1alpha1.DataRecoveryPolicyType, mapNameSuffix string) {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
 		setLabelAndCRName("hl-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
@@ -91,6 +94,9 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 	)
 
 	It("should perform rollout restart with 14Gb data", Serial, Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
 		setLabelAndCRName("hl-2")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
@@ -139,6 +145,9 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 	})
 
 	It("should upgrade HZ version after pause/resume with 7999 partition count", Serial, Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
 		setLabelAndCRName("hl-4")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
