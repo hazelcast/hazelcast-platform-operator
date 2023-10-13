@@ -3,6 +3,7 @@ package managementcenter
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -108,6 +109,10 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
 	}
 
+	if reconfigured := isMCReconfigured(mc); reconfigured {
+		return update(ctx, r.Client, mc, recoptions.Error(err), withMcPhase(hazelcastv1alpha1.McPending), withConfigured(false))
+	}
+
 	err = r.reconcileStatefulset(ctx, mc, logger)
 	if err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
@@ -143,6 +148,18 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.McConfiguring), withConfigured(true))
 	}
 	return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.McRunning), withMcExternalAddresses(enrichedAddrs))
+}
+
+func isMCReconfigured(mc *hazelcastv1alpha1.ManagementCenter) bool {
+	last, ok := mc.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		return false
+	}
+	parsed := &hazelcastv1alpha1.ManagementCenterSpec{}
+	if err := json.Unmarshal([]byte(last), parsed); err != nil {
+		return false
+	}
+	return !reflect.DeepEqual(parsed.SecurityProviders, mc.Spec.SecurityProviders) && mc.Status.Configured
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -15,11 +15,11 @@ type McStatusApplier interface {
 	McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus)
 }
 
-type withMcPhase hazelcastv1alpha1.McPhase
+type withMcPhase hazelcastv1alpha1.MCPhase
 
 func (w withMcPhase) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus) {
-	ms.Phase = hazelcastv1alpha1.McPhase(w)
-	if hazelcastv1alpha1.McPhase(w) == hazelcastv1alpha1.McRunning {
+	ms.Phase = hazelcastv1alpha1.MCPhase(w)
+	if hazelcastv1alpha1.MCPhase(w) == hazelcastv1alpha1.McRunning {
 		ms.Message = ""
 	}
 }

@@ -13,11 +13,11 @@ spec:
   securityProvider:
     ldap:
       credentialsSecretName: ldap-cred
-      groupDn: ou=users,dc=example,dc=org
+      groupDN: ou=users,dc=example,dc=org
       groupSearchFilter: member={0}
       nestedGroupSearch: false
-      url: ldap://10.124.0.12:1389
-      userDn: ou=users,dc=example,dc=org
+      url: ldap://10.124.0.10:1389
+      userDN: ou=users,dc=example,dc=org
       userGroups:
         - readers
       metricsOnlyGroups:

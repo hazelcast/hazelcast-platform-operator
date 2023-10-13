@@ -4066,7 +4066,7 @@ spec:
                           DN of the user. It is used to connect to the server when
                           authenticating users.
                         type: string
-                      groupDn:
+                      groupDN:
                         description: DN to be used for searching groups.
                         type: string
                       groupSearchFilter:
@@ -4098,7 +4098,7 @@ spec:
                         description: URL of your LDAP server, including schema (ldap://
                           or ldaps://) and port.
                         type: string
-                      userDn:
+                      userDN:
                         description: DN to be used for searching users.
                         type: string
                       userGroups:
@@ -4116,13 +4116,13 @@ spec:
                     required:
                     - adminGroups
                     - credentialsSecretName
-                    - groupDn
+                    - groupDN
                     - groupSearchFilter
                     - metricsOnlyGroups
                     - nestedGroupSearch
                     - readonlyUserGroups
                     - url
-                    - userDn
+                    - userDN
                     - userGroups
                     - userSearchFilter
                     type: object

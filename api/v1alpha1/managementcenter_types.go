@@ -95,11 +95,11 @@ type LDAPProvider struct {
 
 	// DN to be used for searching users.
 	// +required
-	UserDN string `json:"userDn"`
+	UserDN string `json:"userDN"`
 
 	// DN to be used for searching groups.
 	// +required
-	GroupDN string `json:"groupDn"`
+	GroupDN string `json:"groupDN"`
 
 	// Members of these groups and its nested groups have admin privileges on the Management Center.
 	// +kubebuilder:validation:MinItems:=1
@@ -279,28 +279,28 @@ func (sp *SecurityProviders) IsEnabled() bool {
 	return sp != nil && sp.LDAP != nil
 }
 
-// McPhase represents the current state of the cluster
+// MCPhase represents the current state of the cluster
 // +kubebuilder:validation:Enum=Running;Failed;Pending;Configuring;Terminating
-type McPhase string
+type MCPhase string
 
 const (
 	// McRunning phase is the state when the ManagementCenter is successfully started
-	McRunning McPhase = "Running"
+	McRunning MCPhase = "Running"
 	// McFailed phase is the state of error during the ManagementCenter startup
-	McFailed McPhase = "Failed"
+	McFailed MCPhase = "Failed"
 	// McConfiguring phase is the state of cofiguring the ManagementCenter and might be restated
-	McConfiguring McPhase = "Configuring"
+	McConfiguring MCPhase = "Configuring"
 	// McPending phase is the state of starting the cluster when the ManagementCenter is not started yet
-	McPending McPhase = "Pending"
+	McPending MCPhase = "Pending"
 	// McTerminating phase is the state where deletion of ManagementCenter and dependent resources happen
-	McTerminating McPhase = "Terminating"
+	McTerminating MCPhase = "Terminating"
 )
 
 // ManagementCenterStatus defines the observed state of ManagementCenter.
 type ManagementCenterStatus struct {
 	// Phase of the Management Center
 	// +optional
-	Phase McPhase `json:"phase,omitempty"`
+	Phase MCPhase `json:"phase,omitempty"`
 
 	// Configured is a flag that indicates if the configuration step has successfully passed
 	// +optional

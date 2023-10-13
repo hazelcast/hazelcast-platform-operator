@@ -42,7 +42,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	EnsureStatusIsPending := func(mc *hazelcastv1alpha1.ManagementCenter) *hazelcastv1alpha1.ManagementCenter {
 		By("ensuring that the status is correct")
-		Eventually(func() hazelcastv1alpha1.McPhase {
+		Eventually(func() hazelcastv1alpha1.MCPhase {
 			mc = Fetch(mc)
 			return mc.Status.Phase
 		}, timeout, interval).Should(Equal(hazelcastv1alpha1.McPending))
