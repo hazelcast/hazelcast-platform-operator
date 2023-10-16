@@ -102,7 +102,7 @@ jobs:
         run: |
           sed -i 's/-snapshot//g' charts/hazelcast-platform-operator-crds/Chart.yaml
           sed -i 's/-snapshot//g' Chart.yaml
-          sed -i "s|tag: .*|tag: ${RELEASE_BRANCH}|" values.yaml
+          sed -i "s|tag: .*|tag: |" values.yaml
 
       - name: Commit and Push Changes
         run: |
