@@ -107,9 +107,9 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 	})
 
 	Describe("External API errors", func() {
-		assertStatusEventually := func(phase hazelcastcomv1alpha1.Phase) {
+		assertStatusEventually := func(phase hazelcastcomv1alpha1.MCPhase) {
 			mc := &hazelcastcomv1alpha1.ManagementCenter{}
-			Eventually(func() hazelcastcomv1alpha1.Phase {
+			Eventually(func() hazelcastcomv1alpha1.MCPhase {
 				err := k8sClient.Get(context.Background(), mcLookupKey, mc)
 				Expect(err).ToNot(HaveOccurred())
 				return mc.Status.Phase
@@ -120,7 +120,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		It("should be reflected to Management CR status", Label("fast"), func() {
 			setLabelAndCRName("mc-3")
 			createWithoutCheck(mcconfig.Faulty(mcLookupKey, ee, labels))
-			assertStatusEventually(hazelcastcomv1alpha1.Failed)
+			assertStatusEventually(hazelcastcomv1alpha1.McFailed)
 		})
 	})
 

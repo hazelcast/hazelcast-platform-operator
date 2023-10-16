@@ -296,7 +296,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, sts, func() error {
 		sts.Spec.Template.Spec.ImagePullSecrets = mc.Spec.ImagePullSecrets
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
-		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
+		sts.Spec.Template.Spec.Containers[0].Env = env(ctx, mc, r.Client, logger)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
 		if mc.Spec.Resources != nil {
 			sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
@@ -465,11 +465,11 @@ func configMount() corev1.VolumeMount {
 	}
 }
 
-func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
+func env(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.Client, logger logr.Logger) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
 			Name:  mcInitCmd,
-			Value: clusterAddCommand(mc),
+			Value: buildMcInitCmd(ctx, mc, c, logger),
 		},
 	}
 
@@ -499,6 +499,34 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	)
 
 	return envs
+}
+
+func buildMcInitCmd(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.Client, logger logr.Logger) string {
+	var commands []string
+	if addCluster := clusterAddCommand(mc); addCluster != "" {
+		commands = append(commands, addCluster)
+	}
+	if mc.Spec.SecurityProviders.IsEnabled() && !mc.Status.Configured {
+		commands = append(commands, ldapConfigure(ctx, mc, c, logger)...)
+	}
+	return strings.Join(commands, " && ")
+}
+
+func ldapConfigure(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.Client, logger logr.Logger) []string {
+	ldap := mc.Spec.SecurityProviders.LDAP
+	s := &v1.Secret{}
+	err := c.Get(ctx, types.NamespacedName{Name: ldap.CredentialsSecretName, Namespace: mc.Namespace}, s)
+	if err != nil {
+		logger.Error(err, "unable to get the secret with credentials, LDAP config will be ignored")
+	}
+	return []string{"./bin/hz-mc conf security reset -H /data",
+		fmt.Sprintf("./bin/hz-mc conf ldap configure -H /data --url=%s --ldap-username=%s "+
+			"--ldap-password=%s --user-dn=%s --group-dn=%s --user-search-filter=%s --group-search-filter=%s "+
+			"--admin-groups=%s --read-write-groups=%s --read-only-groups=%s --metrics-only-groups=%s",
+			ldap.URL, string(s.Data["username"]), string(s.Data["password"]), ldap.UserDN, ldap.GroupDN,
+			ldap.UserSearchFilter, ldap.GroupSearchFilter, strings.Join(ldap.AdminGroups, ","),
+			strings.Join(ldap.UserGroups, ","), strings.Join(ldap.ReadonlyUserGroups, ","),
+			strings.Join(ldap.MetricsOnlyGroups, ","))}
 }
 
 func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {

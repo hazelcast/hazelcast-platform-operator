@@ -147,7 +147,7 @@ func googleCloudProjectName() string {
 }
 
 func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
-	return mc.Status.Phase == "Running"
+	return mc.Status.Phase == hazelcastcomv1alpha1.McRunning
 }
 
 func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels map[string]string) {

@@ -40,6 +40,9 @@ func (v *managementCenterValidator) validateSpecCurrent(mc *ManagementCenter) {
 	for i := range mc.Spec.HazelcastClusters {
 		v.validateClusterConfigTLS(&mc.Spec.HazelcastClusters[i], mc.Namespace)
 	}
+	if mc.Spec.SecurityProviders != nil {
+		v.validateSecurityProviders(mc.Spec.SecurityProviders, mc.Namespace)
+	}
 }
 
 func (v *managementCenterValidator) validateSpecUpdate(mc *ManagementCenter) {
@@ -100,6 +103,33 @@ func (v *managementCenterValidator) validateClusterConfigTLS(config *HazelcastCl
 	if kerrors.IsNotFound(err) {
 		// we care only about not found error
 		v.NotFound(p, "Management Center Cluster config TLS Secret not found")
+		return
+	}
+}
+
+func (v *managementCenterValidator) validateSecurityProviders(config *SecurityProviders, namespace string) {
+	if config.LDAP == nil {
+		return
+	}
+
+	p := Path("spec", "securityProviders", "ldap", "credentialsSecretName")
+
+	if config.LDAP.CredentialsSecretName == "" {
+		v.NotFound(p, "Management Center LDAP credentials Secret name is empty")
+		return
+	}
+
+	// check if secret exists
+	secretName := types.NamespacedName{
+		Name:      config.LDAP.CredentialsSecretName,
+		Namespace: namespace,
+	}
+
+	var secret corev1.Secret
+	err := kubeclient.Get(context.Background(), secretName, &secret)
+	if kerrors.IsNotFound(err) {
+		// we care only about not found error
+		v.NotFound(p, "Management Center LDAP credentials Secret not found")
 		return
 	}
 }

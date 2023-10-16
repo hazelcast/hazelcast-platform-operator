@@ -595,7 +595,7 @@ func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.
 }
 
 func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
-	return mc.Status.Phase == "Running"
+	return mc.Status.Phase == hazelcastcomv1alpha1.McRunning
 }
 
 func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcastcomv1alpha1.RestoreState) *hazelcastcomv1alpha1.Hazelcast {

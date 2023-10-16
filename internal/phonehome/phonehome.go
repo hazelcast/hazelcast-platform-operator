@@ -420,7 +420,7 @@ func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
 
 	for _, mc := range mcl.Items {
 		createdMCCount += 1
-		if mc.Status.Phase == hazelcastv1alpha1.Running {
+		if mc.Status.Phase == hazelcastv1alpha1.McRunning {
 			successfullyCreatedMCCount += 1
 		}
 		phm.McExternalConnectivity.addUsageMetrics(mc.Spec.ExternalConnectivity)
