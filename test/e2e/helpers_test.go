@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	. "time"
 
@@ -186,12 +187,26 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 
 func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 	By(fmt.Sprintf("deleting POD with name '%s'", podName), func() {
+		propagationPolicy := metav1.DeletePropagationBackground
 		deleteOptions := metav1.DeleteOptions{
 			GracePeriodSeconds: &gracePeriod,
+			PropagationPolicy:  &propagationPolicy,
+		}
+		podExists := func() bool {
+			_, err := getClientSet().CoreV1().Pods(lk.Namespace).Get(context.Background(), podName, metav1.GetOptions{})
+			return err == nil
 		}
 		err := getClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
 		if err != nil {
 			log.Fatal(err)
+		}
+		time.Sleep(5 * time.Second)
+		if podExists() {
+			log.Println("Pod still exists. Retrying delete operation.")
+			err := getClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	})
 }
@@ -343,10 +358,6 @@ func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzCon
 	By(fmt.Sprintf("filling the map '%s' with '%d' MB data", mapName, sizeInMb), func() {
 		hzAddress := hzclient.HazelcastUrl(hzConfig)
 		clientHz := GetHzClient(ctx, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace}, true)
-		defer func() {
-			err := clientHz.Shutdown(ctx)
-			Expect(err).ToNot(HaveOccurred())
-		}()
 		mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInMb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
 		defer DeletePod(mapLoaderPod.Name, 0, types.NamespacedName{Namespace: hzConfig.Namespace})
 		Eventually(func() int {
@@ -368,13 +379,14 @@ func countKeySet(ctx context.Context, clientHz *hzClient.Client, mapName string,
 }
 
 func createMapLoaderPod(hzAddress, clusterName string, mapSizeInMb int, mapName string, lk types.NamespacedName) *corev1.Pod {
+	name := randString(5)
 	size := strconv.Itoa(mapSizeInMb)
 	clientPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
 				"maploader": "true",
 			},
-			Name:      "maploader-" + lk.Name,
+			Name:      "maploader-" + name,
 			Namespace: lk.Namespace,
 		},
 		Spec: corev1.PodSpec{
@@ -448,7 +460,7 @@ func evaluateReadyMembers(lookupKey types.NamespacedName) {
 			err := k8sClient.Get(context.Background(), lookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
 			return hz.Status.Cluster.ReadyMembers
-		}, 6*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
+		}, 10*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
 	})
 }
 
@@ -984,4 +996,80 @@ func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLo
 	Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 	assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 	return m
+}
+
+func ScaleStatefulSet(namespace string, resourceName string, replicas int32) {
+	clientSet := getClientSet()
+	sts, _ := clientSet.AppsV1().StatefulSets(namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+	sts.Spec.Replicas = pointer.Int32(replicas)
+	_, err := clientSet.AppsV1().StatefulSets(namespace).Update(context.TODO(), sts, metav1.UpdateOptions{})
+	if err != nil {
+		return
+	}
+	Sleep(15 * Second)
+	WaitForReplicaSize(namespace, resourceName, replicas)
+}
+
+func RolloutRestart(ctx context.Context, hazelcast *hazelcastcomv1alpha1.Hazelcast) error {
+	clientSet := getClientSet()
+	statefulSets, err := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list stateful sets: %w", err)
+	}
+	if len(statefulSets.Items) == 0 {
+		return fmt.Errorf("no stateful sets found")
+	}
+
+	sts, err := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Get(ctx, statefulSets.Items[0].Name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get stateful set: %w", err)
+	}
+
+	if sts.Spec.Template.Annotations == nil {
+		sts.Spec.Template.Annotations = make(map[string]string)
+	}
+	sts.Spec.Template.Annotations["kubectl-rollout-restart"] = time.Now().Format(time.RFC3339)
+
+	_, err = clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update stateful set: %w", err)
+	}
+	time.Sleep(10 * time.Second)
+	return nil
+}
+
+func WaitForReplicaSize(namespace string, resourceName string, replicas int32) {
+	sts, _ := getClientSet().AppsV1().StatefulSets(namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+	Eventually(func() int32 {
+		return sts.Status.CurrentReplicas
+	}, 10*Minute, interval).Should(Equal(replicas))
+}
+
+func CreateAndFillMaps(ctx context.Context, numMaps int, sizePerMap int, mapNameSuffix string, hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+	var expectedMapSize = int(float64(sizePerMap) * 128)
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10)
+	errCh := make(chan error, numMaps)
+
+	for i := 0; i < numMaps; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, mapNameSuffix), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
+			m.Spec.HazelcastResourceName = hazelcast.Name
+			m.Spec.PersistenceEnabled = true
+			if err := k8sClient.Create(ctx, m); err != nil {
+				errCh <- err
+				return
+			}
+			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			FillTheMapWithData(ctx, m.MapName(), sizePerMap, hazelcast)
+			WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
+		}(i)
+	}
+	wg.Wait()
+	close(errCh)
 }

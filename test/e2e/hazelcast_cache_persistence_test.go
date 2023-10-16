@@ -12,7 +12,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -25,11 +25,11 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastv1alpha1.HotBackup{}, &hazelcastv1alpha1.HotBackupList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, &hazelcastcomv1alpha1.HotBackupList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Cache{}, &hazelcastcomv1alpha1.CacheList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -42,7 +42,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		m.Spec.PersistenceEnabled = true
 
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertDataStructureStatus(chLookupKey, hazelcastv1alpha1.DataStructureFailed, m)
+		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureFailed, m)
 
 		Expect(m.Status.Message).To(ContainSubstring("Persistence must be enabled at Hazelcast"))
 	})
@@ -62,7 +62,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 		cache := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
 		cache.Spec.PersistenceEnabled = true
 		Expect(k8sClient.Create(context.Background(), cache)).Should(Succeed())
-		assertDataStructureStatus(chLookupKey, hazelcastv1alpha1.DataStructureSuccess, cache)
+		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, cache)
 
 		By("filling the cache with entries")
 		entryCount := 10
@@ -81,13 +81,13 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		By("creating new Hazelcast cluster from existing backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = hazelcastv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 		evaluateReadyMembers(hzLookupKey)
-		assertHazelcastRestoreStatus(hazelcast, hazelcastv1alpha1.RestoreSucceeded)
+		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
 		By("checking the cache entries")
 		validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)
@@ -113,10 +113,10 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 			}
 			Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
 			if cache == "cachefail" {
-				assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureFailed, c)
+				assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastcomv1alpha1.DataStructureFailed, c)
 				continue
 			}
-			assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastv1alpha1.DataStructureSuccess, c)
+			assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastcomv1alpha1.DataStructureSuccess, c)
 		}
 
 		By("checking if the caches are in the Config", func() {
@@ -125,7 +125,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 		By("deleting cache2")
 		Expect(k8sClient.Delete(context.Background(),
-			&hazelcastv1alpha1.Cache{ObjectMeta: v1.ObjectMeta{Name: "cache2", Namespace: hazelcast.Namespace}})).Should(Succeed())
+			&hazelcastcomv1alpha1.Cache{ObjectMeta: v1.ObjectMeta{Name: "cache2", Namespace: hazelcast.Namespace}})).Should(Succeed())
 
 		By("checking if cache2 is not persisted in the Config", func() {
 			assertCacheConfigsPersisted(hazelcast, "cache1", "cache3")
@@ -134,7 +134,7 @@ var _ = Describe("Hazelcast Cache Config with Persistence", Label("cache_persist
 
 })
 
-func validateCacheEntriesPortForward(h *hazelcastv1alpha1.Hazelcast, localPort, cacheName string, entryCount int) {
+func validateCacheEntriesPortForward(h *hazelcastcomv1alpha1.Hazelcast, localPort, cacheName string, entryCount int) {
 	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
 	defer closeChannel(stopChan)
 	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
@@ -153,7 +153,7 @@ func validateCacheEntriesPortForward(h *hazelcastv1alpha1.Hazelcast, localPort, 
 	}
 }
 
-func fillCachePortForward(h *hazelcastv1alpha1.Hazelcast, cacheName, localPort string, entryCount int) {
+func fillCachePortForward(h *hazelcastcomv1alpha1.Hazelcast, cacheName, localPort string, entryCount int) {
 	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
 	defer closeChannel(stopChan)
 	cl := newHazelcastClientPortForward(context.Background(), h, localPort)

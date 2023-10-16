@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
@@ -25,13 +25,13 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastv1alpha1.JetJobSnapshot{}, &hazelcastv1alpha1.JetJobSnapshotList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.JetJob{}, &hazelcastv1alpha1.JetJobList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.Map{}, &hazelcastv1alpha1.MapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.JetJobSnapshot{}, &hazelcastcomv1alpha1.JetJobSnapshotList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.JetJob{}, &hazelcastcomv1alpha1.JetJobList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		DeleteAllOf(&corev1.Secret{}, &corev1.SecretList{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 		}
 		fooMap := hazelcastconfig.MapWithEventJournal(fooMapNn, hazelcast.Name, labels)
 		Expect(k8sClient.Create(ctx, fooMap)).Should(Succeed())
-		assertMapStatus(fooMap, hazelcastv1alpha1.MapSuccess)
+		assertMapStatus(fooMap, hazelcastcomv1alpha1.MapSuccess)
 
 		// bar map
 		barMapNn := types.NamespacedName{
@@ -65,7 +65,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 		}
 		barMap := hazelcastconfig.DefaultMap(barMapNn, hazelcast.Name, labels)
 		Expect(k8sClient.Create(ctx, barMap)).Should(Succeed())
-		assertMapStatus(barMap, hazelcastv1alpha1.MapSuccess)
+		assertMapStatus(barMap, hazelcastcomv1alpha1.MapSuccess)
 
 		// fizz map
 		fizzMapNn := types.NamespacedName{
@@ -74,17 +74,17 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 		}
 		fizzMap := hazelcastconfig.DefaultMap(fizzMapNn, hazelcast.Name, labels)
 		Expect(k8sClient.Create(ctx, fizzMap)).Should(Succeed())
-		assertMapStatus(fizzMap, hazelcastv1alpha1.MapSuccess)
+		assertMapStatus(fizzMap, hazelcastcomv1alpha1.MapSuccess)
 
 		By("creating JetJob CR")
 		jj := hazelcastconfig.JetJob(jarName, hzLookupKey.Name, jjLookupKey, labels)
-		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastcomv1alpha1.BucketConfiguration{
 			SecretName: "br-secret-gcp",
 			BucketURI:  "gs://operator-user-code/jetJobs",
 		}
 		jj.Spec.MainClass = "com.hazelcast.operator.test.jobs.FromFooToBarJob"
 		Expect(k8sClient.Create(ctx, jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobRunning)
 
 		By("port-forwarding to Hazelcast master pod")
 		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
@@ -123,7 +123,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 		Expect(k8sClient.Create(ctx, jjs)).Should(Succeed())
 
 		By("asserting JetJobSnapshot CR status")
-		jjs = checkJetJobSnapshotStatus(jjsLookupKey, hazelcastv1alpha1.JetJobSnapshotExported)
+		jjs = checkJetJobSnapshotStatus(jjsLookupKey, hazelcastcomv1alpha1.JetJobSnapshotExported)
 		Expect(jjs.Status.CreationTime.IsZero()).To(BeFalse())
 
 		By("ensuring the snapshot is exported on members")
@@ -137,13 +137,13 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 			Namespace: jjLookupKey.Namespace,
 		}
 		jjFromSnapshot := hazelcastconfig.JetJobWithInitialSnapshot(jarName, hzLookupKey.Name, jjs.Name, jjFromSnapshotNn, labels)
-		jjFromSnapshot.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+		jjFromSnapshot.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastcomv1alpha1.BucketConfiguration{
 			SecretName: "br-secret-gcp",
 			BucketURI:  "gs://operator-user-code/jetJobs",
 		}
 		jjFromSnapshot.Spec.MainClass = "com.hazelcast.operator.test.jobs.FromFooToFizzJob"
 		Expect(k8sClient.Create(ctx, jjFromSnapshot)).Should(Succeed())
-		checkJetJobStatus(jjFromSnapshotNn, hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjFromSnapshotNn, hazelcastcomv1alpha1.JetJobRunning)
 
 		By("asserting size of map Fizz is empty")
 		fizzHzMap, err := cl.GetMap(ctx, fizzMap.MapName())
@@ -164,23 +164,23 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 
 		By("creating JetJob CR")
 		jj := hazelcastconfig.JetJob(jarName, hzLookupKey.Name, jjLookupKey, labels)
-		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastcomv1alpha1.BucketConfiguration{
 			SecretName: "br-secret-gcp",
 			BucketURI:  "gs://operator-user-code/jetJobs",
 		}
 		jj.Spec.MainClass = "com.hazelcast.operator.test.jobs.LoggingJob"
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobRunning)
 
 		By("creating JetJobSnapshot CR")
 		jjs := hazelcastconfig.JetJobSnapshot(jjsLookupKey.Name, true, jj.Name, jjsLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), jjs)).Should(Succeed())
 
-		jjs = checkJetJobSnapshotStatus(jjsLookupKey, hazelcastv1alpha1.JetJobSnapshotExported)
+		jjs = checkJetJobSnapshotStatus(jjsLookupKey, hazelcastcomv1alpha1.JetJobSnapshotExported)
 		Expect(jjs.Status.CreationTime.IsZero()).To(BeFalse())
 
 		By("asserting JetJob is canceled")
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobExecutionFailed)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobExecutionFailed)
 	})
 
 	It("should set status to 'failed' if exporting snapshot from non-running job", Label("fast"), func() {
@@ -196,26 +196,26 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 
 		By("creating JetJob CR which is in non-running status")
 		jj := hazelcastconfig.JetJob(jarName, hzLookupKey.Name, jjLookupKey, labels)
-		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastcomv1alpha1.BucketConfiguration{
 			SecretName: "br-secret-gcp",
 			BucketURI:  "gs://operator-user-code/jetJobs",
 		}
 		jj.Spec.MainClass = "com.hazelcast.operator.test.jobs.LoggingJob"
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobRunning)
 
 		By("suspending the JetJob")
 		Expect(k8sClient.Get(context.Background(), jjLookupKey, jj)).Should(Succeed())
-		jj.Spec.State = hazelcastv1alpha1.SuspendedJobState
+		jj.Spec.State = hazelcastcomv1alpha1.SuspendedJobState
 		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobSuspended)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobSuspended)
 
 		By("creating JetJobSnapshot CR")
 		jjs := hazelcastconfig.JetJobSnapshot(jjsLookupKey.Name, false, jj.Name, jjsLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), jjs)).Should(Succeed())
 
 		By("asserting JetJobSnapshot status is set to 'failed'")
-		checkJetJobSnapshotStatus(jjsLookupKey, hazelcastv1alpha1.JetJobSnapshotFailed)
+		checkJetJobSnapshotStatus(jjsLookupKey, hazelcastcomv1alpha1.JetJobSnapshotFailed)
 		Eventually(func() string {
 			err := k8sClient.Get(context.Background(), jjsLookupKey, jjs)
 			if err != nil {
@@ -223,6 +223,6 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 			}
 			return jjs.Status.Message
 		}, 5*Minute, interval).Should(ContainSubstring(
-			"JetJob status must be equal to '%s' to be able to export snapshot", hazelcastv1alpha1.JetJobRunning))
+			"JetJob status must be equal to '%s' to be able to export snapshot", hazelcastcomv1alpha1.JetJobRunning))
 	})
 })
