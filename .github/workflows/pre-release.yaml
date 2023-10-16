@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE_BRANCH:
-        description: "Release branch name in the form of X.Y"
+        description: "Release branch name in the form of X.Y.Z"
         required: true
 
 permissions:
@@ -25,7 +25,7 @@ jobs:
       - name: Validate version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${RELEASE_BRANCH} | egrep "^$NUMBER.$NUMBER?$"
+          echo ${RELEASE_BRANCH} | egrep "^$NUMBER.$NUMBER.$NUMBER?$"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -102,6 +102,7 @@ jobs:
         run: |
           sed -i 's/-snapshot//g' charts/hazelcast-platform-operator-crds/Chart.yaml
           sed -i 's/-snapshot//g' Chart.yaml
+          sed -i "s|tag: .*|tag: ${RELEASE_BRANCH}|" values.yaml
 
       - name: Commit and Push Changes
         run: |

@@ -64,7 +64,7 @@ jobs:
           }'| jq -r '.token')
 
           CURRENT_LATEST_TAG=$(curl --fail -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
-          -H "Authorization: Bearer $token" | jq -r  '.results[] | select((.tags | length == 2) and .tags[].tag =="latest" and .tags[0].is_current == true and .tags[1].is_current == true)| .tags[].tag | select(. !="latest")')
+          -H "Authorization: Bearer $token" | jq -r  '.results[] | select(any(.tags[]; .tag == "latest" and .is_current == true)) | .tags[] | select(.is_current == true and .tag != "latest" and (.tag | test("\\d+\\.\\d+\\.\\d+")))| .tag')
           echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
           echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_OUTPUT
 
@@ -351,6 +351,40 @@ jobs:
         run: |
           for CHART_TGZ in *.tgz; do aws s3 cp ${CHART_TGZ} s3://hazelcast-charts; done
           aws s3 cp ./index.yaml s3://hazelcast-charts
+
+      - name: Create Kind Config
+        run: |
+          cat <<EOT >> ./kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+          - role: worker
+          EOT
+
+      - name: Create Kind Cluster
+        uses: helm/kind-action@v1.8.0
+        with:
+          config: ./kind-config.yaml
+          cluster_name: kind
+
+      - name: Install and Verify Hazelcast Operator Image Tag
+        run: |
+          LATEST_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
+          helm repo update && \
+          helm install operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=180s
+          INSTALLED_VERSION=$(kubectl get deployment operator-hazelcast-platform-operator -o=jsonpath="{.spec.template.spec.containers[*].image}" | awk -F ':' '{print $2}')
+          if [[ ${LATEST_VERSION} == ${INSTALLED_VERSION} ]]; then
+            echo "The latest operator image is successfully installed."
+          else
+            echo "The latest operator image tag doesn't equal the installed image tag."
+            exit 1
+          fi
 
       - name: Checkout to 'Hazelcast Charts' Repository
         uses: actions/checkout@v3
