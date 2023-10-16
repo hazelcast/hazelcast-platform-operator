@@ -393,3 +393,30 @@ jobs:
           gcloud container clusters delete ${{ matrix.cluster }}-wan-cluster-${{ github.run_number }} \
            --zone ${{ env.GKE_ZONE }} \
            --quiet
+
+  slack_notify:
+    name: Slack Notify
+    needs: ["wan-gke-tests", "delete-gke-cluster"]
+    if: always() && ( needs.wan-gke-tests.result != 'success' || needs.delete-gke-cluster.result != 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3.0.1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
+      - uses: 8398a7/action-slack@v3
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
