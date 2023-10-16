@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE_VERSION:
-        description: "Release version in the form of X.Y[.Z]"
+        description: "Release version in the form of X.Y.Z"
         required: true
   schedule:
     - cron: "0 9 * * *"
@@ -192,7 +192,7 @@ jobs:
       - name: Validate version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER.$NUMBER?$"
 
       - name: Set Up Docker Buildx
         id: buildx
