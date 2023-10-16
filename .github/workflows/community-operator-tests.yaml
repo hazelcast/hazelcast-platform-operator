@@ -23,7 +23,7 @@ jobs:
       fail-fast: true
     steps:
       - name: Checkout community-operators
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: k8s-operatorhub/community-operators
           path: community-operators

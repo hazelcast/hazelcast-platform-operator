@@ -151,7 +151,7 @@ jobs:
       REFS: ${{ steps.setup-envs.outputs.ref }}
     steps:
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -310,7 +310,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Preflight and OPM Tools
         uses: redhat-actions/openshift-tools-installer@v1
@@ -399,7 +399,7 @@ jobs:
       KUBECONFIG: $HOME/.kube/config
     steps:
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -480,7 +480,7 @@ jobs:
             DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 

@@ -39,7 +39,7 @@ jobs:
             DOCKERHUB_PASSWORD,CN/DOCKERHUB_PASSWORD
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set Release Version
         id: set-outputs
@@ -97,7 +97,7 @@ jobs:
       IMAGE_NAME: ${{ needs.publish_docker_image.outputs.IMAGE_NAME }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -159,7 +159,7 @@ jobs:
       BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -189,7 +189,7 @@ jobs:
           make bundle-ocp-validate
 
       - name: Checkout to devOpsHelm
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: devOpsHelm/${{ env.REPO_NAME }}
           path: ${{ env.REPO_NAME }}
@@ -248,7 +248,7 @@ jobs:
       BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build Red Hat Bundle
         run: |
@@ -274,7 +274,7 @@ jobs:
             DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Checkout to devOpsHelm/${{ env.REPO_NAME }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: devopsHelm/${{ env.REPO_NAME }}
           path: ${{ env.REPO_NAME }}
@@ -318,7 +318,7 @@ jobs:
     needs: ['operatorhub_release']
     steps:
       - name: Checkout 'Hazelcast Operator' Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -353,7 +353,7 @@ jobs:
           aws s3 cp ./index.yaml s3://hazelcast-charts
 
       - name: Checkout to 'Hazelcast Charts' Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/charts
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
@@ -366,7 +366,7 @@ jobs:
           git push -u origin $RELEASE_VERSION
 
       - name: Checkout to Hazelcast Platform Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/hazelcast-platform-operator
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
@@ -385,7 +385,7 @@ jobs:
           git subtree push --prefix=charts https://github.com/hazelcast/charts.git $RELEASE_VERSION
 
       - name: Checkout to 'Hazelcast Charts' Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/charts
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
@@ -401,7 +401,7 @@ jobs:
           git push origin --delete $RELEASE_VERSION
 
       - name: Checkout 'main' Branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/hazelcast-platform-operator
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
@@ -444,7 +444,7 @@ jobs:
       BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -518,7 +518,7 @@ jobs:
           gh release delete v${RELEASE_VERSION} --cleanup-tag --yes
 
       - name: Checkout to 'Hazelcast Charts' Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/charts
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
