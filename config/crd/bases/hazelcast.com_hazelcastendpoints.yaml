@@ -26,6 +26,11 @@ spec:
       jsonPath: .status.address
       name: Address
       type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
+      type: string
     - description: Message for the current HazelcastEndpoint
       jsonPath: .status.message
       name: Message
