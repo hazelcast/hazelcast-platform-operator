@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -65,6 +66,10 @@ type MapSpec struct {
 	// EventJournal specifies event journal configuration of the Map
 	// +optional
 	EventJournal *EventJournal `json:"eventJournal,omitempty"`
+
+	// TieredStore enables the Hazelcast's Tiered-Store feature for the Map
+	// +optional
+	TieredStore *TieredStore `json:"tieredStore,omitempty"`
 }
 
 type NearCache struct {
@@ -361,6 +366,16 @@ type EventJournal struct {
 	TimeToLiveSeconds int32 `json:"timeToLiveSeconds,omitempty"`
 }
 
+type TieredStore struct {
+	// MemoryRequestStorage sets Memory tier capacity, i.e., how much main memory should this tier consume at most.
+	// +kubebuilder:default:="256M"
+	// +optional
+	MemoryRequestStorage *resource.Quantity `json:"requestStorage,omitempty"`
+	// diskDeviceName defines the name of the device for a given disk tier.
+	// +required
+	DiskDeviceName string `json:"diskDeviceName,omitempty"`
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
@@ -440,6 +455,13 @@ var (
 		InMemoryFormatBinary: 0,
 		InMemoryFormatObject: 1,
 		InMemoryFormatNative: 2,
+	}
+
+	EncodeUnit = map[string]int32{
+		"BYTES":     0,
+		"KILOBYTES": 1,
+		"MEGABYTES": 2,
+		"GIGABYTES": 3,
 	}
 )
 

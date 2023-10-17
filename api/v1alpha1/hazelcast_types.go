@@ -167,6 +167,10 @@ type HazelcastSpec struct {
 	// Hazelcast SQL configuration
 	// +optional
 	SQL *SQL `json:"sql,omitempty"`
+
+	// Hazelcast LocalDevice configuration
+	// +optional
+	LocalDevices []LocalDeviceConfig `json:"localDevices,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -645,7 +649,7 @@ func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 	return p.ClusterDataRecoveryPolicy != FullRecovery
 }
 
-// Returns true if Persistence configuration is specified.
+// IsEnabled Returns true if Persistence configuration is specified.
 func (p *HazelcastPersistenceConfiguration) IsEnabled() bool {
 	return p != nil
 }
@@ -1070,6 +1074,56 @@ type SQL struct {
 	// +kubebuilder:default:=false
 	// +optional
 	CatalogPersistenceEnabled bool `json:"catalogPersistenceEnabled"`
+}
+
+type LocalDeviceConfig struct {
+	// Name represents the name of the local device
+	// +required
+	Name string
+
+	// BaseDir Specifies the directory where the Tiered-Store data will be stored.
+	// This directory will be created automatically if it does not exist.
+	// +kubebuilder:default:="tiered-store"
+	// +optional
+	BaseDir string `json:"baseDir"`
+
+	// BlockSize defines Device block/sector size in bytes.
+	// +kubebuilder:validation:Minimum=512
+	// +kubebuilder:default:="4096"
+	// +optional
+	BlockSize *int32 `json:"blockSize,omitempty"`
+
+	// ReadIOThreadCount is Read IO thread count.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:default:="4"
+	// +optional
+	ReadIOThreadCount *int32 `json:"readIOThreadCount,omitempty"`
+
+	// WriteIOThreadCount is Write IO thread count.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:default:="4"
+	// +optional
+	WriteIOThreadCount *int32 `json:"writeIOThreadCount,omitempty"`
+
+	// Configuration of PersistenceVolumeClaim.
+	// +required
+	Pvc *LocalDevicePvcConfiguration `json:"pvc,omitempty"`
+}
+
+type LocalDevicePvcConfiguration struct {
+	// AccessModes contains the actual access modes of the volume backing the PVC has.
+	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
+	// +optional
+	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
+
+	// A description of the PVC request capacity.
+	// +kubebuilder:default:="256G"
+	// +optional
+	RequestStorage *resource.Quantity `json:"requestStorage,omitempty"`
+
+	// Name of StorageClass which this persistent volume belongs to.
+	// +optional
+	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
