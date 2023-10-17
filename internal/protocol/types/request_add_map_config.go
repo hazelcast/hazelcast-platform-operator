@@ -50,6 +50,7 @@ type AddMapConfigInput struct {
 	MerkleTreeConfig     MerkleTreeConfig
 	MetadataPolicy       int32
 	PerEntryStatsEnabled bool
+	TieredStoreConfig    TieredStoreConfig
 }
 
 // Default values are explicitly written for all fields that are not nullable
@@ -81,6 +82,19 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 		PerEntryStatsEnabled: false,
 		NearCacheConfig: NearCacheConfigHolder{
 			EvictionConfigHolder: EvictionConfigHolder{},
+		},
+		TieredStoreConfig: TieredStoreConfig{
+			Enabled: false,
+			MemoryTierConfig: MemoryTierConfig{
+				Capacity: Capacity{
+					Value: int64(256),
+					Unit:  int32(2),
+				},
+			},
+			DiskTierConfig: DiskTierConfig{
+				Enabled:    false,
+				DeviceName: "default-tiered-store-device",
+			},
 		},
 	}
 }
