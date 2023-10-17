@@ -33,6 +33,7 @@ func ValidateMapSpecCreate(m *Map) error {
 		name: m.Name,
 	}
 	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)
+	v.validateMapTieredStore(m)
 	return v.Err()
 }
 
@@ -137,6 +138,18 @@ func (v *mapValidator) validateMapNativeMemory(m *Map, h *Hazelcast) {
 	}
 }
 
+func (v *mapValidator) validateMapTieredStore(m *Map) {
+	if m.Spec.TieredStore == nil {
+		return
+	}
+	if m.Spec.InMemoryFormat != InMemoryFormatNative {
+		v.Invalid(Path("spec", "inMemoryFormat"), m.Spec.InMemoryFormat, "In-memory format of the map must be NATIVE to enable the tiered Storage")
+	}
+	if len(m.Spec.Indexes) != 0 {
+		v.Invalid(Path("spec", "indexes"), m.Spec.Indexes, "Indexes can not be created on maps that have Tiered Storage enabled")
+	}
+}
+
 func (v *mapValidator) validateMapSpecUpdate(m *Map) {
 	last, ok := m.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
@@ -178,6 +191,9 @@ func (v *mapValidator) validateNotUpdatableMapFields(current *MapSpec, last *Map
 	}
 	if !reflect.DeepEqual(current.NearCache, last.NearCache) {
 		v.Forbidden(Path("spec", "nearCache"), "field cannot be updated")
+	}
+	if !reflect.DeepEqual(current.TieredStore, last.TieredStore) {
+		v.Forbidden(Path("spec", "tieredStore"), "field cannot be updated")
 	}
 }
 
