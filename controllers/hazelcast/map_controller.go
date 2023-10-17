@@ -337,6 +337,15 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 		mapInput.EventJournalConfig.TimeToLiveSeconds = m.Spec.EventJournal.TimeToLiveSeconds
 	}
 
+	if ms.TieredStore != nil {
+		mapInput.TieredStoreConfig.Enabled = true
+		mapInput.TieredStoreConfig.MemoryTierConfig.Capacity = codecTypes.Capacity{
+			Value: ms.TieredStore.MemoryRequestStorage.Value(),
+			Unit:  hazelcastv1alpha1.EncodeUnit["BYTES"],
+		}
+		mapInput.TieredStoreConfig.DiskTierConfig.Enabled = true
+		mapInput.TieredStoreConfig.DiskTierConfig.DeviceName = ms.TieredStore.DiskDeviceName
+	}
 	return nil
 }
 

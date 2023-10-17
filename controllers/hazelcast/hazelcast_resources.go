@@ -852,7 +852,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			MinBlockSize:            nativeMemory.MinBlockSize,
 			PageSize:                nativeMemory.PageSize,
 			MetadataSpacePercentage: nativeMemory.MetadataSpacePercentage,
-			Size: config.NativeMemorySize{
+			Size: config.Size{
 				Value: nativeMemory.Size.ScaledValue(resource.Mega),
 				Unit:  "MEGABYTES",
 			},
@@ -946,6 +946,12 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
+	if len(h.Spec.LocalDevices) != 0 {
+		cfg.LocalDevice = map[string]config.LocalDevice{}
+		for _, ld := range h.Spec.LocalDevices {
+			cfg.LocalDevice[ld.Name] = createLocalDeviceConfig(ld)
+		}
+	}
 	return cfg
 }
 
@@ -1392,6 +1398,16 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		mc.EventJournal.TimeToLiveSeconds = ms.EventJournal.TimeToLiveSeconds
 	}
 
+	if ms.TieredStore != nil {
+		mc.TieredStore.Enabled = true
+		mc.TieredStore.MemoryTier.Capacity = config.Size{
+			Value: ms.TieredStore.MemoryRequestStorage.Value(),
+			Unit:  "BYTES",
+		}
+		mc.TieredStore.DiskTier.Enabled = true
+		mc.TieredStore.DiskTier.DeviceName = ms.TieredStore.DiskDeviceName
+	}
+
 	return mc, nil
 }
 
@@ -1570,6 +1586,19 @@ func createBatchPublisherConfig(wr hazelcastv1alpha1.WanReplication) config.Batc
 	return bpc
 }
 
+func createLocalDeviceConfig(ld hazelcastv1alpha1.LocalDeviceConfig) config.LocalDevice {
+	return config.LocalDevice{
+		BaseDir: ld.BaseDir,
+		Capacity: config.Size{
+			Value: ld.Pvc.RequestStorage.Value(),
+			Unit:  "BYTES",
+		},
+		BlockSize:          ld.BlockSize,
+		ReadIOThreadCount:  ld.ReadIOThreadCount,
+		WriteIOThreadCount: ld.WriteIOThreadCount,
+	}
+}
+
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	ls := labels(h)
 	sts := &appsv1.StatefulSet{
@@ -1628,6 +1657,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
 		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+	}
+	if len(h.Spec.LocalDevices) != 0 {
+		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, localDevicePersistentVolumeClaim(h)...)
 	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
@@ -1696,6 +1728,29 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 			},
 		},
 	}
+}
+
+func localDevicePersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
+	var pvcs []v1.PersistentVolumeClaim
+	for _, localDeviceConfig := range h.Spec.LocalDevices {
+		pvcs = append(pvcs, v1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      localDeviceConfig.Name,
+				Namespace: h.Namespace,
+				Labels:    labels(h),
+			},
+			Spec: v1.PersistentVolumeClaimSpec{
+				AccessModes: localDeviceConfig.Pvc.AccessModes,
+				Resources: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						corev1.ResourceStorage: *localDeviceConfig.Pvc.RequestStorage,
+					},
+				},
+				StorageClassName: localDeviceConfig.Pvc.StorageClassName,
+			},
+		})
+	}
+	return pvcs
 }
 
 func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
@@ -2160,6 +2215,10 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 		})
 	}
 
+	if len(h.Spec.LocalDevices) != 0 {
+		mounts = append(mounts, localDeviceVolumeMounts(h)...)
+	}
+
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
 		mounts = append(mounts,
 			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
@@ -2170,6 +2229,17 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 			configMapVolumeMounts(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration, n.JetJobJarsPath)...)
 	}
 	return mounts
+}
+
+func localDeviceVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
+	var vms []v1.VolumeMount
+	for _, localDeviceConfig := range h.Spec.LocalDevices {
+		vms = append(vms, v1.VolumeMount{
+			Name:      localDeviceConfig.Name,
+			MountPath: localDeviceConfig.BaseDir,
+		})
+	}
+	return vms
 }
 
 func configMapVolumeMounts(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFileConfiguration, mountPath string) []corev1.VolumeMount {
