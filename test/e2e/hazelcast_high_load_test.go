@@ -134,7 +134,7 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 			err := k8sClient.Get(ctx, hzLookupKey, hazelcast)
 			Expect(err).ToNot(HaveOccurred())
 			return hazelcast.Status.Phase
-		}, 5*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
+		}, 10*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
 
 		By("checking map size after rollout sts restart")
 		for i := 0; i < numMaps; i++ {

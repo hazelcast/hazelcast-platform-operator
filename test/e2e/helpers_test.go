@@ -358,6 +358,10 @@ func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, hzCon
 	By(fmt.Sprintf("filling the map '%s' with '%d' MB data", mapName, sizeInMb), func() {
 		hzAddress := hzclient.HazelcastUrl(hzConfig)
 		clientHz := GetHzClient(ctx, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace}, true)
+		defer func() {
+			err := clientHz.Shutdown(ctx)
+			Expect(err).ToNot(HaveOccurred())
+		}()
 		mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInMb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
 		defer DeletePod(mapLoaderPod.Name, 0, types.NamespacedName{Namespace: hzConfig.Namespace})
 		Eventually(func() int {
