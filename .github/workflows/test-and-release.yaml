@@ -22,7 +22,7 @@ jobs:
     name: Run migration test
     runs-on: ubuntu-latest
     env:
-      GCP_NETWORK: operator-test-network
+      CLUSTER_NAME: kind
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -35,32 +35,67 @@ jobs:
         uses: aws-actions/aws-secretsmanager-get-secrets@v1
         with:
           secret-ids: |
-            GKE_SA_KEY,CN/GKE_SA_KEY
             HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
 
-      - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v1.1.1'
-        with:
-          credentials_json: ${{ env.GKE_SA_KEY }}
+      - name: Create Kind Config
+        run: |
+          cat <<EOT >> ./kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+          - role: worker
+          EOT
 
-      - name: Create GKE cluster
-        run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
-          gcloud container clusters create ${CLUSTER_NAME} \
-            --zone=${{ env.GKE_ZONE }} \
-            --project=${{ env.GAR_PROJECT }} \
-            --network=${{ env.GCP_NETWORK }} \
-            --machine-type=n1-standard-1 \
-            --num-nodes=1
-          sleep 30
-
-      - name: Connect to the GKE cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+      - name: Create Kind Cluster
+        uses: helm/kind-action@v1.8.0
         with:
+          config: ./kind-config.yaml
           cluster_name: ${{ env.CLUSTER_NAME }}
-          project_id: ${{ env.GAR_PROJECT }}
-          location: ${{ env.GKE_ZONE }}
+
+      - name: Install metallb
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_on: error
+          command: |
+            kubectl create namespace ${NAMESPACE}
+            kubectl config set-context --current --namespace=$NAMESPACE
+            kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
+            kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
+            HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
+            HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
+            IP_RANGE=$HOST_MIN-$HOST_MAX
+            
+            cat <<EOF | kubectl apply -f -
+            apiVersion: metallb.io/v1beta1
+            kind: IPAddressPool
+            metadata:
+              name: kind-pool
+              namespace: metallb-system
+            spec:
+              addresses:
+              - $IP_RANGE
+            ---
+            apiVersion: metallb.io/v1beta1
+            kind: L2Advertisement
+            metadata:
+              name: l2
+              namespace: metallb-system
+            spec:
+              ipAddressPools:
+              - kind-pool
+            EOF
+
+      - name: Create Secrets
+        if: matrix.edition == 'ee'
+        run: |
+          kubectl create secret generic hazelcast-license-key \
+             --namespace ${NAMESPACE} \
+             --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
       - name: Deploy and Run Migration test
         run: |
@@ -76,7 +111,7 @@ jobs:
           echo "Checking Operator Deployment  before upgrade"
           kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
           echo "Checking Operator Pod before  upgrade"
-          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=180s
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=300s
           
           kubectl apply -f - <<EOF
           apiVersion: hazelcast.com/v1alpha1
@@ -84,9 +119,6 @@ jobs:
           metadata:
             name: hazelcast
           spec:
-            scheduling:
-              nodeSelector:
-                topology.kubernetes.io/region: ${{ env.GAR_REGION }}
             nativeMemory:
               allocatorType: POOLED
               size: 100M
@@ -120,23 +152,18 @@ jobs:
           EOF
           
           echo "Checking Hazelcast CR before upgrade"
-          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=180s hazelcast/hazelcast
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast
           echo "Checking Map CR before upgrade"
-          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=180s map/persistent
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent
           
           helm upgrade operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
           
           echo "Checking Operator Pod after upgrade"
-          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=180s
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=300s
           echo "Checking Hazelcast CR after upgrade"
-          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=180s hazelcast/hazelcast
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast
           echo "Checking Map CR after upgrade"
-          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=180s map/persistent
-
-      - name: Delete GKE cluster
-        if: always()
-        run: |
-          gcloud container clusters delete ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --quiet
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent
 
   test_container:
     name: Build and Test Container
@@ -225,7 +252,7 @@ jobs:
       - name: Initiating a Container Scan
         run: |
           echo "Running the container scan tests"
-          preflight check container $CONTAINER_IMAGE
+          preflight check container $CONTAINER_IMAGE --platform amd64
           grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
 
   openscap_image_scan:
