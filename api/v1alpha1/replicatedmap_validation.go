@@ -1,32 +1,17 @@
 package v1alpha1
 
-import (
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-)
+import "sigs.k8s.io/controller-runtime/pkg/client"
 
 type replicatedmapValidator struct {
 	datastructValidator
-	name string
 }
 
-func (v *replicatedmapValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "ReplicatedMap"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
+func NewReplicatedMapValidator(o client.Object) replicatedmapValidator {
+	return replicatedmapValidator{NewDatastructValidator(o)}
 }
 
 func validateReplicatedMapSpecUpdate(rm *ReplicatedMap) error {
-	v := replicatedmapValidator{
-		name: rm.Name,
-	}
+	v := NewReplicatedMapValidator(rm)
 	v.validateDSSpecUnchanged(rm)
 	return v.Err()
 }

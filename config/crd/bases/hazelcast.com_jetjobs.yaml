@@ -26,6 +26,11 @@ spec:
       jsonPath: .status.id
       name: Id
       type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
+      type: string
     - description: Time when the JetJob was submitted
       jsonPath: .status.submissionTime
       name: SubmissionTime

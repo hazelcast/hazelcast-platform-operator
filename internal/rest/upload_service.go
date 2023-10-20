@@ -92,3 +92,19 @@ func (s *UploadService) Delete(ctx context.Context, uploadID uuid.UUID) (*http.R
 
 	return resp, nil
 }
+
+func (s *UploadService) Cleanup(ctx context.Context, uploadID uuid.UUID) (*http.Response, error) {
+	u := fmt.Sprintf("upload/%v/cleanup", uploadID)
+
+	req, err := s.client.NewRequest("POST", u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}

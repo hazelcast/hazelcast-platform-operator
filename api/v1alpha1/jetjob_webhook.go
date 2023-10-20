@@ -30,7 +30,7 @@ func (jj *JetJob) ValidateCreate() error {
 func (jj *JetJob) ValidateUpdate(old runtime.Object) error {
 	jetjoblog.Info("validate update", "name", jj.Name)
 	oldJj := old.(*JetJob)
-	return ValidateJetJobUpdateSpec(jj, oldJj)
+	return ValidateJetJobUpdateStateSpec(jj, oldJj)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

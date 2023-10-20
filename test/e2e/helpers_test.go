@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	. "time"
 
@@ -186,12 +187,26 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 
 func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 	By(fmt.Sprintf("deleting POD with name '%s'", podName), func() {
+		propagationPolicy := metav1.DeletePropagationBackground
 		deleteOptions := metav1.DeleteOptions{
 			GracePeriodSeconds: &gracePeriod,
+			PropagationPolicy:  &propagationPolicy,
+		}
+		podExists := func() bool {
+			_, err := getClientSet().CoreV1().Pods(lk.Namespace).Get(context.Background(), podName, metav1.GetOptions{})
+			return err == nil
 		}
 		err := getClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
 		if err != nil {
 			log.Fatal(err)
+		}
+		time.Sleep(5 * time.Second)
+		if podExists() {
+			log.Println("Pod still exists. Retrying delete operation.")
+			err := getClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	})
 }
@@ -368,13 +383,14 @@ func countKeySet(ctx context.Context, clientHz *hzClient.Client, mapName string,
 }
 
 func createMapLoaderPod(hzAddress, clusterName string, mapSizeInMb int, mapName string, lk types.NamespacedName) *corev1.Pod {
+	name := randString(5)
 	size := strconv.Itoa(mapSizeInMb)
 	clientPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
 				"maploader": "true",
 			},
-			Name:      "maploader-" + lk.Name,
+			Name:      "maploader-" + name,
 			Namespace: lk.Namespace,
 		},
 		Spec: corev1.PodSpec{
@@ -448,7 +464,7 @@ func evaluateReadyMembers(lookupKey types.NamespacedName) {
 			err := k8sClient.Get(context.Background(), lookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
 			return hz.Status.Cluster.ReadyMembers
-		}, 6*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
+		}, 10*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
 	})
 }
 
@@ -595,7 +611,7 @@ func newHazelcastClientPortForward(ctx context.Context, h *hazelcastcomv1alpha1.
 }
 
 func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
-	return mc.Status.Phase == "Running"
+	return mc.Status.Phase == hazelcastcomv1alpha1.McRunning
 }
 
 func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcastcomv1alpha1.RestoreState) *hazelcastcomv1alpha1.Hazelcast {
@@ -986,43 +1002,78 @@ func createMapCRWithMapName(ctx context.Context, mapCrName, mapName string, hzLo
 	return m
 }
 
-func validateCacheEntriesPortForward(h *hazelcastcomv1alpha1.Hazelcast, localPort, cacheName string, entryCount int) {
-	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
-	defer closeChannel(stopChan)
-	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
-	cli := hzClient.NewClientInternal(cl)
-	for i := 0; i < entryCount; i++ {
-		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
-		Expect(err).To(BeNil())
-		value := fmt.Sprintf("myvalue%d", i)
-		getRequest := codec.EncodeCacheGetRequest("/hz/"+cacheName, key, nil)
-		resp, err := cli.InvokeOnKey(context.Background(), getRequest, key, nil)
-		pairs := codec.DecodeCacheGetResponse(resp)
-		Expect(err).To(BeNil())
-		data, err := cli.DecodeData(pairs)
-		Expect(err).To(BeNil())
-		Expect(fmt.Sprintf("%v", data)).Should(Equal(value))
+func ScaleStatefulSet(namespace string, resourceName string, replicas int32) {
+	clientSet := getClientSet()
+	sts, _ := clientSet.AppsV1().StatefulSets(namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+	sts.Spec.Replicas = pointer.Int32(replicas)
+	_, err := clientSet.AppsV1().StatefulSets(namespace).Update(context.TODO(), sts, metav1.UpdateOptions{})
+	if err != nil {
+		return
 	}
+	Sleep(15 * Second)
+	WaitForReplicaSize(namespace, resourceName, replicas)
 }
 
-func fillCachePortForward(h *hazelcastcomv1alpha1.Hazelcast, cacheName, localPort string, entryCount int) {
-	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
-	defer closeChannel(stopChan)
-	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
-	cli := hzClient.NewClientInternal(cl)
-
-	for _, mi := range cli.OrderedMembers() {
-		configRequest := codec.EncodeCacheGetConfigRequest("/hz/"+cacheName, cacheName)
-		_, _ = cli.InvokeOnMember(context.Background(), configRequest, mi.UUID, nil)
+func RolloutRestart(ctx context.Context, hazelcast *hazelcastcomv1alpha1.Hazelcast) error {
+	clientSet := getClientSet()
+	statefulSets, err := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list stateful sets: %w", err)
+	}
+	if len(statefulSets.Items) == 0 {
+		return fmt.Errorf("no stateful sets found")
 	}
 
-	for i := 0; i < entryCount; i++ {
-		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
-		Expect(err).To(BeNil())
-		value, err := cli.EncodeData(fmt.Sprintf("myvalue%d", i))
-		Expect(err).To(BeNil())
-		cpr := codec.EncodeCachePutRequest("/hz/"+cacheName, key, value, nil, false, 0)
-		_, err = cli.InvokeOnKey(context.Background(), cpr, key, nil)
-		Expect(err).To(BeNil())
+	sts, err := clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Get(ctx, statefulSets.Items[0].Name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get stateful set: %w", err)
 	}
+
+	if sts.Spec.Template.Annotations == nil {
+		sts.Spec.Template.Annotations = make(map[string]string)
+	}
+	sts.Spec.Template.Annotations["kubectl-rollout-restart"] = time.Now().Format(time.RFC3339)
+
+	_, err = clientSet.AppsV1().StatefulSets(hazelcast.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update stateful set: %w", err)
+	}
+	time.Sleep(10 * time.Second)
+	return nil
+}
+
+func WaitForReplicaSize(namespace string, resourceName string, replicas int32) {
+	sts, _ := getClientSet().AppsV1().StatefulSets(namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+	Eventually(func() int32 {
+		return sts.Status.CurrentReplicas
+	}, 10*Minute, interval).Should(Equal(replicas))
+}
+
+func CreateAndFillMaps(ctx context.Context, numMaps int, sizePerMap int, mapNameSuffix string, hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+	var expectedMapSize = int(float64(sizePerMap) * 128)
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10)
+	errCh := make(chan error, numMaps)
+
+	for i := 0; i < numMaps; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, mapNameSuffix), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
+			m.Spec.HazelcastResourceName = hazelcast.Name
+			m.Spec.PersistenceEnabled = true
+			if err := k8sClient.Create(ctx, m); err != nil {
+				errCh <- err
+				return
+			}
+			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			FillTheMapWithData(ctx, m.MapName(), sizePerMap, hazelcast)
+			WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
+		}(i)
+	}
+	wg.Wait()
+	close(errCh)
 }

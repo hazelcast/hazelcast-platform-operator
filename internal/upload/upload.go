@@ -22,7 +22,7 @@ var (
 type Upload struct {
 	service  *rest.UploadService
 	uploadID *uuid.UUID
-	config   *Config
+	Config   *Config
 }
 
 type Config struct {
@@ -46,7 +46,7 @@ func NewUpload(config *Config) (*Upload, error) {
 	}
 	return &Upload{
 		service: s,
-		config:  config,
+		Config:  config,
 	}, nil
 }
 
@@ -55,11 +55,11 @@ func (u *Upload) Start(ctx context.Context) error {
 		return errUploadAlreadyStarted
 	}
 	upload, _, err := u.service.Upload(ctx, &sidecar.UploadReq{
-		BucketURL:       u.config.BucketURI,
-		BackupBaseDir:   u.config.BackupBaseDir,
-		HazelcastCRName: u.config.HazelcastName,
-		SecretName:      u.config.SecretName,
-		MemberID:        u.config.MemberID,
+		BucketURL:       u.Config.BucketURI,
+		BackupBaseDir:   u.Config.BackupBaseDir,
+		HazelcastCRName: u.Config.HazelcastName,
+		SecretName:      u.Config.SecretName,
+		MemberID:        u.Config.MemberID,
 	})
 	if err != nil {
 		return err
@@ -115,5 +115,13 @@ func (u *Upload) Remove(ctx context.Context) error {
 		return errUploadNotStarted
 	}
 	_, err := u.service.Delete(ctx, *u.uploadID)
+	return err
+}
+
+func (u *Upload) Cleanup(ctx context.Context) error {
+	if u.uploadID == nil {
+		return errUploadNotStarted
+	}
+	_, err := u.service.Cleanup(ctx, *u.uploadID)
 	return err
 }

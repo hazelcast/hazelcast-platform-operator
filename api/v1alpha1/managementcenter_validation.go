@@ -8,9 +8,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -19,24 +18,14 @@ import (
 
 type managementCenterValidator struct {
 	fieldValidator
-	name string
 }
 
-func (v *managementCenterValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "ManagementCenter"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
+func NewManagementCenterValidator(o client.Object) managementCenterValidator {
+	return managementCenterValidator{NewFieldValidator(o)}
 }
 
 func ValidateManagementCenterSpec(mc *ManagementCenter) error {
-	v := managementCenterValidator{
-		name: mc.Name,
-	}
+	v := NewManagementCenterValidator(mc)
 	v.validateSpecCurrent(mc)
 	v.validateSpecUpdate(mc)
 	return v.Err()
@@ -50,6 +39,9 @@ func (v *managementCenterValidator) validateSpecCurrent(mc *ManagementCenter) {
 	}
 	for i := range mc.Spec.HazelcastClusters {
 		v.validateClusterConfigTLS(&mc.Spec.HazelcastClusters[i], mc.Namespace)
+	}
+	if mc.Spec.SecurityProviders != nil {
+		v.validateSecurityProviders(mc.Spec.SecurityProviders, mc.Namespace)
 	}
 }
 
@@ -111,6 +103,33 @@ func (v *managementCenterValidator) validateClusterConfigTLS(config *HazelcastCl
 	if kerrors.IsNotFound(err) {
 		// we care only about not found error
 		v.NotFound(p, "Management Center Cluster config TLS Secret not found")
+		return
+	}
+}
+
+func (v *managementCenterValidator) validateSecurityProviders(config *SecurityProviders, namespace string) {
+	if config.LDAP == nil {
+		return
+	}
+
+	p := Path("spec", "securityProviders", "ldap", "credentialsSecretName")
+
+	if config.LDAP.CredentialsSecretName == "" {
+		v.NotFound(p, "Management Center LDAP credentials Secret name is empty")
+		return
+	}
+
+	// check if secret exists
+	secretName := types.NamespacedName{
+		Name:      config.LDAP.CredentialsSecretName,
+		Namespace: namespace,
+	}
+
+	var secret corev1.Secret
+	err := kubeclient.Get(context.Background(), secretName, &secret)
+	if kerrors.IsNotFound(err) {
+		// we care only about not found error
+		v.NotFound(p, "Management Center LDAP credentials Secret not found")
 		return
 	}
 }

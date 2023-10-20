@@ -64,6 +64,10 @@ type ManagementCenterSpec struct {
 	// ManagementCenter JVM configuration
 	// +optional
 	JVM *MCJVMConfiguration `json:"jvm,omitempty"`
+
+	// SecurityProviders to authenticate users in Management Center
+	// +optional
+	SecurityProviders *SecurityProviders `json:"securityProvider,omitempty"`
 }
 
 func (s *ManagementCenterSpec) GetLicenseKeySecretName() string {
@@ -71,6 +75,61 @@ func (s *ManagementCenterSpec) GetLicenseKeySecretName() string {
 		return s.DeprecatedLicenseKeySecret
 	}
 	return s.LicenseKeySecretName
+}
+
+type SecurityProviders struct {
+	// LDAP security provider
+	// +optional
+	LDAP *LDAPProvider `json:"ldap,omitempty"`
+}
+
+type LDAPProvider struct {
+	// URL of your LDAP server, including schema (ldap:// or ldaps://) and port.
+	// +required
+	URL string `json:"url"`
+
+	// CredentialsSecretName is the name of the secret that contains username and password of a user that has admin privileges on the LDAP server.
+	// The username must be the DN of the user. It is used to connect to the server when authenticating users.
+	// +required
+	CredentialsSecretName string `json:"credentialsSecretName"`
+
+	// DN to be used for searching users.
+	// +required
+	UserDN string `json:"userDN"`
+
+	// DN to be used for searching groups.
+	// +required
+	GroupDN string `json:"groupDN"`
+
+	// Members of these groups and its nested groups have admin privileges on the Management Center.
+	// +kubebuilder:validation:MinItems:=1
+	AdminGroups []string `json:"adminGroups"`
+
+	// Members of these groups and its nested groups have read and write privileges on the Management Center.
+	// +kubebuilder:validation:MinItems:=1
+	UserGroups []string `json:"userGroups"`
+
+	// Members of these groups and its nested groups have only read privilege on the Management Center.
+	// +kubebuilder:validation:MinItems:=1
+	ReadonlyUserGroups []string `json:"readonlyUserGroups"`
+
+	// Members of these groups and its nested groups have the privilege to see only the metrics on the Management Center.
+	// +kubebuilder:validation:MinItems:=1
+	MetricsOnlyGroups []string `json:"metricsOnlyGroups"`
+
+	// LDAP search filter expression to search for the users.
+	// For example, uid={0} searches for a username that matches with the uid attribute.
+	// +required
+	UserSearchFilter string `json:"userSearchFilter"`
+
+	// LDAP search filter expression to search for the groups.
+	// For example, uniquemember={0} searches for a group that matches with the uniquemember attribute.
+	// +required
+	GroupSearchFilter string `json:"groupSearchFilter"`
+
+	// NestedGroupSearch enables searching for nested LDAP groups.
+	// +kubebuilder:default:=false
+	NestedGroupSearch bool `json:"nestedGroupSearch"`
 }
 
 type HazelcastClusterConfig struct {
@@ -216,11 +275,36 @@ func (c *MCJVMConfiguration) IsConfigured() bool {
 	return c != nil && c.Args != nil && len(c.Args) > 0
 }
 
+func (sp *SecurityProviders) IsEnabled() bool {
+	return sp != nil && sp.LDAP != nil
+}
+
+// MCPhase represents the current state of the cluster
+// +kubebuilder:validation:Enum=Running;Failed;Pending;Configuring;Terminating
+type MCPhase string
+
+const (
+	// McRunning phase is the state when the ManagementCenter is successfully started
+	McRunning MCPhase = "Running"
+	// McFailed phase is the state of error during the ManagementCenter startup
+	McFailed MCPhase = "Failed"
+	// McConfiguring phase is the state of cofiguring the ManagementCenter and might be restated
+	McConfiguring MCPhase = "Configuring"
+	// McPending phase is the state of starting the cluster when the ManagementCenter is not started yet
+	McPending MCPhase = "Pending"
+	// McTerminating phase is the state where deletion of ManagementCenter and dependent resources happen
+	McTerminating MCPhase = "Terminating"
+)
+
 // ManagementCenterStatus defines the observed state of ManagementCenter.
 type ManagementCenterStatus struct {
 	// Phase of the Management Center
 	// +optional
-	Phase Phase `json:"phase,omitempty"`
+	Phase MCPhase `json:"phase,omitempty"`
+
+	// Configured is a flag that indicates if the configuration step has successfully passed
+	// +optional
+	Configured bool `json:"configured"`
 
 	// Message about the Management Center state
 	// +optional

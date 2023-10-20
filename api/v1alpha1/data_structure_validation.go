@@ -13,6 +13,10 @@ type datastructValidator struct {
 	fieldValidator
 }
 
+func NewDatastructValidator(o client.Object) datastructValidator {
+	return datastructValidator{NewFieldValidator(o)}
+}
+
 func (v *datastructValidator) validateDataStructureSpec(ds *DataStructureSpec) {
 	if pointer.Int32Deref(ds.BackupCount, 0)+ds.AsyncBackupCount > 6 {
 		detail := "the sum of backupCount and asyncBackupCount can't be larger than than 6"
