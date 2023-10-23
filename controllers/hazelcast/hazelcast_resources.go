@@ -500,12 +500,21 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 
 		switch endpointType {
 		case n.ServiceEndpointTypeDiscoveryLabelValue:
-			endpointNn := types.NamespacedName{
-				Name:      svc.Name,
-				Namespace: svc.Namespace,
-			}
-			hzEndpoints = []*hazelcastv1alpha1.HazelcastEndpoint{
-				hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, clientPort().Port),
+			for _, port := range svc.Spec.Ports {
+				endpointNn := types.NamespacedName{
+					Name:      svc.Name,
+					Namespace: svc.Namespace,
+				}
+				// For the default Wan port when the WANConfig is not configured under the AdvancedNetwork config
+				if port.Name == n.WanDefaultPortName {
+					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, "wan")
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+					continue
+				}
+				if port.Name == n.HazelcastPortName {
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, port.Port))
+					continue
+				}
 			}
 		case n.ServiceEndpointTypeMemberLabelValue:
 			endpointNn := types.NamespacedName{
