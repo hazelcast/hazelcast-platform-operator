@@ -30,11 +30,12 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	ctx := context.Background()
 	assertExternalAddressesNotEmpty := func() {
 		By("status external addresses should not be empty")
-		Eventually(func() string {
+		Eventually(func() []string {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			err := k8sClient.Get(ctx, hzLookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
-			return hz.Status.ExternalAddresses
+			externalAddresses := fetchHazelcastAddressesByType(hz, hazelcastcomv1alpha1.HazelcastEndpointTypeDiscovery, hazelcastcomv1alpha1.HazelcastEndpointTypeMember)
+			return externalAddresses
 		}, 2*Minute, interval).Should(Not(BeEmpty()))
 	}
 

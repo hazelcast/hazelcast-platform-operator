@@ -20,10 +20,6 @@ import (
 	"time"
 	. "time"
 
-	"k8s.io/apimachinery/pkg/watch"
-
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
-
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	"github.com/hazelcast/hazelcast-go-client/logger"
@@ -38,6 +34,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
@@ -48,8 +45,10 @@ import (
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
@@ -1076,4 +1075,36 @@ func CreateAndFillMaps(ctx context.Context, numMaps int, sizePerMap int, mapName
 	}
 	wg.Wait()
 	close(errCh)
+}
+
+func fetchHazelcastEndpoints(hz *hazelcastcomv1alpha1.Hazelcast) []hazelcastcomv1alpha1.HazelcastEndpoint {
+	hzEndpointList := hazelcastcomv1alpha1.HazelcastEndpointList{}
+	err := k8sClient.List(context.Background(), &hzEndpointList,
+		client.InNamespace(hz.Namespace),
+		client.MatchingLabels(util.Labels(hz)),
+	)
+	Expect(err).ToNot(HaveOccurred())
+	return hzEndpointList.Items
+}
+
+func fetchHazelcastAddressesByType(hz *hazelcastcomv1alpha1.Hazelcast, endpointType ...hazelcastcomv1alpha1.HazelcastEndpointType) []string {
+	hzEndpoints := fetchHazelcastEndpoints(hz)
+	hazelcastEndpointTypeMap := make(map[hazelcastcomv1alpha1.HazelcastEndpointType]struct{}, len(endpointType))
+	for _, hazelcastEndpointType := range endpointType {
+		hazelcastEndpointTypeMap[hazelcastEndpointType] = struct{}{}
+	}
+	var addresses []string
+	for _, hzEndpoint := range hzEndpoints {
+		endpointNn := types.NamespacedName{Name: hzEndpoint.Name, Namespace: hzEndpoint.Namespace}
+		_, ok := hazelcastEndpointTypeMap[hzEndpoint.Spec.Type]
+		if ok {
+			Eventually(func() string {
+				Expect(k8sClient.Get(context.Background(), endpointNn, &hzEndpoint)).ToNot(HaveOccurred())
+				return hzEndpoint.Status.Address
+			}, 3*time.Minute, interval).Should(Not(BeEmpty()))
+			Expect(k8sClient.Get(context.Background(), endpointNn, &hzEndpoint)).ToNot(HaveOccurred())
+			addresses = append(addresses, hzEndpoint.Status.Address)
+		}
+	}
+	return addresses
 }

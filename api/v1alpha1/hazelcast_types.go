@@ -1086,14 +1086,6 @@ type HazelcastStatus struct {
 	// +optional
 	Message string `json:"message,omitempty"`
 
-	// External addresses of the Hazelcast cluster members
-	// +optional
-	ExternalAddresses string `json:"externalAddresses,omitempty"`
-
-	// WAN addresses of the Hazelcast cluster members
-	// +optional
-	WanAddresses string `json:"wanAddresses,omitempty"`
-
 	// Status of Hazelcast members
 	// +optional
 	Members []HazelcastMemberStatus `json:"members,omitempty"`

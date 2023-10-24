@@ -45,18 +45,6 @@ func (m withHzMessage) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
 	hs.Message = string(m)
 }
 
-type withHzExternalAddresses []string
-
-func (w withHzExternalAddresses) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
-	hs.ExternalAddresses = strings.Join(w, ",")
-}
-
-type withHzWanAddresses []string
-
-func (w withHzWanAddresses) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
-	hs.WanAddresses = strings.Join(w, ",")
-}
-
 type memberStatuses struct {
 	readyMembers    string
 	readyMembersMap map[hztypes.UUID]*hzclient.MemberData

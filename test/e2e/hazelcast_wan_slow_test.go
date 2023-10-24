@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"strconv"
+	"strings"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -19,14 +20,9 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan_slow"), func() {
 	waitForLBAddress := func(name types.NamespacedName) string {
 		By("waiting for load balancer address")
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
-		Eventually(func() string {
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
-			err := k8sClient.Get(context.Background(), name, hz)
-			Expect(err).ToNot(HaveOccurred())
-			return hz.Status.WanAddresses
-		}, 3*Minute, interval).Should(Not(BeEmpty()))
-		Expect(k8sClient.Get(context.Background(), name, hz)).To(Succeed())
-		return hz.Status.WanAddresses
+		Expect(k8sClient.Get(context.Background(), name, hz)).ToNot(HaveOccurred())
+		wanAddresses := fetchHazelcastAddressesByType(hz, hazelcastcomv1alpha1.HazelcastEndpointTypeWAN)
+		return strings.Join(wanAddresses, ",")
 	}
 
 	AfterEach(func() {
