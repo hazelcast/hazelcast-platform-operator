@@ -96,7 +96,7 @@ func Test_mcInitCmd(t *testing.T) {
 					},
 				},
 			},
-			want: "./bin/hz-mc conf security reset -H /data && ./bin/hz-mc conf ldap configure -H /data --url=ldap://10.124.0.27:1389 --ldap-username=my-username --ldap-password=very-secret-password --user-dn=ou=users,dc=example,dc=org --group-dn=ou=users,dc=example,dc=org --user-search-filter=cn={0} --group-search-filter=member={0} --admin-groups=readers --read-write-groups=readers --read-only-groups=readers --metrics-only-groups=readers",
+			want: "./bin/hz-mc conf security reset -H /data && ./bin/hz-mc conf ldap configure -H /data --url=\"ldap://10.124.0.27:1389\" --ldap-username=\"my-username\" --ldap-password=\"very-secret-password\" --user-dn=\"ou=users,dc=example,dc=org\" --group-dn=\"ou=users,dc=example,dc=org\" --user-search-filter=\"cn={0}\" --group-search-filter=\"member={0}\" --admin-groups=\"readers\" --read-write-groups=\"readers\" --read-only-groups=\"readers\" --metrics-only-groups=\"readers\"",
 		},
 		{
 			name: "With Cluster and LDAP",
@@ -128,7 +128,7 @@ func Test_mcInitCmd(t *testing.T) {
 					},
 				},
 			},
-			want: "./bin/mc-conf.sh cluster add --lenient=true -H /data --client-config /config/dev.yaml && ./bin/hz-mc conf security reset -H /data && ./bin/hz-mc conf ldap configure -H /data --url=ldap://10.124.0.27:1389 --ldap-username=my-username --ldap-password=very-secret-password --user-dn=ou=users,dc=example,dc=org --group-dn=ou=users,dc=example,dc=org --user-search-filter=cn={0} --group-search-filter=member={0} --admin-groups=readers --read-write-groups=readers --read-only-groups=readers --metrics-only-groups=readers",
+			want: "./bin/mc-conf.sh cluster add --lenient=true -H /data --client-config /config/dev.yaml && ./bin/hz-mc conf security reset -H /data && ./bin/hz-mc conf ldap configure -H /data --url=\"ldap://10.124.0.27:1389\" --ldap-username=\"my-username\" --ldap-password=\"very-secret-password\" --user-dn=\"ou=users,dc=example,dc=org\" --group-dn=\"ou=users,dc=example,dc=org\" --user-search-filter=\"cn={0}\" --group-search-filter=\"member={0}\" --admin-groups=\"readers\" --read-write-groups=\"readers\" --read-only-groups=\"readers\" --metrics-only-groups=\"readers\"",
 		},
 	}
 	for _, tt := range tests {
