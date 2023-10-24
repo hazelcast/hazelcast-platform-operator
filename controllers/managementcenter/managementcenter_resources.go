@@ -520,9 +520,9 @@ func ldapConfigure(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, 
 		logger.Error(err, "unable to get the secret with credentials, LDAP config will be ignored")
 	}
 	return []string{"./bin/hz-mc conf security reset -H /data",
-		fmt.Sprintf("./bin/hz-mc conf ldap configure -H /data --url=%s --ldap-username=%s "+
-			"--ldap-password=%s --user-dn=%s --group-dn=%s --user-search-filter=%s --group-search-filter=%s "+
-			"--admin-groups=%s --read-write-groups=%s --read-only-groups=%s --metrics-only-groups=%s",
+		fmt.Sprintf("./bin/hz-mc conf ldap configure -H /data --url=%q --ldap-username=%q "+
+			"--ldap-password=%q --user-dn=%q --group-dn=%q --user-search-filter=%q --group-search-filter=%q "+
+			"--admin-groups=%q --read-write-groups=%q --read-only-groups=%q --metrics-only-groups=%q",
 			ldap.URL, string(s.Data["username"]), string(s.Data["password"]), ldap.UserDN, ldap.GroupDN,
 			ldap.UserSearchFilter, ldap.GroupSearchFilter, strings.Join(ldap.AdminGroups, ","),
 			strings.Join(ldap.UserGroups, ","), strings.Join(ldap.ReadonlyUserGroups, ","),
