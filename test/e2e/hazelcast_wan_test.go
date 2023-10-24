@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"strconv"
 	. "time"
 
@@ -14,20 +13,12 @@ import (
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
-
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
@@ -400,7 +391,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		wan := hazelcastconfig.WanReplication(
 			wanLookupKey,
 			hzTargetCr.Spec.ClusterName,
-			fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzTargetCr.Name, hzTargetCr.Namespace, naming.WanDefaultPort),
+			fmt.Sprintf("%s.%s.svc.cluster.local:%d", hzTargetCr.Name, hzTargetCr.Namespace, n.WanDefaultPort),
 			[]hazelcastcomv1alpha1.ResourceSpec{
 				{
 					Name: hzSource,

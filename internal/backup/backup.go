@@ -29,7 +29,7 @@ type ClusterBackup struct {
 }
 
 var (
-	errBackupClientNoMembers = errors.New("client couldnt connect to members")
+	errBackupClientNoMembers = errors.New("client could not connect to members")
 )
 
 func NewClusterBackup(ss hzclient.StatusService, bs hzclient.BackupService) (*ClusterBackup, error) {

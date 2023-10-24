@@ -127,7 +127,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
 	}
 
-	if err := hazelcastv1alpha1.ValidateAppliedPersistence(true, h); err != nil {
+	if err := hazelcastv1alpha1.ValidateHotBackupPersistence(h); err != nil {
 		return r.updateStatus(ctx, req.NamespacedName, recoptions.Error(err),
 			withHotBackupFailedState(err.Error()))
 	}
@@ -291,8 +291,10 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		returnErr := errors.New("failed to get MTLS client")
 		return r.updateStatus(ctx, backupName, recoptions.Error(returnErr),
 			withHotBackupFailedState(err.Error()))
-
 	}
+
+	var uploads []*upload.Upload
+	var finishedUploads []*upload.Upload
 	for i, m := range b.Members() {
 		m := m
 		i := i
@@ -334,10 +336,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				return err
 			}
 			defer func() {
-				// we just log error message, this is not critical
-				if err := u.Remove(context.Background()); err != nil {
-					logger.Error(err, "Failed to remove finished upload task", "member", m.Address)
-				}
+				uploads = append(uploads, u)
 			}()
 
 			// now start and wait for upload
@@ -357,16 +356,42 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				}
 				return err
 			}
+			finishedUploads = append(finishedUploads, u)
 
 			backupUUIDs[i] = bk
 			// member success
 			return nil
 		})
 	}
+	defer func() {
+		for _, u := range uploads {
+			// we just log error message, this is not critical
+			if err := u.Remove(context.Background()); err != nil {
+				logger.Error(err, "Failed to remove finished upload task", "member", u.Config.MemberAddress)
+			}
+		}
+	}()
 
 	logger.Info("Waiting for members")
 	if err := g.Wait(); err != nil {
 		logger.Error(err, "One or more members failed, returning first error")
+
+		// try cleaning up already finished uploads before returning an error
+		g, groupCtx := errgroup.WithContext(context.Background())
+		for _, u := range finishedUploads {
+			u := u
+			g.Go(func() error {
+				if err := u.Cleanup(groupCtx); err != nil {
+					logger.Error(err, "Cleanup failed on member, skipping")
+					return err
+				}
+				return nil
+			})
+		}
+		if err := g.Wait(); err != nil {
+			logger.Error(err, "Cleanup attempt exited with errors, skipping")
+		}
+
 		return r.updateStatus(ctx, backupName, recoptions.Error(err),
 			withHotBackupFailedState(err.Error()))
 	}

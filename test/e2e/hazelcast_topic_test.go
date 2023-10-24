@@ -15,15 +15,6 @@ import (
 var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 	localPort := strconv.Itoa(8700 + GinkgoParallelProcess())
 
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
-
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -34,16 +25,6 @@ var _ = Describe("Hazelcast Topic Config", Label("topic"), func() {
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
-	})
-
-	It("should create Topic Config", Label("fast"), func() {
-		setLabelAndCRName("ht-1")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-
-		topic := hazelcastconfig.DefaultTopic(topicLookupKey, hazelcast.Name, labels)
-		Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-		assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{})
 	})
 
 	It("should create Topic Config with correct default values", Label("fast"), func() {

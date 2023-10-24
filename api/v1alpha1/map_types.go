@@ -337,11 +337,36 @@ const (
 	InitialModeEager InitialModeType = "EAGER"
 )
 
+// InMemoryFormatType represents the format options for storing the data in the map/cache.
+// +kubebuilder:validation:Enum=BINARY;OBJECT;NATIVE
+type InMemoryFormatType string
+
+const (
+	// InMemoryFormatBinary Data will be stored in serialized binary format.
+	InMemoryFormatBinary InMemoryFormatType = "BINARY"
+
+	// InMemoryFormatObject Data will be stored in deserialized form.
+	InMemoryFormatObject InMemoryFormatType = "OBJECT"
+
+	// InMemoryFormatNative Data will be stored in the map that uses Hazelcast's High-Density Memory Store feature.
+	InMemoryFormatNative InMemoryFormatType = "NATIVE"
+)
+
+type EventJournal struct {
+	// Capacity sets the capacity of the ringbuffer underlying the event journal.
+	// +kubebuilder:default:=10000
+	Capacity int32 `json:"capacity,omitempty"`
+	// TimeToLiveSeconds indicates how long the items remain in the event journal before they are expired.
+	// +kubebuilder:default:=0
+	TimeToLiveSeconds int32 `json:"timeToLiveSeconds,omitempty"`
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
 // Map is the Schema for the maps API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the Map Config"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Map Config"
 type Map struct {
 	metav1.TypeMeta `json:",inline"`

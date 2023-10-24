@@ -181,9 +181,10 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error unmarshaling actial Hazelcast config YAML")
 			}
-			Expect(test.listKeys(actualConfig.Hazelcast)).Should(HaveLen(len(crNames)))
+			listKeys := test.listKeys(actualConfig.Hazelcast)
+			Expect(listKeys).Should(HaveLen(len(crNames)))
 			for _, name := range crNames {
-				Expect(test.listKeys(actualConfig.Hazelcast)).Should(ContainElement(name))
+				Expect(listKeys).Should(ContainElement(name))
 			}
 		})
 	}
@@ -282,6 +283,84 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 	}
 	if _, ok := wrConf.BatchPublisher["map-wan-2"]; !ok {
 		t.Errorf("butch publisher map-wan-2 not found")
+	}
+}
+
+func Test_hazelcastConfig(t *testing.T) {
+	tests := []struct {
+		name           string
+		key            string
+		hzSpec         hazelcastv1alpha1.HazelcastSpec
+		expectedResult interface{}
+		actualResult   func(h config.Hazelcast) interface{}
+	}{
+		{
+			name:           "Empty Compact Serialization",
+			hzSpec:         hazelcastv1alpha1.HazelcastSpec{},
+			expectedResult: (*config.CompactSerialization)(nil),
+			actualResult: func(h config.Hazelcast) interface{} {
+				return h.Serialization.CompactSerialization
+			},
+		},
+		{
+			name: "Compact Serialization Class",
+			hzSpec: hazelcastv1alpha1.HazelcastSpec{
+				Serialization: &hazelcastv1alpha1.SerializationConfig{
+					CompactSerialization: &hazelcastv1alpha1.CompactSerializationConfig{
+						Classes: []string{"test1", "test2"},
+					},
+				},
+			},
+			expectedResult: []string{
+				"class: test1",
+				"class: test2",
+			},
+			actualResult: func(h config.Hazelcast) interface{} {
+				return h.Serialization.CompactSerialization.Classes
+			},
+		},
+		{
+			name: "Compact Serialization Serializer",
+			hzSpec: hazelcastv1alpha1.HazelcastSpec{
+				Serialization: &hazelcastv1alpha1.SerializationConfig{
+					CompactSerialization: &hazelcastv1alpha1.CompactSerializationConfig{
+						Serializers: []string{"test1", "test2"},
+					},
+				},
+			},
+			expectedResult: []string{
+				"serializer: test1",
+				"serializer: test2",
+			},
+			actualResult: func(h config.Hazelcast) interface{} {
+				return h.Serialization.CompactSerialization.Serializers
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			RegisterFailHandler(fail(t))
+			h := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "hazelcast",
+					Namespace: "default",
+				},
+				Spec: test.hzSpec,
+			}
+
+			c := fakeK8sClient(h)
+			data, err := hazelcastConfig(context.Background(), c, h, logr.Discard())
+			if err != nil {
+				t.Errorf("Error retreiving Secret data")
+			}
+			actualConfig := &config.HazelcastWrapper{}
+			err = yaml.Unmarshal(data, actualConfig)
+			if err != nil {
+				t.Errorf("Error unmarshaling actial Hazelcast config YAML")
+			}
+
+			Expect(test.actualResult(actualConfig.Hazelcast)).Should(Equal(test.expectedResult))
+		})
 	}
 }
 

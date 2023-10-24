@@ -16,15 +16,6 @@ import (
 var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 	localPort := strconv.Itoa(8000 + GinkgoParallelProcess())
 
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
-
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -37,18 +28,8 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should create Cache Config", Label("fast"), func() {
-		setLabelAndCRName("hch-1")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-
-		c := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
-		Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
-		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Cache{})
-	})
-
 	It("should create Cache Config with correct default values", Label("fast"), func() {
-		setLabelAndCRName("hch-2")
+		setLabelAndCRName("hch-1")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
@@ -70,7 +51,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 
 	When("Native Memory is not enabled for Hazelcast CR", func() {
 		It("should fail with InMemoryFormat value is set to NativeMemory", Label("fast"), func() {
-			setLabelAndCRName("hch-3")
+			setLabelAndCRName("hch-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 

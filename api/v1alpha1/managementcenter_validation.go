@@ -8,93 +8,88 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
 )
 
-func ValidateManagementCenterSpec(mc *ManagementCenter) error {
-	var errors field.ErrorList
-	errors = append(errors, ValidateManagementCenterSpecCurrent(mc)...)
-	errors = append(errors, ValidateManagementCenterSpecUpdate(mc)...)
-	for i := range mc.Spec.HazelcastClusters {
-		err := validateClusterConfigTLS(&mc.Spec.HazelcastClusters[i], mc.Namespace)
-		if err != nil {
-			errors = append(errors, err)
-		}
-	}
-	if len(errors) == 0 {
-		return nil
-	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "ManagementCenter"}, mc.Name, errors)
+type managementCenterValidator struct {
+	fieldValidator
 }
 
-func ValidateManagementCenterSpecCurrent(mc *ManagementCenter) field.ErrorList {
-	var allErrs field.ErrorList
+func NewManagementCenterValidator(o client.Object) managementCenterValidator {
+	return managementCenterValidator{NewFieldValidator(o)}
+}
 
+func ValidateManagementCenterSpec(mc *ManagementCenter) error {
+	v := NewManagementCenterValidator(mc)
+	v.validateSpecCurrent(mc)
+	v.validateSpecUpdate(mc)
+	return v.Err()
+}
+
+func (v *managementCenterValidator) validateSpecCurrent(mc *ManagementCenter) {
 	if mc.Spec.ExternalConnectivity.Route.IsEnabled() {
 		if platform.GetType() != platform.OpenShift {
-			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("externalConnectivity").Child("route"),
-				"Route can only be enabled in OpenShift environments."))
+			v.Forbidden(Path("spec", "externalConnectivity", "route"), "Route can only be enabled in OpenShift environments.")
 		}
 	}
-	return allErrs
+	for i := range mc.Spec.HazelcastClusters {
+		v.validateClusterConfigTLS(&mc.Spec.HazelcastClusters[i], mc.Namespace)
+	}
+	if mc.Spec.SecurityProviders != nil {
+		v.validateSecurityProviders(mc.Spec.SecurityProviders, mc.Namespace)
+	}
 }
 
-func ValidateManagementCenterSpecUpdate(mc *ManagementCenter) field.ErrorList {
+func (v *managementCenterValidator) validateSpecUpdate(mc *ManagementCenter) {
 	last, ok := mc.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return nil
+		return
 	}
 	var parsed ManagementCenterSpec
 
 	if err := json.Unmarshal([]byte(last), &parsed); err != nil {
-		return []*field.Error{field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last ManagementCenter spec for update errors: %w", err))}
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last ManagementCenter spec for update errors: %w", err))
+		return
 	}
 
-	return ValidateNotUpdatableMcPersistenceFields(mc.Spec.Persistence, parsed.Persistence)
+	v.ValidateNotUpdatableMcPersistenceFields(mc.Spec.Persistence, parsed.Persistence)
 }
 
-func ValidateNotUpdatableMcPersistenceFields(current, last *MCPersistenceConfiguration) field.ErrorList {
-	var allErrs field.ErrorList
-
+func (v *managementCenterValidator) ValidateNotUpdatableMcPersistenceFields(current, last *MCPersistenceConfiguration) {
 	if current.IsEnabled() != last.IsEnabled() {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("persistence").Child("enabled"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "persistence", "enabled"), "field cannot be updated")
 	}
 	if current == nil || last == nil {
-		return allErrs
+		return
 	}
 	if current.ExistingVolumeClaimName != last.ExistingVolumeClaimName {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("persistence").Child("existingVolumeClaimName"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "persistence", "existingVolumeClaimName"), "field cannot be updated")
 	}
 	if current.StorageClass != last.StorageClass {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("persistence").Child("storageClass"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "persistence", "storageClass"), "field cannot be updated")
 	}
 	if !reflect.DeepEqual(current.Size, last.Size) {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("persistence").Child("size"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "persistence", "size"), "field cannot be updated")
 	}
-	return allErrs
 }
 
-func validateClusterConfigTLS(config *HazelcastClusterConfig, namespace string) *field.Error {
+func (v *managementCenterValidator) validateClusterConfigTLS(config *HazelcastClusterConfig, namespace string) {
 	// skip validation if TLS is not set
 	if config.TLS == nil {
-		return nil
+		return
 	}
 
-	p := field.NewPath("spec").Child("hazelcastClusters").Child("tls").Child("secretName")
+	p := Path("spec", "hazelcastClusters", "tls", "secretName")
 
 	// if user skipped validation secretName can be empty
 	if config.TLS.SecretName == "" {
-		return field.NotFound(p, "Management Center Cluster config TLS Secret name is empty")
+		v.NotFound(p, "Management Center Cluster config TLS Secret name is empty")
+		return
 	}
 
 	// check if secret exists
@@ -107,8 +102,34 @@ func validateClusterConfigTLS(config *HazelcastClusterConfig, namespace string) 
 	err := kubeclient.Get(context.Background(), secretName, &secret)
 	if kerrors.IsNotFound(err) {
 		// we care only about not found error
-		return field.NotFound(p, "Management Center Cluster config TLS Secret not found")
+		v.NotFound(p, "Management Center Cluster config TLS Secret not found")
+		return
+	}
+}
+
+func (v *managementCenterValidator) validateSecurityProviders(config *SecurityProviders, namespace string) {
+	if config.LDAP == nil {
+		return
 	}
 
-	return nil
+	p := Path("spec", "securityProviders", "ldap", "credentialsSecretName")
+
+	if config.LDAP.CredentialsSecretName == "" {
+		v.NotFound(p, "Management Center LDAP credentials Secret name is empty")
+		return
+	}
+
+	// check if secret exists
+	secretName := types.NamespacedName{
+		Name:      config.LDAP.CredentialsSecretName,
+		Namespace: namespace,
+	}
+
+	var secret corev1.Secret
+	err := kubeclient.Get(context.Background(), secretName, &secret)
+	if kerrors.IsNotFound(err) {
+		// we care only about not found error
+		v.NotFound(p, "Management Center LDAP credentials Secret not found")
+		return
+	}
 }

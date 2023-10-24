@@ -1,15 +1,16 @@
 package ph
 
 import (
-	"cloud.google.com/go/bigquery"
 	"context"
 	"fmt"
+	"time"
+
+	"cloud.google.com/go/bigquery"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -18,16 +19,6 @@ import (
 )
 
 var _ = Describe("Hazelcast", func() {
-
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
-
 	assertAnnotationExists := func(obj client.Object) {
 		cpy, ok := obj.DeepCopyObject().(client.Object)
 		if !ok {

@@ -3,10 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE_VERSION:
-        description: "Version in the form of X.Y"
+        description: "Version in the form of X.Y.Z"
         required: true
       UPCOMING_RELEASE_VERSION:
-        description: "Upcoming version in the form of X.Y"
+        description: "Upcoming version in the form of X.Y.Z"
         required: true
       LATEST_SUPPORTED_HAZELCAST:
         description: "Latest supported Hazelcast Version in the form of X.Y[.Z]"
@@ -32,10 +32,8 @@ jobs:
         id: set-version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          # Currently we are only releasing MAJOR.MINOR versions. 
-          # After deciding and starting to release patch versions, following validations and the workflow needed to be updated
-          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER$"
-          echo ${UPCOMING_RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER$"
+          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER.$NUMBER$"
+          echo ${UPCOMING_RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER.$NUMBER$"
 
           MAJOR_MINOR_VERSION=$(echo ${RELEASE_VERSION} | sed 's|\([0-9]*\.[0-9]*\)\.[0-9]*|\1|')
           UPCOMING_MAJOR_MINOR_VERSION=$(echo ${UPCOMING_RELEASE_VERSION} | sed 's|\([0-9]*\.[0-9]*\)\.[0-9]*|\1|')
@@ -44,14 +42,8 @@ jobs:
           echo "UPCOMING_MAJOR_MINOR_VERSION=${UPCOMING_MAJOR_MINOR_VERSION}" >> $GITHUB_ENV
           echo "MAJOR_MINOR_VERSION=${MAJOR_MINOR_VERSION}" >> $GITHUB_OUTPUT
 
-          if [[ ${MAJOR_MINOR_VERSION} == ${RELEASE_VERSION} ]] ;then
-            echo "OPERATOR_DOCS_BRANCH=main" >> $GITHUB_OUTPUT
-          else
-            echo "OPERATOR_DOCS_BRANCH=v/$MAJOR_MINOR_VERSION" >> $GITHUB_OUTPUT
-          fi
-
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -67,7 +59,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: hazelcast/hazelcast-platform-operator-docs
-          ref: ${{ steps.set-version.outputs.OPERATOR_DOCS_BRANCH }}
+          ref: main
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Checkout to operator repo
@@ -89,7 +81,7 @@ jobs:
           sed -i "s/page-latest-supported-hazelcast:.*/page-latest-supported-hazelcast: '${{ github.event.inputs.LATEST_SUPPORTED_HAZELCAST }}'/" docs/antora.yml
           sed -i "s/page-latest-supported-mc:.*/page-latest-supported-mc: '${{ github.event.inputs.LATEST_SUPPORTED_MC }}'/" docs/antora.yml
           printf "\n\n.Release Notes\n* xref:release-notes.adoc[${RELEASE_VERSION}]" >> docs/modules/ROOT/nav.adoc
-          sed -i "s/operator-chart-version: .*/operator-chart-version: '${MAJOR_MINOR_VERSION}.0'/" docs/antora.yml
+          sed -i "s/operator-chart-version: .*/operator-chart-version: '${RELEASE_VERSION}'/" docs/antora.yml
 
       - name: Generate API Reference Docs
         working-directory: operator-repo
@@ -109,14 +101,13 @@ jobs:
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
           BRANCH_NAME=v/${MAJOR_MINOR_VERSION}
-          if [[ ${MAJOR_MINOR_VERSION} == ${RELEASE_VERSION} ]] ;then
+
             if git fetch origin $BRANCH_NAME; then
               git checkout $BRANCH_NAME
               git pull origin $BRANCH_NAME
             else
               git checkout -b $BRANCH_NAME origin/main
             fi
-          fi
 
           # Commit and push changes
           git add docs/antora.yml docs/modules/ROOT/pages/api-ref.adoc docs/modules/ROOT/nav.adoc
@@ -128,13 +119,13 @@ jobs:
           git checkout main
           git pull origin main
           
-          sed -i "s/operator-chart-version: .*/operator-chart-version: '${UPCOMING_MAJOR_MINOR_VERSION}.0-snapshot'/" docs/antora.yml
+          sed -i "s/operator-chart-version: .*/operator-chart-version: '${UPCOMING_RELEASE_VERSION}-snapshot'/" docs/antora.yml
           sed -i "s/page-latest-supported-hazelcast:.*/page-latest-supported-hazelcast: '${{ github.event.inputs.LATEST_SUPPORTED_HAZELCAST }}'/" docs/antora.yml
           sed -i "s/page-latest-supported-mc:.*/page-latest-supported-mc: '${{ github.event.inputs.LATEST_SUPPORTED_MC }}'/" docs/antora.yml
           
           # Commit and push changes
           git add docs/antora.yml
-          git commit --signoff -m "Update operator-chart-version in latest-snapshot docs to ${UPCOMING_MAJOR_MINOR_VERSION}.0-snapshot"
+          git commit --signoff -m "Update operator-chart-version in latest-snapshot docs to ${UPCOMING_RELEASE_VERSION}-snapshot"
           git push -u origin main
 
   publish_hz_docs:
@@ -150,7 +141,7 @@ jobs:
       MAJOR_MINOR_VERSION: ${{ needs.publish_operator_docs.outputs.MAJOR_MINOR_VERSION }}
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -210,7 +201,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

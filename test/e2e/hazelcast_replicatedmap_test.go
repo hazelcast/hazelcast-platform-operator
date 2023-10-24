@@ -17,15 +17,6 @@ import (
 var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func() {
 	localPort := strconv.Itoa(8600 + GinkgoParallelProcess())
 
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
-
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -36,16 +27,6 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
-	})
-
-	It("should create ReplicatedMap Config", Label("fast"), func() {
-		setLabelAndCRName("hrm-1")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-
-		rm := hazelcastconfig.DefaultReplicatedMap(rmLookupKey, hazelcast.Name, labels)
-		Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
-		assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{})
 	})
 
 	It("should create ReplicatedMap Config with correct default values", Label("fast"), func() {

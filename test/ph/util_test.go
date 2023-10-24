@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"strings"
 	. "time"
 
 	"cloud.google.com/go/bigquery"
@@ -117,13 +116,6 @@ func getBigQueryTable() OperatorPhoneHome {
 	return row
 }
 
-func useExistingCluster() bool {
-	return strings.ToLower(os.Getenv("USE_EXISTING_CLUSTER")) == "true"
-}
-
-func runningLocally() bool {
-	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
-}
 func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
 	Eventually(func() bool {
 		err := k8sClient.Get(context.Background(), name, obj)
@@ -155,7 +147,7 @@ func googleCloudProjectName() string {
 }
 
 func isManagementCenterRunning(mc *hazelcastcomv1alpha1.ManagementCenter) bool {
-	return mc.Status.Phase == "Running"
+	return mc.Status.Phase == hazelcastcomv1alpha1.McRunning
 }
 
 func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels map[string]string) {

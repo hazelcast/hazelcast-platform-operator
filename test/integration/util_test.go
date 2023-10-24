@@ -2,7 +2,10 @@ package integration
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
+	"net"
 	"reflect"
 	"time"
 
@@ -235,6 +238,29 @@ func CreateTLSSecret(name, namespace string) *corev1.Secret {
 			corev1.TLSPrivateKeyKey: []byte(exampleKey),
 		},
 		Type: corev1.SecretTypeTLS,
+	}
+	Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+	return secret
+}
+
+func RandomIpAddress() string {
+	buf := make([]byte, 4)
+	ip := rand.Uint32()
+	binary.LittleEndian.PutUint32(buf, ip)
+	return net.IP(buf).String()
+}
+
+func CreateLdapSecret(name, namespace string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			"username": "username",
+			"password": "password",
+		},
+		Type: corev1.SecretTypeOpaque,
 	}
 	Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
 	return secret

@@ -22,6 +22,11 @@ spec:
       jsonPath: .spec.suspend
       name: SUSPENDED
       type: boolean
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hotBackupTemplate.spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:

@@ -18,7 +18,7 @@ on:
 
 env:
   GO_VERSION: '1.19.0'
-  NR_OF_SUITES: 5
+  NR_OF_SUITES: 10
   GOBIN: ${{ github.workspace }}/bin
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
@@ -45,7 +45,7 @@ jobs:
           go-version: ${{ format('>={0}', env.GO_VERSION) }}
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3.6.0
+        uses: golangci/golangci-lint-action@v3.7.0
         if: ${{ !cancelled() }}
         with:
           args: --timeout 5m --build-tags hazelcastinternal
@@ -74,6 +74,7 @@ jobs:
           make sync-manifests
           if ! cmp -s $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old; then
               echo "Please make sure your branch is up to date with main and run 'make sync-manifests'"
+              diff -u $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
               exit 1
           fi
 
@@ -139,12 +140,12 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2.9.1
+        uses: docker/setup-buildx-action@v2.10.0
         with:
           install: true
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -189,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node_number: ["01","02","03","04","05"]
+        node_number: ["01","02","03","04","05","06","07","08","09","10"]
         edition: ["os","ee"]
     if: >-
       ( !cancelled()
@@ -244,7 +245,7 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

@@ -146,8 +146,7 @@ func readyMemberStatuses(m map[hztypes.UUID]*hzclient.MemberData, memberPods []c
 }
 
 func failedMemberStatuses(podErrs util.PodErrors) []hazelcastv1alpha1.HazelcastMemberStatus {
-
-	statuses := []hazelcastv1alpha1.HazelcastMemberStatus{}
+	var statuses []hazelcastv1alpha1.HazelcastMemberStatus
 	for _, pErr := range podErrs {
 		statuses = append(statuses, hazelcastv1alpha1.HazelcastMemberStatus{
 			PodName:      pErr.Name,
@@ -167,7 +166,7 @@ func pendingMemberPods(pods []corev1.Pod, currentMembers []hazelcastv1alpha1.Haz
 		memberIps[member.Ip] = struct{}{}
 	}
 
-	pmPods := []corev1.Pod{}
+	var pmPods []corev1.Pod
 	for _, pod := range pods {
 		if _, exist := memberIps[pod.Status.PodIP]; exist {
 			continue
@@ -178,7 +177,7 @@ func pendingMemberPods(pods []corev1.Pod, currentMembers []hazelcastv1alpha1.Haz
 }
 
 func pendingMemberStatuses(pods []corev1.Pod) []hazelcastv1alpha1.HazelcastMemberStatus {
-	statuses := []hazelcastv1alpha1.HazelcastMemberStatus{}
+	var statuses []hazelcastv1alpha1.HazelcastMemberStatus
 	for _, pod := range pods {
 		statuses = append(statuses, hazelcastv1alpha1.HazelcastMemberStatus{
 			PodName: pod.Name,
@@ -194,7 +193,7 @@ func pendingMemberStatuses(pods []corev1.Pod) []hazelcastv1alpha1.HazelcastMembe
 func hzMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) []corev1.Pod {
 	podList := &corev1.PodList{}
 	namespace := client.InNamespace(h.Namespace)
-	matchingLabels := client.MatchingLabels(labels(h))
+	matchingLabels := client.MatchingLabels(util.Labels(h))
 	err := c.List(ctx, podList, namespace, matchingLabels)
 	if err != nil {
 		return make([]corev1.Pod, 0)

@@ -26,14 +26,6 @@ spec:
       jsonPath: .status.hazelcastClusterStatus.readyMembers
       name: Members
       type: string
-    - description: External addresses of the Hazelcast cluster
-      jsonPath: .status.externalAddresses
-      name: External-Addresses
-      type: string
-    - description: WAN addresses of the Hazelcast cluster
-      jsonPath: .status.wanAddresses
-      name: WAN-Addresses
-      type: string
     - description: Message for the current Hazelcast Config
       jsonPath: .status.message
       name: Message
@@ -90,7 +82,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.21
+                  version: 0.1.22
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -98,7 +90,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   version:
-                    default: 0.1.21
+                    default: 0.1.22
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object

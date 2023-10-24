@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -42,6 +40,7 @@ type QueueStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the Queue Config"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Queue Config"
 // +kubebuilder:resource:shortName=q
 
@@ -96,17 +95,11 @@ func (q *Queue) ValidateSpecCurrent(_ *Hazelcast) error {
 }
 
 func (q *Queue) ValidateSpecCreate() error {
-	errors := validateDataStructureSpec(&q.Spec.DataStructureSpec)
-	if len(errors) == 0 {
-		return nil
-	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Queue"}, q.Name, errors)
+	return validateQueueSpecCreate(q)
 }
 
 func (q *Queue) ValidateSpecUpdate() error {
-	return validateDSSpecUnchanged(q,
-		validateDataStructureSpec(&q.Spec.DataStructureSpec),
-	)
+	return validateQueueSpecUpdate(q)
 }
 
 //+kubebuilder:object:root=true

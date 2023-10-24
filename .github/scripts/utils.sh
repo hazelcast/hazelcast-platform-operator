@@ -369,6 +369,7 @@ generate_test_suites()
    ! -name "hazelcast_backup_slow_test.go" \
    ! -name "hazelcast_wan_slow_test.go" \
    ! -name "hazelcast_high_availability_test.go" \
+   ! -name "hazelcast_high_load_test.go" \
    ! -name "custom_resource_test.go" \
    ! -name "client_port_forward_test.go" \
    ! -name "e2e_suite_test.go" \

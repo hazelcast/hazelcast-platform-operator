@@ -28,15 +28,6 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		}
 	}
 
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
-
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -47,16 +38,6 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
-	})
-
-	It("should create Map Config", Label("fast"), func() {
-		setLabelAndCRName("hm-1")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-
-		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
-		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 	})
 
 	It("should create Map Config with correct default values", Label("fast"), func() {

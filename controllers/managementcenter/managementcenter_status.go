@@ -15,19 +15,25 @@ type McStatusApplier interface {
 	McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus)
 }
 
-type withMcPhase hazelcastv1alpha1.Phase
+type withMcPhase hazelcastv1alpha1.MCPhase
 
 func (w withMcPhase) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus) {
-	ms.Phase = hazelcastv1alpha1.Phase(w)
-	if hazelcastv1alpha1.Phase(w) == hazelcastv1alpha1.Running {
+	ms.Phase = hazelcastv1alpha1.MCPhase(w)
+	if hazelcastv1alpha1.MCPhase(w) == hazelcastv1alpha1.McRunning {
 		ms.Message = ""
 	}
+}
+
+type withConfigured bool
+
+func (w withConfigured) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus) {
+	ms.Configured = bool(w)
 }
 
 type withMcFailedPhase string
 
 func (w withMcFailedPhase) McStatusApply(ms *hazelcastv1alpha1.ManagementCenterStatus) {
-	ms.Phase = hazelcastv1alpha1.Failed
+	ms.Phase = hazelcastv1alpha1.McFailed
 	ms.Message = string(w)
 
 }
@@ -50,7 +56,7 @@ func update(ctx context.Context, c client.Client, mc *hazelcastv1alpha1.Manageme
 	if recOption.Err != nil {
 		return ctrl.Result{}, recOption.Err
 	}
-	if mc.Status.Phase == hazelcastv1alpha1.Pending {
+	if mc.Status.Phase == hazelcastv1alpha1.McPending {
 		return ctrl.Result{Requeue: true, RequeueAfter: recOption.RetryAfter}, nil
 	}
 	return ctrl.Result{}, nil

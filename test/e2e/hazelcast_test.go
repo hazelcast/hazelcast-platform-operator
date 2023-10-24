@@ -19,15 +19,6 @@ const (
 )
 
 var _ = Describe("Hazelcast", Label("hz"), func() {
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
-
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -39,20 +30,17 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	Describe("Default Hazelcast CR", func() {
-		It("should create Hazelcast cluster", Label("fast"), func() {
-			setLabelAndCRName("h-1")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
-			CreateHazelcastCR(hazelcast)
-		})
-	})
+	It("should create HZ cluster with custom name and update HZ ready members status", Label("slow"), func() {
+		setLabelAndCRName("h-1")
+		hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
+		CreateHazelcastCR(hazelcast)
+		assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
+		evaluateReadyMembers(hzLookupKey)
+		assertMemberLogs(hazelcast, "Members {size:3, ver:3}")
 
-	Describe("Hazelcast cluster name", func() {
-		It("should create a Hazelcast cluster with Cluster name: development", Label("fast"), func() {
-			setLabelAndCRName("h-2")
-			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
-			CreateHazelcastCR(hazelcast)
-			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
+		By("removing pods so that cluster gets recreated", func() {
+			deletePods(hzLookupKey)
+			evaluateReadyMembers(hzLookupKey)
 		})
 	})
 

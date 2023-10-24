@@ -22,9 +22,10 @@ jobs:
       IMAGE_NAME: ${{ steps.set-outputs.outputs.IMAGE_NAME }}
       IMAGE_DIGEST: ${{ steps.push-operator-image.outputs.IMAGE_DIGEST }}
       CURRENT_LATEST_TAG: ${{ steps.get-current-latest-tag.outputs.CURRENT_LATEST_TAG }}
+      BUNDLE_RELEASE_VERSION: ${{ steps.set-outputs.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -44,6 +45,9 @@ jobs:
         id: set-outputs
         run: |
           IMAGE_NAME=docker.io/hazelcast/${OPERATOR_NAME}:${RELEASE_VERSION}
+          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
+          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_ENV
+          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_OUTPUT
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
@@ -60,7 +64,7 @@ jobs:
           }'| jq -r '.token')
 
           CURRENT_LATEST_TAG=$(curl --fail -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
-          -H "Authorization: Bearer $token" | jq -r  '.results[] | select((.tags | length == 2) and .tags[].tag =="latest" and .tags[0].is_current == true and .tags[1].is_current == true)| .tags[].tag | select(. !="latest")')
+          -H "Authorization: Bearer $token" | jq -r  '.results[] | select(any(.tags[]; .tag == "latest" and .is_current == true)) | .tags[] | select(.is_current == true and .tag != "latest" and (.tag | test("\\d+\\.\\d+\\.\\d+")))| .tag')
           echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
           echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_OUTPUT
 
@@ -96,7 +100,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -152,14 +156,13 @@ jobs:
       REPO_OWNER: redhat-openshift-ecosystem
       RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.RELEASE_VERSION }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
-    outputs:
-      BUNDLE_RELEASE_VERSION: ${{ steps.set-bundle-release.outputs.BUNDLE_RELEASE_VERSION }}
+      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -199,13 +202,6 @@ jobs:
           git remote add upstream https://github.com/${REPO_OWNER}/${REPO_NAME}.git
           git pull upstream main
           git push origin main
-
-      - name: Set Bundle Release Version
-        id: set-bundle-release
-        run: |
-          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
-          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_ENV
-          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Commit and push changes to bundle
         working-directory: ${{ env.REPO_NAME }}
@@ -249,7 +245,7 @@ jobs:
       REPO_OWNER: ${{ matrix.repo-owner }}
       RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.RELEASE_VERSION }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
-      BUNDLE_RELEASE_VERSION: ${{ needs.redhat_certified_operator_release.outputs.BUNDLE_RELEASE_VERSION }}
+      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -265,7 +261,7 @@ jobs:
           EOF
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -325,7 +321,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -355,6 +351,40 @@ jobs:
         run: |
           for CHART_TGZ in *.tgz; do aws s3 cp ${CHART_TGZ} s3://hazelcast-charts; done
           aws s3 cp ./index.yaml s3://hazelcast-charts
+
+      - name: Create Kind Config
+        run: |
+          cat <<EOT >> ./kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+          - role: worker
+          EOT
+
+      - name: Create Kind Cluster
+        uses: helm/kind-action@v1.8.0
+        with:
+          config: ./kind-config.yaml
+          cluster_name: kind
+
+      - name: Install and Verify Hazelcast Operator Image Tag
+        run: |
+          LATEST_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
+          helm repo update && \
+          helm install operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=180s
+          INSTALLED_VERSION=$(kubectl get deployment operator-hazelcast-platform-operator -o=jsonpath="{.spec.template.spec.containers[*].image}" | awk -F ':' '{print $2}')
+          if [[ ${LATEST_VERSION} == ${INSTALLED_VERSION} ]]; then
+            echo "The latest operator image is successfully installed."
+          else
+            echo "The latest operator image tag doesn't equal the installed image tag."
+            exit 1
+          fi
 
       - name: Checkout to 'Hazelcast Charts' Repository
         uses: actions/checkout@v3
@@ -445,13 +475,13 @@ jobs:
     env:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
-      BUNDLE_RELEASE_VERSION: ${{ needs.redhat_certified_operator_release.outputs.BUNDLE_RELEASE_VERSION }}
+      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -566,7 +596,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v3.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

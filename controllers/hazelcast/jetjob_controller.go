@@ -16,7 +16,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -110,16 +109,7 @@ func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			logger.Info("JetJob was already applied.", "name", jj.Name, "namespace", jj.Namespace)
 			return
 		}
-
-		lastSpec := &hazelcastv1alpha1.JetJobSpec{}
-		err = json.Unmarshal([]byte(s), lastSpec)
-		if err != nil {
-			err = fmt.Errorf("error unmarshaling Last JetJob Spec: %w", err)
-			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
-		}
-		var allErrs = hazelcastv1alpha1.ValidateJetJobNonUpdatableFields(jj.Spec, *lastSpec)
-		if len(allErrs) > 0 {
-			err = apiErrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"}, req.Name, allErrs)
+		if err := hazelcastv1alpha1.ValidateJetJobUpdateSpec(jj); err != nil {
 			return r.updateStatus(ctx, req.NamespacedName, failedJetJobStatus(err))
 		}
 	} else {
@@ -212,7 +202,7 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 			logger.Error(err, "JetJobSnapshot creation time is zero")
 			return r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
 		}
-		metaData.SnapshotName = jjs.Spec.Name
+		metaData.SnapshotName = jjs.SnapshotName()
 	}
 	if job.Spec.IsDownloadEnabled() {
 		logger.V(util.DebugLevel).Info("Downloading the JAR file before running the JetJob", "jj", jjnn)

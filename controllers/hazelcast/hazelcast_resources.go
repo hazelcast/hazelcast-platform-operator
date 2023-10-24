@@ -180,7 +180,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   h.ClusterScopedName(),
-			Labels: labels(h),
+			Labels: util.Labels(h),
 		},
 	}
 
@@ -207,7 +207,7 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      h.Name,
 			Namespace: h.Namespace,
-			Labels:    labels(h),
+			Labels:    util.Labels(h),
 		},
 	}
 
@@ -269,7 +269,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   csName,
-			Labels: labels(h),
+			Labels: util.Labels(h),
 		},
 	}
 
@@ -300,7 +300,7 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      h.Name,
 			Namespace: h.Namespace,
-			Labels:    labels(h),
+			Labels:    util.Labels(h),
 		},
 	}
 
@@ -335,7 +335,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	service := &corev1.Service{
 		ObjectMeta: metadata(h),
 		Spec: corev1.ServiceSpec{
-			Selector: labels(h),
+			Selector: util.Labels(h),
 		},
 	}
 
@@ -350,6 +350,10 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	}
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
+		if h.Spec.ExposeExternally.IsEnabled() && h.Spec.ExposeExternally.DiscoveryK8ServiceType() == corev1.ServiceTypeLoadBalancer {
+			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeDiscoveryLabelValue
+		}
+
 		// append default wan port to HZ Discovery Service if use did not configure
 		isAddWANPort := false
 		if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
@@ -364,6 +368,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Service", h.Name, "result", opResult)
 	}
+
 	return err
 }
 
@@ -376,11 +381,16 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      h.Name + "-" + w.Name,
 				Namespace: h.Namespace,
-				Labels:    labels(h),
+				Labels:    util.Labels(h),
 			},
 			Spec: corev1.ServiceSpec{
-				Selector: labels(h),
+				Selector: util.Labels(h),
 			},
+		}
+
+		err := controllerutil.SetControllerReference(h, service, r.Scheme)
+		if err != nil {
+			return err
 		}
 
 		var i uint
@@ -397,6 +407,10 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 		}
 
 		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
+			if w.ServiceType == corev1.ServiceTypeLoadBalancer {
+				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
+			}
+
 			service.Spec.Ports = util.EnrichServiceNodePorts(ports, service.Spec.Ports)
 			if w.ServiceType == "" {
 				service.Spec.Type = v1.ServiceTypeLoadBalancer
@@ -405,11 +419,11 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			}
 			return nil
 		})
-		if err != nil {
-			return err
-		}
 		if opResult != controllerutil.OperationResultNone {
 			logger.Info("Operation result", "Service", h.Name, "result", opResult)
+		}
+		if err != nil {
+			return err
 		}
 	}
 
@@ -448,16 +462,96 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		}
 
 		opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
+			if h.Spec.ExposeExternally.MemberAccessServiceType() == corev1.ServiceTypeLoadBalancer {
+				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeMemberLabelValue
+			}
+
 			service.Spec.Ports = util.EnrichServiceNodePorts([]corev1.ServicePort{clientPort()}, service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
+
 			return nil
 		})
 
 		if opResult != controllerutil.OperationResultNone {
 			logger.Info("Operation result", "Service", servicePerPodName(i, h), "result", opResult)
 		}
+
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	svcList, err := util.ListRelatedServices(ctx, r.Client, h)
+	if err != nil {
+		return err
+	}
+
+	for _, svc := range svcList.Items {
+		endpointType, ok := svc.Labels[n.ServiceEndpointTypeLabelName]
+		if !ok {
+			continue
+		}
+
+		var hzEndpoints []*hazelcastv1alpha1.HazelcastEndpoint
+
+		switch endpointType {
+		case n.ServiceEndpointTypeDiscoveryLabelValue:
+			endpointNn := types.NamespacedName{
+				Name:      svc.Name,
+				Namespace: svc.Namespace,
+			}
+			hzEndpoints = []*hazelcastv1alpha1.HazelcastEndpoint{
+				hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, clientPort().Port),
+			}
+		case n.ServiceEndpointTypeMemberLabelValue:
+			endpointNn := types.NamespacedName{
+				Name:      svc.Name,
+				Namespace: svc.Namespace,
+			}
+			hzEndpoints = []*hazelcastv1alpha1.HazelcastEndpoint{
+				hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port),
+			}
+		case n.ServiceEndpointTypeWANLabelValue:
+			for i, port := range svc.Spec.Ports {
+				endpointNn := types.NamespacedName{
+					Name:      svc.Name,
+					Namespace: svc.Namespace,
+				}
+				if len(svc.Spec.Ports) > 1 {
+					endpointNn.Name = fmt.Sprintf("%s-%d", endpointNn.Name, i)
+				}
+
+				hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+			}
+		default:
+			return fmt.Errorf("service endpoint type label values '%s' is not matched", endpointType)
+		}
+
+		for _, hzEndpoint := range hzEndpoints {
+			err := controllerutil.SetOwnerReference(&svc, hzEndpoint, r.Scheme)
+			if err != nil {
+				return err
+			}
+
+			opResult, err := util.CreateOrUpdateForce(ctx, r.Client, hzEndpoint, func() error {
+				return nil
+			})
+			if opResult != controllerutil.OperationResultNone {
+				logger.Info("Operation result", "HazelcastEndpoint", hzEndpoint.Name, "result", opResult)
+			}
+			if err != nil {
+				return err
+			}
+
+			hzEndpoint.SetAddress(util.GetExternalAddress(&svc))
+			err = r.Client.Status().Update(ctx, hzEndpoint)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -515,13 +609,13 @@ func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func servicePerPodSelector(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := labels(h)
+	ls := util.Labels(h)
 	ls[n.PodNameLabel] = servicePerPodName(i, h)
 	return ls
 }
 
 func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	ls := labels(h)
+	ls := util.Labels(h)
 	ls[n.ServicePerPodLabelName] = n.LabelValueTrue
 	return ls
 }
@@ -605,6 +699,21 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	}
 
 	return true
+}
+
+func hazelcastEndpointFromService(nn types.NamespacedName, hz *hazelcastv1alpha1.Hazelcast, endpointType hazelcastv1alpha1.HazelcastEndpointType, port int32) *hazelcastv1alpha1.HazelcastEndpoint {
+	return &hazelcastv1alpha1.HazelcastEndpoint{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+			Labels:    util.Labels(hz),
+		},
+		Spec: hazelcastv1alpha1.HazelcastEndpointSpec{
+			Type:                  endpointType,
+			Port:                  port,
+			HazelcastResourceName: hz.Name,
+		},
+	}
 }
 
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -1050,16 +1159,6 @@ func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyTy
 	return "FULL_RECOVERY_ONLY"
 }
 
-func filterProperties(p map[string]string) map[string]string {
-	filteredProperties := map[string]string{}
-	for propertyKey, value := range p {
-		if _, ok := hazelcastv1alpha1.BlackListProperties[propertyKey]; !ok {
-			filteredProperties[propertyKey] = value
-		}
-	}
-	return filteredProperties
-}
-
 func filterPersistedMaps(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.Map, error) {
 	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
 	nsMatcher := client.InNamespace(h.Namespace)
@@ -1138,7 +1237,7 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, h *haz
 }
 
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
-	cfg.Properties = filterProperties(h.Spec.Properties)
+	cfg.Properties = h.Spec.Properties
 }
 
 func fillHazelcastConfigWithMaps(ctx context.Context, c client.Client, cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ml []hazelcastv1alpha1.Map) error {
@@ -1277,9 +1376,17 @@ func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1a
 		}
 	}
 	if s.CompactSerialization != nil {
+		classes := make([]string, 0, len(s.CompactSerialization.Classes))
+		for _, class := range s.CompactSerialization.Classes {
+			classes = append(classes, fmt.Sprintf("class: %s", class))
+		}
+		serializers := make([]string, 0, len(s.CompactSerialization.Serializers))
+		for _, serializer := range s.CompactSerialization.Serializers {
+			serializers = append(serializers, fmt.Sprintf("serializer: %s", serializer))
+		}
 		cfg.Serialization.CompactSerialization = &config.CompactSerialization{
-			Serializers: s.CompactSerialization.Serializers,
-			Classes:     s.CompactSerialization.Classes,
+			Serializers: serializers,
+			Classes:     classes,
 		}
 	}
 }
@@ -1568,7 +1675,7 @@ func createBatchPublisherConfig(wr hazelcastv1alpha1.WanReplication) config.Batc
 }
 
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	ls := labels(h)
+	ls := util.Labels(h)
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metadata(h),
 		Spec: appsv1.StatefulSetSpec{
@@ -1680,7 +1787,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      n.PersistenceVolumeName,
 				Namespace: h.Namespace,
-				Labels:    labels(h),
+				Labels:    util.Labels(h),
 			},
 			Spec: v1.PersistentVolumeClaimSpec{
 				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
@@ -2249,7 +2356,7 @@ func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.
 					MaxSkew:           1,
 					TopologyKey:       "kubernetes.io/hostname",
 					WhenUnsatisfiable: v1.ScheduleAnyway,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels(h)},
+					LabelSelector:     &metav1.LabelSelector{MatchLabels: util.Labels(h)},
 				})
 		case "ZONE":
 			topologySpreadConstraints = append(topologySpreadConstraints,
@@ -2257,7 +2364,7 @@ func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.
 					MaxSkew:           1,
 					TopologyKey:       "topology.kubernetes.io/zone",
 					WhenUnsatisfiable: v1.ScheduleAnyway,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels(h)},
+					LabelSelector:     &metav1.LabelSelector{MatchLabels: util.Labels(h)},
 				})
 		}
 	}
@@ -2371,14 +2478,6 @@ func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 	return strings.Join(b, ":")
 }
 
-func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
-	return map[string]string{
-		n.ApplicationNameLabel:         n.Hazelcast,
-		n.ApplicationInstanceNameLabel: h.Name,
-		n.ApplicationManagedByLabel:    n.OperatorName,
-	}
-}
-
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	if !h.Spec.ExposeExternally.IsSmart() {
 		return nil
@@ -2451,7 +2550,7 @@ func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:      h.Name,
 		Namespace: h.Namespace,
-		Labels:    labels(h),
+		Labels:    util.Labels(h),
 	}
 }
 
