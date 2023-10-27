@@ -21,7 +21,7 @@ jobs:
     outputs:
       IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set Up Docker Buildx
         id: buildx
@@ -83,7 +83,7 @@ jobs:
         cluster: ["src", "trg"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -145,7 +145,7 @@ jobs:
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:
@@ -209,7 +209,7 @@ jobs:
     needs: [deploy-operator]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:
@@ -309,7 +309,7 @@ jobs:
             namespace: src-ns
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -360,7 +360,7 @@ jobs:
         cluster: ["src", "trg"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1

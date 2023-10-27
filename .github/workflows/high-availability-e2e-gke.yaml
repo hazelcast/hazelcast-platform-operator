@@ -74,7 +74,7 @@ jobs:
       IMG: ${{ steps.build-img.outputs.IMG }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and push image to ttl.sh
         id: build-img
@@ -101,7 +101,7 @@ jobs:
       RELEASE_NAME: high-availability-${{ github.run_id }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:
@@ -204,7 +204,7 @@ jobs:
       GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1

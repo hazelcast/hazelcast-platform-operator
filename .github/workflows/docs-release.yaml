@@ -56,14 +56,14 @@ jobs:
             DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Checkout to Operator docs repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/hazelcast-platform-operator-docs
           ref: main
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Checkout to operator repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: operator-repo
 
@@ -153,7 +153,7 @@ jobs:
             DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Checkout to Hazelcast docs repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/hazelcast-docs
           ref: ${{ matrix.edition }}

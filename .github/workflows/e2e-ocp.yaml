@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -50,7 +50,7 @@ jobs:
     outputs:
       IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set Up Docker Buildx
         id: buildx
@@ -133,7 +133,7 @@ jobs:
             LOKI_PASSWORD,CN/GRAFANA_LOKI_PASSWORD
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Update kubeconfig
         run: |-
@@ -199,7 +199,7 @@ jobs:
             OCP_PASSWORD,CN/OCP_PASSWORD
 
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:
@@ -277,7 +277,7 @@ jobs:
       GRAFANA_NS: "grafana-${{ github.run_id }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
@@ -308,7 +308,7 @@ jobs:
     if: always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3.0.1
