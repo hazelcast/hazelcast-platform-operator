@@ -50,8 +50,9 @@ type MemberServerSocketEndpointConfig struct {
 }
 
 type ClientServerSocketEndpointConfig struct {
-	Port PortAndPortCount `yaml:"port,omitempty"`
-	SSL  SSL              `yaml:"ssl,omitempty"`
+	Port       PortAndPortCount     `yaml:"port,omitempty"`
+	Interfaces EnabledAndInterfaces `yaml:"interfaces,omitempty"`
+	SSL        SSL                  `yaml:"ssl,omitempty"`
 }
 
 type RestServerSocketEndpointConfig struct {

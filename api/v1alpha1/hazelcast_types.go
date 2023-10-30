@@ -1005,7 +1005,11 @@ func (c *NativeMemoryConfiguration) IsEnabled() bool {
 
 type AdvancedNetwork struct {
 	// +optional
-	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
+	MemberServerSocketEndpointConfig ServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
+
+	// +optional
+	ClientServerSocketEndpointConfig ServerSocketEndpointConfig `json:"clientServerSocketEndpointConfig,omitempty"`
+
 	// +optional
 	WAN []WANConfig `json:"wan,omitempty"`
 }
@@ -1017,12 +1021,7 @@ type WANConfig struct {
 	Name        string             `json:"name,omitempty"`
 }
 
-type MemberServerSocketEndpointConfig struct {
-	Interfaces []string `json:"interfaces,omitempty"`
-}
-
-type ClientServerSocketEndpointConfig struct {
-	Port       uint     `json:"port,omitempty"`
+type ServerSocketEndpointConfig struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 }
 

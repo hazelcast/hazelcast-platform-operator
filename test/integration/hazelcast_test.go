@@ -1385,10 +1385,15 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with AdvancedNetwork configuration", func() {
 		When("full configuration", func() {
-			It("should create Advanced Network configuration", Label("fast"), func() {
+			It("should create AdvancedNetwork configuration", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
-					MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
+					MemberServerSocketEndpointConfig: hazelcastv1alpha1.ServerSocketEndpointConfig{
+						Interfaces: []string{"10.10.1.*"},
+					},
+					ClientServerSocketEndpointConfig: hazelcastv1alpha1.ServerSocketEndpointConfig{
+						Interfaces: []string{"10.10.3.*"},
+					},
 					WAN: []hazelcastv1alpha1.WANConfig{
 						{
 							Port:        5710,
@@ -1435,6 +1440,10 @@ var _ = Describe("Hazelcast CR", func() {
 						Port: config.PortAndPortCount{
 							Port:      5701,
 							PortCount: 1,
+						},
+						Interfaces: config.EnabledAndInterfaces{
+							Enabled:    true,
+							Interfaces: []string{"10.10.3.*"},
 						},
 					},
 					RestServerSocketEndpointConfig: config.RestServerSocketEndpointConfig{
@@ -1567,7 +1576,7 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
-		It("should fail to overlap each other", Label("fast"), func() {
+		It("should fail to overlap WAN ports with each other", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
@@ -1591,7 +1600,7 @@ var _ = Describe("Hazelcast CR", func() {
 				ContainSubstring("spec.advancedNetwork.wan: Invalid value: \"5001-5003\": wan ports overlapping with 5002-5004")))
 		})
 
-		It("should fail to overlap with other sockets", Label("fast"), func() {
+		It("should fail to overlap WAN ports with other sockets", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{

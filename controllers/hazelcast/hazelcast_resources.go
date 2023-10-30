@@ -986,6 +986,13 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		},
 	}
 
+	if h.Spec.AdvancedNetwork != nil && len(h.Spec.AdvancedNetwork.ClientServerSocketEndpointConfig.Interfaces) != 0 {
+		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.Interfaces = config.EnabledAndInterfaces{
+			Enabled:    true,
+			Interfaces: h.Spec.AdvancedNetwork.ClientServerSocketEndpointConfig.Interfaces,
+		}
+	}
+
 	// Rest Network
 	cfg.AdvancedNetwork.RestServerSocketEndpointConfig.Port = config.PortAndPortCount{
 		Port:      n.RestServerSocketPort,
