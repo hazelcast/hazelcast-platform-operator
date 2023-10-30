@@ -218,46 +218,6 @@ type ExternalAddresser interface {
 	ExternalAddressEnabled() bool
 }
 
-func GetExternalAddresses(ctx context.Context, cli client.Client, cr ExternalAddresser, logger logr.Logger) ([]string, []string) {
-	svcList, err := ListRelatedServices(ctx, cli, cr)
-	if err != nil {
-		logger.Error(err, "Could not get the service")
-		return nil, nil
-	}
-
-	var externalAddrs, wanAddrs []string
-	for i := range svcList.Items {
-		svc := svcList.Items[i]
-		if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
-			continue
-		}
-
-		for _, ingress := range svc.Status.LoadBalancer.Ingress {
-			addr := GetLoadBalancerAddress(&ingress)
-			if addr == "" {
-				continue
-			}
-			for _, port := range svc.Spec.Ports {
-				// we don't want to print these ports as the output of "kubectl get hz" command,
-				// and we want to print wan addresses with a separate title (WAN-Addresses)
-				if strings.HasPrefix(port.Name, n.WanPortNamePrefix) {
-					wanAddrs = append(wanAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
-					continue
-				}
-				if port.Port == int32(n.RestServerSocketPort) {
-					continue
-				}
-				if port.Port == int32(n.MemberServerSocketPort) {
-					continue
-				}
-				externalAddrs = append(externalAddrs, fmt.Sprintf("%s:%d", addr, port.Port))
-			}
-		}
-	}
-
-	return externalAddrs, wanAddrs
-}
-
 func ListRelatedServices(ctx context.Context, cli client.Client, cr ExternalAddresser) (*corev1.ServiceList, error) {
 	nsMatcher := client.InNamespace(cr.GetNamespace())
 	labelMatcher := client.MatchingLabels(Labels(cr))
