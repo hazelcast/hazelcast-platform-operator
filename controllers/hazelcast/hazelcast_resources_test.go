@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
@@ -388,4 +389,117 @@ func getKeys[C config.Cache | config.ReplicatedMap |
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func TestDeepMerge(t *testing.T) {
+	tests := []struct {
+		src  map[string]any
+		dst  map[string]any
+		want map[string]any
+	}{
+		// empty
+		{
+			src:  make(map[string]any),
+			dst:  make(map[string]any),
+			want: make(map[string]any),
+		},
+		// union
+		{
+			src: map[string]any{
+				"foo": "foo",
+			},
+			dst: map[string]any{
+				"bar": "bar",
+			},
+			want: map[string]any{
+				"foo": "foo",
+				"bar": "bar",
+			},
+		},
+		// map merge
+		{
+			src: map[string]any{
+				"foo": map[string]any{
+					"bar": "bar",
+				},
+			},
+			dst: map[string]any{
+				"foo": map[string]any{
+					"baz": "baz",
+				},
+			},
+			want: map[string]any{
+				"foo": map[string]any{
+					"bar": "bar",
+					"baz": "baz",
+				},
+			},
+		},
+		// value overwrite
+		{
+			src: map[string]any{
+				"foo": "bar",
+			},
+			dst: map[string]any{
+				"foo": "baz",
+			},
+			want: map[string]any{
+				"foo": "bar",
+			},
+		},
+		// example
+		{
+			src: map[string]any{
+				"hazelcast": map[string]any{
+					"persistence": map[string]any{
+						"enabled": true,
+					},
+					"map": map[string]any{
+						"test-map": map[string]any{
+							"data-persistence": map[string]any{
+								"enabled": true,
+								"fsync":   true,
+							},
+						},
+					},
+				},
+			},
+			dst: map[string]any{
+				"hazelcast": map[string]any{
+					"persistence": map[string]any{
+						"enabled":    true,
+						"base-dir":   "/mnt/persistence",
+						"backup-dir": "/mnt/hot-backup",
+					},
+					"map": map[string]any{
+						"backup-count": 1,
+					},
+				},
+			},
+			want: map[string]any{
+				"hazelcast": map[string]any{
+					"persistence": map[string]any{
+						"enabled":    true,
+						"base-dir":   "/mnt/persistence",
+						"backup-dir": "/mnt/hot-backup",
+					},
+					"map": map[string]any{
+						"backup-count": 1,
+						"test-map": map[string]any{
+							"data-persistence": map[string]any{
+								"enabled": true,
+								"fsync":   true,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		deepMerge(tc.dst, tc.src)
+		if diff := cmp.Diff(tc.want, tc.dst); diff != "" {
+			t.Errorf("deepMerge(%v, %v) mismatch (-want, +got):\n%s", tc.dst, tc.src, diff)
+		}
+	}
 }
