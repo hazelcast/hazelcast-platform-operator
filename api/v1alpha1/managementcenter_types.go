@@ -84,7 +84,7 @@ type SecurityProviders struct {
 }
 
 type LDAPProvider struct {
-	// URL of your LDAP server, including schema (ldap:// or ldaps://) and port.
+	// URL of your LDAP server, including schema (ldap://) and port.
 	// +required
 	URL string `json:"url"`
 
