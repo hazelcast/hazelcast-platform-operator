@@ -39,7 +39,7 @@ func (v *jetJobSnapshotValidator) validateJetJobSnapshotUpdateSpec(jjs *JetJobSn
 }
 
 func ValidateHazelcastLicenseKey(h *Hazelcast) error {
-	v := NewHazlecastValidator(h)
+	v := NewHazelcastValidator(h)
 	if h.Spec.GetLicenseKeySecretName() == "" {
 		v.Required(Path("spec", "licenseKeySecretName"), "license key must be set")
 	}

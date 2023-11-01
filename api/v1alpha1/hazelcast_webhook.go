@@ -34,6 +34,9 @@ func (r *Hazelcast) ValidateCreate() error {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Hazelcast) ValidateUpdate(old runtime.Object) error {
 	hazelcastlog.Info("validate update", "name", r.Name)
+	if r.GetDeletionTimestamp() != nil {
+		return nil
+	}
 	return ValidateHazelcastSpec(r)
 }
 

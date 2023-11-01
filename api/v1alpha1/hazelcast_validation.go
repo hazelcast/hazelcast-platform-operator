@@ -35,12 +35,12 @@ type hazelcastValidator struct {
 	fieldValidator
 }
 
-func NewHazlecastValidator(o client.Object) hazelcastValidator {
+func NewHazelcastValidator(o client.Object) hazelcastValidator {
 	return hazelcastValidator{NewFieldValidator(o)}
 }
 
 func ValidateHazelcastSpec(h *Hazelcast) error {
-	v := NewHazlecastValidator(h)
+	v := NewHazelcastValidator(h)
 	v.validateSpecCurrent(h)
 	v.validateSpecUpdate(h)
 	return v.Err()
