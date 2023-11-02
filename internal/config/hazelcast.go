@@ -44,15 +44,15 @@ type AdvancedNetwork struct {
 }
 
 type MemberServerSocketEndpointConfig struct {
-	Port       PortAndPortCount     `yaml:"port,omitempty"`
-	Interfaces EnabledAndInterfaces `yaml:"interfaces,omitempty"`
-	SSL        SSL                  `yaml:"ssl,omitempty"`
+	Port       PortAndPortCount `yaml:"port,omitempty"`
+	Interfaces Interfaces       `yaml:"interfaces,omitempty"`
+	SSL        SSL              `yaml:"ssl,omitempty"`
 }
 
 type ClientServerSocketEndpointConfig struct {
-	Port       PortAndPortCount     `yaml:"port,omitempty"`
-	Interfaces EnabledAndInterfaces `yaml:"interfaces,omitempty"`
-	SSL        SSL                  `yaml:"ssl,omitempty"`
+	Port       PortAndPortCount `yaml:"port,omitempty"`
+	Interfaces Interfaces       `yaml:"interfaces,omitempty"`
+	SSL        SSL              `yaml:"ssl,omitempty"`
 }
 
 type RestServerSocketEndpointConfig struct {
@@ -70,7 +70,7 @@ type PortAndPortCount struct {
 	PortCount uint `yaml:"port-count,omitempty"`
 }
 
-type EnabledAndInterfaces struct {
+type Interfaces struct {
 	Enabled    bool     `yaml:"enabled,omitempty"`
 	Interfaces []string `yaml:"interfaces,omitempty"`
 }

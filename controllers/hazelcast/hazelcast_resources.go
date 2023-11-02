@@ -972,7 +972,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 
 	if h.Spec.AdvancedNetwork != nil && len(h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces) != 0 {
-		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces = config.EnabledAndInterfaces{
+		cfg.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces = config.Interfaces{
 			Enabled:    true,
 			Interfaces: h.Spec.AdvancedNetwork.MemberServerSocketEndpointConfig.Interfaces,
 		}
@@ -987,7 +987,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 
 	if h.Spec.AdvancedNetwork != nil && len(h.Spec.AdvancedNetwork.ClientServerSocketEndpointConfig.Interfaces) != 0 {
-		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.Interfaces = config.EnabledAndInterfaces{
+		cfg.AdvancedNetwork.ClientServerSocketEndpointConfig.Interfaces = config.Interfaces{
 			Enabled:    true,
 			Interfaces: h.Spec.AdvancedNetwork.ClientServerSocketEndpointConfig.Interfaces,
 		}

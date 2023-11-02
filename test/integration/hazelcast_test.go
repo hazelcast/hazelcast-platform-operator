@@ -1431,7 +1431,7 @@ var _ = Describe("Hazelcast CR", func() {
 							Port:      5702,
 							PortCount: 1,
 						},
-						Interfaces: config.EnabledAndInterfaces{
+						Interfaces: config.Interfaces{
 							Enabled:    true,
 							Interfaces: []string{"10.10.1.*"},
 						},
@@ -1441,7 +1441,7 @@ var _ = Describe("Hazelcast CR", func() {
 							Port:      5701,
 							PortCount: 1,
 						},
-						Interfaces: config.EnabledAndInterfaces{
+						Interfaces: config.Interfaces{
 							Enabled:    true,
 							Interfaces: []string{"10.10.3.*"},
 						},
