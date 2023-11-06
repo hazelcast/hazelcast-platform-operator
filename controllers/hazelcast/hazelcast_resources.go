@@ -837,11 +837,17 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		if err := c.Get(ctx, types.NamespacedName{Name: h.Spec.CustomConfigCmName, Namespace: h.Namespace}, cfgCm, nil); err != nil {
 			return nil, err
 		}
+		var overwrite bool
+		annotations := cfgCm.GetAnnotations()
+		if v := annotations[n.HazelcastCustomConfigOverwrite]; v == "true" {
+			overwrite = true
+		}
 		cfgMap := make(map[string]interface{})
 		if err = yaml.Unmarshal([]byte(cfgCm.Data["hazelcast"]), cfgMap); err != nil {
 			return nil, err
 		}
-		if err = mergeConfig(cfgMap, &cfg, logger); err != nil {
+		cfgMap, err = mergeConfig(cfgMap, &cfg, logger, overwrite)
+		if err != nil {
 			return nil, err
 		}
 		hzWrapper := make(map[string]interface{})
@@ -852,22 +858,48 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 }
 
-func mergeConfig(cstCfg map[string]interface{}, cfg *config.Hazelcast, logger logr.Logger) error {
+func mergeConfig(cstCfg map[string]interface{}, cfg *config.Hazelcast, logger logr.Logger, overwrite bool) (map[string]interface{}, error) {
 	out, err := yaml.Marshal(cfg)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	crCfg := make(map[string]interface{})
 	if err = yaml.Unmarshal(out, crCfg); err != nil {
-		return err
+		return nil, err
 	}
-	for k, v := range crCfg {
-		if _, exist := cstCfg[k]; exist {
-			logger.V(util.WarnLevel).Info("Custom Config section ignored", "section", k)
+	if overwrite {
+		deepMerge(crCfg, cstCfg)
+		return crCfg, nil
+	} else {
+		for k, v := range crCfg {
+			if _, exist := cstCfg[k]; exist {
+				logger.V(util.WarnLevel).Info("Custom Config section ignored", "section", k)
+			}
+			cstCfg[k] = v
 		}
-		cstCfg[k] = v
 	}
-	return nil
+	return cstCfg, nil
+}
+
+func deepMerge(dst, src map[string]any) {
+	for k := range src {
+		// new section, fast copy
+		if _, ok := dst[k]; !ok {
+			dst[k] = src[k]
+			continue
+		}
+
+		// merge maps
+		if src2, ok := src[k].(map[string]any); ok {
+			if dst2, ok := dst[k].(map[string]any); ok {
+				deepMerge(dst2, src2)
+				continue
+			}
+		}
+
+		// add or overwrite value
+		dst[k] = src[k]
+	}
 }
 
 func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {

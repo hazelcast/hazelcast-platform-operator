@@ -83,6 +83,9 @@ const (
 	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
 )
 
+// Annotations
+const HazelcastCustomConfigOverwrite = "hazelcast.com/custom-config-overwrite"
+
 // Hazelcast default configurations
 const (
 	// DefaultHzPort Hazelcast default port
