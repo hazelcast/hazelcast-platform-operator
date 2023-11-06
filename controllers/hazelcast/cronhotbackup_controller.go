@@ -278,11 +278,33 @@ func (r *CronHotBackupReconciler) cleanupResources(ctx context.Context, chb haze
 			successfulHotBackups = append(successfulHotBackups, hb)
 		}
 	}
-
 	deleteHotBackupHistory(ctx, r.Client, int(*chb.Spec.FailedHotBackupsHistoryLimit), failedHotBackups)
-	deleteHotBackupHistory(ctx, r.Client, int(*chb.Spec.SuccessfulHotBackupsHistoryLimit), successfulHotBackups)
+
+	var hazelcastList hazelcastv1alpha1.HazelcastList
+	if err := r.Client.List(ctx, &hazelcastList, nsMatcher); err != nil {
+		return err
+	}
+
+	var unreferencedHotBackups []hazelcastv1alpha1.HotBackup
+	for _, hb := range successfulHotBackups {
+		if !findRestoreResourceName(&hazelcastList, hb.Name) {
+			unreferencedHotBackups = append(unreferencedHotBackups, hb)
+		}
+	}
+
+	// we delete only unused successful backups
+	deleteHotBackupHistory(ctx, r.Client, int(*chb.Spec.SuccessfulHotBackupsHistoryLimit), unreferencedHotBackups)
 
 	return nil
+}
+
+func findRestoreResourceName(hazelcastList *hazelcastv1alpha1.HazelcastList, name string) bool {
+	for _, h := range hazelcastList.Items {
+		if h.Spec.Persistence.IsRestoreEnabled() && h.Spec.Persistence.Restore.HotBackupResourceName == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Best effort deletion of the HotBackup resources
