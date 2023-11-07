@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/hazelcast/hazelcast-go-client v1.4.0
+	github.com/onsi/ginkgo/v2 v2.1.6
 	k8s.io/client-go v0.25.4
 )
 

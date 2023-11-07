@@ -1,4 +1,4 @@
-name: (E2E) High Load Tests
+name: (E2E) Soak Test
 on:
   workflow_dispatch:
   workflow_call:
@@ -154,6 +154,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
             HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
             AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Authenticate to GAR
         uses: docker/login-action@v3
@@ -198,7 +199,17 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-high-load NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=high-load
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          
+          get_latest_tag() {
+            echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+            local LATEST_TAG=$(gh api repos/$1/git/matching-refs/tags --jq '.[].ref | select(test("^refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+$")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
+            echo $LATEST_TAG
+          }
+          
+          HZ_LATEST_TAG=$(get_latest_tag hazelcast/hazelcast)
+          make test-soak HZ_VERSION=$HZ_LATEST_TAG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME WORKFLOW_ID=soak
 
       - name: Clean up after Tests
         if: always()
@@ -206,22 +217,6 @@ jobs:
           make clean-up-namespace NAMESPACE=${NAMESPACE}
           source .github/scripts/utils.sh
           wait_for_elb_deleted $DELETE_EKS_STACK_TIMEOUT_IN_MINS
-
-      - name: Upload Test Report
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-report-high-load
-          path: allure-results/high-load/
-
-  report-generation:
-    needs: ["prepare-env", "eks-e2e-tests"]
-    if: always() && (needs.eks-e2e-tests.result == 'success' || needs.eks-e2e-tests.result == 'failure')
-    uses: ./.github/workflows/generate-test-report.yaml
-    secrets: inherit
-    with:
-      WORKFLOW_ID: high-load
-      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
 
   cleanup-namespaces:
     if: always()
