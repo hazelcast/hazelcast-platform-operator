@@ -329,7 +329,7 @@ func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool
 	})
 }
 
-func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int, timeout time.Duration) error {
+func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int, timeout time.Duration) {
 	if timeout == 0 {
 		timeout = 10 * time.Minute
 	}
@@ -353,19 +353,18 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timeout waiting for '%s' map to be of size '%d' using lookup name '%s'", mapName, mapSize, lk.Name)
+			Fail("timeout waiting for map to be of correct size")
 		case <-ticker.C:
 			hzMap, err := clientHz.GetMap(ctx, mapName)
 			if err != nil {
-				return fmt.Errorf("failed to get map: %w", err)
+				Fail("failed to get map")
 			}
 			size, err := hzMap.Size(ctx)
 			if err != nil {
-				return fmt.Errorf("failed to get map size: %w", err)
+				Fail("ailed to get map size")
 			}
 			if size == mapSize {
 				log.Printf("Success: '%s' map is of size '%d' using lookup name '%s'", mapName, mapSize, lk.Name)
-				return nil
 			}
 		}
 	}
@@ -1043,7 +1042,7 @@ func RolloutRestart(ctx context.Context, hazelcast *hazelcastcomv1alpha1.Hazelca
 	return nil
 }
 
-func WaitForReplicaSize(namespace string, resourceName string, replicas int32) error {
+func WaitForReplicaSize(namespace string, resourceName string, replicas int32) {
 	clientSet := getClientSet()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -1055,7 +1054,6 @@ func WaitForReplicaSize(namespace string, resourceName string, replicas int32) e
 		}
 		return sts.Status.CurrentReplicas, nil
 	}, 10*Minute, interval).Should(Equal(replicas))
-	return nil
 }
 
 func CreateAndFillMaps(ctx context.Context, numMaps int, sizePerMap int, mapNameSuffix string, hazelcast *hazelcastcomv1alpha1.Hazelcast) {
