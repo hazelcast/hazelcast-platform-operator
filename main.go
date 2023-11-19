@@ -376,8 +376,6 @@ func setManagerWatchedNamespaces(mgrOptions *ctrl.Options, operatorNamespace str
 		mgrOptions.Namespace = watchedNamespaces[0]
 	case util.WatchedNsTypeSingle, util.WatchedNsTypeMulti:
 		setupLog.Info("Watching namespaces", "watched_namespaces", watchedNamespaces, "operator_namespace", operatorNamespace)
-		// Operator should be able to watch resources in its own namespace
-		watchedNamespaces = append(watchedNamespaces, operatorNamespace)
 		mgrOptions.NewCache = cache.MultiNamespacedCacheBuilder(watchedNamespaces)
 	default:
 		setupLog.Info("Watching all namespaces by default")
