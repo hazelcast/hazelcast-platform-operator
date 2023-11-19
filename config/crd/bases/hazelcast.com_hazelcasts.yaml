@@ -74,6 +74,7 @@ spec:
                     items:
                       properties:
                         name:
+                          maxLength: 8
                           type: string
                         port:
                           type: integer
