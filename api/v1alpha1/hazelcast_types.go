@@ -1018,7 +1018,8 @@ type WANConfig struct {
 	Port        uint               `json:"port,omitempty"`
 	PortCount   uint               `json:"portCount,omitempty"`
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
-	Name        string             `json:"name,omitempty"`
+	// +kubebuilder:validation:MaxLength:=8
+	Name string `json:"name,omitempty"`
 }
 
 type ServerSocketEndpointConfig struct {
