@@ -335,7 +335,8 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	service := &corev1.Service{
 		ObjectMeta: metadata(h),
 		Spec: corev1.ServiceSpec{
-			Selector: util.Labels(h),
+			Selector:                 util.Labels(h),
+			PublishNotReadyAddresses: true,
 		},
 	}
 
