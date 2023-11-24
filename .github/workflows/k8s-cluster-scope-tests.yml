@@ -76,6 +76,10 @@ jobs:
     name: Run E2E tests
     runs-on: ubuntu-latest
     needs: get-image
+    strategy:
+      fail-fast: false
+      matrix:
+        watchedNS: [ "all_namespaces","multi_namespaces" ]
     env:
       NAMESPACE: kind-test-operator-ee
       RELEASE_NAME: hp-ee-${{ github.run_id }}
@@ -214,16 +218,33 @@ jobs:
           docker pull $IMG
           kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
 
-      - name: Deploy Operator to Kind Cluster
+      - name: Deploy Operator to Kind Cluster (all namespaces)
+        if: matrix.watchedNS == 'all_namespaces'
         run: |
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
           make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES="*" NAMESPACE=${{ env.NAMESPACE }}
           kubectl rollout status deployment $DEPLOY_NAME
 
-      - name: Run Tests
-        id: e2e-test
+      - name: Deploy Operator to Kind Cluster (multiple namespaces)
+        if: matrix.watchedNS == 'multi_namespaces'
         run: |
-          make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=cluster_scope NAMESPACE=${{ env.NAMESPACE }}
+          kubectl create namespace multi-ns-1
+          kubectl create namespace multi-ns-2
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
+          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES="multi-ns-1,multi-ns-2" NAMESPACE=${{ env.NAMESPACE }}
+          kubectl rollout status deployment $DEPLOY_NAME
+
+      - name: Run Tests (all namespaces)
+        if: matrix.watchedNS == 'all_namespaces'
+        id: e2e-test-${{ matrix.watchedNS }}
+        run: |
+            make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="*" NAMESPACE=${{ env.NAMESPACE }}
+
+      - name: Run Tests (multiple namespaces)
+        if: matrix.watchedNS == 'multi_namespaces'
+        id: e2e-test-${{ matrix.watchedNS }}
+        run: |
+          make test-e2e E2E_TEST_SUITE=hz_multi_namespace GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="multi-ns-1,multi-ns-2" NAMESPACE=${{ env.NAMESPACE }}
 
       - name: Upload Test Report
         if: always()
