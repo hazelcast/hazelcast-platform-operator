@@ -170,10 +170,15 @@ jobs:
         run: |
           helm repo add istio https://istio-release.storage.googleapis.com/charts
           helm repo update
-          helm install istio-base istio/base --create-namespace -n istio-system --wait
-          helm install istiod istio/istiod -n istio-system --wait
-          helm status istiod -n istio-system
-          kubectl label namespace default istio-injection=enabled --overwrite
+          helm install istio-base istio/base --create-namespace -n istio-system
+          helm install istiod istio/istiod -n istio-system
+
+      - name: Wait Istio to be ready
+        run: |
+          echo "Wait to sync test suites and guarantee that they start after Istio is installed successfully"
+          sleep 60
+          kubectl label ${NAMESPACE} default istio-injection=enabled --overwrite
+          kubectl wait --for=condition=ready pod -n istio-system -l app=istiod
 
       - name: Deploy Operator to GKE
         run: |
@@ -224,8 +229,8 @@ jobs:
       - name: Undeploy Istio after Tests
         if : matrix.edition == 'ee'
         run: |
-          helm delete istiod -n istio-system
-          helm delete istio-base -n istio-system
+          helm uninstall istiod -n istio-system
+          helm uninstall istio-base -n istio-system
           kubectl delete namespace istio-system
 
       - name: Upload Test Report
