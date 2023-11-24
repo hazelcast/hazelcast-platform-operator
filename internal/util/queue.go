@@ -9,10 +9,11 @@ func (q *Queue[T]) Enqueue(item T) {
 }
 
 func (q *Queue[T]) Dequeue() T {
+	var i T
 	if len(q.items) == 0 {
-		return any(nil)
+		return i
 	}
-	i := q.items[0]
+	i = q.items[0]
 	q.items = q.items[1:]
 	return i
 }
