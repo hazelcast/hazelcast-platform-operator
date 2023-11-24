@@ -10,7 +10,7 @@ func (q *Queue[T]) Enqueue(item T) {
 
 func (q *Queue[T]) Dequeue() T {
 	if len(q.items) == 0 {
-		return nil
+		return any(nil)
 	}
 	i := q.items[0]
 	q.items = q.items[1:]
