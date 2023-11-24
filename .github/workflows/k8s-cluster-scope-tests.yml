@@ -236,13 +236,13 @@ jobs:
 
       - name: Run Tests (all namespaces)
         if: matrix.watchedNS == 'all_namespaces'
-        id: e2e-test-matrix.watchedNS
+        id: e2e-test-${{ matrix.watchedNS }}
         run: |
             make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="*" NAMESPACE=${{ env.NAMESPACE }}
 
       - name: Run Tests (multiple namespaces)
         if: matrix.watchedNS == 'multi_namespaces'
-        id: e2e-test-matrix.watchedNS
+        id: e2e-test-${{ matrix.watchedNS }}
         run: |
           make test-e2e E2E_TEST_SUITE=hz_multi_namespace GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="multi-ns-1,multi-ns-2" NAMESPACE=${{ env.NAMESPACE }}
 
