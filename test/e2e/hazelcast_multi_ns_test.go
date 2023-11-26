@@ -21,11 +21,13 @@ var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
 		}
 		for _, n := range nsQueue.ToList() {
 			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, n, labels)
-			tmp := hzLookupKey
-			tmp.Namespace = n
-			assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		}
 		deletePVCs(hzLookupKey)
+		for _, n := range nsQueue.ToList() {
+			tmp := hzLookupKey
+			tmp.Namespace = n
+			assertDoesNotExist(tmp, &hazelcastcomv1alpha1.Hazelcast{})
+		}
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
