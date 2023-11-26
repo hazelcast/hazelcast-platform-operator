@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +45,21 @@ type withHzMessage string
 
 func (m withHzMessage) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
 	hs.Message = string(m)
+}
+
+type withHzStatefulSet appsv1.StatefulSet
+
+// HzStatusApply propagates selector and cluster size from underlying StatefulSet
+func (s withHzStatefulSet) HzStatusApply(status *hazelcastv1alpha1.HazelcastStatus) {
+	// Retrieve the current number of replicas from the StatefulSet
+	status.ClusterSize = s.Status.Replicas
+
+	// Retrieve the label selectors from the StatefulSet
+	selector, err := metav1.LabelSelectorAsSelector(s.Spec.Selector)
+	if err != nil {
+		return
+	}
+	status.Selector = selector.String()
 }
 
 type memberStatuses struct {

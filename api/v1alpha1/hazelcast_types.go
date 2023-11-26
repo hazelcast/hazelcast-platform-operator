@@ -1073,6 +1073,14 @@ type SQL struct {
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
+	// Number of Hazelcast members in the cluster.
+	// +optional
+	ClusterSize int32 `json:"clusterSize"`
+
+	// Selector is a label selector used by HorizontalPodAutoscaler to autoscale Hazelcast resource.
+	// +optional
+	Selector string `json:"selector"`
+
 	// Phase of the Hazelcast cluster
 	// +optional
 	Phase Phase `json:"phase,omitempty"`
@@ -1194,6 +1202,7 @@ type HazelcastClusterStatus struct {
 
 // Hazelcast is the Schema for the hazelcasts API
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.clusterSize,statuspath=.status.clusterSize,selectorpath=.status.selector
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 // +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Hazelcast Config"
