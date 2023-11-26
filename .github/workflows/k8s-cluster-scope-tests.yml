@@ -185,6 +185,11 @@ jobs:
               - kind-pool
             EOF
 
+      - name: Create Namespaces
+        run: |
+          kubectl create namespace multi-ns-1
+          kubectl create namespace multi-ns-2
+
       - name: Create Secrets
         run: |
           kubectl create secret generic hazelcast-license-key \
@@ -234,8 +239,6 @@ jobs:
       - name: Deploy Operator to Kind Cluster (multiple namespaces)
         if: matrix.watchedNS == 'multi_namespaces'
         run: |
-          kubectl create namespace multi-ns-1
-          kubectl create namespace multi-ns-2
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
           make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES="multi-ns-1,multi-ns-2" NAMESPACE=${{ env.NAMESPACE }}
           kubectl rollout status deployment $DEPLOY_NAME
