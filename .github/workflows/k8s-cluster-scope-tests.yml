@@ -190,6 +190,12 @@ jobs:
           kubectl create secret generic hazelcast-license-key \
              --namespace ${{ env.NAMESPACE }} \
              --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+          kubectl create secret generic hazelcast-license-key \
+             --namespace multi-ns-1 \
+             --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+          kubectl create secret generic hazelcast-license-key \
+             --namespace multi-ns-2 \
+             --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
           kubectl create secret generic br-secret-s3 \
             --namespace ${{ env.NAMESPACE }} \
             --from-literal=region=us-east-1 \
