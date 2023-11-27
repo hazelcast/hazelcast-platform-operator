@@ -604,7 +604,6 @@ update_status_badges()
 
 # It cleans up resources (all, PVCs and their bounded PVs) in the given namespace.
 cleanup_namespace(){
-
   # number of all resources excepting `kubernetes` svc
   number_of_all_resources() {
     kubectl get all --namespace="$1" -o json | \
@@ -649,10 +648,9 @@ cleanup_namespace(){
     echo "kubectl delete PV $pvList"
     kubectl delete pv $pvList || true
   fi
-
 }
 
-check_pod_ready_condition() {
+wait_condition_pod_ready() {
   namespace="$1"
   pod_label="$2"
   try="$3"
@@ -661,7 +659,6 @@ check_pod_ready_condition() {
   echo "namespace: $namespace, pod label: $pod_label"
 
   for ((i=1; i<=$try; i++)); do
-    echo "Condition ready: "
     kubectl wait --for=condition=ready pod -n $namespace -l $pod_label --timeout 3s
 
     # Check the exit status
@@ -669,7 +666,7 @@ check_pod_ready_condition() {
 
     # If exit status is 0, break out of the loop
     if [ $exit_status -eq 0 ]; then
-        echo "The pods labeled with '$label' in '$namespace' namespace are ready"
+        echo "The pods labeled with '$pod_label' in '$namespace' namespace are ready"
         return 0
     fi
 
@@ -677,6 +674,6 @@ check_pod_ready_condition() {
   done
 
   # If the loop completes without finding a successful exit status, return a non-zero exit status
-  echo "The pods labeled with '$label' in '$namespace' namespace are not ready yet"
+  echo "The pods labeled with '$pod_label' in '$namespace' namespace are not ready yet"
   return 1
 }

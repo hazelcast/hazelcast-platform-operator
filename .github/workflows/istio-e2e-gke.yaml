@@ -178,7 +178,7 @@ jobs:
           kubectl create namespace ${NAMESPACE}
           kubectl label namespace ${NAMESPACE} istio-injection=enabled --overwrite
           source .github/scripts/utils.sh
-          check_pod_ready_condition istio-system app=istiod 30 3
+          wait_condition_pod_ready istio-system app=istiod 30 3
 
       - name: Deploy Operator to GKE
         run: |
