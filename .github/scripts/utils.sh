@@ -659,10 +659,8 @@ wait_condition_pod_ready() {
   echo "namespace: $namespace, pod label: $pod_label"
 
   for ((i=1; i<=$try; i++)); do
-    kubectl wait --for=condition=ready pod -n $namespace -l $pod_label --timeout 3s
-
-    # Check the exit status
-    exit_status=$?
+    exit_status=0
+    kubectl wait --for=condition=ready pod -n $namespace -l $pod_label --timeout 3s || exit_status=$?
 
     # If exit status is 0, break out of the loop
     if [ $exit_status -eq 0 ]; then
