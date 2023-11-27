@@ -44,7 +44,7 @@ func GetSuiteName() string {
 
 func GetWatchedNamespaceQueue() *util.Queue[string] {
 	ns := strings.Split(watchedNamespaces, ",")
-	t := util.WatchedNamespaceTypeP(hzNamespace, ns)
+	t := util.WatchedNamespaceType(hzNamespace, ns)
 
 	if t != util.WatchedNsTypeMulti && t != util.WatchedNsTypeSingle {
 		return nil

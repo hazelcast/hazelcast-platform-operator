@@ -366,7 +366,7 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 
 func setManagerWatchedNamespaces(mgrOptions *ctrl.Options, operatorNamespace string) util.WatchedNsType {
 	watchedNamespaces := util.WatchedNamespaces()
-	watchedNamespaceType := util.WatchedNamespaceType()
+	watchedNamespaceType := util.WatchedNamespaceType(operatorNamespace, watchedNamespaces)
 
 	switch watchedNamespaceType {
 	case util.WatchedNsTypeAll:

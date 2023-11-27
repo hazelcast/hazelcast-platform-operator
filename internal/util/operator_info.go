@@ -25,13 +25,7 @@ const (
 	WatchedNsTypeOwn    WatchedNsType = "Own"
 )
 
-func WatchedNamespaceType() WatchedNsType {
-	watchedNamespaces := WatchedNamespaces()
-	operatorNamespace := OperatorNamespace()
-	return WatchedNamespaceTypeP(operatorNamespace, watchedNamespaces)
-}
-
-func WatchedNamespaceTypeP(operatorNamespace string, watchedNamespaces []string) WatchedNsType {
+func WatchedNamespaceType(operatorNamespace string, watchedNamespaces []string) WatchedNsType {
 	if operatorNamespace == "" {
 		return WatchedNsTypeAll
 	}

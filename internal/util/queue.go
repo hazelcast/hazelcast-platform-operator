@@ -24,8 +24,7 @@ func (q *Queue[T]) IsEmpty() bool {
 
 func (q *Queue[T]) ToList() []T {
 	if q == nil {
-		var t []T
-		return t
+		return make([]T, 0)
 	}
 	return q.items
 }
