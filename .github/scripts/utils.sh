@@ -651,3 +651,32 @@ cleanup_namespace(){
   fi
 
 }
+
+check_pod_ready_condition() {
+  namespace="$1"
+  pod_label="$2"
+  try="$3"
+  duration="$4"
+
+  echo "namespace: $namespace, pod label: $pod_label"
+
+  for ((i=1; i<=$try; i++)); do
+    echo "Condition ready: "
+    kubectl wait --for=condition=ready pod -n $namespace -l $pod_label --timeout 3s
+
+    # Check the exit status
+    exit_status=$?
+
+    # If exit status is 0, break out of the loop
+    if [ $exit_status -eq 0 ]; then
+        echo "The pods labeled with '$label' in '$namespace' namespace are ready"
+        return 0
+    fi
+
+    sleep "$duration"
+  done
+
+  # If the loop completes without finding a successful exit status, return a non-zero exit status
+  echo "The pods labeled with '$label' in '$namespace' namespace are not ready yet"
+  return 1
+}

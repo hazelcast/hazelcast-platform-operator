@@ -175,10 +175,9 @@ jobs:
 
       - name: Wait Istio to be ready
         run: |
-          echo "Wait to sync test suites and guarantee that they start after Istio is installed successfully"
-          sleep 60
-          kubectl label ${NAMESPACE} default istio-injection=enabled --overwrite
-          kubectl wait --for=condition=ready pod -n istio-system -l app=istiod
+          kubectl label namespace ${NAMESPACE} istio-injection=enabled --overwrite
+          source .github/scripts/utils.sh
+          check_pod_ready_condition istio-system app=istiod 30 3
 
       - name: Deploy Operator to GKE
         run: |
