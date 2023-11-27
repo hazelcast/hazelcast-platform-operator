@@ -19,9 +19,13 @@ func (q *Queue[T]) Dequeue() T {
 }
 
 func (q *Queue[T]) IsEmpty() bool {
-	return len(q.items) == 0
+	return q == nil || len(q.items) == 0
 }
 
 func (q *Queue[T]) ToList() []T {
+	if q == nil {
+		var t []T
+		return t
+	}
 	return q.items
 }
