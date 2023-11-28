@@ -79,7 +79,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        watchedNS: [ "all_namespaces","multi_namespaces" ]
+        include:
+          - watchedNS: "*"
+            testSuiteLabel: ""
+          - watchedNS: "another-ns"
+            testSuiteLabel: "hz_multi_namespace"
     env:
       NAMESPACE: kind-test-operator-ee
       RELEASE_NAME: hp-ee-${{ github.run_id }}
@@ -187,19 +191,18 @@ jobs:
 
       - name: Create Namespaces
         run: |
-          kubectl create namespace multi-ns-1
-          kubectl create namespace multi-ns-2
+          if [ -n "${{ matrix.watchedNS }}" != "*" ]; then
+            kubectl create namespace ${{ matrix.watchedNS }}
 
       - name: Create Secrets
         run: |
           kubectl create secret generic hazelcast-license-key \
              --namespace ${{ env.NAMESPACE }} \
              --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
-          kubectl create secret generic hazelcast-license-key \
-             --namespace multi-ns-1 \
-             --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
-          kubectl create secret generic hazelcast-license-key \
-             --namespace multi-ns-2 \
+          if [ -n "${{ matrix.watchedNS }}" != "*" ]; then
+            kubectl create secret generic hazelcast-license-key \
+              --namespace ${{ matrix.watchedNS }} \
+              --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
              --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
           kubectl create secret generic br-secret-s3 \
             --namespace ${{ env.NAMESPACE }} \
@@ -229,31 +232,20 @@ jobs:
           docker pull $IMG
           kind load docker-image $IMG --name ${{ env.CLUSTER_NAME }}
 
-      - name: Deploy Operator to Kind Cluster (all namespaces)
-        if: matrix.watchedNS == 'all_namespaces'
+      - name: Deploy Operator to Kind Cluster
         run: |
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES="*" NAMESPACE=${{ env.NAMESPACE }}
+          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES="{{ matrix.watchedNS }}" NAMESPACE=${{ env.NAMESPACE }}
           kubectl rollout status deployment $DEPLOY_NAME
 
-      - name: Deploy Operator to Kind Cluster (multiple namespaces)
-        if: matrix.watchedNS == 'multi_namespaces'
-        run: |
-          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES="multi-ns-1,multi-ns-2" NAMESPACE=${{ env.NAMESPACE }}
-          kubectl rollout status deployment $DEPLOY_NAME
-
-      - name: Run Tests (all namespaces)
-        if: matrix.watchedNS == 'all_namespaces'
+      - name: Run Tests
         id: e2e-test
         run: |
-            make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="*" NAMESPACE=${{ env.NAMESPACE }}
-
-      - name: Run Tests (multiple namespaces)
-        if: matrix.watchedNS == 'multi_namespaces'
-        id: e2e-test-multi-ns
-        run: |
-          make test-e2e E2E_TEST_SUITE=hz_multi_namespace GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="multi-ns-1,multi-ns-2" NAMESPACE=${{ env.NAMESPACE }}
+          if [ -n "${{ matrix.testSuiteLabel }}" ]; then
+            make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="{{ matrix.watchedNS }}" NAMESPACE=${{ env.NAMESPACE }}
+          else
+            make test-e2e  E2E_TEST_SUITE=${{ matrix.testSuiteLabel }} GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="{{ matrix.watchedNS }}" NAMESPACE=${{ env.NAMESPACE }}
+          fi
 
       - name: Upload Test Report
         if: always()

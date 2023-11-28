@@ -12,24 +12,22 @@ import (
 )
 
 var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
-	nsQueue := GetWatchedNamespaceQueue()
-
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
 			return
 		}
 
-		for _, n := range nsQueue.ToList() {
-			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, n, labels)
+		if deployNamespace != "" {
+			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, deployNamespace, labels)
 		}
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 
 		deletePVCs(hzLookupKey)
 
-		for _, n := range nsQueue.ToList() {
+		if deployNamespace != "" {
 			tmp := hzLookupKey
-			tmp.Namespace = n
+			tmp.Namespace = deployNamespace
 			assertDoesNotExist(tmp, &hazelcastcomv1alpha1.Hazelcast{})
 		}
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
@@ -38,10 +36,8 @@ var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
 	})
 
 	It("should create HZ cluster with custom name and update HZ ready members status", Label("slow"), func() {
-		if !nsQueue.IsEmpty() {
-			i := nsQueue.Dequeue()
-			setCRNamespace(i)
-			nsQueue.Enqueue(i)
+		if deployNamespace != "" {
+			setCRNamespace(deployNamespace)
 		}
 
 		setLabelAndCRName("h-1")
@@ -60,10 +56,8 @@ var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
 	Describe("Hazelcast CR dependent CRs", func() {
 		When("Hazelcast CR is deleted", func() {
 			It("dependent Data Structures and HotBackup CRs should be deleted", Label("fast"), func() {
-				if !nsQueue.IsEmpty() {
-					i := nsQueue.Dequeue()
-					setCRNamespace(i)
-					nsQueue.Enqueue(i)
+				if deployNamespace != "" {
+					setCRNamespace(deployNamespace)
 				}
 
 				if !ee {
