@@ -193,6 +193,7 @@ jobs:
         run: |
           if [ "${{ matrix.watchedNS }}" != "*" ]; then
             kubectl create namespace ${{ matrix.watchedNS }}
+          fi
 
       - name: Create Secrets
         run: |
@@ -203,6 +204,7 @@ jobs:
             kubectl create secret generic hazelcast-license-key \
               --namespace ${{ matrix.watchedNS }} \
               --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+          fi
           kubectl create secret generic br-secret-s3 \
             --namespace ${{ env.NAMESPACE }} \
             --from-literal=region=us-east-1 \
