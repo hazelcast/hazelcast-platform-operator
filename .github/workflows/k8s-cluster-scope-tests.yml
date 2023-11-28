@@ -236,16 +236,16 @@ jobs:
       - name: Deploy Operator to Kind Cluster
         run: |
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES="{{ matrix.watchedNS }}" NAMESPACE=${{ env.NAMESPACE }}
+          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Run Tests
         id: e2e-test
         run: |
           if [ -n "${{ matrix.testSuiteLabel }}" ]; then
-            make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="{{ matrix.watchedNS }}" NAMESPACE=${{ env.NAMESPACE }}
+            make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
           else
-            make test-e2e  E2E_TEST_SUITE=${{ matrix.testSuiteLabel }} GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES="{{ matrix.watchedNS }}" NAMESPACE=${{ env.NAMESPACE }}
+            make test-e2e  E2E_TEST_SUITE=${{ matrix.testSuiteLabel }} GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.watchedNS }} WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
           fi
 
       - name: Upload Test Report
