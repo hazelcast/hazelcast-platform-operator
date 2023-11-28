@@ -191,7 +191,7 @@ jobs:
 
       - name: Create Namespaces
         run: |
-          if [ -n "${{ matrix.watchedNS }}" != "*" ]; then
+          if [ "${{ matrix.watchedNS }}" != "*" ]; then
             kubectl create namespace ${{ matrix.watchedNS }}
 
       - name: Create Secrets
@@ -199,7 +199,7 @@ jobs:
           kubectl create secret generic hazelcast-license-key \
              --namespace ${{ env.NAMESPACE }} \
              --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
-          if [ -n "${{ matrix.watchedNS }}" != "*" ]; then
+          if [ "${{ matrix.watchedNS }}" != "*" ]; then
             kubectl create secret generic hazelcast-license-key \
               --namespace ${{ matrix.watchedNS }} \
               --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
