@@ -8,7 +8,6 @@ import (
 	"strings"
 	. "time"
 
-	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -40,20 +39,6 @@ func GetSuiteName() string {
 		managementCenterVersion = n.MCVersion
 	}
 	return fmt.Sprintf("Operator Suite %s (HZ:%s; MC:%s)", edition, hazelcastVersion, managementCenterVersion)
-}
-
-func GetWatchedNamespaceQueue() *util.Queue[string] {
-	ns := strings.Split(watchedNamespaces, ",")
-	t := util.WatchedNamespaceType(hzNamespace, ns)
-
-	if t != util.WatchedNsTypeMulti && t != util.WatchedNsTypeSingle {
-		return nil
-	}
-	var q util.Queue[string]
-	for _, nn := range ns {
-		q.Enqueue(nn)
-	}
-	return &q
 }
 
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
