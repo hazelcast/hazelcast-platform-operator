@@ -123,7 +123,20 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 
-	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, 1); !ok {
+	var statefulSet appsv1.StatefulSet
+	if err := r.Client.Get(ctx, req.NamespacedName, &statefulSet); err != nil {
+		if errors.IsNotFound(err) {
+			if mc.Status.Phase == hazelcastv1alpha1.McConfiguring {
+				return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter),
+					withMcPhase(hazelcastv1alpha1.McConfiguring),
+				)
+			}
+			return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.McPending))
+		}
+		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
+	}
+
+	if ok, err := util.CheckIfRunning(ctx, r.Client, &statefulSet, 1); !ok {
 		if mc.Status.Phase == hazelcastv1alpha1.McConfiguring {
 			return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.McConfiguring))
 		}

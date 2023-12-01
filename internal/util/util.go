@@ -89,19 +89,11 @@ func CreateOrGet(ctx context.Context, c client.Client, key client.ObjectKey, obj
 	}
 }
 
-func CheckIfRunning(ctx context.Context, cl client.Client, namespacedName types.NamespacedName, expectedReplicas int32) (bool, error) {
-	sts := &appsv1.StatefulSet{}
-	err := cl.Get(ctx, client.ObjectKey{Name: namespacedName.Name, Namespace: namespacedName.Namespace}, sts)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	if isStatefulSetReady(sts, expectedReplicas) {
+func CheckIfRunning(ctx context.Context, cl client.Client, statefulSet *appsv1.StatefulSet, expectedReplicas int32) (bool, error) {
+	if isStatefulSetReady(statefulSet, expectedReplicas) {
 		return true, nil
 	}
-	if err := checkPodsForFailure(ctx, cl, sts); err != nil {
+	if err := checkPodsForFailure(ctx, cl, statefulSet); err != nil {
 		return false, err
 	}
 	return false, nil
