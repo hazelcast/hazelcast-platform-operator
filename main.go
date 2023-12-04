@@ -11,8 +11,10 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -85,7 +87,20 @@ func main() {
 	watchedNamespaceType := setManagerWatchedNamespaces(&mgrOptions, operatorNamespace)
 
 	cfg := ctrl.GetConfigOrDie()
-	mgr, err := ctrl.NewManager(cfg, mgrOptions)
+
+	var mgr ctrl.Manager
+	err := retry.OnError(wait.Backoff{
+		Steps:    3,
+		Duration: time.Second,
+		Factor:   1.0,
+	}, func(err error) bool {
+		return err != nil
+	}, func() error {
+		var err error
+		mgr, err = ctrl.NewManager(cfg, mgrOptions)
+		return err
+	})
+
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
