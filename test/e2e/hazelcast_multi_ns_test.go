@@ -35,7 +35,7 @@ var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should create HZ cluster with custom name and update HZ ready members status", Label("slow"), func() {
+	It("should create HZ cluster with custom name and update HZ ready members status in multi-ns", Label("slow"), func() {
 		if deployNamespace != "" {
 			setCRNamespace(deployNamespace)
 		}
@@ -55,7 +55,7 @@ var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
 
 	Describe("Hazelcast CR dependent CRs", func() {
 		When("Hazelcast CR is deleted", func() {
-			It("dependent Data Structures and HotBackup CRs should be deleted", Label("fast"), func() {
+			It("dependent Data Structures and HotBackup CRs should be deleted in multi-ns", Label("fast"), func() {
 				if deployNamespace != "" {
 					setCRNamespace(deployNamespace)
 				}
