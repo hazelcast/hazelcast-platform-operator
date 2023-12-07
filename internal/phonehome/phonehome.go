@@ -598,7 +598,7 @@ func (phm *PhoneHomeData) fillSnapshotMetrics(cl client.Client) {
 
 func listOptions() []client.ListOption {
 	lo := []client.ListOption{}
-	if util.WatchedNamespaceType() == util.WatchedNsTypeAll {
+	if util.WatchedNamespaceType(util.OperatorNamespace(), util.WatchedNamespaces()) == util.WatchedNsTypeAll {
 		// Watching all namespaces, no need to filter
 		return lo
 	}
