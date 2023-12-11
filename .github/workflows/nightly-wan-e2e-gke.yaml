@@ -171,7 +171,7 @@ jobs:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect To The ${{ matrix.cluster }} GKE Cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+        uses: 'google-github-actions/get-gke-credentials@v2'
         with:
           cluster_name: ${{ matrix.cluster }}-wan-cluster-${{ github.run_number }}
           project_id: ${{ env.GCP_PROJECT_ID }}
@@ -248,7 +248,7 @@ jobs:
           echo "targetNamespace="trg-ns"" >> $GITHUB_ENV
 
       - name: Connect To The Second GKE Cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+        uses: 'google-github-actions/get-gke-credentials@v2'
         with:
           cluster_name: trg-wan-cluster-${{ github.run_number }}
           project_id: ${{ env.GCP_PROJECT_ID }}
@@ -259,7 +259,7 @@ jobs:
           echo "SECOND_KUBECONFIG=${{ env.KUBECONFIG }}" >> $GITHUB_ENV
 
       - name: Connect To The First GKE Cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+        uses: 'google-github-actions/get-gke-credentials@v2'
         with:
           cluster_name: src-wan-cluster-${{ github.run_number }}
           project_id: ${{ env.GCP_PROJECT_ID }}
@@ -330,7 +330,7 @@ jobs:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect To ${{ matrix.cluster }} GCP Cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+        uses: 'google-github-actions/get-gke-credentials@v2'
         with:
           cluster_name: ${{ matrix.cluster }}-wan-cluster-${{ github.run_number }}
           project_id: ${{ env.GCP_PROJECT_ID }}
@@ -381,7 +381,7 @@ jobs:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect To ${{ matrix.cluster }} GCP Cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+        uses: 'google-github-actions/get-gke-credentials@v2'
         with:
           cluster_name: ${{ matrix.cluster }}-wan-cluster-${{ github.run_number }}
           project_id: ${{ env.GCP_PROJECT_ID }}
