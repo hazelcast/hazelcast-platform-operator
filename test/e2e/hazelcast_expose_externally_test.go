@@ -47,7 +47,6 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 
 		FillTheMapData(ctx, hzLookupKey, true, "map", 100)
 		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
-
 		assertExternalAddressesNotEmpty()
 	})
 
