@@ -86,7 +86,7 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 		for i := 0; i < numMaps; i++ {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, mapNameSuffix), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
+			_ = WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
 		}
 	},
 		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Serial, Label("slow"), hazelcastcomv1alpha1.FullRecovery, "fr"),
@@ -140,7 +140,7 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 		for i := 0; i < numMaps; i++ {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
+			_ = WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
 		}
 	})
 
@@ -241,7 +241,7 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 		for i := 0; i < numMaps; i++ {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
+			_ = WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
 		}
 	})
 })

@@ -126,7 +126,7 @@ var _ = Describe("Hazelcast High Load Tests", Label("soak"), func() {
 			UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
 				var hzVersion string
 				hazelcast.Spec.ClusterSize = pointer.Int32(3)
-				if cycle > 1 { //5
+				if cycle > 5 {
 					hzVersion = updatedHzVersion
 				} else {
 					hzVersion = initHzVersion
@@ -147,14 +147,14 @@ var _ = Describe("Hazelcast High Load Tests", Label("soak"), func() {
 			for i := 0; i < numMaps; i++ {
 				m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 				m.Spec.HazelcastResourceName = hazelcast.Name
-				WaitForMapSize(ctx, hzLookupKey, m.MapName(), int(float64(cycle*totalFillRepeats*mapSizeInMb)*128), 5*Minute)
+				_ = WaitForMapSize(ctx, hzLookupKey, m.MapName(), int(float64(cycle*totalFillRepeats*mapSizeInMb)*128), 1*Minute)
 			}
 		}
 		By("checking map size after all pause and resume")
 		for i := 0; i < numMaps; i++ {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.MapName(), int(float64(totalPauseResumeCycles*totalFillRepeats*mapSizeInMb)*128), 5*Minute)
+			_ = WaitForMapSize(ctx, hzLookupKey, m.MapName(), int(float64(totalPauseResumeCycles*totalFillRepeats*mapSizeInMb)*128), 1*Minute)
 		}
 	})
 })

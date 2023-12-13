@@ -89,7 +89,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		mapName := "ha-test-map"
 		mapSize := 30000
 		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		_ = WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 
 		By("detecting the node which the operator is running on")
 		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
@@ -120,7 +120,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		waitForDroppedNodes(ctx, 1)
 
 		By("checking map size after node outage")
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		_ = WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
 	It("should have no data lose after zone outage", Label("slow"), func() {
@@ -143,7 +143,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		mapName := "ha-test-map"
 		mapSize := 30000
 		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		_ = WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 
 		By("detecting the node which the operator is running on")
 		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
@@ -173,7 +173,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		waitForDroppedNodes(ctx, numberOfNodesInDroppingZone)
 
 		By("checking map size after zone outage")
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		_ = WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 })
 
