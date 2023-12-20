@@ -160,7 +160,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 				break
 			}
 			if !matched {
-				Fail(fmt.Sprintf("member Uid '%s' is not matched with client members UUIDs", member.Uid))
+				Fail(fmt.Sprintf("member UID '%s' is not matched with client members UUIDs", member.Uid))
 			}
 		}
 
