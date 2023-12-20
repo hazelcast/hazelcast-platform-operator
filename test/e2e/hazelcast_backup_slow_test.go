@@ -68,7 +68,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		logReader := test.NewLogReader(logs)
 		defer logReader.Close()
 		test.EventuallyInLogs(logReader, 30*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
-		_ = WaitForMapSize(ctx, hzLookupKey, m.MapName(), 100, 1*Minute)
+		WaitForMapSize(ctx, hzLookupKey, m.MapName(), 100, 1*Minute)
 
 	})
 
@@ -135,7 +135,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		By("checking the cluster state and map size")
 		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
-		_ = WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
 	It("Should successfully restore 3 Gb data from external backup using GCP bucket", Label("slow"), func() {
@@ -208,7 +208,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		By("checking the cluster state and map size")
 		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
-		_ = WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
 	It("should interrupt external backup process when the hotbackup is deleted", Label("slow"), func() {
@@ -387,7 +387,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		test.EventuallyInLogs(logReader, 50*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		_ = WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 
 	It("should not start repartitioning after planned shutdown", Label("slow"), func() {
@@ -447,6 +447,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=3"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		_ = WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 })

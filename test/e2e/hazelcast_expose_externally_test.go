@@ -46,7 +46,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		evaluateReadyMembers(hzLookupKey)
 
 		FillTheMapData(ctx, hzLookupKey, true, "map", 100)
-		_ = WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
 		assertExternalAddressesNotEmpty()
 	})
 
@@ -91,7 +91,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		}
 
 		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
-		_ = WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
 
 		assertExternalAddressesNotEmpty()
 	})
@@ -141,7 +141,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		}
 
 		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
-		_ = WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
 
 		assertExternalAddressesNotEmpty()
 	})
