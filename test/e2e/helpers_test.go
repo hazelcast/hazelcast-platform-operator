@@ -363,7 +363,7 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 			}
 			size, err := hzMap.Size(ctx)
 			if err != nil {
-				Fail("ailed to get map size")
+				Fail("failed to get map size")
 			}
 			if size == mapSize {
 				log.Printf("Success: '%s' map is of size '%d' using lookup name '%s'", mapName, mapSize, lk.Name)
