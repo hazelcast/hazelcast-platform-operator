@@ -76,6 +76,14 @@ jobs:
     name: Run E2E tests
     runs-on: ubuntu-latest
     needs: get-image
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - watchedNS: "*"
+            testSuiteLabel: ""
+          - watchedNS: "another-ns"
+            testSuiteLabel: "hz_multi_namespace"
     env:
       NAMESPACE: kind-test-operator-ee
       RELEASE_NAME: hp-ee-${{ github.run_id }}
@@ -181,11 +189,22 @@ jobs:
               - kind-pool
             EOF
 
+      - name: Create Namespaces
+        run: |
+          if [ "${{ matrix.watchedNS }}" != "*" ]; then
+            kubectl create namespace ${{ matrix.watchedNS }}
+          fi
+
       - name: Create Secrets
         run: |
           kubectl create secret generic hazelcast-license-key \
              --namespace ${{ env.NAMESPACE }} \
              --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+          if [ "${{ matrix.watchedNS }}" != "*" ]; then
+            kubectl create secret generic hazelcast-license-key \
+              --namespace ${{ matrix.watchedNS }} \
+              --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+          fi
           kubectl create secret generic br-secret-s3 \
             --namespace ${{ env.NAMESPACE }} \
             --from-literal=region=us-east-1 \
@@ -217,13 +236,17 @@ jobs:
       - name: Deploy Operator to Kind Cluster
         run: |
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES="*" NAMESPACE=${{ env.NAMESPACE }}
+          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Run Tests
         id: e2e-test
         run: |
-          make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=cluster_scope NAMESPACE=${{ env.NAMESPACE }}
+          if [ -n "${{ matrix.testSuiteLabel }}" ]; then
+            make test-e2e E2E_TEST_SUITE=${{ matrix.testSuiteLabel }} GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
+          else
+            make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_02 WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
+          fi
 
       - name: Upload Test Report
         if: always()

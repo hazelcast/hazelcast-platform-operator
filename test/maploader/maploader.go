@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/onsi/ginkgo/v2/dsl/core"
 	"log"
 	"math/rand"
 	"strconv"
@@ -49,18 +50,25 @@ func main() {
 	goroutineCount := 64
 	log.Printf("Goroutine count: %d", goroutineCount)
 	log.Printf("Entries per goroutine: %d", entriesPerGoroutine)
+	var masterRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i := 1; i <= goroutineCount; i++ {
 		wg.Add(1)
-		go func() {
+		go func(i int) {
+			defer core.GinkgoRecover()
 			defer wg.Done()
-			var r = rand.New(rand.NewSource(time.Now().UnixMilli()))
+			var seed = time.Now().UnixNano() + int64(i) + masterRand.Int63()
+			var r = rand.New(rand.NewSource(seed))
 			for j := 1; j <= entriesPerGoroutine; j++ {
-				key := fmt.Sprintf("%s-%s-%s-%s", clusterName, randString(r, 5), randString(r, 5), randString(r, 5))
+				key := fmt.Sprintf("%s-%s-%s-%s-%d", clusterName, randString(r, 7), randString(r, 7), randString(r, 7), seed)
+				result, _ := m.ContainsKey(ctx, key)
+				if result {
+					log.Fatal(err)
+				}
 				value := randString(r, valueLen)
 				mapInjector(ctx, m, key, value)
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 	finalSize, _ := m.Size(ctx)
