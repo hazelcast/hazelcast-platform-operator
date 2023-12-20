@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 	"io"
 	"log"
 	"net"
@@ -21,12 +20,13 @@ import (
 	"time"
 	. "time"
 
+	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
+
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	"github.com/hazelcast/hazelcast-go-client/logger"
 	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
@@ -43,6 +43,8 @@ import (
 	"k8s.io/client-go/transport/spdy"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
@@ -365,6 +367,7 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 			}
 			if size == mapSize {
 				log.Printf("Success: '%s' map is of size '%d' using lookup name '%s'", mapName, mapSize, lk.Name)
+				return
 			}
 		}
 	}
