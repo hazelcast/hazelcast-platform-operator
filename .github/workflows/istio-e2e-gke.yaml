@@ -170,15 +170,19 @@ jobs:
         run: |
           helm repo add istio https://istio-release.storage.googleapis.com/charts
           helm repo update
-          kubectl create namespace istio-system
-          helm install istio-base istio/base -n istio-system
-          helm install istiod istio/istiod -n istio-system --wait
-          helm status istiod -n istio-system
+          helm install istio-base istio/base --create-namespace -n istio-system
+          helm install istiod istio/istiod -n istio-system
+
+      - name: Wait Istio to be ready
+        run: |
+          kubectl create namespace ${NAMESPACE}
+          kubectl label namespace ${NAMESPACE} istio-injection=enabled --overwrite
+          source .github/scripts/utils.sh
+          wait_condition_pod_ready istio-system app=istiod 30 3
 
       - name: Deploy Operator to GKE
         run: |
           make install-crds
-          kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=$NAMESPACE
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
@@ -224,8 +228,8 @@ jobs:
       - name: Undeploy Istio after Tests
         if : matrix.edition == 'ee'
         run: |
-          helm delete istiod -n istio-system
-          helm delete istio-base -n istio-system
+          helm uninstall istiod -n istio-system
+          helm uninstall istio-base -n istio-system
           kubectl delete namespace istio-system
 
       - name: Upload Test Report
