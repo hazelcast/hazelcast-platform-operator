@@ -60,11 +60,7 @@ jobs:
 
       - name: Configure SecurityGroup of Nodes
         run: |-
-          SECURITY_GROUP_ID=$(aws eks describe-cluster \
-            --region=${AWS_REGION} \
-            --name ${CLUSTER_NAME} \
-            --query=cluster.resourcesVpcConfig.clusterSecurityGroupId \
-            --output=text)
+          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=${AWS_REGION} --name ${CLUSTER_NAME} --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text)
 
           echo "SecurityGroupID: ${SECURITY_GROUP_ID}"
 
