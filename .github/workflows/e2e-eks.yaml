@@ -35,8 +35,10 @@ jobs:
         id: create-cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
-          eksctl create cluster --name "${CLUSTER_NAME}" \
+          eksctl create cluster \
+            --name "${CLUSTER_NAME}" \
             --region=${AWS_REGION} \
             --zones ${AWS_REGION}a \
             --zones ${AWS_REGION}c \
@@ -44,13 +46,31 @@ jobs:
             --with-oidc \
             --without-nodegroup
 
-          eksctl create nodegroup --cluster "${CLUSTER_NAME}" \
+          eksctl create nodegroup \
+            --cluster "${CLUSTER_NAME}" \
+            --region=${AWS_REGION} \
             --name node-group-1 \
             --node-type t3.medium \
             --nodes 3 \
             --managed
 
-          eksctl create addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}"
+          eksctl create addon \
+            --name aws-ebs-csi-driver \
+            --cluster "${CLUSTER_NAME}" \
+            --region=${AWS_REGION}
+
+      - name: Configure SecurityGroup of Nodes
+        run: |-
+          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=$AWS_REGION --name=$CLUSTER_NAME --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
+
+          echo "SecurityGroupID: $SECURITY_GROUP_ID"
+
+          aws ec2 authorize-security-group-ingress \
+            --region=${AWS_REGION} \
+            --group-id=${SECURITY_GROUP_ID} \
+            --cidr=0.0.0.0/0 \
+            --protocol=tcp \
+            --port=30000-32767
 
   grafana-setup:
     needs: [ prepare-env ]
