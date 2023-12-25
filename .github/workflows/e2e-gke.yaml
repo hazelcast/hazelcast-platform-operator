@@ -51,6 +51,12 @@ jobs:
             --num-nodes=3
           sleep 30
 
+      - name: Create Firewall Rules if not existing
+        run: |-
+          gcloud compute firewall-rules create node-port-allow-all \
+            --allow tcp:30000-32767 \
+            --network=${{ env.GCP_NETWORK }} | true
+
   grafana-setup:
     needs: [ create-gke-cluster ]
     uses: ./.github/workflows/grafana-agent.yaml
