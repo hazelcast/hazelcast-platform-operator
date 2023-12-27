@@ -78,13 +78,14 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 				Expect(service.Spec.Ports).Should(HaveLen(1))
+				// skip the following check if the cluster is Kind
+				if kind {
+					GinkgoWriter.Printf("Skip the external address check on Kind cluster")
+					break
+				}
 				nodePort := service.Spec.Ports[0].NodePort
 				node := getNodeOfMember(ctx, hzLookupKey.Namespace, member)
 				externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
-				// skip member IP check if the node has no external IP
-				if len(externalAddresses) == 0 {
-					break
-				}
 				Expect(externalAddresses).Should(HaveLen(1))
 				externalAddress := fmt.Sprintf("%s:%d", externalAddresses[0], nodePort)
 				clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
