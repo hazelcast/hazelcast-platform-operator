@@ -313,7 +313,7 @@ jobs:
           target: vulnerability_report.html
 
       - name: Save Scan Report As Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure() && steps.vulnerabilityScan.outcome == 'failure'
         with:
           name: vulnerability-report
