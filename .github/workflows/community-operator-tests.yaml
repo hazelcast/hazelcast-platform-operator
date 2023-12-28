@@ -35,7 +35,7 @@ jobs:
           mkdir -p operators/${{ env.HZ_OPERATOR_NAME }}/${{ inputs.BUNDLE_VERSION }}
 
       - name: Download Bundle Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: bundle-artifacts
           path: community-operators/operators/${{ env.HZ_OPERATOR_NAME }}/${{ inputs.BUNDLE_VERSION }}
