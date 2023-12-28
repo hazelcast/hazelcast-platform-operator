@@ -566,7 +566,7 @@ jobs:
           set -e
 
       - name: Download a Backup of the Helm Chart Index
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: index.yaml
           path: ./index.yaml
