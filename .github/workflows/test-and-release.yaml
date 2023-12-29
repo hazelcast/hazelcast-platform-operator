@@ -313,7 +313,7 @@ jobs:
           target: vulnerability_report.html
 
       - name: Save Scan Report As Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: failure() && steps.vulnerabilityScan.outcome == 'failure'
         with:
           name: vulnerability-report
@@ -397,7 +397,7 @@ jobs:
           EOF
 
       - name: Upload Bundle Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: bundle-artifacts
           path: ./bundle/
@@ -532,7 +532,7 @@ jobs:
     name: Clean The Bundle Artifact and Test Image
     steps:
       - name: Delete Bundle Artifact
-        uses: geekyeggo/delete-artifact@v4
+        uses: geekyeggo/delete-artifact@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: |
