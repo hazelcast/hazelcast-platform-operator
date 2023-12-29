@@ -43,8 +43,28 @@ jobs:
           inlineScript: |
             CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
             echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
-            az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" \
-              --node-count 3 --generate-ssh-keys
+            az aks create \
+              --resource-group=${AZURE_RESOURCE_GROUP} \
+              --name="${CLUSTER_NAME}" \
+              --node-count=3 \
+              --enable-node-public-ip \
+              --generate-ssh-keys > output.json
+            
+            NRG=$(cat output.json | jq -r .nodeResourceGroup)
+            echo "NodeResourceGroup: ${NRG}"
+
+            NSG=$(az network nsg list --resource-group=${NRG} --query='[0].name' --output=tsv)
+            echo "NetworkSecurityGroup: ${NSG}"
+
+            az network nsg rule create \
+              --name=AllowExternalAccess \
+              --nsg-name=${NSG} \
+              --priority=100 \
+              --resource-group=${NRG} \
+              --access=Allow \
+              --destination-port-ranges=30000-32767 \
+              --direction=Inbound \
+              --protocol=Tcp
 
   grafana-setup:
     needs: [prepare-env]
