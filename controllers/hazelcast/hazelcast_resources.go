@@ -917,6 +917,11 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			},
 		},
 	}
+
+	cfg.Properties = map[string]string{
+		"hazelcast.cluster.version.auto.upgrade.enabled": "true",
+	}
+
 	if h.Spec.UserCodeDeployment != nil {
 		cfg.UserCodeDeployment = config.UserCodeDeployment{
 			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
