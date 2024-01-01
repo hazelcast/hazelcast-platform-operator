@@ -122,7 +122,7 @@ jobs:
            generate_test_suites $NR_OF_SUITES
 
       - name: Upload Test Suites
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-suites
           path: suite_files/
@@ -377,7 +377,7 @@ jobs:
 
       - name: Upload Test Report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-report-pr
           path: allure-results/pr/
