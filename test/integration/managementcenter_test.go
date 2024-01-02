@@ -8,12 +8,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -744,4 +746,44 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 	})
 
+	Context("with labels and annotations", func() {
+		It("should set labels and annotations to sub-resources", Label("fast"), func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+			}
+			mc.Spec.Annotations = map[string]string{
+				"annotation-example": "hazelcast",
+			}
+			mc.Spec.Labels = map[string]string{
+				//user labels
+				"label-example": "hazelcast",
+
+				// reserved labels
+				n.ApplicationNameLabel:         "user",
+				n.ApplicationInstanceNameLabel: "user",
+				n.ApplicationManagedByLabel:    "user",
+			}
+
+			Create(mc)
+			EnsureStatusIsPending(mc)
+
+			resources := map[string]client.Object{
+				"Secret":      &corev1.Secret{},
+				"Service":     &corev1.Service{},
+				"StatefulSet": &v1.StatefulSet{},
+			}
+			for name, r := range resources {
+				assertExists(lookupKey(mc), r)
+				// make sure user annotations and labels are present
+				Expect(r.GetAnnotations()).To(HaveKeyWithValue("annotation-example", "hazelcast"), name)
+				Expect(r.GetLabels()).To(HaveKeyWithValue("label-example", "hazelcast"), name)
+
+				// make sure operator overwrites selector labels
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationInstanceNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationManagedByLabel, "user")), name)
+			}
+		})
+	})
 })

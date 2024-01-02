@@ -59,7 +59,7 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 	service := &corev1.Service{
 		ObjectMeta: metadata(mc),
 		Spec: corev1.ServiceSpec{
-			Selector: labels(mc),
+			Selector: selectorLabels(mc),
 		},
 	}
 
@@ -182,17 +182,35 @@ func (r *ManagementCenterReconciler) reconcileRoute(ctx context.Context, mc *haz
 
 func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
-		Name:      mc.Name,
-		Namespace: mc.Namespace,
-		Labels:    labels(mc),
+		Name:        mc.Name,
+		Namespace:   mc.Namespace,
+		Labels:      labels(mc),
+		Annotations: mc.Spec.Annotations,
 	}
 }
-func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
+
+func selectorLabels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
 	return map[string]string{
 		n.ApplicationNameLabel:         n.ManagementCenter,
 		n.ApplicationInstanceNameLabel: mc.Name,
 		n.ApplicationManagedByLabel:    n.OperatorName,
 	}
+}
+
+func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
+	l := make(map[string]string)
+
+	// copy user labels
+	for name, value := range mc.Spec.Labels {
+		l[name] = value
+	}
+
+	// make sure we overwrite user labels
+	l[n.ApplicationNameLabel] = n.ManagementCenter
+	l[n.ApplicationInstanceNameLabel] = mc.Name
+	l[n.ApplicationManagedByLabel] = n.OperatorName
+
+	return l
 }
 
 func ports() []v1.ServicePort {
@@ -213,18 +231,17 @@ func ports() []v1.ServicePort {
 }
 
 func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	ls := labels(mc)
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metadata(mc),
 		Spec: appsv1.StatefulSetSpec{
 			// Management Center StatefulSet size is always 1
 			Replicas: &[]int32{1}[0],
 			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
+				MatchLabels: selectorLabels(mc),
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: ls,
+					Labels: labels(mc),
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{{
@@ -401,9 +418,10 @@ func tmpDirMount() corev1.VolumeMount {
 func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.MancenterStorageName,
-			Namespace: mc.Namespace,
-			Labels:    labels(mc),
+			Name:        n.MancenterStorageName,
+			Namespace:   mc.Namespace,
+			Labels:      labels(mc),
+			Annotations: mc.Spec.Annotations,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

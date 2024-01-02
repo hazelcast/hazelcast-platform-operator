@@ -68,6 +68,14 @@ type ManagementCenterSpec struct {
 	// SecurityProviders to authenticate users in Management Center
 	// +optional
 	SecurityProviders *SecurityProviders `json:"securityProvider,omitempty"`
+
+	// ManagementCenter Kubernetes resource annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// ManagementCenter Kubernetes resource labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 func (s *ManagementCenterSpec) GetLicenseKeySecretName() string {
