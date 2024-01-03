@@ -350,8 +350,11 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	}
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
-		if h.Spec.ExposeExternally.IsEnabled() && h.Spec.ExposeExternally.DiscoveryK8ServiceType() == corev1.ServiceTypeLoadBalancer {
-			service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeDiscoveryLabelValue
+		if h.Spec.ExposeExternally.IsEnabled() {
+			switch h.Spec.ExposeExternally.DiscoveryK8ServiceType() {
+			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
+				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeDiscoveryLabelValue
+			}
 		}
 
 		// append default wan port to HZ Discovery Service if use did not configure
@@ -407,7 +410,8 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 		}
 
 		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
-			if w.ServiceType == corev1.ServiceTypeLoadBalancer {
+			switch w.ServiceType {
+			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
 			}
 
@@ -462,7 +466,8 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		}
 
 		opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
-			if h.Spec.ExposeExternally.MemberAccessServiceType() == corev1.ServiceTypeLoadBalancer {
+			switch h.Spec.ExposeExternally.MemberAccessServiceType() {
+			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeMemberLabelValue
 			}
 
@@ -556,7 +561,42 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 				return err
 			}
 
-			hzEndpoint.SetAddress(util.GetExternalAddress(&svc))
+			// set external address depending on parent service type
+			switch svc.Spec.Type {
+			case corev1.ServiceTypeNodePort:
+				// search for the first node ip of the first pod
+				pods := corev1.PodList{}
+				if err := r.Client.List(ctx, &pods, client.MatchingLabels(svc.Spec.Selector)); err != nil {
+					return err
+				}
+
+				address := "*"
+				if len(pods.Items) > 0 {
+					address = pods.Items[0].Status.HostIP
+				}
+
+				// depending on Endpoint type we get name of the port
+				var portName string
+				switch hzEndpoint.Spec.Type {
+				case v1alpha1.HazelcastEndpointTypeWAN:
+					portName = n.WanDefaultPortName
+				default:
+					portName = n.HazelcastPortName
+				}
+
+				// NodePorts get address from svc .nodePort property
+				for _, port := range svc.Spec.Ports {
+					if port.Name == portName {
+						hzEndpoint.Status.Address = fmt.Sprintf("%s:%d", address, port.NodePort)
+						break
+					}
+				}
+
+			case corev1.ServiceTypeLoadBalancer:
+				// LoadBalancers get address from ingress status property
+				hzEndpoint.SetAddress(util.GetExternalAddress(&svc))
+			}
+
 			err = r.Client.Status().Update(ctx, hzEndpoint)
 			if err != nil {
 				return err
