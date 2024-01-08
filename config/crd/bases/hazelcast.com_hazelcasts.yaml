@@ -102,6 +102,11 @@ spec:
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
+              annotations:
+                additionalProperties:
+                  type: string
+                description: Hazelcast Kubernetes resource annotations
+                type: object
               clusterName:
                 default: dev
                 description: Name of the Hazelcast cluster.
@@ -365,6 +370,11 @@ spec:
                           a JVM
                         type: string
                     type: object
+                type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: Hazelcast Kubernetes resource labels
                 type: object
               licenseKeySecret:
                 description: licenseKeySecret is a deprecated alias for licenseKeySecretName.
