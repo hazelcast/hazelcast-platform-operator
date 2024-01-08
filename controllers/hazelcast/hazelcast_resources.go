@@ -52,6 +52,10 @@ const (
 	javaOpts = "JAVA_OPTS"
 )
 
+var defaultProperties = map[string]string{
+	"hazelcast.cluster.version.auto.upgrade.enabled": "true",
+}
+
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
@@ -832,6 +836,10 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		}
 	}
 
+	if h.Spec.Properties != nil {
+		h.Spec.Properties = mergeProperties(logger, defaultProperties, h.Spec.Properties)
+	}
+
 	if h.Spec.CustomConfigCmName != "" {
 		cfgCm := &v1.ConfigMap{}
 		if err := c.Get(ctx, types.NamespacedName{Name: h.Spec.CustomConfigCmName, Namespace: h.Namespace}, cfgCm, nil); err != nil {
@@ -856,6 +864,19 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	}
 
 	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
+}
+
+func mergeProperties(logger logr.Logger, defaultProps map[string]string, inputProps map[string]string) map[string]string {
+	m := make(map[string]string)
+	for k, v := range inputProps {
+		if _, exist := defaultProps[k]; exist { // if user's input is an immutable property, ignore user's input
+			logger.V(util.WarnLevel).Info("Property ignored", "section", k)
+			m[k] = defaultProps[k]
+		} else {
+			m[k] = v
+		}
+	}
+	return m
 }
 
 func mergeConfig(cstCfg map[string]interface{}, cfg *config.Hazelcast, logger logr.Logger, overwrite bool) (map[string]interface{}, error) {
@@ -916,10 +937,6 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 				},
 			},
 		},
-	}
-
-	cfg.Properties = map[string]string{
-		"hazelcast.cluster.version.auto.upgrade.enabled": "true",
 	}
 
 	if h.Spec.UserCodeDeployment != nil {
