@@ -838,6 +838,8 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 
 	if h.Spec.Properties != nil {
 		h.Spec.Properties = mergeProperties(logger, defaultProperties, h.Spec.Properties)
+	} else {
+		h.Spec.Properties = defaultProperties
 	}
 
 	if h.Spec.CustomConfigCmName != "" {

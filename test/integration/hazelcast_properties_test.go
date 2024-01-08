@@ -39,8 +39,8 @@ var _ = Describe("Hazelcast Properties", func() {
 			ensureHzStatusIsPending(hz)
 
 			fetchedCR := fetchHz(hz)
-			Expect(fetchedCR.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"]).Should(Equal("true"))
-			Expect(fetchedCR.Spec.Properties["hazelcast.graceful.shutdown.max.wait"]).Should(Equal("300"))
+			Expect("true").Should(Equal(fetchedCR.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"]))
+			Expect("300").Should(Equal(fetchedCR.Spec.Properties["hazelcast.graceful.shutdown.max.wait"]))
 		})
 
 		It("should not override default property", Label("fast"), func() {
@@ -55,7 +55,7 @@ var _ = Describe("Hazelcast Properties", func() {
 			ensureHzStatusIsPending(hz)
 
 			fetchedCR := fetchHz(hz)
-			Expect(fetchedCR.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"]).Should(Equal("true"))
+			Expect("true").Should(Equal(fetchedCR.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"]))
 		})
 	})
 })
