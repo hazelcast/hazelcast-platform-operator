@@ -36,9 +36,8 @@ var _ = Describe("Hazelcast Properties", func() {
 			hz.Spec.Properties["hazelcast.graceful.shutdown.max.wait"] = "300"
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			ensureHzStatusIsPending(hz)
+			fetchedCR := ensureHzStatusIsPending(hz)
 
-			fetchedCR := fetchHz(hz)
 			Expect("true").Should(Equal(fetchedCR.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"]))
 			Expect("300").Should(Equal(fetchedCR.Spec.Properties["hazelcast.graceful.shutdown.max.wait"]))
 		})
@@ -52,9 +51,8 @@ var _ = Describe("Hazelcast Properties", func() {
 			hz.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"] = "false"
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			ensureHzStatusIsPending(hz)
+			fetchedCR := ensureHzStatusIsPending(hz)
 
-			fetchedCR := fetchHz(hz)
 			Expect("true").Should(Equal(fetchedCR.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"]))
 		})
 	})
