@@ -789,6 +789,12 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
 
+	if h.Spec.Properties != nil {
+		h.Spec.Properties = mergeProperties(logger, defaultProperties, h.Spec.Properties)
+	} else {
+		h.Spec.Properties = defaultProperties
+	}
+
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 	fillHazelcastConfigWithSerialization(&cfg, h)
@@ -834,12 +840,6 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		case "Cache":
 			fillHazelcastConfigWithCaches(&cfg, filteredDSList)
 		}
-	}
-
-	if h.Spec.Properties != nil {
-		h.Spec.Properties = mergeProperties(logger, defaultProperties, h.Spec.Properties)
-	} else {
-		h.Spec.Properties = defaultProperties
 	}
 
 	if h.Spec.CustomConfigCmName != "" {
