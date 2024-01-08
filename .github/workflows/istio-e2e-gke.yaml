@@ -35,7 +35,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v2.0.0'
+        uses: "google-github-actions/auth@v2.0.0"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -52,8 +52,14 @@ jobs:
             --num-nodes=3
           sleep 30
 
+      - name: Create Firewall Rules if not existing
+        run: |-
+          gcloud compute firewall-rules create node-port-allow-all \
+            --allow tcp:30000-32767 \
+            --network=${{ env.GCP_NETWORK }} | true
+
   grafana-setup:
-    needs: [ create-gke-cluster ]
+    needs: [create-gke-cluster]
     uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
@@ -159,7 +165,7 @@ jobs:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
-        uses: 'google-github-actions/get-gke-credentials@v2'
+        uses: "google-github-actions/get-gke-credentials@v2"
         with:
           cluster_name: ${{ env.CLUSTER_NAME }}
           project_id: ${{ env.GCP_PROJECT_ID }}
@@ -226,7 +232,7 @@ jobs:
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
       - name: Undeploy Istio after Tests
-        if : matrix.edition == 'ee'
+        if: matrix.edition == 'ee'
         run: |
           helm uninstall istiod -n istio-system
           helm uninstall istio-base -n istio-system
@@ -240,7 +246,7 @@ jobs:
           path: allure-results/istio/
 
   report-generation:
-    needs: ["gke-e2e-istio-tests","create-gke-cluster"]
+    needs: ["gke-e2e-istio-tests", "create-gke-cluster"]
     if: always() && (needs.gke-e2e-istio-tests.result == 'success' || needs.gke-e2e-istio-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
