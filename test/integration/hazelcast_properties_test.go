@@ -32,6 +32,7 @@ var _ = Describe("Hazelcast Properties", func() {
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
 			}
+			hz.Spec.Properties = make(map[string]string)
 			hz.Spec.Properties["hazelcast.graceful.shutdown.max.wait"] = "300"
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
@@ -47,6 +48,7 @@ var _ = Describe("Hazelcast Properties", func() {
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
 			}
+			hz.Spec.Properties = make(map[string]string)
 			hz.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"] = "false"
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
