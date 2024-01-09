@@ -790,9 +790,11 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	cfg := hazelcastBasicConfig(h)
 
 	if h.Spec.Properties != nil {
-		h.Spec.Properties = mergeProperties(logger, defaultProperties, h.Spec.Properties)
+		h.Spec.Properties = mergeProperties(logger, h.Spec.Properties)
 	} else {
-		h.Spec.Properties = defaultProperties
+		for k, v := range defaultProperties {
+			h.Spec.Properties[k] = v
+		}
 	}
 
 	fillHazelcastConfigWithProperties(&cfg, h)
@@ -868,12 +870,14 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 }
 
-func mergeProperties(logger logr.Logger, defaultProps map[string]string, inputProps map[string]string) map[string]string {
+func mergeProperties(logger logr.Logger, inputProps map[string]string) map[string]string {
 	m := make(map[string]string)
+	for k, v := range defaultProperties {
+		m[k] = v
+	}
 	for k, v := range inputProps {
-		if _, exist := defaultProps[k]; exist { // if user's input is an immutable property, ignore user's input
-			logger.V(util.WarnLevel).Info("Property ignored", "section", k)
-			m[k] = defaultProps[k]
+		if _, exist := m[k]; exist { // if user's input is an immutable property, ignore user's input
+			logger.V(util.WarnLevel).Info("Property ignored", "property", k)
 		} else {
 			m[k] = v
 		}

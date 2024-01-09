@@ -5,10 +5,12 @@ import (
 	"fmt"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v3"
 )
 
 var _ = Describe("Hazelcast Properties", func() {
@@ -32,14 +34,26 @@ var _ = Describe("Hazelcast Properties", func() {
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
 			}
-			hz.Spec.Properties = make(map[string]string)
-			hz.Spec.Properties["hazelcast.graceful.shutdown.max.wait"] = "300"
+			hz.Spec.Properties = map[string]string{
+				"hazelcast.graceful.shutdown.max.wait": "300",
+			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			fetchedCR := ensureHzStatusIsPending(hz)
+			ensureHzStatusIsPending(hz)
 
-			Expect("true").Should(Equal(fetchedCR.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"]))
-			Expect("300").Should(Equal(fetchedCR.Spec.Properties["hazelcast.graceful.shutdown.max.wait"]))
+			Eventually(func() map[string]string {
+				cfg := getSecret(hz)
+				a := &config.HazelcastWrapper{}
+
+				if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+					return nil
+				}
+
+				return a.Hazelcast.Properties
+			}, timeout, interval).Should(Equal(map[string]string{
+				"hazelcast.cluster.version.auto.upgrade.enabled": "true",
+				"hazelcast.graceful.shutdown.max.wait":           "300",
+			}))
 		})
 
 		It("should not override default property", Label("fast"), func() {
@@ -47,13 +61,25 @@ var _ = Describe("Hazelcast Properties", func() {
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
 			}
-			hz.Spec.Properties = make(map[string]string)
-			hz.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"] = "false"
+			hz.Spec.Properties = map[string]string{
+				"hazelcast.cluster.version.auto.upgrade.enabled": "false",
+			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			fetchedCR := ensureHzStatusIsPending(hz)
+			ensureHzStatusIsPending(hz)
 
-			Expect("true").Should(Equal(fetchedCR.Spec.Properties["hazelcast.cluster.version.auto.upgrade.enabled"]))
+			Eventually(func() map[string]string {
+				cfg := getSecret(hz)
+				a := &config.HazelcastWrapper{}
+
+				if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+					return nil
+				}
+
+				return a.Hazelcast.Properties
+			}, timeout, interval).Should(Equal(map[string]string{
+				"hazelcast.cluster.version.auto.upgrade.enabled": "true",
+			}))
 		})
 	})
 })
