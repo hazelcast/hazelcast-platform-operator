@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/ptr"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -438,6 +439,13 @@ var _ = Describe("Hazelcast CR", func() {
 				"hazelcast.slow.operation.detector.stacktrace.logging.enabled": "true",
 				"hazelcast.query.optimizer.type":                               "NONE",
 			}
+			samplePropsWithDefaults := make(map[string]string)
+			for k, v := range hazelcast.DefaultProperties {
+				samplePropsWithDefaults[k] = v
+			}
+			for k, v := range sampleProperties {
+				samplePropsWithDefaults[k] = v
+			}
 			spec.Properties = sampleProperties
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -456,7 +464,7 @@ var _ = Describe("Hazelcast CR", func() {
 				}
 
 				return a.Hazelcast.Properties
-			}, timeout, interval).Should(Equal(sampleProperties))
+			}, timeout, interval).Should(Equal(samplePropsWithDefaults))
 		})
 	})
 

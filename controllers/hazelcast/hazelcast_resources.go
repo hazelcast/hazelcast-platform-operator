@@ -52,7 +52,7 @@ const (
 	javaOpts = "JAVA_OPTS"
 )
 
-var defaultProperties = map[string]string{
+var DefaultProperties = map[string]string{
 	"hazelcast.cluster.version.auto.upgrade.enabled": "true",
 }
 
@@ -793,7 +793,7 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		h.Spec.Properties = mergeProperties(logger, h.Spec.Properties)
 	} else {
 		h.Spec.Properties = make(map[string]string)
-		for k, v := range defaultProperties {
+		for k, v := range DefaultProperties {
 			h.Spec.Properties[k] = v
 		}
 	}
@@ -873,7 +873,7 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 
 func mergeProperties(logger logr.Logger, inputProps map[string]string) map[string]string {
 	m := make(map[string]string)
-	for k, v := range defaultProperties {
+	for k, v := range DefaultProperties {
 		m[k] = v
 	}
 	for k, v := range inputProps {
