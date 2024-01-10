@@ -489,7 +489,35 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 	return nil
 }
 
+// nodePublicAddress tries to find node public ip
+func nodePublicAddress(addresses []v1.NodeAddress) string {
+	var fallbackAddress string
+	// we iterate over a unordered list of addresses
+	for _, address := range addresses {
+		switch address.Type {
+		case corev1.NodeExternalIP:
+			// we found explicitly set NodeExternalIP, fast return
+			return address.Address
+		case corev1.NodeInternalIP:
+			fallbackAddress = address.Address
+		}
+	}
+	// no NodeExternalIP found on the list so return fallback ip
+	return fallbackAddress
+}
+
 func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	// prepare a map of node addresses for fast lookup
+	var nodes corev1.NodeList
+	if err := r.Client.List(ctx, &nodes); err != nil {
+		return err
+	}
+
+	nodeAddress := make(map[string]string, len(nodes.Items))
+	for _, node := range nodes.Items {
+		nodeAddress[node.Name] = nodePublicAddress(node.Status.Addresses)
+	}
+
 	svcList, err := util.ListRelatedServices(ctx, r.Client, h)
 	if err != nil {
 		return err
@@ -565,14 +593,14 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 			switch svc.Spec.Type {
 			case corev1.ServiceTypeNodePort:
 				// search for the first node ip of the first pod
-				pods := corev1.PodList{}
+				var pods corev1.PodList
 				if err := r.Client.List(ctx, &pods, client.MatchingLabels(svc.Spec.Selector)); err != nil {
 					return err
 				}
 
 				address := "*"
 				if len(pods.Items) > 0 {
-					address = pods.Items[0].Status.HostIP
+					address = nodeAddress[pods.Items[0].Spec.NodeName]
 				}
 
 				// depending on Endpoint type we get name of the port
