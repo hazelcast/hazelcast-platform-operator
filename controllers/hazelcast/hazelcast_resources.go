@@ -2445,6 +2445,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Name:  "CLASSPATH",
 			Value: javaClassPath(h),
 		},
+		{
+			Name:  "PROMETHEUS_PORT",
+			Value: "9701",
+		},
 	}
 	if h.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,

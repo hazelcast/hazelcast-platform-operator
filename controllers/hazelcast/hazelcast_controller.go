@@ -3,9 +3,12 @@ package hazelcast
 import (
 	"context"
 	"fmt"
+	"math"
+	"net/http"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/common/expfmt"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -303,6 +306,8 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
+	r.billingAgent(ctx, req.NamespacedName)
+
 	err = r.updateLastSuccessfulConfiguration(ctx, h, logger)
 	if err != nil {
 		logger.Info("Could not save the current successful spec as annotation to the custom resource")
@@ -313,6 +318,58 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		r.withMemberStatuses(ctx, h, nil),
 		withHzStatefulSet(statefulSet),
 	)
+}
+
+type Metric struct {
+	uptime time.Duration
+	memory int64 // bytes
+	cpu    int   // count
+	member int   // count
+}
+
+func (r *HazelcastReconciler) billingAgent(ctx context.Context, name types.NamespacedName) error {
+	selector := client.MatchingLabels(map[string]string{
+		"app.kubernetes.io/managed-by": "hazelcast-platform-operator",
+	})
+	var pods corev1.PodList
+	if err := r.Client.List(ctx, &pods, selector); err != nil {
+		return err
+	}
+	var m Metric
+
+	for _, pod := range pods.Items {
+		resp, err := http.Get(fmt.Sprintf("http://%s:9701/metrics", pod.Status.PodIP))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		var parser expfmt.TextParser
+		metricFamilies, err := parser.TextToMetricFamilies(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, mf := range metricFamilies {
+			switch *mf.Name {
+			case "com_hazelcast_Metrics_usedMemory":
+				m.memory += int64(math.Round(*mf.Metric[0].Untyped.Value))
+			case "com_hazelcast_Metrics_clusterUpTime":
+				m.uptime = time.Duration(math.Round(*mf.Metric[0].Untyped.Value)) * time.Millisecond
+			case "com_hazelcast_Metrics_availableProcessors":
+				m.cpu += int(math.Round(*mf.Metric[0].Untyped.Value))
+			}
+		}
+		m.member++
+	}
+
+	r.Log.Info("billing",
+		"uptime", math.Ceil(m.uptime.Hours()),
+		"memory", math.Ceil(m.uptime.Hours())*0.10*float64(m.memory/1024/1024),
+		"cpu", math.Ceil(m.uptime.Hours())*0.08*float64(m.cpu),
+	)
+
+	return nil
 }
 
 func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
