@@ -289,7 +289,7 @@ deploy-ttl:
 	@$(eval IMAGE_TAG=ttl.sh/hazelcast-platform-operator/$(shell uuidgen | tr "[:upper:]" "[:lower:]"):6h)
 	$(MAKE) docker-build-ci IMG=$(IMAGE_TAG)
 	docker push $(IMAGE_TAG)
-	$(MAKE) install-operator STRING_SET_VALUES='image.imageOverride=$(IMAGE_TAG)'
+	$(MAKE) deploy IMG=$(IMAGE_TAG)
 
 undeploy: uninstall-operator uninstall-crds ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 
