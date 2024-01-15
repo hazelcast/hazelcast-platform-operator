@@ -331,58 +331,64 @@ func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool
 	})
 }
 
-func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int, timeout time.Duration) {
+func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, expectedMapSize int, timeout time.Duration) {
+	fmt.Printf("Waiting for the '%s' map to be of size '%d' using lookup name '%s'", mapName, expectedMapSize, lk.Name)
 	if timeout == 0 {
 		timeout = 10 * time.Minute
+		log.Printf("No timeout specified, defaulting to %v", timeout)
 	}
-
 	clientHz := GetHzClient(ctx, lk, true)
 	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := clientHz.Shutdown(shutdownCtx); err != nil {
-			log.Printf("Failed to shutdown Hz client gracefully: %v", err)
+		log.Printf("Shutting down Hazelcast client")
+		if err := clientHz.Shutdown(ctx); err != nil {
+			log.Printf("Error while shutting down Hazelcast client: %v", err)
 		}
 	}()
-
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	log.Printf("Waiting for '%s' map to be of size '%d' using lookup name '%s'", mapName, mapSize, lk.Name)
-	for {
-		select {
-		case <-ctx.Done():
-			Fail("timeout waiting for map to be of correct size")
-		case <-ticker.C:
-			hzMap, err := clientHz.GetMap(ctx, mapName)
-			if err != nil {
-				Fail("failed to get map")
-			}
-			size, err := hzMap.Size(ctx)
-			if err != nil {
-				Fail("failed to get map size")
-			}
-			if size == mapSize {
-				log.Printf("Success: '%s' map is of size '%d' using lookup name '%s'", mapName, mapSize, lk.Name)
-				return
-			}
-		}
+	hzMap, err := clientHz.GetMap(ctx, mapName)
+	if err != nil {
+		log.Fatalf("Failed to get map '%s': %v", mapName, err)
 	}
+	Eventually(func() (int, error) {
+		mapSize, err := hzMap.Size(ctx)
+		if err != nil {
+			log.Printf("Error getting size of map '%s': %v", mapName, err)
+			return 0, err
+		}
+		log.Printf("Current size of map '%s': %d", mapName, mapSize)
+		return mapSize, nil
+	}, timeout, 60*time.Second).Should(Equal(expectedMapSize))
+	log.Printf("Map '%s' reached expected size '%d'", mapName, expectedMapSize)
 }
 
 /*
 2 (entries per single goroutine) = 1048576 (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
 */
 func FillTheMapWithData(ctx context.Context, mapName string, sizeInMb int, expectedSize int, hzConfig *hazelcastcomv1alpha1.Hazelcast) {
-	By(fmt.Sprintf("filling the map '%s' with '%d' MB data", mapName, sizeInMb), func() {
-		hzAddress := hzclient.HazelcastUrl(hzConfig)
-		mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInMb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
-		WaitForMapSize(ctx, hzLookupKey, mapName, int(float64(expectedSize)*128), 5*Minute) // 128 entries/Mb = 2 (entries) * 64 (goroutines)
-		defer DeletePod(mapLoaderPod.Name, 10, types.NamespacedName{Namespace: hzConfig.Namespace})
-	})
+	fmt.Printf("filling the map '%s' with '%d' MB data\n", mapName, sizeInMb)
+	hzAddress := hzclient.HazelcastUrl(hzConfig)
+	clientHz := GetHzClient(ctx, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace}, true)
+	defer func() {
+		err := clientHz.Shutdown(ctx)
+		Expect(err).ToNot(HaveOccurred())
+	}()
+	mapLoaderPod := createMapLoaderPod(hzAddress, hzConfig.Spec.ClusterName, sizeInMb, mapName, types.NamespacedName{Name: hzConfig.Name, Namespace: hzConfig.Namespace})
+	defer DeletePod(mapLoaderPod.Name, 10, types.NamespacedName{Namespace: hzConfig.Namespace})
+	fmt.Printf("Expected entries for the map '%s' is %d\n", mapName, expectedSize*128)
+	Eventually(func() int {
+		return countKeySet(ctx, clientHz, mapName, hzConfig)
+	}, 15*Minute, interval).Should(Equal(expectedSize * 128)) // 128 entries/Mb = 2 (entries) * 64 (goroutines)
+}
+
+func countKeySet(ctx context.Context, clientHz *hzClient.Client, mapName string, hzConfig *hazelcastcomv1alpha1.Hazelcast) int {
+	keyCount := 0
+	m, _ := clientHz.GetMap(ctx, mapName)
+	keySet, _ := m.GetKeySet(ctx)
+	for _, key := range keySet {
+		if strings.HasPrefix(fmt.Sprint(key), hzConfig.Spec.ClusterName) {
+			keyCount++
+		}
+	}
+	return keyCount
 }
 
 func createMapLoaderPod(hzAddress, clusterName string, mapSizeInMb int, mapName string, lk types.NamespacedName) *corev1.Pod {
@@ -460,14 +466,22 @@ func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), lookupKey, hz)
-		}, Minute, interval).ShouldNot(HaveOccurred())
-		membersCount := int(*hz.Spec.ClusterSize)
-		Eventually(func() string {
 			err := k8sClient.Get(context.Background(), lookupKey, hz)
-			Expect(err).ToNot(HaveOccurred())
-			return hz.Status.Cluster.ReadyMembers
-		}, 10*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
+			if err != nil {
+				fmt.Printf("Error occurred while getting Hazelcast resource: %s\n", err)
+				return err
+			}
+			return nil
+		}, 5*Minute, interval).Should(BeNil())
+		membersCount := int(*hz.Spec.ClusterSize)
+		Eventually(func() (string, error) {
+			err := k8sClient.Get(context.Background(), lookupKey, hz)
+			if err != nil {
+				fmt.Printf("Error occurred while getting Hazelcast ready members: %s\n", err)
+				return "", err
+			}
+			return hz.Status.Cluster.ReadyMembers, nil
+		}, 15*Minute, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
 	})
 }
 
@@ -1013,7 +1027,7 @@ func ScaleStatefulSet(namespace string, resourceName string, replicas int32) {
 	if err != nil {
 		return
 	}
-	Sleep(5 * Second)
+	Sleep(10 * Second)
 	WaitForReplicaSize(namespace, resourceName, replicas)
 }
 
