@@ -468,7 +468,9 @@ func assertMembersNotRestarted(lookupKey types.NamespacedName) {
 			Namespace: lookupKey.Namespace,
 		}
 		pod := corev1.Pod{}
-		k8sClient.Get(context.Background(), podLookupKey, &pod)
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), podLookupKey, &pod)
+		}, Minute, interval).ShouldNot(HaveOccurred())
 		Expect(pod.Status.ContainerStatuses[0].RestartCount).To(BeZero())
 	}
 }
