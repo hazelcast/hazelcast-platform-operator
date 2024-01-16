@@ -689,8 +689,8 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
 		s := &v1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
-		if err != nil {
-			// Service is not created yet
+		if err != nil || s.GetDeletionTimestamp() != nil {
+			// Service is not created yet or marked as deleted
 			return false
 		}
 		if s.Spec.Type == v1.ServiceTypeLoadBalancer {
