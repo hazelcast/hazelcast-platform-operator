@@ -52,6 +52,14 @@ const (
 	javaOpts = "JAVA_OPTS"
 )
 
+var DefaultProperties = map[string]string{
+	"hazelcast.cluster.version.auto.upgrade.enabled": "true",
+	// https://docs.hazelcast.com/hazelcast/5.3/kubernetes/kubernetes-auto-discovery#configuration
+	// We added the following properties to here with their default values, because DefaultProperties cannot be overridden
+	"hazelcast.persistence.auto.cluster.state":          "true",
+	"hazelcast.persistence.auto.cluster.state.strategy": "NO_MIGRATION",
+}
+
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
@@ -858,6 +866,15 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
 
+	if h.Spec.Properties != nil {
+		h.Spec.Properties = mergeProperties(logger, h.Spec.Properties)
+	} else {
+		h.Spec.Properties = make(map[string]string)
+		for k, v := range DefaultProperties {
+			h.Spec.Properties[k] = v
+		}
+	}
+
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 	fillHazelcastConfigWithSerialization(&cfg, h)
@@ -931,6 +948,21 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	return yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
 }
 
+func mergeProperties(logger logr.Logger, inputProps map[string]string) map[string]string {
+	m := make(map[string]string)
+	for k, v := range DefaultProperties {
+		m[k] = v
+	}
+	for k, v := range inputProps {
+		if _, exist := m[k]; exist { // if user's input is an immutable property, ignore user's input
+			logger.V(util.WarnLevel).Info("Property ignored", "property", k)
+		} else {
+			m[k] = v
+		}
+	}
+	return m
+}
+
 func mergeConfig(cstCfg map[string]interface{}, cfg *config.Hazelcast, logger logr.Logger, overwrite bool) (map[string]interface{}, error) {
 	out, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -990,6 +1022,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			},
 		},
 	}
+
 	if h.Spec.UserCodeDeployment != nil {
 		cfg.UserCodeDeployment = config.UserCodeDeployment{
 			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
