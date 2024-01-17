@@ -1778,6 +1778,8 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
+	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, billingContainer(h))
+
 	if h.Spec.Persistence.IsEnabled() {
 		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 	}
@@ -1903,6 +1905,14 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			},
 		},
 		SecurityContext: containerSecurityContext(),
+	}
+}
+
+func billingContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
+	return v1.Container{
+		Name:  "billing",
+		Image: "dzeromskhazelcast/billing-agent:0.0.1",
+		// Args: []string{"sidecar"},
 	}
 }
 
