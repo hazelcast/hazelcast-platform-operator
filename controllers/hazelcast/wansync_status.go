@@ -12,7 +12,6 @@ import (
 )
 
 type wanSyncOptionsBuilder struct {
-	publisherId  string
 	phase        hazelcastv1alpha1.WanSyncPhase
 	message      string
 	mapsStatuses map[string]wanSyncMapStatus
@@ -51,17 +50,6 @@ func wanSyncPendingStatus() wanSyncOptionsBuilder {
 		phase:        hazelcastv1alpha1.WanSyncPending,
 		mapsStatuses: make(map[string]wanSyncMapStatus),
 	}
-}
-
-func wanSyncSuccessStatus() wanSyncOptionsBuilder {
-	return wanSyncOptionsBuilder{
-		phase:        hazelcastv1alpha1.WanSyncCompleted,
-		mapsStatuses: make(map[string]wanSyncMapStatus),
-	}
-}
-
-func (o wanSyncOptionsBuilder) withMapStatus(mapName string, status wanSyncMapStatus) {
-	o.mapsStatuses[mapName] = status
 }
 
 func updateWanSyncMapStatus(ctx context.Context, c client.Client, name types.NamespacedName, wanMapKey string, mapStatus wanSyncMapStatus) error {
