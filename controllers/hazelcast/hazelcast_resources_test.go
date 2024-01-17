@@ -206,14 +206,16 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: hazelcastv1alpha1.WanReplicationSpec{
-				Resources: []hazelcastv1alpha1.ResourceSpec{
-					{
-						Name: hz.Name,
-						Kind: hazelcastv1alpha1.ResourceKindHZ,
+				WanPublisherConfig: hazelcastv1alpha1.WanPublisherConfig{
+					Resources: []hazelcastv1alpha1.ResourceSpec{
+						{
+							Name: hz.Name,
+							Kind: hazelcastv1alpha1.ResourceKindHZ,
+						},
 					},
+					TargetClusterName: "dev",
+					Endpoints:         "10.0.0.1:5701",
 				},
-				TargetClusterName: "dev",
-				Endpoints:         "10.0.0.1:5701",
 			},
 			Status: hazelcastv1alpha1.WanReplicationStatus{
 				WanReplicationMapsStatus: map[string]hazelcastv1alpha1.WanReplicationMapStatus{
@@ -230,14 +232,16 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: hazelcastv1alpha1.WanReplicationSpec{
-				Resources: []hazelcastv1alpha1.ResourceSpec{
-					{
-						Name: hz.Name,
-						Kind: hazelcastv1alpha1.ResourceKindHZ,
+				WanPublisherConfig: hazelcastv1alpha1.WanPublisherConfig{
+					Resources: []hazelcastv1alpha1.ResourceSpec{
+						{
+							Name: hz.Name,
+							Kind: hazelcastv1alpha1.ResourceKindHZ,
+						},
 					},
+					TargetClusterName: "dev",
+					Endpoints:         "10.0.0.2:5701",
 				},
-				TargetClusterName: "dev",
-				Endpoints:         "10.0.0.2:5701",
 			},
 			Status: hazelcastv1alpha1.WanReplicationStatus{
 				WanReplicationMapsStatus: map[string]hazelcastv1alpha1.WanReplicationMapStatus{

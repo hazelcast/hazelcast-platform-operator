@@ -34,14 +34,16 @@ var _ = Describe("WanReplication CR", func() {
 			wan := &hazelcastv1alpha1.WanReplication{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.WanReplicationSpec{
-					Resources: []hazelcastv1alpha1.ResourceSpec{
-						{
-							Name: "hazelcast",
-							Kind: hazelcastv1alpha1.ResourceKindHZ,
+					WanPublisherConfig: hazelcastv1alpha1.WanPublisherConfig{
+						Resources: []hazelcastv1alpha1.ResourceSpec{
+							{
+								Name: "hazelcast",
+								Kind: hazelcastv1alpha1.ResourceKindHZ,
+							},
 						},
+						TargetClusterName: "dev",
+						Endpoints:         "10.0.0.1:5701",
 					},
-					TargetClusterName: "dev",
-					Endpoints:         "10.0.0.1:5701",
 				},
 			}
 			By("creating WanReplication CR successfully")
@@ -74,14 +76,16 @@ var _ = Describe("WanReplication CR", func() {
 				wan := &hazelcastv1alpha1.WanReplication{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.WanReplicationSpec{
-						Resources: []hazelcastv1alpha1.ResourceSpec{
-							{
-								Name: "hazelcast",
-								Kind: hazelcastv1alpha1.ResourceKindHZ,
+						WanPublisherConfig: hazelcastv1alpha1.WanPublisherConfig{
+							Resources: []hazelcastv1alpha1.ResourceSpec{
+								{
+									Name: "hazelcast",
+									Kind: hazelcastv1alpha1.ResourceKindHZ,
+								},
 							},
+							TargetClusterName: "dev",
+							Endpoints:         endpoints,
 						},
-						TargetClusterName: "dev",
-						Endpoints:         endpoints,
 					},
 				}
 				By("creating WanReplication CR successfully")
@@ -102,23 +106,25 @@ var _ = Describe("WanReplication CR", func() {
 		When("updating unmodifiable fields", func() {
 			It("should not be allowed", Label("fast"), func() {
 				spec := hazelcastv1alpha1.WanReplicationSpec{
-					Resources: []hazelcastv1alpha1.ResourceSpec{{
-						Name: "hazelcast",
-						Kind: hazelcastv1alpha1.ResourceKindHZ,
-					}},
-					TargetClusterName: "dev",
-					Endpoints:         "203.0.113.51:5701",
-					Queue: hazelcastv1alpha1.QueueSetting{
-						Capacity:     10,
-						FullBehavior: hazelcastv1alpha1.DiscardAfterMutation,
-					},
-					Batch: hazelcastv1alpha1.BatchSetting{
-						Size:         100,
-						MaximumDelay: 1000,
-					},
-					Acknowledgement: hazelcastv1alpha1.AcknowledgementSetting{
-						Type:    hazelcastv1alpha1.AckOnOperationComplete,
-						Timeout: 6000,
+					WanPublisherConfig: hazelcastv1alpha1.WanPublisherConfig{
+						Resources: []hazelcastv1alpha1.ResourceSpec{{
+							Name: "hazelcast",
+							Kind: hazelcastv1alpha1.ResourceKindHZ,
+						}},
+						TargetClusterName: "dev",
+						Endpoints:         "203.0.113.51:5701",
+						Queue: hazelcastv1alpha1.QueueSetting{
+							Capacity:     10,
+							FullBehavior: hazelcastv1alpha1.DiscardAfterMutation,
+						},
+						Batch: hazelcastv1alpha1.BatchSetting{
+							Size:         100,
+							MaximumDelay: 1000,
+						},
+						Acknowledgement: hazelcastv1alpha1.AcknowledgementSetting{
+							Type:    hazelcastv1alpha1.AckOnOperationComplete,
+							Timeout: 6000,
+						},
 					},
 				}
 				wrs, _ := json.Marshal(spec)

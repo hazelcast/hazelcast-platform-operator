@@ -572,6 +572,40 @@ func assertWanStatusMapCount(wr *hazelcastcomv1alpha1.WanReplication, mapLen int
 	return checkWan
 }
 
+func assertWanSyncStatus(wr *hazelcastcomv1alpha1.WanSync, st hazelcastcomv1alpha1.WanSyncPhase) *hazelcastcomv1alpha1.WanSync {
+	checkWan := &hazelcastcomv1alpha1.WanSync{}
+	By("waiting for WAN CR status", func() {
+		Eventually(func() hazelcastcomv1alpha1.WanSyncPhase {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      wr.Name,
+				Namespace: wr.Namespace,
+			}, checkWan)
+			if err != nil {
+				return ""
+			}
+			return checkWan.Status.Status
+		}, 1*Minute, interval).Should(Equal(st))
+	})
+	return checkWan
+}
+
+func assertWanSyncStatusMapCount(wr *hazelcastcomv1alpha1.WanSync, mapLen int) *hazelcastcomv1alpha1.WanSync {
+	checkWan := &hazelcastcomv1alpha1.WanSync{}
+	By("waiting for WAN CR status map length", func() {
+		Eventually(func() int {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      wr.Name,
+				Namespace: wr.Namespace,
+			}, checkWan)
+			if err != nil {
+				return -1
+			}
+			return len(checkWan.Status.WanSyncMapsStatus)
+		}, 1*Minute, interval).Should(Equal(mapLen))
+	})
+	return checkWan
+}
+
 func getMemberConfig(ctx context.Context, client *hzClient.Client) string {
 	ci := hzClient.NewClientInternal(client)
 	req := codec.EncodeMCGetMemberConfigRequest()
@@ -1020,6 +1054,28 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
 	wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	wan = assertWanStatusMapCount(wan, mapCount)
+	return wan
+}
+
+func createWanSync(ctx context.Context, lk types.NamespacedName, target *hazelcastcomv1alpha1.Hazelcast, resources []hazelcastcomv1alpha1.ResourceSpec, mapCount int, labels map[string]string) *hazelcastcomv1alpha1.WanSync {
+	wan := hazelcastconfig.WanSync(
+		lk,
+		target.Spec.ClusterName,
+		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, naming.WanDefaultPort),
+		resources,
+		labels,
+	)
+	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
+	wan = assertWanSyncStatus(wan, hazelcastcomv1alpha1.WanSyncCompleted)
+	wan = assertWanSyncStatusMapCount(wan, mapCount)
+	return wan
+}
+
+func createWanSyncFromWanReplication(ctx context.Context, lk types.NamespacedName, wanReplicationName string, mapCount int, labels map[string]string) *hazelcastcomv1alpha1.WanSync {
+	wan := hazelcastconfig.WanSyncFromWanReplication(lk, wanReplicationName, labels)
+	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
+	wan = assertWanSyncStatus(wan, hazelcastcomv1alpha1.WanSyncCompleted)
+	wan = assertWanSyncStatusMapCount(wan, mapCount)
 	return wan
 }
 

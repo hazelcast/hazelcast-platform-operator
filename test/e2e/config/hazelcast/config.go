@@ -624,12 +624,14 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastcomv1alpha1.WanReplicationSpec{
-				TargetClusterName: targetClusterName,
-				Endpoints:         endpoints,
-				Resources: []hazelcastcomv1alpha1.ResourceSpec{{
-					Name: mapName,
-					Kind: hazelcastcomv1alpha1.ResourceKindMap,
-				}},
+				WanPublisherConfig: hazelcastcomv1alpha1.WanPublisherConfig{
+					TargetClusterName: targetClusterName,
+					Endpoints:         endpoints,
+					Resources: []hazelcastcomv1alpha1.ResourceSpec{{
+						Name: mapName,
+						Kind: hazelcastcomv1alpha1.ResourceKindMap,
+					}},
+				},
 			},
 		}
 	}
@@ -642,9 +644,11 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastcomv1alpha1.WanReplicationSpec{
-				TargetClusterName: targetClusterName,
-				Endpoints:         endpoints,
-				Resources:         []hazelcastcomv1alpha1.ResourceSpec{},
+				WanPublisherConfig: hazelcastcomv1alpha1.WanPublisherConfig{
+					TargetClusterName: targetClusterName,
+					Endpoints:         endpoints,
+					Resources:         []hazelcastcomv1alpha1.ResourceSpec{},
+				},
 			},
 		}
 	}
@@ -657,9 +661,45 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastcomv1alpha1.WanReplicationSpec{
-				TargetClusterName: targetClusterName,
-				Endpoints:         endpoints,
-				Resources:         resources,
+				WanPublisherConfig: hazelcastcomv1alpha1.WanPublisherConfig{
+					TargetClusterName: targetClusterName,
+					Endpoints:         endpoints,
+					Resources:         resources,
+				},
+			},
+		}
+	}
+
+	WanSync = func(wan types.NamespacedName, targetClusterName, endpoints string, resources []hazelcastcomv1alpha1.ResourceSpec, lbls map[string]string) *hazelcastcomv1alpha1.WanSync {
+		return &hazelcastcomv1alpha1.WanSync{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      wan.Name,
+				Namespace: wan.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastcomv1alpha1.WanSyncSpec{
+				WanSource: hazelcastcomv1alpha1.WanSource{
+					Config: &hazelcastcomv1alpha1.WanPublisherConfig{
+						TargetClusterName: targetClusterName,
+						Endpoints:         endpoints,
+						Resources:         resources,
+					},
+				},
+			},
+		}
+	}
+
+	WanSyncFromWanReplication = func(wan types.NamespacedName, wanReplicationName string, lbls map[string]string) *hazelcastcomv1alpha1.WanSync {
+		return &hazelcastcomv1alpha1.WanSync{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      wan.Name,
+				Namespace: wan.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastcomv1alpha1.WanSyncSpec{
+				WanSource: hazelcastcomv1alpha1.WanSource{
+					WanReplicationName: wanReplicationName,
+				},
 			},
 		}
 	}

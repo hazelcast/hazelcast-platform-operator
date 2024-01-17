@@ -12,6 +12,7 @@ type WanService interface {
 	AddBatchPublisherConfig(ctx context.Context, request *AddBatchPublisherRequest) error
 	ChangeWanState(ctx context.Context, state codecTypes.WanReplicationState) error
 	ClearWanQueue(ctx context.Context) error
+	WanSyncMap(ctx context.Context, mapName string) error
 }
 
 type AddBatchPublisherRequest struct {
@@ -91,6 +92,17 @@ func (ws *HzWanService) ClearWanQueue(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (ws *HzWanService) WanSyncMap(ctx context.Context, mapName string) error {
+	request := codec.EncodeMCWanSyncMapRequest(codecTypes.WanSyncRef{
+		WanReplicationName: ws.name,
+		WanPublisherId:     ws.publisherId,
+		Type:               codecTypes.SingleMap,
+		MapName:            mapName,
+	})
+	_, err := ws.client.InvokeOnRandomTarget(ctx, request, nil)
+	return err
 }
 
 func convertAckType(ackType hazelcastv1alpha1.AcknowledgementType) int32 {

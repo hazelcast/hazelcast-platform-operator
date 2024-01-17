@@ -273,6 +273,13 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
 	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)
 	mapInput.InMemoryFormat = string(ms.InMemoryFormat)
+	if ms.MerkleTree != nil {
+		mapInput.MerkleTreeConfig = codecTypes.MerkleTreeConfig{
+			Enabled: true,
+			Depth:   ms.MerkleTree.Depth,
+		}
+	}
+
 	if ms.MapStore != nil {
 		props, err := getMapStoreProperties(ctx, c, ms.MapStore.PropertiesSecretName, hz.Namespace)
 		if err != nil {

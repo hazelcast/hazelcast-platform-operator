@@ -114,7 +114,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			withWanRepFailedState(err.Error()))
 	}
 
-	hzClientMap, err := r.getMapsGroupByHazelcastName(ctx, wan)
+	hzClientMap, err := getMapsGroupByHazelcastName(ctx, r.Client, wan)
 	if err != nil {
 		return updateWanStatus(ctx, r.Client, wan, recoptions.Error(err),
 			withWanRepFailedState(err.Error()))
@@ -183,7 +183,7 @@ func (r *WanReplicationReconciler) deleteLeftoverMapsFromStatus(ctx context.Cont
 			continue
 		}
 
-		m, err := r.getWanMap(ctx, types.NamespacedName{Name: mapStatus.ResourceName, Namespace: wan.Namespace})
+		m, err := getWanMap(ctx, r.Client, types.NamespacedName{Name: mapStatus.ResourceName, Namespace: wan.Namespace})
 		if err != nil {
 			if !kerrors.IsNotFound(err) {
 				return err
@@ -289,7 +289,7 @@ func (r *WanReplicationReconciler) getPublishedMapsFromStatus(ctx context.Contex
 		if status.PublisherId == "" {
 			continue
 		}
-		m, err := r.getWanMap(ctx, types.NamespacedName{Name: status.ResourceName, Namespace: wan.Namespace})
+		m, err := getWanMap(ctx, r.Client, types.NamespacedName{Name: status.ResourceName, Namespace: wan.Namespace})
 		if err != nil {
 			return nil, err
 		}
@@ -369,64 +369,6 @@ func joinEndpoints(endpoints []string) string {
 	return strings.Join(endpoints, ",")
 }
 
-func (r *WanReplicationReconciler) getMapsGroupByHazelcastName(ctx context.Context, wan *hazelcastv1alpha1.WanReplication) (map[string][]hazelcastv1alpha1.Map, error) {
-	hzClientMap := make(map[string][]hazelcastv1alpha1.Map)
-	for _, resource := range wan.Spec.Resources {
-		switch resource.Kind {
-		case hazelcastv1alpha1.ResourceKindMap:
-			m, err := r.getWanMap(ctx, types.NamespacedName{Name: resource.Name, Namespace: wan.Namespace})
-			if err != nil {
-				return nil, err
-			}
-			mapList, ok := hzClientMap[m.Spec.HazelcastResourceName]
-			if !ok {
-				hzClientMap[m.Spec.HazelcastResourceName] = []hazelcastv1alpha1.Map{*m}
-			}
-			hzClientMap[m.Spec.HazelcastResourceName] = append(mapList, *m)
-		case hazelcastv1alpha1.ResourceKindHZ:
-			maps, err := r.getAllMapsInHazelcast(ctx, resource.Name, wan.Namespace)
-			if err != nil {
-				return nil, err
-			}
-			// If no map is present for the Hazelcast resource
-			if len(maps) == 0 {
-				continue
-			}
-			mapList, ok := hzClientMap[resource.Name]
-			if !ok {
-				hzClientMap[resource.Name] = maps
-			}
-			hzClientMap[resource.Name] = append(mapList, maps...)
-		}
-	}
-	for k, v := range hzClientMap {
-		hzClientMap[k] = removeDuplicate(v)
-	}
-
-	return hzClientMap, nil
-}
-
-func (r *WanReplicationReconciler) getWanMap(ctx context.Context, lk types.NamespacedName) (*hazelcastv1alpha1.Map, error) {
-	m := &hazelcastv1alpha1.Map{}
-	if err := r.Client.Get(ctx, lk, m); err != nil {
-		return nil, fmt.Errorf("failed to get Map CR from WanReplication: %w", err)
-	}
-
-	return m, nil
-}
-
-func (r *WanReplicationReconciler) getAllMapsInHazelcast(ctx context.Context, hazelcastResourceName string, wanNamespace string) ([]hazelcastv1alpha1.Map, error) {
-	fieldMatcher := client.MatchingFields{"hazelcastResourceName": hazelcastResourceName}
-	nsMatcher := client.InNamespace(wanNamespace)
-
-	wrl := &hazelcastv1alpha1.MapList{}
-
-	if err := r.Client.List(ctx, wrl, fieldMatcher, nsMatcher); err != nil {
-		return nil, fmt.Errorf("could not get Map resources dependent under given Hazelcast %w", err)
-	}
-	return wrl.Items, nil
-}
-
 func removeDuplicate(mapList []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
 	keySet := make(map[types.NamespacedName]struct{})
 	list := []hazelcastv1alpha1.Map{}
@@ -487,7 +429,7 @@ func (r *WanReplicationReconciler) stopWanRepForRemovedResources(ctx context.Con
 			continue
 		}
 		// Map is deleted from spec, stop replication.
-		m, err := r.getWanMap(ctx, types.NamespacedName{Name: status.ResourceName, Namespace: wan.Namespace})
+		m, err := getWanMap(ctx, r.Client, types.NamespacedName{Name: status.ResourceName, Namespace: wan.Namespace})
 		if err != nil {
 			return err
 		}
@@ -565,10 +507,6 @@ func (r *WanReplicationReconciler) startWanReplication(ctx context.Context, wan 
 		return err
 	}
 	return nil
-}
-
-func wanMapKey(hzName, mapName string) string {
-	return hzName + "__" + mapName
 }
 
 func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, cli hzclient.Client, wan *hazelcastv1alpha1.WanReplication, mapName, mapWanKey string) (string, error) {
