@@ -74,9 +74,12 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
+	if err := hazelcastv1alpha1.ValidateWanSyncSpec(wan); err != nil {
+		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
+	}
+
 	wr, err := r.getWanReplication(ctx, wan)
 	if err != nil {
-		logger.Error(fmt.Errorf("###error###"), "line 79")
 		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
 	}
 	if wr.Status.Status != hazelcastv1alpha1.WanStatusSuccess {
@@ -85,14 +88,12 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	maps, err := getMapsGroupByHazelcastName(ctx, r.Client, wr)
 	if err != nil {
-		logger.Error(fmt.Errorf("###error###"), "line 88")
 		return updateWanSyncStatus(ctx, r.Client, wan,
 			wanSyncFailedStatus(fmt.Errorf("could not get WanSync maps: %w", err)))
 	}
 
 	if !util.IsApplied(wan.ObjectMeta) {
 		if err := r.Update(ctx, util.InsertLastAppliedSpec(wan.Spec, wan)); err != nil {
-			logger.Error(fmt.Errorf("###error###"), "line 95")
 			return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
 		} else {
 			return updateWanSyncStatus(ctx, r.Client, wan, wanSyncStatus(maps))
@@ -100,12 +101,10 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	if err = r.runWanSyncJobs(ctx, maps, wan, wr, logger); err != nil {
-		logger.Error(fmt.Errorf("###error###"), "line 104")
 		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
 	}
 
 	if err = r.Update(ctx, util.InsertLastSuccessfullyAppliedSpec(wan.Spec, wan)); err != nil {
-		logger.Error(fmt.Errorf("###error###"), "line 108")
 		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
 	}
 
