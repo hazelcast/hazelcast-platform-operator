@@ -179,7 +179,6 @@ func (r *WanSyncReconciler) stateEventUpdate(ctx context.Context, ws *hazelcastv
 		if err != nil {
 			logger.Error(err, "unable to update map WAN Sync status")
 		}
-		return
 	}
 }
 
