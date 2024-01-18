@@ -146,14 +146,14 @@ var _ = Describe("Hazelcast High Load Tests", Label("soak"), func() {
 			for i := 0; i < numMaps; i++ {
 				m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 				m.Spec.HazelcastResourceName = hazelcast.Name
-				WaitForMapSize(ctx, hzLookupKey, m.Name, int(float64(cycle*totalFillRepeats*mapSizeInMb)*128), 2*Minute)
+				WaitForMapSize(ctx, hzLookupKey, m.MapName(), int(float64(cycle*totalFillRepeats*mapSizeInMb)*128), 2*Minute)
 			}
 		}
 		By(fmt.Sprintf("checking the map size after %d total pause/resume cycles and %d total fill repeats", totalPauseResumeCycles, totalFillRepeats))
 		for i := 0; i < numMaps; i++ {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.Name, int(float64(totalPauseResumeCycles*totalFillRepeats*mapSizeInMb)*128), 2*Minute)
+			WaitForMapSize(ctx, hzLookupKey, m.MapName(), int(float64(totalPauseResumeCycles*totalFillRepeats*mapSizeInMb)*128), 2*Minute)
 		}
 	})
 })

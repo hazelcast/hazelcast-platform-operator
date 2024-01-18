@@ -342,11 +342,13 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 		log.Printf("Shutting down Hazelcast client")
 		if err := clientHz.Shutdown(ctx); err != nil {
 			log.Printf("Error while shutting down Hazelcast client: %v", err)
+			Expect(err).ToNot(HaveOccurred())
 		}
 	}()
 	hzMap, err := clientHz.GetMap(ctx, mapName)
 	if err != nil {
-		log.Fatalf("Failed to get map '%s': %v", mapName, err)
+		log.Printf("Failed to get map '%s': %v", mapName, err)
+		Expect(err).ToNot(HaveOccurred())
 	}
 	Eventually(func() (int, error) {
 		mapSize, err := hzMap.Size(ctx)
