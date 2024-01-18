@@ -204,6 +204,22 @@ jobs:
           make install-operator NAMESPACE=${NAMESPACE} IMG=${IMG} RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
+      - name: Install Chaos Mesh
+        if: matrix.edition == 'os'
+        run: |
+          helm repo add chaos-mesh https://charts.chaos-mesh.org
+          helm upgrade \
+          --install \
+          chaos-mesh \
+          chaos-mesh/chaos-mesh \
+          -n chaos-testing \
+          --create-namespace \
+          --set chaosDaemon.runtime=containerd \
+          --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
+          --version v2.6.2 \
+          --wait
+          kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io chaos-mesh-validation-auth
+
       - name: Create secrets
         if: matrix.edition == 'ee'
         run: |
