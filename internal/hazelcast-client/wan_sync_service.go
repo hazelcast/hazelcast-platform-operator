@@ -97,6 +97,7 @@ func (ws *HzWanSyncService) waitWanSyncToFinish(
 	}
 
 	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 	timeout := time.After(2 * time.Minute)
 	for {
 		select {
@@ -105,7 +106,6 @@ func (ws *HzWanSyncService) waitWanSyncToFinish(
 		case <-ticker.C:
 			event, done = ws.pollMCEvents(ctx, c, members, uuid, logger)
 			if done {
-				ticker.Stop()
 				return event
 			}
 		}
@@ -127,7 +127,7 @@ func (ws *HzWanSyncService) pollMCEvents(
 			if event.UUID() == uuid.String() && event.Type.IsWanSync() {
 				logger.V(util.DebugLevel).Info("Event received", "type", event.Type, "map", event.MapName(), "uuid", event.UUID())
 				if !event.Type.IsInProgress() {
-					logger.V(util.DebugLevel).Info("Finished polling events", "map", event.MapName(), "type", event.Type)
+					logger.Info("Finished polling events", "map", event.MapName(), "type", event.Type)
 					return event, true
 				}
 			}

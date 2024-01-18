@@ -1651,6 +1651,11 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		mc.EventJournal.TimeToLiveSeconds = ms.EventJournal.TimeToLiveSeconds
 	}
 
+	if ms.MerkleTree != nil {
+		mc.MerkleTree.Enabled = true
+		mc.MerkleTree.Depth = ms.MerkleTree.Depth
+	}
+
 	return mc, nil
 }
 
