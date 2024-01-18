@@ -30,7 +30,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 	})
 
 	It("should create MultiMap Config with correct default values", Label("fast"), func() {
-		setLabelAndCRName("hmm-2")
+		setLabelAndCRName("hmm-1")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
@@ -49,7 +49,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 	})
 
 	It("should fail to update MultiMap Config", Label("fast"), func() {
-		setLabelAndCRName("hmm-3")
+		setLabelAndCRName("hmm-2")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 

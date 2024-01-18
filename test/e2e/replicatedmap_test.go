@@ -30,7 +30,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 	})
 
 	It("should create ReplicatedMap Config with correct default values", Label("fast"), func() {
-		setLabelAndCRName("hrm-2")
+		setLabelAndCRName("hrm-1")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
@@ -48,7 +48,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 	})
 
 	It("should fail to update ReplicatedMap Config", Label("fast"), func() {
-		setLabelAndCRName("hrm-3")
+		setLabelAndCRName("hrm-2")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 

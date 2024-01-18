@@ -1,7 +1,6 @@
-name: (E2E) Soak Test
+name: (E2E) Platform Soak Test
 on:
   workflow_dispatch:
-  workflow_call:
 
 env:
   AWS_REGION: us-east-1

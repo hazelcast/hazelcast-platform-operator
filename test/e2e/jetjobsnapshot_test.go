@@ -151,7 +151,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 		Expect(fizzHzMap.Size(ctx)).Should(BeZero())
 	})
 
-	It("should export a snapshot canceling the job", Label("fast"), func() {
+	It("ensures job is canceled after successful snapshot export", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -183,7 +183,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobExecutionFailed)
 	})
 
-	It("should set status to 'failed' if exporting snapshot from non-running job", Label("fast"), func() {
+	It("asserts snapshot export failure from a suspended JetJob", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}

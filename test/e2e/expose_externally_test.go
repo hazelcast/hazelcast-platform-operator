@@ -17,7 +17,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose_externally"), func() {
+var _ = Describe("Hazelcast CR with expose externally feature", Label("expose_externally"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -39,35 +39,29 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		}, 2*Minute, interval).Should(Not(BeEmpty()))
 	}
 
-	It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", Label("slow"), func() {
+	It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", Label("fast"), func() {
 		setLabelAndCRName("hee-1")
 		hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
-
 		hzMap := "map"
 		entryCount := 100
-
-		FillTheMapData(ctx, hzLookupKey, true, hzMap, entryCount)
+		FillMapByEntryCount(ctx, hzLookupKey, true, hzMap, entryCount)
 		WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
-
 		assertExternalAddressesNotEmpty()
 	})
 
-	It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("slow"), func() {
+	It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", Label("fast"), func() {
 		setLabelAndCRName("hee-2")
 		hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
-
 		members := getHazelcastMembers(ctx, hazelcast)
 		clientHz := GetHzClient(ctx, hzLookupKey, false)
 		defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
 		internalClient := hzClient.NewClientInternal(clientHz)
 		clientMembers := internalClient.OrderedMembers()
-
 		By("matching HZ members with client members and comparing their public IPs")
-
 		for _, member := range members {
 			matched := false
 			for _, clientMember := range clientMembers {
@@ -96,7 +90,6 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 				By(fmt.Sprintf("checking if connected to the member %q", clientMember.UUID.String()))
 				connected := internalClient.ConnectedToMember(clientMember.UUID)
 				Expect(connected).Should(BeTrue())
-
 				break
 			}
 			if !matched {
@@ -106,8 +99,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 
 		hzMap := "map"
 		entryCount := 100
-
-		FillTheMapData(ctx, hzLookupKey, false, hzMap, entryCount)
+		FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
 		WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 
 		assertExternalAddressesNotEmpty()
@@ -167,8 +159,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 
 		hzMap := "map"
 		entryCount := 100
-
-		FillTheMapData(ctx, hzLookupKey, false, hzMap, entryCount)
+		FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
 		WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 
 		assertExternalAddressesNotEmpty()

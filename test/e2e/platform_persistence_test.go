@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
+var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 	localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
 
 	AfterEach(func() {
@@ -38,7 +38,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("hbs-1")
+		setLabelAndCRName("hps-1")
 		ctx := context.Background()
 		clusterSize := int32(3)
 
@@ -59,7 +59,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillTheMapData(ctx, hzLookupKey, true, m.MapName(), 100)
+		FillMapByEntryCount(ctx, hzLookupKey, true, m.MapName(), 100)
 
 		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
 		WaitForPodReady(hazelcast.Name+"-2", hzLookupKey, 1*Minute)
@@ -76,7 +76,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("hbs-2")
+		setLabelAndCRName("hps-2")
 		var mapSizeInMb = 3072
 		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
@@ -101,7 +101,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		dm := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		assertMapStatus(dm, hazelcastcomv1alpha1.MapSuccess)
-		FillTheMapWithData(ctx, dm.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
+		FillMapBySizeInMb(ctx, dm.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
 
 		By("creating HotBackup CR")
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
@@ -109,7 +109,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		assertHotBackupSuccess(hotBackup, 20*Minute)
 
 		By("putting entries after backup")
-		FillTheMapData(ctx, hzLookupKey, false, dm.MapName(), 111)
+		FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), 111)
 
 		By("deleting Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
@@ -142,7 +142,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("rep-1")
+		setLabelAndCRName("hps-3")
 		ctx := context.Background()
 		clusterSize := int32(3)
 		By("creating Hazelcast cluster")
@@ -168,7 +168,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
+		FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
 		t := Now()
 		DeletePod(hazelcast.Name+"-2", 10, hzLookupKey)
 		evaluateReadyMembers(hzLookupKey)
@@ -186,7 +186,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("rep-2")
+		setLabelAndCRName("hps-4")
 		ctx := context.Background()
 		clusterSize := int32(3)
 		By("creating Hazelcast cluster")
@@ -208,7 +208,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillTheMapData(ctx, hzLookupKey, true, m.Name, 100)
+		FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
 
 		By("creating HotBackup CR")
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
@@ -246,7 +246,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("hp-9")
+		setLabelAndCRName("hps-5")
 
 		hazelcast := hazelcastconfig.HazelcastSQLPersistence(hzLookupKey, 1, labels)
 
@@ -273,14 +273,14 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("hl-1")
+		setLabelAndCRName("hps-6")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
 		var numMaps = 28
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
 		clusterSize := int32(3)
-		
+
 		By("creating Hazelcast cluster with 7999 partition count and 14Gb in 28 maps")
 		jvmArgs := []string{
 			"-Dhazelcast.partition.count=7999",
@@ -305,7 +305,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config and putting entries")
-		CreateAndFillMaps(ctx, numMaps, mapSizeInMb, mapNameSuffix, hazelcast)
+		ConcurrentlyCreateAndFillMultipleMapsByMb(ctx, numMaps, mapSizeInMb, mapNameSuffix, hazelcast)
 
 		By("making rollout StatefulSet restart")
 		err := RolloutRestart(ctx, hazelcast)

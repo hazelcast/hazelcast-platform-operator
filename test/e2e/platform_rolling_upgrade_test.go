@@ -16,7 +16,7 @@ import (
 	. "time"
 )
 
-var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
+var _ = Describe("Platform Rolling UpgradeTests", Label("rolling_upgrade"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -34,7 +34,7 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("hl-4")
+		setLabelAndCRName("hra-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
 		var numMaps = 28
@@ -93,7 +93,7 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 
 		By("create the map config and put the entries")
 
-		CreateAndFillMaps(ctx, numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
+		ConcurrentlyCreateAndFillMultipleMapsByMb(ctx, numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
 
 		By("pause Hazelcast")
 		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {

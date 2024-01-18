@@ -1,4 +1,4 @@
-name: (E2E) High Availability Tests on GKE
+name: (E2E) Platform Resilience Tests on GKE
 on:
   workflow_dispatch:
   schedule:
@@ -158,8 +158,8 @@ jobs:
           kubectl create secret generic ${CLOUD_KEY_SECRET_NAME} \
             --namespace ${CHAOS_MESH_NAMESPACE} --from-literal=service_account="$GKE_SA_BASE64"
 
-      - name: Run high Availability tests at GKE
-        run: make test-high-availability NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=01 WORKFLOW_ID=high-availability
+      - name: Run Resilience tests at GKE
+        run: make test-e2e E2E_TEST_SUITE="resilience" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=resilience
 
       - name: Clean up after Tests
         if: always()

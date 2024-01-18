@@ -30,7 +30,7 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 	})
 
 	It("should create Queue Config with correct default values", Label("fast"), func() {
-		setLabelAndCRName("hq-2")
+		setLabelAndCRName("hq-1")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 
@@ -49,7 +49,7 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 	})
 
 	It("should fail to update Queue Config", Label("fast"), func() {
-		setLabelAndCRName("hq-3")
+		setLabelAndCRName("hq-2")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 

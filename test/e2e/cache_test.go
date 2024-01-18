@@ -2,11 +2,12 @@ package e2e
 
 import (
 	"context"
-	"strconv"
-	. "time"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"strconv"
+	. "time"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -21,6 +22,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		if skipCleanup() {
 			return
 		}
+		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, &hazelcastcomv1alpha1.HotBackupList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Cache{}, &hazelcastcomv1alpha1.CacheList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
@@ -28,7 +30,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should create Cache Config with correct default values", Label("fast"), func() {
+	It("validates default values in created Cache Config", Label("fast"), func() {
 		setLabelAndCRName("hch-1")
 		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
@@ -63,6 +65,51 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 			c = assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureFailed, &hazelcastcomv1alpha1.Cache{}).(*hazelcastcomv1alpha1.Cache)
 
 			Expect(c.Status.Message).To(ContainSubstring("Native Memory must be enabled at Hazelcast"))
+		})
+	})
+
+	It("checks for failure when Cache and Hazelcast CR persistence settings mismatch", Label("fast"), func() {
+		setLabelAndCRName("hch-3")
+		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		CreateHazelcastCR(hazelcast)
+		m := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
+		m.Spec.PersistenceEnabled = true
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureFailed, m)
+		Expect(m.Status.Message).To(ContainSubstring("Persistence must be enabled at Hazelcast"))
+	})
+
+	It("validates the cache config persistence in Hazelcast config", Label("fast"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hch-4")
+		caches := []string{"cache1", "cache2", "cache3", "cachefail"}
+		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+		By("creating the cache configs")
+		for _, cache := range caches {
+			c := hazelcastconfig.DefaultCache(types.NamespacedName{Name: cache, Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
+			c.Spec.HazelcastResourceName = hazelcast.Name
+			if cache == "cachefail" {
+				c.Spec.HazelcastResourceName = "failedHz"
+			}
+			Expect(k8sClient.Create(context.Background(), c)).Should(Succeed())
+			if cache == "cachefail" {
+				assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastcomv1alpha1.DataStructureFailed, c)
+				continue
+			}
+			assertDataStructureStatus(types.NamespacedName{Name: c.Name, Namespace: c.Namespace}, hazelcastcomv1alpha1.DataStructureSuccess, c)
+		}
+		By("checking if the caches are in the Config", func() {
+			assertCacheConfigsPersisted(hazelcast, "cache1", "cache2", "cache3")
+		})
+		By("deleting cache2")
+		Expect(k8sClient.Delete(context.Background(),
+			&hazelcastcomv1alpha1.Cache{ObjectMeta: v1.ObjectMeta{Name: "cache2", Namespace: hazelcast.Namespace}})).Should(Succeed())
+		By("checking if cache2 is not persisted in the Config", func() {
+			assertCacheConfigsPersisted(hazelcast, "cache1", "cache3")
 		})
 	})
 

@@ -55,7 +55,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	//When("All pods are deleted",
-	It("should send data using WanReplication configuration in Config", Label("slow"), func() {
+	It("replicate data using WanReplication configuration in Config after source cluster restart", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -135,7 +135,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	//When("WAN replicated Map CR is deleted which was given as a Map resource in WAN spec",
-	It("should delete the map from status and WAN status should be failed", Label("slow"), func() {
+	It("verify WAN status is failed and map deleted from WAN status after map deletion", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -168,7 +168,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	//When("WAN replicated Map CR is deleted which was given as a Hazelcast resource in WAN spec",
-	It("should delete the map from status and WAN status should be Pending", Label("slow"), func() {
+	It("should delete the map from WAN status and WAN status should be Pending", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -245,8 +245,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		_ = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	})
 
-	//When("WAN replicated maps are removed from WAN spec",
-	It("should stop replicating to target cluster", Label("slow"), func() {
+	It("should stop replicating to target cluster after WAN replicated maps are removed from WAN spec", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -315,7 +314,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	//When("Map is given twice in the WAN spec",
-	It("should continue replication if one reference is deleted", Label("slow"), func() {
+	It("should continue replication if one reference is deleted", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -350,7 +349,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		_ = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	})
 
-	It("should start WanReplication for the maps created after the Wan CR", Label("slow"), func() {
+	It("verify WAN Replication initiation for Maps created post-WAN CR creation", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -423,7 +422,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 		waitForMapSizePortForward(context.Background(), hzTargetCr, localPort, mapAfterWan, mapSize, Minute)
 	})
 
-	It("should set WanReplication CR status to Success when resource map is created after the wan", Label("slow"), func() {
+	It("should set WanReplication CR status to Success when resource map is created after the WAN CR", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}

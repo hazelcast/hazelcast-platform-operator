@@ -30,7 +30,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should create HZ cluster with custom name and update HZ ready members status", Label("slow"), func() {
+	It("should create Hazelcast cluster with custom name", Label("fast"), func() {
 		setLabelAndCRName("h-1")
 		hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
@@ -45,8 +45,8 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 	})
 
 	Context("Hazelcast member status", func() {
-		It("should update HZ ready members status", Label("slow"), func() {
-			setLabelAndCRName("h-3")
+		It("should update HZ ready members status", Label("fast"), func() {
+			setLabelAndCRName("h-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -59,7 +59,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		})
 
 		It("should update HZ detailed member status", Label("fast"), func() {
-			setLabelAndCRName("h-4")
+			setLabelAndCRName("h-3")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -81,8 +81,8 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			))
 		})
 
-		It("should have correct pod name", Label("fast"), func() {
-			setLabelAndCRName("h-5")
+		It("check correct pod names and IPs for Hazelcast members", Label("fast"), func() {
+			setLabelAndCRName("h-4")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -113,7 +113,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		}
 
 		It("should be reflected to Hazelcast CR status", Label("fast"), func() {
-			setLabelAndCRName("h-6")
+			setLabelAndCRName("h-5")
 			CreateHazelcastCRWithoutCheck(hazelcastconfig.Faulty(hzLookupKey, ee, labels))
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
@@ -165,7 +165,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-				setLabelAndCRName("h-8")
+				setLabelAndCRName("h-6")
 				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
 
 				tlsSecretNn := types.NamespacedName{
@@ -190,7 +190,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-				setLabelAndCRName("h-8")
+				setLabelAndCRName("h-7")
 				hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
 
 				tlsSecretNn := types.NamespacedName{

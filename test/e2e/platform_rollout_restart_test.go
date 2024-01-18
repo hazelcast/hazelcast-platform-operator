@@ -15,7 +15,7 @@ import (
 	. "time"
 )
 
-var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
+var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -33,7 +33,7 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("hl-2")
+		setLabelAndCRName("hrr-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
 		var numMaps = 28
@@ -57,7 +57,7 @@ var _ = Describe("Hazelcast High Load Tests", Label("high_load"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		By("create the map config and put entries")
-		CreateAndFillMaps(ctx, numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
+		ConcurrentlyCreateAndFillMultipleMapsByMb(ctx, numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
 
 		By("making rollout StatefulSet restart")
 		err := RolloutRestart(ctx, hazelcast)

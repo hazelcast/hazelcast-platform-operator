@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
+var _ = Describe("Hazelcast Multi-Namespace", Label("multi_namespace"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -39,8 +39,7 @@ var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
 		if deployNamespace != "" {
 			setCRNamespace(deployNamespace)
 		}
-
-		setLabelAndCRName("h-1")
+		setLabelAndCRName("mns-1")
 		hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
 		CreateHazelcastCR(hazelcast)
 		assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
@@ -63,7 +62,7 @@ var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-				setLabelAndCRName("h-7")
+				setLabelAndCRName("mns-2")
 				clusterSize := int32(3)
 
 				hz := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
