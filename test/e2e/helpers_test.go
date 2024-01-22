@@ -464,6 +464,25 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	Fail(fmt.Sprintf("Failed to find \"%s\" in member logs", expected))
 }
 
+func assertMembersNotRestarted(lookupKey types.NamespacedName) {
+	hz := &hazelcastcomv1alpha1.Hazelcast{}
+	Eventually(func() error {
+		return k8sClient.Get(context.Background(), lookupKey, hz)
+	}, Minute, interval).ShouldNot(HaveOccurred())
+	membersCount := int(*hz.Spec.ClusterSize)
+	for i := 0; i < membersCount; i++ {
+		podLookupKey := types.NamespacedName{
+			Name:      fmt.Sprintf("%s-%d", lookupKey.Name, i),
+			Namespace: lookupKey.Namespace,
+		}
+		pod := corev1.Pod{}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), podLookupKey, &pod)
+		}, Minute, interval).ShouldNot(HaveOccurred())
+		Expect(pod.Status.ContainerStatuses[0].RestartCount).To(BeZero())
+	}
+}
+
 func evaluateReadyMembers(lookupKey types.NamespacedName) {
 	By(fmt.Sprintf("evaluate number of ready members for lookup name '%s' and '%s' namespace", lookupKey.Name, lookupKey.Namespace), func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
