@@ -104,6 +104,10 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
 	}
 
+	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(wan) {
+		go func() { r.phoneHomeTrigger <- struct{}{} }()
+	}
+
 	if err = r.Update(ctx, util.InsertLastSuccessfullyAppliedSpec(wan.Spec, wan)); err != nil {
 		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
 	}
