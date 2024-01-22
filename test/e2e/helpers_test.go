@@ -791,7 +791,7 @@ func printDebugState() {
 }
 
 func printDebugStateForContext() {
-	allCRs := "hazelcast,map,hotbackup,wanreplication,managementcenter,pvc,topic,queue,cache,multimap,replicatedmap,jetjob"
+	allCRs := "hazelcast,map,hotbackup,wanreplication,wansync,managementcenter,pvc,topic,queue,cache,multimap,replicatedmap,jetjob"
 	printKubectlCommand("KUBECTL GET CLUSTER WIDE RESOURCES", "kubectl", "get", "node,validatingwebhookconfigurations")
 	printKubectlCommand("KUBECTL GET CRS RELATED TO TEST OUTPUT WIDE", "kubectl", "get", allCRs, "-o=wide", "-l="+labelsString(), "-A")
 	for _, ns := range []string{hzNamespace, sourceNamespace, targetNamespace} {
