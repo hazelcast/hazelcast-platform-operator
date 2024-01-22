@@ -448,4 +448,76 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
+
+	It("should backup, restore and backup data again successfully", Label("slow"), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hbr-1")
+		var mapSizeInMb = 1072
+		var additionalEntries = 111
+		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
+		var expectedMapSize = int(float64(mapSizeInMb) * 128)
+		ctx := context.Background()
+		clusterSize := int32(3)
+
+		By("creating Hazelcast cluster")
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
+		}
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+		CreateHazelcastCR(hazelcast)
+
+		By("creating the map config and putting entries")
+		dm := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
+		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
+		assertMapStatus(dm, hazelcastcomv1alpha1.MapSuccess)
+		FillTheMapWithData(ctx, dm.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
+
+		By("creating first HotBackup CR")
+		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
+		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+		assertHotBackupSuccess(hotBackup, 10*Minute)
+
+		By("deleting Hazelcast cluster")
+		RemoveHazelcastCR(hazelcast)
+
+		By("creating new Hazelcast cluster from the first backup")
+		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+		hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
+			HotBackupResourceName: hotBackup.Name,
+		}
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
+		}
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("putting entries after first restore")
+		FillTheMapData(ctx, hzLookupKey, false, dm.MapName(), additionalEntries)
+
+		By("creating second HotBackup CR")
+		hotBackup2 := hazelcastconfig.HotBackup(hbLookupKey2, hazelcast.Name, labels)
+		Expect(k8sClient.Create(context.Background(), hotBackup2)).Should(Succeed())
+		assertHotBackupSuccess(hotBackup2, 10*Minute)
+
+		By("checking the cluster state and map size")
+		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
+		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
+		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize+additionalEntries, 10*Minute)
+	})
 })
