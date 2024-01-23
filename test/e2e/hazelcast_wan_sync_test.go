@@ -39,10 +39,11 @@ var _ = Describe("Hazelcast WAN Sync", Label("hz_wan_sync"), func() {
 		fillTheMapDataPortForward(context.Background(), hzCrs[hzSrcLookupKey.Name], localPort, mapLookupKey.Name, mapSize)
 
 		By("creating WAN configuration")
-		createWanSync(context.Background(), wanLookupKey, hzCrs[hzTrgLookupKey.Name],
+		wr := createWanConfig(context.Background(), wanLookupKey, hzCrs[hzTrgLookupKey.Name],
 			[]hazelcastcomv1alpha1.ResourceSpec{
 				{Name: mapLookupKey.Name},
 			}, 1, labels)
+		createWanSync(context.Background(), wanLookupKey, wr.Name, 1, labels)
 
 		By("checking the size of the maps in the target cluster")
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, mapLookupKey.Name, mapSize, 1*Minute)
@@ -67,38 +68,15 @@ var _ = Describe("Hazelcast WAN Sync", Label("hz_wan_sync"), func() {
 		fillTheMapDataPortForward(context.Background(), hzCrs[hzSrcLookupKey.Name], localPort, srcMap2, mapSize)
 
 		By("creating WAN configuration")
-		createWanSync(context.Background(), wanLookupKey, hzCrs[hzTrgLookupKey.Name],
+		wr := createWanConfig(context.Background(), wanLookupKey, hzCrs[hzTrgLookupKey.Name],
 			[]hazelcastcomv1alpha1.ResourceSpec{
 				{Name: srcMap1},
 				{Name: srcMap2},
 			}, 2, labels)
+		createWanSync(context.Background(), wanLookupKey, wr.Name, 1, labels)
 
 		By("checking the size of the maps in the target cluster")
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, srcMap1, mapSize, 1*Minute)
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, srcMap2, mapSize, 1*Minute)
-	})
-
-	It("should sync data by using existing WAN Replication CR", Label("fast"), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
-		setLabelAndCRName("hws-3")
-
-		hzCrs, _ := createWanResources(context.Background(), map[string][]string{
-			hzSrcLookupKey.Name: {mapLookupKey.Name},
-			hzTrgLookupKey.Name: nil,
-		}, hzSrcLookupKey.Namespace, labels)
-		mapSize := 1024
-		fillTheMapDataPortForward(context.Background(), hzCrs[hzSrcLookupKey.Name], localPort, mapLookupKey.Name, mapSize)
-
-		By("creating WAN configuration")
-		wr := createWanConfig(context.Background(), wanLookupKey, hzCrs[hzTrgLookupKey.Name],
-			[]hazelcastcomv1alpha1.ResourceSpec{
-				{Name: mapLookupKey.Name},
-			}, 1, labels)
-		createWanSyncFromWanReplication(context.Background(), wanLookupKey, wr.Name, 1, labels)
-
-		By("checking the size of the maps in the target cluster")
-		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, mapLookupKey.Name, mapSize, 1*Minute)
 	})
 })

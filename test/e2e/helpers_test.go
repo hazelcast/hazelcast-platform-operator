@@ -1057,22 +1057,8 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 	return wan
 }
 
-func createWanSync(ctx context.Context, lk types.NamespacedName, target *hazelcastcomv1alpha1.Hazelcast, resources []hazelcastcomv1alpha1.ResourceSpec, mapCount int, labels map[string]string) *hazelcastcomv1alpha1.WanSync {
-	wan := hazelcastconfig.WanSync(
-		lk,
-		target.Spec.ClusterName,
-		fmt.Sprintf("%s.%s.svc.cluster.local:%d", target.Name, target.Namespace, naming.WanDefaultPort),
-		resources,
-		labels,
-	)
-	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
-	wan = assertWanSyncStatus(wan, hazelcastcomv1alpha1.WanSyncCompleted)
-	wan = assertWanSyncStatusMapCount(wan, mapCount)
-	return wan
-}
-
-func createWanSyncFromWanReplication(ctx context.Context, lk types.NamespacedName, wanReplicationName string, mapCount int, labels map[string]string) *hazelcastcomv1alpha1.WanSync {
-	wan := hazelcastconfig.WanSyncFromWanReplication(lk, wanReplicationName, labels)
+func createWanSync(ctx context.Context, lk types.NamespacedName, wanReplicationName string, mapCount int, labels map[string]string) *hazelcastcomv1alpha1.WanSync {
+	wan := hazelcastconfig.WanSync(lk, wanReplicationName, labels)
 	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
 	wan = assertWanSyncStatus(wan, hazelcastcomv1alpha1.WanSyncCompleted)
 	wan = assertWanSyncStatusMapCount(wan, mapCount)

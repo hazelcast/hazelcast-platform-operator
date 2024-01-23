@@ -33,28 +33,7 @@ var _ = Describe("WanReplication CR", func() {
 		When("updating unmodifiable fields", func() {
 			It("should not be allowed", Label("fast"), func() {
 				spec := hazelcastv1alpha1.WanSyncSpec{
-					WanSource: hazelcastv1alpha1.WanSource{
-						Config: &hazelcastv1alpha1.WanPublisherConfig{
-							Resources: []hazelcastv1alpha1.ResourceSpec{{
-								Name: "hazelcast",
-								Kind: hazelcastv1alpha1.ResourceKindHZ,
-							}},
-							TargetClusterName: "dev",
-							Endpoints:         "203.0.113.51:5701",
-							Queue: hazelcastv1alpha1.QueueSetting{
-								Capacity:     10,
-								FullBehavior: hazelcastv1alpha1.DiscardAfterMutation,
-							},
-							Batch: hazelcastv1alpha1.BatchSetting{
-								Size:         100,
-								MaximumDelay: 1000,
-							},
-							Acknowledgement: hazelcastv1alpha1.AcknowledgementSetting{
-								Type:    hazelcastv1alpha1.AckOnOperationComplete,
-								Timeout: 6000,
-							},
-						},
-					},
+					WanReplicationName: "existing-wan-replication",
 				}
 				wrs, _ := json.Marshal(spec)
 				wr := &hazelcastv1alpha1.WanSync{
@@ -65,28 +44,10 @@ var _ = Describe("WanReplication CR", func() {
 				Expect(k8sClient.Create(context.Background(), wr)).Should(Succeed())
 
 				Expect(updateCR(wr, func(obj *hazelcastv1alpha1.WanSync) {
-					wr.Spec.WanSource.Config.TargetClusterName = "prod"
-					wr.Spec.WanSource.Config.Endpoints = "203.0.113.52:5701"
-					wr.Spec.WanSource.Config.Queue = hazelcastv1alpha1.QueueSetting{
-						Capacity:     20,
-						FullBehavior: hazelcastv1alpha1.ThrowException,
-					}
-					wr.Spec.WanSource.Config.Batch = hazelcastv1alpha1.BatchSetting{
-						Size:         200,
-						MaximumDelay: 2000,
-					}
-					wr.Spec.WanSource.Config.Acknowledgement = hazelcastv1alpha1.AcknowledgementSetting{
-						Type:    hazelcastv1alpha1.AckOnReceipt,
-						Timeout: 10000,
-					}
-				})).Should(And(
-					MatchError(ContainSubstring("spec.config.targetClusterName")),
-					MatchError(ContainSubstring("spec.config.endpoints")),
-					MatchError(ContainSubstring("spec.config.queue")),
-					MatchError(ContainSubstring("spec.config.batch")),
-					MatchError(ContainSubstring("spec.config.acknowledgement")),
-					MatchError(ContainSubstring("Forbidden: field cannot be updated")),
-				))
+					wr.Spec.WanReplicationName = "new-wan-replication"
+				})).Should(
+					MatchError(ContainSubstring("spec.wanReplicationName")),
+				)
 			})
 		})
 	})

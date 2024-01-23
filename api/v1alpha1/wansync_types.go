@@ -6,24 +6,10 @@ import (
 
 // WanSyncSpec defines the desired state of WanSync
 type WanSyncSpec struct {
-	// WanSource represents the source of a WAN publisher.
-	WanSource `json:",inline"`
-}
-
-// WanSource represents the source of a WAN publisher.
-// Only one of its members may be specified.
-// +kubebuilder:validation:MinProperties:=1
-// +kubebuilder:validation:MaxProperties:=1
-type WanSource struct {
 	// WanReplicationName is the name of WanReplication CR that contains the WAN publisher configuration.
 	// If specified the Sync operation will use existing WAN publisher.
-	// +optional
+	// +required
 	WanReplicationName string `json:"wanReplicationName,omitempty"`
-
-	// Config is the configuration for the WAN replication publisher.
-	// If specified the Syc operation will create a new WAN publisher.
-	// +optional
-	Config *WanPublisherConfig `json:"config,omitempty"`
 }
 
 type WanSyncPhase string
@@ -79,10 +65,6 @@ type WanSync struct {
 
 	Spec   WanSyncSpec   `json:"spec,omitempty"`
 	Status WanSyncStatus `json:"status,omitempty"`
-}
-
-func (w *WanSync) WanPublisherConfig() *WanPublisherConfig {
-	return w.Spec.Config
 }
 
 func (w *WanSync) PublisherId(mapName string) string {

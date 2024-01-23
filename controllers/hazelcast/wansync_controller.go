@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-logr/logr"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -196,33 +195,9 @@ func (r *WanSyncReconciler) getWanReplication(ctx context.Context, ws *hazelcast
 	}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: ws.Name, Namespace: ws.Namespace}, wr)
 	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return r.createWanReplication(ctx, ws)
-		}
 		return nil, err
 	}
 	return wr, nil
-}
-
-func (r *WanSyncReconciler) createWanReplication(ctx context.Context, ws *hazelcastv1alpha1.WanSync) (*hazelcastv1alpha1.WanReplication, error) {
-	wr := &hazelcastv1alpha1.WanReplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        ws.Name,
-			Namespace:   ws.Namespace,
-			Annotations: ws.ObjectMeta.Annotations,
-			Labels:      ws.ObjectMeta.Labels,
-		},
-		Spec: hazelcastv1alpha1.WanReplicationSpec{
-			WanPublisherConfig: *ws.Spec.Config,
-		},
-	}
-
-	err := controllerutil.SetControllerReference(ws, wr, r.Scheme)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set owner reference on WanReplication: %w", err)
-	}
-	err = r.Client.Create(ctx, wr)
-	return wr, err
 }
 
 func (r *WanSyncReconciler) executeFinalizer(ctx context.Context, ws *hazelcastv1alpha1.WanSync, logger logr.Logger) error {

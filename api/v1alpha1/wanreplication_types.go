@@ -6,10 +6,6 @@ import (
 
 // WanReplicationSpec defines the desired state of WanReplication
 type WanReplicationSpec struct {
-	WanPublisherConfig `json:",inline"`
-}
-
-type WanPublisherConfig struct {
 	// Resources is the list of custom resources to which WAN replication applies.
 	// +kubebuilder:validation:MinItems:=1
 	// +required
@@ -184,10 +180,6 @@ type WanReplication struct {
 	Spec WanReplicationSpec `json:"spec"`
 	// +optional
 	Status WanReplicationStatus `json:"status,omitempty"`
-}
-
-func (w *WanReplication) WanPublisherConfig() *WanPublisherConfig {
-	return &w.Spec.WanPublisherConfig
 }
 
 func (w *WanReplication) PublisherId(mapName string) string {
