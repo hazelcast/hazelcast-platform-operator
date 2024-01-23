@@ -381,11 +381,11 @@ func copyIndexes(idx []hazelcastv1alpha1.IndexConfig) []codecTypes.IndexConfig {
 func copyAttributes(attributes []hazelcastv1alpha1.AttributeConfig) []codecTypes.AttributeConfig {
 	var atts []codecTypes.AttributeConfig
 
-	for i, a := range attributes {
-		atts[i] = codecTypes.AttributeConfig{
+	for _, a := range attributes {
+		atts = append(atts, codecTypes.AttributeConfig{
 			Name:               a.Name,
 			ExtractorClassName: a.ExtractorClassName,
-		}
+		})
 	}
 
 	return atts
