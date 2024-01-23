@@ -35,6 +35,11 @@ type MapSpec struct {
 	// +optional
 	Indexes []IndexConfig `json:"indexes,omitempty"`
 
+	// Attributes to be used with Predicates API.
+	// You can learn more at https://docs.hazelcast.com/hazelcast/5.3/query/predicate-overview#creating-custom-query-attributes
+	// +optional
+	Attributes []AttributeConfig `json:"attributes,omitempty"`
+
 	// When enabled, map data will be persisted.
 	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:default:=false
@@ -244,6 +249,16 @@ type IndexConfig struct {
 	// +kubebuilder:default:={}
 	// +optional
 	BitmapIndexOptions *BitmapIndexOptionsConfig `json:"bitMapIndexOptions,omitempty"`
+}
+
+type AttributeConfig struct {
+	// Name of the attribute https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+	// +required
+	Name string `json:"name"`
+
+	// Name of the extractor class https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#implementing-a-valueextractor
+	// +required
+	ExtractorClassName string `json:"extractorClassName"`
 }
 
 // +kubebuilder:validation:Enum=SORTED;HASH;BITMAP

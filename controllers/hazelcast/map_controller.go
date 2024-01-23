@@ -269,6 +269,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 	mapInput.EvictionConfig.MaxSizePolicy = string(ms.Eviction.MaxSizePolicy)
 
 	mapInput.IndexConfigs = copyIndexes(ms.Indexes)
+	mapInput.AttributeConfigs = copyAttributes(ms.Attributes)
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
 	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)
 	mapInput.InMemoryFormat = string(ms.InMemoryFormat)
@@ -375,6 +376,19 @@ func copyIndexes(idx []hazelcastv1alpha1.IndexConfig) []codecTypes.IndexConfig {
 	}
 
 	return ics
+}
+
+func copyAttributes(attributes []hazelcastv1alpha1.AttributeConfig) []codecTypes.AttributeConfig {
+	atts := make([]codecTypes.AttributeConfig, len(attributes))
+
+	for i, a := range attributes {
+		atts[i] = codecTypes.AttributeConfig{
+			Name:               a.Name,
+			ExtractorClassName: a.ExtractorClassName,
+		}
+	}
+
+	return atts
 }
 
 func (r *MapReconciler) updateLastSuccessfulConfiguration(ctx context.Context, m *hazelcastv1alpha1.Map) error {
