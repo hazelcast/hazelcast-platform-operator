@@ -39,6 +39,9 @@ func (v *wansyncValidator) validateNonUpdatableWanFields(w *WanSync) {
 	if w.Spec.WanReplicationName != lastSpec.WanReplicationName {
 		v.Forbidden(Path("spec", "wanReplicationName"), "field cannot be updated")
 	}
+	if w.Spec.Config == nil {
+		return
+	}
 	if w.Spec.Config.TargetClusterName != lastSpec.Config.TargetClusterName {
 		v.Forbidden(Path("spec", "config", "targetClusterName"), "field cannot be updated")
 	}
