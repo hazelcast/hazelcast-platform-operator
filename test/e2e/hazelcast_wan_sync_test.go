@@ -49,7 +49,7 @@ var _ = Describe("Hazelcast WAN Sync", Label("hz_wan_sync"), func() {
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, mapLookupKey.Name, mapSize, 1*Minute)
 	})
 
-	It("should sync two maps with another cluster", Label("fast"), func() {
+	FIt("should sync two maps with another cluster", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -73,7 +73,7 @@ var _ = Describe("Hazelcast WAN Sync", Label("hz_wan_sync"), func() {
 				{Name: srcMap1},
 				{Name: srcMap2},
 			}, 2, labels)
-		createWanSync(context.Background(), wanLookupKey, wr.Name, 1, labels)
+		createWanSync(context.Background(), wanLookupKey, wr.Name, 2, labels)
 
 		By("checking the size of the maps in the target cluster")
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, srcMap1, mapSize, 1*Minute)

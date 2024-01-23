@@ -65,8 +65,9 @@ func (ws *HzWanSyncService) StartSyncJob(ctx context.Context, f EventResponseFun
 				}.WithMapName(wsr.mapName),
 			})
 			uuid, err := ws.wanSyncMap(ctx, ws.client, wsr)
+			logger.V(util.DebugLevel).Info("WAN Sync request sent", "man", wsr.mapName, "uuid", uuid)
 			if err != nil {
-				logger.Error(err, "Error sending WAN Sync request", "map", wsr.mapName, "hz", wsr.hzResource.Name)
+				logger.Error(err, "Error sending WAN Sync request", "map", wsr.mapName, "hz", wsr.hzResource.Name, "uuid", uuid)
 				f(WanSyncMapResponse{
 					HazelcastName: wsr.hzResource,
 					MapName:       types.NamespacedName{Namespace: wsr.hzResource.Namespace, Name: wsr.mapName},
@@ -89,7 +90,7 @@ func (ws *HzWanSyncService) StartSyncJob(ctx context.Context, f EventResponseFun
 func (ws *HzWanSyncService) waitWanSyncToFinish(
 	ctx context.Context, c Client, uuid clientTypes.UUID, logger logr.Logger) codecTypes.MCEvent {
 
-	logger.V(util.DebugLevel).Info("Start polling MC events...")
+	logger.V(util.DebugLevel).Info("Start polling MC events...", "uuid", uuid)
 	members := c.OrderedMembers()
 	event, done := ws.pollMCEvents(ctx, c, members, uuid, logger)
 	if done {
@@ -102,6 +103,7 @@ func (ws *HzWanSyncService) waitWanSyncToFinish(
 	for {
 		select {
 		case <-timeout:
+			logger.Info("Timeout receiving events", "uuid", uuid)
 			return codecTypes.MCEvent{Type: codecTypes.WanSyncIgnored}
 		case <-ticker.C:
 			event, done = ws.pollMCEvents(ctx, c, members, uuid, logger)
@@ -119,7 +121,7 @@ func (ws *HzWanSyncService) pollMCEvents(
 		request := codec.EncodeMCPollMCEventsRequest()
 		resp, err := c.InvokeOnMember(ctx, request, m.UUID, nil)
 		if err != nil {
-			logger.Error(err, "Unable to retrieve MC events")
+			logger.Error(err, "Unable to retrieve MC events", "uuid", uuid)
 			return codecTypes.MCEvent{}, false
 		}
 		events := codec.DecodeMCPollMCEventsResponse(resp)
@@ -127,7 +129,7 @@ func (ws *HzWanSyncService) pollMCEvents(
 			if event.UUID() == uuid.String() && event.Type.IsWanSync() {
 				logger.V(util.DebugLevel).Info("Event received", "type", event.Type, "map", event.MapName(), "uuid", event.UUID())
 				if !event.Type.IsInProgress() {
-					logger.Info("Finished polling events", "map", event.MapName(), "type", event.Type)
+					logger.Info("Finished polling events", "map", event.MapName(), "type", event.Type, "uuid", uuid)
 					return event, true
 				}
 			}
@@ -148,5 +150,5 @@ func (ws *HzWanSyncService) wanSyncMap(ctx context.Context, c Client, sync WanSy
 		return clientTypes.UUID{}, err
 	}
 	uuid := codec.DecodeMCWanSyncMapResponse(resp)
-	return uuid, err
+	return uuid, nil
 }
