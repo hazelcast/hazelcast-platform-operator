@@ -94,17 +94,6 @@ func (ws *HzWanService) ClearWanQueue(ctx context.Context) error {
 	return nil
 }
 
-func (ws *HzWanService) WanSyncMap(ctx context.Context, mapName string) error {
-	request := codec.EncodeMCWanSyncMapRequest(codecTypes.WanSyncRef{
-		WanReplicationName: ws.name,
-		WanPublisherId:     ws.publisherId,
-		Type:               codecTypes.SingleMap,
-		MapName:            mapName,
-	})
-	_, err := ws.client.InvokeOnRandomTarget(ctx, request, nil)
-	return err
-}
-
 func convertAckType(ackType hazelcastv1alpha1.AcknowledgementType) int32 {
 	switch ackType {
 	case hazelcastv1alpha1.AckOnReceipt:
