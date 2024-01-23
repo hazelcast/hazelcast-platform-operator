@@ -49,7 +49,7 @@ var _ = Describe("Hazelcast WAN Sync", Label("hz_wan_sync"), func() {
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, mapLookupKey.Name, mapSize, 1*Minute)
 	})
 
-	FIt("should sync two maps with another cluster", Label("fast"), func() {
+	It("should sync two maps with another cluster", Label("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
