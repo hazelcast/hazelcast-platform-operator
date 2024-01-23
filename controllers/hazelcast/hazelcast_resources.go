@@ -1655,12 +1655,12 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 }
 
 func attributes(attributes []v1alpha1.AttributeConfig) []config.Attribute {
-	att := make([]config.Attribute, len(attributes), len(attributes))
-	for _, a := range attributes {
-		att = append(att, config.Attribute{
+	att := make([]config.Attribute, len(attributes))
+	for i, a := range attributes {
+		att[i] = config.Attribute{
 			Name:               a.Name,
 			ExtractorClassName: a.ExtractorClassName,
-		})
+		}
 	}
 	return att
 }
