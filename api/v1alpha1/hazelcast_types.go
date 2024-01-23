@@ -167,6 +167,14 @@ type HazelcastSpec struct {
 	// Hazelcast SQL configuration
 	// +optional
 	SQL *SQL `json:"sql,omitempty"`
+
+	// Hazelcast Kubernetes resource annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Hazelcast Kubernetes resource labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {

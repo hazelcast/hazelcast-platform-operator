@@ -50,6 +50,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
+			assertMembersNotRestarted(hzLookupKey)
 			assertMemberLogs(hazelcast, "Members {size:3, ver:3}")
 
 			By("removing pods so that cluster gets recreated", func() {

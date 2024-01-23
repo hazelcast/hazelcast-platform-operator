@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/ptr"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -438,6 +439,13 @@ var _ = Describe("Hazelcast CR", func() {
 				"hazelcast.slow.operation.detector.stacktrace.logging.enabled": "true",
 				"hazelcast.query.optimizer.type":                               "NONE",
 			}
+			samplePropsWithDefaults := make(map[string]string)
+			for k, v := range hazelcast.DefaultProperties {
+				samplePropsWithDefaults[k] = v
+			}
+			for k, v := range sampleProperties {
+				samplePropsWithDefaults[k] = v
+			}
 			spec.Properties = sampleProperties
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -456,7 +464,7 @@ var _ = Describe("Hazelcast CR", func() {
 				}
 
 				return a.Hazelcast.Properties
-			}, timeout, interval).Should(Equal(sampleProperties))
+			}, timeout, interval).Should(Equal(samplePropsWithDefaults))
 		})
 	})
 
@@ -2224,6 +2232,72 @@ var _ = Describe("Hazelcast CR", func() {
 				err := k8sClient.Update(context.Background(), hz)
 				Expect(err).Should(MatchError(ContainSubstring("field cannot be disabled after it has been enabled")))
 			})
+		})
+
+	})
+
+	Context("with labels and annotations", func() {
+		It("should set labels and annotations to sub-resources", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.Annotations = map[string]string{
+				"annotation-example": "hazelcast",
+			}
+			spec.Labels = map[string]string{
+				// user label
+				"label-example": "hazelcast",
+
+				// reserved labels
+				n.ApplicationNameLabel:         "user",
+				n.ApplicationInstanceNameLabel: "user",
+				n.ApplicationManagedByLabel:    "user",
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			create(hz)
+			ensureHzStatusIsPending(hz)
+
+			resources := map[string]client.Object{
+				"Secret":         &corev1.Secret{},
+				"Service":        &corev1.Service{},
+				"ServiceAccount": &corev1.ServiceAccount{},
+				"Role":           &rbacv1.Role{},
+				"RoleBinding":    &rbacv1.RoleBinding{},
+				"StatefulSet":    &v1.StatefulSet{},
+			}
+			for name, r := range resources {
+				assertExists(lookupKey(hz), r)
+
+				// make sure user annotations and labels are present
+				Expect(r.GetAnnotations()).To(HaveKeyWithValue("annotation-example", "hazelcast"), name)
+				Expect(r.GetLabels()).To(HaveKeyWithValue("label-example", "hazelcast"), name)
+
+				// make sure operator overwrites selector labels
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationInstanceNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationManagedByLabel, "user")), name)
+			}
+
+			clusterResources := map[string]client.Object{
+				"ClusterRole":        &rbacv1.ClusterRole{},
+				"ClusterRoleBinding": &rbacv1.ClusterRoleBinding{},
+			}
+			for name, r := range clusterResources {
+				// we use clusterScopedLookupKey() here and not lookupKey()!
+				assertExists(clusterScopedLookupKey(hz), r)
+
+				// make sure user annotations and labels are present
+				Expect(r.GetAnnotations()).To(HaveKeyWithValue("annotation-example", "hazelcast"), name)
+				Expect(r.GetLabels()).To(HaveKeyWithValue("label-example", "hazelcast"), name)
+
+				// make sure operator overwrites selector labels
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationInstanceNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationManagedByLabel, "user")), name)
+			}
 		})
 	})
 })
