@@ -1927,6 +1927,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.Volumes = volumes(h)
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h)
 		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts(h)
+		if h.Spec.Agent.Resources != nil {
+			sts.Spec.Template.Spec.Containers[1].Resources = *h.Spec.Agent.Resources
+		}
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

@@ -64,6 +64,9 @@ func (r *Hazelcast) defaultOptionalToNil() {
 	if r.Spec.Resources != nil && reflect.DeepEqual(*r.Spec.Resources, corev1.ResourceRequirements{}) {
 		r.Spec.Resources = nil
 	}
+	if r.Spec.Agent.Resources != nil && reflect.DeepEqual(*r.Spec.Agent.Resources, corev1.ResourceRequirements{}) {
+		r.Spec.Agent.Resources = nil
+	}
 	if r.Spec.UserCodeDeployment != nil && reflect.DeepEqual(*r.Spec.UserCodeDeployment, UserCodeDeploymentConfig{}) {
 		r.Spec.UserCodeDeployment = nil
 	}
