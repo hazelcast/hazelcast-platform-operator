@@ -1,19 +1,6 @@
 apiVersion: hazelcast.com/v1alpha1
 kind: WanSync
 metadata:
-  labels:
-    app.kubernetes.io/name: wansync
-    app.kubernetes.io/instance: wansync-sample
-    app.kubernetes.io/part-of: hazelcast-platform-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: hazelcast-platform-operator
   name: wansync-sample
 spec:
-  config:
-    resources:
-      - name: map-1
-        kind: Map
-      - name: map-2
-        kind: Map
-    targetClusterName: dev
-    endpoints: "35.195.246.196"
+  wanReplicationName: wan-replication-sample
