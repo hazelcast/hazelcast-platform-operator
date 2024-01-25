@@ -476,7 +476,7 @@ spec:
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   resources:
-                    description: Compute Resources required by the Hazelcast container.
+                    description: Compute Resources required by the Agent container.
                     properties:
                       limits:
                         additionalProperties:
