@@ -59,7 +59,7 @@ spec:
                 type: integer
               attributes:
                 description: Attributes to be used with Predicates API. You can learn
-                  more at https://docs.hazelcast.com/hazelcast/5.3/query/predicate-overview#creating-custom-query-attributes
+                  more at https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
                 items:
                   properties:
                     extractorClassName:
