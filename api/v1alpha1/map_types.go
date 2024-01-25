@@ -36,7 +36,7 @@ type MapSpec struct {
 	Indexes []IndexConfig `json:"indexes,omitempty"`
 
 	// Attributes to be used with Predicates API.
-	// You can learn more at https://docs.hazelcast.com/hazelcast/5.3/query/predicate-overview#creating-custom-query-attributes
+	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
 	// +optional
 	Attributes []AttributeConfig `json:"attributes,omitempty"`
 
