@@ -617,7 +617,7 @@ type AgentConfiguration struct {
 	// +optional
 	Version string `json:"version,omitempty"`
 
-	// Compute Resources required by the Hazelcast container.
+	// Compute Resources required by the Agent container.
 	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
