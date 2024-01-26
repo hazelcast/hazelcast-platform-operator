@@ -19,7 +19,7 @@ func (r *HotBackup) SetupWebhookWithManager(mgr ctrl.Manager) error {
 // TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-hazelcast-com-v1alpha1-hotbackup,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=hotbackups,verbs=create;update,versions=v1alpha1,name=vhotbackup.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-hazelcast-com-v1alpha1-hotbackup,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=hotbackups,verbs=create;update;delete,versions=v1alpha1,name=vhotbackup.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &HotBackup{}
 
