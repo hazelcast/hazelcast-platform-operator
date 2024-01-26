@@ -43,6 +43,5 @@ func (r *HotBackup) ValidateUpdate(old runtime.Object) error {
 func (r *HotBackup) ValidateDelete() error {
 	hotbackuplog.Info("validate delete", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
-	return nil
+	return ValidateHotBackupIsNotReferencedByHazelcast(r)
 }
