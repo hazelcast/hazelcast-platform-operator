@@ -175,6 +175,11 @@ type HazelcastSpec struct {
 	// Hazelcast Kubernetes resource labels
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// ServiceAccountName is the name of the ServiceAccount to use to run Hazelcast cluster.
+	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
