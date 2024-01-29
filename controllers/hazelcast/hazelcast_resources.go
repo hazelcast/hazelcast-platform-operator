@@ -2762,17 +2762,8 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 }
 
 func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	hs, err := json.Marshal(h.Spec)
-	if err != nil {
-		return err
-	}
-
 	opResult, err := util.Update(ctx, r.Client, h, func() error {
-		if h.ObjectMeta.Annotations == nil {
-			ans := map[string]string{}
-			h.ObjectMeta.Annotations = ans
-		}
-		h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
+		util.InsertLastSuccessfullyAppliedSpec(h.Spec, h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

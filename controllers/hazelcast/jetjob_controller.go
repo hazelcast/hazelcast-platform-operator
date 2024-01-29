@@ -361,15 +361,7 @@ func (r *JetJobReconciler) updateLastSuccessfulConfiguration(ctx context.Context
 		if err := r.Client.Get(ctx, name, jj); err != nil {
 			return err
 		}
-		jjs, err := json.Marshal(jj.Spec)
-		if err != nil {
-			return err
-		}
-		if jj.ObjectMeta.Annotations == nil {
-			jj.ObjectMeta.Annotations = make(map[string]string)
-		}
-		jj.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(jjs)
-
+		util.InsertLastSuccessfullyAppliedSpec(jj.Spec, jj)
 		return r.Client.Update(ctx, jj)
 	})
 }

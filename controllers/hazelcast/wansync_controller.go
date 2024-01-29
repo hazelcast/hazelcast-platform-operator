@@ -186,8 +186,8 @@ func (r *WanSyncReconciler) stateEventUpdate(ctx context.Context, ws *hazelcastv
 
 func (r *WanSyncReconciler) getWanReplication(ctx context.Context, ws *hazelcastv1alpha1.WanSync) (*hazelcastv1alpha1.WanReplication, error) {
 	var wr = &hazelcastv1alpha1.WanReplication{}
-	if ws.Spec.WanReplicationName != "" {
-		err := r.Client.Get(ctx, types.NamespacedName{Name: ws.Spec.WanReplicationName, Namespace: ws.Namespace}, wr)
+	if ws.Spec.WanReplicationResourceName != "" {
+		err := r.Client.Get(ctx, types.NamespacedName{Name: ws.Spec.WanReplicationResourceName, Namespace: ws.Namespace}, wr)
 		if err != nil {
 			return nil, err
 		}

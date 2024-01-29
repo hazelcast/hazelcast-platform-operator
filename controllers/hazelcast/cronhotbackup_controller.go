@@ -330,15 +330,7 @@ func (r *CronHotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.
 		if err := r.Client.Get(ctx, name, chb); err != nil {
 			return err
 		}
-		hs, err := json.Marshal(chb.Spec)
-		if err != nil {
-			return err
-		}
-		if chb.ObjectMeta.Annotations == nil {
-			chb.ObjectMeta.Annotations = make(map[string]string)
-		}
-		chb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
-
+		util.InsertLastSuccessfullyAppliedSpec(chb.Spec, chb)
 		return r.Client.Update(ctx, chb)
 	})
 }

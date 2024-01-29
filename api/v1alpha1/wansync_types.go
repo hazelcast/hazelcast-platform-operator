@@ -6,10 +6,10 @@ import (
 
 // WanSyncSpec defines the desired state of WanSync
 type WanSyncSpec struct {
-	// WanReplicationName is the name of WanReplication CR that contains the WAN publisher configuration.
+	// WanReplicationResourceName is the name of WanReplication CR that contains the WAN publisher configuration.
 	// If specified the Sync operation will use existing WAN publisher.
 	// +required
-	WanReplicationName string `json:"wanReplicationName,omitempty"`
+	WanReplicationResourceName string `json:"wanReplicationResourceName,omitempty"`
 }
 
 type WanSyncPhase string
@@ -57,6 +57,7 @@ type WanSyncMapStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status",description="Current state of the Hazelcast WAN Sync"
 //+kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current WanSync"
+//+kubebuilder:resource:shortName=ws
 
 // WanSync is the Schema for the wansyncs API
 type WanSync struct {

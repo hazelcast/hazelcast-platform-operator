@@ -12,6 +12,8 @@ spec:
     kind: WanSync
     listKind: WanSyncList
     plural: wansyncs
+    shortNames:
+    - ws
     singular: wansync
   scope: Namespaced
   versions:
@@ -45,10 +47,10 @@ spec:
           spec:
             description: WanSyncSpec defines the desired state of WanSync
             properties:
-              wanReplicationName:
-                description: WanReplicationName is the name of WanReplication CR that
-                  contains the WAN publisher configuration. If specified the Sync
-                  operation will use existing WAN publisher.
+              wanReplicationResourceName:
+                description: WanReplicationResourceName is the name of WanReplication
+                  CR that contains the WAN publisher configuration. If specified the
+                  Sync operation will use existing WAN publisher.
                 type: string
             type: object
           status:

@@ -19,11 +19,11 @@ func NewWanSyncValidator(o client.Object) wansyncValidator {
 
 func ValidateWanSyncSpec(w *WanSync) error {
 	v := NewWanSyncValidator(w)
-	v.validateNonUpdatableWanFields(w)
+	v.validateNonUpdatableWanSyncFields(w)
 	return v.Err()
 }
 
-func (v *wansyncValidator) validateNonUpdatableWanFields(w *WanSync) {
+func (v *wansyncValidator) validateNonUpdatableWanSyncFields(w *WanSync) {
 	last, ok := w.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
 		return
@@ -32,11 +32,11 @@ func (v *wansyncValidator) validateNonUpdatableWanFields(w *WanSync) {
 	lastSpec := &WanSyncSpec{}
 	err := json.Unmarshal([]byte(last), lastSpec)
 	if err != nil {
-		v.InternalError(Path("spec"), fmt.Errorf("error parsing last WanReplication spec for update errors: %w", err))
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last WanSync spec for update errors: %w", err))
 		return
 	}
 
-	if w.Spec.WanReplicationName != lastSpec.WanReplicationName {
-		v.Forbidden(Path("spec", "wanReplicationName"), "field cannot be updated")
+	if w.Spec.WanReplicationResourceName != lastSpec.WanReplicationResourceName {
+		v.Forbidden(Path("spec", "wanReplicationResourceName"), "field cannot be updated")
 	}
 }

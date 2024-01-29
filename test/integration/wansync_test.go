@@ -33,7 +33,7 @@ var _ = Describe("WanReplication CR", func() {
 		When("updating unmodifiable fields", func() {
 			It("should not be allowed", Label("fast"), func() {
 				spec := hazelcastv1alpha1.WanSyncSpec{
-					WanReplicationName: "existing-wan-replication",
+					WanReplicationResourceName: "existing-wan-replication",
 				}
 				wrs, _ := json.Marshal(spec)
 				wr := &hazelcastv1alpha1.WanSync{
@@ -44,7 +44,7 @@ var _ = Describe("WanReplication CR", func() {
 				Expect(k8sClient.Create(context.Background(), wr)).Should(Succeed())
 
 				Expect(updateCR(wr, func(obj *hazelcastv1alpha1.WanSync) {
-					wr.Spec.WanReplicationName = "new-wan-replication"
+					wr.Spec.WanReplicationResourceName = "new-wan-replication"
 				})).Should(
 					MatchError(ContainSubstring("spec.wanReplicationName")),
 				)

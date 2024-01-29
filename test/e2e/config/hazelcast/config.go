@@ -672,7 +672,7 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastcomv1alpha1.WanSyncSpec{
-				WanReplicationName: wanReplicationName,
+				WanReplicationResourceName: wanReplicationName,
 			},
 		}
 	}
