@@ -46,7 +46,7 @@ var _ = Describe("WanReplication CR", func() {
 				Expect(updateCR(wr, func(obj *hazelcastv1alpha1.WanSync) {
 					wr.Spec.WanReplicationResourceName = "new-wan-replication"
 				})).Should(
-					MatchError(ContainSubstring("spec.wanReplicationResourceNameп")),
+					MatchError(ContainSubstring("spec.wanReplicationResourceName")),
 				)
 			})
 		})
