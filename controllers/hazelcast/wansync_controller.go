@@ -49,10 +49,9 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if kerrors.IsNotFound(err) {
 			logger.V(util.DebugLevel).Info("Could not find WanSync, it is probably already deleted")
 			return ctrl.Result{}, nil
-		} else {
-			return updateWanSyncStatus(ctx, r.Client, wan,
-				wanSyncFailedStatus(fmt.Errorf("could not get WanSync: %w", err)))
 		}
+		return updateWanSyncStatus(ctx, r.Client, wan,
+			wanSyncFailedStatus(fmt.Errorf("could not get WanSync: %w", err)))
 	}
 
 	if !controllerutil.ContainsFinalizer(wan, n.Finalizer) && wan.GetDeletionTimestamp().IsZero() {
@@ -147,7 +146,7 @@ func (r *WanSyncReconciler) runWanSyncJobs(ctx context.Context, maps map[string]
 		if len(wsrs) == 0 {
 			return nil
 		}
-		wanSyncService := hzclient.NewHzWanSyncService(hzClient, wsrs)
+		wanSyncService := hzclient.NewWanSyncService(hzClient, wsrs)
 		wanSyncService.StartSyncJob(ctx, r.stateEventUpdate(ctx, wan, logger), logger)
 	}
 	return nil

@@ -14,13 +14,13 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
-type HzWanSyncService struct {
+type WanSyncService struct {
 	client      Client
 	wanSyncReqs []WanSyncMapRequest
 }
 
-func NewHzWanSyncService(c Client, reqs []WanSyncMapRequest) *HzWanSyncService {
-	return &HzWanSyncService{
+func NewWanSyncService(c Client, reqs []WanSyncMapRequest) *WanSyncService {
+	return &WanSyncService{
 		client:      c,
 		wanSyncReqs: reqs,
 	}
@@ -52,42 +52,44 @@ func NewWanSyncMapRequest(hzResource types.NamespacedName, wanSync, mapName, wan
 	}
 }
 
-func (ws *HzWanSyncService) StartSyncJob(ctx context.Context, f EventResponseFunc, logger logr.Logger) {
-	go func() {
-		for _, wsr := range ws.wanSyncReqs {
-			logger.V(util.DebugLevel).Info("Sending WAN Sync request.",
-				"map", wsr.mapName, "hz", wsr.hzResource.Name, "publisherId", wsr.publisherId, "wan", wsr.wanName)
+func (ws *WanSyncService) StartSyncJob(ctx context.Context, f EventResponseFunc, logger logr.Logger) {
+	go ws.doStartSyncJob(ctx, f, logger)
+}
+
+func (ws *WanSyncService) doStartSyncJob(ctx context.Context, f EventResponseFunc, logger logr.Logger) {
+	for _, wsr := range ws.wanSyncReqs {
+		logger.V(util.DebugLevel).Info("Sending WAN Sync request.",
+			"map", wsr.mapName, "hz", wsr.hzResource.Name, "publisherId", wsr.publisherId, "wan", wsr.wanName)
+		f(WanSyncMapResponse{
+			HazelcastName: wsr.hzResource,
+			MapName:       types.NamespacedName{Namespace: wsr.hzResource.Namespace, Name: wsr.mapName},
+			Event: codecTypes.MCEvent{
+				Type: codecTypes.WanSyncStarted,
+			}.WithMapName(wsr.mapName),
+		})
+		uuid, err := ws.wanSyncMap(ctx, ws.client, wsr)
+		logger.V(util.DebugLevel).Info("WAN Sync request sent", "man", wsr.mapName, "uuid", uuid)
+		if err != nil {
+			logger.Error(err, "Error sending WAN Sync request", "map", wsr.mapName, "hz", wsr.hzResource.Name, "uuid", uuid)
 			f(WanSyncMapResponse{
 				HazelcastName: wsr.hzResource,
 				MapName:       types.NamespacedName{Namespace: wsr.hzResource.Namespace, Name: wsr.mapName},
 				Event: codecTypes.MCEvent{
-					Type: codecTypes.WanSyncStarted,
-				}.WithMapName(wsr.mapName),
-			})
-			uuid, err := ws.wanSyncMap(ctx, ws.client, wsr)
-			logger.V(util.DebugLevel).Info("WAN Sync request sent", "man", wsr.mapName, "uuid", uuid)
-			if err != nil {
-				logger.Error(err, "Error sending WAN Sync request", "map", wsr.mapName, "hz", wsr.hzResource.Name, "uuid", uuid)
-				f(WanSyncMapResponse{
-					HazelcastName: wsr.hzResource,
-					MapName:       types.NamespacedName{Namespace: wsr.hzResource.Namespace, Name: wsr.mapName},
-					Event: codecTypes.MCEvent{
-						Type: codecTypes.WanSyncIgnored,
-					}.WithReason(err.Error()).WithMapName(wsr.mapName),
-				})
-			}
-
-			finishEvent := ws.waitWanSyncToFinish(ctx, ws.client, uuid, logger)
-			f(WanSyncMapResponse{
-				HazelcastName: wsr.hzResource,
-				MapName:       types.NamespacedName{Namespace: wsr.hzResource.Namespace, Name: wsr.mapName},
-				Event:         finishEvent,
+					Type: codecTypes.WanSyncIgnored,
+				}.WithReason(err.Error()).WithMapName(wsr.mapName),
 			})
 		}
-	}()
+
+		finishEvent := ws.waitWanSyncToFinish(ctx, ws.client, uuid, logger)
+		f(WanSyncMapResponse{
+			HazelcastName: wsr.hzResource,
+			MapName:       types.NamespacedName{Namespace: wsr.hzResource.Namespace, Name: wsr.mapName},
+			Event:         finishEvent,
+		})
+	}
 }
 
-func (ws *HzWanSyncService) waitWanSyncToFinish(
+func (ws *WanSyncService) waitWanSyncToFinish(
 	ctx context.Context, c Client, uuid clientTypes.UUID, logger logr.Logger) codecTypes.MCEvent {
 
 	logger.V(util.DebugLevel).Info("Start polling MC events...", "uuid", uuid)
@@ -114,7 +116,7 @@ func (ws *HzWanSyncService) waitWanSyncToFinish(
 	}
 }
 
-func (ws *HzWanSyncService) pollMCEvents(
+func (ws *WanSyncService) pollMCEvents(
 	ctx context.Context, c Client, members []cluster.MemberInfo, uuid clientTypes.UUID, logger logr.Logger) (codecTypes.MCEvent, bool) {
 
 	for _, m := range members {
@@ -138,7 +140,7 @@ func (ws *HzWanSyncService) pollMCEvents(
 	return codecTypes.MCEvent{}, false
 }
 
-func (ws *HzWanSyncService) wanSyncMap(ctx context.Context, c Client, sync WanSyncMapRequest) (clientTypes.UUID, error) {
+func (ws *WanSyncService) wanSyncMap(ctx context.Context, c Client, sync WanSyncMapRequest) (clientTypes.UUID, error) {
 	request := codec.EncodeMCWanSyncMapRequest(codecTypes.WanSyncRef{
 		WanReplicationName: sync.wanName,
 		WanPublisherId:     sync.publisherId,
