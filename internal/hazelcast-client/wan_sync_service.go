@@ -15,14 +15,12 @@ import (
 )
 
 type WanSyncService struct {
-	client      Client
-	wanSyncReqs []WanSyncMapRequest
+	client Client
 }
 
-func NewWanSyncService(c Client, reqs []WanSyncMapRequest) *WanSyncService {
+func NewWanSyncService(c Client) *WanSyncService {
 	return &WanSyncService{
-		client:      c,
-		wanSyncReqs: reqs,
+		client: c,
 	}
 }
 
@@ -52,12 +50,12 @@ func NewWanSyncMapRequest(hzResource types.NamespacedName, wanSync, mapName, wan
 	}
 }
 
-func (ws *WanSyncService) StartSyncJob(ctx context.Context, f EventResponseFunc, logger logr.Logger) {
-	go ws.doStartSyncJob(ctx, f, logger)
+func (ws *WanSyncService) StartSyncJob(ctx context.Context, f EventResponseFunc, wsrs []WanSyncMapRequest, logger logr.Logger) {
+	go ws.doStartSyncJob(ctx, f, wsrs, logger)
 }
 
-func (ws *WanSyncService) doStartSyncJob(ctx context.Context, f EventResponseFunc, logger logr.Logger) {
-	for _, wsr := range ws.wanSyncReqs {
+func (ws *WanSyncService) doStartSyncJob(ctx context.Context, f EventResponseFunc, wsrs []WanSyncMapRequest, logger logr.Logger) {
+	for _, wsr := range wsrs {
 		logger.V(util.DebugLevel).Info("Sending WAN Sync request.",
 			"map", wsr.mapName, "hz", wsr.hzResource.Name, "publisherId", wsr.publisherId, "wan", wsr.wanName)
 		f(WanSyncMapResponse{

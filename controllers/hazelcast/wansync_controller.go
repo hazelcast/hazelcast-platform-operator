@@ -146,8 +146,8 @@ func (r *WanSyncReconciler) runWanSyncJobs(ctx context.Context, maps map[string]
 		if len(wsrs) == 0 {
 			return nil
 		}
-		wanSyncService := hzclient.NewWanSyncService(hzClient, wsrs)
-		wanSyncService.StartSyncJob(ctx, r.stateEventUpdate(ctx, wan, logger), logger)
+		wanSyncService := hzclient.NewWanSyncService(hzClient)
+		wanSyncService.StartSyncJob(ctx, r.stateEventUpdate(ctx, wan, logger), wsrs, logger)
 	}
 	return nil
 }
