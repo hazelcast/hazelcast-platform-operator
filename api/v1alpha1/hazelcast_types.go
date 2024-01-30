@@ -616,6 +616,10 @@ type AgentConfiguration struct {
 	// +kubebuilder:default:="0.1.22"
 	// +optional
 	Version string `json:"version,omitempty"`
+
+	// Compute Resources required by the Agent container.
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
