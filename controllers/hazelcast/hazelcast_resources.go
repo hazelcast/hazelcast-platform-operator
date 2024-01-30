@@ -1587,6 +1587,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		ReadBackupData:    false,
 		InMemoryFormat:    string(ms.InMemoryFormat),
 		Indexes:           copyMapIndexes(ms.Indexes),
+		Attributes:        attributes(ms.Attributes),
 		StatisticsEnabled: true,
 		DataPersistence: config.DataPersistence{
 			Enabled: ms.PersistenceEnabled,
@@ -1651,6 +1652,19 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 	}
 
 	return mc, nil
+}
+
+func attributes(attributes []v1alpha1.AttributeConfig) []config.Attribute {
+	var att []config.Attribute
+
+	for _, a := range attributes {
+		att = append(att, config.Attribute{
+			Name:               a.Name,
+			ExtractorClassName: a.ExtractorClassName,
+		})
+	}
+
+	return att
 }
 
 func wanReplicationRef(ref codecTypes.WanReplicationRef) map[string]config.WanReplicationReference {

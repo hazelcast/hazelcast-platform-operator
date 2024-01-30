@@ -188,4 +188,27 @@ var _ = Describe("Hazelcast Map Config with Persistence", Label("map_persistence
 		newMcfg := hzConfig.Hazelcast.Map[m.Name]
 		Expect(newMcfg).To(Equal(mcfg))
 	})
+
+	It("should persist Map Config with Attributes", Label("fast"), func() {
+		setLabelAndCRName("hmp-6")
+		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		CreateHazelcastCR(hazelcast)
+
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+		m.Spec.Attributes = []hazelcastcomv1alpha1.AttributeConfig{
+			{
+				Name:               "attribute1",
+				ExtractorClassName: "class1",
+			},
+		}
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+		By("checking if the map is in the Config")
+		hzConfig := assertMapConfigsPersisted(hazelcast, m.Name)
+
+		By("checking if the indexes are persisted")
+		Expect(hzConfig.Hazelcast.Map[m.Name].Attributes[0].Name).Should(Equal("attribute1"))
+		Expect(hzConfig.Hazelcast.Map[m.Name].Attributes[0].ExtractorClassName).Should(Equal("class1"))
+	})
 })

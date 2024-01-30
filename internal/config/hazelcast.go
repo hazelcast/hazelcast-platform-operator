@@ -156,6 +156,7 @@ type Map struct {
 	InMemoryFormat          string                             `yaml:"in-memory-format"`
 	StatisticsEnabled       bool                               `yaml:"statistics-enabled"`
 	Indexes                 []MapIndex                         `yaml:"indexes,omitempty"`
+	Attributes              []Attribute                        `yaml:"attributes,omitempty"`
 	DataPersistence         DataPersistence                    `yaml:"data-persistence,omitempty"`
 	WanReplicationReference map[string]WanReplicationReference `yaml:"wan-replication-ref,omitempty"`
 	MapStoreConfig          MapStoreConfig                     `yaml:"map-store,omitempty"`
@@ -181,6 +182,11 @@ type MapIndex struct {
 	Type               string             `yaml:"type"`
 	Attributes         []string           `yaml:"attributes"`
 	BitmapIndexOptions BitmapIndexOptions `yaml:"bitmap-index-options,omitempty"`
+}
+
+type Attribute struct {
+	Name               string `yaml:"name"`
+	ExtractorClassName string `yaml:"extractor-class-name"`
 }
 
 type BitmapIndexOptions struct {
