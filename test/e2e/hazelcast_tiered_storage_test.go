@@ -60,7 +60,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 		dm := hazelcastconfig.TieredStoreMap(mapLookupKey, hazelcast.Name, deviceName, memorySize, labels)
 		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		assertMapStatus(dm, hazelcastv1alpha1.MapSuccess)
-		FillTheMapWithData(ctx, dm.MapName(), mapSizeInMb, hazelcast)
+		FillTheMapWithData(ctx, dm.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
 
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})

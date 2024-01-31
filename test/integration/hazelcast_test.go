@@ -2412,7 +2412,7 @@ var _ = Describe("Hazelcast CR", func() {
 						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					},
 				}}
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
@@ -2450,7 +2450,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 

@@ -874,24 +874,24 @@ var (
 		}
 	}
 
-	HazelcastTieredStorage = func(lk types.NamespacedName, deviceName string, diskSize string, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
-		return &hazelcastv1alpha1.Hazelcast{
+	HazelcastTieredStorage = func(lk types.NamespacedName, deviceName string, diskSize string, labels map[string]string) *hazelcastcomv1alpha1.Hazelcast {
+		return &hazelcastcomv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
 				Namespace: lk.Namespace,
 				Labels:    labels,
 			},
-			Spec: hazelcastv1alpha1.HazelcastSpec{
+			Spec: hazelcastcomv1alpha1.HazelcastSpec{
 				ClusterSize:          pointer.Int32(3),
 				Repository:           repo(true),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(true),
-				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
-				LocalDevices: []hazelcastv1alpha1.LocalDeviceConfig{
+				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+				LocalDevices: []hazelcastcomv1alpha1.LocalDeviceConfig{
 					{
 						Name:    deviceName,
 						BaseDir: "/test/path",
-						Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
+						Pvc: &hazelcastcomv1alpha1.LocalDevicePvcConfiguration{
 							AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 							RequestStorage: &[]resource.Quantity{resource.MustParse(diskSize)}[0],
 						},
