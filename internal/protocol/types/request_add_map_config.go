@@ -47,10 +47,11 @@ type AddMapConfigInput struct {
 	// nullable
 	EventJournalConfig EventJournalConfig
 	// nullable
-	MerkleTreeConfig     MerkleTreeConfig
-	MetadataPolicy       int32
-	PerEntryStatsEnabled bool
-	TieredStoreConfig    TieredStoreConfig
+	MerkleTreeConfig      MerkleTreeConfig
+	MetadataPolicy        int32
+	PerEntryStatsEnabled  bool
+	TieredStoreConfig     TieredStoreConfig
+	DataPersistenceConfig DataPersistenceConfig
 }
 
 // Default values are explicitly written for all fields that are not nullable

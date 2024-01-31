@@ -78,6 +78,7 @@ func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.C
 	EncodeNullableForHotRestartConfig(clientMessage, c.HotRestartConfig)
 	EncodeNullableForEventJournalConfig(clientMessage, c.EventJournalConfig)
 	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)
+	EncodeDataPersistenceConfig(clientMessage, c.DataPersistenceConfig)
 	EncodeTieredStoreConfig(clientMessage, c.TieredStoreConfig)
 
 	return clientMessage

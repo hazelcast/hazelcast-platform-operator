@@ -2405,13 +2405,6 @@ var _ = Describe("Hazelcast CR", func() {
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
-				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
-					Name:    "local-device-test",
-					BaseDir: "/baseDir/",
-					Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
-						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-					},
-				}}
 				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
