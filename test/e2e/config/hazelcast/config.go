@@ -616,6 +616,26 @@ var (
 		}
 	}
 
+	TieredStoreMap = func(lk types.NamespacedName, hzName string, deviceName string, memorySize string, lbls map[string]string) *hazelcastv1alpha1.Map {
+		return &hazelcastv1alpha1.Map{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastv1alpha1.MapSpec{
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
+				InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+				TieredStore: &hazelcastv1alpha1.TieredStore{
+					MemoryRequestStorage: &[]resource.Quantity{resource.MustParse(memorySize)}[0],
+					DiskDeviceName:       deviceName,
+				},
+			},
+		}
+	}
+
 	DefaultWanReplication = func(wan types.NamespacedName, mapName, targetClusterName, endpoints string, lbls map[string]string) *hazelcastv1alpha1.WanReplication {
 		return &hazelcastv1alpha1.WanReplication{
 			ObjectMeta: v1.ObjectMeta{
@@ -850,6 +870,33 @@ var (
 			Data: map[string][]byte{
 				corev1.TLSCertKey:       []byte(ExampleCert),
 				corev1.TLSPrivateKeyKey: []byte(ExampleKey),
+			},
+		}
+	}
+
+	HazelcastTieredStorage = func(lk types.NamespacedName, deviceName string, diskSize string, labels map[string]string) *hazelcastv1alpha1.Hazelcast {
+		return &hazelcastv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    labels,
+			},
+			Spec: hazelcastv1alpha1.HazelcastSpec{
+				ClusterSize:          pointer.Int32(3),
+				Repository:           repo(true),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(true),
+				LoggingLevel:         hazelcastv1alpha1.LoggingLevelDebug,
+				LocalDevices: []hazelcastv1alpha1.LocalDeviceConfig{
+					{
+						Name:    deviceName,
+						BaseDir: "/test/path",
+						Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
+							AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+							RequestStorage: &[]resource.Quantity{resource.MustParse(diskSize)}[0],
+						},
+					},
+				},
 			},
 		}
 	}
