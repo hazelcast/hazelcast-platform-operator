@@ -160,7 +160,7 @@ func (r *WanReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
-	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(wan) {
+	if util.IsPhoneHomeEnabled() && !recoptions.IsSuccessfullyApplied(wan) {
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 

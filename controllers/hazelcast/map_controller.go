@@ -165,7 +165,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			withMapMessage("Waiting for Map Config to be persisted."))
 	}
 
-	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(m) {
+	if util.IsPhoneHomeEnabled() && !recoptions.IsSuccessfullyApplied(m) {
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 

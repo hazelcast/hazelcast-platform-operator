@@ -35,6 +35,7 @@ import (
 
 	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -2763,7 +2764,7 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 
 func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	opResult, err := util.Update(ctx, r.Client, h, func() error {
-		util.InsertLastSuccessfullyAppliedSpec(h.Spec, h)
+		controllers.InsertLastSuccessfullyAppliedSpec(h.Spec, h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

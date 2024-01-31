@@ -164,7 +164,7 @@ func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 		if err := r.Client.Get(ctx, name, hb); err != nil {
 			return err
 		}
-		util.InsertLastSuccessfullyAppliedSpec(hb.Spec, hb)
+		recoptions.InsertLastSuccessfullyAppliedSpec(hb.Spec, hb)
 		return r.Client.Update(ctx, hb)
 	})
 }

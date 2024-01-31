@@ -159,7 +159,7 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return result, err
 	}
 
-	if !util.IsSuccessfullyApplied(jjs) {
+	if !recoptions.IsSuccessfullyApplied(jjs) {
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
@@ -227,7 +227,7 @@ func (r *JetJobSnapshotReconciler) updateLastSuccessfulConfiguration(ctx context
 		if err := r.Client.Get(ctx, name, jjs); err != nil {
 			return err
 		}
-		util.InsertLastSuccessfullyAppliedSpec(jjs.Spec, jjs)
+		recoptions.InsertLastSuccessfullyAppliedSpec(jjs.Spec, jjs)
 		return r.Client.Update(ctx, jjs)
 	})
 }

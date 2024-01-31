@@ -22,6 +22,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -89,7 +90,7 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// If the CronHotBackup is not successfully applied yet
-	if !util.IsSuccessfullyApplied(chb) {
+	if !controllers.IsSuccessfullyApplied(chb) {
 		err = r.updateSchedule(ctx, chb)
 		if err != nil {
 			return
@@ -330,7 +331,7 @@ func (r *CronHotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.
 		if err := r.Client.Get(ctx, name, chb); err != nil {
 			return err
 		}
-		util.InsertLastSuccessfullyAppliedSpec(chb.Spec, chb)
+		controllers.InsertLastSuccessfullyAppliedSpec(chb.Spec, chb)
 		return r.Client.Update(ctx, chb)
 	})
 }

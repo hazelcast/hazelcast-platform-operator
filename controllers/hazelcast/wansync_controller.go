@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -90,8 +91,8 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			wanSyncFailedStatus(fmt.Errorf("could not get WanSync maps: %w", err)))
 	}
 
-	if !util.IsApplied(wan.ObjectMeta) {
-		if err := r.Update(ctx, util.InsertLastAppliedSpec(wan.Spec, wan)); err != nil {
+	if !controllers.IsApplied(wan.ObjectMeta) {
+		if err := r.Update(ctx, controllers.InsertLastAppliedSpec(wan.Spec, wan)); err != nil {
 			return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
 		} else {
 			return updateWanSyncStatus(ctx, r.Client, wan, wanSyncStatus(maps))
@@ -102,11 +103,11 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
 	}
 
-	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(wan) {
+	if util.IsPhoneHomeEnabled() && !controllers.IsSuccessfullyApplied(wan) {
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
-	if err = r.Update(ctx, util.InsertLastSuccessfullyAppliedSpec(wan.Spec, wan)); err != nil {
+	if err = r.Update(ctx, controllers.InsertLastSuccessfullyAppliedSpec(wan.Spec, wan)); err != nil {
 		return updateWanSyncStatus(ctx, r.Client, wan, wanSyncFailedStatus(err))
 	}
 
