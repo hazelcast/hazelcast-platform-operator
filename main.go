@@ -163,7 +163,6 @@ func main() {
 	if err = hazelcast.NewMapReconciler(
 		mgr.GetClient(),
 		controllerLogger.WithName("Map"),
-		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
 	).SetupWithManager(mgr); err != nil {

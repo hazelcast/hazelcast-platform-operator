@@ -946,7 +946,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
-	if len(h.Spec.LocalDevices) != 0 {
+	if h.Spec.IsTieredStorageEnabled() {
 		cfg.LocalDevice = map[string]config.LocalDevice{}
 		for _, ld := range h.Spec.LocalDevices {
 			cfg.LocalDevice[ld.Name] = createLocalDeviceConfig(ld)
@@ -1658,7 +1658,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	if h.Spec.Persistence.IsEnabled() {
 		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 	}
-	if len(h.Spec.LocalDevices) != 0 {
+	if h.Spec.IsTieredStorageEnabled() {
 		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, localDevicePersistentVolumeClaim(h)...)
 	}
 
@@ -2215,7 +2215,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 		})
 	}
 
-	if len(h.Spec.LocalDevices) != 0 {
+	if h.Spec.IsTieredStorageEnabled() {
 		mounts = append(mounts, localDeviceVolumeMounts(h)...)
 	}
 

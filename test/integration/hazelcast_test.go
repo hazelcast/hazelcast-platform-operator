@@ -2217,4 +2217,180 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 	})
+
+	Context("with Tiered Storage configuration", func() {
+		When("LocalDevices is configured", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
+				AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
+			}
+			spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
+				Name:    "local-device-test",
+				BaseDir: "/baseDir/",
+				Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
+			}}
+
+			It("should fail when not using enterprise version", Label("fast"), func() {
+				if ee {
+					Skip("This test will only run in OS configuration")
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("Required value: Hazelcast Tiered Storage requires enterprise version")))
+			})
+
+			It("should fail if NativeMemory is not enabled when Tiered Storage is enabled", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				spec.NativeMemory = nil
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("Required value: Native Memory must be enabled at Hazelcast when Tiered Storage is enabled")))
+			})
+
+			It("should fail if pvc is not specified", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
+					Name:    "local-device-test",
+					BaseDir: "/baseDir/",
+				}}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("spec.localDevices.pvc: Required value: must be set when LocalDevice is defined")))
+			})
+
+			It("should fail with invalid baseDir", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
+					Name:    "local-device-test",
+					BaseDir: "baseDir/",
+					Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					},
+				}}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("must be absolute path")))
+			})
+
+			It("should create with default values", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
+					Name:    "local-device-test",
+					BaseDir: "/baseDir/",
+					Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					},
+				}}
+				Create(hz)
+				fetchedCR := ensureHzStatusIsPending(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
+
+				By("checking the Local Device configuration", func() {
+					localDevice := fetchedCR.Spec.LocalDevices[0]
+					Expect(localDevice.Name).Should(Equal("local-device-test"))
+					Expect(localDevice.BaseDir).Should(Equal("/baseDir/"))
+					Expect(localDevice.BlockSize).Should(Equal(pointer.Int32(4096)))
+					Expect(localDevice.ReadIOThreadCount).Should(Equal(pointer.Int32(4)))
+					Expect(localDevice.WriteIOThreadCount).Should(Equal(pointer.Int32(4)))
+					Expect(localDevice.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
+					Expect(*localDevice.Pvc.RequestStorage).Should(Equal(resource.MustParse("256G")))
+				})
+			})
+
+			It("should create volumeClaimTemplates", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
+					Name:               "local-device-test",
+					BaseDir:            "/baseDir/",
+					BlockSize:          pointer.Int32(2048),
+					ReadIOThreadCount:  pointer.Int32(2),
+					WriteIOThreadCount: pointer.Int32(2),
+					Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+						RequestStorage:   &[]resource.Quantity{resource.MustParse("128G")}[0],
+						StorageClassName: &[]string{"standard"}[0],
+					},
+				}}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Create(hz)
+				fetchedCR := ensureHzStatusIsPending(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
+
+				By("checking the Local Device configuration", func() {
+					localDevice := fetchedCR.Spec.LocalDevices[0]
+					Expect(localDevice.Name).Should(Equal("local-device-test"))
+					Expect(localDevice.BaseDir).Should(Equal("/baseDir/"))
+					Expect(localDevice.BlockSize).Should(Equal(pointer.Int32(2048)))
+					Expect(localDevice.ReadIOThreadCount).Should(Equal(pointer.Int32(2)))
+					Expect(localDevice.WriteIOThreadCount).Should(Equal(pointer.Int32(2)))
+					Expect(localDevice.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteMany))
+					Expect(*localDevice.Pvc.RequestStorage).Should(Equal(resource.MustParse("128G")))
+					Expect(*localDevice.Pvc.StorageClassName).Should(Equal("standard"))
+
+				})
+				Eventually(func() []corev1.PersistentVolumeClaim {
+					ss := getStatefulSet(hz)
+					return ss.Spec.VolumeClaimTemplates
+				}, timeout, interval).Should(
+					ConsistOf(WithTransform(func(pvc corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaimSpec {
+						return pvc.Spec
+					}, Equal(
+						corev1.PersistentVolumeClaimSpec{
+							AccessModes: fetchedCR.Spec.LocalDevices[0].Pvc.AccessModes,
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceStorage: *fetchedCR.Spec.LocalDevices[0].Pvc.RequestStorage,
+								},
+							},
+							StorageClassName: fetchedCR.Spec.LocalDevices[0].Pvc.StorageClassName,
+							VolumeMode:       &[]corev1.PersistentVolumeMode{corev1.PersistentVolumeFilesystem}[0],
+						},
+					))),
+				)
+			})
+		})
+	})
 })

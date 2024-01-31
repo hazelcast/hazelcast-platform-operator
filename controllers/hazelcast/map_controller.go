@@ -13,7 +13,6 @@ import (
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,16 +32,14 @@ import (
 type MapReconciler struct {
 	client.Client
 	Log              logr.Logger
-	Scheme           *runtime.Scheme
 	phoneHomeTrigger chan struct{}
 	clientRegistry   hzclient.ClientRegistry
 }
 
-func NewMapReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cs hzclient.ClientRegistry) *MapReconciler {
+func NewMapReconciler(c client.Client, log logr.Logger, pht chan struct{}, cs hzclient.ClientRegistry) *MapReconciler {
 	return &MapReconciler{
 		Client:           c,
 		Log:              log,
-		Scheme:           s,
 		phoneHomeTrigger: pht,
 		clientRegistry:   cs,
 	}

@@ -70,6 +70,7 @@ func (v *hazelcastValidator) validateSpecCurrent(h *Hazelcast) {
 	v.validateCustomConfig(h)
 	v.validateNativeMemory(h)
 	v.validateSQL(h)
+	v.validateTieredStorage(h)
 }
 
 func (v *hazelcastValidator) validateSpecUpdate(h *Hazelcast) {
@@ -446,5 +447,38 @@ func (v *hazelcastValidator) validateSQL(h *Hazelcast) {
 
 	if h.Spec.SQL.CatalogPersistenceEnabled && !h.Spec.Persistence.IsEnabled() {
 		v.Forbidden(Path("spec", "sql", "catalogPersistence"), "catalogPersistence requires Hazelcast persistence enabled")
+	}
+}
+
+func (v *hazelcastValidator) validateTieredStorage(h *Hazelcast) {
+	// skip validation if LocalDevice is not set
+	if !h.Spec.IsTieredStorageEnabled() {
+		return
+	}
+	lds := h.Spec.LocalDevices
+
+	if h.Spec.GetLicenseKeySecretName() == "" {
+		v.Required(Path("spec", "localDevices"), "Hazelcast Tiered Storage requires enterprise version")
+	}
+
+	if !h.Spec.NativeMemory.IsEnabled() {
+		v.Required(Path("spec", "nativeMemory"), "Native Memory must be enabled at Hazelcast when Tiered Storage is enabled")
+	}
+	for _, ld := range lds {
+		v.validateLocalDevice(ld)
+	}
+}
+
+func (v *hazelcastValidator) validateLocalDevice(ld LocalDeviceConfig) {
+	if ld.Pvc == nil {
+		v.Required(Path("spec", "localDevices", "pvc"), "must be set when LocalDevice is defined")
+	} else {
+		if ld.Pvc.AccessModes == nil {
+			v.Required(Path("spec", "localDevices", "pvc", "accessModes"), "must be set when LocalDevice is defined")
+		}
+	}
+
+	if !path.IsAbs(ld.BaseDir) {
+		v.Invalid(Path("spec", "localDevices", "baseDir"), ld.BaseDir, "must be absolute path")
 	}
 }
