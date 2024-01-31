@@ -50,4 +50,4 @@ func DecodeDiskTierConfig(frameIterator *proto.ForwardFrameIterator) types.DiskT
 		Enabled:    enabled,
 		DeviceName: deviceName,
 	}
-}	
+}

@@ -1079,35 +1079,39 @@ type SQL struct {
 type LocalDeviceConfig struct {
 	// Name represents the name of the local device
 	// +required
-	Name string
+	Name string `json:"name"`
 
 	// BaseDir Specifies the directory where the Tiered-Store data will be stored.
 	// This directory will be created automatically if it does not exist.
-	// +kubebuilder:default:="tiered-store"
-	// +optional
+	// +required
 	BaseDir string `json:"baseDir"`
 
 	// BlockSize defines Device block/sector size in bytes.
 	// +kubebuilder:validation:Minimum=512
-	// +kubebuilder:default:="4096"
+	// +kubebuilder:default:=4096
 	// +optional
 	BlockSize *int32 `json:"blockSize,omitempty"`
 
 	// ReadIOThreadCount is Read IO thread count.
 	// +kubebuilder:validation:Minimum:=1
-	// +kubebuilder:default:="4"
+	// +kubebuilder:default:=4
 	// +optional
 	ReadIOThreadCount *int32 `json:"readIOThreadCount,omitempty"`
 
 	// WriteIOThreadCount is Write IO thread count.
 	// +kubebuilder:validation:Minimum:=1
-	// +kubebuilder:default:="4"
+	// +kubebuilder:default:=4
 	// +optional
 	WriteIOThreadCount *int32 `json:"writeIOThreadCount,omitempty"`
 
 	// Configuration of PersistenceVolumeClaim.
 	// +required
 	Pvc *LocalDevicePvcConfiguration `json:"pvc,omitempty"`
+}
+
+// IsTieredStorageEnabled Returns true if LocalDevices configuration is specified.
+func (hs *HazelcastSpec) IsTieredStorageEnabled() bool {
+	return len(hs.LocalDevices) != 0
 }
 
 type LocalDevicePvcConfiguration struct {

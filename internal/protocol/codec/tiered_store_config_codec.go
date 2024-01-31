@@ -53,4 +53,4 @@ func DecodeTieredStoreConfig(frameIterator *proto.ForwardFrameIterator) types.Ti
 		MemoryTierConfig: memoryTierConfig,
 		DiskTierConfig:   diskTierConfig,
 	}
-}	
+}

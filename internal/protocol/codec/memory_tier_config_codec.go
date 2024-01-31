@@ -39,4 +39,4 @@ func DecodeMemoryTierConfig(frameIterator *proto.ForwardFrameIterator) types.Mem
 	return types.MemoryTierConfig{
 		Capacity: capacity,
 	}
-}	
+}
