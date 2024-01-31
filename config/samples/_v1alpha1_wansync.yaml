@@ -3,4 +3,4 @@ kind: WanSync
 metadata:
   name: wansync-sample
 spec:
-  wanReplicationName: wan-replication-sample
+  wanReplicationResourceName: wan-replication-sample

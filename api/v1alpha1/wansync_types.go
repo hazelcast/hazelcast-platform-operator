@@ -8,6 +8,7 @@ import (
 type WanSyncSpec struct {
 	// WanReplicationResourceName is the name of WanReplication CR that contains the WAN publisher configuration.
 	// If specified the Sync operation will use existing WAN publisher.
+	// +kubebuilder:validation:MinLength:=1
 	// +required
 	WanReplicationResourceName string `json:"wanReplicationResourceName,omitempty"`
 }

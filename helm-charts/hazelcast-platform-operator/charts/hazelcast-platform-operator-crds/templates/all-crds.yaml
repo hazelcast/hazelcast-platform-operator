@@ -5377,6 +5377,7 @@ spec:
                 description: WanReplicationResourceName is the name of WanReplication
                   CR that contains the WAN publisher configuration. If specified the
                   Sync operation will use existing WAN publisher.
+                minLength: 1
                 type: string
             type: object
           status:
