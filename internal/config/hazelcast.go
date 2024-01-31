@@ -251,15 +251,15 @@ type NearCacheEviction struct {
 }
 
 type EventJournal struct {
-	Enabled           bool  `json:"enabled"`
-	Capacity          int32 `json:"capacity"`
-	TimeToLiveSeconds int32 `json:"time-to-live-seconds"`
+	Enabled           bool  `yaml:"enabled"`
+	Capacity          int32 `yaml:"capacity"`
+	TimeToLiveSeconds int32 `yaml:"time-to-live-seconds"`
 }
 
 type TieredStore struct {
-	Enabled    bool       `json:"enabled"`
-	MemoryTier MemoryTier `json:"memory-tier"`
-	DiskTier   DiskTier   `json:"disk-tier"`
+	Enabled    bool       `yaml:"enabled"`
+	MemoryTier MemoryTier `yaml:"memory-tier"`
+	DiskTier   DiskTier   `yaml:"disk-tier"`
 }
 
 type MemoryTier struct {
@@ -267,8 +267,8 @@ type MemoryTier struct {
 }
 
 type DiskTier struct {
-	Enabled    bool   `json:"enabled"`
-	DeviceName string `json:"device-name"`
+	Enabled    bool   `yaml:"enabled"`
+	DeviceName string `yaml:"device-name"`
 }
 
 type Topic struct {
