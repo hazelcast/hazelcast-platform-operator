@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/ptr"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -46,12 +47,12 @@ var _ = Describe("Hazelcast CR", func() {
 		}
 	}
 
-	Create := func(hz *hazelcastv1alpha1.Hazelcast) {
+	create := func(hz *hazelcastv1alpha1.Hazelcast) {
 		By("creating the Hazelcast CR with specs successfully")
 		Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 	}
 
-	FetchServices := func(hz *hazelcastv1alpha1.Hazelcast, waitForN int) *corev1.ServiceList {
+	fetchServices := func(hz *hazelcastv1alpha1.Hazelcast, waitForN int) *corev1.ServiceList {
 		serviceList := &corev1.ServiceList{}
 		Eventually(func() bool {
 			err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
@@ -65,45 +66,45 @@ var _ = Describe("Hazelcast CR", func() {
 
 	type UpdateFn func(*hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast
 
-	SetClusterSize := func(size int32) UpdateFn {
+	setClusterSize := func(size int32) UpdateFn {
 		return func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 			hz.Spec.ClusterSize = &size
 			return hz
 		}
 	}
 
-	EnableUnisocket := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+	enableUnisocket := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		hz.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
 		hz.Spec.ExposeExternally.MemberAccess = ""
 		return hz
 	}
 
-	DisableMemberAccess := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+	disableMemberAccess := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		hz.Spec.ExposeExternally.MemberAccess = ""
 		return hz
 	}
 
-	EnableSmart := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+	enableSmart := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		hz.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeSmart
 		return hz
 	}
 
-	SetDiscoveryViaLoadBalancer := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+	setDiscoveryViaLoadBalancer := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		hz.Spec.ExposeExternally.DiscoveryServiceType = corev1.ServiceTypeLoadBalancer
 		return hz
 	}
 
-	DisableExposeExternally := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+	disableExposeExternally := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		hz.Spec.ExposeExternally = nil
 		return hz
 	}
 
-	RemoveSpec := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+	removeSpec := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		hz.Spec = hazelcastv1alpha1.HazelcastSpec{}
 		return hz
 	}
 
-	Update := func(hz *hazelcastv1alpha1.Hazelcast, fns ...UpdateFn) {
+	update := func(hz *hazelcastv1alpha1.Hazelcast, fns ...UpdateFn) {
 		By("updating the CR with specs successfully")
 		if len(fns) == 0 {
 			Expect(k8sClient.Update(context.Background(), hz)).Should(Succeed())
@@ -130,7 +131,7 @@ var _ = Describe("Hazelcast CR", func() {
 		}
 	}
 
-	EnsureSpecEquals := func(hz *hazelcastv1alpha1.Hazelcast, other *test.HazelcastSpecValues) *hazelcastv1alpha1.Hazelcast {
+	ensureSpecEquals := func(hz *hazelcastv1alpha1.Hazelcast, other *test.HazelcastSpecValues) *hazelcastv1alpha1.Hazelcast {
 		By("ensuring spec is defaulted")
 		Eventually(func() *hazelcastv1alpha1.HazelcastSpec {
 			hz = fetchHz(hz)
@@ -158,7 +159,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
 			}
 
-			Create(hz)
+			create(hz)
 			fetchedCR := ensureHzStatusIsPending(hz)
 			test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
@@ -214,9 +215,9 @@ var _ = Describe("Hazelcast CR", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
-				EnsureSpecEquals(fetchedCR, emptyHzSpecValues)
+				ensureSpecEquals(fetchedCR, emptyHzSpecValues)
 			})
 
 			It("should update the CR with the default values", Label("fast"), func() {
@@ -234,11 +235,11 @@ var _ = Describe("Hazelcast CR", func() {
 				licenseSecret := CreateLicenseKeySecret(hz.Spec.GetLicenseKeySecretName(), hz.Namespace)
 				assertExists(lookupKey(licenseSecret), licenseSecret)
 
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
-				Update(fetchedCR, RemoveSpec)
+				update(fetchedCR, removeSpec)
 				fetchedCR = ensureHzStatusIsPending(fetchedCR)
-				EnsureSpecEquals(fetchedCR, emptyHzSpecValues)
+				ensureSpecEquals(fetchedCR, emptyHzSpecValues)
 			})
 		})
 
@@ -281,13 +282,13 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       spec,
 			}
 
-			Create(hz)
+			create(hz)
 			fetchedCR := ensureHzStatusIsPending(hz)
 			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeUnisocket))
 			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
 
 			By("checking created services")
-			serviceList := FetchServices(hz, 1)
+			serviceList := fetchServices(hz, 1)
 
 			service := serviceList.Items[0]
 			Expect(service.Name).Should(Equal(hz.Name))
@@ -306,14 +307,14 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       spec,
 			}
 
-			Create(hz)
+			create(hz)
 			fetchedCR := ensureHzStatusIsPending(hz)
 			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeSmart))
 			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
 			Expect(fetchedCR.Spec.ExposeExternally.MemberAccess).Should(Equal(hazelcastv1alpha1.MemberAccessNodePortExternalIP))
 
 			By("checking created services")
-			serviceList := FetchServices(hz, 4)
+			serviceList := fetchServices(hz, 4)
 
 			for _, s := range serviceList.Items {
 				if s.Name == hz.Name {
@@ -341,23 +342,23 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       spec,
 			}
 
-			Create(hz)
+			create(hz)
 			fetchedCR := ensureHzStatusIsPending(hz)
-			FetchServices(fetchedCR, 4)
+			fetchServices(fetchedCR, 4)
 
 			By("scaling the cluster to 6 members")
 			fetchedCR = ensureHzStatusIsPending(hz)
-			Update(fetchedCR, SetClusterSize(6))
+			update(fetchedCR, setClusterSize(6))
 			fetchedCR = fetchHz(fetchedCR)
 			ensureHzStatusIsPending(fetchedCR)
-			FetchServices(fetchedCR, 7)
+			fetchServices(fetchedCR, 7)
 
 			By("scaling the cluster to 1 member")
 			fetchedCR = ensureHzStatusIsPending(hz)
-			Update(fetchedCR, SetClusterSize(1))
+			update(fetchedCR, setClusterSize(1))
 			fetchedCR = fetchHz(fetchedCR)
 			ensureHzStatusIsPending(fetchedCR)
-			FetchServices(fetchedCR, 2)
+			fetchServices(fetchedCR, 2)
 		})
 
 		It("should allow updating expose externally configuration", Label("fast"), func() {
@@ -374,43 +375,43 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       spec,
 			}
 
-			Create(hz)
+			create(hz)
 			fetchedCR := ensureHzStatusIsPending(hz)
-			FetchServices(fetchedCR, 4)
+			fetchServices(fetchedCR, 4)
 
 			By("updating type to unisocket")
 			fetchedCR = ensureHzStatusIsPending(fetchedCR)
-			Update(fetchedCR, EnableUnisocket, DisableMemberAccess)
+			update(fetchedCR, enableUnisocket, disableMemberAccess)
 
 			fetchedCR = fetchHz(fetchedCR)
 			ensureHzStatusIsPending(fetchedCR)
-			FetchServices(fetchedCR, 1)
+			fetchServices(fetchedCR, 1)
 
 			By("updating discovery service to LoadBalancer")
 			fetchedCR = ensureHzStatusIsPending(fetchedCR)
-			Update(fetchedCR, SetDiscoveryViaLoadBalancer)
+			update(fetchedCR, setDiscoveryViaLoadBalancer)
 
 			fetchedCR = fetchHz(fetchedCR)
 			ensureHzStatusIsPending(fetchedCR)
 
 			Eventually(func() corev1.ServiceType {
-				serviceList := FetchServices(fetchedCR, 1)
+				serviceList := fetchServices(fetchedCR, 1)
 				return serviceList.Items[0].Spec.Type
 			}).Should(Equal(corev1.ServiceTypeLoadBalancer))
 
 			By("updating type to smart")
 			fetchedCR = ensureHzStatusIsPending(fetchedCR)
-			Update(fetchedCR, EnableSmart)
+			update(fetchedCR, enableSmart)
 
 			fetchedCR = fetchHz(fetchedCR)
 			ensureHzStatusIsPending(fetchedCR)
-			FetchServices(fetchedCR, 4)
+			fetchServices(fetchedCR, 4)
 
 			By("deleting expose externally configuration")
-			Update(fetchedCR, DisableExposeExternally)
+			update(fetchedCR, disableExposeExternally)
 			fetchedCR = fetchHz(fetchedCR)
 			ensureHzStatusIsPending(fetchedCR)
-			serviceList := FetchServices(fetchedCR, 1)
+			serviceList := fetchServices(fetchedCR, 1)
 			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
 		})
 
@@ -438,13 +439,20 @@ var _ = Describe("Hazelcast CR", func() {
 				"hazelcast.slow.operation.detector.stacktrace.logging.enabled": "true",
 				"hazelcast.query.optimizer.type":                               "NONE",
 			}
+			samplePropsWithDefaults := make(map[string]string)
+			for k, v := range hazelcast.DefaultProperties {
+				samplePropsWithDefaults[k] = v
+			}
+			for k, v := range sampleProperties {
+				samplePropsWithDefaults[k] = v
+			}
 			spec.Properties = sampleProperties
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       spec,
 			}
 
-			Create(hz)
+			create(hz)
 			_ = ensureHzStatusIsPending(hz)
 
 			Eventually(func() map[string]string {
@@ -456,7 +464,7 @@ var _ = Describe("Hazelcast CR", func() {
 				}
 
 				return a.Hazelcast.Properties
-			}, timeout, interval).Should(Equal(sampleProperties))
+			}, timeout, interval).Should(Equal(samplePropsWithDefaults))
 		})
 	})
 
@@ -473,7 +481,7 @@ var _ = Describe("Hazelcast CR", func() {
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
-				Create(hz)
+				create(hz)
 
 				Eventually(func() map[string]string {
 					ss := getStatefulSet(hz)
@@ -524,7 +532,7 @@ var _ = Describe("Hazelcast CR", func() {
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
-				Create(hz)
+				create(hz)
 
 				Eventually(func() *corev1.Affinity {
 					ss := getStatefulSet(hz)
@@ -548,7 +556,7 @@ var _ = Describe("Hazelcast CR", func() {
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
-				Create(hz)
+				create(hz)
 
 				Eventually(func() []corev1.Toleration {
 					ss := getStatefulSet(hz)
@@ -571,7 +579,7 @@ var _ = Describe("Hazelcast CR", func() {
 						ImagePullSecrets: pullSecrets,
 					},
 				}
-				Create(hz)
+				create(hz)
 				ensureHzStatusIsPending(hz)
 				fetchedSts := &v1.StatefulSet{}
 				assertExists(lookupKey(hz), fetchedSts)
@@ -591,7 +599,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       s,
 				}
 
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
@@ -619,7 +627,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       s,
 				}
 
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
@@ -661,7 +669,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       s,
 				}
 
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
@@ -768,7 +776,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       spec,
 			}
 
-			Create(hz)
+			create(hz)
 			fetchedCR := ensureHzStatusIsPending(hz)
 			test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
@@ -797,7 +805,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       s,
 			}
 
-			Create(hz)
+			create(hz)
 			fetchedCR := ensureHzStatusIsPending(hz)
 			test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
@@ -847,7 +855,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       s,
 			}
 
-			Create(hz)
+			create(hz)
 			ensureHzStatusIsPending(hz)
 
 			By("checking Role", func() {
@@ -935,7 +943,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
 
 				Expect(*fetchedCR.Spec.JVM.Memory.InitialRAMPercentage).Should(Equal(*p))
@@ -957,7 +965,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
 
 				Expect(*fetchedCR.Spec.JVM.GC.Logging).Should(Equal(true))
@@ -1101,9 +1109,19 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with Resources parameters", func() {
 		When("resources are given", func() {
-			It("should be set to Container spec", Label("fast"), func() {
+			It("should be set to Containers' spec", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Resources = &corev1.ResourceRequirements{
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("10Gi"),
+					},
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("250m"),
+						corev1.ResourceMemory: resource.MustParse("5Gi"),
+					},
+				}
+				spec.Agent.Resources = &corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("500m"),
 						corev1.ResourceMemory: resource.MustParse("10Gi"),
@@ -1117,23 +1135,25 @@ var _ = Describe("Hazelcast CR", func() {
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
-				Create(hz)
+				create(hz)
 
-				Eventually(func() map[corev1.ResourceName]resource.Quantity {
-					ss := getStatefulSet(hz)
-					return ss.Spec.Template.Spec.Containers[0].Resources.Limits
-				}, timeout, interval).Should(And(
-					HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("500m")),
-					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("10Gi"))),
-				)
+				for i := 0; i <= 1; i++ {
+					Eventually(func() map[corev1.ResourceName]resource.Quantity {
+						ss := getStatefulSet(hz)
+						return ss.Spec.Template.Spec.Containers[i].Resources.Limits
+					}, timeout, interval).Should(And(
+						HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("500m")),
+						HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("10Gi"))),
+					)
 
-				Eventually(func() map[corev1.ResourceName]resource.Quantity {
-					ss := getStatefulSet(hz)
-					return ss.Spec.Template.Spec.Containers[0].Resources.Requests
-				}, timeout, interval).Should(And(
-					HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("250m")),
-					HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("5Gi"))),
-				)
+					Eventually(func() map[corev1.ResourceName]resource.Quantity {
+						ss := getStatefulSet(hz)
+						return ss.Spec.Template.Spec.Containers[i].Resources.Requests
+					}, timeout, interval).Should(And(
+						HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("250m")),
+						HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("5Gi"))),
+					)
+				}
 			})
 		})
 	})
@@ -1157,7 +1177,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				fetchedCR := ensureHzStatusIsPending(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
@@ -1226,10 +1246,10 @@ var _ = Describe("Hazelcast CR", func() {
 				licenseSecret := CreateLicenseKeySecret(hz.Spec.GetLicenseKeySecretName(), hz.Namespace)
 				assertExists(lookupKey(licenseSecret), licenseSecret)
 
-				Create(hz)
+				create(hz)
 				hz = ensureHzStatusIsPending(hz)
 				hz.Spec = secondSpec
-				Update(hz)
+				update(hz)
 				ss := getStatefulSet(hz)
 
 				By("Checking if StatefulSet ClusterSize is updated")
@@ -1296,7 +1316,7 @@ var _ = Describe("Hazelcast CR", func() {
 					},
 				}
 
-				Create(hz)
+				create(hz)
 				hz = ensureHzStatusIsPending(hz)
 				ss := getStatefulSet(hz)
 
@@ -1359,7 +1379,7 @@ var _ = Describe("Hazelcast CR", func() {
 				licenseSecret := CreateLicenseKeySecret(hz.Spec.GetLicenseKeySecretName(), hz.Namespace)
 				assertExists(lookupKey(licenseSecret), licenseSecret)
 
-				Create(hz)
+				create(hz)
 
 				hz = ensureHzStatusIsPending(hz)
 				Expect(hz.Spec.Repository).Should(Equal(n.HazelcastEERepo))
@@ -1385,10 +1405,15 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with AdvancedNetwork configuration", func() {
 		When("full configuration", func() {
-			It("should create Advanced Network configuration", Label("fast"), func() {
+			It("should create AdvancedNetwork configuration", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
-					MemberServerSocketEndpointConfig: hazelcastv1alpha1.MemberServerSocketEndpointConfig{Interfaces: []string{"10.10.1.*"}},
+					MemberServerSocketEndpointConfig: hazelcastv1alpha1.ServerSocketEndpointConfig{
+						Interfaces: []string{"10.10.1.*"},
+					},
+					ClientServerSocketEndpointConfig: hazelcastv1alpha1.ServerSocketEndpointConfig{
+						Interfaces: []string{"10.10.3.*"},
+					},
 					WAN: []hazelcastv1alpha1.WANConfig{
 						{
 							Port:        5710,
@@ -1426,7 +1451,7 @@ var _ = Describe("Hazelcast CR", func() {
 							Port:      5702,
 							PortCount: 1,
 						},
-						Interfaces: config.EnabledAndInterfaces{
+						Interfaces: config.Interfaces{
 							Enabled:    true,
 							Interfaces: []string{"10.10.1.*"},
 						},
@@ -1435,6 +1460,10 @@ var _ = Describe("Hazelcast CR", func() {
 						Port: config.PortAndPortCount{
 							Port:      5701,
 							PortCount: 1,
+						},
+						Interfaces: config.Interfaces{
+							Enabled:    true,
+							Interfaces: []string{"10.10.3.*"},
 						},
 					},
 					RestServerSocketEndpointConfig: config.RestServerSocketEndpointConfig{
@@ -1464,7 +1493,7 @@ var _ = Describe("Hazelcast CR", func() {
 					},
 				}
 
-				Create(hz)
+				create(hz)
 				ensureHzStatusIsPending(hz)
 
 				Eventually(func() config.AdvancedNetwork {
@@ -1548,7 +1577,7 @@ var _ = Describe("Hazelcast CR", func() {
 					},
 				}
 
-				Create(hz)
+				create(hz)
 				ensureHzStatusIsPending(hz)
 
 				Eventually(func() config.AdvancedNetwork {
@@ -1567,7 +1596,7 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
-		It("should fail to overlap each other", Label("fast"), func() {
+		It("should fail to overlap WAN ports with each other", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
@@ -1591,7 +1620,7 @@ var _ = Describe("Hazelcast CR", func() {
 				ContainSubstring("spec.advancedNetwork.wan: Invalid value: \"5001-5003\": wan ports overlapping with 5002-5004")))
 		})
 
-		It("should fail to overlap with other sockets", Label("fast"), func() {
+		It("should fail to overlap WAN ports with other sockets", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
@@ -1648,7 +1677,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				ensureHzStatusIsPending(hz)
 
 				Eventually(func() bool {
@@ -1714,7 +1743,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				ensureHzStatusIsPending(hz)
 
 				Eventually(func() bool {
@@ -1740,7 +1769,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
 				}
 
-				Create(hz)
+				create(hz)
 				ensureHzStatusIsPending(hz)
 
 				rbac := &rbacv1.Role{}
@@ -1788,7 +1817,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				ensureHzStatusIsPending(hz)
 
 				Eventually(func() bool {
@@ -1948,7 +1977,7 @@ var _ = Describe("Hazelcast CR", func() {
 					},
 				}
 
-				Create(hz)
+				create(hz)
 				_ = ensureHzStatusIsPending(hz)
 
 				Eventually(func() config.Jet {
@@ -1972,7 +2001,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				_ = ensureHzStatusIsPending(hz)
 
 				Eventually(func() bool {
@@ -2045,7 +2074,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				hz = ensureHzStatusIsPending(hz)
 
 				Expect(hz.Spec.JetEngineConfiguration.Instance.LosslessRestartEnabled).Should(BeTrue())
@@ -2113,7 +2142,7 @@ var _ = Describe("Hazelcast CR", func() {
 					},
 				}
 
-				Create(hz)
+				create(hz)
 				hz = ensureHzStatusIsPending(hz)
 				ss := getStatefulSet(hz)
 
@@ -2180,7 +2209,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				hz = ensureHzStatusIsPending(hz)
 
 				Expect(hz.Spec.SQL.CatalogPersistenceEnabled).Should(BeTrue())
@@ -2207,7 +2236,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 
-				Create(hz)
+				create(hz)
 				hz = ensureHzStatusIsPending(hz)
 				Expect(hz.Spec.SQL.CatalogPersistenceEnabled).Should(BeTrue())
 
@@ -2215,6 +2244,72 @@ var _ = Describe("Hazelcast CR", func() {
 				err := k8sClient.Update(context.Background(), hz)
 				Expect(err).Should(MatchError(ContainSubstring("field cannot be disabled after it has been enabled")))
 			})
+		})
+
+	})
+
+	Context("with labels and annotations", func() {
+		It("should set labels and annotations to sub-resources", Label("fast"), func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.Annotations = map[string]string{
+				"annotation-example": "hazelcast",
+			}
+			spec.Labels = map[string]string{
+				// user label
+				"label-example": "hazelcast",
+
+				// reserved labels
+				n.ApplicationNameLabel:         "user",
+				n.ApplicationInstanceNameLabel: "user",
+				n.ApplicationManagedByLabel:    "user",
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			create(hz)
+			ensureHzStatusIsPending(hz)
+
+			resources := map[string]client.Object{
+				"Secret":         &corev1.Secret{},
+				"Service":        &corev1.Service{},
+				"ServiceAccount": &corev1.ServiceAccount{},
+				"Role":           &rbacv1.Role{},
+				"RoleBinding":    &rbacv1.RoleBinding{},
+				"StatefulSet":    &v1.StatefulSet{},
+			}
+			for name, r := range resources {
+				assertExists(lookupKey(hz), r)
+
+				// make sure user annotations and labels are present
+				Expect(r.GetAnnotations()).To(HaveKeyWithValue("annotation-example", "hazelcast"), name)
+				Expect(r.GetLabels()).To(HaveKeyWithValue("label-example", "hazelcast"), name)
+
+				// make sure operator overwrites selector labels
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationInstanceNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationManagedByLabel, "user")), name)
+			}
+
+			clusterResources := map[string]client.Object{
+				"ClusterRole":        &rbacv1.ClusterRole{},
+				"ClusterRoleBinding": &rbacv1.ClusterRoleBinding{},
+			}
+			for name, r := range clusterResources {
+				// we use clusterScopedLookupKey() here and not lookupKey()!
+				assertExists(clusterScopedLookupKey(hz), r)
+
+				// make sure user annotations and labels are present
+				Expect(r.GetAnnotations()).To(HaveKeyWithValue("annotation-example", "hazelcast"), name)
+				Expect(r.GetLabels()).To(HaveKeyWithValue("label-example", "hazelcast"), name)
+
+				// make sure operator overwrites selector labels
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationInstanceNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationManagedByLabel, "user")), name)
+			}
 		})
 	})
 

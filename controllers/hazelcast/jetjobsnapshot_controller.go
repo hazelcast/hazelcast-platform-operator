@@ -119,7 +119,7 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	hz := &hazelcastv1alpha1.Hazelcast{}
 	err = r.Client.Get(ctx, hzNn, hz)
 	if err != nil {
-		logger.Info("Could not find hazelcast cluster", "name", hzNn, "err", err)
+		logger.Info("Could not find hazelcast resource", "name", hzNn, "err", err)
 		return updateJetJobSnapshotStatus(ctx, r.Client, jjs, recoptions.Error(err),
 			withJetJobSnapshotFailedState(err.Error()))
 	}

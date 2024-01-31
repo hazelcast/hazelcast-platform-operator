@@ -63,6 +63,7 @@ type CronHotBackupStatus struct{}
 // +kubebuilder:resource:shortName=chb
 // CronHotBackup is the Schema for the cronhotbackups API
 // +kubebuilder:printcolumn:name="SUSPENDED",type="boolean",JSONPath=".spec.suspend",description="Suspention status of the CronHotBackup"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hotBackupTemplate.spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 type CronHotBackup struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional

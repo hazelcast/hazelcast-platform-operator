@@ -5,50 +5,33 @@ import (
 	"fmt"
 	"reflect"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
-
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type mapValidator struct {
 	datastructValidator
-	name string
 }
 
-func (v *mapValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "Map"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
+func NewMapValidator(o client.Object) mapValidator {
+	return mapValidator{NewDatastructValidator(o)}
 }
 
 func ValidateMapSpecCreate(m *Map) error {
-	v := mapValidator{
-		name: m.Name,
-	}
+	v := NewMapValidator(m)
 	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)
 	return v.Err()
 }
 
 func ValidateMapSpecUpdate(m *Map) error {
-	v := mapValidator{
-		name: m.Name,
-	}
+	v := NewMapValidator(m)
 	v.validateMapSpecUpdate(m)
 	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)
 	return v.Err()
 }
 
 func ValidateMapSpec(m *Map, h *Hazelcast) error {
-	v := mapValidator{
-		name: m.Name,
-	}
+	v := NewMapValidator(m)
 	v.validateMapSpecCurrent(m, h)
 	v.validateMapSpecUpdate(m)
 	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)

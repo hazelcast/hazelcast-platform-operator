@@ -26,14 +26,6 @@ spec:
       jsonPath: .status.hazelcastClusterStatus.readyMembers
       name: Members
       type: string
-    - description: External addresses of the Hazelcast cluster
-      jsonPath: .status.externalAddresses
-      name: External-Addresses
-      type: string
-    - description: WAN addresses of the Hazelcast cluster
-      jsonPath: .status.wanAddresses
-      name: WAN-Addresses
-      type: string
     - description: Message for the current Hazelcast Config
       jsonPath: .status.message
       name: Message
@@ -64,6 +56,13 @@ spec:
               advancedNetwork:
                 description: Hazelcast Advanced Network configuration
                 properties:
+                  clientServerSocketEndpointConfig:
+                    properties:
+                      interfaces:
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   memberServerSocketEndpointConfig:
                     properties:
                       interfaces:
@@ -75,6 +74,7 @@ spec:
                     items:
                       properties:
                         name:
+                          maxLength: 8
                           type: string
                         port:
                           type: integer
@@ -90,17 +90,48 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.21
+                  version: 0.1.22
                 description: B&R Agent configurations
                 properties:
                   repository:
                     default: docker.io/hazelcast/platform-operator-agent
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
+                  resources:
+                    description: Compute Resources required by the Agent container.
+                    properties:
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
                   version:
-                    default: 0.1.21
+                    default: 0.1.22
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
+                type: object
+              annotations:
+                additionalProperties:
+                  type: string
+                description: Hazelcast Kubernetes resource annotations
                 type: object
               clusterName:
                 default: dev
@@ -365,6 +396,11 @@ spec:
                           a JVM
                         type: string
                     type: object
+                type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: Hazelcast Kubernetes resource labels
                 type: object
               licenseKeySecret:
                 description: licenseKeySecret is a deprecated alias for licenseKeySecretName.
@@ -1969,9 +2005,10 @@ spec:
           status:
             description: HazelcastStatus defines the observed state of Hazelcast
             properties:
-              externalAddresses:
-                description: External addresses of the Hazelcast cluster members
-                type: string
+              clusterSize:
+                description: Number of Hazelcast members in the cluster.
+                format: int32
+                type: integer
               hazelcastClusterStatus:
                 description: Status of the Hazelcast cluster
                 properties:
@@ -2075,12 +2112,17 @@ spec:
                     - Succeeded
                     type: string
                 type: object
-              wanAddresses:
-                description: WAN addresses of the Hazelcast cluster members
+              selector:
+                description: Selector is a label selector used by HorizontalPodAutoscaler
+                  to autoscale Hazelcast resource.
                 type: string
             type: object
         type: object
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.selector
+        specReplicasPath: .spec.clusterSize
+        statusReplicasPath: .status.clusterSize
       status: {}

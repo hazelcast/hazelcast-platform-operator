@@ -60,10 +60,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -83,13 +83,13 @@ jobs:
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v1.1.1"
+        uses: "google-github-actions/auth@v2.0.1"
         if: ${{ contains(inputs.cluster_type, 'gke') }}
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+        uses: 'google-github-actions/get-gke-credentials@v2'
         if: ${{ contains(inputs.cluster_type, 'gke') }}
         with:
           cluster_name: ${{ env.CLUSTER_NAME }}

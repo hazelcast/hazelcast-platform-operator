@@ -27,19 +27,16 @@ var _ webhook.Defaulter = &ManagementCenter{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *ManagementCenter) ValidateCreate() error {
 	managementcenterlog.Info("validate create", "name", r.Name)
-	if err := ValidateManagementCenterSpec(r); err != nil {
-		return err
-	}
-	return nil
+	return ValidateManagementCenterSpec(r)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *ManagementCenter) ValidateUpdate(old runtime.Object) error {
 	managementcenterlog.Info("validate update", "name", r.Name)
-	if err := ValidateManagementCenterSpec(r); err != nil {
-		return err
+	if r.GetDeletionTimestamp() != nil {
+		return nil
 	}
-	return nil
+	return ValidateManagementCenterSpec(r)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

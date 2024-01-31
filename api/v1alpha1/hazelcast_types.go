@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.21"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.22"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -171,6 +171,14 @@ type HazelcastSpec struct {
 	// Hazelcast LocalDevice configuration
 	// +optional
 	LocalDevices []LocalDeviceConfig `json:"localDevices,omitempty"`
+
+	// Hazelcast Kubernetes resource annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Hazelcast Kubernetes resource labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -609,9 +617,13 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.21"
+	// +kubebuilder:default:="0.1.22"
 	// +optional
 	Version string `json:"version,omitempty"`
+
+	// Compute Resources required by the Agent container.
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
@@ -1009,7 +1021,11 @@ func (c *NativeMemoryConfiguration) IsEnabled() bool {
 
 type AdvancedNetwork struct {
 	// +optional
-	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
+	MemberServerSocketEndpointConfig ServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
+
+	// +optional
+	ClientServerSocketEndpointConfig ServerSocketEndpointConfig `json:"clientServerSocketEndpointConfig,omitempty"`
+
 	// +optional
 	WAN []WANConfig `json:"wan,omitempty"`
 }
@@ -1018,15 +1034,11 @@ type WANConfig struct {
 	Port        uint               `json:"port,omitempty"`
 	PortCount   uint               `json:"portCount,omitempty"`
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
-	Name        string             `json:"name,omitempty"`
+	// +kubebuilder:validation:MaxLength:=8
+	Name string `json:"name,omitempty"`
 }
 
-type MemberServerSocketEndpointConfig struct {
-	Interfaces []string `json:"interfaces,omitempty"`
-}
-
-type ClientServerSocketEndpointConfig struct {
-	Port       uint     `json:"port,omitempty"`
+type ServerSocketEndpointConfig struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 }
 
@@ -1132,6 +1144,14 @@ type LocalDevicePvcConfiguration struct {
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
+	// Number of Hazelcast members in the cluster.
+	// +optional
+	ClusterSize int32 `json:"clusterSize"`
+
+	// Selector is a label selector used by HorizontalPodAutoscaler to autoscale Hazelcast resource.
+	// +optional
+	Selector string `json:"selector"`
+
 	// Phase of the Hazelcast cluster
 	// +optional
 	Phase Phase `json:"phase,omitempty"`
@@ -1143,14 +1163,6 @@ type HazelcastStatus struct {
 	// Message about the Hazelcast cluster state
 	// +optional
 	Message string `json:"message,omitempty"`
-
-	// External addresses of the Hazelcast cluster members
-	// +optional
-	ExternalAddresses string `json:"externalAddresses,omitempty"`
-
-	// WAN addresses of the Hazelcast cluster members
-	// +optional
-	WanAddresses string `json:"wanAddresses,omitempty"`
 
 	// Status of Hazelcast members
 	// +optional
@@ -1261,10 +1273,9 @@ type HazelcastClusterStatus struct {
 
 // Hazelcast is the Schema for the hazelcasts API
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.clusterSize,statuspath=.status.clusterSize,selectorpath=.status.selector
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 // +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
-// +kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Hazelcast cluster"
-// +kubebuilder:printcolumn:name="WAN-Addresses",type="string",JSONPath=".status.wanAddresses",description="WAN addresses of the Hazelcast cluster"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Hazelcast Config"
 // +kubebuilder:resource:shortName=hz
 type Hazelcast struct {

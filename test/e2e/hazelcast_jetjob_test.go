@@ -10,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -25,18 +25,18 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastv1alpha1.JetJob{}, &hazelcastv1alpha1.JetJobList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.JetJob{}, &hazelcastcomv1alpha1.JetJobList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		DeleteAllOf(&corev1.Secret{}, &corev1.SecretList{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	DescribeTable("should execute JetJob successfully", func(secretName, url string) {
 		setLabelAndCRName("jj-1")
 
-		var hazelcast *hazelcastv1alpha1.Hazelcast
+		var hazelcast *hazelcastcomv1alpha1.Hazelcast
 		if secretName != "" {
 			hazelcast = hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, secretName, url, labels)
 		} else {
@@ -49,7 +49,7 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobCompleted)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobCompleted)
 
 		By("Checking the JetJob jar was executed")
 		logs := InitLogs(t, hzLookupKey)
@@ -77,7 +77,7 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 		jj := hazelcastconfig.JetJob(longRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobRunning)
 
 		By("Checking the JetJob jar is running")
 		logs := InitLogs(t, hzLookupKey)
@@ -88,14 +88,14 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 				MatchRegexp(fmt.Sprintf(".*\\[%s\\/\\w+#\\d+\\]\\s+SimpleEvent\\(timestamp=.*,\\s+sequence=\\d+\\).*", jj.Name))))
 
 		Expect(k8sClient.Get(context.Background(), jjLookupKey, jj)).Should(Succeed())
-		jj.Spec.State = hazelcastv1alpha1.SuspendedJobState
+		jj.Spec.State = hazelcastcomv1alpha1.SuspendedJobState
 		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobSuspended)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobSuspended)
 
 		Expect(k8sClient.Get(context.Background(), jjLookupKey, jj)).Should(Succeed())
-		jj.Spec.State = hazelcastv1alpha1.RunningJobState
+		jj.Spec.State = hazelcastcomv1alpha1.RunningJobState
 		Expect(k8sClient.Update(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobRunning)
 	})
 
 	DescribeTable("should download JAR and execute JetJob", func(secretName, url string) {
@@ -108,21 +108,21 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 		By("creating JetJob CR")
 		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		if secretName != "" {
-			jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+			jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastcomv1alpha1.BucketConfiguration{
 				SecretName: secretName,
 				BucketURI:  url,
 			}
 		} else {
 			jj.Spec.JetRemoteFileConfiguration.RemoteURL = url
 		}
-		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastv1alpha1.BucketConfiguration{
+		jj.Spec.JetRemoteFileConfiguration.BucketConfiguration = &hazelcastcomv1alpha1.BucketConfiguration{
 			SecretName: "br-secret-gcp",
 			BucketURI:  "gs://operator-user-code/jetJobs",
 		}
 
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobCompleted)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobCompleted)
 
 		By("Checking the JetJob jar was executed")
 		logs := InitLogs(t, hzLookupKey)
@@ -154,7 +154,7 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
 
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobRunning)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobRunning)
 
 		By("Checking the JetJob jar is running")
 		logs := InitLogs(t, hzLookupKey)
@@ -190,26 +190,26 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 		hazelcast.Spec.ClusterSize = pointer.Int32(1)
 		CreateHazelcastCRWithoutCheck(hazelcast)
 		By("checking Hazelcast CR in Pending state", func() {
-			hz := &hazelcastv1alpha1.Hazelcast{}
-			Eventually(func() hazelcastv1alpha1.Phase {
+			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			Eventually(func() hazelcastcomv1alpha1.Phase {
 				_ = k8sClient.Get(context.Background(), hzLookupKey, hz)
 				return hz.Status.Phase
-			}, 10*Minute, interval).Should(Equal(hazelcastv1alpha1.Pending))
+			}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.Pending))
 		})
 
 		By("creating JetJob CR")
 		jj := hazelcastconfig.JetJob(fastRunJar, hzLookupKey.Name, jjLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), jj)).Should(Succeed())
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobFailed)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobFailed)
 
 		By("Update Hazelcast cluster with correct configuration")
-		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
 			hazelcast.Spec.JetEngineConfiguration.RemoteFileConfiguration.BucketConfiguration.BucketURI = "gs://operator-user-code/jetJobs"
 			return hazelcast
 		})
 		By("checking Hazelcast CR in Running state", func() {
 			evaluateReadyMembers(hzLookupKey)
 		})
-		checkJetJobStatus(jjLookupKey, hazelcastv1alpha1.JetJobCompleted)
+		checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobCompleted)
 	})
 })

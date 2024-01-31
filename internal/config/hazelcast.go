@@ -45,14 +45,15 @@ type AdvancedNetwork struct {
 }
 
 type MemberServerSocketEndpointConfig struct {
-	Port       PortAndPortCount     `yaml:"port,omitempty"`
-	Interfaces EnabledAndInterfaces `yaml:"interfaces,omitempty"`
-	SSL        SSL                  `yaml:"ssl,omitempty"`
+	Port       PortAndPortCount `yaml:"port,omitempty"`
+	Interfaces Interfaces       `yaml:"interfaces,omitempty"`
+	SSL        SSL              `yaml:"ssl,omitempty"`
 }
 
 type ClientServerSocketEndpointConfig struct {
-	Port PortAndPortCount `yaml:"port,omitempty"`
-	SSL  SSL              `yaml:"ssl,omitempty"`
+	Port       PortAndPortCount `yaml:"port,omitempty"`
+	Interfaces Interfaces       `yaml:"interfaces,omitempty"`
+	SSL        SSL              `yaml:"ssl,omitempty"`
 }
 
 type RestServerSocketEndpointConfig struct {
@@ -70,7 +71,7 @@ type PortAndPortCount struct {
 	PortCount uint `yaml:"port-count,omitempty"`
 }
 
-type EnabledAndInterfaces struct {
+type Interfaces struct {
 	Enabled    bool     `yaml:"enabled,omitempty"`
 	Interfaces []string `yaml:"interfaces,omitempty"`
 }
@@ -156,6 +157,7 @@ type Map struct {
 	InMemoryFormat          string                             `yaml:"in-memory-format"`
 	StatisticsEnabled       bool                               `yaml:"statistics-enabled"`
 	Indexes                 []MapIndex                         `yaml:"indexes,omitempty"`
+	Attributes              []Attribute                        `yaml:"attributes,omitempty"`
 	DataPersistence         DataPersistence                    `yaml:"data-persistence,omitempty"`
 	WanReplicationReference map[string]WanReplicationReference `yaml:"wan-replication-ref,omitempty"`
 	MapStoreConfig          MapStoreConfig                     `yaml:"map-store,omitempty"`
@@ -182,6 +184,11 @@ type MapIndex struct {
 	Type               string             `yaml:"type"`
 	Attributes         []string           `yaml:"attributes"`
 	BitmapIndexOptions BitmapIndexOptions `yaml:"bitmap-index-options,omitempty"`
+}
+
+type Attribute struct {
+	Name               string `yaml:"name"`
+	ExtractorClassName string `yaml:"extractor-class-name"`
 }
 
 type BitmapIndexOptions struct {

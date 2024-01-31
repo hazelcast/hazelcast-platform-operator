@@ -12,9 +12,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -34,24 +33,14 @@ const (
 
 type hazelcastValidator struct {
 	fieldValidator
-	name string
 }
 
-func (v *hazelcastValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "Hazelcast"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
+func NewHazelcastValidator(o client.Object) hazelcastValidator {
+	return hazelcastValidator{NewFieldValidator(o)}
 }
 
 func ValidateHazelcastSpec(h *Hazelcast) error {
-	v := hazelcastValidator{
-		name: h.Name,
-	}
+	v := NewHazelcastValidator(h)
 	v.validateSpecCurrent(h)
 	v.validateSpecUpdate(h)
 	return v.Err()

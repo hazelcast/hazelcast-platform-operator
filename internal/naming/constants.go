@@ -22,6 +22,12 @@ const (
 	LastSuccessfulSpecAnnotation                 = "hazelcast.com/last-successful-spec"
 	CurrentHazelcastConfigForcingRestartChecksum = "hazelcast.com/current-hazelcast-config-forcing-restart-checksum"
 
+	// ServiceEndpointTypeLabelName defines the name of the service referred by the HazelcastEndpoint
+	ServiceEndpointTypeLabelName           = "hazelcast.com/hazelcast-service-endpoint-type"
+	ServiceEndpointTypeDiscoveryLabelValue = "discovery"
+	ServiceEndpointTypeMemberLabelValue    = "member"
+	ServiceEndpointTypeWANLabelValue       = "wan"
+
 	// PodNameLabel label that represents the name of the pod in the StatefulSet
 	PodNameLabel = "statefulset.kubernetes.io/pod-name"
 	// ApplicationNameLabel label for the name of the application
@@ -76,6 +82,9 @@ const (
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
 )
+
+// Annotations
+const HazelcastCustomConfigOverwrite = "hazelcast.com/custom-config-overwrite"
 
 // Hazelcast default configurations
 const (

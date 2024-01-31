@@ -22,7 +22,7 @@ jobs:
       GCP_NETWORK: operator-test-network
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -35,7 +35,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v1.1.1'
+        uses: 'google-github-actions/auth@v2.0.1'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -52,8 +52,14 @@ jobs:
             --num-nodes=3
           sleep 30
 
+      - name: Create Firewall Rules if not existing
+        run: |-
+          gcloud compute firewall-rules create node-port-allow-all \
+            --allow tcp:30000-32767 \
+            --network=${{ env.GCP_NETWORK }} | true
+
   grafana-setup:
-    needs: [ create-gke-cluster ]
+    needs: [create-gke-cluster]
     uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
@@ -70,16 +76,16 @@ jobs:
     outputs:
       IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2.10.0
+        uses: docker/setup-buildx-action@v3.0.0
         with:
           install: true
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -92,7 +98,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
@@ -103,7 +109,7 @@ jobs:
         run: |
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
       - name: Build Image
-        uses: docker/build-push-action@v4.1.1
+        uses: docker/build-push-action@v5.1.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -132,14 +138,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ">=1.19.0"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -154,12 +160,12 @@ jobs:
             AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v1.1.1"
+        uses: "google-github-actions/auth@v2.0.1"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+        uses: "google-github-actions/get-gke-credentials@v2"
         with:
           cluster_name: ${{ env.CLUSTER_NAME }}
           project_id: ${{ env.GCP_PROJECT_ID }}
@@ -170,15 +176,19 @@ jobs:
         run: |
           helm repo add istio https://istio-release.storage.googleapis.com/charts
           helm repo update
-          kubectl create namespace istio-system
-          helm install istio-base istio/base -n istio-system
-          helm install istiod istio/istiod -n istio-system --wait
-          helm status istiod -n istio-system
+          helm install istio-base istio/base --create-namespace -n istio-system
+          helm install istiod istio/istiod -n istio-system
+
+      - name: Wait Istio to be ready
+        run: |
+          kubectl create namespace ${NAMESPACE}
+          kubectl label namespace ${NAMESPACE} istio-injection=enabled --overwrite
+          source .github/scripts/utils.sh
+          wait_condition_pod_ready istio-system app=istiod 30 3
 
       - name: Deploy Operator to GKE
         run: |
           make install-crds
-          kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=$NAMESPACE
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
@@ -222,10 +232,10 @@ jobs:
           make clean-up-namespace NAMESPACE=${NAMESPACE}
 
       - name: Undeploy Istio after Tests
-        if : matrix.edition == 'ee'
+        if: matrix.edition == 'ee'
         run: |
-          helm delete istiod -n istio-system
-          helm delete istio-base -n istio-system
+          helm uninstall istiod -n istio-system
+          helm uninstall istio-base -n istio-system
           kubectl delete namespace istio-system
 
       - name: Upload Test Report
@@ -236,7 +246,7 @@ jobs:
           path: allure-results/istio/
 
   report-generation:
-    needs: ["gke-e2e-istio-tests","create-gke-cluster"]
+    needs: ["gke-e2e-istio-tests", "create-gke-cluster"]
     if: always() && (needs.gke-e2e-istio-tests.result == 'success' || needs.gke-e2e-istio-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
@@ -263,7 +273,7 @@ jobs:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -276,7 +286,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v1.1.1"
+        uses: "google-github-actions/auth@v2.0.1"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -292,7 +302,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

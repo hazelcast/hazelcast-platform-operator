@@ -34,6 +34,9 @@ func (r *Hazelcast) ValidateCreate() error {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Hazelcast) ValidateUpdate(old runtime.Object) error {
 	hazelcastlog.Info("validate update", "name", r.Name)
+	if r.GetDeletionTimestamp() != nil {
+		return nil
+	}
 	return ValidateHazelcastSpec(r)
 }
 
@@ -60,6 +63,9 @@ func (r *Hazelcast) defaultOptionalToNil() {
 	}
 	if r.Spec.Resources != nil && reflect.DeepEqual(*r.Spec.Resources, corev1.ResourceRequirements{}) {
 		r.Spec.Resources = nil
+	}
+	if r.Spec.Agent.Resources != nil && reflect.DeepEqual(*r.Spec.Agent.Resources, corev1.ResourceRequirements{}) {
+		r.Spec.Agent.Resources = nil
 	}
 	if r.Spec.UserCodeDeployment != nil && reflect.DeepEqual(*r.Spec.UserCodeDeployment, UserCodeDeploymentConfig{}) {
 		r.Spec.UserCodeDeployment = nil

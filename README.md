@@ -36,6 +36,7 @@ Hazelcast Platform Operator supports the features below:
 * Observe status of Hazelcast clusters and Management Center instances
 * High Availability Mode configuration to create clusters that are resilient to node and zone failures
 * Support for TLS connections between members using self-signed certificates
+* Support LDAP Security Provider for Management Center CR
 * Scale up and down Hazelcast clusters
 * Expose Hazelcast cluster to external
   clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/latest/clients/java#java-client-operation-modes))

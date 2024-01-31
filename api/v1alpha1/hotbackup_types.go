@@ -113,6 +113,7 @@ func (hbs *HotBackupSpec) IsExternal() bool {
 
 // HotBackup is the Schema for the hot backup API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the HotBackup process"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current HotBackup Config"
 // +kubebuilder:resource:shortName=hb
 type HotBackup struct {

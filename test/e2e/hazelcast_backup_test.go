@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
@@ -22,11 +22,11 @@ var _ = Describe("Hazelcast Backup", Label("backup"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastv1alpha1.HotBackup{}, &hazelcastv1alpha1.HotBackupList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.Map{}, &hazelcastv1alpha1.MapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, &hazelcastcomv1alpha1.HotBackupList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastv1alpha1.Hazelcast{})
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -80,11 +80,11 @@ var _ = Describe("Hazelcast Backup", Label("backup"), func() {
 		hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 
-		Eventually(func() hazelcastv1alpha1.HotBackupState {
+		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
 			err := k8sClient.Get(ctx, types.NamespacedName{Namespace: hotBackup.Namespace, Name: hotBackup.Name}, hotBackup)
 			Expect(err).ToNot(HaveOccurred())
 			return hotBackup.Status.State
-		}, 20*Second, interval).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+		}, 20*Second, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupFailure))
 		Expect(hotBackup.Status.Message).Should(ContainSubstring("Upload failed"))
 	})
 })

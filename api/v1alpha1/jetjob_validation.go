@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -17,24 +18,14 @@ import (
 
 type jetjobValidator struct {
 	fieldValidator
-	name string
 }
 
-func (v *jetjobValidator) Err() error {
-	if len(v.fieldValidator) != 0 {
-		return kerrors.NewInvalid(
-			schema.GroupKind{Group: "hazelcast.com", Kind: "JetJob"},
-			v.name,
-			field.ErrorList(v.fieldValidator),
-		)
-	}
-	return nil
+func NewJetJobValidator(o client.Object) jetjobValidator {
+	return jetjobValidator{NewFieldValidator(o)}
 }
 
 func ValidateJetJobCreateSpec(jj *JetJob) error {
-	v := jetjobValidator{
-		name: jj.Name,
-	}
+	v := NewJetJobValidator(jj)
 
 	if jj.Spec.State != RunningJobState {
 		v.Invalid(Path("spec", "state"), jj.Spec.State, fmt.Sprintf("should be set to %s on creation", RunningJobState))
@@ -76,9 +67,7 @@ func ValidateExistingJobName(jj *JetJob, jjList *JetJobList) error {
 }
 
 func ValidateJetConfiguration(h *Hazelcast) error {
-	v := hazelcastValidator{
-		name: h.Name,
-	}
+	v := NewHazelcastValidator(h)
 	if !h.Spec.JetEngineConfiguration.IsEnabled() {
 		v.Required(Path("spec", "jet", "enabled"), "jet engine must be enabled")
 	}
@@ -89,10 +78,7 @@ func ValidateJetConfiguration(h *Hazelcast) error {
 }
 
 func ValidateJetJobUpdateStateSpec(jj *JetJob, oldJj *JetJob) error {
-	v := jetjobValidator{
-		name: jj.Name,
-	}
-
+	v := NewJetJobValidator(jj)
 	v.validateJetJobUpdateSpec(jj)
 	v.validateJetStateChange(jj.Spec.State, oldJj.Spec.State, oldJj.Status.Phase)
 
@@ -100,9 +86,7 @@ func ValidateJetJobUpdateStateSpec(jj *JetJob, oldJj *JetJob) error {
 }
 
 func ValidateJetJobUpdateSpec(jj *JetJob) error {
-	v := jetjobValidator{
-		name: jj.Name,
-	}
+	v := NewJetJobValidator(jj)
 	v.validateJetJobUpdateSpec(jj)
 	return v.Err()
 }

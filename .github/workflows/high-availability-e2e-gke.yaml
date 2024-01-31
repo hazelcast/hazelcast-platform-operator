@@ -22,7 +22,7 @@ jobs:
       GKE_REGION: europe-west1
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -35,7 +35,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v1.1.1'
+        uses: 'google-github-actions/auth@v2.0.1'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -74,7 +74,7 @@ jobs:
       IMG: ${{ steps.build-img.outputs.IMG }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and push image to ttl.sh
         id: build-img
@@ -101,14 +101,14 @@ jobs:
       RELEASE_NAME: high-availability-${{ github.run_id }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ">=1.19.0"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -122,12 +122,12 @@ jobs:
             HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v1.1.1"
+        uses: "google-github-actions/auth@v2.0.1"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+        uses: 'google-github-actions/get-gke-credentials@v2'
         with:
           cluster_name: ${{ env.CLUSTER_NAME }}
           project_id: ${{ env.GCP_PROJECT_ID }}
@@ -204,10 +204,10 @@ jobs:
       GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -220,7 +220,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v1.1.1"
+        uses: "google-github-actions/auth@v2.0.1"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -235,7 +235,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

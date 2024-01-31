@@ -1,11 +1,41 @@
 package v1alpha1
 
-import "k8s.io/apimachinery/pkg/util/validation/field"
+import (
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-type fieldValidator field.ErrorList
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+)
+
+type fieldValidator struct {
+	errs   field.ErrorList
+	object client.Object
+}
+
+func NewFieldValidator(o client.Object) fieldValidator {
+	return fieldValidator{
+		object: o,
+	}
+}
+
+func (v *fieldValidator) Err() error {
+	if len(v.errs) != 0 {
+		g := v.object.GetObjectKind().GroupVersionKind()
+		return kerrors.NewInvalid(
+			schema.GroupKind{
+				Group: g.Group,
+				Kind:  g.Kind,
+			},
+			v.object.GetName(),
+			field.ErrorList(v.errs),
+		)
+	}
+	return nil
+}
 
 func (v *fieldValidator) add(err ...*field.Error) {
-	*v = append(*v, err...)
+	v.errs = append(v.errs, err...)
 }
 
 func (v *fieldValidator) Forbidden(p *field.Path, detail string) {

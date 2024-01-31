@@ -36,6 +36,11 @@ type MapSpec struct {
 	// +optional
 	Indexes []IndexConfig `json:"indexes,omitempty"`
 
+	// Attributes to be used with Predicates API.
+	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+	// +optional
+	Attributes []AttributeConfig `json:"attributes,omitempty"`
+
 	// When enabled, map data will be persisted.
 	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:default:=false
@@ -251,6 +256,16 @@ type IndexConfig struct {
 	BitmapIndexOptions *BitmapIndexOptionsConfig `json:"bitMapIndexOptions,omitempty"`
 }
 
+type AttributeConfig struct {
+	// Name of the attribute https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+	// +required
+	Name string `json:"name"`
+
+	// Name of the extractor class https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#implementing-a-valueextractor
+	// +required
+	ExtractorClassName string `json:"extractorClassName"`
+}
+
 // +kubebuilder:validation:Enum=SORTED;HASH;BITMAP
 type IndexType string
 
@@ -381,6 +396,7 @@ type TieredStore struct {
 
 // Map is the Schema for the maps API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the Map Config"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Map Config"
 type Map struct {
 	metav1.TypeMeta `json:",inline"`

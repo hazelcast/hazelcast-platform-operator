@@ -30,11 +30,12 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 	ctx := context.Background()
 	assertExternalAddressesNotEmpty := func() {
 		By("status external addresses should not be empty")
-		Eventually(func() string {
+		Eventually(func() []string {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			err := k8sClient.Get(ctx, hzLookupKey, hz)
 			Expect(err).ToNot(HaveOccurred())
-			return hz.Status.ExternalAddresses
+			externalAddresses := fetchHazelcastAddressesByType(hz, hazelcastcomv1alpha1.HazelcastEndpointTypeDiscovery, hazelcastcomv1alpha1.HazelcastEndpointTypeMember)
+			return externalAddresses
 		}, 2*Minute, interval).Should(Not(BeEmpty()))
 	}
 
@@ -44,8 +45,11 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		FillTheMapData(ctx, hzLookupKey, true, "map", 100)
-		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+		hzMap := "map"
+		entryCount := 100
+
+		FillTheMapData(ctx, hzLookupKey, true, hzMap, entryCount)
+		WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 
 		assertExternalAddressesNotEmpty()
 	})
@@ -59,39 +63,52 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		members := getHazelcastMembers(ctx, hazelcast)
 		clientHz := GetHzClient(ctx, hzLookupKey, false)
 		defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
-		clientMembers := hzClient.NewClientInternal(clientHz).OrderedMembers()
+		internalClient := hzClient.NewClientInternal(clientHz)
+		clientMembers := internalClient.OrderedMembers()
 
 		By("matching HZ members with client members and comparing their public IPs")
 
-	memberLoop:
 		for _, member := range members {
+			matched := false
 			for _, clientMember := range clientMembers {
 				if member.Uid != clientMember.UUID.String() {
 					continue
 				}
+				matched = true
 				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 				Expect(service.Spec.Ports).Should(HaveLen(1))
+				// skip the following check if the cluster is Kind
+				if kind {
+					GinkgoWriter.Printf("Skip the external address check on Kind cluster")
+					break
+				}
 				nodePort := service.Spec.Ports[0].NodePort
 				node := getNodeOfMember(ctx, hzLookupKey.Namespace, member)
 				externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
-				// skip member IP check if the node has no external IP
-				if len(externalAddresses) == 0 {
-					continue memberLoop
-				}
 				Expect(externalAddresses).Should(HaveLen(1))
 				externalAddress := fmt.Sprintf("%s:%d", externalAddresses[0], nodePort)
 				clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
 				Expect(clientPublicAddresses).Should(HaveLen(1))
 				clientPublicAddress := clientPublicAddresses[0]
 				Expect(externalAddress).Should(Equal(clientPublicAddress))
-				continue memberLoop
+
+				By(fmt.Sprintf("checking if connected to the member %q", clientMember.UUID.String()))
+				connected := internalClient.ConnectedToMember(clientMember.UUID)
+				Expect(connected).Should(BeTrue())
+
+				break
 			}
-			Fail(fmt.Sprintf("member Uid '%s' is not matched with client members UUIDs", member.Uid))
+			if !matched {
+				Fail(fmt.Sprintf("member UID '%s' is not matched with client members UUIDs", member.Uid))
+			}
 		}
 
-		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
-		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+		hzMap := "map"
+		entryCount := 100
+
+		FillTheMapData(ctx, hzLookupKey, false, hzMap, entryCount)
+		WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 
 		assertExternalAddressesNotEmpty()
 	})
@@ -105,16 +122,18 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 		members := getHazelcastMembers(ctx, hazelcast)
 		clientHz := GetHzClient(ctx, hzLookupKey, false)
 		defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
-		clientMembers := hzClient.NewClientInternal(clientHz).OrderedMembers()
+		internalClient := hzClient.NewClientInternal(clientHz)
+		clientMembers := internalClient.OrderedMembers()
 
 		By("matching HZ members with client members and comparing their public IPs")
 
-	memberLoop:
 		for _, member := range members {
+			matched := false
 			for _, clientMember := range clientMembers {
 				if member.Uid != clientMember.UUID.String() {
 					continue
 				}
+				matched = true
 				service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 				Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
 				Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
@@ -133,15 +152,24 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("hz_expose
 						}
 						return matched
 					}, 3*Minute, interval).Should(BeTrue())
-
 				}
-				continue memberLoop
+
+				By(fmt.Sprintf("checking if connected to the member %q", clientMember.UUID.String()))
+				connected := internalClient.ConnectedToMember(clientMember.UUID)
+				Expect(connected).Should(BeTrue())
+
+				break
 			}
-			Fail(fmt.Sprintf("member Uid '%s' is not matched with client members UUIDs", member.Uid))
+			if !matched {
+				Fail(fmt.Sprintf("member UID '%s' is not matched with client members UUIDs", member.Uid))
+			}
 		}
 
-		FillTheMapData(ctx, hzLookupKey, false, "map", 100)
-		WaitForMapSize(ctx, hzLookupKey, "map", 100, 1*Minute)
+		hzMap := "map"
+		entryCount := 100
+
+		FillTheMapData(ctx, hzLookupKey, false, hzMap, entryCount)
+		WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 
 		assertExternalAddressesNotEmpty()
 	})

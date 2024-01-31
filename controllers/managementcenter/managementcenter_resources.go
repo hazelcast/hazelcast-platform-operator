@@ -59,7 +59,7 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 	service := &corev1.Service{
 		ObjectMeta: metadata(mc),
 		Spec: corev1.ServiceSpec{
-			Selector: labels(mc),
+			Selector: selectorLabels(mc),
 		},
 	}
 
@@ -182,17 +182,35 @@ func (r *ManagementCenterReconciler) reconcileRoute(ctx context.Context, mc *haz
 
 func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
-		Name:      mc.Name,
-		Namespace: mc.Namespace,
-		Labels:    labels(mc),
+		Name:        mc.Name,
+		Namespace:   mc.Namespace,
+		Labels:      labels(mc),
+		Annotations: mc.Spec.Annotations,
 	}
 }
-func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
+
+func selectorLabels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
 	return map[string]string{
 		n.ApplicationNameLabel:         n.ManagementCenter,
 		n.ApplicationInstanceNameLabel: mc.Name,
 		n.ApplicationManagedByLabel:    n.OperatorName,
 	}
+}
+
+func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
+	l := make(map[string]string)
+
+	// copy user labels
+	for name, value := range mc.Spec.Labels {
+		l[name] = value
+	}
+
+	// make sure we overwrite user labels
+	l[n.ApplicationNameLabel] = n.ManagementCenter
+	l[n.ApplicationInstanceNameLabel] = mc.Name
+	l[n.ApplicationManagedByLabel] = n.OperatorName
+
+	return l
 }
 
 func ports() []v1.ServicePort {
@@ -213,18 +231,17 @@ func ports() []v1.ServicePort {
 }
 
 func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
-	ls := labels(mc)
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metadata(mc),
 		Spec: appsv1.StatefulSetSpec{
 			// Management Center StatefulSet size is always 1
 			Replicas: &[]int32{1}[0],
 			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
+				MatchLabels: selectorLabels(mc),
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: ls,
+					Labels: labels(mc),
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{{
@@ -296,7 +313,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, sts, func() error {
 		sts.Spec.Template.Spec.ImagePullSecrets = mc.Spec.ImagePullSecrets
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
-		sts.Spec.Template.Spec.Containers[0].Env = env(mc)
+		sts.Spec.Template.Spec.Containers[0].Env = env(ctx, mc, r.Client, logger)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
 		if mc.Spec.Resources != nil {
 			sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
@@ -401,9 +418,10 @@ func tmpDirMount() corev1.VolumeMount {
 func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.MancenterStorageName,
-			Namespace: mc.Namespace,
-			Labels:    labels(mc),
+			Name:        n.MancenterStorageName,
+			Namespace:   mc.Namespace,
+			Labels:      labels(mc),
+			Annotations: mc.Spec.Annotations,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -465,11 +483,11 @@ func configMount() corev1.VolumeMount {
 	}
 }
 
-func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
+func env(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.Client, logger logr.Logger) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
 			Name:  mcInitCmd,
-			Value: clusterAddCommand(mc),
+			Value: buildMcInitCmd(ctx, mc, c, logger),
 		},
 	}
 
@@ -499,6 +517,34 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	)
 
 	return envs
+}
+
+func buildMcInitCmd(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.Client, logger logr.Logger) string {
+	var commands []string
+	if addCluster := clusterAddCommand(mc); addCluster != "" {
+		commands = append(commands, addCluster)
+	}
+	if mc.Spec.SecurityProviders.IsEnabled() && !mc.Status.Configured {
+		commands = append(commands, ldapConfigure(ctx, mc, c, logger)...)
+	}
+	return strings.Join(commands, " && ")
+}
+
+func ldapConfigure(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.Client, logger logr.Logger) []string {
+	ldap := mc.Spec.SecurityProviders.LDAP
+	s := &v1.Secret{}
+	err := c.Get(ctx, types.NamespacedName{Name: ldap.CredentialsSecretName, Namespace: mc.Namespace}, s)
+	if err != nil {
+		logger.Error(err, "unable to get the secret with credentials, LDAP config will be ignored")
+	}
+	return []string{"./bin/hz-mc conf security reset -H /data",
+		fmt.Sprintf("./bin/hz-mc conf ldap configure -H /data --url=%q --ldap-username=%q "+
+			"--ldap-password=%q --user-dn=%q --group-dn=%q --user-search-filter=%q --group-search-filter=%q "+
+			"--admin-groups=%q --read-write-groups=%q --read-only-groups=%q --metrics-only-groups=%q",
+			ldap.URL, string(s.Data["username"]), string(s.Data["password"]), ldap.UserDN, ldap.GroupDN,
+			ldap.UserSearchFilter, ldap.GroupSearchFilter, strings.Join(ldap.AdminGroups, ","),
+			strings.Join(ldap.UserGroups, ","), strings.Join(ldap.ReadonlyUserGroups, ","),
+			strings.Join(ldap.MetricsOnlyGroups, ","))}
 }
 
 func clusterAddCommand(mc *hazelcastv1alpha1.ManagementCenter) string {

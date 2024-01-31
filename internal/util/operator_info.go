@@ -25,13 +25,10 @@ const (
 	WatchedNsTypeOwn    WatchedNsType = "Own"
 )
 
-func WatchedNamespaceType() WatchedNsType {
-	watchedNamespaces := WatchedNamespaces()
-	operatorNamespace := OperatorNamespace()
+func WatchedNamespaceType(operatorNamespace string, watchedNamespaces []string) WatchedNsType {
 	if operatorNamespace == "" {
 		return WatchedNsTypeAll
 	}
-
 	switch {
 	case len(watchedNamespaces) == 1 && (watchedNamespaces[0] == "" || watchedNamespaces[0] == "*"):
 		return WatchedNsTypeAll
@@ -44,7 +41,6 @@ func WatchedNamespaceType() WatchedNsType {
 	default:
 		return WatchedNsTypeAll
 	}
-
 }
 
 func WatchedNamespaces() []string {
