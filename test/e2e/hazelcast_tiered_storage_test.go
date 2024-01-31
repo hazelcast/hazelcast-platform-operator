@@ -14,7 +14,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("hz_persistence"), func() {
+var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("hz_tiered_storage"), func() {
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
@@ -33,7 +33,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("hz_p
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("hp-1")
+		setLabelAndCRName("hts-1")
 
 		deviceName := "test-device"
 		var mapSizeInMb = 3072
@@ -41,7 +41,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("hz_p
 		var diskSizeInMb = mapSizeInMb * 2
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
-		
+
 		totalMemorySize := strconv.Itoa(memorySizeInMb*4) + "Mi"
 		nativeMemorySize := strconv.Itoa(memorySizeInMb) + "Mi"
 		diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
