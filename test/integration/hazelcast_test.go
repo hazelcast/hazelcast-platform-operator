@@ -2316,16 +2316,18 @@ var _ = Describe("Hazelcast CR", func() {
 	Context("with Tiered Storage configuration", func() {
 		When("LocalDevices is configured", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
+			nativeMemory := &hazelcastv1alpha1.NativeMemoryConfiguration{
 				AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
 			}
-			spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
+			spec.NativeMemory = nativeMemory
+			localDevices := []hazelcastv1alpha1.LocalDeviceConfig{{
 				Name:    "local-device-test",
 				BaseDir: "/baseDir/",
 				Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			}}
+			spec.LocalDevices = localDevices
 
 			It("should fail when not using enterprise version", Label("fast"), func() {
 				if ee {
@@ -2378,7 +2380,7 @@ var _ = Describe("Hazelcast CR", func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-
+				spec.NativeMemory = nativeMemory
 				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
 					Name:    "local-device-test",
 					BaseDir: "baseDir/",
@@ -2400,7 +2402,7 @@ var _ = Describe("Hazelcast CR", func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-
+				spec.LocalDevices = localDevices
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
