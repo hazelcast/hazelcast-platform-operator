@@ -2,19 +2,19 @@ package e2e
 
 import (
 	"context"
+	corev1 "k8s.io/api/core/v1"
 	"strconv"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_persistence"), func() {
+var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("hz_persistence"), func() {
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
@@ -29,7 +29,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 	})
 
-	It("should successfully trigger HotBackup", Label("slow"), func() {
+	It("should successfully fill the map with more than allocated memory", Label("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -37,27 +37,28 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("hz_pers
 
 		deviceName := "test-device"
 		var mapSizeInMb = 3072
-		var totalSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
-		var memorySizeInMb = totalSizeInMb * 1 / 3
-		var diskSizeInMb = totalSizeInMb * 2 / 3
+		var memorySizeInMb = mapSizeInMb / 10
+		var diskSizeInMb = mapSizeInMb * 2
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
-		memorySize := strconv.Itoa(memorySizeInMb) + "Mi"
+		
+		totalMemorySize := strconv.Itoa(memorySizeInMb*4) + "Mi"
+		nativeMemorySize := strconv.Itoa(memorySizeInMb) + "Mi"
 		diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
 		hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, diskSize, labels)
 		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(memorySize)},
+				corev1.ResourceMemory: resource.MustParse(totalMemorySize)},
 		}
 		hazelcast.Spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
-			Size: []resource.Quantity{resource.MustParse(diskSize)}[0],
+			Size: []resource.Quantity{resource.MustParse(nativeMemorySize)}[0],
 		}
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config and putting entries")
-		dm := hazelcastconfig.TieredStoreMap(mapLookupKey, hazelcast.Name, deviceName, memorySize, labels)
+		dm := hazelcastconfig.TieredStoreMap(mapLookupKey, hazelcast.Name, deviceName, nativeMemorySize, labels)
 		Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		assertMapStatus(dm, hazelcastv1alpha1.MapSuccess)
 		FillTheMapWithData(ctx, dm.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
