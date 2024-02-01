@@ -66,7 +66,7 @@ type WanSync struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +required
-	Spec   WanSyncSpec   `json:"spec,omitempty"`
+	Spec   WanSyncSpec   `json:"spec"`
 	Status WanSyncStatus `json:"status,omitempty"`
 }
 
