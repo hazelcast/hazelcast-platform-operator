@@ -265,6 +265,16 @@ spec:
                   automatically. It can be updated.
                 format: int32
                 type: integer
+              merkleTree:
+                description: MerkleTree defines the configuration for the Merkle tree
+                  data structure.
+                properties:
+                  depth:
+                    default: 10
+                    description: Depth of the merkle tree.
+                    format: int32
+                    type: integer
+                type: object
               name:
                 description: Name of the data structure config to be created. If empty,
                   CR name will be used. It cannot be updated after the config is created

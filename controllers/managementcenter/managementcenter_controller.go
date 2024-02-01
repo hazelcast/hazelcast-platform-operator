@@ -146,7 +146,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return update(ctx, r.Client, mc, recoptions.RetryAfter(retryAfter), withMcPhase(hazelcastv1alpha1.McPending))
 	}
 
-	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(mc) {
+	if util.IsPhoneHomeEnabled() && !recoptions.IsSuccessfullyApplied(mc) {
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 

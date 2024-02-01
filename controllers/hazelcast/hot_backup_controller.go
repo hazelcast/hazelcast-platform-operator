@@ -164,15 +164,7 @@ func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 		if err := r.Client.Get(ctx, name, hb); err != nil {
 			return err
 		}
-		hs, err := json.Marshal(hb.Spec)
-		if err != nil {
-			return err
-		}
-		if hb.ObjectMeta.Annotations == nil {
-			hb.ObjectMeta.Annotations = make(map[string]string)
-		}
-		hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
-
+		recoptions.InsertLastSuccessfullyAppliedSpec(hb.Spec, hb)
 		return r.Client.Update(ctx, hb)
 	})
 }

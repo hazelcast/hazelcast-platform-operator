@@ -12,6 +12,7 @@ type WanService interface {
 	AddBatchPublisherConfig(ctx context.Context, request *AddBatchPublisherRequest) error
 	ChangeWanState(ctx context.Context, state codecTypes.WanReplicationState) error
 	ClearWanQueue(ctx context.Context) error
+	WanSyncMap(ctx context.Context, mapName string) error
 }
 
 type AddBatchPublisherRequest struct {

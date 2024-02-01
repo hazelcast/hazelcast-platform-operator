@@ -35,6 +35,7 @@ import (
 
 	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -1651,6 +1652,11 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		mc.EventJournal.TimeToLiveSeconds = ms.EventJournal.TimeToLiveSeconds
 	}
 
+	if ms.MerkleTree != nil {
+		mc.MerkleTree.Enabled = true
+		mc.MerkleTree.Depth = ms.MerkleTree.Depth
+	}
+
 	return mc, nil
 }
 
@@ -2757,17 +2763,8 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 }
 
 func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	hs, err := json.Marshal(h.Spec)
-	if err != nil {
-		return err
-	}
-
 	opResult, err := util.Update(ctx, r.Client, h, func() error {
-		if h.ObjectMeta.Annotations == nil {
-			ans := map[string]string{}
-			h.ObjectMeta.Annotations = ans
-		}
-		h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
+		controllers.InsertLastSuccessfullyAppliedSpec(h.Spec, h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

@@ -70,6 +70,16 @@ type MapSpec struct {
 	// EventJournal specifies event journal configuration of the Map
 	// +optional
 	EventJournal *EventJournal `json:"eventJournal,omitempty"`
+
+	// MerkleTree defines the configuration for the Merkle tree data structure.
+	// +optional
+	MerkleTree *MerkleTreeConfig `json:"merkleTree,omitempty"`
+}
+
+type MerkleTreeConfig struct {
+	// Depth of the merkle tree.
+	// +kubebuilder:default:=10
+	Depth int32 `json:"depth,omitempty"`
 }
 
 type NearCache struct {

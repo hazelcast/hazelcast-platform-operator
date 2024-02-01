@@ -185,6 +185,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 	err = (&hazelcastcomv1alpha1.HazelcastEndpoint{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.WanSync{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook
 

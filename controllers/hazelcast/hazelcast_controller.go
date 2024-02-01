@@ -299,7 +299,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		r.addExecutorServices(ctx, cl, newExecutorServices)
 	}
 
-	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(h) {
+	if util.IsPhoneHomeEnabled() && !recoptions.IsSuccessfullyApplied(h) {
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
