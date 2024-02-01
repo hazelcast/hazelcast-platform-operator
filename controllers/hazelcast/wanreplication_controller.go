@@ -369,19 +369,6 @@ func joinEndpoints(endpoints []string) string {
 	return strings.Join(endpoints, ",")
 }
 
-func removeDuplicate(mapList []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
-	keySet := make(map[types.NamespacedName]struct{})
-	list := []hazelcastv1alpha1.Map{}
-	for _, item := range mapList {
-		nsname := types.NamespacedName{Name: item.Name, Namespace: item.Namespace}
-		if _, ok := keySet[nsname]; !ok {
-			keySet[nsname] = struct{}{}
-			list = append(list, item)
-		}
-	}
-	return list
-}
-
 func (r *WanReplicationReconciler) removeWanRepFinalizerFromMap(ctx context.Context, wan *hazelcastv1alpha1.WanReplication, m *hazelcastv1alpha1.Map, cli hzclient.Client) error {
 	if !controllerutil.ContainsFinalizer(m, n.WanRepMapFinalizer) {
 		return nil

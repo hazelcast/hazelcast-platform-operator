@@ -22,8 +22,9 @@ func getMapsGroupByHazelcastName(ctx context.Context, c client.Client, wan *haze
 			mapList, ok := hzClientMap[m.Spec.HazelcastResourceName]
 			if !ok {
 				hzClientMap[m.Spec.HazelcastResourceName] = []hazelcastv1alpha1.Map{*m}
+			} else {
+				hzClientMap[m.Spec.HazelcastResourceName] = append(mapList, *m)
 			}
-			hzClientMap[m.Spec.HazelcastResourceName] = append(mapList, *m)
 		case hazelcastv1alpha1.ResourceKindHZ:
 			maps, err := getAllMapsInHazelcast(ctx, c, resource.Name, wan.Namespace)
 			if err != nil {
@@ -36,8 +37,9 @@ func getMapsGroupByHazelcastName(ctx context.Context, c client.Client, wan *haze
 			mapList, ok := hzClientMap[resource.Name]
 			if !ok {
 				hzClientMap[resource.Name] = maps
+			} else {
+				hzClientMap[resource.Name] = append(mapList, maps...)
 			}
-			hzClientMap[resource.Name] = append(mapList, maps...)
 		}
 	}
 	for k, v := range hzClientMap {
@@ -45,6 +47,19 @@ func getMapsGroupByHazelcastName(ctx context.Context, c client.Client, wan *haze
 	}
 
 	return hzClientMap, nil
+}
+
+func removeDuplicate(mapList []hazelcastv1alpha1.Map) []hazelcastv1alpha1.Map {
+	keySet := make(map[types.NamespacedName]struct{})
+	list := []hazelcastv1alpha1.Map{}
+	for _, item := range mapList {
+		nsname := types.NamespacedName{Name: item.Name, Namespace: item.Namespace}
+		if _, ok := keySet[nsname]; !ok {
+			keySet[nsname] = struct{}{}
+			list = append(list, item)
+		}
+	}
+	return list
 }
 
 func getWanMap(ctx context.Context, c client.Client, lk types.NamespacedName) (*hazelcastv1alpha1.Map, error) {
