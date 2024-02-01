@@ -30,6 +30,15 @@ var _ = Describe("WanReplication CR", func() {
 	})
 
 	Context("webhook validation", func() {
+		FIt("should not allow empty wanReplicationResourceName", func() {
+			wr := &hazelcastv1alpha1.WanSync{
+				ObjectMeta: randomObjectMeta(namespace),
+			}
+
+			Expect(k8sClient.Create(context.Background(), wr)).Should(
+				MatchError(ContainSubstring("spec.wanReplicationResourceName")),
+			)
+		})
 		When("updating unmodifiable fields", func() {
 			It("should not be allowed", Label("fast"), func() {
 				spec := hazelcastv1alpha1.WanSyncSpec{
