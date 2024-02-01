@@ -8,6 +8,7 @@ import (
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	clientTypes "github.com/hazelcast/hazelcast-go-client/types"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -135,10 +136,16 @@ func wanSyncMap(ctx context.Context, c Client, sync WanSyncMapRequest) (clientTy
 		Type:               codecTypes.SingleMap,
 		MapName:            sync.mapName,
 	})
-	resp, err := c.InvokeOnRandomTarget(ctx, request, nil)
-	if err != nil {
-		return clientTypes.UUID{}, err
-	}
-	uuid := codec.DecodeMCWanSyncMapResponse(resp)
-	return uuid, nil
+	uuid := clientTypes.UUID{}
+	err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+		return err != nil
+	}, func() error {
+		resp, err := c.InvokeOnRandomTarget(ctx, request, nil)
+		if err != nil {
+			return err
+		}
+		uuid = codec.DecodeMCWanSyncMapResponse(resp)
+		return nil
+	})
+	return uuid, err
 }
