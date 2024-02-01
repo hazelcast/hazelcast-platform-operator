@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -69,7 +70,7 @@ func doStartSyncJob(ctx context.Context, c Client, f EventResponseFunc, wsrs []W
 			})
 		}
 
-		finishEvent := waitWanSyncToFinish(ctx, c, uuid, logger)
+		finishEvent := waitWanSyncToFinish(ctx, c, uuid, wsr, logger)
 		f(WanSyncMapResponse{
 			HazelcastName: wsr.hzResource,
 			MapName:       types.NamespacedName{Namespace: wsr.hzResource.Namespace, Name: wsr.mapName},
@@ -78,8 +79,7 @@ func doStartSyncJob(ctx context.Context, c Client, f EventResponseFunc, wsrs []W
 	}
 }
 
-func waitWanSyncToFinish(
-	ctx context.Context, c Client, uuid clientTypes.UUID, logger logr.Logger) codecTypes.MCEvent {
+func waitWanSyncToFinish(ctx context.Context, c Client, uuid clientTypes.UUID, wsr WanSyncMapRequest, logger logr.Logger) codecTypes.MCEvent {
 
 	logger.V(util.DebugLevel).Info("Start polling MC events...", "uuid", uuid)
 	members := c.OrderedMembers()
@@ -90,12 +90,14 @@ func waitWanSyncToFinish(
 
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	timeout := time.After(2 * time.Minute)
+	timeout := time.After(3 * time.Minute)
 	for {
 		select {
 		case <-timeout:
 			logger.Info("Timeout receiving events", "uuid", uuid)
-			return codecTypes.MCEvent{Type: codecTypes.WanSyncIgnored}
+			return codecTypes.MCEvent{Type: codecTypes.WanSyncIgnored}.
+				WithReason(fmt.Errorf("timeout receiving events, uuid: %s", uuid.String()).Error()).
+				WithMapName(wsr.mapName)
 		case <-ticker.C:
 			event, done = pollMCEvents(ctx, c, members, uuid, logger)
 			if done {
