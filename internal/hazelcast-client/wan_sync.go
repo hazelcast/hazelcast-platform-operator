@@ -68,6 +68,7 @@ func doStartSyncJob(ctx context.Context, c Client, f EventResponseFunc, wsrs []W
 					Type: codecTypes.WanSyncIgnored,
 				}.WithReason(err.Error()).WithMapName(wsr.mapName),
 			})
+			continue
 		}
 
 		finishEvent := waitWanSyncToFinish(ctx, c, uuid, wsr, logger)
