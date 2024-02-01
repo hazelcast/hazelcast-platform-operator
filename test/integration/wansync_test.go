@@ -30,7 +30,7 @@ var _ = Describe("WanReplication CR", func() {
 	})
 
 	Context("webhook validation", func() {
-		It("should not allow empty wanReplicationResourceName", func() {
+		It("should not allow empty wanReplicationResourceName", Label("fast"), func() {
 			wr := &hazelcastv1alpha1.WanSync{
 				ObjectMeta: randomObjectMeta(namespace),
 			}
