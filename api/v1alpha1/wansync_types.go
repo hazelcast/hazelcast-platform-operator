@@ -10,7 +10,7 @@ type WanSyncSpec struct {
 	// If specified the Sync operation will use existing WAN publisher.
 	// +kubebuilder:validation:MinLength:=1
 	// +required
-	WanReplicationResourceName string `json:"wanReplicationResourceName,omitempty"`
+	WanReplicationResourceName string `json:"wanReplicationResourceName"`
 }
 
 type WanSyncPhase string
@@ -65,6 +65,7 @@ type WanSync struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +required
 	Spec   WanSyncSpec   `json:"spec,omitempty"`
 	Status WanSyncStatus `json:"status,omitempty"`
 }

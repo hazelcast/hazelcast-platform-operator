@@ -5379,6 +5379,8 @@ spec:
                   Sync operation will use existing WAN publisher.
                 minLength: 1
                 type: string
+            required:
+            - wanReplicationResourceName
             type: object
           status:
             description: WanSyncStatus defines the observed state of WanSync
