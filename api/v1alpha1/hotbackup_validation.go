@@ -17,7 +17,7 @@ func NewHotBackupValidator(o client.Object) hotbackupValidator {
 	return hotbackupValidator{NewFieldValidator(o)}
 }
 
-func ValidateHotBackupPersistence(hb *HotBackup,h *Hazelcast) error {
+func ValidateHotBackupPersistence(hb *HotBackup, h *Hazelcast) error {
 	v := NewHotBackupValidator(hb)
 	v.validateHotBackupPersistence(h)
 	return v.Err()
@@ -38,7 +38,7 @@ func (v *hotbackupValidator) validateHotBackupPersistence(h *Hazelcast) {
 	}
 
 	if !lastSpec.Persistence.IsEnabled() {
-		v.Invalid(Path("spec", "persistenceEnabled"), lastSpec.Persistence.IsEnabled(), "Persistence must be enabled at Hazelcast")
+		v.Invalid(Path("spec", "persistenceEnabled"), lastSpec.Persistence.IsEnabled(), fmt.Sprintf("Hazelcast '%s' must enable persistence", h.Name))
 		return
 	}
 }
