@@ -181,6 +181,11 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 	if !controllerutil.ContainsFinalizer(hb, n.Finalizer) {
 		return nil
 	}
+
+	if err := hazelcastv1alpha1.ValidateHotBackupIsNotReferencedByHazelcast(hb); err != nil {
+		return err
+	}
+
 	key := types.NamespacedName{
 		Name:      hb.Name,
 		Namespace: hb.Namespace,
