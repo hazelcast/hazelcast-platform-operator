@@ -70,7 +70,8 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
 		service.Spec.Type = mc.Spec.ExternalConnectivity.ManagementCenterServiceType()
-		service.Spec.Ports = util.EnrichServiceNodePorts(ports(), service.Spec.Ports)
+		mcPorts := []corev1.ServicePort{portHttp(), portHttps()}
+		service.Spec.Ports = util.EnrichServiceNodePorts(mcPorts, service.Spec.Ports)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -111,13 +112,13 @@ func (r *ManagementCenterReconciler) reconcileIngress(ctx context.Context, mc *h
 					HTTP: &networkingv1.HTTPIngressRuleValue{
 						Paths: []networkingv1.HTTPIngressPath{
 							{
-								Path:     "/",
+								Path:     mc.Spec.ExternalConnectivity.Ingress.Path,
 								PathType: &[]networkingv1.PathType{networkingv1.PathTypePrefix}[0],
 								Backend: networkingv1.IngressBackend{
 									Service: &networkingv1.IngressServiceBackend{
 										Name: metadata(mc).Name,
 										Port: networkingv1.ServiceBackendPort{
-											Number: 8080,
+											Name: portHttp().Name,
 										},
 									},
 								},
@@ -213,20 +214,21 @@ func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
 	return l
 }
 
-func ports() []v1.ServicePort {
-	return []corev1.ServicePort{
-		{
-			Name:       "http",
-			Protocol:   corev1.ProtocolTCP,
-			Port:       8080,
-			TargetPort: intstr.FromString(n.MancenterPort),
-		},
-		{
-			Name:       "https",
-			Protocol:   corev1.ProtocolTCP,
-			Port:       443,
-			TargetPort: intstr.FromString(n.MancenterPort),
-		},
+func portHttp() v1.ServicePort {
+	return corev1.ServicePort{
+		Name:       "http",
+		Protocol:   corev1.ProtocolTCP,
+		Port:       8080,
+		TargetPort: intstr.FromString(n.MancenterPort),
+	}
+}
+
+func portHttps() v1.ServicePort {
+	return corev1.ServicePort{
+		Name:       "https",
+		Protocol:   corev1.ProtocolTCP,
+		Port:       443,
+		TargetPort: intstr.FromString(n.MancenterPort),
 	}
 }
 
