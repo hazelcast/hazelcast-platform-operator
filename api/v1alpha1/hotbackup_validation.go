@@ -17,8 +17,8 @@ func NewHotBackupValidator(o client.Object) hotbackupValidator {
 	return hotbackupValidator{NewFieldValidator(o)}
 }
 
-func ValidateHotBackupPersistence(h *Hazelcast) error {
-	v := NewHotBackupValidator(h)
+func ValidateHotBackupPersistence(hb *HotBackup,h *Hazelcast) error {
+	v := NewHotBackupValidator(hb)
 	v.validateHotBackupPersistence(h)
 	return v.Err()
 }
