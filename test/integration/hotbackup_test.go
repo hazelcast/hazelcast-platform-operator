@@ -75,7 +75,7 @@ var _ = Describe("HotBackup CR", func() {
 
 			By("trying to delete the HotBackup resource which is referenced by Hazelcast restore")
 			err := k8sClient.Delete(context.Background(), hb)
-			Expect(err).Should(MatchError(ContainSubstring(fmt.Sprintf("HotBackup '%s' is referenced by Hazelcast restore", hb.Name))))
+			Expect(err).Should(MatchError(ContainSubstring(fmt.Sprintf("Hazelcast '%s' has a restore reference to the Hotbackup", hz.Name))))
 
 			By("deleting the Hazelcast CR")
 			hz.Finalizers = make([]string, 0) // It is required to be able to delete the Hazelcast resource
