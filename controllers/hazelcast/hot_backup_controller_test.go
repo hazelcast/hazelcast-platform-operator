@@ -232,7 +232,7 @@ func TestHotBackupReconciler_shouldFailIfPersistenceNotEnabledAtHazelcast(t *tes
 		_ = r.Client.Get(context.TODO(), nn, hb)
 		return hb.Status.State
 	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
-	Expect(hb.Status.Message).Should(ContainSubstring("Persistence must be enabled at Hazelcast"))
+	Expect(hb.Status.Message).Should(ContainSubstring(fmt.Sprintf("Hazelcast '%s' must enable persistence", h.Name)))
 }
 
 func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore(t *testing.T) {
