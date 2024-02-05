@@ -37,7 +37,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -93,7 +93,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -159,7 +159,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -223,7 +223,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -319,7 +319,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -370,7 +370,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -408,7 +408,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
