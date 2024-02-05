@@ -1,11 +1,13 @@
 package v1alpha1
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
@@ -40,5 +42,31 @@ func (v *hotbackupValidator) validateHotBackupPersistence(h *Hazelcast) {
 	if !lastSpec.Persistence.IsEnabled() {
 		v.Invalid(Path("spec", "persistenceEnabled"), lastSpec.Persistence.IsEnabled(), "Persistence must be enabled at Hazelcast")
 		return
+	}
+}
+
+func ValidateHotBackupIsNotReferencedByHazelcast(hb *HotBackup) error {
+	v := NewHotBackupValidator(hb)
+
+	hzList := HazelcastList{}
+	err := kubeclient.List(context.Background(), &hzList, &client.ListOptions{Namespace: hb.Namespace})
+	if err != nil {
+		hotbackuplog.Error(err, "error on listing Hazelcast resources")
+		return nil
+	}
+
+	for _, hz := range hzList.Items {
+		hzCopy := hz
+		v.validateHotBackupRestoreReference(&hzCopy, hb)
+	}
+
+	return v.Err()
+}
+
+func (v *hotbackupValidator) validateHotBackupRestoreReference(h *Hazelcast, hb *HotBackup) {
+	if h.Spec.Persistence.IsEnabled() {
+		if h.Spec.Persistence.Restore.HotBackupResourceName == hb.Name && h.DeletionTimestamp==nil {
+			v.Forbidden(Path("spec", "persistence", "restore", "hotBackupResourceName"), fmt.Sprintf("Hazelcast '%s' has a restore reference to the Hotbackup", h.Name))
+		}
 	}
 }

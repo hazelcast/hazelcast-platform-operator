@@ -102,6 +102,7 @@ webhooks:
     operations:
     - CREATE
     - UPDATE
+    - DELETE
     resources:
     - hotbackups
   sideEffects: None

@@ -16,6 +16,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/matchers"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -24,6 +25,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
@@ -231,6 +233,49 @@ func TestHotBackupReconciler_shouldFailIfPersistenceNotEnabledAtHazelcast(t *tes
 		return hb.Status.State
 	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
 	Expect(hb.Status.Message).Should(ContainSubstring("Persistence must be enabled at Hazelcast"))
+}
+
+func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore(t *testing.T) {
+	RegisterFailHandler(Fail)
+	nn, h, hb := defaultCRs()
+
+	// set it as deleted
+	now := metav1.Now()
+	hb.DeletionTimestamp = &now
+	// set finalizer
+	hb.Finalizers = []string{n.Finalizer}
+
+	// enable persistence and restore from the hotbackup
+	h.Spec = hazelcastv1alpha1.HazelcastSpec{Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+		BaseDir: "/baseDir/",
+		Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+		},
+		Restore: hazelcastv1alpha1.RestoreConfiguration{
+			HotBackupResourceName: hb.Name,
+		},
+	}}
+	hs, _ := json.Marshal(h.Spec)
+	h.ObjectMeta.Annotations = map[string]string{
+		n.LastSuccessfulSpecAnnotation: string(hs),
+	}
+
+	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, &fakeHttpClientRegistry{}, h, hb)
+
+	// setup and start kubeclient for validator
+	err := kubeclient.Setup(r.Client).Start(context.Background())
+	Expect(err).Should(BeNil())
+
+	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	if err == nil {
+		t.Errorf("Error expecting Reconcile to return error")
+	}
+
+	Eventually(func() hazelcastv1alpha1.HotBackupState {
+		_ = r.Client.Get(context.TODO(), nn, hb)
+		return hb.Status.State
+	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
+	Expect(hb.Status.Message).Should(ContainSubstring(fmt.Sprintf("Hazelcast '%s' has a restore reference to the Hotbackup", h.Name)))
 }
 
 func fail(t *testing.T) func(message string, callerSkip ...int) {
