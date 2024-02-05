@@ -51,6 +51,7 @@ func EncodeDynamicConfigAddDurableExecutorConfigRequest(es *types.DurableExecuto
 
 	EncodeString(clientMessage, es.Name)
 	EncodeNullableForString(clientMessage, es.SplitBrainProtectionName)
+	EncodeNullableForString(clientMessage, es.UserCodeNamespace)
 
 	return clientMessage
 }

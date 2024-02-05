@@ -80,6 +80,8 @@ func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.C
 	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)
 	EncodeDataPersistenceConfig(clientMessage, c.DataPersistenceConfig)
 	EncodeTieredStoreConfig(clientMessage, c.TieredStoreConfig)
+	clientMessage.AddFrame(proto.NullFrame.Copy())
+	EncodeNullableForString(clientMessage, c.UserCodeNamespace)
 
 	return clientMessage
 }

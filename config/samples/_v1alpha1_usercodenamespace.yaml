@@ -1,0 +1,9 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: UserCodeNamespace
+metadata:
+  name: example
+spec:
+  hazelcastResourceName: hazelcast
+  bucketConfig:
+    secretName: br-secret-s3
+    bucketURI: "s3://hazelcast-operator-testing"

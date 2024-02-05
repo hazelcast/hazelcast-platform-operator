@@ -280,8 +280,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupWithWebhookOrDie(mgr)
+	if err = hazelcast.NewUserCodeNamespaceReconciler(
+		mgr.GetClient(),
+		controllerLogger.WithName("UserCodeNamespace"),
+		mgr.GetScheme(),
+		phoneHomeTrigger,
+		cr,
+		mtlsRegistry,
+	).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "UserCodeNamespace")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
+
+	setupWithWebhookOrDie(mgr)
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
@@ -372,6 +385,10 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 	}
 	if err := (&hazelcastcomv1alpha1.WanSync{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "WanSync")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.UserCodeNamespace{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "UserCodeNamespace")
 		os.Exit(1)
 	}
 }

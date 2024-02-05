@@ -77,6 +77,7 @@ func EncodeDynamicConfigAddCacheConfigRequest(c *types.CacheConfigInput) *proto.
 	EncodeNullableForHotRestartConfig(clientMessage, c.HotRestartConfig)
 	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)
 	EncodeDataPersistenceConfig(clientMessage, c.DataPersistenceConfig)
+	EncodeNullableForString(clientMessage, c.UserCodeNamespace)
 
 	return clientMessage
 }

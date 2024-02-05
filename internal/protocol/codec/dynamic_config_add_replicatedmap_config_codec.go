@@ -52,6 +52,7 @@ func EncodeDynamicConfigAddReplicatedMapConfigRequest(c *types.ReplicatedMapConf
 	EncodeString(clientMessage, c.MergePolicy)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.ListenerConfigs)
 	EncodeNullableForString(clientMessage, c.SplitBrainProtectionName)
+	EncodeNullableForString(clientMessage, c.UserCodeNamespace)
 
 	return clientMessage
 }
