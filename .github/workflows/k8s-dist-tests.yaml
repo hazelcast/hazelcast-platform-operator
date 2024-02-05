@@ -215,7 +215,7 @@ jobs:
           name: test-coverage
 
       - name: Publish Integration Test results to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ env.CODECOV_TOKEN }}
           files: cover-it-ee.out,cover-it-os.out
@@ -224,7 +224,7 @@ jobs:
           fail_ci_if_error: true
 
       - name: Publish Unit Test results to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ env.CODECOV_TOKEN }}
           files: cover-controllers.out,cover-internal.out,cover-api.out
