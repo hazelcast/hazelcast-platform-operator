@@ -509,6 +509,15 @@ func env(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.C
 		)
 	}
 
+	if mc.Spec.ExternalConnectivity.IsEnabled() {
+		if mc.Spec.ExternalConnectivity.Ingress.Path != "/" {
+			envs = append(envs, v1.EnvVar{
+				Name:  "MC_CONTEXT_PATH",
+				Value: mc.Spec.ExternalConnectivity.Ingress.Path,
+			})
+		}
+	}
+
 	// This env must be set after MC_LICENSE_KEY env var since it might have a reference
 	// to MC_LICENSE_KEY (e.g. -Dhazelcast.mc.license=$(MC_LICENSE_KEY)).
 	envs = append(envs,
