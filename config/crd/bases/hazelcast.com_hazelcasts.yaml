@@ -1941,7 +1941,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.3.2
+                default: 5.3.5
                 description: Version of Hazelcast Platform.
                 type: string
             type: object

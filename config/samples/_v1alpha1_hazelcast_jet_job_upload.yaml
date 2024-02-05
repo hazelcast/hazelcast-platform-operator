@@ -3,7 +3,7 @@ kind: Hazelcast
 metadata:
   name: hazelcast
 spec:
-  version: '5.3.2'
+  version: '5.3.5'
   exposeExternally:
     type: Unisocket
     discoveryServiceType: LoadBalancer
