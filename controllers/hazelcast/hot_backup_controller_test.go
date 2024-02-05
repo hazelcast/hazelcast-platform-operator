@@ -263,9 +263,10 @@ func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore
 	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, &fakeHttpClientRegistry{}, h, hb)
 
 	// setup and start kubeclient for validator
-	kubeclient.Setup(r.Client).Start(context.Background())
+	err := kubeclient.Setup(r.Client).Start(context.Background())
+	Expect(err).Should(BeNil())
 
-	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	if err == nil {
 		t.Errorf("Error expecting Reconcile to return error")
 	}
