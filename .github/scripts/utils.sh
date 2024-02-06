@@ -280,7 +280,8 @@ post_test_result()
     )
 
     # Initialize the table header
-    comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | ---- | :----: | :----: |\n"
+    success_comment="✅ All tests have passed\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
+    failed_comment="❌ Some tests failed\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
     # Initialize the failed test section
     failed_test_block="\n<details><summary>Failed Tests</summary>\n\n|||\n| :----: | ---- |\n"
 
@@ -313,14 +314,21 @@ post_test_result()
         failed_tests_row="| ${type^^} | $failed_tests |\n"
 
         # Append the row to the output
-        comment+="$row"
+        success_comment+="$row"
+        failed_comment+="$row"
         failed_test_block+="$failed_tests_row"
     done
-    comment+="$failed_test_block"
+    success_comment+="$failed_test_block"
+    failed_comment+="$failed_test_block"
     # Send the output as a comment on the pull request using gh
-    if [[ "${test_run_status[*]}" == *"true"* ]]; then
-       echo -e "$comment" | gh pr comment ${PR_NUMBER} -F -
-    fi
+    COMMENT_ID=$(gh api -H "Accept: application/vnd.github+json" \
+      /repos/hazelcast/hazelcast-platform-operator/issues/990/comments | jq '.[] | select(.user.login == "github-actions[bot]") | .id')
+    gh api --method DELETE -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/comments/$COMMENT_ID
+     if [[ "${test_run_status[*]}" == *"true"* ]]; then
+        echo -e "$failed_comment" | gh pr comment ${PR_NUMBER} -F -
+     else
+        echo -e "$success_comment" | gh pr comment ${PR_NUMBER} -F -
+     fi
 }
 
 # This function will restart all instances that are not in ready status and wait until it will be ready
