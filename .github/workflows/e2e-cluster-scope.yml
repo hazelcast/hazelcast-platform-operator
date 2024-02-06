@@ -83,7 +83,7 @@ jobs:
           - watchedNS: "*"
             testSuiteLabel: ""
           - watchedNS: "another-ns"
-            testSuiteLabel: "hz_multi_namespace"
+            testSuiteLabel: "multi_namespace"
     env:
       NAMESPACE: kind-test-operator-ee
       RELEASE_NAME: hp-ee-${{ github.run_id }}

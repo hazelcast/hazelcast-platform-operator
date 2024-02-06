@@ -1,4 +1,4 @@
-name: (E2E) High Load Tests
+name: (E2E) Misc Platform Tests
 on:
   workflow_dispatch:
   workflow_call:
@@ -86,7 +86,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -148,7 +148,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -189,6 +189,9 @@ jobs:
         run: |
           kubectl create secret generic hazelcast-license-key \
             --namespace ${NAMESPACE} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+          
+          kubectl create secret generic br-secret-gcp \
+            --namespace ${{ env.NAMESPACE }} --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
 
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
@@ -198,7 +201,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-high-load NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=high-load
+          make test-e2e E2E_TEST_SUITE="rolling_upgrade || rollout_restart || platform_persistence" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
 
       - name: Clean up after Tests
         if: always()
@@ -220,7 +223,7 @@ jobs:
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
-      WORKFLOW_ID: high-load
+      WORKFLOW_ID: platform
       CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
 
   cleanup-namespaces:
@@ -277,7 +280,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
         with:
           secret-ids: |
             SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL

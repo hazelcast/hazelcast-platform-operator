@@ -1,4 +1,4 @@
-name: (E2E) Istio Tests on GKE
+name: (E2E) Istio Tests
 on:
   workflow_dispatch:
   schedule:

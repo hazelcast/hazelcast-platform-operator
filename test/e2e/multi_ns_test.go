@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
+var _ = Describe("Hazelcast Multi-Namespace", Label("multi_namespace"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -35,25 +35,26 @@ var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should create HZ cluster with custom name and update HZ ready members status in multi-ns", Label("slow"), func() {
-		if deployNamespace != "" {
-			setCRNamespace(deployNamespace)
-		}
-
-		setLabelAndCRName("h-1")
-		hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-		assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
-		evaluateReadyMembers(hzLookupKey)
-		assertMemberLogs(hazelcast, "Members {size:3, ver:3}")
-
-		By("removing pods so that cluster gets recreated", func() {
-			deletePods(hzLookupKey)
+	Context("Hazelcast creation", func() {
+		It("should create HZ cluster with custom name and update HZ ready members status in multi-ns", Label("slow"), func() {
+			if deployNamespace != "" {
+				setCRNamespace(deployNamespace)
+			}
+			setLabelAndCRName("mns-1")
+			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
+			CreateHazelcastCR(hazelcast)
+			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
 			evaluateReadyMembers(hzLookupKey)
+			assertMemberLogs(hazelcast, "Members {size:3, ver:3}")
+
+			By("removing pods so that cluster gets recreated", func() {
+				deletePods(hzLookupKey)
+				evaluateReadyMembers(hzLookupKey)
+			})
 		})
 	})
 
-	Describe("Hazelcast CR dependent CRs", func() {
+	Describe("Hazelcast deletion", func() {
 		When("Hazelcast CR is deleted", func() {
 			It("dependent Data Structures and HotBackup CRs should be deleted in multi-ns", Label("fast"), func() {
 				if deployNamespace != "" {
@@ -63,7 +64,7 @@ var _ = Describe("Hazelcast", Label("hz_multi_namespace"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-				setLabelAndCRName("h-7")
+				setLabelAndCRName("mns-2")
 				clusterSize := int32(3)
 
 				hz := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)

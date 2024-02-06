@@ -17,7 +17,7 @@ import (
 	. "time"
 )
 
-var _ = Describe("Hazelcast High Load Tests", Label("soak"), func() {
+var _ = Describe("Platform Soak Tests", Label("soak"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -95,14 +95,14 @@ var _ = Describe("Hazelcast High Load Tests", Label("soak"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		By("create the map config")
-		CreateMaps(ctx, numMaps, hazelcast.Name, hazelcast)
+		ConcurrentlyCreateMaps(ctx, numMaps, hazelcast.Name, hazelcast)
 		sizeForCycleInMb := 0
 		for cycle := 1; cycle <= totalPauseResumeCycles; cycle++ {
 			By(fmt.Sprintf("putting %d entries", mapSizeInMb*128))
 			for repeat := 1; repeat <= totalFillRepeats; repeat++ {
 				sizeForRepeat := sizeForCycleInMb + repeat*mapSizeInMb
 				By(fmt.Sprintf("expected total entries for repeat %d in cycle %d must be: %d\n", repeat, cycle, sizeForRepeat*128))
-				FillMaps(ctx, numMaps, mapSizeInMb, hazelcast.Name, sizeForRepeat, hazelcast)
+				ConcurrentlyFillMultipleMapsByMb(ctx, numMaps, mapSizeInMb, hazelcast.Name, sizeForRepeat, hazelcast)
 				Sleep(pauseBetweenFills)
 			}
 			sizeForCycleInMb += totalFillRepeats * mapSizeInMb
