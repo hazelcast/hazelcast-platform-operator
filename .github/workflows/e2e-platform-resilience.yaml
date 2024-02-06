@@ -1,26 +1,25 @@
-name: (E2E) Phone Home Tests on GKE
+name: (E2E) Platform Resilience Tests on GKE
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9 * * *"
+    - cron: "0 9 */3 * *"
 
 env:
   GCP_PROJECT_ID: hazelcast-33
-  GKE_ZONE: us-east1-b
-  BIG_QUERY_TABLE: hazelcast-33.callHome.operator_info
-  GAR_REGION: us-east1
-  GAR_PROJECT: hazelcast-33
-  GAR_REPO: hazelcast-platform-operator
+  CLOUD_KEY_SECRET_NAME: cloud-key-secret
+  CHAOS_MESH_NAMESPACE: chaos-mesh
   AWS_REGION: us-east-1
 
 jobs:
   create-gke-cluster:
-    name: Create GKE cluster
+    name: Create GKE Cluster
     runs-on: ubuntu-latest
     outputs:
       CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
+      GKE_REGION: ${{ steps.set-cluster-name.outputs.GKE_REGION }}
     env:
       GCP_NETWORK: operator-test-network
+      GKE_REGION: europe-west1
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.1
@@ -43,14 +42,16 @@ jobs:
       - name: Create GKE cluster
         id: set-cluster-name
         run: |-
-          CLUSTER_NAME="operator-ph-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-ha-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
+          echo "GKE_REGION=${GKE_REGION}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
-            --zone=${{ env.GKE_ZONE }} \
+            --region=${{ env.GKE_REGION }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-2 \
-            --num-nodes=3
+            --num-nodes=2 \
+            --node-locations "${GKE_REGION}-c","${GKE_REGION}-d"
           sleep 30
 
   grafana-setup:
@@ -59,86 +60,45 @@ jobs:
     secrets: inherit
     with:
       cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      cluster_type: gke-phone-home
+      cluster_type: gke-high-availability
+      gke_zone: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
-      namespaces: test-operator-ph-nightly-ee
+      namespaces: "test-operator-high-availability"
 
   get-image:
     name: Get Image
     runs-on: ubuntu-latest
     outputs:
-      IMG: ${{ steps.get-image-tag.outputs.IMG }}
-      VERSION: ${{ steps.get-image-tag.outputs.VERSION }}
+      IMG: ${{ steps.build-img.outputs.IMG }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set Up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
-        with:
-          install: true
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v2
-        with:
-          secret-ids: |
-            GKE_SA_KEY,CN/GKE_SA_KEY
-
-      - name: Authenticate to GAR
-        uses: docker/login-action@v3
-        with:
-          registry: us-east1-docker.pkg.dev
-          username: _json_key
-          password: ${{ env.GKE_SA_KEY }}
-
-      - name: Generate Image Name
-        id: get-image-tag
+      - name: Build and push image to ttl.sh
+        id: build-img
         run: |
           if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
-            echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
-            echo "VERSION=${{github.sha}}" >> $GITHUB_OUTPUT
+            IMG=ttl.sh/$(uuidgen):2h
+            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+            make docker-push IMG=$IMG
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
           else
             IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
             echo "IMG=${IMG}" >> $GITHUB_OUTPUT
-            echo "VERSION=latest-snapshot" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build Image
-        if: github.event_name == 'workflow_dispatch'
-        uses: docker/build-push-action@v5.1.0
-        with:
-          context: .
-          builder: ${{ steps.buildx.outputs.name }}
-          build-args: |
-            version=${{github.sha}}
-            pardotID=dockerhub
-          file: Dockerfile
-          push: true
-          tags: ${{ steps.get-image-tag.outputs.IMG }}
-          cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
-          cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
-
-  gke-ph-tests:
-    name: Run PhoneHome tests
+  gke-high-availability-tests:
+    name: Run High Availability tests
     runs-on: ubuntu-latest
-    needs: [create-gke-cluster, grafana-setup, get-image]
+    needs: [ create-gke-cluster, grafana-setup, get-image ]
     env:
       IMG: ${{ needs.get-image.outputs.IMG }}
-      VERSION: ${{ needs.get-image.outputs.VERSION }}
-      NAMESPACE: test-operator-ph-nightly-ee
-      PHONE_HOME_ENABLED: true
+      NAMESPACE: test-operator-high-availability
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      RELEASE_NAME: hp-ee-${{ github.run_id }}
-
+      GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
+      RELEASE_NAME: high-availability-${{ github.run_id }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -171,74 +131,77 @@ jobs:
         with:
           cluster_name: ${{ env.CLUSTER_NAME }}
           project_id: ${{ env.GCP_PROJECT_ID }}
-          location: ${{ env.GKE_ZONE }}
-
-      - name: Authenticate to GAR
-        uses: docker/login-action@v3
-        with:
-          registry: us-east1-docker.pkg.dev
-          username: _json_key
-          password: ${{ env.GKE_SA_KEY }}
+          location: ${{ env.GKE_REGION }}
 
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
           kubectl config set-context --current --namespace=$NAMESPACE
-
+          
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
-
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME PHONE_HOME_ENABLED=${{ env.PHONE_HOME_ENABLED }}
           kubectl rollout status deployment $DEPLOY_NAME
+
+      - name: Deploy ChaosMesh to GKE
+        run: |
+          helm repo add chaos-mesh https://charts.chaos-mesh.org
+          kubectl create ns ${CHAOS_MESH_NAMESPACE}
+          helm install chaos-mesh chaos-mesh/chaos-mesh -n=${CHAOS_MESH_NAMESPACE} --version 2.5.1
+          kubectl get po -n ${CHAOS_MESH_NAMESPACE}
 
       - name: Create secrets
         run: |
           kubectl create secret generic hazelcast-license-key \
-            --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+            --namespace ${NAMESPACE} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
-      - name: Run Hazelcast Phone Home tests at GKE
-        id: ph-test
-        run: |
-          make test-ph GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=ph
+          GKE_SA_BASE64=$(echo -E '${{ env.GKE_SA_KEY }}' | base64)
+          kubectl create secret generic ${CLOUD_KEY_SECRET_NAME} \
+            --namespace ${CHAOS_MESH_NAMESPACE} --from-literal=service_account="$GKE_SA_BASE64"
+
+      - name: Run Resilience tests at GKE
+        run: make test-e2e E2E_TEST_SUITE="resilience" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=resilience
 
       - name: Clean up after Tests
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
+          helm uninstall chaos-mesh -n ${CHAOS_MESH_NAMESPACE}
 
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report-ph
-          path: allure-results/ph/
+          name: test-report-high-availability
+          path: allure-results/high-availability/
 
   report-generation:
-    needs: ["create-gke-cluster", "gke-ph-tests"]
-    if: always() && (needs.gke-ph-tests.result == 'success' || needs.gke-ph-tests.result == 'failure')
+    needs: [ "create-gke-cluster", "gke-high-availability-tests" ]
+    if: always() && (needs.gke-high-availability-tests.result == 'success' || needs.gke-high-availability-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
-      WORKFLOW_ID: ph
+      WORKFLOW_ID: high-availability
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
   cleanup-namespaces:
     if: always()
-    needs: ["create-gke-cluster", "gke-ph-tests"]
+    needs: ["create-gke-cluster", "gke-high-availability-tests"]
     uses: ./.github/workflows/cleanup-namespace.yaml
     secrets: inherit
     with:
       cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      cluster_type: gke-phone-home
-      namespaces: "test-operator-ph-nightly-ee,grafana"
+      cluster_type: gke-high-availability
+      gke_zone: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
+      namespaces: "test-operator-high-availability,grafana"
 
   delete-cluster:
-    name: Delete PhoneHome cluster
+    name: Delete High Availability cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: [create-gke-cluster, gke-ph-tests, cleanup-namespaces]
+    needs: [ create-gke-cluster, gke-high-availability-tests, cleanup-namespaces ]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -263,12 +226,12 @@ jobs:
 
       - name: Delete GKE cluster
         run: |-
-          gcloud container clusters delete ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --quiet
+          gcloud container clusters delete ${{ env.CLUSTER_NAME }} --region ${{ env.GKE_REGION }} --quiet
 
   slack_notify:
     name: Slack Notify
-    needs: ["gke-ph-tests", "delete-cluster"]
-    if: always() &&  ( needs.gke-ph-tests.result != 'success' || needs.delete-cluster.result != 'success')
+    needs: [ "gke-high-availability-tests", "delete-cluster" ]
+    if: always() &&  ( needs.gke-high-availability-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials

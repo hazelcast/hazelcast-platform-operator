@@ -20,7 +20,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast High Availability", Label("high_availability"), func() {
+var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 	ctx := context.Background()
 
 	BeforeEach(func() {
@@ -70,7 +70,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 	})
 
 	It("should have no data lose after node outage", Label("slow"), func() {
-		setLabelAndCRName("hha-1")
+		setLabelAndCRName("hr-1")
 
 		ctx := context.Background()
 		numberOfNodes, err := numberOfAllNodes(ctx)
@@ -88,7 +88,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 		mapName := "ha-test-map"
 		mapSize := 30000
-		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)
+		FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 
 		By("detecting the node which the operator is running on")
@@ -124,7 +124,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 	})
 
 	It("should have no data lose after zone outage", Label("slow"), func() {
-		setLabelAndCRName("hha-2")
+		setLabelAndCRName("hr-2")
 
 		ctx := context.Background()
 		numberOfNodes, err := numberOfAllNodes(ctx)
@@ -142,7 +142,7 @@ var _ = Describe("Hazelcast High Availability", Label("high_availability"), func
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 		mapName := "ha-test-map"
 		mapSize := 30000
-		FillTheMapData(ctx, hzLookupKey, true, mapName, mapSize)
+		FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 
 		By("detecting the node which the operator is running on")
