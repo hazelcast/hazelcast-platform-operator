@@ -32,7 +32,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
@@ -188,7 +188,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
@@ -273,7 +273,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -359,7 +359,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -436,7 +436,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
@@ -501,7 +501,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
@@ -546,7 +546,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             OPENSCAP_SCANHOST,CN/OPENSCAP_SCANHOST
