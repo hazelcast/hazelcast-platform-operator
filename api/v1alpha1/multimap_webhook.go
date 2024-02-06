@@ -5,6 +5,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -21,19 +22,19 @@ func (r *MultiMap) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &MultiMap{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *MultiMap) ValidateCreate() error {
+func (r *MultiMap) ValidateCreate() (admission.Warnings, error) {
 	multimaplog.Info("validate create", "name", r.Name)
-	return r.ValidateSpecCreate()
+	return admission.Warnings{}, r.ValidateSpecCreate()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *MultiMap) ValidateUpdate(old runtime.Object) error {
+func (r *MultiMap) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	multimaplog.Info("validate update", "name", r.Name)
-	return r.ValidateSpecUpdate()
+	return admission.Warnings{}, r.ValidateSpecUpdate()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *MultiMap) ValidateDelete() error {
+func (r *MultiMap) ValidateDelete() (admission.Warnings, error) {
 	multimaplog.Info("validate delete", "name", r.Name)
-	return nil
+	return admission.Warnings{}, nil
 }

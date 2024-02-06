@@ -35,8 +35,8 @@ import (
 
 	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -1969,7 +1969,7 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 			},
 			Spec: v1.PersistentVolumeClaimSpec{
 				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
-				Resources: v1.ResourceRequirements{
+				Resources: v1.VolumeResourceRequirements{
 					Requests: v1.ResourceList{
 						corev1.ResourceStorage: *h.Spec.Persistence.Pvc.RequestStorage,
 					},

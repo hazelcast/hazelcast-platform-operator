@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/ptr"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -827,7 +827,7 @@ var _ = Describe("Hazelcast CR", func() {
 				}, Equal(
 					corev1.PersistentVolumeClaimSpec{
 						AccessModes: fetchedCR.Spec.Persistence.Pvc.AccessModes,
-						Resources: corev1.ResourceRequirements{
+						Resources: corev1.VolumeResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceStorage: *fetchedCR.Spec.Persistence.Pvc.RequestStorage,
 							},

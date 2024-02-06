@@ -10,9 +10,8 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY main.go main.go
+COPY cmd/main.go cmd/main.go
 COPY api/ api/
-COPY controllers/ controllers/
 COPY internal/ internal/
 
 # Build
@@ -29,12 +28,12 @@ ENV OPERATOR_VERSION=${version}
 ENV PARDOT_ID=${pardotID}
 
 LABEL name="Hazelcast Platform Operator" \
-      maintainer="info@hazelcast.com" \
-      vendor="Hazelcast, Inc." \
-      version=$version \
-      release="1" \
-      summary="Hazelcast Platform Operator Image" \
-      description="Hazelcast Platform Operator Image"
+    maintainer="info@hazelcast.com" \
+    vendor="Hazelcast, Inc." \
+    version=$version \
+    release="1" \
+    summary="Hazelcast Platform Operator Image" \
+    description="Hazelcast Platform Operator Image"
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
