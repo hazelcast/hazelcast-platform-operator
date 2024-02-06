@@ -25,6 +25,7 @@ type WanSyncReconciler struct {
 	logr.Logger
 	Scheme           *runtime.Scheme
 	clientRegistry   hzclient.ClientRegistry
+	wanSyncService   *hzclient.WanSyncService
 	phoneHomeTrigger chan struct{}
 }
 
@@ -35,6 +36,7 @@ func NewWanSyncReconciler(c client.Client, log logr.Logger, scheme *runtime.Sche
 		Scheme:           scheme,
 		clientRegistry:   cs,
 		phoneHomeTrigger: pht,
+		wanSyncService:   hzclient.NewWanSyncService(cs),
 	}
 }
 
@@ -115,16 +117,13 @@ func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *WanSyncReconciler) runWanSyncJobs(ctx context.Context, maps map[string][]hazelcastv1alpha1.Map, wan *hazelcastv1alpha1.WanSync, wr *hazelcastv1alpha1.WanReplication, logger logr.Logger) error {
+	wsrs := make([]hzclient.WanSyncMapRequest, 0)
 	for hzResourceName, mps := range maps {
 		h := &hazelcastv1alpha1.Hazelcast{}
 		if err := r.Client.Get(ctx, types.NamespacedName{Name: hzResourceName, Namespace: wan.Namespace}, h); err != nil {
 			return fmt.Errorf("failed to get Hazelcast CR for WAN Sync: %w", err)
 		}
-		hzClient, err := r.clientRegistry.GetOrCreate(ctx, types.NamespacedName{Name: hzResourceName, Namespace: wan.Namespace})
-		if err != nil {
-			return fmt.Errorf("failed to get Hazelcast client: %w", err)
-		}
-		wsrs := make([]hzclient.WanSyncMapRequest, 0, len(maps))
+		logger.Info("Maps size", "size", len(mps))
 		for _, m := range mps {
 			mapWanKey := wanMapKey(hzResourceName, m.MapName())
 			if m.Status.State != hazelcastv1alpha1.MapSuccess {
@@ -144,11 +143,12 @@ func (r *WanSyncReconciler) runWanSyncJobs(ctx context.Context, maps map[string]
 				types.NamespacedName{Name: hzResourceName, Namespace: wan.Namespace},
 				wan.Name, m.MapName(), wanName(m.MapName()), wr.PublisherId(m.Name)))
 		}
-		if len(wsrs) == 0 {
-			return nil
-		}
-		hzclient.StartSyncJob(ctx, hzClient, r.stateEventUpdate(ctx, wan, logger), wsrs, logger)
 	}
+	if len(wsrs) == 0 {
+		return nil
+	}
+	r.wanSyncService.AddWanSyncRequests(types.NamespacedName{Name: wan.Name, Namespace: wan.Namespace}, wsrs)
+	r.wanSyncService.StartSyncJob(ctx, r.stateEventUpdate(ctx, wan, logger), logger)
 	return nil
 }
 
