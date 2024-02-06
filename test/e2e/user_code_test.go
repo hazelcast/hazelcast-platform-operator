@@ -17,7 +17,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func() {
+var _ = Describe("Hazelcast User Code Deployment", Label("user_code"), func() {
 	localPort := strconv.Itoa(8800 + GinkgoParallelProcess())
 
 	AfterEach(func() {
@@ -33,9 +33,9 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	DescribeTable("should use the MapStore implementation correctly", Label("slow"),
+	DescribeTable("verify correct implementation of MapStore in Hazelcast CR:", Label("fast"),
 		func(secretName, url string) {
-			setLabelAndCRName("hmcc-1")
+			setLabelAndCRName("hcc-1")
 			propSecretName := "prop-secret"
 			msClassName := "SimpleStore"
 
@@ -107,8 +107,8 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		Entry("using user code from remote url", Label("slow"), "", "https://storage.googleapis.com/operator-user-code-urls-public/mapStore_mapstore-1.0.0.jar"),
 	)
 
-	It("should add executor services both initially and dynamically", Label("fast"), func() {
-		setLabelAndCRName("hcc-1")
+	It("test for adding and verifying executor services initially and dynamically in Hazelcast CR", Label("fast"), func() {
+		setLabelAndCRName("hcc-2")
 
 		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
 			{
@@ -177,8 +177,8 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
-	It("should add entry listeners", Label("fast"), func() {
-		setLabelAndCRName("hel-1")
+	It("verify addition of entry listeners in Hazelcast map using user code from secret bucket", Label("fast"), func() {
+		setLabelAndCRName("hcc-3")
 
 		h := hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)
 		CreateHazelcastCR(h)

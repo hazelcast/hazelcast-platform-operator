@@ -1,4 +1,4 @@
-name: (E2E) Wan Replication Tests on GKE
+name: (E2E) Platform Wan Replication Tests
 on:
   workflow_dispatch:
   schedule:
@@ -276,7 +276,7 @@ jobs:
 
       - name: Run Wan Test
         run: |-
-          make test-e2e NAMESPACE=src-ns RELEASE_NAME=src-ns E2E_TEST_SUITE=hz_wan_slow REPORT_SUFFIX=ee_01 WORKFLOW_ID=wan
+          make test-e2e NAMESPACE=src-ns RELEASE_NAME=src-ns E2E_TEST_SUITE=platform_wan REPORT_SUFFIX=ee_01 WORKFLOW_ID=wan
 
       - name: Upload Test Report
         if: always()
