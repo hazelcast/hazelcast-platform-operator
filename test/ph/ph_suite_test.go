@@ -14,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	. "github.com/hazelcast/hazelcast-platform-operator/test"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -26,7 +25,6 @@ var controllerManagerName = types.NamespacedName{
 
 func TestPhoneHome(t *testing.T) {
 	RegisterFailHandler(Fail)
-	SpecLabelsChecker()
 	RunSpecs(t, GetSuiteName())
 }
 

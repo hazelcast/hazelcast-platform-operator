@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"k8s.io/apimachinery/pkg/watch"
 	"log"
 	"net"
 	"net/http"
@@ -22,6 +21,7 @@ import (
 	. "time"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
@@ -36,7 +36,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
@@ -51,7 +53,6 @@ import (
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
-	"github.com/hazelcast/hazelcast-platform-operator/test"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
@@ -62,7 +63,7 @@ type UpdateFn func(*hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelc
 func InitLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 	var logs io.ReadCloser
 	By("getting Hazelcast logs", func() {
-		logs = test.GetPodLogs(context.Background(), types.NamespacedName{
+		logs = GetPodLogs(context.Background(), types.NamespacedName{
 			Name:      lk.Name + "-0",
 			Namespace: lk.Namespace,
 		}, &corev1.PodLogOptions{
@@ -77,7 +78,7 @@ func InitLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 func SidecarAgentLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 	var logs io.ReadCloser
 	By("getting sidecar agent logs", func() {
-		logs = test.GetPodLogs(context.Background(), types.NamespacedName{
+		logs = GetPodLogs(context.Background(), types.NamespacedName{
 			Name:      lk.Name + "-0",
 			Namespace: lk.Namespace,
 		}, &corev1.PodLogOptions{
@@ -811,7 +812,7 @@ func assertCacheConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, cach
 // assertMemberLogs check that the given expected string can be found in the logs.
 // expected can be a regexp pattern.
 func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
-	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
+	logs := GetPodLogs(context.Background(), types.NamespacedName{
 		Name:      h.Name + "-0",
 		Namespace: h.Namespace,
 	}, &corev1.PodLogOptions{
@@ -1280,4 +1281,28 @@ func labelsString() string {
 		list = append(list, key+"="+val)
 	}
 	return strings.Join(list, ",")
+}
+
+func GetPodLogs(ctx context.Context, pod types.NamespacedName, podLogOptions *corev1.PodLogOptions) io.ReadCloser {
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
+	config, err := kubeConfig.ClientConfig()
+	if err != nil {
+		panic(err)
+	}
+	// creates the clientset
+	clientset := kubernetes.NewForConfigOrDie(config)
+	p, err := clientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, v1.GetOptions{})
+	if err != nil {
+		panic(err)
+	}
+	if p.Status.Phase != corev1.PodFailed && p.Status.Phase != corev1.PodRunning {
+		panic("Unable to get pod logs for the pod in Phase " + p.Status.Phase)
+	}
+	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, podLogOptions)
+	podLogs, err := req.Stream(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	return podLogs
 }
