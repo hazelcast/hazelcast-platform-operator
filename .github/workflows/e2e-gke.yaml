@@ -1,4 +1,4 @@
-name: (E2E) GCP Tests
+name: (E2E) GKE Tests
 on:
   workflow_dispatch:
   workflow_call:
@@ -47,7 +47,7 @@ jobs:
             --zone=${{ env.GKE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
-            --machine-type=n1-standard-2 \
+            --machine-type=n1-standard-16 \
             --num-nodes=3
           sleep 30
 
