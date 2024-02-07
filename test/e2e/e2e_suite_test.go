@@ -17,7 +17,6 @@ import (
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
-	. "github.com/hazelcast/hazelcast-platform-operator/test"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -30,7 +29,6 @@ var controllerManagerName = types.NamespacedName{
 
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	SpecLabelsChecker()
 	RunSpecs(t, GetSuiteName())
 }
 
