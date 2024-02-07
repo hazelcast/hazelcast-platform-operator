@@ -11,7 +11,7 @@ import (
 )
 
 var _ = Describe("Hazelcast WAN Sync", Label("wan_sync"), func() {
-	localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
+	localPort := strconv.Itoa(9200 + GinkgoParallelProcess())
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())

@@ -202,7 +202,7 @@ test-it-focus: manifests generate fmt vet envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -coverprofile $(COVER_OUT) $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
 
-E2E_TEST_SUITE ?= hz || mc || backup_restore || expose_externally || map || hz_wan || user_code || multimap || topic || replicatedmap || queue || cache || resilience || backup || jetjob || jetjobsnapshot || wan_sync
+E2E_TEST_SUITE ?= hz || mc || backup_restore || expose_externally || map || hz_wan || user_code || multimap || topic || replicatedmap || queue || cache || jetjob || jetjobsnapshot || wan_sync
 ifeq (,$(E2E_TEST_SUITE))
 E2E_TEST_LABELS =
 else 

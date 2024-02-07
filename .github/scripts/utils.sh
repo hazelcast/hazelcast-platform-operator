@@ -375,13 +375,10 @@ generate_test_suites()
    SUITE_LIST=$(find test/e2e -type f \
      -name "*_test.go" \
    ! -name "platform_persistence_test.go" \
-   ! -name "platform_persistence_resilience_test.go" \
    ! -name "platform_wan_test.go" \
    ! -name "platform_resilience_test.go" \
    ! -name "platform_rolling_upgrade_test.go" \
    ! -name "platform_rollout_restart_test.go" \
-   ! -name "platform_tiered_storage_resilience_test.go" \
-   ! -name "platform_tiered_storage_test.go" \
    ! -name "platform_soak_test.go" \
    ! -name "custom_resource_test.go" \
    ! -name "client_port_forward_test.go" \
