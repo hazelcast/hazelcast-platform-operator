@@ -39,7 +39,7 @@ var _ = Describe("Hazelcast Properties", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			ensureHzStatusIsPending(hz)
+			assertHzStatusIsPending(hz)
 
 			Eventually(func() map[string]string {
 				cfg := getSecret(hz)
@@ -70,7 +70,7 @@ var _ = Describe("Hazelcast Properties", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			ensureHzStatusIsPending(hz)
+			assertHzStatusIsPending(hz)
 
 			Eventually(func() map[string]string {
 				cfg := getSecret(hz)

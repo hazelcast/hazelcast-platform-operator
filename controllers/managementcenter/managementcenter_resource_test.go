@@ -154,6 +154,69 @@ func Test_mcInitCmd(t *testing.T) {
 	}
 }
 
+func Test_getContextPath(t *testing.T) {
+	tests := []struct {
+		name string
+		mc   *hazelcastv1alpha1.ManagementCenter
+		want string
+	}{
+		{
+			name: "No external connectivity",
+			mc: &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Spec: hazelcastv1alpha1.ManagementCenterSpec{
+					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
+				},
+			},
+			want: "/",
+		},
+		{
+			name: "External connectivity with Ingress using default path",
+			mc: &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Spec: hazelcastv1alpha1.ManagementCenterSpec{
+					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
+					ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+						Ingress: &hazelcastv1alpha1.ExternalConnectivityIngress{
+							Path: "/",
+						},
+					},
+				},
+			},
+			want: "/",
+		},
+		{
+			name: "External connectivity with Ingress using custom path",
+			mc: &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Spec: hazelcastv1alpha1.ManagementCenterSpec{
+					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
+					ExternalConnectivity: &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+						Ingress: &hazelcastv1alpha1.ExternalConnectivityIngress{
+							Path: "/mc",
+						},
+					},
+				},
+			},
+			want: "/mc",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if contextPath := getContextPath(test.mc); contextPath != test.want {
+				t.Errorf("getContextPath() = %v, want %v", contextPath, test.want)
+			}
+		})
+	}
+}
+
 func fakeK8sClient(initObjs ...client.Object) client.Client {
 	coreScheme, _ := (&scheme.Builder{GroupVersion: corev1.SchemeGroupVersion}).
 		Register(&v1.ClusterRole{}, &v1.ClusterRoleBinding{}, &corev1.Secret{}).

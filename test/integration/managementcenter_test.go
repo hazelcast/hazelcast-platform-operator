@@ -229,6 +229,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				IngressClassName: "traefik",
 				Annotations:      map[string]string{"app": "hazelcast-mc", "management-center": "ingress"},
 				Hostname:         "mc.app",
+				Path:             "/mc",
 			}
 			fetchedMc.Spec.ExternalConnectivity.Ingress = updatedExternalConnectivityIngress
 			Update(fetchedMc)
@@ -240,6 +241,9 @@ var _ = Describe("ManagementCenter CR", func() {
 			Expect(ing.Annotations).Should(Equal(updatedExternalConnectivityIngress.Annotations))
 			Expect(ing.Spec.Rules).Should(HaveLen(1))
 			Expect(ing.Spec.Rules[0].Host).Should(Equal(updatedExternalConnectivityIngress.Hostname))
+			Expect(ing.Spec.Rules[0].HTTP.Paths).Should(HaveLen(1))
+			Expect(ing.Spec.Rules[0].HTTP.Paths[0].Path).Should(Equal(updatedExternalConnectivityIngress.Path))
+			Expect(*ing.Spec.Rules[0].HTTP.Paths[0].PathType).Should(Equal(networkingv1.PathTypePrefix))
 			Expect(ing.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedMc.Spec.ExternalConnectivity.Ingress = nil
@@ -247,6 +251,37 @@ var _ = Describe("ManagementCenter CR", func() {
 			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(BeNil())
 			EnsureStatusIsPending(mc)
 			assertDoesNotExist(lookupKey(mc), ing)
+		})
+
+		It("should configure contextPath when custom path is set in Ingress", func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+			}
+
+			mc.Spec.ExternalConnectivity = &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Ingress: &hazelcastv1alpha1.ExternalConnectivityIngress{
+					IngressClassName: "nginx",
+					Annotations:      map[string]string{"app": "hazelcast-mc"},
+					Hostname:         "mancenter",
+					Path:             "/mc",
+				},
+			}
+
+			Create(mc)
+			fetchedMc := EnsureStatusIsPending(mc)
+			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
+
+			By("checking contextPath configuration")
+			fetchedSts := &appsv1.StatefulSet{}
+			assertExists(lookupKey(fetchedMc), fetchedSts)
+			Expect(fetchedSts.Spec.Template.Spec.Containers).To(HaveLen(1))
+			assertEnvVar(fetchedSts.Spec.Template.Spec.Containers[0], "JAVA_OPTS", func(envvar corev1.EnvVar) bool {
+				return strings.Contains(envvar.Value, "-Dhazelcast.mc.contextPath=/mc")
+			})
+
+			By("checking liveness probe path")
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/mc/health"))
 		})
 	})
 

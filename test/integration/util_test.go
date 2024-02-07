@@ -141,13 +141,23 @@ func randomObjectMeta(ns string, annotations ...string) metav1.ObjectMeta {
 	}
 }
 
-func ensureHzStatusIsPending(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+func assertHzStatusIsPending(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 	By("ensuring that the status is correct")
 	Eventually(func() hazelcastv1alpha1.Phase {
 		hz = fetchHz(hz)
 		return hz.Status.Phase
 	}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
 	return hz
+}
+
+func assertEnvVar(cnt corev1.Container, name string, f func(corev1.EnvVar) bool) {
+	for _, envvar := range cnt.Env {
+		if envvar.Name == name {
+			Expect(f(envvar)).To(BeTrue())
+			return
+		}
+	}
+	Fail(fmt.Sprintf("env var %q not found", name))
 }
 
 func fetchHz(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {

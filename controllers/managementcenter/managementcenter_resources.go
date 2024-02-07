@@ -257,7 +257,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 						LivenessProbe: &v1.Probe{
 							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
-									Path:   "/health",
+									Path:   path.Join(getContextPath(mc), "health"),
 									Port:   intstr.FromInt(8081),
 									Scheme: corev1.URISchemeHTTP,
 								},
@@ -334,6 +334,13 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		logger.Info("Operation result", "Statefulset", mc.Name, "result", opResult)
 	}
 	return err
+}
+
+func getContextPath(mc *hazelcastv1alpha1.ManagementCenter) string {
+	if mc.Spec.ExternalConnectivity.IsEnabled() && mc.Spec.ExternalConnectivity.Ingress != nil {
+		return mc.Spec.ExternalConnectivity.Ingress.Path
+	}
+	return "/"
 }
 
 func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
@@ -509,15 +516,6 @@ func env(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.C
 		)
 	}
 
-	if mc.Spec.ExternalConnectivity.IsEnabled() {
-		if mc.Spec.ExternalConnectivity.Ingress.Path != "/" {
-			envs = append(envs, v1.EnvVar{
-				Name:  "MC_CONTEXT_PATH",
-				Value: mc.Spec.ExternalConnectivity.Ingress.Path,
-			})
-		}
-	}
-
 	// This env must be set after MC_LICENSE_KEY env var since it might have a reference
 	// to MC_LICENSE_KEY (e.g. -Dhazelcast.mc.license=$(MC_LICENSE_KEY)).
 	envs = append(envs,
@@ -576,7 +574,12 @@ func javaOPTS(mc *hazelcastv1alpha1.ManagementCenter) string {
 	}
 
 	if mc.Spec.GetLicenseKeySecretName() != "" {
-		args = append(args, "-Dhazelcast.mc.license=$(MC_LICENSE_KEY)")
+		licenseKeyEnvVarReference := fmt.Sprintf("$(%s)", mcLicenseKey)
+		args = append(args, fmt.Sprintf("-Dhazelcast.mc.license=%s", licenseKeyEnvVarReference))
+	}
+
+	if mc.Spec.ExternalConnectivity.IsEnabled() && mc.Spec.ExternalConnectivity.Ingress != nil {
+		args = append(args, fmt.Sprintf("-Dhazelcast.mc.contextPath=%s", getContextPath(mc)))
 	}
 
 	if mc.Spec.JVM.IsConfigured() {
