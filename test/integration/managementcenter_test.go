@@ -214,7 +214,10 @@ var _ = Describe("ManagementCenter CR", func() {
 
 			Update(fetchedMc)
 			fetchedMc = EnsureStatusIsPending(mc)
-			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(externalConnectivityIngress))
+
+			expectedExternalConnectivityIngress := externalConnectivityIngress.DeepCopy()
+			expectedExternalConnectivityIngress.Path = "/"
+			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(expectedExternalConnectivityIngress))
 			assertExists(lookupKey(mc), ing)
 			Expect(*ing.Spec.IngressClassName).Should(Equal(externalConnectivityIngress.IngressClassName))
 			Expect(ing.Annotations).Should(Equal(externalConnectivityIngress.Annotations))
@@ -253,7 +256,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			assertDoesNotExist(lookupKey(mc), ing)
 		})
 
-		It("should configure contextPath when custom path is set in Ingress", func() {
+		It("should configure contextPath when custom path is set in Ingress", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
