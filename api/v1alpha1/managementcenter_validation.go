@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
@@ -42,6 +43,9 @@ func (v *managementCenterValidator) validateSpecCurrent(mc *ManagementCenter) {
 	}
 	if mc.Spec.SecurityProviders != nil {
 		v.validateSecurityProviders(mc.Spec.SecurityProviders, mc.Namespace)
+	}
+	if mc.Spec.ExternalConnectivity.IsEnabled() {
+		v.validateExternalConnectivity(mc.Spec.ExternalConnectivity)
 	}
 }
 
@@ -131,5 +135,13 @@ func (v *managementCenterValidator) validateSecurityProviders(config *SecurityPr
 		// we care only about not found error
 		v.NotFound(p, "Management Center LDAP credentials Secret not found")
 		return
+	}
+}
+
+func (v *managementCenterValidator) validateExternalConnectivity(config *ExternalConnectivityConfiguration) {
+	if config.Ingress != nil {
+		if !path.IsAbs(config.Ingress.Path) {
+			v.Invalid(Path("spec", "externalConnectivity", "ingress", "path"), config.Ingress.Path, "must be an absolute path")
+		}
 	}
 }

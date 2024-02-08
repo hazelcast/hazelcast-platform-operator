@@ -286,6 +286,25 @@ var _ = Describe("ManagementCenter CR", func() {
 			By("checking liveness probe path")
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/mc/health"))
 		})
+
+		It("should fail if ingress path is not an absolute path", Label("fast"), func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+			}
+
+			mc.Spec.ExternalConnectivity = &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Ingress: &hazelcastv1alpha1.ExternalConnectivityIngress{
+					IngressClassName: "nginx",
+					Annotations:      map[string]string{"app": "hazelcast-mc"},
+					Hostname:         "mancenter",
+					Path:             "mc",
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), mc)).
+				Should(MatchError(ContainSubstring("must be an absolute path")))
+		})
 	})
 
 	Context("with Persistence configuration", func() {
