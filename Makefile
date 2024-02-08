@@ -93,8 +93,8 @@ KUBECTL ?= kubectl
 OPERATOR_CHART ?= ./helm-charts/hazelcast-platform-operator
 CRD_CHART := $(OPERATOR_CHART)/charts/hazelcast-platform-operator-crds
 
-PHONE_HOME_ENABLED ?= false
-DEVELOPER_MODE_ENABLED ?= true
+export PHONE_HOME_ENABLED ?= false
+export DEVELOPER_MODE_ENABLED ?= true
 INSTALL_CRDS ?= false
 DEBUG_ENABLED ?= false
 
@@ -154,7 +154,7 @@ test: test-unit test-it
 
 test-unit: GO_BUILD_TAGS = "hazelcastinternal,unittest"
 test-unit: manifests generate
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/... ./internal/... ./api/...
+	go test -tags $(GO_BUILD_TAGS) -v ./controllers/... ./internal/... ./api/...
 
 lint: lint-go lint-yaml
 
@@ -171,7 +171,7 @@ setup-linters:
 
 # Use tilt tool to deploy operator and its resources to the local K8s cluster in the current context 
 tilt: 
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) tilt up
+	tilt up
 
 tilt-debug:
 	DEBUG_ENABLED=true tilt up
@@ -181,22 +181,22 @@ tilt-debug-remote-ttl:
 
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context 
 tilt-remote: 
-	 DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) ALLOW_REMOTE=true tilt up
+	 ALLOW_REMOTE=true tilt up
 
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context with ttl.sh configured for image registry.
 tilt-remote-ttl:
-	 DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) ALLOW_REMOTE=true USE_TTL_REG=true tilt up
+	 ALLOW_REMOTE=true USE_TTL_REG=true tilt up
 
 ENVTEST_ASSETS_DIR=$(TOOLBIN)/envtest
 GO_TEST_FLAGS ?= "-ee=true"
 
 test-it: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
 
 test-it-focus: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/...  $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/...  $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
 
 E2E_TEST_SUITE ?= hz || mc || backup_restore || expose_externally || map || hz_wan || user_code || multimap || topic || replicatedmap || queue || cache || resilience || backup || jetjob || jetjobsnapshot || wan_sync
 ifeq (,$(E2E_TEST_SUITE))
@@ -208,19 +208,19 @@ GINKGO_PARALLEL_PROCESSES ?= 4
 GINKGO_KIND_PARALLEL_PROCESSES ?= 2
 
 test-e2e-split-kind: generate ginkgo ## Run end-to-end tests on Kind
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --label-filter="fast" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS) --kind
+	$(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --label-filter="fast" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS) --kind
 
 test-e2e: generate ginkgo ## Run end-to-end tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -deployNamespace "$(WATCHED_NAMESPACES)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -deployNamespace "$(WATCHED_NAMESPACES)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 test-ph: generate ginkgo ## Run phone-home tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none ./test/ph -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none ./test/ph -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 test-soak: generate ginkgo ## Run soak tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="soak" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 1500m --flake-attempts 1 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="soak" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 1500m --flake-attempts 1 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 test-e2e-focus: generate ginkgo ## Run focused end-to-end tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) -v --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+	$(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) -v --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
