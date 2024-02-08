@@ -321,14 +321,15 @@ post_test_result()
     success_comment+="$failed_test_block"
     failed_comment+="$failed_test_block"
     # Send the output as a comment on the pull request using gh
-    COMMENT_ID=$(gh api -H "Accept: application/vnd.github+json" \
-      /repos/hazelcast/hazelcast-platform-operator/issues/990/comments | jq '.[] | select(.user.login == "github-actions[bot]") | .id')
-    gh api --method DELETE -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/comments/$COMMENT_ID
-     if [[ "${test_run_status[*]}" == *"true"* ]]; then
+    COMMENT_ID=$(gh api -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/$PR_NUMBER/comments | jq '.[] | select(.user.login == "github-actions[bot]") | .id')
+    if [[ $COMMENT_ID -ne "" ]]; then
+        gh api --method DELETE -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/comments/$COMMENT_ID
+    fi
+    if [[ "${test_run_status[*]}" == *"true"* ]]; then
         echo -e "$failed_comment" | gh pr comment ${PR_NUMBER} -F -
-     else
+    else
         echo -e "$success_comment" | gh pr comment ${PR_NUMBER} -F -
-     fi
+    fi
 }
 
 # This function will restart all instances that are not in ready status and wait until it will be ready

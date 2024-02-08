@@ -142,17 +142,6 @@ jobs:
       - name: Run unit tests
         run: make test-unit
 
-      - name: Upload Unit Test Coverage Report
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-coverage
-          path: |
-            cover-controllers.out
-            cover-internal.out
-            cover-api.out
-          retention-days: 1
-
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -172,20 +161,11 @@ jobs:
       - name: Run integration tests
         run: |
           case ${{ matrix.edition }} in
-            os) COVER_OUT='cover-it-os.out';GO_TEST_FLAGS='-ee=false';;
-            ee) COVER_OUT='cover-it-ee.out';GO_TEST_FLAGS='-ee=true';;
+            os) GO_TEST_FLAGS='-ee=false';;
+            ee) GO_TEST_FLAGS='-ee=true';;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          echo "COVER_OUT=${COVER_OUT}" >> $GITHUB_ENV
-          make GO_TEST_FLAGS=${GO_TEST_FLAGS} COVER_OUT=${COVER_OUT} test-it
-
-      - name: Upload Integration Coverage Report
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-coverage
-          path: ${{ env.COVER_OUT }}
-          retention-days: 1
+          make GO_TEST_FLAGS=${GO_TEST_FLAGS} test-it
 
   upload-coverage:
     name: Upload Test Coverage
@@ -200,38 +180,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v2
-        with:
-          secret-ids: |
-            CODECOV_TOKEN,CN/CODECOV_TOKEN
-
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Download Test Coverage Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: test-coverage
-
-      - name: Publish Integration Test results to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ env.CODECOV_TOKEN }}
-          files: cover-it-ee.out,cover-it-os.out
-          flags: integration
-          name: Integration Tests Report
-          fail_ci_if_error: true
-
-      - name: Publish Unit Test results to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ env.CODECOV_TOKEN }}
-          files: cover-controllers.out,cover-internal.out,cover-api.out
-          flags: unit
-          name: Unit Tests Report
-          fail_ci_if_error: true
-
 
   slack_notify:
     name: Slack Notify

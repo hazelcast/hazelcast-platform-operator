@@ -41,7 +41,7 @@ var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), fun
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		ctx := context.Background()
 		clusterSize := int32(3)
-		By("creating Hazelcast cluster with partition count 30 maps")
+		By("creating Hazelcast cluster")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -66,14 +66,14 @@ var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), fun
 			log.Fatalf("Failed to perform rollout restart: %v", err)
 		}
 
-		By("checking HZ status after rollout sts restart")
+		By("checking HZ status after rollout restart")
 		Eventually(func() hazelcastcomv1alpha1.Phase {
 			err := k8sClient.Get(ctx, hzLookupKey, hazelcast)
 			Expect(err).ToNot(HaveOccurred())
 			return hazelcast.Status.Phase
 		}, 10*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
 
-		By("checking map size after rollout sts restart")
+		By("checking map size after rollout restart")
 		for i := 0; i < numMaps; i++ {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name

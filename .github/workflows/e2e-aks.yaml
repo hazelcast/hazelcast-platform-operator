@@ -47,6 +47,7 @@ jobs:
               --resource-group=${AZURE_RESOURCE_GROUP} \
               --name="${CLUSTER_NAME}" \
               --node-count=3 \
+              --node-vm-size Standard_D4_v2 \
               --enable-node-public-ip \
               --generate-ssh-keys | jq -r .nodeResourceGroup)
             echo "NodeResourceGroup: ${NRG}"
