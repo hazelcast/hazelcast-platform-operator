@@ -62,6 +62,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 			return
 		}
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Cache{}, &hazelcastcomv1alpha1.CacheList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.CronHotBackup{}, &hazelcastcomv1alpha1.CronHotBackupList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, &hazelcastcomv1alpha1.HotBackupList{}, hzNamespace, labels)
@@ -108,7 +109,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("br-6")
+			setLabelAndCRName("br-2")
 			clusterSize := int32(1)
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 			hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
@@ -127,7 +128,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 		})
 
 		It("is interrupted when the HotBackup CR is deleted", Label("fast"), func() {
-			setLabelAndCRName("br-9")
+			setLabelAndCRName("br-3")
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -201,7 +202,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("br-7")
+			setLabelAndCRName("br-4")
 			ctx := context.Background()
 			clusterSize := int32(1)
 			var pvcSizeInMb = 1
@@ -259,7 +260,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("br-3")
+			setLabelAndCRName("br-5")
 			By("creating cron hot backup")
 			hbSpec := &hazelcastcomv1alpha1.HotBackupSpec{}
 			chb := hazelcastconfig.CronHotBackup(hzLookupKey, "*/5 * * * * *", hbSpec, labels)
@@ -288,7 +289,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("hbr-1")
+			setLabelAndCRName("br-6")
 			var mapSizeInMb = 1072
 			var additionalEntries = 111
 			var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
@@ -363,7 +364,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("br-4")
+			setLabelAndCRName("br-7")
 			clusterSize := int32(3)
 
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
@@ -445,7 +446,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("br-10")
+			setLabelAndCRName("br-8")
 			clusterSize := int32(3)
 
 			By("creating cluster with external backup enabled")
@@ -508,7 +509,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("br-11")
+			setLabelAndCRName("br-9")
 			clusterSize := int32(3)
 
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
@@ -554,7 +555,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("br-5")
+			setLabelAndCRName("br-10")
 			By("creating cluster with backup enabled")
 			clusterSize := int32(3)
 
@@ -575,7 +576,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Label("backup_
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-				setLabelAndCRName("br-2")
+				setLabelAndCRName("br-11")
 				clusterSize := int32(3)
 
 				hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)

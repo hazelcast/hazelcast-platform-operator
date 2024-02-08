@@ -35,7 +35,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("user_code"), func() {
 
 	DescribeTable("verify correct implementation of MapStore in Hazelcast CR:", Label("fast"),
 		func(secretName, url string) {
-			setLabelAndCRName("hcc-1")
+			setLabelAndCRName("huc-1")
 			propSecretName := "prop-secret"
 			msClassName := "SimpleStore"
 
@@ -108,7 +108,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("user_code"), func() {
 	)
 
 	It("test for adding and verifying executor services initially and dynamically in Hazelcast CR", Label("fast"), func() {
-		setLabelAndCRName("hcc-2")
+		setLabelAndCRName("huc-2")
 
 		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
 			{
@@ -178,7 +178,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("user_code"), func() {
 	})
 
 	It("verify addition of entry listeners in Hazelcast map using user code from secret bucket", Label("fast"), func() {
-		setLabelAndCRName("hcc-3")
+		setLabelAndCRName("huc-3")
 
 		h := hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)
 		CreateHazelcastCR(h)

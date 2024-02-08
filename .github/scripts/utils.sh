@@ -321,14 +321,15 @@ post_test_result()
     success_comment+="$failed_test_block"
     failed_comment+="$failed_test_block"
     # Send the output as a comment on the pull request using gh
-    COMMENT_ID=$(gh api -H "Accept: application/vnd.github+json" \
-      /repos/hazelcast/hazelcast-platform-operator/issues/990/comments | jq '.[] | select(.user.login == "github-actions[bot]") | .id')
-    gh api --method DELETE -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/comments/$COMMENT_ID
-     if [[ "${test_run_status[*]}" == *"true"* ]]; then
+    COMMENT_ID=$(gh api -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/$PR_NUMBER/comments | jq '.[] | select(.user.login == "github-actions[bot]") | .id')
+    if [[ $COMMENT_ID -ne "" ]]; then
+        gh api --method DELETE -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/comments/$COMMENT_ID
+    fi
+    if [[ "${test_run_status[*]}" == *"true"* ]]; then
         echo -e "$failed_comment" | gh pr comment ${PR_NUMBER} -F -
-     else
+    else
         echo -e "$success_comment" | gh pr comment ${PR_NUMBER} -F -
-     fi
+    fi
 }
 
 # This function will restart all instances that are not in ready status and wait until it will be ready
@@ -375,13 +376,10 @@ generate_test_suites()
    SUITE_LIST=$(find test/e2e -type f \
      -name "*_test.go" \
    ! -name "platform_persistence_test.go" \
-   ! -name "platform_persistence_resilience_test.go" \
    ! -name "platform_wan_test.go" \
    ! -name "platform_resilience_test.go" \
    ! -name "platform_rolling_upgrade_test.go" \
    ! -name "platform_rollout_restart_test.go" \
-   ! -name "platform_tiered_storage_resilience_test.go" \
-   ! -name "platform_tiered_storage_test.go" \
    ! -name "platform_soak_test.go" \
    ! -name "custom_resource_test.go" \
    ! -name "client_port_forward_test.go" \

@@ -18,7 +18,7 @@ import (
 )
 
 var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
-	localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
+	localPort := strconv.Itoa(9000 + GinkgoParallelProcess())
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
@@ -89,7 +89,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			suffix := setLabelAndCRName("hw-4")
+			suffix := setLabelAndCRName("hw-3")
 
 			// Hazelcast and Map CRs
 			hzSource1 := "hz1-source" + suffix
@@ -122,7 +122,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			suffix := setLabelAndCRName("hw-5")
+			suffix := setLabelAndCRName("hw-4")
 
 			// Hazelcast and Map CRs
 			hzSource1 := "hz1-source" + suffix
@@ -154,7 +154,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			suffix := setLabelAndCRName("hw-10")
+			suffix := setLabelAndCRName("hw-5")
 
 			// Hazelcast CRs
 			hzSource := "hz-source" + suffix
@@ -442,7 +442,7 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			suffix := setLabelAndCRName("hw-3")
+			suffix := setLabelAndCRName("hw-10")
 
 			// Hazelcast and Map CRs
 			hzSource1 := "hz1-source" + suffix

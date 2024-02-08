@@ -60,12 +60,12 @@ jobs:
     secrets: inherit
     with:
       cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      cluster_type: gke-high-availability
+      cluster_type: gke-resilience
       gke_zone: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
-      namespaces: "test-operator-high-availability"
+      namespaces: "test-resilience"
 
   get-image:
     name: Get Image
@@ -89,16 +89,16 @@ jobs:
             echo "IMG=${IMG}" >> $GITHUB_OUTPUT
           fi
 
-  gke-high-availability-tests:
-    name: Run High Availability tests
+  gke-resilience-tests:
+    name: Run Resilience tests
     runs-on: ubuntu-latest
     needs: [ create-gke-cluster, grafana-setup, get-image ]
     env:
       IMG: ${{ needs.get-image.outputs.IMG }}
-      NAMESPACE: test-operator-high-availability
+      NAMESPACE: test-resilience
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
-      RELEASE_NAME: high-availability-${{ github.run_id }}
+      RELEASE_NAME: resilience-${{ github.run_id }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -171,34 +171,34 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report-high-availability
-          path: allure-results/high-availability/
+          name: test-report-resilience
+          path: allure-results/resilience/
 
   report-generation:
-    needs: [ "create-gke-cluster", "gke-high-availability-tests" ]
-    if: always() && (needs.gke-high-availability-tests.result == 'success' || needs.gke-high-availability-tests.result == 'failure')
+    needs: [ "create-gke-cluster", "gke-resilience-tests" ]
+    if: always() && (needs.gke-resilience-tests.result == 'success' || needs.gke-resilience-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
-      WORKFLOW_ID: high-availability
+      WORKFLOW_ID: resilience
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
   cleanup-namespaces:
     if: always()
-    needs: ["create-gke-cluster", "gke-high-availability-tests"]
+    needs: ["create-gke-cluster", "gke-resilience-tests"]
     uses: ./.github/workflows/cleanup-namespace.yaml
     secrets: inherit
     with:
       cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
-      cluster_type: gke-high-availability
+      cluster_type: gke-resilience
       gke_zone: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
-      namespaces: "test-operator-high-availability,grafana"
+      namespaces: "test-resilience,grafana"
 
   delete-cluster:
-    name: Delete High Availability cluster
+    name: Delete Resilience cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: [ create-gke-cluster, gke-high-availability-tests, cleanup-namespaces ]
+    needs: [ create-gke-cluster, gke-resilience-tests, cleanup-namespaces ]
     env:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
       GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
@@ -230,8 +230,8 @@ jobs:
 
   slack_notify:
     name: Slack Notify
-    needs: [ "gke-high-availability-tests", "delete-cluster" ]
-    if: always() &&  ( needs.gke-high-availability-tests.result != 'success' || needs.delete-cluster.result != 'success')
+    needs: [ "gke-resilience-tests", "delete-cluster" ]
+    if: always() &&  ( needs.gke-resilience-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials

@@ -1,7 +1,8 @@
 name: (E2E) Misc Platform Tests
 on:
   workflow_dispatch:
-  workflow_call:
+  schedule:
+    - cron: "0 9 * * *"
 
 env:
   AWS_REGION: us-east-1
@@ -35,8 +36,10 @@ jobs:
         id: create-cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
-          eksctl create cluster --name "${CLUSTER_NAME}" \
+          eksctl create cluster \
+            --name "${CLUSTER_NAME}" \
             --region=${AWS_REGION} \
             --zones ${AWS_REGION}a \
             --zones ${AWS_REGION}c \
@@ -44,13 +47,31 @@ jobs:
             --with-oidc \
             --without-nodegroup
 
-          eksctl create nodegroup --cluster "${CLUSTER_NAME}" \
+          eksctl create nodegroup \
+            --cluster "${CLUSTER_NAME}" \
+            --region=${AWS_REGION} \
             --name node-group-1 \
-            --node-type t3.2xlarge \
+            --node-type t3a.2xlarge \
             --nodes 3 \
             --managed
 
-          eksctl create addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}"
+          eksctl create addon \
+            --name aws-ebs-csi-driver \
+            --cluster "${CLUSTER_NAME}" \
+            --region=${AWS_REGION}
+
+      - name: Configure SecurityGroup of Nodes
+        run: |-
+          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=$AWS_REGION --name=$CLUSTER_NAME --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
+
+          echo "SecurityGroupID: $SECURITY_GROUP_ID"
+
+          aws ec2 authorize-security-group-ingress \
+            --region=${AWS_REGION} \
+            --group-id=${SECURITY_GROUP_ID} \
+            --cidr=0.0.0.0/0 \
+            --protocol=tcp \
+            --port=30000-32767
 
   grafana-setup:
     needs: [ prepare-env ]
@@ -62,7 +83,7 @@ jobs:
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
-      namespaces: "test-operator-os, test-operator-ee"
+      namespaces: "test-operator-ee"
 
   get-image:
     name: Get Image
@@ -196,12 +217,7 @@ jobs:
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
         run: |
-          case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
-          make test-e2e E2E_TEST_SUITE="rolling_upgrade || rollout_restart || platform_persistence" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
+          make test-e2e E2E_TEST_SUITE="rolling_upgrade || rollout_restart || platform_persistence" GO_TEST_FLAGS=-ee=true NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
 
       - name: Clean up after Tests
         if: always()
@@ -214,8 +230,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report-high-load
-          path: allure-results/high-load/
+          name: test-report-platform
+          path: allure-results/platform/
 
   report-generation:
     needs: ["prepare-env", "eks-e2e-tests"]
@@ -234,7 +250,7 @@ jobs:
     with:
       cluster_name: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
       cluster_type: eks
-      namespaces: "test-operator-os,test-operator-ee,grafana"
+      namespaces: "test-operator-ee,grafana"
 
   delete-cluster:
     name: Delete EKS cluster

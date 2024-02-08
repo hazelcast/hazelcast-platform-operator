@@ -124,7 +124,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("h-7")
+			setLabelAndCRName("h-6")
 			clusterSize := int32(3)
 
 			hz := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
@@ -162,7 +162,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("h-6")
+			setLabelAndCRName("h-7")
 			hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
 
 			tlsSecretNn := types.NamespacedName{
@@ -185,7 +185,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("h-7")
+			setLabelAndCRName("h-8")
 			hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
 
 			tlsSecretNn := types.NamespacedName{

@@ -26,6 +26,7 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 		}
 		DeleteAllOf(&hazelcastcomv1alpha1.JetJob{}, &hazelcastcomv1alpha1.JetJobList{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.HotBackup{}, &hazelcastcomv1alpha1.HotBackupList{}, hzNamespace, labels)
 		DeleteAllOf(&corev1.Secret{}, &corev1.SecretList{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
@@ -67,7 +68,7 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 		)
 
 		DescribeTable("download and execute JetJob with external JAR", func(secretName, url string) {
-			setLabelAndCRName("jj-3")
+			setLabelAndCRName("jj-2")
 
 			hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
 			hazelcast.Spec.ClusterSize = pointer.Int32(1)
@@ -110,7 +111,7 @@ var _ = Describe("Hazelcast JetJob", Label("jetjob"), func() {
 
 	Context("Operational behavior", func() {
 		It("verifies status change for a running JetJob", Label("fast"), func() {
-			setLabelAndCRName("jj-2")
+			setLabelAndCRName("jj-3")
 
 			hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
 			hazelcast.Spec.ClusterSize = pointer.Int32(1)

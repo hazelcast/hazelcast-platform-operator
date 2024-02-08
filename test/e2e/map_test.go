@@ -122,7 +122,7 @@ var _ = Describe("Hazelcast Map - ", Label("map"), func() {
 		})
 
 		It("persists map config with indexes", Label("fast"), func() {
-			setLabelAndCRName("hm-8")
+			setLabelAndCRName("hm-3")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 
@@ -156,7 +156,7 @@ var _ = Describe("Hazelcast Map - ", Label("map"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("hm-7")
+			setLabelAndCRName("hm-4")
 			maps := []string{"map1", "map2", "map3", "mapfail"}
 
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
@@ -198,7 +198,7 @@ var _ = Describe("Hazelcast Map - ", Label("map"), func() {
 		})
 
 		It("should persist Map Config with Attributes", Label("fast"), func() {
-			setLabelAndCRName("hmp-6")
+			setLabelAndCRName("hm-5")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 
@@ -223,7 +223,7 @@ var _ = Describe("Hazelcast Map - ", Label("map"), func() {
 
 	Context("Updating map configuration", func() {
 		It("updates the map configuration correctly", Label("fast"), func() {
-			setLabelAndCRName("hm-3")
+			setLabelAndCRName("hm-6")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 
@@ -261,7 +261,7 @@ var _ = Describe("Hazelcast Map - ", Label("map"), func() {
 		})
 
 		It("maintains last applied Map Config upon update failure", Label("fast"), func() {
-			setLabelAndCRName("hm-9")
+			setLabelAndCRName("hm-7")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 
@@ -289,7 +289,7 @@ var _ = Describe("Hazelcast Map - ", Label("map"), func() {
 	Context("Validating map configurations", func() {
 		When("native memory is not enabled for Hazelcast CR", func() {
 			It("fails creating a map configuration with InMemoryFormat value", Label("fast"), func() {
-				setLabelAndCRName("hm-4")
+				setLabelAndCRName("hm-8")
 				hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 				CreateHazelcastCR(hazelcast)
 
@@ -303,7 +303,7 @@ var _ = Describe("Hazelcast Map - ", Label("map"), func() {
 			})
 
 			It("fails to set InMemoryFormat as NativeMemory in near cache", Label("fast"), func() {
-				setLabelAndCRName("hm-5")
+				setLabelAndCRName("hm-9")
 				hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 				CreateHazelcastCR(hazelcast)
 
@@ -316,8 +316,9 @@ var _ = Describe("Hazelcast Map - ", Label("map"), func() {
 				Expect(m.Status.Message).To(ContainSubstring("Native Memory must be enabled at Hazelcast"))
 			})
 		})
+
 		It("fails when map CR persistence setting mismatches Hazelcast CR setting", Label("fast"), func() {
-			setLabelAndCRName("hm-6")
+			setLabelAndCRName("hm-10")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 

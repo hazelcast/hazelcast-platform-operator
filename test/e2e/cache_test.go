@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("hch-4")
+			setLabelAndCRName("hch-2")
 			caches := []string{"cache1", "cache2", "cache3", "cachefail"}
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -90,7 +90,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 	Context("Validating cache configurations", func() {
 		When("Native Memory is not enabled for Hazelcast CR", func() {
 			It("should fail to create a cache config with InMemoryFormatNative", Label("fast"), func() {
-				setLabelAndCRName("hch-2")
+				setLabelAndCRName("hch-3")
 				hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 				CreateHazelcastCR(hazelcast)
 
@@ -106,7 +106,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 		})
 
 		It("should fail due to mismatch in persistence settings between Cache CR and Hazelcast CR", Label("fast"), func() {
-			setLabelAndCRName("hch-3")
+			setLabelAndCRName("hch-4")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			m := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
