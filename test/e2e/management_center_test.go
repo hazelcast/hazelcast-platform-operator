@@ -18,7 +18,7 @@ import (
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
 
-var _ = Describe("Management-Center", Label("mc"), func() {
+var _ = Describe("Management-Center", Group("mc"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -51,7 +51,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 	}
 
 	Context("ManagementCenter creation", func() {
-		It("should create ManagementCenter resources", Label("fast"), func() {
+		It("should create ManagementCenter resources", Tag("fast"), func() {
 			setLabelAndCRName("mc-1")
 			mc := mcconfig.Default(mcLookupKey, ee, labels)
 			mc.Spec.Resources = &corev1.ResourceRequirements{
@@ -84,7 +84,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 			})
 		})
 
-		It("should create ManagementCenter resources and no PVC", Label("fast"), func() {
+		It("should create ManagementCenter resources and no PVC", Tag("fast"), func() {
 			setLabelAndCRName("mc-2")
 			mc := mcconfig.PersistenceDisabled(mcLookupKey, ee, labels)
 			mc.Spec.Resources = &corev1.ResourceRequirements{
@@ -115,7 +115,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 			Expect(mc.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should be reflected to Management CR status", Label("fast"), func() {
+		It("should be reflected to Management CR status", Tag("fast"), func() {
 			setLabelAndCRName("mc-3")
 			createWithoutCheck(mcconfig.Faulty(mcLookupKey, ee, labels))
 			assertStatusEventually(hazelcastcomv1alpha1.McFailed)
@@ -123,7 +123,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 	})
 
 	Context("ManagementCenter CR with Route", func() {
-		It("should be able to access route in Openshift env.", Label("fast"), func() {
+		It("should be able to access route in Openshift env.", Tag("fast"), func() {
 			if platform.GetType() != platform.OpenShift {
 				Skip("This test will only run in OpenShift environments")
 			}

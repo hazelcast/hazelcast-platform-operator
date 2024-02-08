@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	. "time"
 
@@ -155,4 +156,23 @@ func checkJetJobSnapshotStatus(nn types.NamespacedName, state hazelcastcomv1alph
 		return jjsCheck.Status.State
 	}, 5*Minute, interval).Should(Equal(state))
 	return jjsCheck
+}
+
+// Group works like ginkgo Labels but with the intention of grouping related tests
+func Group(group string) Labels {
+	return Label(group)
+}
+
+// Tag works like ginkgo Labels but adds additional dynamic labels
+func Tag(tags ...string) Labels {
+	tags = append(tags, shard())
+	return Labels(tags)
+}
+
+var counter int
+
+func shard() string {
+	s := "shard" + strconv.Itoa(counter%shards)
+	counter++
+	return s
 }

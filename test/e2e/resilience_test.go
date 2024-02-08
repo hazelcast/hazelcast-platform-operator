@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Resilience", Label("resilience"), Serial, func() {
+var _ = Describe("Resilience", Group("resilience"), Serial, func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -24,7 +24,7 @@ var _ = Describe("Resilience", Label("resilience"), Serial, func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Label("slow"), func() {
+	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Tag("slow"), func() {
 		By("clone existing operator")
 		setLabelAndCRName("res-1")
 		hazelcastSource := hazelcastconfig.Default(hzSrcLookupKey, ee, labels)

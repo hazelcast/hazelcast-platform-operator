@@ -3,6 +3,10 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
+	. "time"
+
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
@@ -12,12 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-	"os"
-	"strconv"
-	. "time"
 )
 
-var _ = Describe("Platform Soak Tests", Label("soak"), func() {
+var _ = Describe("Platform Soak Tests", Group("soak"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -31,7 +32,7 @@ var _ = Describe("Platform Soak Tests", Label("soak"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should upgrade HZ version after pause/resume with default partition count during 4 hours and keep 45 GB data", Serial, Label("slow"), func() {
+	It("should upgrade HZ version after pause/resume with default partition count during 4 hours and keep 45 GB data", Serial, Tag("slow"), func() {
 
 		if !ee {
 			Skip("This test will only run in EE configuration")

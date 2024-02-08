@@ -16,7 +16,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
+var _ = Describe("Hazelcast JetJobSnapshot", Group("jetjobsnapshot"), func() {
 	localPort := strconv.Itoa(9100 + GinkgoParallelProcess())
 	jarName := "snapshot-test.jar"
 
@@ -36,7 +36,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 	})
 
 	Context("JetJob snapshot utilization", func() {
-		It("should export snapshot and initialize new job from that snapshot", Label("fast"), func() {
+		It("should export snapshot and initialize new job from that snapshot", Tag("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -154,7 +154,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 	})
 
 	Context("Operational behavior", func() {
-		It("cancel the JetJob after successful snapshot export", Label("fast"), func() {
+		It("cancel the JetJob after successful snapshot export", Tag("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -186,7 +186,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Label("jetjobsnapshot"), func() {
 			checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobExecutionFailed)
 		})
 
-		It("fails when export snapshot from a suspended JetJob", Label("fast"), func() {
+		It("fails when export snapshot from a suspended JetJob", Tag("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
