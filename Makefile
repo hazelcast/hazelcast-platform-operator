@@ -154,9 +154,7 @@ test: test-unit test-it
 
 test-unit: GO_BUILD_TAGS = "hazelcastinternal,unittest"
 test-unit: manifests generate
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/...
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./internal/...
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./api/...
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/... ./internal/... ./api/...
 
 lint: lint-go lint-yaml
 
@@ -194,11 +192,11 @@ GO_TEST_FLAGS ?= "-ee=true"
 
 test-it: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
 
 test-it-focus: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/...  $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/...  $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
 
 E2E_TEST_SUITE ?= hz || mc || backup_restore || expose_externally || map || hz_wan || user_code || multimap || topic || replicatedmap || queue || cache || resilience || backup || jetjob || jetjobsnapshot || wan_sync
 ifeq (,$(E2E_TEST_SUITE))
