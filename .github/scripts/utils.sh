@@ -367,37 +367,6 @@ wait_for_instance_restarted()
    fi
 }
 
-# The function generates test suite files which are contains list of focused tests. Takes a single argument - number of files to be generated.
-# Returns the specified number of files with name test_suite_XX where XX - suffix number of file starting with '01'. The tests will be equally splitted between files.
-generate_test_suites()
-{
-   make ginkgo
-   mkdir suite_files
-   SUITE_LIST=$(find test/e2e -type f \
-     -name "*_test.go" \
-   ! -name "platform_persistence_test.go" \
-   ! -name "platform_wan_test.go" \
-   ! -name "platform_resilience_test.go" \
-   ! -name "platform_rolling_upgrade_test.go" \
-   ! -name "platform_rollout_restart_test.go" \
-   ! -name "platform_soak_test.go" \
-   ! -name "custom_resource_test.go" \
-   ! -name "client_port_forward_test.go" \
-   ! -name "e2e_suite_test.go" \
-   ! -name "helpers_test.go" \
-   ! -name "util_test.go" \
-   ! -name "options_test.go")
-   for SUITE_NAME in $SUITE_LIST; do
-       $(make ginkgo PRINT_TOOL_NAME=true) outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
-   done
-   split --number=r/$1 TESTS_LIST suite_files/test_suite_ --numeric-suffixes=1 -a 2
-   for i in $(ls suite_files/); do
-       wc -l "suite_files/$i"
-       cat <<< $(tr '\n' ' ' < suite_files/$i) > suite_files/$i
-       cat suite_files/"$i"
-   done
-}
-
 # The function merges all test reports (XML) files from each node into one report.
 # Takes a single argument - the WORKFLOW_ID (kind,gke,eks, aks etc.)
 merge_xml_test_reports() {

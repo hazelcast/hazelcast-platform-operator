@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 	. "time"
 
@@ -172,7 +171,19 @@ func Tag(tags ...string) Labels {
 var counter int
 
 func shard() string {
-	s := "shard" + strconv.Itoa(counter%shards)
+	s := fmt.Sprintf("shard%0*d", countDigits(shards), (counter%shards)+1)
 	counter++
 	return s
+}
+
+func countDigits(i int) int {
+	if i == 0 {
+		return 1
+	}
+	var count int
+	for i != 0 {
+		i /= 10
+		count++
+	}
+	return count
 }
