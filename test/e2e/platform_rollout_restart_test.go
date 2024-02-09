@@ -31,7 +31,7 @@ var _ = Describe("Platform Rollout Restart Tests", Group("rollout_restart"), fun
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should perform rollout restart with 14Gb data", Serial, Tag("slow"), func() {
+	It("should perform rollout restart with 14Gb data", Serial, Tag(Slow), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}

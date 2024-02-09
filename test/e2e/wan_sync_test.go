@@ -26,7 +26,7 @@ var _ = Describe("Hazelcast WAN Sync", Group("wan_sync"), func() {
 	})
 
 	Context("Basic WAN Sync functionality", func() {
-		It("should sync one map with another cluster", Tag("fast"), func() {
+		It("should sync one map with another cluster", Tag(Fast), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -50,7 +50,7 @@ var _ = Describe("Hazelcast WAN Sync", Group("wan_sync"), func() {
 			waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, mapLookupKey.Name, mapSize, 1*Minute)
 		})
 
-		It("should sync two maps with another cluster", Tag("fast"), func() {
+		It("should sync two maps with another cluster", Tag(Fast), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}

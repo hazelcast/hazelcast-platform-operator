@@ -162,8 +162,49 @@ func Group(group string) Labels {
 	return Label(group)
 }
 
-// Tag works like ginkgo Labels but adds additional dynamic labels
-func Tag(tags ...string) Labels {
+// A set of well known labels used by tests
+const (
+	Fast  = 1 << 0 // Tests that will run in PR
+	Slow  = 1 << 1 //
+	OS    = 1 << 2 // Open Source License
+	EE    = 1 << 3 // Enterprise License
+	Kind  = 1 << 4
+	AWS   = 1 << 5
+	GKE   = 1 << 6
+	AZURE = 1 << 7
+)
+
+// tagNames maps tags to label representation
+var tagNames = map[uint32]string{
+	Fast:  "fast",
+	Slow:  "slow",
+	OS:    "os",
+	EE:    "ee",
+	Kind:  "kind",
+	AWS:   "aws",
+	GKE:   "gke",
+	AZURE: "azure",
+}
+
+const (
+	// AnyCloud tagged tests will run on all cloud providers
+	AnyCloud = Kind | AWS | GKE | AZURE
+
+	// AnyLicense tagged tests will run on all cloud providers
+	AnyLicense = OS | EE
+
+	// Any tagged tests will always run
+	Any = AnyCloud | AnyLicense
+)
+
+// Tag works like ginkgo Labels but is using typed labels
+func Tag(tag uint32) Labels {
+	var tags []string
+	for i := uint32(0); i < 32; i++ {
+		if (tag & (1 << i)) != 0 {
+			tags = append(tags, tagNames[1<<i])
+		}
+	}
 	tags = append(tags, shard())
 	return Labels(tags)
 }
