@@ -142,13 +142,6 @@ jobs:
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME PHONE_HOME_ENABLED=${{ env.PHONE_HOME_ENABLED }}
           kubectl rollout status deployment $DEPLOY_NAME
 
-      - name: Deploy ChaosMesh to GKE
-        run: |
-          helm repo add chaos-mesh https://charts.chaos-mesh.org
-          kubectl create ns ${CHAOS_MESH_NAMESPACE}
-          helm install chaos-mesh chaos-mesh/chaos-mesh -n=${CHAOS_MESH_NAMESPACE} --version 2.5.1
-          kubectl get po -n ${CHAOS_MESH_NAMESPACE}
-
       - name: Install Chaos Mesh
         run: |
           helm repo add chaos-mesh https://charts.chaos-mesh.org
