@@ -154,7 +154,7 @@ func Test_mcInitCmd(t *testing.T) {
 	}
 }
 
-func Test_getContextPath(t *testing.T) {
+func Test_getRootPath(t *testing.T) {
 	tests := []struct {
 		name string
 		mc   *hazelcastv1alpha1.ManagementCenter
@@ -210,7 +210,7 @@ func Test_getContextPath(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if contextPath := getContextPath(test.mc); contextPath != test.want {
+			if contextPath := getRootPath(test.mc); contextPath != test.want {
 				t.Errorf("getContextPath() = %v, want %v", contextPath, test.want)
 			}
 		})
