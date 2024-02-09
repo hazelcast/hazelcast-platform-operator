@@ -256,7 +256,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			assertDoesNotExist(lookupKey(mc), ing)
 		})
 
-		FIt("should configure contextPath in MC pod when custom path is set in Ingress", Label("fast"), func() {
+		It("should configure contextPath in MC pod when custom path is set in Ingress", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
