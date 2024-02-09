@@ -35,16 +35,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup S3cmd
-        uses: s3-actions/s3cmd@v1.5.0
-        with:
-          provider: aws
-          region: ${{ env.AWS_REGION }}
-          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
       - name: Get Test Run History
         run: |
+          aws configure set default.s3.max_concurrent_requests 50
           aws s3 sync s3://reportboard/${{ inputs.WORKFLOW_ID }}/last-history test-report-history/${{ inputs.WORKFLOW_ID }}/last-history
           aws s3 cp s3://reportboard/styles.css test-report-history/styles.css
           aws s3 cp s3://reportboard/favicon.ico test-report-history/favicon.ico
@@ -127,8 +120,9 @@ jobs:
       - name: Upload Report to AWS S3
         if: steps.generate-report.outcome == 'success'
         run: |
-           s3cmd put --recursive --no-check-md5 ./allure-history/ s3://reportboard
-          
+           aws configure set default.s3.max_concurrent_requests 50
+           aws s3 cp --recursive ./allure-history/ s3://reportboard
+
       - name: Add Test Report Summary To PR
         if: ${{ contains(inputs.WORKFLOW_ID, 'pr') }}
         run: |

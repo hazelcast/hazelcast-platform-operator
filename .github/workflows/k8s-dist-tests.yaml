@@ -167,22 +167,6 @@ jobs:
           esac
           make GO_TEST_FLAGS=${GO_TEST_FLAGS} test-it
 
-  upload-coverage:
-    name: Upload Test Coverage
-    needs: [unit-tests,integration-tests]
-    runs-on: ubuntu-latest
-    if: always() && github.event_name == 'push'
-    steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
   slack_notify:
     name: Slack Notify
     timeout-minutes: 15
