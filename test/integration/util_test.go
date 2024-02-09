@@ -150,16 +150,6 @@ func assertHzStatusIsPending(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1
 	return hz
 }
 
-func assertEnvVar(cnt corev1.Container, name string, f func(corev1.EnvVar) bool) {
-	for _, envvar := range cnt.Env {
-		if envvar.Name == name {
-			Expect(f(envvar)).To(BeTrue())
-			return
-		}
-	}
-	Fail(fmt.Sprintf("env var %q not found", name))
-}
-
 func fetchHz(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 	By("fetching Hazelcast CR")
 	fetchedCR := &hazelcastv1alpha1.Hazelcast{}

@@ -574,8 +574,7 @@ func javaOPTS(mc *hazelcastv1alpha1.ManagementCenter) string {
 	}
 
 	if mc.Spec.GetLicenseKeySecretName() != "" {
-		licenseKeyEnvVarReference := fmt.Sprintf("$(%s)", mcLicenseKey)
-		args = append(args, fmt.Sprintf("-Dhazelcast.mc.license=%s", licenseKeyEnvVarReference))
+		args = append(args, fmt.Sprintf("-Dhazelcast.mc.license=$(%s)", mcLicenseKey))
 	}
 
 	if mc.Spec.ExternalConnectivity.IsEnabled() && mc.Spec.ExternalConnectivity.Ingress != nil {

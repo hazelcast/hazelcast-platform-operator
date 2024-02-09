@@ -279,9 +279,8 @@ var _ = Describe("ManagementCenter CR", func() {
 			fetchedSts := &appsv1.StatefulSet{}
 			assertExists(lookupKey(fetchedMc), fetchedSts)
 			Expect(fetchedSts.Spec.Template.Spec.Containers).To(HaveLen(1))
-			assertEnvVar(fetchedSts.Spec.Template.Spec.Containers[0], "JAVA_OPTS", func(envvar corev1.EnvVar) bool {
-				return strings.Contains(envvar.Value, "-Dhazelcast.mc.contextPath=/mc")
-			})
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Env).
+				Should(ContainElements(ContainSubstring("-Dhazelcast.mc.contextPath=/mc")))
 
 			By("checking liveness probe path")
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/mc/health"))
