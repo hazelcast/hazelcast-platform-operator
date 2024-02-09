@@ -14,7 +14,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func() {
+var _ = Describe("Hazelcast ReplicatedMap Config", Group("replicatedmap"), func() {
 	localPort := strconv.Itoa(8600 + GinkgoParallelProcess())
 
 	AfterEach(func() {
@@ -30,7 +30,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 	})
 
 	Context("Creating ReplicatedMap configurations", func() {
-		It("creates ReplicatedMap config with correct default values", Label("fast"), func() {
+		It("creates ReplicatedMap config with correct default values", Tag("fast"), func() {
 			setLabelAndCRName("hrm-1")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -50,7 +50,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Label("replicatedmap"), func(
 	})
 
 	Context("Updating ReplicatedMap configurations", func() {
-		It("verifies that ReplicatedMap Config updates are prohibited", Label("fast"), func() {
+		It("verifies that ReplicatedMap Config updates are prohibited", Tag("fast"), func() {
 			setLabelAndCRName("hrm-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

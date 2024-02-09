@@ -14,7 +14,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
+var _ = Describe("Hazelcast Queue Config", Group("queue"), func() {
 	localPort := strconv.Itoa(8500 + GinkgoParallelProcess())
 
 	AfterEach(func() {
@@ -30,7 +30,7 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 	})
 
 	Context("Creating Queue configurations", func() {
-		It("creates Queue config with correct default values", Label("fast"), func() {
+		It("creates Queue config with correct default values", Tag("fast"), func() {
 			setLabelAndCRName("hq-1")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -51,7 +51,7 @@ var _ = Describe("Hazelcast Queue Config", Label("queue"), func() {
 	})
 
 	Context("Updating Queue configurations", func() {
-		It("verifies that Queue Config updates are prohibited", Label("fast"), func() {
+		It("verifies that Queue Config updates are prohibited", Tag("fast"), func() {
 			setLabelAndCRName("hq-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

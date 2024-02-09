@@ -17,7 +17,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast User Code Deployment", Label("user_code"), func() {
+var _ = Describe("Hazelcast User Code Deployment", Group("user_code"), func() {
 	localPort := strconv.Itoa(8800 + GinkgoParallelProcess())
 
 	AfterEach(func() {
@@ -33,7 +33,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("user_code"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	DescribeTable("verify correct implementation of MapStore in Hazelcast CR:", Label("fast"),
+	DescribeTable("verify correct implementation of MapStore in Hazelcast CR:",
 		func(secretName, url string) {
 			setLabelAndCRName("huc-1")
 			propSecretName := "prop-secret"
@@ -103,11 +103,11 @@ var _ = Describe("Hazelcast User Code Deployment", Label("user_code"), func() {
 			test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
 
 		},
-		Entry("using user code from bucket", Label("slow"), "br-secret-gcp", "gs://operator-user-code/mapStore"),
-		Entry("using user code from remote url", Label("slow"), "", "https://storage.googleapis.com/operator-user-code-urls-public/mapStore_mapstore-1.0.0.jar"),
+		Entry("using user code from bucket", Tag("slow"), "br-secret-gcp", "gs://operator-user-code/mapStore"),
+		Entry("using user code from remote url", Tag("slow"), "", "https://storage.googleapis.com/operator-user-code-urls-public/mapStore_mapstore-1.0.0.jar"),
 	)
 
-	It("test for adding and verifying executor services initially and dynamically in Hazelcast CR", Label("fast"), func() {
+	It("test for adding and verifying executor services initially and dynamically in Hazelcast CR", Tag("fast"), func() {
 		setLabelAndCRName("huc-2")
 
 		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
@@ -177,7 +177,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("user_code"), func() {
 		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
-	It("verify addition of entry listeners in Hazelcast map using user code from secret bucket", Label("fast"), func() {
+	It("verify addition of entry listeners in Hazelcast map using user code from secret bucket", Tag("fast"), func() {
 		setLabelAndCRName("huc-3")
 
 		h := hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)

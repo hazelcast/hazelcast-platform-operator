@@ -14,7 +14,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
+var _ = Describe("Hazelcast MultiMap Config", Group("multimap"), func() {
 	localPort := strconv.Itoa(8300 + GinkgoParallelProcess())
 
 	AfterEach(func() {
@@ -30,7 +30,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 	})
 
 	Context("Creating MultiMap configurations", func() {
-		It("creates MultiMap config with correct default values", Label("fast"), func() {
+		It("creates MultiMap config with correct default values", Tag("fast"), func() {
 			setLabelAndCRName("mm-1")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -51,7 +51,7 @@ var _ = Describe("Hazelcast MultiMap Config", Label("multimap"), func() {
 	})
 
 	Context("Updating MultiMap configurations", func() {
-		It("verifies that MultiMap Config updates are prohibited", Label("fast"), func() {
+		It("verifies that MultiMap Config updates are prohibited", Tag("fast"), func() {
 			setLabelAndCRName("mm-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

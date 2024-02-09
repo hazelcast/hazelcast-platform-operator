@@ -3,6 +3,10 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"log"
+	"strconv"
+	. "time"
+
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
@@ -10,12 +14,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
-	"log"
-	"strconv"
-	. "time"
 )
 
-var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), func() {
+var _ = Describe("Platform Rollout Restart Tests", Group("rollout_restart"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -30,7 +31,7 @@ var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), fun
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should perform rollout restart with 14Gb data", Serial, Label("slow"), func() {
+	It("should perform rollout restart with 14Gb data", Serial, Tag("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}

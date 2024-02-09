@@ -17,7 +17,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast CR with expose externally feature", Label("expose_externally"), func() {
+var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_externally"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -40,7 +40,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("expose_ex
 	}
 
 	Context("Cluster connectivity", func() {
-		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Label("fast"), func() {
+		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag("fast"), func() {
 			setLabelAndCRName("hee-1")
 			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -52,7 +52,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("expose_ex
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Label("fast"), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag("fast"), func() {
 			setLabelAndCRName("hee-2")
 			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -106,7 +106,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Label("expose_ex
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Label("slow"), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag("slow"), func() {
 			setLabelAndCRName("hee-3")
 			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

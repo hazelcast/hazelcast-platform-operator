@@ -2,19 +2,20 @@ package e2e
 
 import (
 	"context"
+	"strconv"
+	. "time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"strconv"
-	. "time"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
+var _ = Describe("Hazelcast Cache Config", Group("cache"), func() {
 	localPort := strconv.Itoa(8000 + GinkgoParallelProcess())
 
 	AfterEach(func() {
@@ -31,7 +32,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 	})
 
 	Context("Creating cache configurations", func() {
-		It("should successfully create a cache config with correct default settings", Label("fast"), func() {
+		It("should successfully create a cache config with correct default settings", Tag("fast"), func() {
 			setLabelAndCRName("hch-1")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -52,7 +53,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 			Expect(string(cacheConfig.InMemoryFormat)).Should(Equal(string(c.Spec.InMemoryFormat)))
 		})
 
-		It("should persist and remove cache config in/from Hazelcast config", Label("fast"), func() {
+		It("should persist and remove cache config in/from Hazelcast config", Tag("fast"), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -89,7 +90,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 
 	Context("Validating cache configurations", func() {
 		When("Native Memory is not enabled for Hazelcast CR", func() {
-			It("should fail to create a cache config with InMemoryFormatNative", Label("fast"), func() {
+			It("should fail to create a cache config with InMemoryFormatNative", Tag("fast"), func() {
 				setLabelAndCRName("hch-3")
 				hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 				CreateHazelcastCR(hazelcast)
@@ -105,7 +106,7 @@ var _ = Describe("Hazelcast Cache Config", Label("cache"), func() {
 			})
 		})
 
-		It("should fail due to mismatch in persistence settings between Cache CR and Hazelcast CR", Label("fast"), func() {
+		It("should fail due to mismatch in persistence settings between Cache CR and Hazelcast CR", Tag("fast"), func() {
 			setLabelAndCRName("hch-4")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

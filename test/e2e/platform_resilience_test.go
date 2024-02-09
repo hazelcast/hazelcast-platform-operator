@@ -20,7 +20,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
+var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 	ctx := context.Background()
 
 	BeforeEach(func() {
@@ -69,7 +69,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should have no data lose after node outage", Label("slow"), func() {
+	It("should have no data lose after node outage", Tag("slow"), func() {
 		setLabelAndCRName("hr-1")
 
 		ctx := context.Background()
@@ -123,7 +123,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
-	It("should have no data lose after zone outage", Label("slow"), func() {
+	It("should have no data lose after zone outage", Tag("slow"), func() {
 		setLabelAndCRName("hr-2")
 
 		ctx := context.Background()
