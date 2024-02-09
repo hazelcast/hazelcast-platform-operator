@@ -65,16 +65,19 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 	})
 
 	AfterEach(func() {
-		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		GinkgoWriter.Printf("AfterEach start time is %v\n", Now().String())
 		if skipCleanup() {
 			return
 		}
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
-
+		deletePVCs(hzLookupKey)
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, nil, hzNamespace, labels)
+		deletePVCs(mcLookupKey)
+		DeleteConfigMap(hzNamespace, "split-brain-config")
 		By("waiting for all nodes are ready", func() {
 			waitForDroppedNodes(context.Background(), 0)
 		})
-
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
@@ -187,11 +190,11 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
-	It("should kill the pod randomly and preserve the data after restore", Label("fast"), func() {
+	It("should kill the pod randomly and preserve the data after restore", Tag("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("ct-1")
+		setLabelAndCRName("hr-3")
 		duration := "30s"
 		mapSizeInMb := 500
 		nMaps := 5
@@ -272,8 +275,8 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		}
 	})
 
-	It("should check a split-brain protection in the Hazelcast cluster", Label("fast"), func() {
-		setLabelAndCRName("ct-2")
+	It("should check a split-brain protection in the Hazelcast cluster", Tag("fast"), func() {
+		setLabelAndCRName("hr-4")
 		duration := "100s"
 		splitBrainConfName := "splitBrainProtectionRuleWithFourMembers"
 		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
