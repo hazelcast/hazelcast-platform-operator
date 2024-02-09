@@ -28,7 +28,7 @@ var _ = Describe("Hazelcast Topic Config", Group("topic"), func() {
 	})
 
 	Context("Creating Topic configurations", func() {
-		It("creates Topic config with correct default values", Tag(Fast), func() {
+		It("creates Topic config with correct default values", Tag(Fast|Any), func() {
 			setLabelAndCRName("ht-1")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -46,7 +46,7 @@ var _ = Describe("Hazelcast Topic Config", Group("topic"), func() {
 	})
 
 	Context("Updating Topic configurations", func() {
-		It("verifies that Topic Config updates are prohibited", Tag(Fast), func() {
+		It("verifies that Topic Config updates are prohibited", Tag(Fast|Any), func() {
 			setLabelAndCRName("ht-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

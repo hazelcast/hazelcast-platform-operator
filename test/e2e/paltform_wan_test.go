@@ -38,7 +38,7 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should send 3 GB data by each cluster in active-passive mode in the different namespaces", Tag(Slow), func() {
+	It("should send 3 GB data by each cluster in active-passive mode in the different namespaces", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -102,7 +102,7 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
-	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Tag(Slow), func() {
+	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -237,7 +237,7 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize, 30*Minute)
 	})
 
-	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(Slow), func() {
+	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -310,7 +310,7 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
-	It("should send 6 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Tag(Slow), func() {
+	It("should send 6 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}

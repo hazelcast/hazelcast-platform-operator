@@ -33,7 +33,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 	})
 
 	Context("Basic WAN Replication functionality", func() {
-		It("successfully replicates data to another cluster", Tag(Slow), func() {
+		It("successfully replicates data to another cluster", Tag(Slow|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 			waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, mapLookupKey.Name, mapSize, 1*Minute)
 		})
 
-		It("maintains replication after source members restart", Tag(Slow), func() {
+		It("maintains replication after source members restart", Tag(Slow|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -86,7 +86,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 	})
 
 	Context("Handling WAN Replication status", func() {
-		It("sets WAN status to 'Failed' when delete Map CR which present as a Map resource in WAN spec", Tag(Slow), func() {
+		It("sets WAN status to 'Failed' when delete Map CR which present as a Map resource in WAN spec", Tag(Slow|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -119,7 +119,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 			assertObjectDoesNotExist(wan)
 		})
 
-		It("sets WAN status to 'Pending' when delete Map which present as a Hazelcast resource in WAN spec", Tag(Fast), func() {
+		It("sets WAN status to 'Pending' when delete Map which present as a Hazelcast resource in WAN spec", Tag(Fast|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -151,7 +151,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 			assertObjectDoesNotExist(wan)
 		})
 
-		It("sets WAN status to 'Success' when resource map is created after the WAN CR", Tag(Fast), func() {
+		It("sets WAN status to 'Success' when resource map is created after the WAN CR", Tag(Fast|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -219,7 +219,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 	})
 
 	Context("Updating WAN configuration", func() {
-		It("initially fails after removal of replicated Hazelcast CR, then succeeds after removal it from the WAN spec", Tag(Slow), func() {
+		It("initially fails after removal of replicated Hazelcast CR, then succeeds after removal it from the WAN spec", Tag(Slow|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -263,7 +263,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 			_ = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 		})
 
-		It("stops replication for maps removed from WAN spec", Tag(Fast), func() {
+		It("stops replication for maps removed from WAN spec", Tag(Fast|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -331,7 +331,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 			waitForMapSizePortForward(context.Background(), hzCrs[hzTarget1], localPort, map21, currentSize, 1*Minute)
 		})
 
-		It("continues replication when 1 of 2 maps references is deleted from WAN spec", Tag(Fast), func() {
+		It("continues replication when 1 of 2 maps references is deleted from WAN spec", Tag(Fast|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -366,7 +366,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 			_ = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 		})
 
-		It("verifies replication initiation for maps added after WAN setup", Tag(Slow), func() {
+		It("verifies replication initiation for maps added after WAN setup", Tag(Slow|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -439,7 +439,7 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 			waitForMapSizePortForward(context.Background(), hzTargetCr, localPort, mapAfterWan, mapSize, Minute)
 		})
 
-		It("handles different map names for target cluster replication", Tag(Slow), func() {
+		It("handles different map names for target cluster replication", Tag(Slow|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}

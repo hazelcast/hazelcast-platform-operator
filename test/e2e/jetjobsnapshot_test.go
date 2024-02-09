@@ -36,7 +36,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Group("jetjobsnapshot"), func() {
 	})
 
 	Context("JetJob snapshot utilization", func() {
-		It("should export snapshot and initialize new job from that snapshot", Tag(Fast), func() {
+		It("should export snapshot and initialize new job from that snapshot", Tag(Fast|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -154,7 +154,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Group("jetjobsnapshot"), func() {
 	})
 
 	Context("Operational behavior", func() {
-		It("cancel the JetJob after successful snapshot export", Tag(Fast), func() {
+		It("cancel the JetJob after successful snapshot export", Tag(Fast|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -186,7 +186,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Group("jetjobsnapshot"), func() {
 			checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobExecutionFailed)
 		})
 
-		It("fails when export snapshot from a suspended JetJob", Tag(Fast), func() {
+		It("fails when export snapshot from a suspended JetJob", Tag(Fast|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}

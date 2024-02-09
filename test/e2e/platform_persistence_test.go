@@ -35,7 +35,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should successfully start after one member restart", Tag(Slow), func() {
+	It("should successfully start after one member restart", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -73,7 +73,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		WaitForMapSize(ctx, hzLookupKey, m.MapName(), 100, 1*Minute)
 	})
 
-	It("should restore 3 GB data after planned shutdown", Tag(Slow), func() {
+	It("should restore 3 GB data after planned shutdown", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -139,7 +139,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
-	It("should not start repartitioning after one member restart", Tag(Slow), func() {
+	It("should not start repartitioning after one member restart", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -183,7 +183,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 
-	It("should not start repartitioning after planned shutdown", Tag(Slow), func() {
+	It("should not start repartitioning after planned shutdown", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -243,7 +243,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 
-	It("should persist SQL mappings", Tag(Slow), func() {
+	It("should persist SQL mappings", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -328,8 +328,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
 		}
 	},
-		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Serial, Tag(Slow), hazelcastcomv1alpha1.FullRecovery, "fr"),
-		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Serial, Tag(Slow), hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Serial, Tag(Slow|EE|AnyCloud), hazelcastcomv1alpha1.FullRecovery, "fr"),
+		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Serial, Tag(Slow|EE|AnyCloud), hazelcastcomv1alpha1.MostRecent, "pr"),
 	)
 
 })

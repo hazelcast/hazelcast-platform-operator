@@ -69,7 +69,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should have no data lose after node outage", Tag(Slow), func() {
+	It("should have no data lose after node outage", Tag(Slow|Any), func() {
 		setLabelAndCRName("hr-1")
 
 		ctx := context.Background()
@@ -123,7 +123,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
-	It("should have no data lose after zone outage", Tag(Slow), func() {
+	It("should have no data lose after zone outage", Tag(Slow|Any), func() {
 		setLabelAndCRName("hr-2")
 
 		ctx := context.Background()

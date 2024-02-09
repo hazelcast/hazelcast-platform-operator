@@ -170,8 +170,9 @@ const (
 	EE    = 1 << 3 // Enterprise License
 	Kind  = 1 << 4
 	AWS   = 1 << 5
-	GKE   = 1 << 6
+	GCP   = 1 << 6
 	AZURE = 1 << 7
+	OCP   = 1 << 8
 )
 
 // tagNames maps tags to label representation
@@ -182,13 +183,14 @@ var tagNames = map[uint32]string{
 	EE:    "ee",
 	Kind:  "kind",
 	AWS:   "aws",
-	GKE:   "gke",
+	GCP:   "gke",
 	AZURE: "azure",
+	OCP:   "ocp",
 }
 
 const (
 	// AnyCloud tagged tests will run on all cloud providers
-	AnyCloud = Kind | AWS | GKE | AZURE
+	AnyCloud = Kind | AWS | GCP | AZURE | OCP
 
 	// AnyLicense tagged tests will run on all cloud providers
 	AnyLicense = OS | EE
