@@ -170,7 +170,7 @@ jobs:
   slack_notify:
     name: Slack Notify
     timeout-minutes: 15
-    needs: ["update-test-run-status-badges","upload-coverage"]
+    needs: ["update-test-run-status-badges"]
     if: failure() && github.event_name == 'push'
     runs-on: ubuntu-latest
     env:
@@ -218,7 +218,6 @@ jobs:
           else
               echo "SEND_SLACK_MESSAGE=false" >> $GITHUB_OUTPUT
           fi
-        
 
       - uses: rtCamp/action-slack-notify@v2
         if: steps.decide.outputs.SEND_SLACK_MESSAGE == 'true'
