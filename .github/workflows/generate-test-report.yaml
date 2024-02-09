@@ -127,7 +127,7 @@ jobs:
       - name: Upload Report to AWS S3
         if: steps.generate-report.outcome == 'success'
         run: |
-          s3cmd --no-check-md5 sync ./allure-history s3://reportboard
+           s3cmd put --recursive --no-check-md5 ./allure-history/ s3://reportboard
           
       - name: Add Test Report Summary To PR
         if: ${{ contains(inputs.WORKFLOW_ID, 'pr') }}
