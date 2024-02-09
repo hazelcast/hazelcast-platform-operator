@@ -60,7 +60,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillMapByEntryCount(ctx, hzLookupKey, true, m.MapName(), 100)
+		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.MapName(), 100)
+		Expect(err).To(BeNil())
 
 		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
 		WaitForPodReady(hazelcast.Name+"-2", hzLookupKey, 1*Minute)
@@ -110,7 +111,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		assertHotBackupSuccess(hotBackup, 20*Minute)
 
 		By("putting entries after backup")
-		FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), 111)
+		err := FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), 111)
+		Expect(err).To(BeNil())
 
 		By("deleting Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
@@ -169,7 +171,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		Expect(err).To(BeNil())
 		t := Now()
 		DeletePod(hazelcast.Name+"-2", 10, hzLookupKey)
 		evaluateReadyMembers(hzLookupKey)
@@ -209,7 +212,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		Expect(err).To(BeNil())
 
 		By("creating HotBackup CR")
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)

@@ -345,7 +345,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			evaluateReadyMembers(hzLookupKey)
 
 			By("putting entries after first restore")
-			FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), additionalEntries)
+			err := FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), additionalEntries)
+			Expect(err).To(BeNil())
 
 			By("creating second HotBackup CR")
 			hotBackup2 := hazelcastconfig.HotBackup(hbLookupKey2, hazelcast.Name, labels)
@@ -415,7 +416,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			assertHotBackupSuccess(hotBackup, 20*Minute)
 
 			By("putting entries after backup")
-			FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), 111)
+			err := FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), 111)
+			Expect(err).To(BeNil())
 			By("deleting Hazelcast cluster")
 			RemoveHazelcastCR(hazelcast)
 			deletePVCs(hzLookupKey)

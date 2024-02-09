@@ -81,10 +81,10 @@ var _ = Describe("Hazelcast Chaos Tests", Label("chaos_tests"), func() {
 			fmt.Println("Pods labeled successfully")
 		}
 		By("create 5 maps")
-		CreateMaps(context.Background(), nMaps, hazelcast.Name, hazelcast)
+		ConcurrentlyCreateMaps(context.Background(), nMaps, hazelcast.Name, hazelcast)
 
 		By("put the entries")
-		FillMaps(context.Background(), nMaps, mapSizeInMb, hazelcast.Name, mapSizeInMb, hazelcast)
+		ConcurrentlyFillMultipleMapsByMb(context.Background(), nMaps, mapSizeInMb, hazelcast.Name, mapSizeInMb, hazelcast)
 
 		By("run chaos mesh pod kill scenario")
 		podKillChaos := &chaosmeshv1alpha1.PodChaos{
@@ -113,7 +113,7 @@ var _ = Describe("Hazelcast Chaos Tests", Label("chaos_tests"), func() {
 
 		By("checking the member size after random pod kill")
 		Eventually(func() int {
-			newPods, err := getClientSet().CoreV1().Pods(hazelcast.Namespace).List(context.TODO(), metav1.ListOptions{
+			newPods, err := getKubernetesClientSet().CoreV1().Pods(hazelcast.Namespace).List(context.TODO(), metav1.ListOptions{
 				LabelSelector: "group=cm_pod_kill",
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -243,7 +243,7 @@ var _ = Describe("Hazelcast Chaos Tests", Label("chaos_tests"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 
 		By("attempt to put the 10 entries into the map")
-		err = FillTheMapData(context.Background(), hzLookupKey, true, m.MapName(), 10)
+		err = FillMapByEntryCount(context.Background(), hzLookupKey, true, m.MapName(), 10)
 		Expect(err).Should(MatchError(MatchRegexp("Split brain protection exception: " + splitBrainConfName + " has failed!")))
 	})
 })
