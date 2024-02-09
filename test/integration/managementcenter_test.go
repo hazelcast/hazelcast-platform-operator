@@ -256,7 +256,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			assertDoesNotExist(lookupKey(mc), ing)
 		})
 
-		It("should configure contextPath when custom path is set in Ingress", Label("fast"), func() {
+		FIt("should configure contextPath in MC pod when custom path is set in Ingress", Label("fast"), func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -277,13 +277,36 @@ var _ = Describe("ManagementCenter CR", func() {
 
 			By("checking contextPath configuration")
 			fetchedSts := &appsv1.StatefulSet{}
-			assertExists(lookupKey(fetchedMc), fetchedSts)
+			assertExists(lookupKey(mc), fetchedSts)
 			Expect(fetchedSts.Spec.Template.Spec.Containers).To(HaveLen(1))
-			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Env).
-				Should(ContainElements(ContainSubstring("-Dhazelcast.mc.contextPath=/mc")))
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Env).Should(ContainElements(
+				And(
+					HaveField("Name", "JAVA_OPTS"),
+					HaveField("Value", ContainSubstring("-Dhazelcast.mc.contextPath=/mc")),
+				),
+			))
 
 			By("checking liveness probe path")
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/mc/health"))
+
+			By("updating ingress path")
+			fetchedMc = Fetch(mc)
+			fetchedMc.Spec.ExternalConnectivity.Ingress.Path = "/hz-mc"
+			Update(fetchedMc)
+
+			By("checking contextPath configuration after update")
+			updatedSts := &appsv1.StatefulSet{}
+			Eventually(func() []corev1.EnvVar {
+				assertExists(lookupKey(mc), updatedSts)
+				return updatedSts.Spec.Template.Spec.Containers[0].Env
+			}, timeout, interval).Should(ContainElements(
+				And(HaveField("Name", "JAVA_OPTS"),
+					HaveField("Value", ContainSubstring("-Dhazelcast.mc.contextPath=/hz-mc")),
+				),
+			))
+
+			By("checking contextPath configuration after update")
+			Expect(updatedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/hz-mc/health"))
 		})
 
 		It("should fail if ingress path is not an absolute path", Label("fast"), func() {

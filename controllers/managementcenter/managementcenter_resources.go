@@ -257,7 +257,6 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 						LivenessProbe: &v1.Probe{
 							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
-									Path:   path.Join(getRootPath(mc), "health"),
 									Port:   intstr.FromInt(8081),
 									Scheme: corev1.URISchemeHTTP,
 								},
@@ -317,6 +316,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(ctx, mc, r.Client, logger)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
+		sts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path = path.Join(getRootPath(mc), "health")
 		if mc.Spec.Resources != nil {
 			sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
 		}
