@@ -29,7 +29,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
@@ -88,13 +88,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v2.0.1'
+        uses: 'google-github-actions/auth@v2.1.0'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 

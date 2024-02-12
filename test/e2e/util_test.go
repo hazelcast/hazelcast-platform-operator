@@ -156,3 +156,34 @@ func checkJetJobSnapshotStatus(nn types.NamespacedName, state hazelcastcomv1alph
 	}, 5*Minute, interval).Should(Equal(state))
 	return jjsCheck
 }
+
+// Group works like ginkgo Labels but with the intention of grouping related tests
+func Group(group string) Labels {
+	return Label(group)
+}
+
+// Tag works like ginkgo Labels but adds additional dynamic labels
+func Tag(tags ...string) Labels {
+	tags = append(tags, shard())
+	return Labels(tags)
+}
+
+var counter int
+
+func shard() string {
+	s := fmt.Sprintf("shard%0*d", countDigits(shards), (counter%shards)+1)
+	counter++
+	return s
+}
+
+func countDigits(i int) int {
+	if i == 0 {
+		return 1
+	}
+	var count int
+	for i != 0 {
+		i /= 10
+		count++
+	}
+	return count
+}

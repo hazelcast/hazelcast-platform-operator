@@ -684,6 +684,19 @@ var (
 		}
 	}
 
+	WanSync = func(wan types.NamespacedName, wanReplicationName string, lbls map[string]string) *hazelcastcomv1alpha1.WanSync {
+		return &hazelcastcomv1alpha1.WanSync{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      wan.Name,
+				Namespace: wan.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastcomv1alpha1.WanSyncSpec{
+				WanReplicationResourceName: wanReplicationName,
+			},
+		}
+	}
+
 	DefaultMultiMap = func(lk types.NamespacedName, hzName string, lbls map[string]string) *hazelcastcomv1alpha1.MultiMap {
 		return &hazelcastcomv1alpha1.MultiMap{
 			ObjectMeta: v1.ObjectMeta{

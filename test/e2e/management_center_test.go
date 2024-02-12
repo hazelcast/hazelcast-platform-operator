@@ -18,7 +18,7 @@ import (
 	mcconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/managementcenter"
 )
 
-var _ = Describe("Management-Center", Label("mc"), func() {
+var _ = Describe("Management-Center", Group("mc"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -50,8 +50,8 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		})
 	}
 
-	Describe("Default ManagementCenter CR", func() {
-		It("Should create ManagementCenter resources", Label("fast"), func() {
+	Context("ManagementCenter creation", func() {
+		It("should create ManagementCenter resources", Tag("fast"), func() {
 			setLabelAndCRName("mc-1")
 			mc := mcconfig.Default(mcLookupKey, ee, labels)
 			mc.Spec.Resources = &corev1.ResourceRequirements{
@@ -83,10 +83,8 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 				}, 5*Minute, interval).Should(Not(BeEmpty()))
 			})
 		})
-	})
 
-	Describe("ManagementCenter CR without Persistence", func() {
-		It("Should create ManagementCenter resources and no PVC", Label("fast"), func() {
+		It("should create ManagementCenter resources and no PVC", Tag("fast"), func() {
 			setLabelAndCRName("mc-2")
 			mc := mcconfig.PersistenceDisabled(mcLookupKey, ee, labels)
 			mc.Spec.Resources = &corev1.ResourceRequirements{
@@ -106,7 +104,7 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 		})
 	})
 
-	Describe("External API errors", func() {
+	Context("External API errors", func() {
 		assertStatusEventually := func(phase hazelcastcomv1alpha1.MCPhase) {
 			mc := &hazelcastcomv1alpha1.ManagementCenter{}
 			Eventually(func() hazelcastcomv1alpha1.MCPhase {
@@ -117,15 +115,15 @@ var _ = Describe("Management-Center", Label("mc"), func() {
 			Expect(mc.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should be reflected to Management CR status", Label("fast"), func() {
+		It("should be reflected to Management CR status", Tag("fast"), func() {
 			setLabelAndCRName("mc-3")
 			createWithoutCheck(mcconfig.Faulty(mcLookupKey, ee, labels))
 			assertStatusEventually(hazelcastcomv1alpha1.McFailed)
 		})
 	})
 
-	Describe("ManagementCenter CR with Route", func() {
-		It("Should be able to access route", Label("fast"), func() {
+	Context("ManagementCenter CR with Route", func() {
+		It("should be able to access route in Openshift env.", Tag("fast"), func() {
 			if platform.GetType() != platform.OpenShift {
 				Skip("This test will only run in OpenShift environments")
 			}

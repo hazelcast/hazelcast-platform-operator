@@ -17,6 +17,7 @@ var (
 	interval        time.Duration
 	ee              bool
 	kind            bool
+	shards          int
 )
 
 func init() {
@@ -29,5 +30,6 @@ func init() {
 	flag.DurationVar(&interval, "interval", 100*time.Millisecond, "The length of time between checks")
 	flag.BoolVar(&ee, "ee", true, "Flag to define whether Enterprise edition of Hazelcast will be used")
 	flag.BoolVar(&kind, "kind", false, "specify if the test cluster is Kind")
+	flag.IntVar(&shards, "num-shards", 10, "Total number of shards")
 	rand.Seed(time.Now().UnixNano())
 }

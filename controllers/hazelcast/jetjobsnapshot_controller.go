@@ -159,7 +159,7 @@ func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return result, err
 	}
 
-	if !util.IsSuccessfullyApplied(jjs) {
+	if !recoptions.IsSuccessfullyApplied(jjs) {
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 
@@ -227,15 +227,7 @@ func (r *JetJobSnapshotReconciler) updateLastSuccessfulConfiguration(ctx context
 		if err := r.Client.Get(ctx, name, jjs); err != nil {
 			return err
 		}
-		jjss, err := json.Marshal(jjs.Spec)
-		if err != nil {
-			return err
-		}
-		if jjs.ObjectMeta.Annotations == nil {
-			jjs.ObjectMeta.Annotations = make(map[string]string)
-		}
-		jjs.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(jjss)
-
+		recoptions.InsertLastSuccessfullyAppliedSpec(jjs.Spec, jjs)
 		return r.Client.Update(ctx, jjs)
 	})
 }

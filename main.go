@@ -270,8 +270,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupWithWebhookOrDie(mgr)
+	if err = hazelcast.NewWanSyncReconciler(
+		mgr.GetClient(),
+		controllerLogger.WithName("WanSync"),
+		scheme,
+		cr, phoneHomeTrigger,
+	).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "WanSync")
+		os.Exit(1)
+	}
 
+	setupWithWebhookOrDie(mgr)
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -359,6 +368,10 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 	}
 	if err := (&hazelcastcomv1alpha1.HazelcastEndpoint{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "HazelcastEndpoint")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.WanSync{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "WanSync")
 		os.Exit(1)
 	}
 }

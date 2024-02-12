@@ -280,7 +280,8 @@ post_test_result()
     )
 
     # Initialize the table header
-    comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | ---- | :----: | :----: |\n"
+    success_comment="✅ All tests have passed\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
+    failed_comment="❌ Some tests failed\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
     # Initialize the failed test section
     failed_test_block="\n<details><summary>Failed Tests</summary>\n\n|||\n| :----: | ---- |\n"
 
@@ -313,13 +314,21 @@ post_test_result()
         failed_tests_row="| ${type^^} | $failed_tests |\n"
 
         # Append the row to the output
-        comment+="$row"
+        success_comment+="$row"
+        failed_comment+="$row"
         failed_test_block+="$failed_tests_row"
     done
-    comment+="$failed_test_block"
+    success_comment+="$failed_test_block"
+    failed_comment+="$failed_test_block"
     # Send the output as a comment on the pull request using gh
+    COMMENT_ID=$(gh api -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/$PR_NUMBER/comments | jq '.[] | select(.user.login == "github-actions[bot]") | .id')
+    if [[ $COMMENT_ID -ne "" ]]; then
+        gh api --method DELETE -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/comments/$COMMENT_ID
+    fi
     if [[ "${test_run_status[*]}" == *"true"* ]]; then
-       echo -e "$comment" | gh pr comment ${PR_NUMBER} -F -
+        echo -e "$failed_comment" | gh pr comment ${PR_NUMBER} -F -
+    else
+        echo -e "$success_comment" | gh pr comment ${PR_NUMBER} -F -
     fi
 }
 
@@ -356,36 +365,6 @@ wait_for_instance_restarted()
    else
       echo "All instances are in 'Ready' status."
    fi
-}
-
-# The function generates test suite files which are contains list of focused tests. Takes a single argument - number of files to be generated.
-# Returns the specified number of files with name test_suite_XX where XX - suffix number of file starting with '01'. The tests will be equally splitted between files.
-generate_test_suites()
-{
-   make ginkgo
-   mkdir suite_files
-   SUITE_LIST=$(find test/e2e -type f \
-     -name "*_test.go" \
-   ! -name "hazelcast_backup_slow_test.go" \
-   ! -name "hazelcast_wan_slow_test.go" \
-   ! -name "hazelcast_high_availability_test.go" \
-   ! -name "hazelcast_high_load_test.go" \
-   ! -name "hazelcast_soak_test.go" \
-   ! -name "custom_resource_test.go" \
-   ! -name "client_port_forward_test.go" \
-   ! -name "e2e_suite_test.go" \
-   ! -name "helpers_test.go" \
-   ! -name "util_test.go" \
-   ! -name "options_test.go")
-   for SUITE_NAME in $SUITE_LIST; do
-       $(make ginkgo PRINT_TOOL_NAME=true) outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
-   done
-   split --number=r/$1 TESTS_LIST suite_files/test_suite_ --numeric-suffixes=1 -a 2
-   for i in $(ls suite_files/); do
-       wc -l "suite_files/$i"
-       cat <<< $(tr '\n' ' ' < suite_files/$i) > suite_files/$i
-       cat suite_files/"$i"
-   done
 }
 
 # The function merges all test reports (XML) files from each node into one report.

@@ -18,7 +18,7 @@ const (
 	logInterval = 10 * Millisecond
 )
 
-var _ = Describe("Hazelcast", Label("hz"), func() {
+var _ = Describe("Hazelcast", Group("hz"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -30,23 +30,22 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should create HZ cluster with custom name and update HZ ready members status", Label("slow"), func() {
-		setLabelAndCRName("h-1")
-		hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
-		CreateHazelcastCR(hazelcast)
-		assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
-		evaluateReadyMembers(hzLookupKey)
-		assertMemberLogs(hazelcast, "Members {size:3, ver:3}")
-
-		By("removing pods so that cluster gets recreated", func() {
-			deletePods(hzLookupKey)
+	Context("Cluster creation", func() {
+		It("should create a Hazelcast cluster with a custom name", Tag("fast"), func() {
+			setLabelAndCRName("h-1")
+			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
+			CreateHazelcastCR(hazelcast)
+			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
 			evaluateReadyMembers(hzLookupKey)
-		})
-	})
+			assertMemberLogs(hazelcast, "Members {size:3, ver:3}")
 
-	Context("Hazelcast member status", func() {
-		It("should update HZ ready members status", Label("slow"), func() {
-			setLabelAndCRName("h-3")
+			By("removing pods so that cluster gets recreated", func() {
+				deletePods(hzLookupKey)
+				evaluateReadyMembers(hzLookupKey)
+			})
+		})
+		It("should update ready members status in Hazelcast cluster", Tag("fast"), func() {
+			setLabelAndCRName("h-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -59,8 +58,8 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			})
 		})
 
-		It("should update HZ detailed member status", Label("fast"), func() {
-			setLabelAndCRName("h-4")
+		It("should update detailed members status in Hazelcast cluster", Tag("fast"), func() {
+			setLabelAndCRName("h-3")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -82,8 +81,8 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			))
 		})
 
-		It("should have correct pod name", Label("fast"), func() {
-			setLabelAndCRName("h-5")
+		It("should validate correct pod names and IPs for Hazelcast members", Tag("fast"), func() {
+			setLabelAndCRName("h-4")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -102,7 +101,7 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 		})
 	})
 
-	Describe("External API errors", func() {
+	Context("Handling errors", func() {
 		assertStatusAndMessageEventually := func(phase hazelcastcomv1alpha1.Phase) {
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
 			Eventually(func() hazelcastcomv1alpha1.Phase {
@@ -113,102 +112,97 @@ var _ = Describe("Hazelcast", Label("hz"), func() {
 			Expect(hz.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should be reflected to Hazelcast CR status", Label("fast"), func() {
-			setLabelAndCRName("h-6")
+		It("should reflect external API errors in Hazelcast CR status", Tag("fast"), func() {
+			setLabelAndCRName("h-5")
 			CreateHazelcastCRWithoutCheck(hazelcastconfig.Faulty(hzLookupKey, ee, labels))
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
 	})
 
-	Describe("Hazelcast CR dependent CRs", func() {
-		When("Hazelcast CR is deleted", func() {
-			It("dependent Data Structures and HotBackup CRs should be deleted", Label("fast"), func() {
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
-				setLabelAndCRName("h-7")
-				clusterSize := int32(3)
+	Context("Cluster deletion", func() {
+		It("should delete dependent data structures and backups on Hazelcast CR deletion", Tag("fast"), func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			setLabelAndCRName("h-6")
+			clusterSize := int32(3)
 
-				hz := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-				CreateHazelcastCR(hz)
-				evaluateReadyMembers(hzLookupKey)
+			hz := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+			CreateHazelcastCR(hz)
+			evaluateReadyMembers(hzLookupKey)
 
-				m := hazelcastconfig.DefaultMap(mapLookupKey, hz.Name, labels)
-				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
-				assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			m := hazelcastconfig.DefaultMap(mapLookupKey, hz.Name, labels)
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-				mm := hazelcastconfig.DefaultMultiMap(mmLookupKey, hz.Name, labels)
-				Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
-				assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{})
+			mm := hazelcastconfig.DefaultMultiMap(mmLookupKey, hz.Name, labels)
+			Expect(k8sClient.Create(context.Background(), mm)).Should(Succeed())
+			assertDataStructureStatus(mmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.MultiMap{})
 
-				rm := hazelcastconfig.DefaultReplicatedMap(rmLookupKey, hz.Name, labels)
-				Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
-				assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{})
+			rm := hazelcastconfig.DefaultReplicatedMap(rmLookupKey, hz.Name, labels)
+			Expect(k8sClient.Create(context.Background(), rm)).Should(Succeed())
+			assertDataStructureStatus(rmLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.ReplicatedMap{})
 
-				topic := hazelcastconfig.DefaultTopic(topicLookupKey, hz.Name, labels)
-				Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
-				assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{})
+			topic := hazelcastconfig.DefaultTopic(topicLookupKey, hz.Name, labels)
+			Expect(k8sClient.Create(context.Background(), topic)).Should(Succeed())
+			assertDataStructureStatus(topicLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, &hazelcastcomv1alpha1.Topic{})
 
-				DeleteAllOf(hz, &hazelcastcomv1alpha1.HazelcastList{}, hz.Namespace, labels)
+			DeleteAllOf(hz, &hazelcastcomv1alpha1.HazelcastList{}, hz.Namespace, labels)
 
-				err := k8sClient.Get(context.Background(), mapLookupKey, m)
-				Expect(errors.IsNotFound(err)).To(BeTrue())
+			err := k8sClient.Get(context.Background(), mapLookupKey, m)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
 
-				err = k8sClient.Get(context.Background(), topicLookupKey, topic)
-				Expect(errors.IsNotFound(err)).To(BeTrue())
-			})
+			err = k8sClient.Get(context.Background(), topicLookupKey, topic)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
 		})
 	})
 
-	Describe("Hazelcast CR TLS configuration", func() {
-		When("TLS property is configured", func() {
-			It("should form a cluster and be able to connect", Label("fast"), func() {
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
-				setLabelAndCRName("h-8")
-				hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
+	Context("TLS Configuration", func() {
+		It("should form a cluster with TLS configuration enabled", Tag("fast"), func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			setLabelAndCRName("h-7")
+			hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
 
-				tlsSecretNn := types.NamespacedName{
-					Name:      hz.Spec.TLS.SecretName,
-					Namespace: hz.Namespace,
-				}
-				secret := hazelcastconfig.TLSSecret(tlsSecretNn, map[string]string{})
-				By("creating TLS secret", func() {
-					Eventually(func() error {
-						return k8sClient.Create(context.Background(), secret)
-					}, Minute, interval).Should(Succeed())
-					assertExists(tlsSecretNn, &corev1.Secret{})
-				})
-
-				CreateHazelcastCR(hz)
-				evaluateReadyMembers(hzLookupKey)
+			tlsSecretNn := types.NamespacedName{
+				Name:      hz.Spec.TLS.SecretName,
+				Namespace: hz.Namespace,
+			}
+			secret := hazelcastconfig.TLSSecret(tlsSecretNn, map[string]string{})
+			By("creating TLS secret", func() {
+				Eventually(func() error {
+					return k8sClient.Create(context.Background(), secret)
+				}, Minute, interval).Should(Succeed())
+				assertExists(tlsSecretNn, &corev1.Secret{})
 			})
+
+			CreateHazelcastCR(hz)
+			evaluateReadyMembers(hzLookupKey)
 		})
 
-		When("TLS with Mutual Authentication property is configured", func() {
-			It("should form a cluster and be able to connect", Label("fast"), func() {
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
-				setLabelAndCRName("h-8")
-				hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
+		It("should support mutual TLS authentication in Hazelcast cluster", Tag("fast"), func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			setLabelAndCRName("h-8")
+			hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
 
-				tlsSecretNn := types.NamespacedName{
-					Name:      hz.Spec.TLS.SecretName,
-					Namespace: hz.Namespace,
-				}
-				secret := hazelcastconfig.TLSSecret(tlsSecretNn, map[string]string{})
-				By("creating TLS secret", func() {
-					Eventually(func() error {
-						return k8sClient.Create(context.Background(), secret)
-					}, Minute, interval).Should(Succeed())
-					assertExists(tlsSecretNn, &corev1.Secret{})
-				})
-
-				CreateHazelcastCR(hz)
-				evaluateReadyMembers(hzLookupKey)
+			tlsSecretNn := types.NamespacedName{
+				Name:      hz.Spec.TLS.SecretName,
+				Namespace: hz.Namespace,
+			}
+			secret := hazelcastconfig.TLSSecret(tlsSecretNn, map[string]string{})
+			By("creating TLS secret", func() {
+				Eventually(func() error {
+					return k8sClient.Create(context.Background(), secret)
+				}, Minute, interval).Should(Succeed())
+				assertExists(tlsSecretNn, &corev1.Secret{})
 			})
+
+			CreateHazelcastCR(hz)
+			evaluateReadyMembers(hzLookupKey)
 		})
 	})
+
 })

@@ -194,7 +194,7 @@ func getHZClient(ctx context.Context, c client.Client, obj client.Object, h *haz
 }
 
 func finalSetupDS(ctx context.Context, c client.Client, ph chan struct{}, obj client.Object, logger logr.Logger) (ctrl.Result, error) {
-	if util.IsPhoneHomeEnabled() && !util.IsSuccessfullyApplied(obj) {
+	if util.IsPhoneHomeEnabled() && !recoptions.IsSuccessfullyApplied(obj) {
 		go func() { ph <- struct{}{} }()
 	}
 

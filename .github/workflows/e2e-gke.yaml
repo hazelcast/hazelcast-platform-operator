@@ -1,4 +1,4 @@
-name: (E2E) GCP Tests
+name: (E2E) GKE Tests
 on:
   workflow_dispatch:
   workflow_call:
@@ -28,13 +28,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v2.0.1'
+        uses: 'google-github-actions/auth@v2.1.0'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -47,7 +47,7 @@ jobs:
             --zone=${{ env.GKE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
-            --machine-type=n1-standard-2 \
+            --machine-type=n1-standard-16 \
             --num-nodes=3
           sleep 30
 
@@ -91,7 +91,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -152,7 +152,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -160,7 +160,7 @@ jobs:
             AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.0.1"
+        uses: "google-github-actions/auth@v2.1.0"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -245,7 +245,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             TEST_STATUSES_GIST_ID,CN/TEST_STATUSES_GIST_ID
@@ -291,13 +291,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.0.1"
+        uses: "google-github-actions/auth@v2.1.0"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -320,7 +320,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL

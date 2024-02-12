@@ -27,8 +27,6 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
-
-	. "github.com/hazelcast/hazelcast-platform-operator/test"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -45,7 +43,6 @@ var (
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-	SpecLabelsChecker()
 	RunSpecs(t, "Controller Suite")
 }
 
@@ -183,6 +180,8 @@ var _ = BeforeSuite(func() {
 	err = (&hazelcastcomv1alpha1.JetJobSnapshot{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 	err = (&hazelcastcomv1alpha1.HazelcastEndpoint{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.WanSync{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook

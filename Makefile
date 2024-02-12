@@ -4,7 +4,6 @@
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= latest-snapshot
-COV_PKG=$(shell go list ./... | grep -v /apidocgen | grep -v /test | tr '\n' ",")
 
 BUNDLE_VERSION := $(VERSION)
 VERSION_PARTS := $(subst ., ,$(VERSION))
@@ -94,8 +93,8 @@ KUBECTL ?= kubectl
 OPERATOR_CHART ?= ./helm-charts/hazelcast-platform-operator
 CRD_CHART := $(OPERATOR_CHART)/charts/hazelcast-platform-operator-crds
 
-PHONE_HOME_ENABLED ?= false
-DEVELOPER_MODE_ENABLED ?= true
+export PHONE_HOME_ENABLED ?= false
+export DEVELOPER_MODE_ENABLED ?= true
 INSTALL_CRDS ?= false
 DEBUG_ENABLED ?= false
 
@@ -143,8 +142,8 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-fmt: ## Run go fmt against code.
-	go fmt ./...
+fmt: ## Run go fmt against code. Fail if changes were detected.
+	! go fmt ./... | grep .
 
 vet: ## Run go vet against code.
 	go vet -tags "$(GO_BUILD_TAGS)" ./...
@@ -154,10 +153,8 @@ test-all: test test-e2e
 test: test-unit test-it
 
 test-unit: GO_BUILD_TAGS = "hazelcastinternal,unittest"
-test-unit: manifests generate fmt vet
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./controllers/... -coverprofile=cover-controllers.out -coverpkg $(COV_PKG)
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./internal/... -coverprofile=cover-internal.out -coverpkg $(COV_PKG)
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./api/... -coverprofile=cover-api.out -coverpkg $(COV_PKG)
+test-unit: manifests generate
+	go test -tags $(GO_BUILD_TAGS) -v ./controllers/... ./internal/... ./api/...
 
 lint: lint-go lint-yaml
 
@@ -174,7 +171,7 @@ setup-linters:
 
 # Use tilt tool to deploy operator and its resources to the local K8s cluster in the current context 
 tilt: 
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) tilt up
+	tilt up
 
 tilt-debug:
 	DEBUG_ENABLED=true tilt up
@@ -184,25 +181,25 @@ tilt-debug-remote-ttl:
 
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context 
 tilt-remote: 
-	 DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) ALLOW_REMOTE=true tilt up
+	 ALLOW_REMOTE=true tilt up
 
 # Use tilt tool to deploy operator and its resources to any K8s cluster in the current context with ttl.sh configured for image registry.
 tilt-remote-ttl:
-	 DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) ALLOW_REMOTE=true USE_TTL_REG=true tilt up
+	 ALLOW_REMOTE=true USE_TTL_REG=true tilt up
 
 ENVTEST_ASSETS_DIR=$(TOOLBIN)/envtest
 GO_TEST_FLAGS ?= "-ee=true"
-COVER_OUT ?= "cover.out"
 
-test-it: manifests generate fmt vet envtest ## Run tests.
+test-it: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" -coverprofile $(COVER_OUT) -coverpkg $(COV_PKG) $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -ginkgo.label-filter="slow || fast" $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
 
-test-it-focus: manifests generate fmt vet envtest ## Run tests.
+test-it-focus: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -coverprofile $(COVER_OUT) $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/...  $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
 
-E2E_TEST_SUITE ?= hz || mc || hz_persistence || hz_expose_externally || map || map_persistence || cache_persistence || hz_wan || custom_class || multimap || topic || replicatedmap || queue || cache || resilience || backup || jetjob || jetjobsnapshot || hz_tiered_storage
+
+E2E_TEST_SUITE ?= hz || mc || backup_restore || expose_externally || map || hz_wan || user_code || multimap || topic || replicatedmap || queue || cache || jetjob || jetjobsnapshot || wan_sync || tiered_storage
 ifeq (,$(E2E_TEST_SUITE))
 E2E_TEST_LABELS =
 else 
@@ -211,39 +208,33 @@ endif
 GINKGO_PARALLEL_PROCESSES ?= 4
 GINKGO_KIND_PARALLEL_PROCESSES ?= 2
 
-test-e2e-split-kind: generate fmt vet ginkgo ## Run end-to-end tests on Kind
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) $(FOCUSED_TESTS) --vv --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS) --kind
+test-e2e-split-kind: generate ginkgo ## Run end-to-end tests on Kind
+	$(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --label-filter="fast && shard$(SHARD_ID)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS) --kind
 
-test-e2e: generate fmt vet ginkgo ## Run end-to-end tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -deployNamespace "$(WATCHED_NAMESPACES)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+test-e2e: generate ginkgo ## Run end-to-end tests
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -deployNamespace "$(WATCHED_NAMESPACES)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
-test-ph: generate fmt vet ginkgo ## Run phone-home tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none --coverprofile cover.out ./test/ph -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
+test-ph: generate ginkgo ## Run phone-home tests
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none ./test/ph -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
-test-high-availability: generate fmt vet ginkgo ## Run high-availability tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="high_availability" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+test-soak: generate ginkgo ## Run soak tests
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="soak" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 1500m --flake-attempts 1 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
-test-high-load: generate fmt vet ginkgo ## Run high-load tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="high_load" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 1 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
-
-test-soak: generate fmt vet ginkgo ## Run soak tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="soak" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 1500m --flake-attempts 1 --output-interceptor-mode=none --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
-
-test-e2e-focus: generate fmt vet ginkgo ## Run focused end-to-end tests
-	DEPLOYMENT_NAME=$(DEPLOYMENT_NAME) $(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) -v --progress --timeout 70m --coverprofile cover.out ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+test-e2e-focus: generate ginkgo ## Run focused end-to-end tests
+	$(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) -v --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
-build: generate fmt vet ## Build manager binary.
+build: generate vet fmt ## Build manager binary.
 	go build -o bin/manager -tags "$(GO_BUILD_TAGS)" main.go
 
-build-tilt: generate fmt vet # This is not going to work if client and server cpu architectures are different
+build-tilt: generate # This is not going to work if client and server cpu architectures are different
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
 
-build-tilt-debug: generate fmt vet # This is not going to work if client and server cpu architectures are different
+build-tilt-debug: generate # This is not going to work if client and server cpu architectures are different
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -gcflags "-N -l" -o bin/tilt/manager-debug main.go
 
-run: manifests generate fmt vet ## Run a controller from your host.
+run: manifests generate ## Run a controller from your host.
 	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS)" ./main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.

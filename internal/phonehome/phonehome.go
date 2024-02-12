@@ -88,6 +88,7 @@ type PhoneHomeData struct {
 	Cache                         Cache                  `json:"c"`
 	Jet                           Jet                    `json:"jet"`
 	WanReplicationCount           int                    `json:"wrc"`
+	WanSyncCount                  int                    `json:"wsc"`
 	BackupAndRestore              BackupAndRestore       `json:"br"`
 	UserCodeDeployment            UserCodeDeployment     `json:"ucd"`
 	McExternalConnectivity        McExternalConnectivity `json:"mcec"`
@@ -197,6 +198,7 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillMapMetrics(cl)
 	phd.fillCacheMetrics(cl)
 	phd.fillWanReplicationMetrics(cl)
+	phd.fillWanSyncMetrics(cl)
 	phd.fillHotBackupMetrics(cl)
 	phd.fillMultiMapMetrics(cl)
 	phd.fillReplicatedMapMetrics(cl)
@@ -515,6 +517,15 @@ func (phm *PhoneHomeData) fillWanReplicationMetrics(cl client.Client) {
 		return
 	}
 	phm.WanReplicationCount = len(wrl.Items)
+}
+
+func (phm *PhoneHomeData) fillWanSyncMetrics(cl client.Client) {
+	wsl := &hazelcastv1alpha1.WanSyncList{}
+	err := cl.List(context.Background(), wsl, listOptions()...)
+	if err != nil || wsl.Items == nil {
+		return
+	}
+	phm.WanReplicationCount = len(wsl.Items)
 }
 
 func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {

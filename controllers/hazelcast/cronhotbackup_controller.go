@@ -19,10 +19,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/go-logr/logr"
+	"github.com/robfig/cron/v3"
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
-	"github.com/robfig/cron/v3"
 )
 
 // CronHotBackupReconciler reconciles a CronHotBackup object
@@ -88,7 +90,7 @@ func (r *CronHotBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// If the CronHotBackup is not successfully applied yet
-	if !util.IsSuccessfullyApplied(chb) {
+	if !controllers.IsSuccessfullyApplied(chb) {
 		err = r.updateSchedule(ctx, chb)
 		if err != nil {
 			return
@@ -329,15 +331,7 @@ func (r *CronHotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.
 		if err := r.Client.Get(ctx, name, chb); err != nil {
 			return err
 		}
-		hs, err := json.Marshal(chb.Spec)
-		if err != nil {
-			return err
-		}
-		if chb.ObjectMeta.Annotations == nil {
-			chb.ObjectMeta.Annotations = make(map[string]string)
-		}
-		chb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
-
+		controllers.InsertLastSuccessfullyAppliedSpec(chb.Spec, chb)
 		return r.Client.Update(ctx, chb)
 	})
 }

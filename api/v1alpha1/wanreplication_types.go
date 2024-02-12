@@ -182,6 +182,15 @@ type WanReplication struct {
 	Status WanReplicationStatus `json:"status,omitempty"`
 }
 
+func (w *WanReplication) PublisherId(mapName string) string {
+	for _, mapStatus := range w.Status.WanReplicationMapsStatus {
+		if mapStatus.ResourceName == mapName {
+			return mapStatus.PublisherId
+		}
+	}
+	return ""
+}
+
 //+kubebuilder:object:root=true
 
 // WanReplicationList contains a list of WanReplication

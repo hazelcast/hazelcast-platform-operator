@@ -165,6 +165,12 @@ type Map struct {
 	NearCache               NearCacheConfig                    `yaml:"near-cache,omitempty"`
 	EventJournal            EventJournal                       `yaml:"event-journal,omitempty"`
 	TieredStore             TieredStore                        `yaml:"tiered-store,omitempty"`
+	MerkleTree              MerkleTree                         `yaml:"merkle-tree,omitempty"`
+}
+
+type MerkleTree struct {
+	Enabled bool  `yaml:"enabled"`
+	Depth   int32 `yaml:"depth"`
 }
 
 type EntryListener struct {

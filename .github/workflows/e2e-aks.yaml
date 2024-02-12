@@ -25,7 +25,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
@@ -47,6 +47,7 @@ jobs:
               --resource-group=${AZURE_RESOURCE_GROUP} \
               --name="${CLUSTER_NAME}" \
               --node-count=3 \
+              --node-vm-size Standard_D4_v2 \
               --enable-node-public-ip \
               --generate-ssh-keys | jq -r .nodeResourceGroup)
             echo "NodeResourceGroup: ${NRG}"
@@ -98,7 +99,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -160,7 +161,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             GKE_SA_KEY,CN/GKE_SA_KEY
@@ -259,7 +260,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             TEST_STATUSES_GIST_ID,CN/TEST_STATUSES_GIST_ID
@@ -303,7 +304,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
@@ -335,7 +336,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
             SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL

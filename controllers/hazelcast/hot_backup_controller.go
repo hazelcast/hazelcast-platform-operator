@@ -127,7 +127,7 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 			withHotBackupState(hazelcastv1alpha1.HotBackupPending))
 	}
 
-	if err := hazelcastv1alpha1.ValidateHotBackupPersistence(h); err != nil {
+	if err := hazelcastv1alpha1.ValidateHotBackupPersistence(hb, h); err != nil {
 		return r.updateStatus(ctx, req.NamespacedName, recoptions.Error(err),
 			withHotBackupFailedState(err.Error()))
 	}
@@ -164,15 +164,7 @@ func (r *HotBackupReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 		if err := r.Client.Get(ctx, name, hb); err != nil {
 			return err
 		}
-		hs, err := json.Marshal(hb.Spec)
-		if err != nil {
-			return err
-		}
-		if hb.ObjectMeta.Annotations == nil {
-			hb.ObjectMeta.Annotations = make(map[string]string)
-		}
-		hb.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
-
+		recoptions.InsertLastSuccessfullyAppliedSpec(hb.Spec, hb)
 		return r.Client.Update(ctx, hb)
 	})
 }
@@ -181,6 +173,11 @@ func (r *HotBackupReconciler) executeFinalizer(ctx context.Context, hb *hazelcas
 	if !controllerutil.ContainsFinalizer(hb, n.Finalizer) {
 		return nil
 	}
+
+	if err := hazelcastv1alpha1.ValidateHotBackupIsNotReferencedByHazelcast(hb); err != nil {
+		return err
+	}
+
 	key := types.NamespacedName{
 		Name:      hb.Name,
 		Namespace: hb.Namespace,

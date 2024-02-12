@@ -290,6 +290,16 @@ func DecodeListMultiFrameForDataContainsNullable(frameIterator *proto.ForwardFra
 	return result
 }
 
+func DecodeListMultiFrameForMCEvent(frameIterator *proto.ForwardFrameIterator) []types.MCEvent {
+	var result []types.MCEvent
+	frameIterator.Next()
+	for !NextFrameIsDataStructureEndFrame(frameIterator) {
+		result = append(result, DecodeMCEvent(frameIterator))
+	}
+	frameIterator.Next()
+	return result
+}
+
 func DecodeListMultiFrameForJobAndSqlSummary(frameIterator *proto.ForwardFrameIterator) []types.JobAndSqlSummary {
 	var result []types.JobAndSqlSummary
 	frameIterator.Next()
@@ -309,6 +319,19 @@ func EncodeUUID(buffer []byte, offset int32, uuid clientTypes.UUID) {
 	bufferOffset := offset + proto.BooleanSizeInBytes
 	EncodeLong(buffer, bufferOffset, int64(uuid.MostSignificantBits()))
 	EncodeLong(buffer, bufferOffset+proto.LongSizeInBytes, int64(uuid.LeastSignificantBits()))
+}
+
+func DecodeUUID(buffer []byte, offset int32) clientTypes.UUID {
+	isNull := DecodeBoolean(buffer, offset)
+	if isNull {
+		return clientTypes.UUID{}
+	}
+	mostSignificantOffset := offset + proto.BooleanSizeInBytes
+	leastSignificantOffset := mostSignificantOffset + proto.LongSizeInBytes
+	mostSignificant := uint64(DecodeLong(buffer, mostSignificantOffset))
+	leastSignificant := uint64(DecodeLong(buffer, leastSignificantOffset))
+
+	return clientTypes.NewUUIDWith(mostSignificant, leastSignificant)
 }
 
 func EncodeByteArray(message *proto.ClientMessage, value []byte) {
