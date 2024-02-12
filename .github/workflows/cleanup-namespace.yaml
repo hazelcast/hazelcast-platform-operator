@@ -64,7 +64,7 @@ jobs:
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.0"
+        uses: "google-github-actions/auth@v2.1.1"
         if: ${{ contains(inputs.cluster_type, 'gke') }}
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
