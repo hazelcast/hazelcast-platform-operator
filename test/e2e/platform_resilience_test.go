@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"gopkg.in/yaml.v3"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -81,116 +83,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should have no data lose after node outage", Tag(Slow|Any), func() {
-		setLabelAndCRName("hr-1")
-
-		ctx := context.Background()
-		numberOfNodes, err := numberOfAllNodes(ctx)
-		Expect(err).To(BeNil())
-		hzClusterSize := numberOfNodes * 3
-
-		By(fmt.Sprintf("creating %d sized cluster with node-level high availability", hzClusterSize))
-		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, ee, int32(hzClusterSize), "NODE", labels)
-		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey)
-
-		By("creating the map config and adding entries")
-		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
-		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		mapName := "ha-test-map"
-		mapSize := 30000
-		err = FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
-		Expect(err).To(BeNil())
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
-
-		By("detecting the node which the operator is running on")
-		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
-		Expect(err).To(BeNil())
-
-		By("determining a node to drop")
-		nodeNames, err := nodeNamesInCluster(ctx)
-		Expect(err).To(BeNil())
-		var droppingNodeName string
-		for _, nodeName := range nodeNames {
-			if nodeName != nodeNameOperatorRunningOn {
-				droppingNodeName = nodeName
-			}
-		}
-
-		By(fmt.Sprintf("dropping node '%s'", droppingNodeName))
-		var droppingNode corev1.Node
-		err = k8sClient.Get(ctx, types.NamespacedName{
-			Name: droppingNodeName,
-		}, &droppingNode)
-		Expect(err).To(BeNil())
-		zone, err := zoneFromNodeLabels(&droppingNode)
-		Expect(err).To(BeNil())
-		err = dropNodes(ctx, zone, droppingNodeName)
-		Expect(err).To(BeNil())
-
-		By("waiting the node to be dropped")
-		waitForDroppedNodes(ctx, 1)
-
-		By("checking map size after node outage")
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
-	})
-
-	It("should have no data lose after zone outage", Tag(Slow|Any), func() {
-		setLabelAndCRName("hr-2")
-
-		ctx := context.Background()
-		numberOfNodes, err := numberOfAllNodes(ctx)
-		Expect(err).To(BeNil())
-		hzClusterSize := numberOfNodes
-
-		By(fmt.Sprintf("creating %d sized cluster with zone-level high availability", hzClusterSize))
-		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, ee, int32(hzClusterSize), "ZONE", labels)
-		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey)
-
-		By("creating the map config and adding entries")
-		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
-		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		mapName := "ha-test-map"
-		mapSize := 30000
-		err = FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
-		Expect(err).To(BeNil())
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
-
-		By("detecting the node which the operator is running on")
-		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
-		Expect(err).To(BeNil())
-
-		By("determining a zone to drop")
-		zoneNodeNameMap, err := nodeNamesInZones(ctx)
-		Expect(err).To(BeNil())
-		var droppingZone string
-		for zone, nodeNames := range zoneNodeNameMap {
-			safeToDrop := true
-			for _, nodeName := range nodeNames {
-				safeToDrop = safeToDrop && (nodeName != nodeNameOperatorRunningOn)
-			}
-			if safeToDrop {
-				droppingZone = zone
-				break
-			}
-		}
-		numberOfNodesInDroppingZone := len(zoneNodeNameMap[droppingZone])
-
-		By(fmt.Sprintf("dropping zone '%s'", droppingZone))
-		err = dropNodes(ctx, droppingZone, zoneNodeNameMap[droppingZone]...)
-		Expect(err).To(BeNil())
-
-		By("waiting for nodes to be dropped")
-		waitForDroppedNodes(ctx, numberOfNodesInDroppingZone)
-
-		By("checking map size after zone outage")
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
-	})
-
-	It("should kill the pod randomly and preserve the data after restore", Tag("fast"), func() {
+	It("should kill the pod randomly and preserve the data after restore", Tag("fast"), Serial, func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -275,7 +168,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		}
 	})
 
-	It("should check a split-brain protection in the Hazelcast cluster", Tag("fast"), func() {
+	It("should check a split-brain protection in the Hazelcast cluster", Tag("fast"), Serial, func() {
 		setLabelAndCRName("hr-4")
 		duration := "100s"
 		splitBrainConfName := "splitBrainProtectionRuleWithFourMembers"
@@ -392,6 +285,178 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		By("attempt to put the 10 entries into the map")
 		err = FillMapByEntryCount(context.Background(), hzLookupKey, true, m.MapName(), 10)
 		Expect(err).Should(MatchError(MatchRegexp("Split brain protection exception: " + splitBrainConfName + " has failed!")))
+	})
+
+	It("should have no data lose after zone outage", Tag("slow"), Serial, func() {
+		setLabelAndCRName("hr-2")
+
+		ctx := context.Background()
+		numberOfNodes, err := numberOfAllNodes(ctx)
+		Expect(err).To(BeNil())
+		hzClusterSize := numberOfNodes
+
+		By(fmt.Sprintf("creating %d sized cluster with zone-level high availability", hzClusterSize))
+		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, ee, int32(hzClusterSize), "ZONE", labels)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("creating the map config and adding entries")
+		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
+		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		mapName := "ha-test-map"
+		mapSize := 30000
+		err = FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
+		Expect(err).To(BeNil())
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+
+		By("detecting the node which the operator is running on")
+		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
+		Expect(err).To(BeNil())
+
+		By("determining a zone to drop")
+		zoneNodeNameMap, err := nodeNamesInZones(ctx)
+		Expect(err).To(BeNil())
+		var droppingZone string
+		for zone, nodeNames := range zoneNodeNameMap {
+			safeToDrop := true
+			for _, nodeName := range nodeNames {
+				safeToDrop = safeToDrop && (nodeName != nodeNameOperatorRunningOn)
+			}
+			if safeToDrop {
+				droppingZone = zone
+				break
+			}
+		}
+		numberOfNodesInDroppingZone := len(zoneNodeNameMap[droppingZone])
+
+		By(fmt.Sprintf("dropping zone '%s'", droppingZone))
+		err = dropNodes(ctx, droppingZone, zoneNodeNameMap[droppingZone]...)
+		Expect(err).To(BeNil())
+
+		By("waiting for nodes to be dropped")
+		waitForDroppedNodes(ctx, numberOfNodesInDroppingZone)
+
+		By("checking map size after zone outage")
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+	})
+
+	It("should have no data lose after node outage", Tag("slow"), Serial, func() {
+		setLabelAndCRName("hr-1")
+
+		ctx := context.Background()
+		numberOfNodes, err := numberOfAllNodes(ctx)
+		Expect(err).To(BeNil())
+		hzClusterSize := numberOfNodes * 3
+
+		By(fmt.Sprintf("creating %d sized cluster with node-level high availability", hzClusterSize))
+		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, ee, int32(hzClusterSize), "NODE", labels)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("creating the map config and adding entries")
+		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
+		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		mapName := "ha-test-map"
+		mapSize := 30000
+		err = FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
+		Expect(err).To(BeNil())
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+
+		By("detecting the node which the operator is running on")
+		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
+		Expect(err).To(BeNil())
+
+		By("determining a node to drop")
+		nodeNames, err := nodeNamesInCluster(ctx)
+		Expect(err).To(BeNil())
+		var droppingNodeName string
+		for _, nodeName := range nodeNames {
+			if nodeName != nodeNameOperatorRunningOn {
+				droppingNodeName = nodeName
+			}
+		}
+
+		By(fmt.Sprintf("dropping node '%s'", droppingNodeName))
+		var droppingNode corev1.Node
+		err = k8sClient.Get(ctx, types.NamespacedName{
+			Name: droppingNodeName,
+		}, &droppingNode)
+		Expect(err).To(BeNil())
+		zone, err := zoneFromNodeLabels(&droppingNode)
+		Expect(err).To(BeNil())
+		err = dropNodes(ctx, zone, droppingNodeName)
+		Expect(err).To(BeNil())
+
+		By("waiting the node to be dropped")
+		waitForDroppedNodes(ctx, 1)
+
+		By("checking map size after node outage")
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+	})
+
+	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Serial, Tag("slow"), func() {
+		By("clone existing operator")
+		setLabelAndCRName("res-1")
+		hazelcastSource := hazelcastconfig.Default(hzSrcLookupKey, ee, labels)
+		hazelcastSource.Spec.ClusterName = "source"
+		CreateHazelcastCR(hazelcastSource)
+
+		By("creating target Hazelcast cluster")
+		hazelcastTarget := hazelcastconfig.Default(hzTrgLookupKey, ee, labels)
+		hazelcastTarget.Spec.ClusterName = "target"
+		CreateHazelcastCR(hazelcastTarget)
+
+		evaluateReadyMembers(hzSrcLookupKey)
+		evaluateReadyMembers(hzTrgLookupKey)
+
+		By("creating map for source Hazelcast cluster")
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcastSource.Name, labels)
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+		By("creating wan replication configuration")
+		wan := hazelcastconfig.DefaultWanReplication(
+			wanLookupKey,
+			m.Name,
+			hazelcastTarget.Spec.ClusterName,
+			hzclient.HazelcastUrl(hazelcastTarget),
+			labels,
+		)
+		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
+
+		By("deleting operator")
+		dep := &appsv1.Deployment{}
+		Expect(k8sClient.Get(context.Background(), controllerManagerName, dep)).Should(Succeed())
+		Expect(k8sClient.Delete(context.Background(), dep, client.PropagationPolicy(metav1.DeletePropagationForeground))).Should(Succeed())
+		assertDoesNotExist(controllerManagerName, &appsv1.Deployment{})
+
+		By("deleting Hazelcast clusters")
+		Expect(k8sClient.Delete(context.Background(), hazelcastSource)).Should(Succeed())
+		Expect(k8sClient.Delete(context.Background(), hazelcastTarget)).Should(Succeed())
+
+		By("deleting wan replication")
+		Expect(k8sClient.Delete(context.Background(), wan)).Should(Succeed())
+
+		By("creating operator again")
+		newDep := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      dep.Name,
+				Namespace: dep.Namespace,
+				Labels:    dep.Labels,
+			},
+			Spec: dep.Spec,
+		}
+		Expect(k8sClient.Create(context.Background(), newDep)).Should(Succeed())
+		Eventually(func() (int32, error) {
+			return getDeploymentReadyReplicas(context.Background(), controllerManagerName, newDep)
+		}, 90*Second, interval).Should(Equal(int32(1)))
+
+		assertDoesNotExist(mapLookupKey, m)
+		assertDoesNotExist(wanLookupKey, wan)
+		assertDoesNotExist(hzSrcLookupKey, hazelcastSource)
+		assertDoesNotExist(hzTrgLookupKey, hazelcastTarget)
 	})
 })
 
