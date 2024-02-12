@@ -252,8 +252,6 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          # temporarily disabled NodePort test
-          GO_TEST_FLAGS="${GO_TEST_FLAGS} --kind"
           make test-e2e GO_TEST_FLAGS="${GO_TEST_FLAGS}" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}_01 WORKFLOW_ID=ocp
           echo "RUNNING TESTS in $NAMESPACE"
 
