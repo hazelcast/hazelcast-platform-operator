@@ -34,6 +34,12 @@ import (
 var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 	ctx := context.Background()
 
+	type PodLabel struct {
+		Selector   string
+		LabelKey   string
+		LabelValue string
+	}
+
 	BeforeEach(func() {
 		By("checking chaos-mesh-operator running", func() {
 			var podList corev1.PodList
