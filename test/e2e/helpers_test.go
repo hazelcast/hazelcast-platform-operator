@@ -59,6 +59,11 @@ import (
 )
 
 type UpdateFn func(*hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast
+type PodLabel struct {
+	Selector   string
+	LabelKey   string
+	LabelValue string
+}
 
 func InitLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 	var logs io.ReadCloser
@@ -257,26 +262,36 @@ func SwitchContext(context string) {
 	})
 }
 
-func FillMapByEntryCount(ctx context.Context, lk types.NamespacedName, unisocket bool, mapName string, entryCount int) {
-	By(fmt.Sprintf("filling the '%s' map with '%d' entries using '%s' lookup name and '%s' namespace", mapName, entryCount, lk.Name, lk.Namespace), func() {
-		var m *hzClient.Map
-		clientHz := GetHzClient(ctx, lk, unisocket)
-		m, err := clientHz.GetMap(ctx, mapName)
-		Expect(err).ToNot(HaveOccurred())
-		initMapSize, err := m.Size(ctx)
-		Expect(err).ToNot(HaveOccurred())
-		entries := make([]hzclienttypes.Entry, 0, entryCount)
-		for i := initMapSize; i < initMapSize+entryCount; i++ {
-			entries = append(entries, hzclienttypes.NewEntry(strconv.Itoa(i), strconv.Itoa(i)))
-		}
-		err = m.PutAll(ctx, entries...)
-		Expect(err).ToNot(HaveOccurred())
-		mapSize, err := m.Size(ctx)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(mapSize).To(Equal(initMapSize + entryCount))
-		err = clientHz.Shutdown(ctx)
-		Expect(err).ToNot(HaveOccurred())
-	})
+func FillMapByEntryCount(ctx context.Context, lk types.NamespacedName, unisocket bool, mapName string, entryCount int) error {
+	_ = fmt.Sprintf("filling the '%s' map with '%d' entries using '%s' lookup name and '%s' namespace", mapName, entryCount, lk.Name, lk.Namespace)
+	var m *hzClient.Map
+	clientHz := GetHzClient(ctx, lk, unisocket)
+	m, err := clientHz.GetMap(ctx, mapName)
+	if err != nil {
+		return fmt.Errorf("error getting map '%s': %w", mapName, err)
+	}
+	initMapSize, err := m.Size(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting initial size of map '%s': %w", mapName, err)
+	}
+	entries := make([]hzclienttypes.Entry, 0, entryCount)
+	for i := initMapSize; i < initMapSize+entryCount; i++ {
+		entries = append(entries, hzclienttypes.NewEntry(strconv.Itoa(i), strconv.Itoa(i)))
+	}
+	err = m.PutAll(ctx, entries...)
+	if err != nil {
+		return fmt.Errorf("error putting entries into map '%s': %w", mapName, err)
+	}
+	mapSize, err := m.Size(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting updated size of map '%s': %w", mapName, err)
+	}
+	Expect(mapSize).To(Equal(initMapSize + entryCount))
+	err = clientHz.Shutdown(ctx)
+	if err != nil {
+		return fmt.Errorf("error shutting down Hazelcast client: %w", err)
+	}
+	return nil
 }
 
 /*
@@ -431,6 +446,50 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 		return mapSize, nil
 	}, timeout, 60*time.Second).Should(Equal(expectedMapSize))
 	log.Printf("Map '%s' reached expected size '%d'", mapName, expectedMapSize)
+}
+
+func LabelPods(namespace string, podLabels []PodLabel) error {
+	clientset := getKubernetesClientSet()
+	for _, pl := range podLabels {
+		pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: pl.Selector})
+		if err != nil {
+			return err
+		}
+
+		for _, pod := range pods.Items {
+			if pod.Labels == nil {
+				pod.Labels = make(map[string]string)
+			}
+			pod.Labels[pl.LabelKey] = pl.LabelValue
+			_, err := clientset.CoreV1().Pods(namespace).Update(context.Background(), &pod, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func CountRunningPods(pods []corev1.Pod) int {
+	runningPods := 0
+	for _, pod := range pods {
+		if pod.Status.Phase == corev1.PodRunning {
+			runningPods++
+		}
+	}
+	return runningPods
+}
+
+func DeleteConfigMap(namespace, name string) {
+	deletePolicy := metav1.DeletePropagationForeground
+	err := getKubernetesClientSet().CoreV1().ConfigMaps(namespace).Delete(context.Background(), name, metav1.DeleteOptions{
+		PropagationPolicy: &deletePolicy,
+	})
+	if err != nil {
+		log.Printf("Failed to delete ConfigMap %s in namespace %s: %v", name, namespace, err)
+	} else {
+		log.Printf("ConfigMap %s in namespace %s deleted successfully", name, namespace)
+	}
 }
 
 func WaitForPodReady(podName string, lk types.NamespacedName, timeout time.Duration) {

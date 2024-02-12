@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -54,7 +55,8 @@ func setupEnv() *rest.Config {
 	By("bootstrapping test environment")
 	err := hazelcastcomv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
-
+	err = chaosmeshv1alpha1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
 	err = routev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 

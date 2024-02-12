@@ -7,7 +7,7 @@ on:
 env:
   GCP_PROJECT_ID: hazelcast-33
   CLOUD_KEY_SECRET_NAME: cloud-key-secret
-  CHAOS_MESH_NAMESPACE: chaos-mesh
+  CHAOS_MESH_NAMESPACE: chaos-testing
   AWS_REGION: us-east-1
 
 jobs:
@@ -142,12 +142,20 @@ jobs:
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME PHONE_HOME_ENABLED=${{ env.PHONE_HOME_ENABLED }}
           kubectl rollout status deployment $DEPLOY_NAME
 
-      - name: Deploy ChaosMesh to GKE
+      - name: Install Chaos Mesh
         run: |
           helm repo add chaos-mesh https://charts.chaos-mesh.org
-          kubectl create ns ${CHAOS_MESH_NAMESPACE}
-          helm install chaos-mesh chaos-mesh/chaos-mesh -n=${CHAOS_MESH_NAMESPACE} --version 2.5.1
-          kubectl get po -n ${CHAOS_MESH_NAMESPACE}
+          helm upgrade \
+          --install \
+          chaos-mesh \
+          chaos-mesh/chaos-mesh \
+          -n ${CHAOS_MESH_NAMESPACE} \
+          --create-namespace \
+          --set chaosDaemon.runtime=containerd \
+          --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
+          --version v2.6.2 \
+          --wait
+          kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io chaos-mesh-validation-auth
 
       - name: Create secrets
         run: |

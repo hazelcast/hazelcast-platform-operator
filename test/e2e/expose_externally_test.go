@@ -47,7 +47,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			evaluateReadyMembers(hzLookupKey)
 			hzMap := "map"
 			entryCount := 100
-			FillMapByEntryCount(ctx, hzLookupKey, true, hzMap, entryCount)
+			err := FillMapByEntryCount(ctx, hzLookupKey, true, hzMap, entryCount)
+			Expect(err).To(BeNil())
 			WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 			assertExternalAddressesNotEmpty()
 		})
@@ -100,7 +101,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 
 			hzMap := "map"
 			entryCount := 100
-			FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
+			err := FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
+			Expect(err).To(BeNil())
 			WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 
 			assertExternalAddressesNotEmpty()
@@ -160,7 +162,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 
 			hzMap := "map"
 			entryCount := 100
-			FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
+			err := FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
+			Expect(err).To(BeNil())
 			WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 
 			assertExternalAddressesNotEmpty()
