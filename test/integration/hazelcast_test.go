@@ -728,7 +728,7 @@ var _ = Describe("Hazelcast CR", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				BaseDir: "",
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			}
@@ -747,7 +747,7 @@ var _ = Describe("Hazelcast CR", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				BaseDir: "baseDir/",
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			}
@@ -766,7 +766,7 @@ var _ = Describe("Hazelcast CR", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				BaseDir: "/baseDir/",
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			}
@@ -784,8 +784,8 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(fetchedCR.Spec.Persistence.BaseDir).Should(Equal("/baseDir/"))
 				Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
 					Should(Equal(hazelcastv1alpha1.FullRecovery))
-				Expect(fetchedCR.Spec.Persistence.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
-				Expect(*fetchedCR.Spec.Persistence.Pvc.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
+				Expect(fetchedCR.Spec.Persistence.PVC.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
+				Expect(*fetchedCR.Spec.Persistence.PVC.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
 			})
 		})
 
@@ -794,7 +794,7 @@ var _ = Describe("Hazelcast CR", func() {
 			s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				BaseDir:                   "/data/hot-restart/",
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					StorageClassName: &[]string{"standard"}[0],
@@ -813,9 +813,9 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(fetchedCR.Spec.Persistence.BaseDir).Should(Equal("/data/hot-restart/"))
 				Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
 					Should(Equal(hazelcastv1alpha1.FullRecovery))
-				Expect(fetchedCR.Spec.Persistence.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
-				Expect(*fetchedCR.Spec.Persistence.Pvc.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
-				Expect(*fetchedCR.Spec.Persistence.Pvc.StorageClassName).Should(Equal("standard"))
+				Expect(fetchedCR.Spec.Persistence.PVC.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
+				Expect(*fetchedCR.Spec.Persistence.PVC.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
+				Expect(*fetchedCR.Spec.Persistence.PVC.StorageClassName).Should(Equal("standard"))
 			})
 
 			Eventually(func() []corev1.PersistentVolumeClaim {
@@ -826,13 +826,13 @@ var _ = Describe("Hazelcast CR", func() {
 					return pvc.Spec
 				}, Equal(
 					corev1.PersistentVolumeClaimSpec{
-						AccessModes: fetchedCR.Spec.Persistence.Pvc.AccessModes,
+						AccessModes: fetchedCR.Spec.Persistence.PVC.AccessModes,
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
-								corev1.ResourceStorage: *fetchedCR.Spec.Persistence.Pvc.RequestStorage,
+								corev1.ResourceStorage: *fetchedCR.Spec.Persistence.PVC.RequestStorage,
 							},
 						},
-						StorageClassName: fetchedCR.Spec.Persistence.Pvc.StorageClassName,
+						StorageClassName: fetchedCR.Spec.Persistence.PVC.StorageClassName,
 						VolumeMode:       &[]corev1.PersistentVolumeMode{corev1.PersistentVolumeFilesystem}[0],
 					},
 				))),
@@ -844,7 +844,7 @@ var _ = Describe("Hazelcast CR", func() {
 			s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				BaseDir:                   "/data/hot-restart/",
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					StorageClassName: &[]string{"standard"}[0],
@@ -878,7 +878,7 @@ var _ = Describe("Hazelcast CR", func() {
 				BaseDir:                   "/baseDir/",
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 				StartupAction:             hazelcastv1alpha1.PartialStart,
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			}
@@ -911,7 +911,7 @@ var _ = Describe("Hazelcast CR", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				BaseDir: "/baseDir/",
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 				},
 			}
@@ -1165,7 +1165,7 @@ var _ = Describe("Hazelcast CR", func() {
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 						StorageClassName: &[]string{"standard"}[0],
@@ -2058,7 +2058,7 @@ var _ = Describe("Hazelcast CR", func() {
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -2196,7 +2196,7 @@ var _ = Describe("Hazelcast CR", func() {
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -2220,7 +2220,7 @@ var _ = Describe("Hazelcast CR", func() {
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -2323,7 +2323,7 @@ var _ = Describe("Hazelcast CR", func() {
 			localDevices := []hazelcastv1alpha1.LocalDeviceConfig{{
 				Name:    "local-device-test",
 				BaseDir: "/baseDir/",
-				Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			}}
@@ -2384,7 +2384,7 @@ var _ = Describe("Hazelcast CR", func() {
 				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
 					Name:    "local-device-test",
 					BaseDir: "baseDir/",
-					Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					},
 				}}
@@ -2418,9 +2418,31 @@ var _ = Describe("Hazelcast CR", func() {
 					Expect(localDevice.BlockSize).Should(Equal(pointer.Int32(4096)))
 					Expect(localDevice.ReadIOThreadCount).Should(Equal(pointer.Int32(4)))
 					Expect(localDevice.WriteIOThreadCount).Should(Equal(pointer.Int32(4)))
-					Expect(localDevice.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
-					Expect(*localDevice.Pvc.RequestStorage).Should(Equal(resource.MustParse("256G")))
+					Expect(localDevice.PVC.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
+					Expect(*localDevice.PVC.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
 				})
+
+				expectedLocalDeviceConfig := config.LocalDevice{
+					BaseDir: "/baseDir/",
+					Capacity: config.Size{
+						Value: 8589934592,
+						Unit:  "BYTES",
+					},
+					BlockSize:          pointer.Int32(4096),
+					ReadIOThreadCount:  pointer.Int32(4),
+					WriteIOThreadCount: pointer.Int32(4),
+				}
+
+				Eventually(func() config.LocalDevice {
+					cfg := getSecret(hz)
+					a := &config.HazelcastWrapper{}
+
+					if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+						return config.LocalDevice{}
+					}
+
+					return a.Hazelcast.LocalDevice["local-device-test"]
+				}, timeout, interval).Should(Equal(expectedLocalDeviceConfig))
 			})
 
 			It("should create volumeClaimTemplates", Label("fast"), func() {
@@ -2434,7 +2456,7 @@ var _ = Describe("Hazelcast CR", func() {
 					BlockSize:          pointer.Int32(2048),
 					ReadIOThreadCount:  pointer.Int32(2),
 					WriteIOThreadCount: pointer.Int32(2),
-					Pvc: &hazelcastv1alpha1.LocalDevicePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 						RequestStorage:   &[]resource.Quantity{resource.MustParse("128G")}[0],
 						StorageClassName: &[]string{"standard"}[0],
@@ -2456,9 +2478,9 @@ var _ = Describe("Hazelcast CR", func() {
 					Expect(localDevice.BlockSize).Should(Equal(pointer.Int32(2048)))
 					Expect(localDevice.ReadIOThreadCount).Should(Equal(pointer.Int32(2)))
 					Expect(localDevice.WriteIOThreadCount).Should(Equal(pointer.Int32(2)))
-					Expect(localDevice.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteMany))
-					Expect(*localDevice.Pvc.RequestStorage).Should(Equal(resource.MustParse("128G")))
-					Expect(*localDevice.Pvc.StorageClassName).Should(Equal("standard"))
+					Expect(localDevice.PVC.AccessModes).Should(ConsistOf(corev1.ReadWriteMany))
+					Expect(*localDevice.PVC.RequestStorage).Should(Equal(resource.MustParse("128G")))
+					Expect(*localDevice.PVC.StorageClassName).Should(Equal("standard"))
 
 				})
 				Eventually(func() []corev1.PersistentVolumeClaim {
@@ -2469,13 +2491,13 @@ var _ = Describe("Hazelcast CR", func() {
 						return pvc.Spec
 					}, Equal(
 						corev1.PersistentVolumeClaimSpec{
-							AccessModes: fetchedCR.Spec.LocalDevices[0].Pvc.AccessModes,
+							AccessModes: fetchedCR.Spec.LocalDevices[0].PVC.AccessModes,
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									corev1.ResourceStorage: *fetchedCR.Spec.LocalDevices[0].Pvc.RequestStorage,
+									corev1.ResourceStorage: *fetchedCR.Spec.LocalDevices[0].PVC.RequestStorage,
 								},
 							},
-							StorageClassName: fetchedCR.Spec.LocalDevices[0].Pvc.StorageClassName,
+							StorageClassName: fetchedCR.Spec.LocalDevices[0].PVC.StorageClassName,
 							VolumeMode:       &[]corev1.PersistentVolumeMode{corev1.PersistentVolumeFilesystem}[0],
 						},
 					))),

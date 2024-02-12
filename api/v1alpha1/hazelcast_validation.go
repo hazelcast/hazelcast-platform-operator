@@ -202,10 +202,10 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 		return
 	}
 
-	if p.Pvc == nil {
+	if p.PVC == nil {
 		v.Required(Path("spec", "persistence", "pvc"), "must be set when persistence is enabled")
 	} else {
-		if p.Pvc.AccessModes == nil {
+		if p.PVC.AccessModes == nil {
 			v.Required(Path("spec", "persistence", "pvc", "accessModes"), "must be set when persistence is enabled")
 		}
 	}
@@ -369,7 +369,7 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 	if current.BaseDir != last.BaseDir {
 		v.Forbidden(Path("spec", "persistence", "baseDir"), "field cannot be updated")
 	}
-	if !reflect.DeepEqual(current.Pvc, last.Pvc) {
+	if !reflect.DeepEqual(current.PVC, last.PVC) {
 		v.Forbidden(Path("spec", "persistence", "pvc"), "field cannot be updated")
 	}
 	if current.Restore != last.Restore {
@@ -459,15 +459,15 @@ func (v *hazelcastValidator) validateTieredStorage(h *Hazelcast) {
 }
 
 func (v *hazelcastValidator) validateLocalDevice(ld LocalDeviceConfig) {
-	if ld.Pvc == nil {
-		v.Required(Path("spec", "localDevices", "pvc"), "must be set when LocalDevice is defined")
-	} else {
-		if ld.Pvc.AccessModes == nil {
-			v.Required(Path("spec", "localDevices", "pvc", "accessModes"), "must be set when LocalDevice is defined")
-		}
-	}
-
 	if !path.IsAbs(ld.BaseDir) {
 		v.Invalid(Path("spec", "localDevices", "baseDir"), ld.BaseDir, "must be absolute path")
 	}
+	if ld.PVC == nil {
+		v.Required(Path("spec", "localDevices", "pvc"), "must be set when LocalDevice is defined")
+		return
+	}
+	if ld.PVC.AccessModes == nil {
+		v.Required(Path("spec", "localDevices", "pvc", "accessModes"), "must be set when LocalDevice is defined")
+	}
+
 }

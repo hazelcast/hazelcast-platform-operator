@@ -339,7 +339,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 		mapInput.TieredStoreConfig.Enabled = true
 		mapInput.TieredStoreConfig.MemoryTierConfig.Capacity = codecTypes.Capacity{
 			Value: ms.TieredStore.MemoryRequestStorage.Value(),
-			Unit:  hazelcastv1alpha1.EncodeUnit["BYTES"],
+			Unit:  0, // 0 refers BYTES
 		}
 		mapInput.TieredStoreConfig.DiskTierConfig.Enabled = true
 		mapInput.TieredStoreConfig.DiskTierConfig.DeviceName = ms.TieredStore.DiskDeviceName

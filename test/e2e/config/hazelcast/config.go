@@ -158,7 +158,7 @@ var (
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
-					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					},
@@ -303,7 +303,7 @@ var (
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
-					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -336,7 +336,7 @@ var (
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
-					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -465,7 +465,7 @@ var (
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
-					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					},
@@ -616,7 +616,7 @@ var (
 		}
 	}
 
-	TieredStoreMap = func(lk types.NamespacedName, hzName string, deviceName string, memorySize string, lbls map[string]string) *hazelcastcomv1alpha1.Map {
+	DefaultTieredStoreMap = func(lk types.NamespacedName, hzName string, deviceName string, lbls map[string]string) *hazelcastcomv1alpha1.Map {
 		return &hazelcastcomv1alpha1.Map{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -630,8 +630,7 @@ var (
 				},
 				InMemoryFormat: hazelcastcomv1alpha1.InMemoryFormatNative,
 				TieredStore: &hazelcastcomv1alpha1.TieredStore{
-					MemoryRequestStorage: &[]resource.Quantity{resource.MustParse(memorySize)}[0],
-					DiskDeviceName:       deviceName,
+					DiskDeviceName: deviceName,
 				},
 			},
 		}
@@ -875,7 +874,7 @@ var (
 		}
 	}
 
-	HazelcastTieredStorage = func(lk types.NamespacedName, deviceName string, diskSize string, labels map[string]string) *hazelcastcomv1alpha1.Hazelcast {
+	HazelcastTieredStorage = func(lk types.NamespacedName, deviceName string, labels map[string]string) *hazelcastcomv1alpha1.Hazelcast {
 		return &hazelcastcomv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -888,13 +887,15 @@ var (
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(true),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+				NativeMemory: &hazelcastcomv1alpha1.NativeMemoryConfiguration{
+					AllocatorType: hazelcastcomv1alpha1.NativeMemoryStandard,
+				},
 				LocalDevices: []hazelcastcomv1alpha1.LocalDeviceConfig{
 					{
 						Name:    deviceName,
 						BaseDir: "/test/path",
-						Pvc: &hazelcastcomv1alpha1.LocalDevicePvcConfiguration{
-							AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
-							RequestStorage: &[]resource.Quantity{resource.MustParse(diskSize)}[0],
+						PVC: &hazelcastcomv1alpha1.PvcConfiguration{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 						},
 					},
 				},

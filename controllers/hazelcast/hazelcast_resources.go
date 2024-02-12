@@ -1862,7 +1862,7 @@ func createLocalDeviceConfig(ld hazelcastv1alpha1.LocalDeviceConfig) config.Loca
 	return config.LocalDevice{
 		BaseDir: ld.BaseDir,
 		Capacity: config.Size{
-			Value: ld.Pvc.RequestStorage.Value(),
+			Value: ld.PVC.RequestStorage.Value(),
 			Unit:  "BYTES",
 		},
 		BlockSize:          ld.BlockSize,
@@ -1994,13 +1994,13 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 				Annotations: h.Spec.Annotations,
 			},
 			Spec: v1.PersistentVolumeClaimSpec{
-				AccessModes: h.Spec.Persistence.Pvc.AccessModes,
+				AccessModes: h.Spec.Persistence.PVC.AccessModes,
 				Resources: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
-						corev1.ResourceStorage: *h.Spec.Persistence.Pvc.RequestStorage,
+						corev1.ResourceStorage: *h.Spec.Persistence.PVC.RequestStorage,
 					},
 				},
-				StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,
+				StorageClassName: h.Spec.Persistence.PVC.StorageClassName,
 			},
 		},
 	}
@@ -2016,13 +2016,13 @@ func localDevicePersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.Persi
 				Labels:    labels(h),
 			},
 			Spec: v1.PersistentVolumeClaimSpec{
-				AccessModes: localDeviceConfig.Pvc.AccessModes,
+				AccessModes: localDeviceConfig.PVC.AccessModes,
 				Resources: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
-						corev1.ResourceStorage: *localDeviceConfig.Pvc.RequestStorage,
+						corev1.ResourceStorage: *localDeviceConfig.PVC.RequestStorage,
 					},
 				},
-				StorageClassName: localDeviceConfig.Pvc.StorageClassName,
+				StorageClassName: localDeviceConfig.PVC.StorageClassName,
 			},
 		})
 	}

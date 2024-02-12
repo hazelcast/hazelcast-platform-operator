@@ -818,7 +818,7 @@ spec:
                           anyOf:
                           - type: integer
                           - type: string
-                          default: 256G
+                          default: 8Gi
                           description: A description of the PVC request capacity.
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
@@ -2376,7 +2376,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.3.2
+                default: 5.4.0-SNAPSHOT
                 description: Version of Hazelcast Platform.
                 type: string
             type: object

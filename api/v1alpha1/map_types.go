@@ -472,13 +472,6 @@ var (
 		InMemoryFormatObject: 1,
 		InMemoryFormatNative: 2,
 	}
-
-	EncodeUnit = map[string]int32{
-		"BYTES":     0,
-		"KILOBYTES": 1,
-		"MEGABYTES": 2,
-		"GIGABYTES": 3,
-	}
 )
 
 func init() {

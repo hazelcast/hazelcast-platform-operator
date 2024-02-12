@@ -113,7 +113,7 @@ func (v *mapValidator) validateMapTieredStore(m *Map, h *Hazelcast) {
 		return
 	}
 
-	if !isDeviceExist(lastSpec.LocalDevices, m.Spec.TieredStore.DiskDeviceName) {
+	if !deviceExist(lastSpec.LocalDevices, m.Spec.TieredStore.DiskDeviceName) {
 		v.Invalid(Path("spec", "tieredStore", "diskDeviceName"), m.Spec.TieredStore.DiskDeviceName, fmt.Sprintf("device with the name %s does not exist", m.Spec.TieredStore.DiskDeviceName))
 
 	}
@@ -231,7 +231,7 @@ func (v *mapValidator) getHzSpec(h *Hazelcast) *HazelcastSpec {
 	return lastSpec
 }
 
-func isDeviceExist(localDevices []LocalDeviceConfig, deviceName string) bool {
+func deviceExist(localDevices []LocalDeviceConfig, deviceName string) bool {
 	for _, localDevice := range localDevices {
 		if localDevice.Name == deviceName {
 			return true

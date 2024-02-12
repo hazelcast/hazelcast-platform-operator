@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.3.2"
+	// +kubebuilder:default:="5.4.0-SNAPSHOT"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -648,7 +648,7 @@ type HazelcastPersistenceConfiguration struct {
 
 	// Configuration of PersistenceVolumeClaim.
 	// +required
-	Pvc *PersistencePvcConfiguration `json:"pvc,omitempty"`
+	PVC *PvcConfiguration `json:"pvc,omitempty"`
 
 	// Restore configuration
 	// +kubebuilder:default:={}
@@ -693,7 +693,7 @@ func (rc RestoreConfiguration) Hash() string {
 	return strconv.Itoa(int(FNV32a(string(str))))
 }
 
-type PersistencePvcConfiguration struct {
+type PvcConfiguration struct {
 	// AccessModes contains the actual access modes of the volume backing the PVC has.
 	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
 	// +optional
@@ -1118,28 +1118,12 @@ type LocalDeviceConfig struct {
 
 	// Configuration of PersistenceVolumeClaim.
 	// +required
-	Pvc *LocalDevicePvcConfiguration `json:"pvc,omitempty"`
+	PVC *PvcConfiguration `json:"pvc,omitempty"`
 }
 
 // IsTieredStorageEnabled Returns true if LocalDevices configuration is specified.
 func (hs *HazelcastSpec) IsTieredStorageEnabled() bool {
 	return len(hs.LocalDevices) != 0
-}
-
-type LocalDevicePvcConfiguration struct {
-	// AccessModes contains the actual access modes of the volume backing the PVC has.
-	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
-	// +optional
-	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
-
-	// A description of the PVC request capacity.
-	// +kubebuilder:default:="256G"
-	// +optional
-	RequestStorage *resource.Quantity `json:"requestStorage,omitempty"`
-
-	// Name of StorageClass which this persistent volume belongs to.
-	// +optional
-	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

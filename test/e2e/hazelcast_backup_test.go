@@ -55,7 +55,7 @@ var _ = Describe("Hazelcast Backup", Label("backup"), func() {
 
 		By("creating cluster with external backup enabled")
 		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+		hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)

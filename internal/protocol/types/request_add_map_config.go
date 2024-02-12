@@ -87,9 +87,9 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 		TieredStoreConfig: TieredStoreConfig{
 			Enabled: false,
 			MemoryTierConfig: MemoryTierConfig{
-				Capacity: Capacity{
-					Value: int64(256),
-					Unit:  int32(2),
+				Capacity: Capacity{ // These values are the default values taken from Hazelcast doc.
+					Value: int64(256), // 256 MB
+					Unit:  int32(2),   // 2 refers MB.
 				},
 			},
 			DiskTierConfig: DiskTierConfig{
