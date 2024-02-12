@@ -14,7 +14,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("hz_tiered_storage"), func() {
+var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("tiered_storage"), func() {
 	localPort := strconv.Itoa(8300 + GinkgoParallelProcess())
 
 	AfterEach(func() {
@@ -93,7 +93,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("hz_t
 		tsMap.Spec.TieredStore.MemoryRequestStorage = &[]resource.Quantity{resource.MustParse(nativeMemorySize)}[0]
 		Expect(k8sClient.Create(context.Background(), tsMap)).Should(Succeed())
 		assertMapStatus(tsMap, hazelcastv1alpha1.MapSuccess)
-		FillTheMapWithData(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
+		FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
 
 		WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), expectedMapSize, 30*Minute)
 	})
