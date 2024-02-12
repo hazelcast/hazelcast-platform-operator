@@ -59,6 +59,11 @@ import (
 )
 
 type UpdateFn func(*hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast
+type PodLabel struct {
+	Selector   string
+	LabelKey   string
+	LabelValue string
+}
 
 func InitLogs(t Time, lk types.NamespacedName) io.ReadCloser {
 	var logs io.ReadCloser
