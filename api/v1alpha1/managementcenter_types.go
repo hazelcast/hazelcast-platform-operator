@@ -227,6 +227,11 @@ type ExternalConnectivityIngress struct {
 	// Annotations added to the ingress object.
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Path of the ingress rule.
+	// +kubebuilder:default:="/"
+	// +optional
+	Path string `json:"path,omitempty"`
 }
 
 // ExternalConnectivityRoute defines OpenShift route configuration of Management Center
@@ -296,7 +301,7 @@ const (
 	McRunning MCPhase = "Running"
 	// McFailed phase is the state of error during the ManagementCenter startup
 	McFailed MCPhase = "Failed"
-	// McConfiguring phase is the state of cofiguring the ManagementCenter and might be restated
+	// McConfiguring phase is the state of configuring the ManagementCenter and might be restated
 	McConfiguring MCPhase = "Configuring"
 	// McPending phase is the state of starting the cluster when the ManagementCenter is not started yet
 	McPending MCPhase = "Pending"

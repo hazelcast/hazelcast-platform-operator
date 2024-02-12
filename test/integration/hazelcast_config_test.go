@@ -67,7 +67,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			}
 			hz.Spec.CustomConfigCmName = cm.Name
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			ensureHzStatusIsPending(hz)
+			assertHzStatusIsPending(hz)
 
 			hzConfig := GetHzConfig(hz)
 			Expect(hzConfig).Should(And(
@@ -104,7 +104,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			}
 			hz.Spec.CustomConfigCmName = cm.Name
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			ensureHzStatusIsPending(hz)
+			assertHzStatusIsPending(hz)
 
 			hzConfig := GetHzConfig(hz)
 			Expect(hzConfig).Should(HaveKey("user-code-deployment"))
@@ -132,7 +132,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			}
 			hz.Spec.CustomConfigCmName = cm.Name
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
-			ensureHzStatusIsPending(hz)
+			assertHzStatusIsPending(hz)
 
 			hzConfig := GetHzConfig(hz)
 			Expect(hzConfig).Should(HaveKey("advanced-network"))
