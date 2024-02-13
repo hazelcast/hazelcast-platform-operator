@@ -52,7 +52,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag(Fast|(Any-OCP-Kind)), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag(Fast|AnyLicense|AWS|GCP|AZURE), func() {
 			setLabelAndCRName("hee-2")
 			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
