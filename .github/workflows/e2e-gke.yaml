@@ -10,6 +10,7 @@ env:
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
   AWS_REGION: us-east-1
+  FIREWALL_RULE_NAME: node-port-range
 
 jobs:
   create-gke-cluster:
@@ -53,9 +54,13 @@ jobs:
 
       - name: Create Firewall Rules if not existing
         run: |-
-          gcloud compute firewall-rules create node-port-allow-all \
+          gcloud compute firewall-rules create ${FIREWALL_RULE_NAME} \
             --allow tcp:30000-32767 \
             --network=${{ env.GCP_NETWORK }} | true
+          
+          gcloud compute firewall-rules update ${FIREWALL_RULE_NAME} \
+          --source-ranges="192.0.2.0/24" \
+          --project ${{ env.GCP_PROJECT_ID }}
 
   grafana-setup:
     needs: [ create-gke-cluster ]
@@ -177,6 +182,26 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
+
+      - name: Get GH Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Update Firewall Rules
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 1
+          max_attempts: 3
+          retry_on: error
+          command: |
+            EXISTING_SOURCES=$(gcloud compute firewall-rules describe ${FIREWALL_RULE_NAME} \
+            --format="get(sourceRanges)" \
+            --project ${{ env.GCP_PROJECT_ID }} |  sed 's/;/,/g')
+            NEW_SOURCE_RANGES="${EXISTING_SOURCES},${{ steps.ip.outputs.ipv4 }}/32"
+            
+            gcloud compute firewall-rules update ${FIREWALL_RULE_NAME} \
+            --source-ranges=$NEW_SOURCE_RANGES \
+            --project ${{ env.GCP_PROJECT_ID }}
 
       - name: Deploy Operator to GKE
         run: |
