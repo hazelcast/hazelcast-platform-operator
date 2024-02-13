@@ -14,7 +14,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("tiered_storage"), func() {
+var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tiered_storage"), func() {
 	localPort := strconv.Itoa(8300 + GinkgoParallelProcess())
 
 	AfterEach(func() {
@@ -30,7 +30,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("tier
 
 	})
 
-	It("should create Tiered Store Configs with correct default values", Label("fast"), func() {
+	It("should create Tiered Store Configs with correct default values", Tag("fast"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -59,7 +59,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Label("tier
 		Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastv1alpha1.EncodeInMemoryFormat[tsm.Spec.InMemoryFormat]))
 	})
 
-	It("should successfully fill the map with more than allocated memory", Label("slow"), func() {
+	It("should successfully fill the map with more than allocated memory", Tag("slow"), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
