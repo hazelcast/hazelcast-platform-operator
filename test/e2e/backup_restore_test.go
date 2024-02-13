@@ -554,7 +554,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)
 		})
 
-		DescribeTable("when restoring from ExternalBackup", func(bucketURI, secretName string, useBucketConfig bool) {
+		DescribeTable("when restoring from ExternalBackup with bucket secret", func(bucketURI, secretName string, useBucketConfig bool) {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -571,6 +571,22 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			Entry("using Azure bucket HotBackupResourceName", Tag(Slow|EE|AnyCloud), "azblob://operator-e2e-external-backup", "br-secret-az", false),
 			Entry("using GCP bucket restore from BucketConfig", Tag(Slow|EE|AnyCloud), "gs://operator-e2e-external-backup", "br-secret-gcp", true),
 		)
+
+		DescribeTable("when restoring from ExternalBackup with service account", func(serviceAccount, bucketURI string) {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			setLabelAndCRName("br-11")
+			By("creating cluster with backup enabled")
+			clusterSize := int32(3)
+
+			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+			hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, "")
+			hazelcast.Spec.ServiceAccountName = serviceAccount
+			backupRestore(hazelcast, hotBackup, false)
+		},
+			Entry("using GCP bucket restore from BucketConfig", Tag(Slow|EE|GCP), "cn-workload-identity-test", "gs://operator-e2e-external-backup"),
+		)
 	})
 
 	Context("Startup actions configuration", func() {
@@ -579,7 +595,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
-				setLabelAndCRName("br-11")
+				setLabelAndCRName("br-12")
 				clusterSize := int32(3)
 
 				hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
