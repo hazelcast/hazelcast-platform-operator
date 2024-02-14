@@ -585,7 +585,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			hazelcast.Spec.ServiceAccountName = serviceAccount
 			backupRestore(hazelcast, hotBackup, false)
 		},
-			Entry("using GCP bucket restore from BucketConfig", Tag(Slow|EE|GCP), "cn-workload-identity-test", "gs://operator-e2e-external-backup"),
+			Entry("using GCP Workload Identity", Tag(Slow|EE|GCP), "cn-workload-identity-test", "gs://operator-e2e-external-backup"),
 		)
 	})
 
