@@ -214,7 +214,10 @@ var _ = Describe("ManagementCenter CR", func() {
 
 			Update(fetchedMc)
 			fetchedMc = EnsureStatusIsPending(mc)
-			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(externalConnectivityIngress))
+
+			expectedExternalConnectivityIngress := externalConnectivityIngress.DeepCopy()
+			expectedExternalConnectivityIngress.Path = "/"
+			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(expectedExternalConnectivityIngress))
 			assertExists(lookupKey(mc), ing)
 			Expect(*ing.Spec.IngressClassName).Should(Equal(externalConnectivityIngress.IngressClassName))
 			Expect(ing.Annotations).Should(Equal(externalConnectivityIngress.Annotations))
@@ -229,6 +232,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				IngressClassName: "traefik",
 				Annotations:      map[string]string{"app": "hazelcast-mc", "management-center": "ingress"},
 				Hostname:         "mc.app",
+				Path:             "/mc",
 			}
 			fetchedMc.Spec.ExternalConnectivity.Ingress = updatedExternalConnectivityIngress
 			Update(fetchedMc)
@@ -240,6 +244,9 @@ var _ = Describe("ManagementCenter CR", func() {
 			Expect(ing.Annotations).Should(Equal(updatedExternalConnectivityIngress.Annotations))
 			Expect(ing.Spec.Rules).Should(HaveLen(1))
 			Expect(ing.Spec.Rules[0].Host).Should(Equal(updatedExternalConnectivityIngress.Hostname))
+			Expect(ing.Spec.Rules[0].HTTP.Paths).Should(HaveLen(1))
+			Expect(ing.Spec.Rules[0].HTTP.Paths[0].Path).Should(Equal(updatedExternalConnectivityIngress.Path))
+			Expect(*ing.Spec.Rules[0].HTTP.Paths[0].PathType).Should(Equal(networkingv1.PathTypePrefix))
 			Expect(ing.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedMc.Spec.ExternalConnectivity.Ingress = nil
@@ -247,6 +254,78 @@ var _ = Describe("ManagementCenter CR", func() {
 			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(BeNil())
 			EnsureStatusIsPending(mc)
 			assertDoesNotExist(lookupKey(mc), ing)
+		})
+
+		It("should configure contextPath in MC pod when custom path is set in Ingress", Label("fast"), func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+			}
+
+			mc.Spec.ExternalConnectivity = &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Ingress: &hazelcastv1alpha1.ExternalConnectivityIngress{
+					IngressClassName: "nginx",
+					Annotations:      map[string]string{"app": "hazelcast-mc"},
+					Hostname:         "mancenter",
+					Path:             "/mc",
+				},
+			}
+
+			Create(mc)
+			fetchedMc := EnsureStatusIsPending(mc)
+			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
+
+			By("checking contextPath configuration")
+			fetchedSts := &appsv1.StatefulSet{}
+			assertExists(lookupKey(mc), fetchedSts)
+			Expect(fetchedSts.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Env).Should(ContainElements(
+				And(
+					HaveField("Name", "JAVA_OPTS"),
+					HaveField("Value", ContainSubstring("-Dhazelcast.mc.contextPath=/mc")),
+				),
+			))
+
+			By("checking liveness probe path")
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/mc/health"))
+
+			By("updating ingress path")
+			fetchedMc = Fetch(mc)
+			fetchedMc.Spec.ExternalConnectivity.Ingress.Path = "/hz-mc"
+			Update(fetchedMc)
+
+			By("checking contextPath configuration after update")
+			updatedSts := &appsv1.StatefulSet{}
+			Eventually(func() []corev1.EnvVar {
+				assertExists(lookupKey(mc), updatedSts)
+				return updatedSts.Spec.Template.Spec.Containers[0].Env
+			}, timeout, interval).Should(ContainElements(
+				And(HaveField("Name", "JAVA_OPTS"),
+					HaveField("Value", ContainSubstring("-Dhazelcast.mc.contextPath=/hz-mc")),
+				),
+			))
+
+			By("checking contextPath configuration after update")
+			Expect(updatedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/hz-mc/health"))
+		})
+
+		It("should fail if ingress path is not an absolute path", Label("fast"), func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+			}
+
+			mc.Spec.ExternalConnectivity = &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Ingress: &hazelcastv1alpha1.ExternalConnectivityIngress{
+					IngressClassName: "nginx",
+					Annotations:      map[string]string{"app": "hazelcast-mc"},
+					Hostname:         "mancenter",
+					Path:             "mc",
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), mc)).
+				Should(MatchError(ContainSubstring("must be an absolute path")))
 		})
 	})
 

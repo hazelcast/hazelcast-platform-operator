@@ -141,7 +141,7 @@ func randomObjectMeta(ns string, annotations ...string) metav1.ObjectMeta {
 	}
 }
 
-func ensureHzStatusIsPending(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+func assertHzStatusIsPending(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 	By("ensuring that the status is correct")
 	Eventually(func() hazelcastv1alpha1.Phase {
 		hz = fetchHz(hz)

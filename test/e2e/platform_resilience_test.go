@@ -4,7 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"gopkg.in/yaml.v3"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/utils/pointer"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 	. "time"
@@ -15,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/exec"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	cli "sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
@@ -56,20 +67,281 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 	})
 
 	AfterEach(func() {
-		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		GinkgoWriter.Printf("AfterEach start time is %v\n", Now().String())
 		if skipCleanup() {
 			return
 		}
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
-
+		deletePVCs(hzLookupKey)
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, nil, hzNamespace, labels)
+		deletePVCs(mcLookupKey)
+		DeleteConfigMap(hzNamespace, "split-brain-config")
 		By("waiting for all nodes are ready", func() {
 			waitForDroppedNodes(context.Background(), 0)
 		})
-
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should have no data lose after node outage", Tag("slow"), func() {
+	It("should kill the pod randomly and preserve the data after restore", Tag(Slow|Any), Serial, func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("hr-3")
+		duration := "30s"
+		mapSizeInMb := 500
+		nMaps := 5
+		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
+		restConfig, _ := kubeConfig.ClientConfig()
+		k8sClient, _ := cli.New(restConfig, cli.Options{Scheme: scheme.Scheme})
+
+		By("creating Hazelcast cluster with partition count and 10 maps")
+		hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, 3, labels)
+		hazelcast.Name = hzLookupKey.Name
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(5) + "Gi")}[0]
+		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("label pods")
+		podLabels := []PodLabel{
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-0", "group", "cm_pod_kill"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-1", "group", "cm_pod_kill"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-2", "group", "cm_pod_kill"},
+		}
+		err := LabelPods(hazelcast.Namespace, podLabels)
+		if err != nil {
+			fmt.Printf("Error labeling pods: %s\n", err)
+		} else {
+			fmt.Println("Pods labeled successfully")
+		}
+		By("create 5 maps")
+		ConcurrentlyCreateMaps(context.Background(), nMaps, hazelcast.Name, hazelcast)
+
+		By("put the entries")
+		ConcurrentlyFillMultipleMapsByMb(context.Background(), nMaps, mapSizeInMb, hazelcast.Name, mapSizeInMb, hazelcast)
+
+		By("run chaos mesh pod kill scenario")
+		podKillChaos := &chaosmeshv1alpha1.PodChaos{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      hazelcast.Name,
+				Namespace: hzNamespace,
+			},
+			Spec: chaosmeshv1alpha1.PodChaosSpec{
+				Action:   chaosmeshv1alpha1.PodKillAction,
+				Duration: &duration,
+				ContainerSelector: chaosmeshv1alpha1.ContainerSelector{
+					PodSelector: chaosmeshv1alpha1.PodSelector{
+						Selector: chaosmeshv1alpha1.PodSelectorSpec{
+							GenericSelectorSpec: chaosmeshv1alpha1.GenericSelectorSpec{
+								LabelSelectors: map[string]string{
+									"group": "cm_pod_kill",
+								},
+							},
+						},
+						Mode: chaosmeshv1alpha1.OneMode,
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Create(context.Background(), podKillChaos)).Error().NotTo(HaveOccurred())
+
+		By("checking the member size after random pod kill")
+		Eventually(func() int {
+			newPods, err := getKubernetesClientSet().CoreV1().Pods(hazelcast.Namespace).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: "group=cm_pod_kill",
+			})
+			Expect(err).NotTo(HaveOccurred())
+			return CountRunningPods(newPods.Items)
+		}, 1*Minute, 1*Second).Should(Equal(2), "There should be exactly 2 pods in 'Running' status")
+
+		By("checking map size after kill and resume")
+		for i := 0; i < nMaps; i++ {
+			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
+			m.Spec.HazelcastResourceName = hazelcast.Name
+			WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), int(float64(mapSizeInMb*128)), 1*Minute)
+		}
+	})
+
+	It("should check a split-brain protection in the Hazelcast cluster", Tag(Slow|Any), Serial, func() {
+		setLabelAndCRName("hr-4")
+		duration := "100s"
+		splitBrainConfName := "splitBrainProtectionRuleWithFourMembers"
+		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
+		restConfig, _ := kubeConfig.ClientConfig()
+		k8sClient, _ := cli.New(restConfig, cli.Options{Scheme: scheme.Scheme})
+
+		By("creating custom config with split-brain protection")
+		customConfig := make(map[string]interface{})
+		sbConf := make(map[string]interface{})
+		sbConf[splitBrainConfName] = map[string]interface{}{
+			"enabled":              true,
+			"minimum-cluster-size": 4,
+		}
+		customConfig["split-brain-protection"] = sbConf
+
+		mapConf := make(map[string]interface{})
+		mapConf[mapLookupKey.Name] = map[string]interface{}{
+			"split-brain-protection-ref": "splitBrainProtectionRuleWithFourMembers",
+		}
+		customConfig["map"] = mapConf
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "split-brain-config",
+				Namespace: hzNamespace,
+				Labels:    labels,
+			},
+		}
+		out, err := yaml.Marshal(customConfig)
+		Expect(err).To(BeNil())
+		cm.Data = make(map[string]string)
+		cm.Data["hazelcast"] = string(out)
+		Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
+
+		By("creating Hazelcast cluster")
+		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		hazelcast.Spec.ClusterSize = pointer.Int32(6)
+		hazelcast.Spec.CustomConfigCmName = cm.Name
+		CreateHazelcastCR(hazelcast)
+
+		By("split the members into 2 groups")
+		podLabels := []PodLabel{
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-0", "group", "group1"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-1", "group", "group1"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-2", "group", "group1"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-3", "group", "group2"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-4", "group", "group2"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-5", "group", "group2"},
+		}
+		err = LabelPods(hazelcast.Namespace, podLabels)
+		if err != nil {
+			fmt.Printf("Error labeling pods: %s\n", err)
+		} else {
+			fmt.Println("Pods labeled successfully")
+		}
+		evaluateReadyMembers(hzLookupKey)
+
+		By("run split brain scenario")
+		networkPartitionChaos := &chaosmeshv1alpha1.NetworkChaos{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      hazelcast.Name,
+				Namespace: hazelcast.Namespace,
+			},
+			Spec: chaosmeshv1alpha1.NetworkChaosSpec{
+				PodSelector: chaosmeshv1alpha1.PodSelector{
+					Mode: chaosmeshv1alpha1.AllMode,
+					Selector: chaosmeshv1alpha1.PodSelectorSpec{
+						GenericSelectorSpec: chaosmeshv1alpha1.GenericSelectorSpec{
+							LabelSelectors: map[string]string{
+								"group": "group1",
+							},
+						},
+					},
+				},
+				Action:    chaosmeshv1alpha1.PartitionAction,
+				Direction: chaosmeshv1alpha1.Both,
+				Target: &chaosmeshv1alpha1.PodSelector{
+					Mode: chaosmeshv1alpha1.AllMode,
+					Selector: chaosmeshv1alpha1.PodSelectorSpec{
+						GenericSelectorSpec: chaosmeshv1alpha1.GenericSelectorSpec{
+							LabelSelectors: map[string]string{
+								"group": "group2",
+							},
+						},
+					},
+				},
+				Duration: &duration,
+			},
+		}
+		Expect(k8sClient.Create(context.Background(), networkPartitionChaos)).To(Succeed(), "Failed to create network partition chaos")
+
+		By("wait until Hazelcast cluster will be injected by split-brain experiment")
+		Eventually(func() bool {
+			err = k8sClient.Get(context.Background(), hzLookupKey, networkPartitionChaos)
+			Expect(err).ToNot(HaveOccurred())
+			for _, condition := range networkPartitionChaos.Status.ChaosStatus.Conditions {
+				if condition.Type == chaosmeshv1alpha1.ConditionAllInjected && condition.Status == "True" {
+					return true
+				}
+			}
+			return false
+		}, 1*Minute, interval).Should(BeTrue())
+
+		By("create a map")
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+
+		By("attempt to put the 10 entries into the map")
+		err = FillMapByEntryCount(context.Background(), hzLookupKey, true, m.MapName(), 10)
+		Expect(err).Should(MatchError(MatchRegexp("Split brain protection exception: " + splitBrainConfName + " has failed!")))
+	})
+
+	It("should have no data lose after zone outage", Tag(Slow|Any), Serial, func() {
+		setLabelAndCRName("hr-2")
+
+		ctx := context.Background()
+		numberOfNodes, err := numberOfAllNodes(ctx)
+		Expect(err).To(BeNil())
+		hzClusterSize := numberOfNodes
+
+		By(fmt.Sprintf("creating %d sized cluster with zone-level high availability", hzClusterSize))
+		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, ee, int32(hzClusterSize), "ZONE", labels)
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("creating the map config and adding entries")
+		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
+		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		mapName := "ha-test-map"
+		mapSize := 30000
+		err = FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
+		Expect(err).To(BeNil())
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+
+		By("detecting the node which the operator is running on")
+		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
+		Expect(err).To(BeNil())
+
+		By("determining a zone to drop")
+		zoneNodeNameMap, err := nodeNamesInZones(ctx)
+		Expect(err).To(BeNil())
+		var droppingZone string
+		for zone, nodeNames := range zoneNodeNameMap {
+			safeToDrop := true
+			for _, nodeName := range nodeNames {
+				safeToDrop = safeToDrop && (nodeName != nodeNameOperatorRunningOn)
+			}
+			if safeToDrop {
+				droppingZone = zone
+				break
+			}
+		}
+		numberOfNodesInDroppingZone := len(zoneNodeNameMap[droppingZone])
+
+		By(fmt.Sprintf("dropping zone '%s'", droppingZone))
+		err = dropNodes(ctx, droppingZone, zoneNodeNameMap[droppingZone]...)
+		Expect(err).To(BeNil())
+
+		By("waiting for nodes to be dropped")
+		waitForDroppedNodes(ctx, numberOfNodesInDroppingZone)
+
+		By("checking map size after zone outage")
+		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+	})
+
+	It("should have no data lose after node outage", Tag(Slow|Any), Serial, func() {
 		setLabelAndCRName("hr-1")
 
 		ctx := context.Background()
@@ -88,7 +360,8 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 		mapName := "ha-test-map"
 		mapSize := 30000
-		FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
+		err = FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
+		Expect(err).To(BeNil())
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 
 		By("detecting the node which the operator is running on")
@@ -123,57 +396,67 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
-	It("should have no data lose after zone outage", Tag("slow"), func() {
-		setLabelAndCRName("hr-2")
+	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Serial, Tag(Slow|Any), func() {
+		By("clone existing operator")
+		setLabelAndCRName("res-1")
+		hazelcastSource := hazelcastconfig.Default(hzSrcLookupKey, ee, labels)
+		hazelcastSource.Spec.ClusterName = "source"
+		CreateHazelcastCR(hazelcastSource)
 
-		ctx := context.Background()
-		numberOfNodes, err := numberOfAllNodes(ctx)
-		Expect(err).To(BeNil())
-		hzClusterSize := numberOfNodes
+		By("creating target Hazelcast cluster")
+		hazelcastTarget := hazelcastconfig.Default(hzTrgLookupKey, ee, labels)
+		hazelcastTarget.Spec.ClusterName = "target"
+		CreateHazelcastCR(hazelcastTarget)
 
-		By(fmt.Sprintf("creating %d sized cluster with zone-level high availability", hzClusterSize))
-		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, ee, int32(hzClusterSize), "ZONE", labels)
-		CreateHazelcastCR(hazelcast)
-		evaluateReadyMembers(hzLookupKey)
+		evaluateReadyMembers(hzSrcLookupKey)
+		evaluateReadyMembers(hzTrgLookupKey)
 
-		By("creating the map config and adding entries")
-		m := hazelcastconfig.BackupCountMap(mapLookupKey, hazelcast.Name, labels, 1)
-		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
-		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		mapName := "ha-test-map"
-		mapSize := 30000
-		FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		By("creating map for source Hazelcast cluster")
+		m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcastSource.Name, labels)
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		By("detecting the node which the operator is running on")
-		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
-		Expect(err).To(BeNil())
+		By("creating wan replication configuration")
+		wan := hazelcastconfig.DefaultWanReplication(
+			wanLookupKey,
+			m.Name,
+			hazelcastTarget.Spec.ClusterName,
+			hzclient.HazelcastUrl(hazelcastTarget),
+			labels,
+		)
+		Expect(k8sClient.Create(context.Background(), wan)).Should(Succeed())
 
-		By("determining a zone to drop")
-		zoneNodeNameMap, err := nodeNamesInZones(ctx)
-		Expect(err).To(BeNil())
-		var droppingZone string
-		for zone, nodeNames := range zoneNodeNameMap {
-			safeToDrop := true
-			for _, nodeName := range nodeNames {
-				safeToDrop = safeToDrop && (nodeName != nodeNameOperatorRunningOn)
-			}
-			if safeToDrop {
-				droppingZone = zone
-				break
-			}
+		By("deleting operator")
+		dep := &appsv1.Deployment{}
+		Expect(k8sClient.Get(context.Background(), controllerManagerName, dep)).Should(Succeed())
+		Expect(k8sClient.Delete(context.Background(), dep, client.PropagationPolicy(metav1.DeletePropagationForeground))).Should(Succeed())
+		assertDoesNotExist(controllerManagerName, &appsv1.Deployment{})
+
+		By("deleting Hazelcast clusters")
+		Expect(k8sClient.Delete(context.Background(), hazelcastSource)).Should(Succeed())
+		Expect(k8sClient.Delete(context.Background(), hazelcastTarget)).Should(Succeed())
+
+		By("deleting wan replication")
+		Expect(k8sClient.Delete(context.Background(), wan)).Should(Succeed())
+
+		By("creating operator again")
+		newDep := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      dep.Name,
+				Namespace: dep.Namespace,
+				Labels:    dep.Labels,
+			},
+			Spec: dep.Spec,
 		}
-		numberOfNodesInDroppingZone := len(zoneNodeNameMap[droppingZone])
+		Expect(k8sClient.Create(context.Background(), newDep)).Should(Succeed())
+		Eventually(func() (int32, error) {
+			return getDeploymentReadyReplicas(context.Background(), controllerManagerName, newDep)
+		}, 90*Second, interval).Should(Equal(int32(1)))
 
-		By(fmt.Sprintf("dropping zone '%s'", droppingZone))
-		err = dropNodes(ctx, droppingZone, zoneNodeNameMap[droppingZone]...)
-		Expect(err).To(BeNil())
-
-		By("waiting for nodes to be dropped")
-		waitForDroppedNodes(ctx, numberOfNodesInDroppingZone)
-
-		By("checking map size after zone outage")
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		assertDoesNotExist(mapLookupKey, m)
+		assertDoesNotExist(wanLookupKey, wan)
+		assertDoesNotExist(hzSrcLookupKey, hazelcastSource)
+		assertDoesNotExist(hzTrgLookupKey, hazelcastTarget)
 	})
 })
 

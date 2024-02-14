@@ -35,7 +35,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should successfully start after one member restart", Tag("slow"), func() {
+	It("should successfully start after one member restart", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -60,7 +60,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillMapByEntryCount(ctx, hzLookupKey, true, m.MapName(), 100)
+		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.MapName(), 100)
+		Expect(err).To(BeNil())
 
 		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
 		WaitForPodReady(hazelcast.Name+"-2", hzLookupKey, 1*Minute)
@@ -73,7 +74,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		WaitForMapSize(ctx, hzLookupKey, m.MapName(), 100, 1*Minute)
 	})
 
-	It("should restore 3 GB data after planned shutdown", Tag("slow"), func() {
+	It("should restore 3 GB data after planned shutdown", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -110,7 +111,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		assertHotBackupSuccess(hotBackup, 20*Minute)
 
 		By("putting entries after backup")
-		FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), 111)
+		err := FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), 111)
+		Expect(err).To(BeNil())
 
 		By("deleting Hazelcast cluster")
 		RemoveHazelcastCR(hazelcast)
@@ -139,7 +141,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
-	It("should not start repartitioning after one member restart", Tag("slow"), func() {
+	It("should not start repartitioning after one member restart", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -169,7 +171,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		Expect(err).To(BeNil())
 		t := Now()
 		DeletePod(hazelcast.Name+"-2", 10, hzLookupKey)
 		evaluateReadyMembers(hzLookupKey)
@@ -183,7 +186,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 
-	It("should not start repartitioning after planned shutdown", Tag("slow"), func() {
+	It("should not start repartitioning after planned shutdown", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -209,7 +212,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		Expect(err).To(BeNil())
 
 		By("creating HotBackup CR")
 		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
@@ -243,7 +247,7 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
 	})
 
-	It("should persist SQL mappings", Tag("slow"), func() {
+	It("should persist SQL mappings", Tag(Slow|EE|AnyCloud), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
@@ -328,8 +332,8 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
 		}
 	},
-		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Serial, Tag("slow"), hazelcastcomv1alpha1.FullRecovery, "fr"),
-		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Serial, Tag("slow"), hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Serial, Tag(Slow|EE|AnyCloud), hazelcastcomv1alpha1.FullRecovery, "fr"),
+		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Serial, Tag(Slow|EE|AnyCloud), hazelcastcomv1alpha1.MostRecent, "pr"),
 	)
 
 })

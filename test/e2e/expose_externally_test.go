@@ -40,19 +40,20 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 	}
 
 	Context("Cluster connectivity", func() {
-		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag("fast"), func() {
+		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag(Fast|Any), func() {
 			setLabelAndCRName("hee-1")
 			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 			hzMap := "map"
 			entryCount := 100
-			FillMapByEntryCount(ctx, hzLookupKey, true, hzMap, entryCount)
+			err := FillMapByEntryCount(ctx, hzLookupKey, true, hzMap, entryCount)
+			Expect(err).To(BeNil())
 			WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag("fast"), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag(Fast|Any), func() {
 			setLabelAndCRName("hee-2")
 			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -100,13 +101,14 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 
 			hzMap := "map"
 			entryCount := 100
-			FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
+			err := FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
+			Expect(err).To(BeNil())
 			WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag("slow"), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag(Slow|Any), func() {
 			setLabelAndCRName("hee-3")
 			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -160,7 +162,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 
 			hzMap := "map"
 			entryCount := 100
-			FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
+			err := FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
+			Expect(err).To(BeNil())
 			WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
 
 			assertExternalAddressesNotEmpty()

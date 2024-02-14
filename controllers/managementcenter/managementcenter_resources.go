@@ -70,7 +70,8 @@ func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *h
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, service, func() error {
 		service.Spec.Type = mc.Spec.ExternalConnectivity.ManagementCenterServiceType()
-		service.Spec.Ports = util.EnrichServiceNodePorts(ports(), service.Spec.Ports)
+		mcPorts := []corev1.ServicePort{httpPort(), httpsPort()}
+		service.Spec.Ports = util.EnrichServiceNodePorts(mcPorts, service.Spec.Ports)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -111,13 +112,13 @@ func (r *ManagementCenterReconciler) reconcileIngress(ctx context.Context, mc *h
 					HTTP: &networkingv1.HTTPIngressRuleValue{
 						Paths: []networkingv1.HTTPIngressPath{
 							{
-								Path:     "/",
+								Path:     mc.Spec.ExternalConnectivity.Ingress.Path,
 								PathType: &[]networkingv1.PathType{networkingv1.PathTypePrefix}[0],
 								Backend: networkingv1.IngressBackend{
 									Service: &networkingv1.IngressServiceBackend{
 										Name: metadata(mc).Name,
 										Port: networkingv1.ServiceBackendPort{
-											Number: 8080,
+											Name: httpPort().Name,
 										},
 									},
 								},
@@ -213,20 +214,21 @@ func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
 	return l
 }
 
-func ports() []v1.ServicePort {
-	return []corev1.ServicePort{
-		{
-			Name:       "http",
-			Protocol:   corev1.ProtocolTCP,
-			Port:       8080,
-			TargetPort: intstr.FromString(n.MancenterPort),
-		},
-		{
-			Name:       "https",
-			Protocol:   corev1.ProtocolTCP,
-			Port:       443,
-			TargetPort: intstr.FromString(n.MancenterPort),
-		},
+func httpPort() v1.ServicePort {
+	return corev1.ServicePort{
+		Name:       "http",
+		Protocol:   corev1.ProtocolTCP,
+		Port:       8080,
+		TargetPort: intstr.FromString(n.MancenterPort),
+	}
+}
+
+func httpsPort() v1.ServicePort {
+	return corev1.ServicePort{
+		Name:       "https",
+		Protocol:   corev1.ProtocolTCP,
+		Port:       443,
+		TargetPort: intstr.FromString(n.MancenterPort),
 	}
 }
 
@@ -255,7 +257,6 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 						LivenessProbe: &v1.Probe{
 							ProbeHandler: v1.ProbeHandler{
 								HTTPGet: &v1.HTTPGetAction{
-									Path:   "/health",
 									Port:   intstr.FromInt(8081),
 									Scheme: corev1.URISchemeHTTP,
 								},
@@ -315,6 +316,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		sts.Spec.Template.Spec.Containers[0].Image = mc.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(ctx, mc, r.Client, logger)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = mc.Spec.ImagePullPolicy
+		sts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path = path.Join(getRootPath(mc), "health")
 		if mc.Spec.Resources != nil {
 			sts.Spec.Template.Spec.Containers[0].Resources = *mc.Spec.Resources
 		}
@@ -332,6 +334,13 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		logger.Info("Operation result", "Statefulset", mc.Name, "result", opResult)
 	}
 	return err
+}
+
+func getRootPath(mc *hazelcastv1alpha1.ManagementCenter) string {
+	if mc.Spec.ExternalConnectivity.IsEnabled() && mc.Spec.ExternalConnectivity.Ingress != nil {
+		return mc.Spec.ExternalConnectivity.Ingress.Path
+	}
+	return "/"
 }
 
 func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
@@ -565,7 +574,11 @@ func javaOPTS(mc *hazelcastv1alpha1.ManagementCenter) string {
 	}
 
 	if mc.Spec.GetLicenseKeySecretName() != "" {
-		args = append(args, "-Dhazelcast.mc.license=$(MC_LICENSE_KEY)")
+		args = append(args, fmt.Sprintf("-Dhazelcast.mc.license=$(%s)", mcLicenseKey))
+	}
+
+	if mc.Spec.ExternalConnectivity.IsEnabled() && mc.Spec.ExternalConnectivity.Ingress != nil {
+		args = append(args, fmt.Sprintf("-Dhazelcast.mc.contextPath=%s", getRootPath(mc)))
 	}
 
 	if mc.Spec.JVM.IsConfigured() {
