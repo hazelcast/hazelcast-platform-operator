@@ -19,10 +19,6 @@ jobs:
       NRG: ${{ steps.create-cluster.outputs.NRG }}
       NSG: ${{ steps.create-cluster.outputs.NSG }}
     steps:
-      - name: Get GH Public IP
-        id: ip
-        uses: haythem/public-ip@v1.3
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
@@ -66,19 +62,13 @@ jobs:
             az network nsg rule create \
               --name=AllowExternalAccess \
               --nsg-name=${NSG} \
-              --source-address-prefixes="${{ steps.ip.outputs.ipv4 }}/32" \
+              --source-address-prefixes="192.0.2.0/24" \
               --priority=100 \
               --resource-group=${NRG} \
               --access=Allow \
               --destination-port-ranges=30000-32767 \
               --direction=Inbound \
               --protocol=Tcp
-            
-            az network nsg rule update \
-              --name AllowExternalAccess \
-              --nsg-name ${NSG} \
-              --resource-group ${NRG} \
-              --source-address-prefixes 192.0.2.0/24
 
   grafana-setup:
     needs: [prepare-env]
