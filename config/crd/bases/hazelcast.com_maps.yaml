@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: maps.hazelcast.com
 spec:
   group: hazelcast.com
@@ -36,14 +35,19 @@ spec:
         description: Map is the Schema for the maps API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -58,8 +62,9 @@ spec:
                 minimum: 0
                 type: integer
               attributes:
-                description: Attributes to be used with Predicates API. You can learn
-                  more at https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+                description: |-
+                  Attributes to be used with Predicates API.
+                  You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
                 items:
                   properties:
                     extractorClassName:
@@ -81,9 +86,10 @@ spec:
                 minimum: 0
                 type: integer
               entryListeners:
-                description: EntryListeners contains the configuration for the map-level
-                  or entry-based events listeners provided by the Hazelcast’s eventing
-                  framework. You can learn more at https://docs.hazelcast.com/hazelcast/latest/events/object-events.
+                description: |-
+                  EntryListeners contains the configuration for the map-level or entry-based events listeners
+                  provided by the Hazelcast’s eventing framework.
+                  You can learn more at https://docs.hazelcast.com/hazelcast/latest/events/object-events.
                 items:
                   properties:
                     className:
@@ -93,15 +99,15 @@ spec:
                       type: string
                     includeValues:
                       default: true
-                      description: IncludeValues is an optional attribute that indicates
-                        whether the event will contain the map value. Defaults to
-                        true.
+                      description: |-
+                        IncludeValues is an optional attribute that indicates whether the event will contain the map value.
+                        Defaults to true.
                       type: boolean
                     local:
                       default: false
-                      description: Local is an optional attribute that indicates whether
-                        the map on the local member can be listened to. Defaults to
-                        false.
+                      description: |-
+                        Local is an optional attribute that indicates whether the map on the local member can be listened to.
+                        Defaults to false.
                       type: boolean
                   required:
                   - className
@@ -129,8 +135,9 @@ spec:
                   evictionPolicy: NONE
                   maxSize: 0
                   maxSizePolicy: PER_NODE
-                description: Configuration for removing data from the map when it
-                  reaches its max size. It can be updated.
+                description: |-
+                  Configuration for removing data from the map when it reaches its max size.
+                  It can be updated.
                 properties:
                   evictionPolicy:
                     default: NONE
@@ -165,8 +172,9 @@ spec:
                     type: string
                 type: object
               hazelcastResourceName:
-                description: HazelcastResourceName defines the name of the Hazelcast
-                  resource that this resource is created for.
+                description: |-
+                  HazelcastResourceName defines the name of the Hazelcast resource that this resource is
+                  created for.
                 minLength: 1
                 type: string
               inMemoryFormat:
@@ -179,8 +187,9 @@ spec:
                 - NATIVE
                 type: string
               indexes:
-                description: Indexes to be created for the map data. You can learn
-                  more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.
+                description: |-
+                  Indexes to be created for the map data.
+                  You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps.
                   It cannot be updated after map config is created successfully.
                 items:
                   properties:
@@ -190,6 +199,7 @@ spec:
                         type: string
                       type: array
                     bitMapIndexOptions:
+                      default: {}
                       description: Options for "BITMAP" index type. See https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps#configuring-bitmap-indexes
                       properties:
                         uniqueKey:
@@ -219,9 +229,10 @@ spec:
                   type: object
                 type: array
               mapStore:
-                description: Configuration options when you want to load/store the
-                  map entries from/to a persistent data store such as a relational
-                  database You can learn more at https://docs.hazelcast.com/hazelcast/latest/data-structures/working-with-external-data
+                description: |-
+                  Configuration options when you want to load/store the map entries
+                  from/to a persistent data store such as a relational database
+                  You can learn more at https://docs.hazelcast.com/hazelcast/latest/data-structures/working-with-external-data
                 properties:
                   className:
                     description: Name of your class implementing MapLoader and/or
@@ -246,10 +257,10 @@ spec:
                     type: integer
                   writeCoalescing:
                     default: true
-                    description: It is meaningful if you are using write behind in
-                      MapStore. When it is set to true, only the latest store operation
-                      on a key during the write-delay-seconds will be reflected to
-                      MapStore.
+                    description: |-
+                      It is meaningful if you are using write behind in MapStore. When it is set to true,
+                      only the latest store operation on a key during the write-delay-seconds will be
+                      reflected to MapStore.
                     type: boolean
                   writeDelaySeconds:
                     description: Number of seconds to delay the storing of entries.
@@ -260,9 +271,10 @@ spec:
                 type: object
               maxIdleSeconds:
                 default: 0
-                description: Maximum time in seconds for each entry to stay idle in
-                  the map. Entries that are idle for more than this time are evicted
-                  automatically. It can be updated.
+                description: |-
+                  Maximum time in seconds for each entry to stay idle in the map.
+                  Entries that are idle for more than this time are evicted automatically.
+                  It can be updated.
                 format: int32
                 type: integer
               merkleTree:
@@ -276,9 +288,9 @@ spec:
                     type: integer
                 type: object
               name:
-                description: Name of the data structure config to be created. If empty,
-                  CR name will be used. It cannot be updated after the config is created
-                  successfully.
+                description: |-
+                  Name of the data structure config to be created. If empty, CR name will be used.
+                  It cannot be updated after the config is created successfully.
                 type: string
               nearCache:
                 description: InMemoryFormat specifies near cache configuration for
@@ -363,14 +375,16 @@ spec:
                 type: object
               persistenceEnabled:
                 default: false
-                description: When enabled, map data will be persisted. It cannot be
-                  updated after map config is created successfully.
+                description: |-
+                  When enabled, map data will be persisted.
+                  It cannot be updated after map config is created successfully.
                 type: boolean
               timeToLiveSeconds:
                 default: 0
-                description: Maximum time in seconds for each entry to stay in the
-                  map. If it is not 0, entries that are older than this time and not
-                  updated for this time are evicted automatically. It can be updated.
+                description: |-
+                  Maximum time in seconds for each entry to stay in the map.
+                  If it is not 0, entries that are older than this time and not updated for this time are evicted automatically.
+                  It can be updated.
                 format: int32
                 type: integer
             required:

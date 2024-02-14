@@ -23,7 +23,7 @@ ENVTEST_K8S_VERSION ?= 1.25.x
 # https://github.com/operator-framework/operator-sdk/releases
 OPERATOR_SDK_VERSION ?= v1.25.2
 # https://github.com/kubernetes-sigs/controller-tools/releases
-CONTROLLER_GEN_VERSION ?= v0.10.0
+CONTROLLER_GEN_VERSION ?= v0.14.0
 # https://github.com/kubernetes-sigs/controller-runtime/releases
 # It is set in the go.mod file
 CONTROLLER_RUNTIME_VERSION ?= v0.13.1

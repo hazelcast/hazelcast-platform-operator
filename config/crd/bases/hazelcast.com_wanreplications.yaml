@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: wanreplications.hazelcast.com
 spec:
   group: hazelcast.com
@@ -33,14 +32,19 @@ spec:
         description: WanReplication is the Schema for the wanreplications API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -56,9 +60,9 @@ spec:
                 properties:
                   timeout:
                     default: 60000
-                    description: Timeout represents the time in milliseconds the source
-                      cluster waits for the acknowledgement. After timeout, the events
-                      will be resent.
+                    description: |-
+                      Timeout represents the time in milliseconds the source cluster waits for the acknowledgement.
+                      After timeout, the events will be resent.
                     format: int32
                     type: integer
                   type:
@@ -78,7 +82,8 @@ spec:
                 properties:
                   maximumDelay:
                     default: 1000
-                    description: MaximumDelay represents the maximum delay in milliseconds.
+                    description: |-
+                      MaximumDelay represents the maximum delay in milliseconds.
                       If the batch size is not reached, the events will be sent after
                       the maximum delay.
                     format: int32
@@ -174,9 +179,9 @@ spec:
                       description: Status is the status of WAN replication
                       type: string
                   type: object
-                description: WanReplicationMapsStatus is the WAN Replication status
-                  of the Maps given in the spec directly or indirectly by Hazelcast
-                  resource.
+                description: |-
+                  WanReplicationMapsStatus is the WAN Replication status of the Maps given in the spec
+                  directly or indirectly by Hazelcast resource.
                 type: object
             type: object
         required:
