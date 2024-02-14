@@ -39,9 +39,6 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 	})
 
 	It("should send 3 GB data by each cluster in active-passive mode in the different namespaces", Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		SwitchContext(context1)
 		setupEnv()
 		setLabelAndCRName("hpwan-1")
@@ -103,9 +100,6 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 	})
 
 	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		SwitchContext(context1)
 		setupEnv()
 		var mapSizeInMb = 1024
@@ -238,9 +232,6 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 	})
 
 	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hpwan-3")
 		var mapSizeInMb = 1024
 		/**
@@ -311,9 +302,6 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 	})
 
 	It("should send 6 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		var mapSizeInMb = 1024
 		/**
 		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)

@@ -124,9 +124,6 @@ var _ = Describe("Management-Center", Group("mc"), func() {
 
 	Context("ManagementCenter CR with Route", func() {
 		It("should be able to access route in Openshift env.", Tag(Fast|AnyLicense|OCP), func() {
-			if platform.GetType() != platform.OpenShift {
-				Skip("This test will only run in OpenShift environments")
-			}
 			setLabelAndCRName("mc-4")
 			mc := mcconfig.RouteEnabled(mcLookupKey, ee, labels)
 			create(mc)

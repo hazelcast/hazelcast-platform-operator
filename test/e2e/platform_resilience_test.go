@@ -84,9 +84,6 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 	})
 
 	It("should kill the pod randomly and preserve the data after restore", Tag(Slow|Any), Serial, func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hr-3")
 		duration := "30s"
 		mapSizeInMb := 500

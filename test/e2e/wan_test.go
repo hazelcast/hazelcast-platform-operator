@@ -34,9 +34,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 
 	Context("Basic WAN Replication functionality", func() {
 		It("successfully replicates data to another cluster", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("hw-1")
 
 			hzCrs, _ := createWanResources(context.Background(), map[string][]string{
@@ -57,9 +54,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 		})
 
 		It("maintains replication after source members restart", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("hw-2")
 
 			hzCrs, _ := createWanResources(context.Background(), map[string][]string{
@@ -87,9 +81,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 
 	Context("Handling WAN Replication status", func() {
 		It("sets WAN status to 'Failed' when delete Map CR which present as a Map resource in WAN spec", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			suffix := setLabelAndCRName("hw-3")
 
 			// Hazelcast and Map CRs
@@ -120,9 +111,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 		})
 
 		It("sets WAN status to 'Pending' when delete Map which present as a Hazelcast resource in WAN spec", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			suffix := setLabelAndCRName("hw-4")
 
 			// Hazelcast and Map CRs
@@ -152,9 +140,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 		})
 
 		It("sets WAN status to 'Success' when resource map is created after the WAN CR", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			suffix := setLabelAndCRName("hw-5")
 
 			// Hazelcast CRs
@@ -220,9 +205,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 
 	Context("Updating WAN configuration", func() {
 		It("initially fails after removal of replicated Hazelcast CR, then succeeds after removal it from the WAN spec", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			suffix := setLabelAndCRName("hw-6")
 
 			// Hazelcast and Map CRs
@@ -264,9 +246,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 		})
 
 		It("stops replication for maps removed from WAN spec", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			suffix := setLabelAndCRName("hw-7")
 
 			// Hazelcast and Map CRs
@@ -332,9 +311,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 		})
 
 		It("continues replication when 1 of 2 maps references is deleted from WAN spec", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			suffix := setLabelAndCRName("hw-8")
 
 			// Hazelcast and Map CRs
@@ -367,9 +343,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 		})
 
 		It("verifies replication initiation for maps added after WAN setup", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			suffix := setLabelAndCRName("hw-9")
 
 			// Hazelcast CRs
@@ -440,9 +413,6 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 		})
 
 		It("handles different map names for target cluster replication", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			suffix := setLabelAndCRName("hw-10")
 
 			// Hazelcast and Map CRs

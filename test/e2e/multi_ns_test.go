@@ -61,9 +61,6 @@ var _ = Describe("Hazelcast Multi-Namespace", Group("multi_namespace"), func() {
 					setCRNamespace(deployNamespace)
 				}
 
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
 				setLabelAndCRName("mns-2")
 				clusterSize := int32(3)
 

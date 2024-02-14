@@ -54,9 +54,6 @@ var _ = Describe("Hazelcast Cache Config", Group("cache"), func() {
 		})
 
 		It("should persist and remove cache config in/from Hazelcast config", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("hch-2")
 			caches := []string{"cache1", "cache2", "cache3", "cachefail"}
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
