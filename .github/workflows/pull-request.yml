@@ -32,7 +32,7 @@ concurrency:
 jobs:
   linter:
     name: Run linters
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     permissions: {}
     if: ( !cancelled() && github.event_name == 'pull_request' )
     timeout-minutes: 10
@@ -90,7 +90,7 @@ jobs:
 
   unit-tests:
     name: Run unit and integration tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     permissions: {}
     if: ( !cancelled() && github.event_name == 'pull_request' )
     timeout-minutes: 10
@@ -113,7 +113,7 @@ jobs:
 
   get-image:
     name: Get Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     permissions: {}
     if: ( !cancelled() && github.event_name == 'pull_request' )
     timeout-minutes: 10
@@ -169,7 +169,7 @@ jobs:
 
   kind-e2e-tests:
     name: Run E2E tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [get-image]
     strategy:
       fail-fast: false
