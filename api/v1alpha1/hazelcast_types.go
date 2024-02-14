@@ -1057,6 +1057,7 @@ const (
 
 type TLS struct {
 	// Name of the secret with TLS certificate and key.
+	// +required
 	SecretName string `json:"secretName"`
 
 	// Mutual authentication configuration. It’s None by default which

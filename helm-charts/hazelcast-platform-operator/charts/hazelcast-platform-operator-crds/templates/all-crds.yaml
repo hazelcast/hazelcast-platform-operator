@@ -2894,7 +2894,6 @@ spec:
                         will connect to, default is dev.
                       type: string
                     tls:
-                      default: {}
                       description: TLS client configuration.
                       properties:
                         mutualAuthentication:
@@ -4329,7 +4328,6 @@ spec:
                         type: string
                       type: array
                     bitMapIndexOptions:
-                      default: {}
                       description: Options for "BITMAP" index type. See https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps#configuring-bitmap-indexes
                       properties:
                         uniqueKey:

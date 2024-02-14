@@ -199,7 +199,6 @@ spec:
                         type: string
                       type: array
                     bitMapIndexOptions:
-                      default: {}
                       description: Options for "BITMAP" index type. See https://docs.hazelcast.com/hazelcast/latest/query/indexing-maps#configuring-bitmap-indexes
                       properties:
                         uniqueKey:

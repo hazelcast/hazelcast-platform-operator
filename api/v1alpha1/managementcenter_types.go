@@ -152,7 +152,6 @@ type HazelcastClusterConfig struct {
 	Address string `json:"address"`
 
 	// TLS client configuration.
-	// +kubebuilder:default:={}
 	// +optional
 	TLS *TLS `json:"tls,omitempty"`
 }

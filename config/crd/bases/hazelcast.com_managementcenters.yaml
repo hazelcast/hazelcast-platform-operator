@@ -131,7 +131,6 @@ spec:
                         will connect to, default is dev.
                       type: string
                     tls:
-                      default: {}
                       description: TLS client configuration.
                       properties:
                         mutualAuthentication:
