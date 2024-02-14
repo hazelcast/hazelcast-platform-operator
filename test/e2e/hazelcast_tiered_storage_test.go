@@ -30,7 +30,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tier
 
 	})
 	Context("Tiered Store enabled for map", func() {
-		It("should create Tiered Store Configs with correct default values", Tag("fast"), func() {
+		It("should create Tiered Store Configs with correct default values", Tag(Fast|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
@@ -59,7 +59,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tier
 			Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastv1alpha1.EncodeInMemoryFormat[tsm.Spec.InMemoryFormat]))
 		})
 
-		It("should successfully fill the map with more than allocated memory", Tag("slow"), func() {
+		It("should successfully fill the map with more than allocated memory", Tag(Slow|EE|AnyCloud), func() {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}

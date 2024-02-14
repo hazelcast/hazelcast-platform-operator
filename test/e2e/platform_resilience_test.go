@@ -103,7 +103,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(5) + "Gi")}[0]
+		hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(5) + "Gi")}[0]
 		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)

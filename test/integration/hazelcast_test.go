@@ -2408,7 +2408,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Spec:       spec,
 				}
 				create(hz)
-				fetchedCR := ensureHzStatusIsPending(hz)
+				fetchedCR := assertHzStatusIsPending(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
 				By("checking the Local Device configuration", func() {
@@ -2468,7 +2468,7 @@ var _ = Describe("Hazelcast CR", func() {
 				}
 
 				create(hz)
-				fetchedCR := ensureHzStatusIsPending(hz)
+				fetchedCR := assertHzStatusIsPending(hz)
 				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
 				By("checking the Local Device configuration", func() {
