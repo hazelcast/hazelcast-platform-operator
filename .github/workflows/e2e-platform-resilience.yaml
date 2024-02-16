@@ -51,6 +51,7 @@ jobs:
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-2 \
             --num-nodes=2 \
+            --workload-pool=${{ env.GCP_PROJECT_ID }}.svc.id.goog \
             --node-locations "${GKE_REGION}-c","${GKE_REGION}-d"
           sleep 30
 

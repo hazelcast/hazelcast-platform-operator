@@ -32,9 +32,7 @@ func ValidateJetJobCreateSpec(jj *JetJob) error {
 	}
 
 	if jj.Spec.IsBucketEnabled() {
-		if jj.Spec.BucketConfiguration.GetSecretName() == "" {
-			v.Required(Path("spec", "bucketConfig", "secretName"), "bucket secret must be set")
-		} else {
+		if jj.Spec.BucketConfiguration.GetSecretName() != "" {
 			secretName := types.NamespacedName{
 				Name:      jj.Spec.BucketConfiguration.SecretName,
 				Namespace: jj.Namespace,

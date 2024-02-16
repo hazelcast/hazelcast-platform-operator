@@ -48,6 +48,7 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-16 \
+            --workload-pool=${{ env.GCP_PROJECT_ID }}.svc.id.goog \
             --num-nodes=3
           sleep 30
 
@@ -56,6 +57,14 @@ jobs:
           gcloud compute firewall-rules create node-port-allow-all \
             --allow tcp:30000-32767 \
             --network=${{ env.GCP_NETWORK }} | true
+
+      - name: Ensure Service Account allows using Workload Identity
+        run: |-
+          gcloud iam service-accounts add-iam-policy-binding cn-workload-identity-test@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --project ${{ env.GCP_PROJECT_ID }} \
+            --role roles/iam.workloadIdentityUser \
+            --member "serviceAccount:${{ env.GCP_PROJECT_ID }}.svc.id.goog[test-operator-os/cn-workload-identity-test]" \
+            --member "serviceAccount:${{ env.GCP_PROJECT_ID }}.svc.id.goog[test-operator-ee/cn-workload-identity-test]"
 
   grafana-setup:
     needs: [ create-gke-cluster ]
@@ -188,7 +197,7 @@ jobs:
           make install-operator IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
-      - name: Create secrets
+      - name: Create secrets and service accounts
         if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
@@ -202,6 +211,11 @@ jobs:
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
             --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
+
+          kubectl create serviceaccount cn-workload-identity-test --namespace ${NAMESPACE}
+
+          kubectl annotate serviceaccount cn-workload-identity-test --namespace ${NAMESPACE} \
+            iam.gke.io/gcp-service-account=cn-workload-identity-test@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
       - name: Create secret for both OS and EE tests
         run: |

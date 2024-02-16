@@ -255,8 +255,18 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 }
 
 func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	// do not create SA if user specified reference to ServiceAccountName
+	if h.Spec.ServiceAccountName != "" {
+		return nil
+	}
+
 	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metadata(h),
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        serviceAccountName(h),
+			Namespace:   h.Namespace,
+			Labels:      labels(h),
+			Annotations: h.Spec.Annotations,
+		},
 	}
 
 	err := controllerutil.SetControllerReference(h, serviceAccount, r.Scheme)
@@ -287,7 +297,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 		crb.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
-				Name:      h.Name,
+				Name:      serviceAccountName(h),
 				Namespace: h.Namespace,
 			},
 		}
@@ -324,7 +334,7 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 		rb.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
-				Name:      h.Name,
+				Name:      serviceAccountName(h),
 				Namespace: h.Namespace,
 			},
 		}
@@ -956,7 +966,7 @@ func mergeProperties(logger logr.Logger, inputProps map[string]string) map[strin
 	}
 	for k, v := range inputProps {
 		if _, exist := m[k]; exist { // if user's input is an immutable property, ignore user's input
-			logger.V(util.WarnLevel).Info("Property ignored", "property", k)
+			logger.V(util.DebugLevel).Info("Property ignored", "property", k)
 		} else {
 			m[k] = v
 		}
@@ -1863,7 +1873,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					Annotations: h.Spec.Annotations,
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName: h.Name,
+					ServiceAccountName: serviceAccountName(h),
 					SecurityContext:    podSecurityContext(),
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
@@ -1920,6 +1930,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		if err != nil {
 			return err
 		}
+		sts.Spec.Template.Spec.ServiceAccountName = serviceAccountName(h)
 		sts.Spec.Template.Spec.ImagePullSecrets = h.Spec.ImagePullSecrets
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
@@ -2760,6 +2771,13 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	l[n.ApplicationManagedByLabel] = n.OperatorName
 
 	return l
+}
+
+func serviceAccountName(h *hazelcastv1alpha1.Hazelcast) string {
+	if h.Spec.ServiceAccountName != "" {
+		return h.Spec.ServiceAccountName
+	}
+	return h.Name
 }
 
 func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
