@@ -105,6 +105,8 @@ func main() {
 	cr := &hzclient.HazelcastClientRegistry{K8sClient: mgr.GetClient()}
 	ssm := &hzclient.HzStatusServiceRegistry{}
 
+	setupLog.Info("platform", "distribution", platform.GetDistribution(), "version", platform.GetVersion())
+
 	var operatorInfo *phonehome.OperatorInfo
 	var phoneHomeTrigger chan struct{}
 	if util.IsPhoneHomeEnabled() {
