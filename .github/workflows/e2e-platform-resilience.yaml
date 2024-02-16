@@ -168,7 +168,7 @@ jobs:
             --namespace ${CHAOS_MESH_NAMESPACE} --from-literal=service_account="$GKE_SA_BASE64"
 
       - name: Run Resilience tests at GKE
-        run: make test-e2e E2E_TEST_SUITE="resilience" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=resilience
+        run: make test-e2e E2E_TEST_LABELS="resilience" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=resilience
 
       - name: Clean up after Tests
         if: always()

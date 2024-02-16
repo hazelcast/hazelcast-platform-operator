@@ -32,7 +32,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
+var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 	ctx := context.Background()
 
 	BeforeEach(func() {

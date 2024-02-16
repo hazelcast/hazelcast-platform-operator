@@ -16,7 +16,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
+var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 	waitForLBAddress := func(name types.NamespacedName) string {
 		By("waiting for load balancer address")
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
