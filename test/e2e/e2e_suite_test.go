@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"testing"
 
@@ -9,6 +11,8 @@ import (
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -18,9 +22,10 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	//+kubebuilder:scaffold:imports
+
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
-	//+kubebuilder:scaffold:imports
 )
 
 var k8sClient client.Client
@@ -83,8 +88,63 @@ func setupEnv() *rest.Config {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
+	k8sClient, err = NewManifestRecorder(k8sClient)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(k8sClient).NotTo(BeNil())
+
 	controllerManagerName.Namespace = hzNamespace
 	setCRNamespace(hzNamespace)
 
 	return cfg
+}
+
+var recordedManifests = make(map[types.NamespacedName]*bytes.Buffer)
+
+// manifestRecorder keeps track of applied manifests
+type manifestRecorder struct {
+	client.Client
+
+	scheme *runtime.Scheme
+}
+
+func NewManifestRecorder(client client.Client) (*manifestRecorder, error) {
+	scheme, err := hazelcastcomv1alpha1.SchemeBuilder.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return &manifestRecorder{
+		Client: client,
+		scheme: scheme,
+	}, nil
+}
+
+func (d *manifestRecorder) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	gvk, _, err := d.scheme.ObjectKinds(obj)
+	if err != nil {
+		// skip unknown objects
+		return d.Client.Create(ctx, obj, opts...)
+	}
+
+	if len(gvk) == 0 {
+		// skip unknown objects
+		return d.Client.Create(ctx, obj, opts...)
+	}
+	serializer := json.NewYAMLSerializer(
+		json.DefaultMetaFactory, nil, nil,
+	)
+
+	sink, ok := recordedManifests[hzLookupKey]
+	if !ok {
+		sink = new(bytes.Buffer)
+	}
+	fmt.Fprintf(sink, "---\n")
+	fmt.Fprintf(sink, "apiVersion: %s/%s\n", gvk[0].Group, gvk[0].Version)
+	fmt.Fprintf(sink, "kind: %s\n", gvk[0].Kind)
+	if err := serializer.Encode(obj, sink); err != nil {
+		return err
+	}
+	recordedManifests[hzLookupKey] = sink
+
+	return d.Client.Create(ctx, obj, opts...)
 }
