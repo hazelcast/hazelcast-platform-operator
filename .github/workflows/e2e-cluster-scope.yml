@@ -6,7 +6,7 @@ on:
     - cron: "0 9 * * *"
 
 env:
-  GO_VERSION: '1.19.0'
+  GO_VERSION: '1.21.0'
   GOBIN: ${{ github.workspace }}/bin
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
@@ -97,7 +97,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ format('>={0}', env.GO_VERSION) }}
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Create Kind Config
         run: |

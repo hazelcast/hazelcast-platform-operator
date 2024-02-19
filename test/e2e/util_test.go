@@ -183,7 +183,7 @@ var tagNames = map[uint32]string{
 	EE:    "ee",
 	Kind:  "kind",
 	AWS:   "aws",
-	GCP:   "gke",
+	GCP:   "gcp",
 	AZURE: "azure",
 	OCP:   "ocp",
 }

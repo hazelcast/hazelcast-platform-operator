@@ -105,7 +105,7 @@ func (hbs *HotBackupSpec) GetSecretName() string {
 }
 
 func (hbs *HotBackupSpec) IsExternal() bool {
-	return hbs.BucketURI != "" && hbs.GetSecretName() != ""
+	return hbs.BucketURI != ""
 }
 
 //+kubebuilder:object:root=true

@@ -111,6 +111,7 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-16 \
+            --workload-pool=${{ env.GCP_PROJECT_ID }}.svc.id.goog \
             --num-nodes=${{ env.NUMBER_OF_NODES }}
           sleep 20
 
@@ -149,7 +150,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ">=1.19.0"
+          go-version: "1.21.0"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -213,7 +214,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ">=1.19.0"
+          go-version: "1.21.0"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
