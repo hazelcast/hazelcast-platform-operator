@@ -624,10 +624,6 @@ type AgentConfiguration struct {
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
 type HazelcastPersistenceConfiguration struct {
-	// Persistence base directory.
-	// +required
-	BaseDir string `json:"baseDir"`
-
 	// Configuration of the cluster recovery strategy.
 	// +kubebuilder:default:="FullRecoveryOnly"
 	// +optional

@@ -1069,8 +1069,8 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	if h.Spec.Persistence.IsEnabled() {
 		cfg.Persistence = config.Persistence{
 			Enabled:                   pointer.Bool(true),
-			BaseDir:                   h.Spec.Persistence.BaseDir,
-			BackupDir:                 path.Join(h.Spec.Persistence.BaseDir, "hot-backup"),
+			BaseDir:                   n.BaseDir,
+			BackupDir:                 path.Join(n.BaseDir, "hot-backup"),
 			Parallelism:               1,
 			ValidationTimeoutSec:      120,
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
@@ -2179,7 +2179,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 			},
 			{
 				Name:  "RESTORE_DESTINATION",
-				Value: h.Spec.Persistence.BaseDir,
+				Value: n.BaseDir,
 			},
 			{
 				Name:  "RESTORE_ID",
@@ -2199,7 +2199,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
@@ -2220,7 +2220,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 			},
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
-				Value: h.Spec.Persistence.BaseDir,
+				Value: n.BaseDir,
 			},
 			{
 				Name:  "RESTORE_LOCAL_ID",
@@ -2240,7 +2240,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
@@ -2414,7 +2414,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		})
 	}
 	return vm
@@ -2438,7 +2438,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		})
 	}
 

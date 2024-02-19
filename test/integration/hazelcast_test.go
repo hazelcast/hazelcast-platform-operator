@@ -727,7 +727,6 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should fail to create with empty baseDir", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "",
 				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
@@ -746,7 +745,6 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should fail to create with invalid baseDir", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "baseDir/",
 				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
@@ -765,7 +763,6 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should create with default values", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "/baseDir/",
 				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
@@ -781,7 +778,6 @@ var _ = Describe("Hazelcast CR", func() {
 			test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
 			By("checking the Persistence CR configuration", func() {
-				Expect(fetchedCR.Spec.Persistence.BaseDir).Should(Equal("/baseDir/"))
 				Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
 					Should(Equal(hazelcastv1alpha1.FullRecovery))
 				Expect(fetchedCR.Spec.Persistence.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
@@ -792,7 +788,6 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should create volumeClaimTemplates", Label("fast"), func() {
 			s := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir:                   "/data/hot-restart/",
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 					AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -810,7 +805,6 @@ var _ = Describe("Hazelcast CR", func() {
 			test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
 
 			By("checking the Persistence CR configuration", func() {
-				Expect(fetchedCR.Spec.Persistence.BaseDir).Should(Equal("/data/hot-restart/"))
 				Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
 					Should(Equal(hazelcastv1alpha1.FullRecovery))
 				Expect(fetchedCR.Spec.Persistence.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
@@ -842,7 +836,6 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should add RBAC PolicyRule for watch StatefulSets", Label("fast"), func() {
 			s := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir:                   "/data/hot-restart/",
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 					AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -875,7 +868,6 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should not create PartialStart with FullRecovery", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir:                   "/baseDir/",
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 				StartupAction:             hazelcastv1alpha1.PartialStart,
 				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
@@ -894,9 +886,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 		It("should not create if pvc is not specified", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "/baseDir/",
-			}
+			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{}
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -910,7 +900,6 @@ var _ = Describe("Hazelcast CR", func() {
 		It("should not create if pvc accessModes is not specified", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "/baseDir/",
 				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 				},
@@ -1163,7 +1152,6 @@ var _ = Describe("Hazelcast CR", func() {
 			It("should be deployed as a sidecar container", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -1716,9 +1704,7 @@ var _ = Describe("Hazelcast CR", func() {
 				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
 					AllocatorType: hazelcastv1alpha1.NativeMemoryStandard,
 				}
-				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir: "/data/hot-restart/",
-				}
+				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{}
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
@@ -2056,7 +2042,6 @@ var _ = Describe("Hazelcast CR", func() {
 			It("should be created successfully if persistence is enabled", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -2194,7 +2179,6 @@ var _ = Describe("Hazelcast CR", func() {
 			It("should be created successfully if Hazelcast persistence is enabled", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -2218,7 +2202,6 @@ var _ = Describe("Hazelcast CR", func() {
 			It("should fail to disable catalogPersistence", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
