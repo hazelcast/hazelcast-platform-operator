@@ -1,9 +1,10 @@
 package e2e
 
 import (
-	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
+	"fmt"
 	"testing"
 
+	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
@@ -30,7 +31,12 @@ var controllerManagerName = types.NamespacedName{
 
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, GetSuiteName())
+	suiteConfig, _ := GinkgoConfiguration()
+	if ee {
+		suiteConfig.LabelFilter += fmt.Sprintf(" && %s", tagNames[EE])
+	}
+
+	RunSpecs(t, GetSuiteName(), suiteConfig)
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {

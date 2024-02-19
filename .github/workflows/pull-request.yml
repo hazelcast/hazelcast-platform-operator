@@ -60,11 +60,11 @@ jobs:
       - name: Check if tests are unfocused
         if: ${{ !cancelled() }}
         run: |
-           make ginkgo
-           if [[ $($(make ginkgo PRINT_TOOL_NAME=true) unfocus | wc -l) -gt 1 ]]; then
-             echo "Some tests have 'F' before the test name. Run the 'ginkgo unfocus' command against your branch '${{ github.event.pull_request.head.ref }}' and push the changes."
-             exit 1
-           fi
+          make ginkgo
+          if [[ $($(make ginkgo PRINT_TOOL_NAME=true) unfocus | wc -l) -gt 1 ]]; then
+            echo "Some tests have 'F' before the test name. Run the 'ginkgo unfocus' command against your branch '${{ github.event.pull_request.head.ref }}' and push the changes."
+            exit 1
+          fi
 
       - name: Check if all manifests are synced
         run: |
@@ -81,12 +81,12 @@ jobs:
       - name: Check formating
         if: ${{ !cancelled() }}
         run: |
-           make fmt
+          make fmt
 
       - name: Run vet tool
         if: ${{ !cancelled() }}
         run: |
-           make vet
+          make vet
 
   unit-tests:
     name: Run unit and integration tests
@@ -273,33 +273,33 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-              kubectl create namespace ${NAMESPACE}
-              kubectl config set-context --current --namespace=$NAMESPACE
-              kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
-              kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
-              HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
-              HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
-              IP_RANGE=$HOST_MIN-$HOST_MAX
+            kubectl create namespace ${NAMESPACE}
+            kubectl config set-context --current --namespace=$NAMESPACE
+            kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
+            kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
+            HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
+            HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
+            IP_RANGE=$HOST_MIN-$HOST_MAX
 
-              cat <<EOF | kubectl apply -f -
-              apiVersion: metallb.io/v1beta1
-              kind: IPAddressPool
-              metadata:
-                name: kind-pool
-                namespace: metallb-system
-              spec:
-                addresses:
-                - $IP_RANGE
-              ---
-              apiVersion: metallb.io/v1beta1
-              kind: L2Advertisement
-              metadata:
-                name: l2
-                namespace: metallb-system
-              spec:
-                ipAddressPools:
-                - kind-pool
-              EOF
+            cat <<EOF | kubectl apply -f -
+            apiVersion: metallb.io/v1beta1
+            kind: IPAddressPool
+            metadata:
+              name: kind-pool
+              namespace: metallb-system
+            spec:
+              addresses:
+              - $IP_RANGE
+            ---
+            apiVersion: metallb.io/v1beta1
+            kind: L2Advertisement
+            metadata:
+              name: l2
+              namespace: metallb-system
+            spec:
+              ipAddressPools:
+              - kind-pool
+            EOF
 
       - name: Create Secrets
         if: matrix.edition == 'ee'
