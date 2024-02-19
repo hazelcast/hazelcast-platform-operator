@@ -7,7 +7,7 @@ on:
 env:
   GCP_PROJECT_ID: hazelcast-33
   CLOUD_KEY_SECRET_NAME: cloud-key-secret
-  CHAOS_MESH_NAMESPACE: chaos-mesh
+  CHAOS_MESH_NAMESPACE: chaos-testing
   AWS_REGION: us-east-1
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
       GKE_REGION: europe-west1
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -108,7 +108,7 @@ jobs:
           go-version: ">=1.19.0"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -142,12 +142,20 @@ jobs:
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME PHONE_HOME_ENABLED=${{ env.PHONE_HOME_ENABLED }}
           kubectl rollout status deployment $DEPLOY_NAME
 
-      - name: Deploy ChaosMesh to GKE
+      - name: Install Chaos Mesh
         run: |
           helm repo add chaos-mesh https://charts.chaos-mesh.org
-          kubectl create ns ${CHAOS_MESH_NAMESPACE}
-          helm install chaos-mesh chaos-mesh/chaos-mesh -n=${CHAOS_MESH_NAMESPACE} --version 2.5.1
-          kubectl get po -n ${CHAOS_MESH_NAMESPACE}
+          helm upgrade \
+          --install \
+          chaos-mesh \
+          chaos-mesh/chaos-mesh \
+          -n ${CHAOS_MESH_NAMESPACE} \
+          --create-namespace \
+          --set chaosDaemon.runtime=containerd \
+          --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
+          --version v2.6.2 \
+          --wait
+          kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io chaos-mesh-validation-auth
 
       - name: Create secrets
         run: |
@@ -207,7 +215,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -235,7 +243,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.1
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
