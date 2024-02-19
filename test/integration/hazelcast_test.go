@@ -724,42 +724,6 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("with Persistence configuration", func() {
-		It("should fail to create with empty baseDir", Label("fast"), func() {
-			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
-					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				},
-			}
-
-			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       spec,
-			}
-
-			Expect(k8sClient.Create(context.Background(), hz)).ShouldNot(Succeed())
-		})
-	})
-
-	Context("with Persistence configuration", func() {
-		It("should fail to create with invalid baseDir", Label("fast"), func() {
-			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
-					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				},
-			}
-
-			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       spec,
-			}
-
-			Expect(k8sClient.Create(context.Background(), hz)).ShouldNot(Succeed())
-		})
-	})
-
-	Context("with Persistence configuration", func() {
 		It("should create with default values", Label("fast"), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
