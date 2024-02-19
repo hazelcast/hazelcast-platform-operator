@@ -2067,26 +2067,6 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("bucketConfig is configured", func() {
-			It("should error when secretName is empty", Label("fast"), func() {
-				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
-					Enabled: ptr.Bool(true),
-					RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
-						BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
-							BucketURI:  "gs://my-bucket",
-							SecretName: "",
-						},
-					},
-				}
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       spec,
-				}
-
-				Expect(k8sClient.Create(context.Background(), hz)).
-					Should(MatchError(ContainSubstring("bucket secret must be set")))
-			})
-
 			It("should error when secret doesn't exist with the given bucket secretName", Label("fast"), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{

@@ -383,9 +383,7 @@ func (v *hazelcastValidator) validateJetConfig(h *Hazelcast) {
 	}
 
 	if j.IsBucketEnabled() {
-		if j.BucketConfiguration.GetSecretName() == "" {
-			v.Required(Path("spec", "jet", "bucketConfig", "secretName"), "bucket secret must be set")
-		} else {
+		if j.BucketConfiguration.GetSecretName() != "" {
 			secretName := types.NamespacedName{
 				Name:      j.BucketConfiguration.SecretName,
 				Namespace: h.Namespace,

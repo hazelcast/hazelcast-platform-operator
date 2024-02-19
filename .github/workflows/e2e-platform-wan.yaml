@@ -111,6 +111,7 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-16 \
+            --workload-pool=${{ env.GCP_PROJECT_ID }}.svc.id.goog \
             --num-nodes=${{ env.NUMBER_OF_NODES }}
           sleep 20
 
