@@ -969,7 +969,7 @@ func mergeProperties(logger logr.Logger, inputProps map[string]string) map[strin
 		// ignore the provided property without overriding the default one.
 		if existingVal, exist := m[k]; exist {
 			if v != existingVal {
-				logger.V(util.DebugLevel).Info("property ignored", "property", k, "value", v)
+				logger.V(util.DebugLevel).Info("Property ignored", "property", k, "value", v)
 			}
 		} else {
 			m[k] = v
