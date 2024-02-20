@@ -27,9 +27,6 @@ var _ = Describe("Hazelcast WAN Sync", Group("wan_sync"), func() {
 
 	Context("Basic WAN Sync functionality", func() {
 		It("should sync one map with another cluster", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("hws-1")
 
 			hzCrs, _ := createWanResources(context.Background(), map[string][]string{
@@ -51,9 +48,6 @@ var _ = Describe("Hazelcast WAN Sync", Group("wan_sync"), func() {
 		})
 
 		It("should sync two maps with another cluster", Tag(Fast|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			suffix := setLabelAndCRName("hws-2")
 
 			// Hazelcast and Map CRs

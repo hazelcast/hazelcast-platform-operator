@@ -173,9 +173,6 @@ var _ = Describe("Hazelcast JetJob", Group("jetjob"), func() {
 		})
 
 		It("persists JetJob on a new cluster when LosslessRestartEnabled", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			longRunJar := "jet-pipeline-longrun-2.0.0.jar"
 			setLabelAndCRName("jj-5")
 

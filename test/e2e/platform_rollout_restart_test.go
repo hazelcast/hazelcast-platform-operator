@@ -32,9 +32,6 @@ var _ = Describe("Platform Rollout Restart Tests", Group("rollout_restart"), fun
 	})
 
 	It("should perform rollout restart with 14Gb data", Serial, Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hrr-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500

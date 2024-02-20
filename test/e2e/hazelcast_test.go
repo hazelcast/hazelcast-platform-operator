@@ -121,9 +121,6 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 
 	Context("Cluster deletion", func() {
 		It("should delete dependent data structures and backups on Hazelcast CR deletion", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("h-6")
 			clusterSize := int32(3)
 
@@ -159,9 +156,6 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 
 	Context("TLS Configuration", func() {
 		It("should form a cluster with TLS configuration enabled", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("h-7")
 			hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
 
@@ -182,9 +176,6 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 		})
 
 		It("should support mutual TLS authentication in Hazelcast cluster", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("h-8")
 			hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
 
