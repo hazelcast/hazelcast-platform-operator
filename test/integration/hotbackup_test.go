@@ -58,7 +58,6 @@ var _ = Describe("HotBackup CR", func() {
 
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "/baseDir/",
 				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
