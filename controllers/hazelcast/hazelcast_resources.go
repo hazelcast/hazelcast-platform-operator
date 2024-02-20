@@ -255,8 +255,18 @@ func (r *HazelcastReconciler) reconcileRole(ctx context.Context, h *hazelcastv1a
 }
 
 func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	// do not create SA if user specified reference to ServiceAccountName
+	if h.Spec.ServiceAccountName != "" {
+		return nil
+	}
+
 	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metadata(h),
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        serviceAccountName(h),
+			Namespace:   h.Namespace,
+			Labels:      labels(h),
+			Annotations: h.Spec.Annotations,
+		},
 	}
 
 	err := controllerutil.SetControllerReference(h, serviceAccount, r.Scheme)
@@ -287,7 +297,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 		crb.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
-				Name:      h.Name,
+				Name:      serviceAccountName(h),
 				Namespace: h.Namespace,
 			},
 		}
@@ -324,7 +334,7 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 		rb.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
-				Name:      h.Name,
+				Name:      serviceAccountName(h),
 				Namespace: h.Namespace,
 			},
 		}
@@ -956,7 +966,7 @@ func mergeProperties(logger logr.Logger, inputProps map[string]string) map[strin
 	}
 	for k, v := range inputProps {
 		if _, exist := m[k]; exist { // if user's input is an immutable property, ignore user's input
-			logger.V(util.WarnLevel).Info("Property ignored", "property", k)
+			logger.V(util.DebugLevel).Info("Property ignored", "property", k)
 		} else {
 			m[k] = v
 		}
@@ -1069,8 +1079,8 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	if h.Spec.Persistence.IsEnabled() {
 		cfg.Persistence = config.Persistence{
 			Enabled:                   pointer.Bool(true),
-			BaseDir:                   h.Spec.Persistence.BaseDir,
-			BackupDir:                 path.Join(h.Spec.Persistence.BaseDir, "hot-backup"),
+			BaseDir:                   n.BaseDir,
+			BackupDir:                 path.Join(n.BaseDir, "hot-backup"),
 			Parallelism:               1,
 			ValidationTimeoutSec:      120,
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
@@ -1892,7 +1902,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					Annotations: h.Spec.Annotations,
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName: h.Name,
+					ServiceAccountName: serviceAccountName(h),
 					SecurityContext:    podSecurityContext(),
 					Containers: []v1.Container{{
 						Name: n.Hazelcast,
@@ -1952,6 +1962,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		if err != nil {
 			return err
 		}
+		sts.Spec.Template.Spec.ServiceAccountName = serviceAccountName(h)
 		sts.Spec.Template.Spec.ImagePullSecrets = h.Spec.ImagePullSecrets
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
@@ -2234,7 +2245,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 			},
 			{
 				Name:  "RESTORE_DESTINATION",
-				Value: h.Spec.Persistence.BaseDir,
+				Value: n.BaseDir,
 			},
 			{
 				Name:  "RESTORE_ID",
@@ -2254,7 +2265,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
@@ -2275,7 +2286,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 			},
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
-				Value: h.Spec.Persistence.BaseDir,
+				Value: n.BaseDir,
 			},
 			{
 				Name:  "RESTORE_LOCAL_ID",
@@ -2295,7 +2306,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
@@ -2469,7 +2480,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		})
 	}
 	return vm
@@ -2493,7 +2504,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		})
 	}
 
@@ -2830,6 +2841,13 @@ func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	l[n.ApplicationManagedByLabel] = n.OperatorName
 
 	return l
+}
+
+func serviceAccountName(h *hazelcastv1alpha1.Hazelcast) string {
+	if h.Spec.ServiceAccountName != "" {
+		return h.Spec.ServiceAccountName
+	}
+	return h.Name
 }
 
 func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {

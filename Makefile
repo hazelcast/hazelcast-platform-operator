@@ -201,15 +201,35 @@ test-it-focus: manifests generate envtest ## Run tests.
 
 E2E_TEST_SUITE ?= hz || mc || backup_restore || expose_externally || map || hz_wan || user_code || multimap || topic || replicatedmap || queue || cache || jetjob || jetjobsnapshot || wan_sync || tiered_storage
 ifeq (,$(E2E_TEST_SUITE))
-E2E_TEST_LABELS =
+E2E_TEST_LABELS:=""
 else 
-E2E_TEST_LABELS = && $(E2E_TEST_SUITE)
+E2E_TEST_LABELS:=&& ($(E2E_TEST_SUITE))
 endif
 GINKGO_PARALLEL_PROCESSES ?= 4
 GINKGO_KIND_PARALLEL_PROCESSES ?= 2
 
+ifeq ($(WORKFLOW_ID),gke)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && gcp
+endif
+
+ifeq ($(WORKFLOW_ID),eks)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && aws
+endif
+
+ifeq ($(WORKFLOW_ID),aks)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && azure
+endif
+
+ifeq ($(WORKFLOW_ID),ocp)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && ocp
+endif
+
+ifeq ($(WORKFLOW_ID),pr)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && kind
+endif
+
 test-e2e-split-kind: generate ginkgo ## Run end-to-end tests on Kind
-	$(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --label-filter="fast && shard$(SHARD_ID)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS) --kind
+	$(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --label-filter="(fast && shard$(SHARD_ID)) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 test-e2e: generate ginkgo ## Run end-to-end tests
 	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="(slow || fast) $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -deployNamespace "$(WATCHED_NAMESPACES)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
@@ -485,7 +505,7 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp &> /dev/null;\
 mkdir -p $(dir $(1)) ;\
-GOBIN=$(dir $(1)) go install $(2) &> /dev/null ;\
+GOBIN=$(dir $(1)) CGO_ENABLED=0 go install $(2) &> /dev/null ;\
 rm -rf $$TMP_DIR ;\
 }
 endef

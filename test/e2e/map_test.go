@@ -154,9 +154,6 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 		})
 
 		It("persist and removed map config in/from Hazelcast config", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("hm-4")
 			maps := []string{"map1", "map2", "map3", "mapfail"}
 

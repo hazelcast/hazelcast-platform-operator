@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path"
 	"reflect"
 	"regexp"
 	"sort"
@@ -213,10 +212,6 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
 		v.Forbidden(Path("spec", "persistence", "startupAction"), "PartialStart can be used only with Partial clusterDataRecoveryPolicy")
 	}
-
-	if !path.IsAbs(p.BaseDir) {
-		v.Invalid(Path("spec", "persistence", "baseDir"), p.BaseDir, "must be absolute path")
-	}
 }
 
 func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {
@@ -366,9 +361,6 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 		v.Forbidden(Path("spec", "persistence"), "field cannot be disabled after creation")
 		return
 	}
-	if current.BaseDir != last.BaseDir {
-		v.Forbidden(Path("spec", "persistence", "baseDir"), "field cannot be updated")
-	}
 	if !reflect.DeepEqual(current.PVC, last.PVC) {
 		v.Forbidden(Path("spec", "persistence", "pvc"), "field cannot be updated")
 	}
@@ -392,9 +384,7 @@ func (v *hazelcastValidator) validateJetConfig(h *Hazelcast) {
 	}
 
 	if j.IsBucketEnabled() {
-		if j.BucketConfiguration.GetSecretName() == "" {
-			v.Required(Path("spec", "jet", "bucketConfig", "secretName"), "bucket secret must be set")
-		} else {
+		if j.BucketConfiguration.GetSecretName() != "" {
 			secretName := types.NamespacedName{
 				Name:      j.BucketConfiguration.SecretName,
 				Namespace: h.Namespace,
@@ -459,9 +449,6 @@ func (v *hazelcastValidator) validateTieredStorage(h *Hazelcast) {
 }
 
 func (v *hazelcastValidator) validateLocalDevice(ld LocalDeviceConfig) {
-	if !path.IsAbs(ld.BaseDir) {
-		v.Invalid(Path("spec", "localDevices", "baseDir"), ld.BaseDir, "must be absolute path")
-	}
 	if ld.PVC == nil {
 		v.Required(Path("spec", "localDevices", "pvc"), "must be set when LocalDevice is defined")
 		return
@@ -469,5 +456,4 @@ func (v *hazelcastValidator) validateLocalDevice(ld LocalDeviceConfig) {
 	if ld.PVC.AccessModes == nil {
 		v.Required(Path("spec", "localDevices", "pvc", "accessModes"), "must be set when LocalDevice is defined")
 	}
-
 }

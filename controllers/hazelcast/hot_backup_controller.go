@@ -301,7 +301,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				b, err := localbackup.NewLocalBackup(&localbackup.Config{
 					MemberAddress: m.Address,
 					MTLSClient:    mtlsClient,
-					BackupBaseDir: hz.Spec.Persistence.BaseDir,
+					BackupBaseDir: n.BaseDir,
 					MemberID:      i,
 				})
 				if err != nil {
@@ -324,7 +324,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				MemberAddress: m.Address,
 				MTLSClient:    mtlsClient,
 				BucketURI:     hb.Spec.BucketURI,
-				BackupBaseDir: hz.Spec.Persistence.BaseDir,
+				BackupBaseDir: n.BaseDir,
 				HazelcastName: hb.Spec.HazelcastResourceName,
 				SecretName:    hb.Spec.GetSecretName(),
 				MemberID:      i,

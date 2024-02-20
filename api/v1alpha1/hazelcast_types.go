@@ -179,6 +179,11 @@ type HazelcastSpec struct {
 	// Hazelcast Kubernetes resource labels
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// ServiceAccountName is the name of the ServiceAccount to use to run Hazelcast cluster.
+	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -628,10 +633,6 @@ type AgentConfiguration struct {
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
 type HazelcastPersistenceConfiguration struct {
-	// Persistence base directory.
-	// +required
-	BaseDir string `json:"baseDir"`
-
 	// Configuration of the cluster recovery strategy.
 	// +kubebuilder:default:="FullRecoveryOnly"
 	// +optional

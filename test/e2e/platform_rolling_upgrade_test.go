@@ -33,9 +33,6 @@ var _ = Describe("Platform Rolling UpgradeTests", Group("rolling_upgrade"), func
 	})
 
 	It("should upgrade HZ version after pause/resume with 7999 partition count", Serial, Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hra-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500

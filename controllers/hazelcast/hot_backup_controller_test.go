@@ -247,7 +247,6 @@ func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore
 
 	// enable persistence and restore from the hotbackup
 	h.Spec = hazelcastv1alpha1.HazelcastSpec{Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-		BaseDir: "/baseDir/",
 		PVC: &hazelcastv1alpha1.PvcConfiguration{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 		},
@@ -356,9 +355,7 @@ func defaultCRs() (types.NamespacedName, *hazelcastv1alpha1.Hazelcast, *hazelcas
 			Namespace: nn.Namespace,
 		},
 		Spec: hazelcastv1alpha1.HazelcastSpec{
-			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				BaseDir: "basedir",
-			},
+			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{},
 		},
 		Status: hazelcastv1alpha1.HazelcastStatus{
 			Phase: hazelcastv1alpha1.Running,

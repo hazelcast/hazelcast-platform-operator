@@ -36,9 +36,6 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 	})
 
 	It("should successfully start after one member restart", Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hps-1")
 		ctx := context.Background()
 		clusterSize := int32(3)
@@ -75,9 +72,6 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 	})
 
 	It("should restore 3 GB data after planned shutdown", Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hps-2")
 		var mapSizeInMb = 3072
 		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
@@ -142,9 +136,6 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 	})
 
 	It("should not start repartitioning after one member restart", Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hps-3")
 		ctx := context.Background()
 		clusterSize := int32(3)
@@ -187,9 +178,6 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 	})
 
 	It("should not start repartitioning after planned shutdown", Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hps-4")
 		ctx := context.Background()
 		clusterSize := int32(3)
@@ -248,9 +236,6 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 	})
 
 	It("should persist SQL mappings", Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hps-5")
 
 		hazelcast := hazelcastconfig.HazelcastSQLPersistence(hzLookupKey, 1, labels)
@@ -275,9 +260,6 @@ var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
 	})
 
 	DescribeTable("Hazelcast", func(policyType hazelcastcomv1alpha1.DataRecoveryPolicyType, mapNameSuffix string) {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
 		setLabelAndCRName("hps-6")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
