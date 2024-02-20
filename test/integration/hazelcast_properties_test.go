@@ -51,10 +51,9 @@ var _ = Describe("Hazelcast Properties", func() {
 
 				return a.Hazelcast.Properties
 			}, timeout, interval).Should(Equal(map[string]string{
-				"hazelcast.cluster.version.auto.upgrade.enabled":    "true",
-				"hazelcast.graceful.shutdown.max.wait":              "300",
-				"hazelcast.persistence.auto.cluster.state":          "true",
-				"hazelcast.persistence.auto.cluster.state.strategy": "NO_MIGRATION",
+				"hazelcast.cluster.version.auto.upgrade.enabled": "true",
+				"hazelcast.graceful.shutdown.max.wait":           "300",
+				"hazelcast.persistence.auto.cluster.state":       "true",
 			}))
 		})
 
@@ -82,9 +81,8 @@ var _ = Describe("Hazelcast Properties", func() {
 
 				return a.Hazelcast.Properties
 			}, timeout, interval).Should(Equal(map[string]string{
-				"hazelcast.cluster.version.auto.upgrade.enabled":    "true",
-				"hazelcast.persistence.auto.cluster.state":          "true",
-				"hazelcast.persistence.auto.cluster.state.strategy": "NO_MIGRATION",
+				"hazelcast.cluster.version.auto.upgrade.enabled": "true",
+				"hazelcast.persistence.auto.cluster.state":       "true",
 			}))
 		})
 	})
