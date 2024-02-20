@@ -6,6 +6,7 @@ import (
 
 	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
+	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,11 +33,17 @@ var controllerManagerName = types.NamespacedName{
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	suiteConfig, _ := GinkgoConfiguration()
-	if ee {
-		suiteConfig.LabelFilter += fmt.Sprintf(" && %s", tagNames[EE])
-	}
+	SetLicenseLabelFilters(&suiteConfig)
 
 	RunSpecs(t, GetSuiteName(), suiteConfig)
+}
+
+func SetLicenseLabelFilters(suiteConfig *ginkgoTypes.SuiteConfig) {
+	if ee {
+		suiteConfig.LabelFilter += fmt.Sprintf(" && %s", tagNames[EE])
+	} else {
+		suiteConfig.LabelFilter += fmt.Sprintf(" && %s", tagNames[OS])
+	}
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
