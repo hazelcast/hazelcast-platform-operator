@@ -375,7 +375,11 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 			switch h.Spec.ExposeExternally.DiscoveryK8ServiceType() {
 			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeDiscoveryLabelValue
+			default:
+				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
+		} else {
+			delete(service.Labels, n.ServiceEndpointTypeLabelName)
 		}
 
 		// append default wan port to HZ Discovery Service if use did not configure
@@ -435,6 +439,8 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			switch w.ServiceType {
 			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
+			case corev1.ServiceTypeClusterIP:
+				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
 			service.Spec.Ports = util.EnrichServiceNodePorts(ports, service.Spec.Ports)
@@ -492,6 +498,8 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			switch h.Spec.ExposeExternally.MemberAccessServiceType() {
 			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeMemberLabelValue
+			default:
+				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
 			service.Spec.Ports = util.EnrichServiceNodePorts([]corev1.ServicePort{clientPort()}, service.Spec.Ports)
@@ -546,6 +554,8 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 		return err
 	}
 
+	reconciledHzEndpointNames := make(map[string]any)
+
 	for _, svc := range svcList.Items {
 		endpointType, ok := svc.Labels[n.ServiceEndpointTypeLabelName]
 		if !ok {
@@ -597,6 +607,8 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 		}
 
 		for _, hzEndpoint := range hzEndpoints {
+			reconciledHzEndpointNames[hzEndpoint.Name] = struct{}{}
+
 			err := controllerutil.SetOwnerReference(&svc, hzEndpoint, r.Scheme)
 			if err != nil {
 				return err
@@ -649,6 +661,24 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 			}
 
 			err = r.Client.Status().Update(ctx, hzEndpoint)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Delete the leftover HazelcastEndpoints if any.
+	// The leftover resources take place after disabling the exposeExternally as an update.
+	hzEndpointList := hazelcastv1alpha1.HazelcastEndpointList{}
+	nsOpt := client.InNamespace(h.Namespace)
+	lblOpt := client.MatchingLabels(util.Labels(h))
+	if err := r.Client.List(ctx, &hzEndpointList, nsOpt, lblOpt); err != nil {
+		return err
+	}
+	for _, hzEndpoint := range hzEndpointList.Items {
+		if _, ok := reconciledHzEndpointNames[hzEndpoint.Name]; !ok {
+			logger.Info("Deleting leftover HazelcastEndpoint", "name", hzEndpoint.Name)
+			err := r.Client.Delete(ctx, &hzEndpoint)
 			if err != nil {
 				return err
 			}

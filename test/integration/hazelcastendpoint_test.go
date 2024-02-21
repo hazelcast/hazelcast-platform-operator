@@ -51,7 +51,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 		}
 	}
 
-	expectAddressInHazelcastEndpointsMatchWithServices := func(hzEndpoints []hazelcastv1alpha1.HazelcastEndpoint, services []corev1.Service) {
+	expectAddressesInHazelcastEndpointsMatchWithServices := func(hzEndpoints []hazelcastv1alpha1.HazelcastEndpoint, services []corev1.Service) {
 		for _, hzEndpoint := range hzEndpoints {
 			svcName := hzEndpoint.Name
 			if hzEndpoint.Spec.Type == hazelcastv1alpha1.HazelcastEndpointTypeWAN {
@@ -186,7 +186,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 
 				setLoadBalancerIngressAddress(ctx, services)
 				expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
-				expectAddressInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
+				expectAddressesInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
 			})
 
 			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Unisocket and NodePort", Label("fast"), func() {
@@ -229,7 +229,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 
 				setLoadBalancerIngressAddress(ctx, services)
 				expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
-				expectAddressInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
+				expectAddressesInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
 			})
 
 			It("should create HazelcastEndpoint with Discovery and Member type when per member is exposed using LoadBalancer", Label("fast"), func() {
@@ -251,7 +251,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 
 				setLoadBalancerIngressAddress(ctx, services)
 				expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
-				expectAddressInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
+				expectAddressesInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
 			})
 
 			It("should create HazelcastEndpoint with Discovery and Member type when per member is exposed using NodePort", Label("fast"), func() {
@@ -315,8 +315,40 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 
 				setLoadBalancerIngressAddress(ctx, services)
 				expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 20*time.Second)
-				expectAddressInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
+				expectAddressesInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
 			})
+		})
+	})
+
+	When("Hazelcast is updated in a way that the exposeExternally is disabled", func() {
+		It("should delete the leftover resources", Label("fast"), func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+			}
+			hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
+			}
+
+			By("creating the Hazelcast CR with specs successfully")
+			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+
+			services := expectLenOfHazelcastEndpointServices(ctx, hz, 4)
+			hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 5)
+
+			setLoadBalancerIngressAddress(ctx, services)
+			expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
+			expectAddressesInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
+
+			By("updating the Hazelcast CR with specs successfully")
+			Expect(k8sClient.Get(context.Background(), lookupKey(hz), hz)).Should(Succeed())
+			hz.Spec.ExposeExternally = nil
+			Expect(k8sClient.Update(context.Background(), hz)).Should(Succeed())
+
+			expectLenOfHazelcastEndpointServices(ctx, hz, 0)
+			expectLenOfHazelcastEndpoints(ctx, hz, 0)
 		})
 	})
 
@@ -340,7 +372,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 
 			setLoadBalancerIngressAddress(ctx, services)
 			expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
-			expectAddressInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
+			expectAddressesInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
 
 			hzEndpoint := hzEndpoints[0]
 			hzEndpoint.Spec.Port = 5790
