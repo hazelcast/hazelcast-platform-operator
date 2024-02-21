@@ -38,7 +38,7 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should send 3 GB data by each cluster in active-passive mode in the different namespaces", Tag(Slow|EE|AnyCloud), func() {
+	It("should send 3 GB data by each cluster in active-passive mode in the different namespaces", Tag(EE|AnyCloud), func() {
 		SwitchContext(context1)
 		setupEnv()
 		setLabelAndCRName("hpwan-1")
@@ -99,7 +99,7 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
-	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Tag(Slow|EE|AnyCloud), func() {
+	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Tag(EE|AnyCloud), func() {
 		SwitchContext(context1)
 		setupEnv()
 		var mapSizeInMb = 1024
@@ -231,7 +231,7 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize, 30*Minute)
 	})
 
-	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(Slow|EE|AnyCloud), func() {
+	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("hpwan-3")
 		var mapSizeInMb = 1024
 		/**
@@ -301,7 +301,7 @@ var _ = Describe("Hazelcast WAN", Group("platform_wan"), func() {
 		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
-	It("should send 6 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Tag(Slow|EE|AnyCloud), func() {
+	It("should send 6 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Tag(EE|AnyCloud), func() {
 		var mapSizeInMb = 1024
 		/**
 		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)

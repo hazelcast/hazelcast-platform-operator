@@ -88,10 +88,10 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName), "MemberNodePortNodeName metric")
 				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer), "MemberLoadBalancer metric")
 			},
-			Entry("with ExposeExternallyUnisocket configuration", Label("slow"), "unisocket", 1, 1, 0, 1, 0, 0, 0, 0),
-			Entry("with ExposeExternallySmartNodePort configuration", Label("slow"), "smartNodePort", 1, 0, 1, 1, 0, 1, 0, 0),
-			Entry("with ExposeExternallySmartLoadBalancer configuration", Label("slow"), "smartLoadBalancer", 1, 0, 1, 1, 0, 0, 0, 1),
-			Entry("with ExposeExternallySmartNodePortNodeName configuration", Label("fast"), "smartNodePortNodeName", 1, 0, 1, 0, 1, 0, 1, 0),
+			Entry("with ExposeExternallyUnisocket configuration", "unisocket", 1, 1, 0, 1, 0, 0, 0, 0),
+			Entry("with ExposeExternallySmartNodePort configuration", "smartNodePort", 1, 0, 1, 1, 0, 1, 0, 0),
+			Entry("with ExposeExternallySmartLoadBalancer configuration", "smartLoadBalancer", 1, 0, 1, 1, 0, 0, 0, 1),
+			Entry("with ExposeExternallySmartNodePortNodeName configuration", "smartNodePortNodeName", 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
 	Describe("Phone Home table with installed Management Center", Serial, func() {
@@ -108,7 +108,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 			deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
 		})
-		It("should have correct metrics", Label("fast"), func() {
+		It("should have correct metrics", func() {
 			setLabelAndCRName("phmc")
 			mc := mcconfig.Default(mcLookupKey, ee, labels)
 			CreateMC(mc)

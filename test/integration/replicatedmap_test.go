@@ -28,7 +28,7 @@ var _ = Describe("ReplicatedMap CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create successfully", Label("fast"), func() {
+		It("should create successfully", func() {
 			rm := &hazelcastv1alpha1.ReplicatedMap{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.ReplicatedMapSpec{
@@ -47,7 +47,7 @@ var _ = Describe("ReplicatedMap CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should fail to create", Label("fast"), func() {
+			It("should fail to create", func() {
 				t := &hazelcastv1alpha1.ReplicatedMap{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
