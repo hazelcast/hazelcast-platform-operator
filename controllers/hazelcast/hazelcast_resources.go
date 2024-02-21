@@ -474,10 +474,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		return nil
 	}
 
-	isAddWANPort := false
-	if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
-		isAddWANPort = true
-	}
+	isAddWANPort := h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0
 	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
