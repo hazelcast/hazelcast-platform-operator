@@ -159,7 +159,7 @@ func checkJetJobSnapshotStatus(nn types.NamespacedName, state hazelcastcomv1alph
 
 // Group works like ginkgo Labels but with the intention of grouping related tests
 func Group(group string) Labels {
-	return Label(group, "default")
+	return Label(group, "operator")
 }
 
 // A set of well known labels used by tests

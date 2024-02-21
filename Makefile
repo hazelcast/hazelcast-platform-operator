@@ -201,7 +201,7 @@ test-it-focus: manifests generate envtest ## Run tests.
 GINKGO_PARALLEL_PROCESSES ?= 4
 GINKGO_KIND_PARALLEL_PROCESSES ?= 2
 
-E2E_TEST_LABELS?=default
+E2E_TEST_LABELS?=operator
 
 ifeq ($(WORKFLOW_ID),gke)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && gcp
