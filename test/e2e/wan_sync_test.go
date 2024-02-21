@@ -26,7 +26,7 @@ var _ = Describe("Hazelcast WAN Sync", Group("wan_sync"), func() {
 	})
 
 	Context("Basic WAN Sync functionality", func() {
-		It("should sync one map with another cluster", Tag(Fast|EE|AnyCloud), func() {
+		It("should sync one map with another cluster", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("hws-1")
 
 			hzCrs, _ := createWanResources(context.Background(), map[string][]string{
@@ -47,7 +47,7 @@ var _ = Describe("Hazelcast WAN Sync", Group("wan_sync"), func() {
 			waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, mapLookupKey.Name, mapSize, 1*Minute)
 		})
 
-		It("should sync two maps with another cluster", Tag(Fast|AnyCloud), func() {
+		It("should sync two maps with another cluster", Tag(Kind|AnyCloud), func() {
 			suffix := setLabelAndCRName("hws-2")
 
 			// Hazelcast and Map CRs

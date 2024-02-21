@@ -45,7 +45,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 	})
 
 	Context("with custom configs", func() {
-		It("should add new section to config", Label("fast"), func() {
+		It("should add new section to config", func() {
 			customConfig := make(map[string]interface{})
 			sc := make(map[string]interface{})
 			sc["portable-version"] = 0
@@ -76,7 +76,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			Expect(expectedSer).To(Equal(sc))
 		})
 
-		It("should not override CR configs", Label("fast"), func() {
+		It("should not override CR configs", func() {
 			customConfig := make(map[string]interface{})
 			ucdConf := make(map[string]interface{})
 			ucdConf["enabled"] = true
@@ -113,7 +113,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 				Not(HaveKey("class-cache-mode")), Not(HaveKey("provider-filter")), Not(HaveKey("provider-mode"))))
 		})
 
-		It("should not override advanced network config", Label("fast"), func() {
+		It("should not override advanced network config", func() {
 			customConfig := make(map[string]interface{})
 			anConf := make(map[string]interface{})
 			anConf["enabled"] = false

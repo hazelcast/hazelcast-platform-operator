@@ -32,7 +32,7 @@ var _ = Describe("Platform Rolling UpgradeTests", Group("rolling_upgrade"), func
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should upgrade HZ version after pause/resume with 7999 partition count", Serial, Tag(Slow|EE|AnyCloud), func() {
+	It("should upgrade HZ version after pause/resume with 7999 partition count", Serial, Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("hra-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
