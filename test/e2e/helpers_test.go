@@ -1324,6 +1324,8 @@ func printDebugStateForContext() {
 	}
 	printKubectlCommand("KUBECTL GET CRS RELATED TO TEST OUTPUT YAML", "kubectl", "get", allCRs, "-o=yaml", "-l="+labelsString(), "-A")
 
+	GinkgoWriter.Println("## Manifests")
+	GinkgoWriter.Print(recordedManifests[hzLookupKey])
 }
 
 func printKubectlCommand(title, cmd string, args ...string) {
