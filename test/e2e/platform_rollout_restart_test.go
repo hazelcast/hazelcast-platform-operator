@@ -22,12 +22,7 @@ var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), fun
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, nil, hzNamespace, labels)
-
-		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		Cleanup(context.Background())
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

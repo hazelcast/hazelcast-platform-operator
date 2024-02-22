@@ -72,12 +72,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
-		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
-		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, nil, hzNamespace, labels)
-		deletePVCs(mcLookupKey)
-		DeleteConfigMap(hzNamespace, "split-brain-config")
+		Cleanup(context.Background())
 		By("waiting for all nodes are ready", func() {
 			waitForDroppedNodes(context.Background(), 0)
 		})

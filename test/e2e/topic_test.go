@@ -20,10 +20,7 @@ var _ = Describe("Hazelcast Topic Config", Group("topic"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Topic{}, &hazelcastcomv1alpha1.TopicList{}, hzNamespace, labels)
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
-		deletePVCs(hzLookupKey)
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		Cleanup(context.Background())
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
