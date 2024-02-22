@@ -613,7 +613,7 @@ func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/semihbkgr/platform-operator-agent"
+	// +kubebuilder:default:="docker.io/semihbkgr/hazelcast/platform-operator-agent"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
