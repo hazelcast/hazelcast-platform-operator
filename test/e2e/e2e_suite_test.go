@@ -11,7 +11,6 @@ import (
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -88,9 +87,7 @@ func setupEnv() *rest.Config {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	k8sClient, err = NewManifestRecorder(k8sClient)
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
+	k8sClient = NewManifestRecorder(k8sClient)
 
 	controllerManagerName.Namespace = hzNamespace
 	setCRNamespace(hzNamespace)
@@ -103,27 +100,16 @@ var recordedManifests = make(map[types.NamespacedName]*bytes.Buffer)
 // manifestRecorder keeps track of applied manifests
 type manifestRecorder struct {
 	client.Client
-
-	scheme *runtime.Scheme
 }
 
-func NewManifestRecorder(client client.Client) (*manifestRecorder, error) {
-	scheme, err := hazelcastcomv1alpha1.SchemeBuilder.Build()
-	if err != nil {
-		return nil, err
-	}
-
-	return &manifestRecorder{
-		Client: client,
-		scheme: scheme,
-	}, nil
+func NewManifestRecorder(client client.Client) *manifestRecorder {
+	return &manifestRecorder{Client: client}
 }
 
 func (d *manifestRecorder) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-	gvk, _, err := d.scheme.ObjectKinds(obj)
+	gvk, _, err := d.Client.Scheme().ObjectKinds(obj)
 	if err != nil {
-		// skip unknown objects
-		return d.Client.Create(ctx, obj, opts...)
+		return err
 	}
 
 	if len(gvk) == 0 {
