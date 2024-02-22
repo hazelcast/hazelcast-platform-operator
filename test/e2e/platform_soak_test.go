@@ -18,7 +18,7 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-var _ = Describe("Platform Soak Tests", Group("soak"), func() {
+var _ = Describe("Platform Soak Tests", Label("soak"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {

@@ -198,14 +198,10 @@ test-it-focus: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/...  $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
 
-E2E_TEST_SUITE ?= hz || mc || backup_restore || expose_externally || map || hz_wan || user_code || multimap || topic || replicatedmap || queue || cache || jetjob || jetjobsnapshot || wan_sync
-ifeq (,$(E2E_TEST_SUITE))
-E2E_TEST_LABELS:=""
-else 
-E2E_TEST_LABELS:=($(E2E_TEST_SUITE))
-endif
 GINKGO_PARALLEL_PROCESSES ?= 4
 GINKGO_KIND_PARALLEL_PROCESSES ?= 2
+
+E2E_TEST_LABELS?=operator
 
 ifeq ($(WORKFLOW_ID),gke)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && gcp

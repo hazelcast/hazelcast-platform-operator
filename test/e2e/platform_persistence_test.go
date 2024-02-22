@@ -19,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-var _ = Describe("Platform Persistence", Group("platform_persistence"), func() {
+var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 	localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
 
 	AfterEach(func() {

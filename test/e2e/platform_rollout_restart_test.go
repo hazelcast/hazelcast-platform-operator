@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("Platform Rollout Restart Tests", Group("rollout_restart"), func() {
+var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
