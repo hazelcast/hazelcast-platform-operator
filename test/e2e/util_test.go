@@ -164,8 +164,6 @@ func Group(group string) Labels {
 
 // A set of well known labels used by tests
 const (
-	Fast  = 1 << 0 // Tests that will run in PR
-	Slow  = 1 << 1 //
 	OS    = 1 << 2 // Open Source License
 	EE    = 1 << 3 // Enterprise License
 	Kind  = 1 << 4
@@ -177,20 +175,18 @@ const (
 
 // tagNames maps tags to label representation
 var tagNames = map[uint32]string{
-	Fast:  "fast",
-	Slow:  "slow",
 	OS:    "os",
 	EE:    "ee",
 	Kind:  "kind",
 	AWS:   "aws",
-	GCP:   "gke",
+	GCP:   "gcp",
 	AZURE: "azure",
 	OCP:   "ocp",
 }
 
 const (
 	// AnyCloud tagged tests will run on all cloud providers
-	AnyCloud = Kind | AWS | GCP | AZURE | OCP
+	AnyCloud = AWS | GCP | AZURE | OCP
 
 	// AnyLicense tagged tests will run on all cloud providers
 	AnyLicense = OS | EE

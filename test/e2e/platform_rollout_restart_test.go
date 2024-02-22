@@ -31,10 +31,7 @@ var _ = Describe("Platform Rollout Restart Tests", Group("rollout_restart"), fun
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should perform rollout restart with 14Gb data", Serial, Tag(Slow|EE|AnyCloud), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
+	It("should perform rollout restart with 14Gb data", Serial, Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("hrr-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500

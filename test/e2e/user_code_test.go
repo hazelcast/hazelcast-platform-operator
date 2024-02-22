@@ -103,11 +103,11 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code"), func() {
 			test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
 
 		},
-		Entry("using user code from bucket", Tag(Slow|Any), "br-secret-gcp", "gs://operator-user-code/mapStore"),
-		Entry("using user code from remote url", Tag(Slow|Any), "", "https://storage.googleapis.com/operator-user-code-urls-public/mapStore_mapstore-1.0.0.jar"),
+		Entry("using user code from bucket", Tag(Any), "br-secret-gcp", "gs://operator-user-code/mapStore"),
+		Entry("using user code from remote url", Tag(Any), "", "https://storage.googleapis.com/operator-user-code-urls-public/mapStore_mapstore-1.0.0.jar"),
 	)
 
-	It("test for adding and verifying executor services initially and dynamically in Hazelcast CR", Tag(Fast|Any), func() {
+	It("test for adding and verifying executor services initially and dynamically in Hazelcast CR", Tag(Kind|Any), func() {
 		setLabelAndCRName("huc-2")
 
 		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
@@ -177,7 +177,7 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code"), func() {
 		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
-	It("verify addition of entry listeners in Hazelcast map using user code from secret bucket", Tag(Fast|Any), func() {
+	It("verify addition of entry listeners in Hazelcast map using user code from secret bucket", Tag(Kind|Any), func() {
 		setLabelAndCRName("huc-3")
 
 		h := hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)

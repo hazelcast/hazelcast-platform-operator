@@ -51,6 +51,7 @@ jobs:
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-2 \
             --num-nodes=2 \
+            --workload-pool=${{ env.GCP_PROJECT_ID }}.svc.id.goog \
             --node-locations "${GKE_REGION}-c","${GKE_REGION}-d"
           sleep 30
 
@@ -105,7 +106,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ">=1.19.0"
+          go-version: "1.21.0"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2

@@ -32,11 +32,7 @@ var _ = Describe("Platform Soak Tests", Group("soak"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should upgrade HZ version after pause/resume with default partition count during 4 hours and keep 45 GB data", Serial, Tag(Slow|EE|AnyCloud), func() {
-
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
+	It("should upgrade HZ version after pause/resume with default partition count during 4 hours and keep 45 GB data", Serial, Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("soak-1")
 		var pvcSizeInMb = 14500
 		var pauseBetweenFills = 4 * Minute
