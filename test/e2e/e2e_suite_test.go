@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"testing"
 
 	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
@@ -38,15 +39,17 @@ func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	suiteConfig, _ := GinkgoConfiguration()
 	SetLicenseLabelFilters(&suiteConfig)
-
 	RunSpecs(t, GetSuiteName(), suiteConfig)
 }
 
 func SetLicenseLabelFilters(suiteConfig *ginkgoTypes.SuiteConfig) {
+	if len(suiteConfig.LabelFilter) > 0 {
+		suiteConfig.LabelFilter += " && "
+	}
 	if ee {
-		suiteConfig.LabelFilter += fmt.Sprintf(" && %s", tagNames[EE])
+		suiteConfig.LabelFilter += tagNames[EE]
 	} else {
-		suiteConfig.LabelFilter += fmt.Sprintf(" && %s", tagNames[OS])
+		suiteConfig.LabelFilter += tagNames[OS]
 	}
 }
 
@@ -95,7 +98,7 @@ func setupEnv() *rest.Config {
 	return cfg
 }
 
-var recordedManifests = make(map[types.NamespacedName]*bytes.Buffer)
+var recordedManifests = make(map[types.NamespacedName]io.Writer)
 
 // manifestRecorder keeps track of applied manifests
 type manifestRecorder struct {
@@ -116,6 +119,7 @@ func (d *manifestRecorder) Create(ctx context.Context, obj client.Object, opts .
 		// skip unknown objects
 		return d.Client.Create(ctx, obj, opts...)
 	}
+
 	serializer := json.NewYAMLSerializer(
 		json.DefaultMetaFactory, nil, nil,
 	)
