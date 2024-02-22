@@ -602,7 +602,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 	Context("Startup actions configuration", func() {
 		DescribeTable("should start the cluster successfully triggering",
 			func(action hazelcastcomv1alpha1.PersistenceStartupAction, dataPolicy hazelcastcomv1alpha1.DataRecoveryPolicyType) {
-				setLabelAndCRName("br-12")
+				setLabelAndCRName("br-13")
 				clusterSize := int32(3)
 
 				hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
