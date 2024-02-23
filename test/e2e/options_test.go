@@ -15,7 +15,6 @@ var (
 	context1        string
 	context2        string
 	interval        time.Duration
-	ee              bool
 	shards          int
 )
 
@@ -27,7 +26,6 @@ func init() {
 	flag.StringVar(&context1, "FIRST_CONTEXT_NAME", os.Getenv("FIRST_CONTEXT_NAME"), "First context name")
 	flag.StringVar(&context2, "SECOND_CONTEXT_NAME", os.Getenv("SECOND_CONTEXT_NAME"), "Second context name")
 	flag.DurationVar(&interval, "interval", 100*time.Millisecond, "The length of time between checks")
-	flag.BoolVar(&ee, "ee", true, "Flag to define whether Enterprise edition of Hazelcast will be used")
 	flag.IntVar(&shards, "num-shards", 10, "Total number of shards")
 	rand.Seed(time.Now().UnixNano())
 }

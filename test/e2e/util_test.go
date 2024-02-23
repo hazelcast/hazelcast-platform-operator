@@ -9,6 +9,7 @@ import (
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
+	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +40,13 @@ func GetSuiteName() string {
 		managementCenterVersion = n.MCVersion
 	}
 	return fmt.Sprintf("Operator Suite %s (HZ:%s; MC:%s)", edition, hazelcastVersion, managementCenterVersion)
+}
+
+func isEE() bool {
+	suiteConfig, _ := GinkgoConfiguration()
+	labelFilter, err := ginkgoTypes.ParseLabelFilter(suiteConfig.LabelFilter)
+	Expect(err).NotTo(HaveOccurred())
+	return labelFilter([]string{tagNames[EE]})
 }
 
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {

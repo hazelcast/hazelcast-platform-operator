@@ -9,7 +9,6 @@ import (
 
 	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
-	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
@@ -29,6 +28,7 @@ import (
 )
 
 var k8sClient client.Client
+var ee bool
 
 var controllerManagerName = types.NamespacedName{
 	Name: GetControllerManagerName(),
@@ -37,20 +37,7 @@ var controllerManagerName = types.NamespacedName{
 
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	suiteConfig, _ := GinkgoConfiguration()
-	SetLicenseLabelFilters(&suiteConfig)
-	RunSpecs(t, GetSuiteName(), suiteConfig)
-}
-
-func SetLicenseLabelFilters(suiteConfig *ginkgoTypes.SuiteConfig) {
-	if len(suiteConfig.LabelFilter) > 0 {
-		suiteConfig.LabelFilter += " && "
-	}
-	if ee {
-		suiteConfig.LabelFilter += tagNames[EE]
-	} else {
-		suiteConfig.LabelFilter += tagNames[OS]
-	}
+	RunSpecs(t, GetSuiteName())
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -91,6 +78,8 @@ func setupEnv() *rest.Config {
 	Expect(k8sClient).NotTo(BeNil())
 
 	k8sClient = NewManifestRecorder(k8sClient)
+
+	ee = isEE()
 
 	controllerManagerName.Namespace = hzNamespace
 	setCRNamespace(hzNamespace)

@@ -540,9 +540,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		)
 
 		DescribeTable("when restoring from ExternalBackup with service account", func(serviceAccount, bucketURI string) {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("br-11")
 			By("creating cluster with backup enabled")
 			clusterSize := int32(3)

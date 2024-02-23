@@ -193,11 +193,6 @@ jobs:
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
         run: |
-          case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
           

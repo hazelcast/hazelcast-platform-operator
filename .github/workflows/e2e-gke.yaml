@@ -225,11 +225,11 @@ jobs:
         id: e2e-test
         run: |
           case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
+            os) LICENSE=os;;
+            ee) LICENSE=ee;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}_01 WORKFLOW_ID=gke
+          make test-e2e NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}_01 WORKFLOW_ID=gke TEST_LICENSE=${LICENSE}
 
       - name: Clean up after Tests
         if: always()

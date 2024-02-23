@@ -188,7 +188,7 @@ tilt-remote-ttl:
 	 ALLOW_REMOTE=true USE_TTL_REG=true tilt up
 
 ENVTEST_ASSETS_DIR=$(TOOLBIN)/envtest
-GO_TEST_FLAGS ?= "-ee=true"
+GO_TEST_FLAGS =
 
 test-it: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
@@ -223,6 +223,16 @@ ifeq ($(WORKFLOW_ID),pr)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && kind
 endif
 
+TEST_LICENSE?=os
+
+ifeq ($(TEST_LICENSE),os)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && os
+endif
+
+ifeq ($(TEST_LICENSE),ee)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && ee
+endif
+
 test-e2e-split-kind: generate ginkgo ## Run end-to-end tests on Kind
 	$(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --label-filter="(kind && shard$(SHARD_ID)) && $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
@@ -233,7 +243,7 @@ test-ph: generate ginkgo ## Run phone-home tests
 	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none ./test/ph -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 test-soak: generate ginkgo ## Run soak tests
-	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="soak" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 1500m --flake-attempts 1 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="soak && ee" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 1500m --flake-attempts 1 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 test-e2e-focus: generate ginkgo ## Run focused end-to-end tests
 	$(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) -v --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
