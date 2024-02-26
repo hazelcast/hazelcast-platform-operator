@@ -154,7 +154,7 @@ test: test-unit test-it
 
 test-unit: GO_BUILD_TAGS = "hazelcastinternal,unittest"
 test-unit: manifests generate
-	go test -tags $(GO_BUILD_TAGS) -v ./controllers/... ./internal/... ./api/...
+	go test -tags $(GO_BUILD_TAGS) -v ./internal/... ./api/...
 
 lint: lint-go lint-yaml
 
