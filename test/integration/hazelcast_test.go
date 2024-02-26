@@ -2242,7 +2242,7 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("CP subsystem", func() {
-		It("should configure CP subsystem with PVC", Label("fast"), func() {
+		It("should configure CP subsystem with PVC", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.HazelcastSpec{
@@ -2281,7 +2281,7 @@ var _ = Describe("Hazelcast CR", func() {
 				PersistenceEnabled: true,
 			}))
 		})
-		It("should configure CP subsystem with Persistence PVC", Label("fast"), func() {
+		It("should configure CP subsystem with Persistence PVC", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.HazelcastSpec{
