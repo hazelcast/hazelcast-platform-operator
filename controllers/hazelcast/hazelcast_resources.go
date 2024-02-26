@@ -1268,6 +1268,23 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		}
 	}
 
+	if h.Spec.CPSubsystem.IsEnabled() {
+		cfg.CPSubsystem = config.CPSubsystem{
+			CPMemberCount:                     h.Spec.CPSubsystem.MemberCount,
+			PersistenceEnabled:                true,
+			BaseDir:                           n.CPBaseDir,
+			GroupSize:                         h.Spec.CPSubsystem.GroupSize,
+			SessionTimeToLiveSeconds:          h.Spec.CPSubsystem.SessionTTLSeconds,
+			SessionHeartbeatIntervalSeconds:   h.Spec.CPSubsystem.SessionHeartbeatIntervalSeconds,
+			MissingCpMemberAutoRemovalSeconds: h.Spec.CPSubsystem.MissingCpMemberAutoRemovalSeconds,
+			FailOnIndeterminateOperationState: h.Spec.CPSubsystem.FailOnIndeterminateOperationState,
+			DataLoadTimeoutSeconds:            h.Spec.CPSubsystem.DataLoadTimeoutSeconds,
+		}
+		if h.Spec.Persistence.IsEnabled() && !h.Spec.CPSubsystem.IsPVC() {
+			cfg.CPSubsystem.BaseDir = n.BaseDir + n.CPDirSuffix
+		}
+	}
+
 	return cfg
 }
 
@@ -1971,6 +1988,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
 	}
 
+	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
+		sts.Spec.VolumeClaimTemplates = cpPersistentVolumeClaim(h)
+	}
+
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Statefulset: %w", err)
@@ -2039,6 +2060,28 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 					},
 				},
 				StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,
+			},
+		},
+	}
+}
+
+func cpPersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
+	return []v1.PersistentVolumeClaim{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        n.CPPersistenceVolumeName,
+				Namespace:   h.Namespace,
+				Labels:      labels(h),
+				Annotations: h.Spec.Annotations,
+			},
+			Spec: v1.PersistentVolumeClaimSpec{
+				AccessModes: h.Spec.CPSubsystem.PVC.AccessModes,
+				Resources: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						corev1.ResourceStorage: *h.Spec.CPSubsystem.PVC.RequestStorage,
+					},
+				},
+				StorageClassName: h.Spec.CPSubsystem.PVC.StorageClassName,
 			},
 		},
 	}
@@ -2506,6 +2549,13 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 		})
 	}
 
+	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
+		mounts = append(mounts, v1.VolumeMount{
+			Name:      n.CPPersistenceVolumeName,
+			MountPath: n.CPBaseDir,
+		})
+	}
+
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
 		mounts = append(mounts,
 			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
@@ -2798,6 +2848,7 @@ func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
 				SSL: hz.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL,
 			},
 		},
+		CPSubsystem: hz.CPSubsystem,
 	}
 }
 

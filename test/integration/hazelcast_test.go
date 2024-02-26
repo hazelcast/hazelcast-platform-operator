@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/ptr"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -22,6 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
@@ -2237,6 +2238,90 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationInstanceNameLabel, "user")), name)
 				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationManagedByLabel, "user")), name)
 			}
+		})
+	})
+
+	Context("CP subsystem", func() {
+		FIt("should configure CP subsystem with PVC", Label("fast"), func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize: pointer.Int32(7),
+					CPSubsystem: &hazelcastv1alpha1.CPSubsystem{
+						MemberCount: 5,
+						GroupSize:   pointer.Int32(3),
+						PVC: &hazelcastv1alpha1.PersistencePvcConfiguration{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						},
+					},
+				},
+			}
+			create(hz)
+			assertHzStatusIsPending(hz)
+			fetchedSts := &v1.StatefulSet{}
+			assertExists(lookupKey(hz), fetchedSts)
+
+			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.CPPersistenceVolumeName))
+			hzContainer := fetchedSts.Spec.Template.Spec.Containers[0]
+			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.CPPersistenceVolumeName, n.CPBaseDir))
+
+			Eventually(func() config.CPSubsystem {
+				cfg := getSecret(hz)
+				a := &config.HazelcastWrapper{}
+
+				if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+					return config.CPSubsystem{}
+				}
+
+				return a.Hazelcast.CPSubsystem
+			}, timeout, interval).Should(Equal(config.CPSubsystem{
+				CPMemberCount:      5,
+				GroupSize:          pointer.Int32(3),
+				BaseDir:            n.CPBaseDir,
+				PersistenceEnabled: true,
+			}))
+		})
+		FIt("should configure CP subsystem with Persistence PVC", Label("fast"), func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize: pointer.Int32(7),
+					Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+						Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						},
+					},
+					CPSubsystem: &hazelcastv1alpha1.CPSubsystem{
+						MemberCount: 5,
+						GroupSize:   pointer.Int32(3),
+					},
+				},
+			}
+			create(hz)
+			assertHzStatusIsPending(hz)
+			fetchedSts := &v1.StatefulSet{}
+			assertExists(lookupKey(hz), fetchedSts)
+
+			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.PersistenceVolumeName))
+			hzContainer := fetchedSts.Spec.Template.Spec.Containers[0]
+			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.PersistenceVolumeName, n.BaseDir))
+			Expect(hzContainer.VolumeMounts).Should(Not(test.ContainVolumeMount(n.CPPersistenceVolumeName, n.CPBaseDir)))
+
+			Eventually(func() config.CPSubsystem {
+				cfg := getSecret(hz)
+				a := &config.HazelcastWrapper{}
+
+				if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+					return config.CPSubsystem{}
+				}
+
+				return a.Hazelcast.CPSubsystem
+			}, timeout, interval).Should(Equal(config.CPSubsystem{
+				CPMemberCount:      5,
+				GroupSize:          pointer.Int32(3),
+				BaseDir:            n.BaseDir + n.CPDirSuffix,
+				PersistenceEnabled: true,
+			}))
 		})
 	})
 })

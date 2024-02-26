@@ -58,6 +58,7 @@ func (v *hazelcastValidator) validateSpecCurrent(h *Hazelcast) {
 	v.validateCustomConfig(h)
 	v.validateNativeMemory(h)
 	v.validateSQL(h)
+	v.validateCPSubsystem(h)
 }
 
 func (v *hazelcastValidator) validateSpecUpdate(h *Hazelcast) {
@@ -425,5 +426,26 @@ func (v *hazelcastValidator) validateSQL(h *Hazelcast) {
 
 	if h.Spec.SQL.CatalogPersistenceEnabled && !h.Spec.Persistence.IsEnabled() {
 		v.Forbidden(Path("spec", "sql", "catalogPersistence"), "catalogPersistence requires Hazelcast persistence enabled")
+	}
+}
+
+func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
+	if h.Spec.CPSubsystem == nil {
+		return
+	}
+
+	cp := h.Spec.CPSubsystem
+	if h.Spec.ClusterSize == nil {
+		if cp.MemberCount > 3 {
+			v.Invalid(Path("spec", "cpSubsystem", "memberCount"), cp.MemberCount, "can not be greater the clusterSize")
+		}
+	} else if cp.MemberCount > *h.Spec.ClusterSize {
+		v.Invalid(Path("spec", "cpSubsystem", "memberCount"), cp.MemberCount, "can not be greater the clusterSize")
+	}
+
+	if cp.GroupSize != nil {
+		if (*cp.GroupSize != 3 && *cp.GroupSize != 5 && *cp.GroupSize != 7) || *cp.GroupSize > cp.MemberCount {
+			v.Invalid(Path("spec", "cpSubsystem", "memberCount"), cp.GroupSize, "can be 3, 5, or 7, but not greater that memberCount")
+		}
 	}
 }

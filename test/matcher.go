@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
 	"github.com/onsi/gomega/types"
+	corev1 "k8s.io/api/core/v1"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
@@ -112,4 +113,21 @@ func startLogReader(lr *LogReader) {
 		lr.lines <- s.Text()
 	}
 	close(lr.lines)
+}
+
+func ContainVolumeClaimTemplate(pvc string) types.GomegaMatcher {
+	name := func(p corev1.PersistentVolumeClaim) string {
+		return p.Name
+	}
+	return ContainElement(WithTransform(name, Equal(pvc)))
+}
+
+func ContainVolumeMount(name, path string) types.GomegaMatcher {
+	vmN := func(vm corev1.VolumeMount) string {
+		return vm.Name
+	}
+	vmP := func(vm corev1.VolumeMount) string {
+		return vm.MountPath
+	}
+	return ContainElement(And(WithTransform(vmN, Equal(name)), WithTransform(vmP, Equal(path))))
 }
