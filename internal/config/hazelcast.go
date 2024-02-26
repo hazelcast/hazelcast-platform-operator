@@ -26,6 +26,7 @@ type Hazelcast struct {
 	ManagementCenter         ManagementCenterConfig              `yaml:"management-center,omitempty"`
 	Serialization            Serialization                       `yaml:"serialization,omitempty"`
 	SQL                      SQL                                 `yaml:"sql,omitempty"`
+	CPSubsystem              CPSubsystem                         `yaml:"cp-subsystem,omitempty"`
 }
 
 type ManagementCenterConfig struct {
@@ -424,4 +425,16 @@ type ClassFactories struct {
 type SQL struct {
 	StatementTimeout   int32 `yaml:"statement-timeout-millis"`
 	CatalogPersistence bool  `yaml:"catalog-persistence-enabled"`
+}
+
+type CPSubsystem struct {
+	CPMemberCount                     int32  `yaml:"cp-member-count"`
+	PersistenceEnabled                bool   `yaml:"persistence-enabled"`
+	BaseDir                           string `yaml:"base-dir"`
+	GroupSize                         *int32 `yaml:"group-size,omitempty"`
+	SessionTimeToLiveSeconds          *int32 `yaml:"session-time-to-live-seconds,omitempty"`
+	SessionHeartbeatIntervalSeconds   *int32 `yaml:"session-heartbeat-interval-seconds,omitempty"`
+	MissingCpMemberAutoRemovalSeconds *int32 `yaml:"missing-cp-member-auto-removal-seconds,omitempty"`
+	FailOnIndeterminateOperationState *bool  `yaml:"fail-on-indeterminate-operation-state,omitempty"`
+	DataLoadTimeoutSeconds            *int32 `yaml:"data-load-timeout-seconds,omitempty"`
 }
