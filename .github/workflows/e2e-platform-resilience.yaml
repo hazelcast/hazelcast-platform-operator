@@ -9,6 +9,7 @@ env:
   CLOUD_KEY_SECRET_NAME: cloud-key-secret
   CHAOS_MESH_NAMESPACE: chaos-testing
   AWS_REGION: us-east-1
+  FIREWALL_RULE_NAME: node-port-range-resilience
 
 jobs:
   create-gke-cluster:
