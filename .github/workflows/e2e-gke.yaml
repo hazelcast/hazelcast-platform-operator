@@ -35,7 +35,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -174,7 +174,7 @@ jobs:
             AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.0"
+        uses: "google-github-actions/auth@v2.1.2"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -336,7 +336,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.0"
+        uses: "google-github-actions/auth@v2.1.2"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
