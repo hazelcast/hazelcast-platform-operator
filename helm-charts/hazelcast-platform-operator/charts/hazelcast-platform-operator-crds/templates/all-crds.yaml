@@ -467,8 +467,8 @@ spec:
                 type: object
               agent:
                 default:
-                  repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.23
+                  repository: docker.io/kutluhanhazelcast/platform-operator-agent
+                  version: 0.1.25
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -926,6 +926,19 @@ spec:
                         description: Name of the HotBackup resource from which backup
                           will be fetched.
                         type: string
+                      localConfig:
+                        description: Configuration to restore from local backup
+                        properties:
+                          backupDir:
+                            description: Local backup base directory
+                            type: string
+                          backupFolder:
+                            description: Backup directory
+                            type: string
+                          baseDir:
+                            description: Persistence base directory
+                            type: string
+                        type: object
                     type: object
                   startupAction:
                     description: StartupAction represents the action triggered when

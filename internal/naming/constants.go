@@ -57,13 +57,14 @@ const (
 	MancenterStorageName = Mancenter + "-storage"
 
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
-	PersistenceVolumeName       = "hot-restart-persistence"
+	PersistenceVolumeName       = "persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
 	JetJobJarsVolumeName        = "jet-job-jars-bucket"
 	JetConfigMapNamePrefix      = "jet-cm-"
 	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 	BaseDir                     = "/data/hot-restart"
+	BackupDir                   = "/hot-backup"
 
 	SidecarAgent        = "sidecar-agent"
 	BackupAgentPortName = "backup-agent-port"

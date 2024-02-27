@@ -2166,13 +2166,13 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 			return nil, err
 		}
 		containers = append(containers, cont)
-
-		return containers, nil
+	} else if h.Spec.Persistence.RestoreFromLocalBackup() {
+		containers = append(containers, restoreLocalAgentContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration))
+	} else {
+		// restoring from bucket config
+		containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
+			h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
 	}
-
-	// restoring from bucket config
-	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
-		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
 
 	return containers, nil
 }
@@ -2194,7 +2194,9 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI)
 	} else {
 		backupFolder := hb.Status.GetBackupFolder()
-		cont = restoreLocalAgentContainer(h, backupFolder)
+		cont = restoreLocalAgentContainer(h, hazelcastv1alpha1.RestoreFromLocalConfiguration{
+			BackupFolder: backupFolder,
+		})
 	}
 
 	return cont, nil
@@ -2245,22 +2247,38 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 	}
 }
 
-func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
+func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration) v1.Container {
 	commandName := "restore_pvc_local"
 
-	return v1.Container{
+	baseDir := n.BaseDir
+	if conf.BaseDir != "" {
+		baseDir = conf.BaseDir
+	}
+
+	backupDir := n.BackupDir
+	if conf.BackupDir != "" {
+		backupDir = conf.BackupDir
+	}
+
+	backupFolder := conf.BackupFolder
+
+	c := v1.Container{
 		Name:            n.RestoreLocalAgent,
 		Image:           h.AgentDockerImage(),
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Args:            []string{commandName},
 		Env: []v1.EnvVar{
 			{
-				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
-				Value: backupFolder,
+				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
+				Value: baseDir,
 			},
 			{
-				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
-				Value: n.BaseDir,
+				Name:  "RESTORE_LOCAL_BACKUP_BACKUP_DIR",
+				Value: backupDir,
+			},
+			{
+				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
+				Value: backupFolder,
 			},
 			{
 				Name:  "RESTORE_LOCAL_ID",
@@ -2278,12 +2296,25 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 		},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
-		VolumeMounts: []v1.VolumeMount{{
-			Name:      n.PersistenceVolumeName,
-			MountPath: n.BaseDir,
-		}},
+		VolumeMounts: []v1.VolumeMount{
+			{
+				Name:      n.PersistenceVolumeName,
+				MountPath: baseDir,
+			},
+		},
 		SecurityContext: containerSecurityContext(),
 	}
+
+	// operator works with the default baseDir (/data/hot-restart),
+	// so if different baseDir is used in the backup we also need to mount the operator's base directory
+	if baseDir != n.BaseDir {
+		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
+			Name:      n.PersistenceVolumeName,
+			MountPath: n.BaseDir,
+		})
+	}
+
+	return c
 }
 
 func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
