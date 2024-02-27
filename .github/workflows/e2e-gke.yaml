@@ -326,6 +326,10 @@ jobs:
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
+      - name: Delete Firewall Rule
+        run: |-
+          gcloud compute firewall-rules delete ${FIREWALL_RULE_NAME} --quiet --project ${{ env.GCP_PROJECT_ID }}
+
       - name: Delete GKE cluster
         if: always()
         run: |-
