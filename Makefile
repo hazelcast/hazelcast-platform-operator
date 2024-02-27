@@ -200,11 +200,7 @@ test-it-focus: manifests generate envtest ## Run tests.
 
 E2E_TEST_SUITE ?= hz || mc || backup_restore || expose_externally || map || hz_wan || user_code || multimap || topic || replicatedmap || queue || cache || jetjob || jetjobsnapshot || wan_sync
 
-E2E_TEST_LABELS =
-
-ifneq (,$(E2E_TEST_SUITE))
-E2E_TEST_LABELS:=&& ($(E2E_TEST_SUITE)) 
-endif
+E2E_TEST_LABELS?=operator
 
 GINKGO_PARALLEL_PROCESSES ?= 4
 GINKGO_KIND_PARALLEL_PROCESSES ?= 2
