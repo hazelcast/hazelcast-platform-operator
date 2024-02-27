@@ -360,8 +360,19 @@ bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and met
 	 $(YQ)  eval-all '. | select(.kind == "Role" ) | . as $$item ireduce ({}; . *+ $$item) '  config/rbac/role.yaml) > config/rbac/role.yaml.new && mv config/rbac/role.yaml.new config/rbac/role.yaml
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --use-image-digests --overwrite --version $(BUNDLE_VERSION) $(BUNDLE_METADATA_OPTS)
 	$(MAKE) manifests # Revert changes done for generating bundle
-	sed -i  "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
-	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	sed -i "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	sed -i "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	awk '/metadata:/{print;next} \
+        /annotations:/{print; \
+        print "    features.operators.openshift.io/disconnected: \"true\""; \
+        print "    features.operators.openshift.io/fips-compliant: \"false\""; \
+        print "    features.operators.openshift.io/proxy-aware: \"false\""; \
+        print "    features.operators.openshift.io/tls-profiles: \"false\""; \
+        print "    features.operators.openshift.io/token-auth-aws: \"false\""; \
+        print "    features.operators.openshift.io/token-auth-azure: \"false\""; \
+        print "    features.operators.openshift.io/token-auth-gcp: \"false\""; \
+        next}1' bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml > bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml.tmp && \
+        mv bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml.tmp bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 
 olm-deploy: operator-sdk ## Deploying Operator with OLM bundle. Available modes are AllNamespace|OwnNamespace|SingleNamespace
