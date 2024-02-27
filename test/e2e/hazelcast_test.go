@@ -31,7 +31,7 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 	})
 
 	Context("Cluster creation", func() {
-		It("should create a Hazelcast cluster with a custom name", Tag(Fast|Any), func() {
+		It("should create a Hazelcast cluster with a custom name", Tag(Kind|Any), func() {
 			setLabelAndCRName("h-1")
 			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -44,7 +44,7 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 				evaluateReadyMembers(hzLookupKey)
 			})
 		})
-		It("should update ready members status in Hazelcast cluster", Tag(Fast|Any), func() {
+		It("should update ready members status in Hazelcast cluster", Tag(Kind|Any), func() {
 			setLabelAndCRName("h-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -58,7 +58,7 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 			})
 		})
 
-		It("should update detailed members status in Hazelcast cluster", Tag(Fast|Any), func() {
+		It("should update detailed members status in Hazelcast cluster", Tag(Kind|Any), func() {
 			setLabelAndCRName("h-3")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -81,7 +81,7 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 			))
 		})
 
-		It("should validate correct pod names and IPs for Hazelcast members", Tag(Fast|Any), func() {
+		It("should validate correct pod names and IPs for Hazelcast members", Tag(Kind|Any), func() {
 			setLabelAndCRName("h-4")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -112,7 +112,7 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 			Expect(hz.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should reflect external API errors in Hazelcast CR status", Tag(Fast|Any), func() {
+		It("should reflect external API errors in Hazelcast CR status", Tag(Kind|Any), func() {
 			setLabelAndCRName("h-5")
 			CreateHazelcastCRWithoutCheck(hazelcastconfig.Faulty(hzLookupKey, ee, labels))
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
@@ -120,10 +120,7 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 	})
 
 	Context("Cluster deletion", func() {
-		It("should delete dependent data structures and backups on Hazelcast CR deletion", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should delete dependent data structures and backups on Hazelcast CR deletion", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("h-6")
 			clusterSize := int32(3)
 
@@ -158,10 +155,7 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 	})
 
 	Context("TLS Configuration", func() {
-		It("should form a cluster with TLS configuration enabled", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should form a cluster with TLS configuration enabled", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("h-7")
 			hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
 
@@ -181,10 +175,7 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 			evaluateReadyMembers(hzLookupKey)
 		})
 
-		It("should support mutual TLS authentication in Hazelcast cluster", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should support mutual TLS authentication in Hazelcast cluster", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("h-8")
 			hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
 

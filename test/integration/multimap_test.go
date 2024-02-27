@@ -29,7 +29,7 @@ var _ = Describe("MultiMap CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create successfully", Label("fast"), func() {
+		It("should create successfully", func() {
 			mm := &hazelcastv1alpha1.MultiMap{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MultiMapSpec{
@@ -51,7 +51,7 @@ var _ = Describe("MultiMap CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should fail to create", Label("fast"), func() {
+			It("should fail to create", func() {
 				mm := &hazelcastv1alpha1.MultiMap{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
@@ -62,7 +62,7 @@ var _ = Describe("MultiMap CR", func() {
 	})
 
 	When("applying spec with backupCount and/or asyncBackupCount", func() {
-		It("should be successfully with both values under 6", Label("fast"), func() {
+		It("should be successfully with both values under 6", func() {
 			m := &hazelcastv1alpha1.MultiMap{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MultiMapSpec{
@@ -76,7 +76,7 @@ var _ = Describe("MultiMap CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		})
 
-		It("should error with backupCount over 6", Label("fast"), func() {
+		It("should error with backupCount over 6", func() {
 			m := &hazelcastv1alpha1.MultiMap{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MultiMapSpec{
@@ -89,7 +89,7 @@ var _ = Describe("MultiMap CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
 
-		It("should error with asyncBackupCount over 6", Label("fast"), func() {
+		It("should error with asyncBackupCount over 6", func() {
 			m := &hazelcastv1alpha1.MultiMap{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MultiMapSpec{
@@ -102,7 +102,7 @@ var _ = Describe("MultiMap CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
 
-		It("should error with sum of two values over 6", Label("fast"), func() {
+		It("should error with sum of two values over 6", func() {
 			m := &hazelcastv1alpha1.MultiMap{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MultiMapSpec{

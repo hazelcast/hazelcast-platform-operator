@@ -73,10 +73,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 	})
 
 	Context("The hot backup process", func() {
-		It("triggers successfully", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("triggers successfully", Tag(Kind|EE|AnyCloud), func() {
 
 			setLabelAndCRName("br-1")
 			clusterSize := int32(3)
@@ -106,10 +103,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			assertHotBackupSuccess(hotBackup, 1*Minute)
 		})
 
-		It("starts after the cluster becomes ready", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("starts after the cluster becomes ready", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-2")
 			clusterSize := int32(1)
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
@@ -128,11 +122,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			assertHotBackupSuccess(hotBackup, 1*Minute)
 		})
 
-		It("is interrupted when the HotBackup CR is deleted", Tag(Fast|EE|AnyCloud), func() {
+		It("is interrupted when the HotBackup CR is deleted", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-3")
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			ctx := context.Background()
 			bucketURI := "gs://operator-e2e-external-backup"
 			secretName := "br-secret-gcp"
@@ -199,10 +190,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("canceling task"))
 		})
 
-		It("fails when external backup credentials are incorrect", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("fails when external backup credentials are incorrect", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-4")
 			ctx := context.Background()
 			clusterSize := int32(1)
@@ -257,10 +245,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			Expect(hotBackup.Status.Message).Should(ContainSubstring("Upload failed"))
 		})
 
-		It("triggers multiple times using CronHotBackup", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("triggers multiple times using CronHotBackup", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-5")
 			By("creating cron hot backup")
 			hbSpec := &hazelcastcomv1alpha1.HotBackupSpec{}
@@ -286,10 +271,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			Expect(len(hbl.Items)).To(Equal(0))
 		})
 
-		It("should backup, restore and backup data again successfully", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should backup, restore and backup data again successfully", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("br-6")
 			var mapSizeInMb = 1072
 			var additionalEntries = 111
@@ -362,10 +344,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 	})
 
 	Context("Restoring and verifying data", func() {
-		It("should restore from LocalBackup using PVC and HotBackupResourceName", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should restore from LocalBackup using PVC and HotBackupResourceName", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-7")
 			clusterSize := int32(3)
 
@@ -374,10 +353,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			backupRestore(hazelcast, hotBackup, false)
 		})
 
-		It("should restore 3 GB from an external backup using a GCP bucket", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should restore 3 GB from an external backup using a GCP bucket", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("br-8")
 			ctx := context.Background()
 			var mapSizeInMb = 3072
@@ -445,10 +421,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 		})
 
-		It("should restore multiple times from HotBackupResourceName", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should restore multiple times from HotBackupResourceName", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("br-8")
 			clusterSize := int32(3)
 
@@ -508,10 +481,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 20, 1*Minute)
 		})
 
-		It("should check cache entry persistence after HotBackup", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should check cache entry persistence after HotBackup", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("br-9")
 			clusterSize := int32(3)
 
@@ -555,9 +525,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		})
 
 		DescribeTable("when restoring from ExternalBackup with bucket secret", func(bucketURI, secretName string, useBucketConfig bool) {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			setLabelAndCRName("br-10")
 			By("creating cluster with backup enabled")
 			clusterSize := int32(3)
@@ -566,10 +533,10 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 			backupRestore(hazelcast, hotBackup, useBucketConfig)
 		},
-			Entry("using AWS S3 bucket HotBackupResourceName", Tag(Slow|EE|AnyCloud), "s3://operator-e2e-external-backup", "br-secret-s3", false),
-			Entry("using GCP bucket HotBackupResourceName", Tag(Slow|EE|AnyCloud), "gs://operator-e2e-external-backup", "br-secret-gcp", false),
-			Entry("using Azure bucket HotBackupResourceName", Tag(Slow|EE|AnyCloud), "azblob://operator-e2e-external-backup", "br-secret-az", false),
-			Entry("using GCP bucket restore from BucketConfig", Tag(Slow|EE|AnyCloud), "gs://operator-e2e-external-backup", "br-secret-gcp", true),
+			Entry("using AWS S3 bucket HotBackupResourceName", Tag(EE|AnyCloud), "s3://operator-e2e-external-backup", "br-secret-s3", false),
+			Entry("using GCP bucket HotBackupResourceName", Tag(EE|AnyCloud), "gs://operator-e2e-external-backup", "br-secret-gcp", false),
+			Entry("using Azure bucket HotBackupResourceName", Tag(EE|AnyCloud), "azblob://operator-e2e-external-backup", "br-secret-az", false),
+			Entry("using GCP bucket restore from BucketConfig", Tag(EE|AnyCloud), "gs://operator-e2e-external-backup", "br-secret-gcp", true),
 		)
 
 		DescribeTable("when restoring from ExternalBackup with service account", func(serviceAccount, bucketURI string) {
@@ -585,16 +552,13 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			hazelcast.Spec.ServiceAccountName = serviceAccount
 			backupRestore(hazelcast, hotBackup, false)
 		},
-			Entry("using GCP Workload Identity", Tag(Slow|EE|GCP), "cn-workload-identity-test", "gs://operator-e2e-external-backup"),
+			Entry("using GCP Workload Identity", Tag(EE|GCP), "cn-workload-identity-test", "gs://operator-e2e-external-backup"),
 		)
 	})
 
 	Context("Startup actions configuration", func() {
 		DescribeTable("should start the cluster successfully triggering",
 			func(action hazelcastcomv1alpha1.PersistenceStartupAction, dataPolicy hazelcastcomv1alpha1.DataRecoveryPolicyType) {
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
 				setLabelAndCRName("br-12")
 				clusterSize := int32(3)
 
@@ -603,29 +567,26 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				evaluateReadyMembers(hzLookupKey)
 
 				By("creating HotBackup CR")
-				t := Now()
 				hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 				Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 				assertHotBackupSuccess(hotBackup, 1*Minute)
 
-				seq := GetBackupSequence(t, hzLookupKey)
 				RemoveHazelcastCR(hazelcast)
 
 				By("creating new Hazelcast cluster from existing backup with 2 members")
-				baseDir := "/data/hot-restart/hot-backup/backup-" + seq
 
 				hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-				hazelcast.Spec.Persistence.BaseDir = baseDir
 				hazelcast.Spec.ClusterSize = &[]int32{2}[0]
 				hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
 				hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = dataPolicy
 				hazelcast.Spec.Persistence.StartupAction = action
+				hazelcast.Spec.Persistence.Restore.HotBackupResourceName = hotBackup.Name
 				CreateHazelcastCR(hazelcast)
 				evaluateReadyMembers(hzLookupKey)
 				assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 			},
-			Entry("ForceStart action and FullRecovery policy", Tag(Slow|EE|AnyCloud), hazelcastcomv1alpha1.ForceStart, hazelcastcomv1alpha1.FullRecovery),
-			Entry("PartialStart action and MostRecent policy", Tag(Slow|EE|AnyCloud), hazelcastcomv1alpha1.PartialStart, hazelcastcomv1alpha1.MostRecent),
+			Entry("ForceStart action and FullRecovery policy", Tag(EE|AnyCloud), hazelcastcomv1alpha1.ForceStart, hazelcastcomv1alpha1.FullRecovery),
+			Entry("PartialStart action and MostRecent policy", Tag(EE|AnyCloud), hazelcastcomv1alpha1.PartialStart, hazelcastcomv1alpha1.MostRecent),
 		)
 	})
 

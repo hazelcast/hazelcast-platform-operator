@@ -156,7 +156,6 @@ var (
 				LicenseKeySecretName: licenseKey(true),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
 					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -301,7 +300,6 @@ var (
 					},
 				},
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
 					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -334,7 +332,6 @@ var (
 					},
 				},
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart/",
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
 					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -463,7 +460,6 @@ var (
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(true),
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
-					BaseDir:                   "/data/hot-restart",
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
 					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

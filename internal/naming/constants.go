@@ -63,6 +63,7 @@ const (
 	JetConfigMapNamePrefix      = "jet-cm-"
 	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
+	BaseDir                     = "/data/hot-restart"
 
 	SidecarAgent        = "sidecar-agent"
 	BackupAgentPortName = "backup-agent-port"

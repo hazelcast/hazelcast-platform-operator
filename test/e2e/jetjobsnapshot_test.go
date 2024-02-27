@@ -36,11 +36,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Group("jetjobsnapshot"), func() {
 	})
 
 	Context("JetJob snapshot utilization", func() {
-		It("should export snapshot and initialize new job from that snapshot", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
-
+		It("should export snapshot and initialize new job from that snapshot", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("jjs-1")
 
 			hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
@@ -154,11 +150,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Group("jetjobsnapshot"), func() {
 	})
 
 	Context("Operational behavior", func() {
-		It("cancel the JetJob after successful snapshot export", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
-
+		It("cancel the JetJob after successful snapshot export", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("jjs-2")
 
 			hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
@@ -186,11 +178,7 @@ var _ = Describe("Hazelcast JetJobSnapshot", Group("jetjobsnapshot"), func() {
 			checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobExecutionFailed)
 		})
 
-		It("fails when export snapshot from a suspended JetJob", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
-
+		It("fails when export snapshot from a suspended JetJob", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("jjs-3")
 
 			hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)

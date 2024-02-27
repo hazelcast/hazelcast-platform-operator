@@ -57,8 +57,7 @@ var DefaultProperties = map[string]string{
 	"hazelcast.cluster.version.auto.upgrade.enabled": "true",
 	// https://docs.hazelcast.com/hazelcast/5.3/kubernetes/kubernetes-auto-discovery#configuration
 	// We added the following properties to here with their default values, because DefaultProperties cannot be overridden
-	"hazelcast.persistence.auto.cluster.state":          "true",
-	"hazelcast.persistence.auto.cluster.state.strategy": "NO_MIGRATION",
+	"hazelcast.persistence.auto.cluster.state": "true",
 }
 
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -375,7 +374,11 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 			switch h.Spec.ExposeExternally.DiscoveryK8ServiceType() {
 			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeDiscoveryLabelValue
+			default:
+				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
+		} else {
+			delete(service.Labels, n.ServiceEndpointTypeLabelName)
 		}
 
 		// append default wan port to HZ Discovery Service if use did not configure
@@ -435,6 +438,8 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 			switch w.ServiceType {
 			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
+			case corev1.ServiceTypeClusterIP:
+				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
 			service.Spec.Ports = util.EnrichServiceNodePorts(ports, service.Spec.Ports)
@@ -469,6 +474,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		return nil
 	}
 
+	isAddWANPort := h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0
 	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
@@ -492,9 +498,11 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 			switch h.Spec.ExposeExternally.MemberAccessServiceType() {
 			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeMemberLabelValue
+			default:
+				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
-			service.Spec.Ports = util.EnrichServiceNodePorts([]corev1.ServicePort{clientPort()}, service.Spec.Ports)
+			service.Spec.Ports = util.EnrichServiceNodePorts(servicePerPodPort(isAddWANPort), service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 
 			return nil
@@ -546,6 +554,8 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 		return err
 	}
 
+	reconciledHzEndpointNames := make(map[string]any)
+
 	for _, svc := range svcList.Items {
 		endpointType, ok := svc.Labels[n.ServiceEndpointTypeLabelName]
 		if !ok {
@@ -573,12 +583,21 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 				}
 			}
 		case n.ServiceEndpointTypeMemberLabelValue:
-			endpointNn := types.NamespacedName{
-				Name:      svc.Name,
-				Namespace: svc.Namespace,
-			}
-			hzEndpoints = []*hazelcastv1alpha1.HazelcastEndpoint{
-				hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port),
+			for _, port := range svc.Spec.Ports {
+				endpointNn := types.NamespacedName{
+					Name:      svc.Name,
+					Namespace: svc.Namespace,
+				}
+				// For the default Wan port when the WANConfig is not configured under the AdvancedNetwork config
+				if port.Name == n.WanDefaultPortName {
+					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, "wan")
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+					continue
+				}
+				if port.Name == n.HazelcastPortName {
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeMember, port.Port))
+					continue
+				}
 			}
 		case n.ServiceEndpointTypeWANLabelValue:
 			for i, port := range svc.Spec.Ports {
@@ -597,6 +616,8 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 		}
 
 		for _, hzEndpoint := range hzEndpoints {
+			reconciledHzEndpointNames[hzEndpoint.Name] = struct{}{}
+
 			err := controllerutil.SetOwnerReference(&svc, hzEndpoint, r.Scheme)
 			if err != nil {
 				return err
@@ -649,6 +670,24 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 			}
 
 			err = r.Client.Status().Update(ctx, hzEndpoint)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Delete the leftover HazelcastEndpoints if any.
+	// The leftover resources take place after disabling the exposeExternally as an update.
+	hzEndpointList := hazelcastv1alpha1.HazelcastEndpointList{}
+	nsOpt := client.InNamespace(h.Namespace)
+	lblOpt := client.MatchingLabels(util.Labels(h))
+	if err := r.Client.List(ctx, &hzEndpointList, nsOpt, lblOpt); err != nil {
+		return err
+	}
+	for _, hzEndpoint := range hzEndpointList.Items {
+		if _, ok := reconciledHzEndpointNames[hzEndpoint.Name]; !ok {
+			logger.Info("Deleting leftover HazelcastEndpoint", "name", hzEndpoint.Name)
+			err := r.Client.Delete(ctx, &hzEndpoint)
 			if err != nil {
 				return err
 			}
@@ -718,6 +757,16 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ls := labels(h)
 	ls[n.ServicePerPodLabelName] = n.LabelValueTrue
 	return ls
+}
+
+func servicePerPodPort(isAddWANPort bool) []v1.ServicePort {
+	p := []corev1.ServicePort{
+		clientPort(),
+	}
+	if isAddWANPort {
+		p = append(p, defaultWANPort())
+	}
+	return p
 }
 
 func hazelcastPort(isAddWANPort bool) []v1.ServicePort {
@@ -965,8 +1014,12 @@ func mergeProperties(logger logr.Logger, inputProps map[string]string) map[strin
 		m[k] = v
 	}
 	for k, v := range inputProps {
-		if _, exist := m[k]; exist { // if user's input is an immutable property, ignore user's input
-			logger.V(util.DebugLevel).Info("Property ignored", "property", k)
+		// if the property provided by the user is one of the default (immutable) property,
+		// ignore the provided property without overriding the default one.
+		if existingVal, exist := m[k]; exist {
+			if v != existingVal {
+				logger.V(util.DebugLevel).Info("Property ignored", "property", k, "value", v)
+			}
 		} else {
 			m[k] = v
 		}
@@ -1079,8 +1132,8 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	if h.Spec.Persistence.IsEnabled() {
 		cfg.Persistence = config.Persistence{
 			Enabled:                   pointer.Bool(true),
-			BaseDir:                   h.Spec.Persistence.BaseDir,
-			BackupDir:                 path.Join(h.Spec.Persistence.BaseDir, "hot-backup"),
+			BaseDir:                   n.BaseDir,
+			BackupDir:                 path.Join(n.BaseDir, "hot-backup"),
 			Parallelism:               1,
 			ValidationTimeoutSec:      120,
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
@@ -2190,7 +2243,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 			},
 			{
 				Name:  "RESTORE_DESTINATION",
-				Value: h.Spec.Persistence.BaseDir,
+				Value: n.BaseDir,
 			},
 			{
 				Name:  "RESTORE_ID",
@@ -2210,7 +2263,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
@@ -2231,7 +2284,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 			},
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
-				Value: h.Spec.Persistence.BaseDir,
+				Value: n.BaseDir,
 			},
 			{
 				Name:  "RESTORE_LOCAL_ID",
@@ -2251,7 +2304,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
@@ -2425,7 +2478,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		})
 	}
 	return vm
@@ -2449,7 +2502,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
-			MountPath: h.Spec.Persistence.BaseDir,
+			MountPath: n.BaseDir,
 		})
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path"
 	"reflect"
 	"regexp"
 	"sort"
@@ -212,10 +211,6 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
 		v.Forbidden(Path("spec", "persistence", "startupAction"), "PartialStart can be used only with Partial clusterDataRecoveryPolicy")
 	}
-
-	if !path.IsAbs(p.BaseDir) {
-		v.Invalid(Path("spec", "persistence", "baseDir"), p.BaseDir, "must be absolute path")
-	}
 }
 
 func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {
@@ -365,13 +360,10 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 		v.Forbidden(Path("spec", "persistence"), "field cannot be disabled after creation")
 		return
 	}
-	if current.BaseDir != last.BaseDir {
-		v.Forbidden(Path("spec", "persistence", "baseDir"), "field cannot be updated")
-	}
 	if !reflect.DeepEqual(current.Pvc, last.Pvc) {
 		v.Forbidden(Path("spec", "persistence", "pvc"), "field cannot be updated")
 	}
-	if current.Restore != last.Restore {
+	if !reflect.DeepEqual(current.Restore, last.Restore) {
 		v.Forbidden(Path("spec", "persistence", "restore"), "field cannot be updated")
 	}
 }

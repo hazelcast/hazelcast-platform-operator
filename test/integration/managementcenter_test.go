@@ -74,7 +74,7 @@ var _ = Describe("ManagementCenter CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
+		It("should create CR with default values when empty specs are applied", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 			}
@@ -83,7 +83,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), false)
 		})
 
-		It("Should handle CR and sub resources correctly", Label("fast"), func() {
+		It("Should handle CR and sub resources correctly", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -138,7 +138,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should create CR with default values", Label("fast"), func() {
+			It("should create CR with default values", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
@@ -161,7 +161,7 @@ var _ = Describe("ManagementCenter CR", func() {
 	})
 
 	Context("with ExternalConnectivity configuration", func() {
-		It("should create and update service correctly", Label("fast"), func() {
+		It("should create and update service correctly", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -183,7 +183,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			EnsureServiceType(mc, corev1.ServiceTypeClusterIP)
 		})
 
-		It("should handle Ingress correctly", Label("fast"), func() {
+		It("should handle Ingress correctly", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -256,7 +256,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			assertDoesNotExist(lookupKey(mc), ing)
 		})
 
-		It("should configure contextPath in MC pod when custom path is set in Ingress", Label("fast"), func() {
+		It("should configure contextPath in MC pod when custom path is set in Ingress", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -309,7 +309,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			Expect(updatedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/hz-mc/health"))
 		})
 
-		It("should fail if ingress path is not an absolute path", Label("fast"), func() {
+		It("should fail if ingress path is not an absolute path", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -331,7 +331,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	Context("with Persistence configuration", func() {
 		When("persistence is enabled with existing Volume Claim", func() {
-			It("should add existing Volume Claim to statefulset", Label("fast"), func() {
+			It("should add existing Volume Claim to statefulset", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
@@ -366,7 +366,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	Context("with Image configuration", func() {
 		When("ImagePullSecrets are defined", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				pullSecrets := []corev1.LocalObjectReference{
 					{Name: "mc-secret1"},
 					{Name: "mc-secret2"},
@@ -388,7 +388,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	Context("with Scheduling configuration", func() {
 		When("NodeSelector is given", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
@@ -409,7 +409,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 
 		When("Affinity is given", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
@@ -460,7 +460,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 
 		When("Toleration is given", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
@@ -486,7 +486,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	Context("with Resources parameters", func() {
 		When("resources are used", func() {
-			It("should be set to Container spec", Label("fast"), func() {
+			It("should be set to Container spec", func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Resources = &corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
@@ -525,7 +525,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	Context("with LDAP security provider", func() {
 		When("LDAP security provider is configured", func() {
-			It("should be enabled", Label("fast"), func() {
+			It("should be enabled", func() {
 				ldapSecret := CreateLdapSecret("ldap-credential", namespace)
 				assertExists(lookupKey(ldapSecret), ldapSecret)
 				defer DeleteIfExists(lookupKey(ldapSecret), ldapSecret)
@@ -552,7 +552,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				EnsureStatusIsPending(mc)
 			})
 
-			It("should error when credentialsSecretName is empty", Label("fast"), func() {
+			It("should error when credentialsSecretName is empty", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -577,7 +577,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					Should(MatchError(ContainSubstring("Management Center LDAP credentials Secret name is empty")))
 			})
 
-			It("should error when credentialsSecretName does not exist", Label("fast"), func() {
+			It("should error when credentialsSecretName does not exist", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -606,7 +606,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	Context("with cluster TLS configuration", func() {
 		When("cluster TLS property is configured", func() {
-			It("should be enabled", Label("fast"), func() {
+			It("should be enabled", func() {
 				tlsSecret := CreateTLSSecret("tls-secret", namespace)
 				assertExists(lookupKey(tlsSecret), tlsSecret)
 				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
@@ -626,7 +626,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				EnsureStatusIsPending(mc)
 			})
 
-			It("should error when secretName is empty", Label("fast"), func() {
+			It("should error when secretName is empty", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -643,7 +643,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					Should(MatchError(ContainSubstring("Management Center Cluster config TLS Secret name is empty")))
 			})
 
-			It("should error when secretName does not exist", Label("fast"), func() {
+			It("should error when secretName does not exist", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -662,7 +662,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 
 		When("MutualAuthentication is configured", func() {
-			It("should be enabled", Label("fast"), func() {
+			It("should be enabled", func() {
 				tlsSecret := CreateTLSSecret("tls-secret", namespace)
 				assertExists(lookupKey(tlsSecret), tlsSecret)
 				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
@@ -732,7 +732,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		}
 
 		When("updating", func() {
-			It("should forward changes to StatefulSet", Label("fast"), func() {
+			It("should forward changes to StatefulSet", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       firstSpec,
@@ -788,7 +788,7 @@ var _ = Describe("ManagementCenter CR", func() {
 	})
 
 	Context("JVM args configuration", func() {
-		It("should set the given jvm args to java opts env in pod template", Label("fast"), func() {
+		It("should set the given jvm args to java opts env in pod template", func() {
 			jvmArgs := []string{
 				"-arg1=value1",
 				"-arg2=value2",
@@ -826,7 +826,7 @@ var _ = Describe("ManagementCenter CR", func() {
 	})
 
 	Context("with labels and annotations", func() {
-		It("should set labels and annotations to sub-resources", Label("fast"), func() {
+		It("should set labels and annotations to sub-resources", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),

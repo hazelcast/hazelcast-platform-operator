@@ -40,7 +40,7 @@ var _ = Describe("Cache CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create successfully", Label("fast"), func() {
+		It("should create successfully", func() {
 			c := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.CacheSpec{
@@ -65,7 +65,7 @@ var _ = Describe("Cache CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should fail to create", Label("fast"), func() {
+			It("should fail to create", func() {
 				q := &hazelcastv1alpha1.Cache{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
@@ -77,7 +77,7 @@ var _ = Describe("Cache CR", func() {
 
 	Context("with BackupCount value", func() {
 		When("updating BackupCount", func() {
-			It("should fail to update", Label("fast"), func() {
+			It("should fail to update", func() {
 				cache := cacheOf(hazelcastv1alpha1.CacheSpec{
 					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 						HazelcastResourceName: "hazelcast",
@@ -105,7 +105,7 @@ var _ = Describe("Cache CR", func() {
 	})
 
 	Context("with InMemoryFormat value", func() {
-		It("should create successfully with NativeMemory", Label("fast"), func() {
+		It("should create successfully with NativeMemory", func() {
 			c := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.CacheSpec{
@@ -125,7 +125,7 @@ var _ = Describe("Cache CR", func() {
 	})
 
 	When("applying spec with backupCount and/or asyncBackupCount", func() {
-		It("should be successfully with both values under 6", Label("fast"), func() {
+		It("should be successfully with both values under 6", func() {
 			m := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.CacheSpec{
@@ -139,7 +139,7 @@ var _ = Describe("Cache CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		})
 
-		It("should error with backupCount over 6", Label("fast"), func() {
+		It("should error with backupCount over 6", func() {
 			m := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.CacheSpec{
@@ -152,7 +152,7 @@ var _ = Describe("Cache CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
 
-		It("should error with asyncBackupCount over 6", Label("fast"), func() {
+		It("should error with asyncBackupCount over 6", func() {
 			m := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.CacheSpec{
@@ -165,7 +165,7 @@ var _ = Describe("Cache CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
 
-		It("should error with sum of two values over 6", Label("fast"), func() {
+		It("should error with sum of two values over 6", func() {
 			m := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.CacheSpec{
@@ -181,7 +181,7 @@ var _ = Describe("Cache CR", func() {
 	})
 
 	Context("with EventJournal configuration", func() {
-		It("should create Cache CR with eventJournal configuration", Label("fast"), func() {
+		It("should create Cache CR with eventJournal configuration", func() {
 			c := &hazelcastv1alpha1.Cache{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.CacheSpec{
@@ -205,7 +205,7 @@ var _ = Describe("Cache CR", func() {
 			Expect(cs.EventJournal.TimeToLiveSeconds).To(Equal(int32(30)))
 		})
 
-		It("should fail to update", Label("fast"), func() {
+		It("should fail to update", func() {
 			c := cacheOf(hazelcastv1alpha1.CacheSpec{
 				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 					HazelcastResourceName: "hazelcast",
