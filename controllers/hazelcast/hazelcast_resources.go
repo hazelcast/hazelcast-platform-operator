@@ -1014,8 +1014,12 @@ func mergeProperties(logger logr.Logger, inputProps map[string]string) map[strin
 		m[k] = v
 	}
 	for k, v := range inputProps {
-		if _, exist := m[k]; exist { // if user's input is an immutable property, ignore user's input
-			logger.V(util.DebugLevel).Info("Property ignored", "property", k)
+		// if the property provided by the user is one of the default (immutable) property,
+		// ignore the provided property without overriding the default one.
+		if existingVal, exist := m[k]; exist {
+			if v != existingVal {
+				logger.V(util.DebugLevel).Info("Property ignored", "property", k, "value", v)
+			}
 		} else {
 			m[k] = v
 		}
