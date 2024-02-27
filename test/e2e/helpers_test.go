@@ -170,6 +170,35 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	})
 }
 
+func RemoveHazelcastMemberPVC(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+	By("listing member PVCs")
+	pvcList := corev1.PersistentVolumeClaimList{}
+	err := k8sClient.List(context.Background(), &pvcList, client.InNamespace(hazelcast.Namespace), hazelcastSelectorLabel(hazelcast))
+	Expect(err).To(Succeed())
+	Expect(pvcList.Items).To(HaveLen(int(*hazelcast.Spec.ClusterSize)))
+
+	for _, pvc := range pvcList.Items {
+		By(fmt.Sprintf("removing %q PVC", pvc.Name), func() {
+			Eventually(func() error {
+				return k8sClient.Delete(context.Background(), &pvc, client.PropagationPolicy(metav1.DeletePropagationForeground))
+			}, Minute, interval).Should(Succeed())
+			assertDoesNotExist(types.NamespacedName{
+				Name:      pvc.Name,
+				Namespace: pvc.Namespace,
+			}, &corev1.PersistentVolumeClaim{})
+		})
+	}
+
+	By("waiting for PVCs to be removed", func() {
+		Eventually(func() []corev1.PersistentVolumeClaim {
+			pvcList := corev1.PersistentVolumeClaimList{}
+			err := k8sClient.List(context.Background(), &pvcList, client.InNamespace(hazelcast.Namespace), hazelcastSelectorLabel(hazelcast))
+			Expect(err).To(Succeed())
+			return pvcList.Items
+		}, 2*Minute, interval).Should(BeEmpty())
+	})
+}
+
 func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 	By(fmt.Sprintf("deleting POD with name '%s'", podName), func() {
 		propagationPolicy := metav1.DeletePropagationForeground
@@ -1323,4 +1352,10 @@ func GetPodLogs(ctx context.Context, pod types.NamespacedName, podLogOptions *co
 		panic(err)
 	}
 	return podLogs
+}
+
+func hazelcastSelectorLabel(h *hazelcastcomv1alpha1.Hazelcast) client.MatchingLabels {
+	return client.MatchingLabels(map[string]string{
+		naming.ApplicationInstanceNameLabel: h.GetName(),
+	})
 }

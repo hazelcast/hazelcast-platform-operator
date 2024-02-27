@@ -48,6 +48,9 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		By("removing Hazelcast CR")
 		RemoveHazelcastCR(hazelcast)
 
+		By("removing the member PVCs")
+		RemoveHazelcastMemberPVC(hazelcast)
+
 		By("creating cluster from backup")
 		restoredHz := hazelcastconfig.HazelcastRestore(hazelcast, restoreConfig(hotBackup, useBucketConfig))
 		CreateHazelcastCR(restoredHz)
