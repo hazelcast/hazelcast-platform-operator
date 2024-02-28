@@ -44,12 +44,11 @@ func TestE2E(t *testing.T) {
 
 func SetLicenseLabelFilters(suiteConfig *ginkgoTypes.SuiteConfig) {
 	if len(suiteConfig.LabelFilter) > 0 {
-		suiteConfig.LabelFilter += " && "
-	}
-	if ee {
-		suiteConfig.LabelFilter += tagNames[EE]
-	} else {
-		suiteConfig.LabelFilter += tagNames[OS]
+		if ee {
+			suiteConfig.LabelFilter += "&& " + tagNames[EE]
+		} else {
+			suiteConfig.LabelFilter += "&& " + tagNames[OS]
+		}
 	}
 }
 
