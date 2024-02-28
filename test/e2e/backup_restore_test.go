@@ -532,7 +532,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)
 		})
 
-		It("should not override the existing restore dir in PersistentVolume with local backup", Tag(EE|AnyCloud), func() {
+		It("should not override the existing restore dir in PersistentVolume with local backup", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-10")
 			clusterSize := int32(3)
 
