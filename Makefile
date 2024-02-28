@@ -364,7 +364,7 @@ bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and met
 	sed -i "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	awk '/metadata:/{print;next} \
         /annotations:/{print; \
-        print "    features.operators.openshift.io/disconnected: \"true\""; \
+        print "    features.operators.openshift.io/disconnected: \"false\""; \
         print "    features.operators.openshift.io/fips-compliant: \"false\""; \
         print "    features.operators.openshift.io/proxy-aware: \"false\""; \
         print "    features.operators.openshift.io/tls-profiles: \"false\""; \
