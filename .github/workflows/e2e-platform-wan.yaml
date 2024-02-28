@@ -99,7 +99,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -167,7 +167,7 @@ jobs:
             HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
 
       - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -230,7 +230,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -277,7 +277,7 @@ jobs:
 
       - name: Run Wan Test
         run: |-
-          make test-e2e NAMESPACE=src-ns RELEASE_NAME=src-ns E2E_TEST_SUITE=platform_wan REPORT_SUFFIX=ee_01 WORKFLOW_ID=wan
+          make test-e2e NAMESPACE=src-ns RELEASE_NAME=src-ns E2E_TEST_LABELS=platform_wan REPORT_SUFFIX=ee_01 WORKFLOW_ID=wan
 
       - name: Upload Test Report
         if: always()
@@ -326,7 +326,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate To GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -377,7 +377,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate To GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 

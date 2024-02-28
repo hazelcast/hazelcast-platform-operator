@@ -225,7 +225,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 
 				services := expectLenOfHazelcastEndpointServices(ctx, hz, 4)
-				hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 5)
+				hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 8)
 
 				setLoadBalancerIngressAddress(ctx, services)
 				expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
@@ -247,7 +247,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 
 				services := expectLenOfHazelcastEndpointServices(ctx, hz, 4)
-				hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 5)
+				hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 8)
 
 				setLoadBalancerIngressAddress(ctx, services)
 				expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
@@ -269,7 +269,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 				Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 
 				services := expectLenOfHazelcastEndpointServices(ctx, hz, 4)
-				hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 5)
+				hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 8)
 
 				setLoadBalancerIngressAddress(ctx, services)
 				expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
@@ -336,7 +336,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 
 			services := expectLenOfHazelcastEndpointServices(ctx, hz, 4)
-			hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 5)
+			hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 8)
 
 			setLoadBalancerIngressAddress(ctx, services)
 			expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)
@@ -368,7 +368,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
 
 			services := expectLenOfHazelcastEndpointServices(ctx, hz, 4)
-			hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 5)
+			hzEndpoints := expectLenOfHazelcastEndpoints(ctx, hz, 8)
 
 			setLoadBalancerIngressAddress(ctx, services)
 			expectHazelcastEndpointHasAddress(ctx, hzEndpoints, 10*time.Second)

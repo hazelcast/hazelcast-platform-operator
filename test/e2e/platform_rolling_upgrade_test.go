@@ -17,7 +17,7 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-var _ = Describe("Platform Rolling UpgradeTests", Group("rolling_upgrade"), func() {
+var _ = Describe("Platform Rolling UpgradeTests", Label("rolling_upgrade"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {

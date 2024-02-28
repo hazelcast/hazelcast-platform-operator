@@ -474,6 +474,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		return nil
 	}
 
+	isAddWANPort := h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0
 	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
@@ -501,7 +502,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
-			service.Spec.Ports = util.EnrichServiceNodePorts([]corev1.ServicePort{clientPort()}, service.Spec.Ports)
+			service.Spec.Ports = util.EnrichServiceNodePorts(servicePerPodPort(isAddWANPort), service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 
 			return nil
@@ -582,12 +583,21 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 				}
 			}
 		case n.ServiceEndpointTypeMemberLabelValue:
-			endpointNn := types.NamespacedName{
-				Name:      svc.Name,
-				Namespace: svc.Namespace,
-			}
-			hzEndpoints = []*hazelcastv1alpha1.HazelcastEndpoint{
-				hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port),
+			for _, port := range svc.Spec.Ports {
+				endpointNn := types.NamespacedName{
+					Name:      svc.Name,
+					Namespace: svc.Namespace,
+				}
+				// For the default Wan port when the WANConfig is not configured under the AdvancedNetwork config
+				if port.Name == n.WanDefaultPortName {
+					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, "wan")
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+					continue
+				}
+				if port.Name == n.HazelcastPortName {
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeMember, port.Port))
+					continue
+				}
 			}
 		case n.ServiceEndpointTypeWANLabelValue:
 			for i, port := range svc.Spec.Ports {
@@ -747,6 +757,16 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ls := labels(h)
 	ls[n.ServicePerPodLabelName] = n.LabelValueTrue
 	return ls
+}
+
+func servicePerPodPort(isAddWANPort bool) []v1.ServicePort {
+	p := []corev1.ServicePort{
+		clientPort(),
+	}
+	if isAddWANPort {
+		p = append(p, defaultWANPort())
+	}
+	return p
 }
 
 func hazelcastPort(isAddWANPort bool) []v1.ServicePort {
@@ -994,8 +1014,12 @@ func mergeProperties(logger logr.Logger, inputProps map[string]string) map[strin
 		m[k] = v
 	}
 	for k, v := range inputProps {
-		if _, exist := m[k]; exist { // if user's input is an immutable property, ignore user's input
-			logger.V(util.DebugLevel).Info("Property ignored", "property", k)
+		// if the property provided by the user is one of the default (immutable) property,
+		// ignore the provided property without overriding the default one.
+		if existingVal, exist := m[k]; exist {
+			if v != existingVal {
+				logger.V(util.DebugLevel).Info("Property ignored", "property", k, "value", v)
+			}
 		} else {
 			m[k] = v
 		}
