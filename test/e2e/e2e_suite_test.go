@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"fmt"
 	"testing"
 
 	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
@@ -39,10 +38,13 @@ func TestE2E(t *testing.T) {
 }
 
 func SetLicenseLabelFilters(suiteConfig *ginkgoTypes.SuiteConfig) {
+	if len(suiteConfig.LabelFilter) > 0 {
+		suiteConfig.LabelFilter += " && "
+	}
 	if ee {
-		suiteConfig.LabelFilter += fmt.Sprintf(" && %s", tagNames[EE])
+		suiteConfig.LabelFilter += tagNames[EE]
 	} else {
-		suiteConfig.LabelFilter += fmt.Sprintf(" && %s", tagNames[OS])
+		suiteConfig.LabelFilter += tagNames[OS]
 	}
 }
 
