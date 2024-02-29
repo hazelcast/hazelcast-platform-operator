@@ -25,8 +25,11 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code"), func() {
 		if skipCleanup() {
 			return
 		}
-		Cleanup(context.Background())
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&corev1.Secret{}, &corev1.SecretList{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

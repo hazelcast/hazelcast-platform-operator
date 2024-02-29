@@ -23,7 +23,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 		if skipCleanup() {
 			return
 		}
-		Cleanup(context.Background())
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

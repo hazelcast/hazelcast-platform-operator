@@ -22,8 +22,10 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Group("replicatedmap"), func(
 		if skipCleanup() {
 			return
 		}
-		Cleanup(context.Background())
+		DeleteAllOf(&hazelcastcomv1alpha1.ReplicatedMap{}, &hazelcastcomv1alpha1.ReplicatedMapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

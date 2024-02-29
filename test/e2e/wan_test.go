@@ -26,7 +26,9 @@ var _ = Describe("Hazelcast WAN", Group("hz_wan"), func() {
 		if skipCleanup() {
 			return
 		}
-		Cleanup(context.Background())
+		DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, &hazelcastcomv1alpha1.WanReplicationList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

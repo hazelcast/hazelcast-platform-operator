@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
@@ -24,8 +25,13 @@ var _ = Describe("Hazelcast JetJobSnapshot", Group("jetjobsnapshot"), func() {
 		if skipCleanup() {
 			return
 		}
-		Cleanup(context.Background())
+		DeleteAllOf(&hazelcastcomv1alpha1.JetJobSnapshot{}, &hazelcastcomv1alpha1.JetJobSnapshotList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.JetJob{}, &hazelcastcomv1alpha1.JetJobList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, &hazelcastcomv1alpha1.MapList{}, hzNamespace, labels)
+		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+		DeleteAllOf(&corev1.Secret{}, &corev1.SecretList{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
+		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
