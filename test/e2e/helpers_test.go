@@ -754,23 +754,6 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 	return checkMap
 }
 
-func assertWanSyncStatusIsNotFailed(wr *hazelcastcomv1alpha1.WanSync) *hazelcastcomv1alpha1.WanSync {
-	checkWan := &hazelcastcomv1alpha1.WanSync{}
-	By("waiting for WAN CR status is not failed for 5 minute", func() {
-		Consistently(func() hazelcastcomv1alpha1.WanSyncPhase {
-			err := k8sClient.Get(context.Background(), types.NamespacedName{
-				Name:      wr.Name,
-				Namespace: wr.Namespace,
-			}, checkWan)
-			if err != nil {
-				return ""
-			}
-			return checkWan.Status.Status
-		}, 5*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.WanStatusFailed))
-	})
-	return checkWan
-}
-
 func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1alpha1.WanStatus) *hazelcastcomv1alpha1.WanReplication {
 	checkWan := &hazelcastcomv1alpha1.WanReplication{}
 	By("waiting for WAN CR status", func() {
