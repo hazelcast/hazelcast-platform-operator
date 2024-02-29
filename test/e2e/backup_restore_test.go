@@ -63,6 +63,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			return
 		}
 		Cleanup(context.Background())
+		deletePVCs(hzLookupKey)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

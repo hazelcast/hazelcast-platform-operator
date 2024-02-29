@@ -23,6 +23,7 @@ var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), fun
 			return
 		}
 		Cleanup(context.Background())
+		deletePVCs(hzLookupKey)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

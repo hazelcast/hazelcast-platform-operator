@@ -73,6 +73,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 			return
 		}
 		Cleanup(context.Background())
+		deletePVCs(hzLookupKey)
 		By("waiting for all nodes are ready", func() {
 			waitForDroppedNodes(context.Background(), 0)
 		})

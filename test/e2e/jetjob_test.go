@@ -24,6 +24,7 @@ var _ = Describe("Hazelcast JetJob", Group("jetjob"), func() {
 			return
 		}
 		Cleanup(context.Background())
+		deletePVCs(hzLookupKey)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

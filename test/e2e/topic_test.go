@@ -21,6 +21,7 @@ var _ = Describe("Hazelcast Topic Config", Group("topic"), func() {
 			return
 		}
 		Cleanup(context.Background())
+		deletePVCs(hzLookupKey)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

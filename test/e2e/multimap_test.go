@@ -23,6 +23,7 @@ var _ = Describe("Hazelcast MultiMap Config", Group("multimap"), func() {
 			return
 		}
 		Cleanup(context.Background())
+		deletePVCs(hzLookupKey)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

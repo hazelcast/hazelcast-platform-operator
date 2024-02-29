@@ -18,6 +18,7 @@ var _ = Describe("Hazelcast Multi-Namespace", Label("multi_namespace"), func() {
 			return
 		}
 		Cleanup(context.Background())
+		deletePVCs(hzLookupKey)
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
