@@ -29,7 +29,7 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	FIt("should store data into CP Map", Tag(EE|AnyCloud), func() {
+	It("should store data into CP Map", Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("cp-1")
 		clusterSize := int32(3)
 		ctx := context.Background()
@@ -63,7 +63,7 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		Expect(response).To(Equal("value"))
 	})
 
-	FIt("should restore the data from CP Persistence", Tag(EE|AnyCloud), func() {
+	It("should restore the data from CP Persistence", Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("cp-2")
 		clusterSize := int32(3)
 		ctx := context.Background()
