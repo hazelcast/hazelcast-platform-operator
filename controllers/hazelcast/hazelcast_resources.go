@@ -934,6 +934,14 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 			h.Spec.Properties[k] = v
 		}
 	}
+	// Temp solution for Tiered Storage provided by the core team.
+	// To enable dynamic TS maps, the startup condition enabling TS service had to be changed.
+	// Prior to this change, the service got initialized only if a TS map was present in the static configuration.
+	// This forced our cloud offering to define a "fake" TS map in the static configuration.
+	// Starting with this change, the TS service can be initialized with -Dhazelcast.tiered.store.force.enabled=true.
+	if h.Spec.IsTieredStorageEnabled() {
+		h.Spec.Properties["hazelcast.tiered.store.force.enabled"] = "true"
+	}
 
 	fillHazelcastConfigWithProperties(&cfg, h)
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
@@ -1273,12 +1281,6 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		for _, ld := range h.Spec.LocalDevices {
 			cfg.LocalDevice[ld.Name] = createLocalDeviceConfig(ld, h.GetName())
 		}
-		// Temp solution provided by core team.
-		// To enable dynamic TS maps, the startup condition enabling TS service had to be changed.
-		// Prior to this change, the service got initialized only if a TS map was present in the static configuration.
-		// This forced our cloud offering to define a "fake" TS map in the static configuration.
-		// Starting with this change, the TS service can be initialized with -Dhazelcast.tiered.store.force.enabled=true.
-		h.Spec.Properties["hazelcast.tiered.store.force.enabled"] = "true"
 	}
 	return cfg
 }
