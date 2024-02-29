@@ -9,6 +9,7 @@ env:
   CLOUD_KEY_SECRET_NAME: cloud-key-secret
   CHAOS_MESH_NAMESPACE: chaos-testing
   AWS_REGION: us-east-1
+  FIREWALL_RULE_NAME: node-port-range-resilience
 
 jobs:
   create-gke-cluster:
@@ -35,7 +36,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -123,7 +124,7 @@ jobs:
             HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.0"
+        uses: "google-github-actions/auth@v2.1.2"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -168,7 +169,7 @@ jobs:
             --namespace ${CHAOS_MESH_NAMESPACE} --from-literal=service_account="$GKE_SA_BASE64"
 
       - name: Run Resilience tests at GKE
-        run: make test-e2e E2E_TEST_SUITE="resilience" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=resilience
+        run: make test-e2e E2E_TEST_LABELS="resilience" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=resilience
 
       - name: Clean up after Tests
         if: always()
@@ -229,7 +230,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.0"
+        uses: "google-github-actions/auth@v2.1.2"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 

@@ -166,7 +166,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 				Name:      hazelcast.Name,
 				Namespace: hazelcast.Namespace,
 			}, h)
-		}, 2*Minute, interval).ShouldNot(Succeed())
+		}, 5*Minute, interval).ShouldNot(Succeed())
 	})
 }
 
@@ -1324,6 +1324,8 @@ func printDebugStateForContext() {
 	}
 	printKubectlCommand("KUBECTL GET CRS RELATED TO TEST OUTPUT YAML", "kubectl", "get", allCRs, "-o=yaml", "-l="+labelsString(), "-A")
 
+	GinkgoWriter.Println("## Manifests")
+	GinkgoWriter.Print(recordedManifests[hzLookupKey])
 }
 
 func printKubectlCommand(title, cmd string, args ...string) {

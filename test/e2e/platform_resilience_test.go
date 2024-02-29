@@ -4,6 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"text/template"
+	. "time"
+
 	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"gopkg.in/yaml.v3"
@@ -13,11 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/pointer"
-	"os"
-	"strconv"
-	"strings"
-	"text/template"
-	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,7 +32,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
+var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 	ctx := context.Background()
 
 	BeforeEach(func() {
@@ -83,7 +84,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should kill the pod randomly and preserve the data after restore", Tag(Slow|Any), Serial, func() {
+	It("should kill the pod randomly and preserve the data after restore", Tag(Any), Serial, func() {
 		setLabelAndCRName("hr-3")
 		duration := "30s"
 		mapSizeInMb := 500
@@ -165,7 +166,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		}
 	})
 
-	It("should check a split-brain protection in the Hazelcast cluster", Tag(Slow|Any), Serial, func() {
+	It("should check a split-brain protection in the Hazelcast cluster", Tag(Any), Serial, func() {
 		setLabelAndCRName("hr-4")
 		duration := "100s"
 		splitBrainConfName := "splitBrainProtectionRuleWithFourMembers"
@@ -284,7 +285,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		Expect(err).Should(MatchError(MatchRegexp("Split brain protection exception: " + splitBrainConfName + " has failed!")))
 	})
 
-	It("should have no data lose after zone outage", Tag(Slow|Any), Serial, func() {
+	It("should have no data lose after zone outage", Tag(Any), Serial, func() {
 		setLabelAndCRName("hr-2")
 
 		ctx := context.Background()
@@ -338,7 +339,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
-	It("should have no data lose after node outage", Tag(Slow|Any), Serial, func() {
+	It("should have no data lose after node outage", Tag(Any), Serial, func() {
 		setLabelAndCRName("hr-1")
 
 		ctx := context.Background()
@@ -393,7 +394,7 @@ var _ = Describe("Platform Resilience Tests", Group("resilience"), func() {
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
-	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Serial, Tag(Slow|Any), func() {
+	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Serial, Tag(Any), func() {
 		By("clone existing operator")
 		setLabelAndCRName("res-1")
 		hazelcastSource := hazelcastconfig.Default(hzSrcLookupKey, ee, labels)

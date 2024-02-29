@@ -364,7 +364,7 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 	if !reflect.DeepEqual(current.PVC, last.PVC) {
 		v.Forbidden(Path("spec", "persistence", "pvc"), "field cannot be updated")
 	}
-	if current.Restore != last.Restore {
+	if !reflect.DeepEqual(current.Restore, last.Restore) {
 		v.Forbidden(Path("spec", "persistence", "restore"), "field cannot be updated")
 	}
 }

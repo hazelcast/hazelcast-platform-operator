@@ -60,19 +60,6 @@ jobs:
             --cluster "${CLUSTER_NAME}" \
             --region=${AWS_REGION}
 
-      - name: Configure SecurityGroup of Nodes
-        run: |-
-          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=$AWS_REGION --name=$CLUSTER_NAME --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
-
-          echo "SecurityGroupID: $SECURITY_GROUP_ID"
-
-          aws ec2 authorize-security-group-ingress \
-            --region=${AWS_REGION} \
-            --group-id=${SECURITY_GROUP_ID} \
-            --cidr=0.0.0.0/0 \
-            --protocol=tcp \
-            --port=30000-32767
-
   grafana-setup:
     needs: [ prepare-env ]
     uses: ./.github/workflows/grafana-agent.yaml
@@ -168,6 +155,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get GH Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Configure SecurityGroup of Nodes
+        run: |-
+          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=${{ env.AWS_REGION }} --name=${{ needs.prepare-env.outputs.CLUSTER_NAME }} --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
+          echo "SecurityGroupID: $SECURITY_GROUP_ID"
+
+          aws ec2 authorize-security-group-ingress \
+            --region=${AWS_REGION} \
+            --group-id=${SECURITY_GROUP_ID} \
+            --cidr=${{ steps.ip.outputs.ipv4 }}/32 \
+            --protocol=tcp \
+            --port=30000-32767  
+
       - name: Get Secrets
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
@@ -217,7 +220,7 @@ jobs:
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
         run: |
-          make test-e2e E2E_TEST_SUITE="rolling_upgrade || rollout_restart || platform_persistence" GO_TEST_FLAGS=-ee=true NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
+          make test-e2e E2E_TEST_LABELS="rolling_upgrade || rollout_restart || platform_persistence" GO_TEST_FLAGS=-ee=true NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
 
       - name: Clean up after Tests
         if: always()

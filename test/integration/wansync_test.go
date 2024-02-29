@@ -30,7 +30,7 @@ var _ = Describe("WanReplication CR", func() {
 	})
 
 	Context("webhook validation", func() {
-		It("should not allow empty wanReplicationResourceName", Label("fast"), func() {
+		It("should not allow empty wanReplicationResourceName", func() {
 			wr := &hazelcastv1alpha1.WanSync{
 				ObjectMeta: randomObjectMeta(namespace),
 			}
@@ -40,7 +40,7 @@ var _ = Describe("WanReplication CR", func() {
 			)
 		})
 		When("updating unmodifiable fields", func() {
-			It("should not be allowed", Label("fast"), func() {
+			It("should not be allowed", func() {
 				spec := hazelcastv1alpha1.WanSyncSpec{
 					WanReplicationResourceName: "existing-wan-replication",
 				}

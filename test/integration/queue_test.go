@@ -29,7 +29,7 @@ var _ = Describe("Queue CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create successfully", Label("fast"), func() {
+		It("should create successfully", func() {
 			q := &hazelcastv1alpha1.Queue{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.QueueSpec{
@@ -53,7 +53,7 @@ var _ = Describe("Queue CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should fail to create", Label("fast"), func() {
+			It("should fail to create", func() {
 				q := &hazelcastv1alpha1.Queue{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
@@ -63,7 +63,7 @@ var _ = Describe("Queue CR", func() {
 		})
 	})
 	When("applying spec with backupCount and/or asyncBackupCount", func() {
-		It("should be successfully with both values under 6", Label("fast"), func() {
+		It("should be successfully with both values under 6", func() {
 			m := &hazelcastv1alpha1.Queue{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.QueueSpec{
@@ -77,7 +77,7 @@ var _ = Describe("Queue CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		})
 
-		It("should error with backupCount over 6", Label("fast"), func() {
+		It("should error with backupCount over 6", func() {
 			m := &hazelcastv1alpha1.Queue{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.QueueSpec{
@@ -90,7 +90,7 @@ var _ = Describe("Queue CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
 
-		It("should error with asyncBackupCount over 6", Label("fast"), func() {
+		It("should error with asyncBackupCount over 6", func() {
 			m := &hazelcastv1alpha1.Queue{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.QueueSpec{
@@ -103,7 +103,7 @@ var _ = Describe("Queue CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
 
-		It("should error with sum of two values over 6", Label("fast"), func() {
+		It("should error with sum of two values over 6", func() {
 			m := &hazelcastv1alpha1.Queue{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.QueueSpec{
