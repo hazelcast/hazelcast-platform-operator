@@ -17,21 +17,8 @@ var _ = Describe("Hazelcast Multi-Namespace", Label("multi_namespace"), func() {
 		if skipCleanup() {
 			return
 		}
-
-		if deployNamespace != "" {
-			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, deployNamespace, labels)
-		}
-		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
-
+		Cleanup(context.Background())
 		deletePVCs(hzLookupKey)
-
-		if deployNamespace != "" {
-			tmp := hzLookupKey
-			tmp.Namespace = deployNamespace
-			assertDoesNotExist(tmp, &hazelcastcomv1alpha1.Hazelcast{})
-		}
-		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
-
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 

@@ -90,6 +90,7 @@ func setupEnv() *rest.Config {
 	Expect(k8sClient).NotTo(BeNil())
 
 	k8sClient = NewManifestRecorder(k8sClient)
+	k8sClient = NewResourceTracker(k8sClient)
 
 	controllerManagerName.Namespace = hzNamespace
 	setCRNamespace(hzNamespace)
@@ -136,4 +137,39 @@ func (d *manifestRecorder) Create(ctx context.Context, obj client.Object, opts .
 	recordedManifests[hzLookupKey] = sink
 
 	return d.Client.Create(ctx, obj, opts...)
+}
+
+// resourceTracker keeps track of created resources
+type resourceTracker struct {
+	client.Client
+
+	resources []client.Object
+}
+
+func NewResourceTracker(client client.Client) *resourceTracker {
+	return &resourceTracker{Client: client}
+}
+
+func (t *resourceTracker) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	t.resources = append(t.resources, obj)
+	return t.Client.Create(ctx, obj, opts...)
+}
+
+func (t *resourceTracker) Cleanup(ctx context.Context) {
+	// trackedResources is a stack, we want to remove resources in reverse order
+	for i := len(t.resources) - 1; i >= 0; i-- {
+		err := t.Client.Delete(ctx, t.resources[i])
+		if err != nil {
+			GinkgoWriter.Printf("resourceTracker(%v) error: %v\n", t.resources[i].GetName(), err)
+		}
+	}
+	t.resources = nil
+}
+
+func Cleanup(ctx context.Context) {
+	if c, ok := k8sClient.(interface {
+		Cleanup(ctx context.Context)
+	}); ok {
+		c.Cleanup(ctx)
+	}
 }

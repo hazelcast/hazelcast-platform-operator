@@ -23,8 +23,7 @@ var _ = Describe("Management-Center", Group("mc"), func() {
 		if skipCleanup() {
 			return
 		}
-		DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, nil, hzNamespace, labels)
-		deletePVCs(mcLookupKey)
+		Cleanup(context.Background())
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
