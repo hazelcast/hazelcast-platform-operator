@@ -791,11 +791,6 @@ spec:
                 description: Hazelcast LocalDevice configuration
                 items:
                   properties:
-                    baseDir:
-                      description: BaseDir Specifies the directory where the Tiered-Store
-                        data will be stored. This directory will be created automatically
-                        if it does not exist.
-                      type: string
                     blockSize:
                       default: 4096
                       description: BlockSize defines Device block/sector size in bytes.
@@ -840,7 +835,6 @@ spec:
                       minimum: 1
                       type: integer
                   required:
-                  - baseDir
                   - name
                   type: object
                 type: array

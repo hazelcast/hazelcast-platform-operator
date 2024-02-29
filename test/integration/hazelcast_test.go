@@ -2255,8 +2255,7 @@ var _ = Describe("Hazelcast CR", func() {
 			}
 			spec.NativeMemory = nativeMemory
 			localDevices := []hazelcastv1alpha1.LocalDeviceConfig{{
-				Name:    "local-device-test",
-				BaseDir: "/baseDir/",
+				Name: "local-device-test",
 				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
@@ -2297,8 +2296,7 @@ var _ = Describe("Hazelcast CR", func() {
 				}
 
 				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
-					Name:    "local-device-test",
-					BaseDir: "/baseDir/",
+					Name: "local-device-test",
 				}}
 
 				hz := &hazelcastv1alpha1.Hazelcast{
@@ -2310,32 +2308,11 @@ var _ = Describe("Hazelcast CR", func() {
 					Should(MatchError(ContainSubstring("spec.localDevices.pvc: Required value: must be set when LocalDevice is defined")))
 			})
 
-			It("should fail with invalid baseDir", Label("fast"), func() {
-				if !ee {
-					Skip("This test will only run in EE configuration")
-				}
-				spec.NativeMemory = nativeMemory
-				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
-					Name:    "local-device-test",
-					BaseDir: "baseDir/",
-					PVC: &hazelcastv1alpha1.PvcConfiguration{
-						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-					},
-				}}
-
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       spec,
-				}
-
-				Expect(k8sClient.Create(context.Background(), hz)).
-					Should(MatchError(ContainSubstring("must be absolute path")))
-			})
-
 			It("should create with default values", Label("fast"), func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
+				spec.NativeMemory = nativeMemory
 				spec.LocalDevices = localDevices
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -2348,7 +2325,6 @@ var _ = Describe("Hazelcast CR", func() {
 				By("checking the Local Device configuration", func() {
 					localDevice := fetchedCR.Spec.LocalDevices[0]
 					Expect(localDevice.Name).Should(Equal("local-device-test"))
-					Expect(localDevice.BaseDir).Should(Equal("/baseDir/"))
 					Expect(localDevice.BlockSize).Should(Equal(pointer.Int32(4096)))
 					Expect(localDevice.ReadIOThreadCount).Should(Equal(pointer.Int32(4)))
 					Expect(localDevice.WriteIOThreadCount).Should(Equal(pointer.Int32(4)))
@@ -2357,7 +2333,7 @@ var _ = Describe("Hazelcast CR", func() {
 				})
 
 				expectedLocalDeviceConfig := config.LocalDevice{
-					BaseDir: "/baseDir/",
+					BaseDir: fmt.Sprintf("%s-%s", fetchedCR.Name, "local-device-test"),
 					Capacity: config.Size{
 						Value: 8589934592,
 						Unit:  "BYTES",
@@ -2386,7 +2362,6 @@ var _ = Describe("Hazelcast CR", func() {
 
 				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
 					Name:               "local-device-test",
-					BaseDir:            "/baseDir/",
 					BlockSize:          pointer.Int32(2048),
 					ReadIOThreadCount:  pointer.Int32(2),
 					WriteIOThreadCount: pointer.Int32(2),
@@ -2408,7 +2383,6 @@ var _ = Describe("Hazelcast CR", func() {
 				By("checking the Local Device configuration", func() {
 					localDevice := fetchedCR.Spec.LocalDevices[0]
 					Expect(localDevice.Name).Should(Equal("local-device-test"))
-					Expect(localDevice.BaseDir).Should(Equal("/baseDir/"))
 					Expect(localDevice.BlockSize).Should(Equal(pointer.Int32(2048)))
 					Expect(localDevice.ReadIOThreadCount).Should(Equal(pointer.Int32(2)))
 					Expect(localDevice.WriteIOThreadCount).Should(Equal(pointer.Int32(2)))

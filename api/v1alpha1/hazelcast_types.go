@@ -1094,11 +1094,6 @@ type LocalDeviceConfig struct {
 	// +required
 	Name string `json:"name"`
 
-	// BaseDir Specifies the directory where the Tiered-Store data will be stored.
-	// This directory will be created automatically if it does not exist.
-	// +required
-	BaseDir string `json:"baseDir"`
-
 	// BlockSize defines Device block/sector size in bytes.
 	// +kubebuilder:validation:Minimum=512
 	// +kubebuilder:default:=4096

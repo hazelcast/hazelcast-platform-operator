@@ -1218,8 +1218,14 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	if h.Spec.IsTieredStorageEnabled() {
 		cfg.LocalDevice = map[string]config.LocalDevice{}
 		for _, ld := range h.Spec.LocalDevices {
-			cfg.LocalDevice[ld.Name] = createLocalDeviceConfig(ld)
+			cfg.LocalDevice[ld.Name] = createLocalDeviceConfig(ld, h.GetName())
 		}
+		// Temp solution provided by core team.
+		// To enable dynamic TS maps, the startup condition enabling TS service had to be changed.
+		// Prior to this change, the service got initialized only if a TS map was present in the static configuration.
+		// This forced our cloud offering to define a "fake" TS map in the static configuration.
+		// Starting with this change, the TS service can be initialized with -Dhazelcast.tiered.store.force.enabled=true.
+		h.Spec.Properties["hazelcast.tiered.store.force.enabled"] = "true"
 	}
 	return cfg
 }
@@ -1874,9 +1880,9 @@ func createBatchPublisherConfig(wr hazelcastv1alpha1.WanReplication) config.Batc
 	return bpc
 }
 
-func createLocalDeviceConfig(ld hazelcastv1alpha1.LocalDeviceConfig) config.LocalDevice {
+func createLocalDeviceConfig(ld hazelcastv1alpha1.LocalDeviceConfig, hzResourceName string) config.LocalDevice {
 	return config.LocalDevice{
-		BaseDir: ld.BaseDir,
+		BaseDir: localDevicePath(hzResourceName, ld.Name),
 		Capacity: config.Size{
 			Value: ld.PVC.RequestStorage.Value(),
 			Unit:  "BYTES",
@@ -2529,7 +2535,7 @@ func localDeviceVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	for _, localDeviceConfig := range h.Spec.LocalDevices {
 		vms = append(vms, v1.VolumeMount{
 			Name:      localDeviceConfig.Name,
-			MountPath: localDeviceConfig.BaseDir,
+			MountPath: localDevicePath(h.Name, localDeviceConfig.Name),
 		})
 	}
 	return vms
@@ -2980,4 +2986,8 @@ func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorS
 	esInput.Capacity = es.Capacity
 	esInput.CapacityPolicy = es.CapacityPolicy
 	esInput.Durability = es.Durability
+}
+
+func localDevicePath(hzResourceName, localDeviceName string) string {
+	return fmt.Sprintf("%s-%s", hzResourceName, localDeviceName)
 }

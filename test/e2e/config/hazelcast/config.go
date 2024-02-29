@@ -901,8 +901,7 @@ var (
 				},
 				LocalDevices: []hazelcastcomv1alpha1.LocalDeviceConfig{
 					{
-						Name:    deviceName,
-						BaseDir: "/test/path",
+						Name: deviceName,
 						PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 						},
