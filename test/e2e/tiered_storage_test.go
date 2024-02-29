@@ -30,10 +30,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tier
 
 	})
 	Context("Tiered Store enabled for map", func() {
-		It("should create Tiered Store Configs with correct default values", Tag(Fast|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should create Tiered Store Configs with correct default values", Tag(EE|Kind|AnyCloud), func() {
 			setLabelAndCRName("hts-1")
 
 			By("creating the Hazelcast with Local Device config")
@@ -59,10 +56,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tier
 			Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastv1alpha1.EncodeInMemoryFormat[tsm.Spec.InMemoryFormat]))
 		})
 
-		It("should successfully fill the map with more than allocated memory", Tag(Slow|EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
+		It("should successfully fill the map with more than allocated memory", Tag(EE|Kind|AnyCloud), func() {
 			setLabelAndCRName("hts-2")
 
 			deviceName := "test-device"
