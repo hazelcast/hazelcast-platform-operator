@@ -35,7 +35,7 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 	hzConfig := &config.HazelcastWrapper{}
 	err := yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
 	if err != nil {
-		t.Errorf("Error unmarshalling Hazelcast config")
+		t.Errorf("Error on unmarshal Hazelcast config")
 	}
 	structureSpec := hazelcastv1alpha1.DataStructureSpec{
 		HazelcastResourceName: meta.Name,
@@ -175,12 +175,12 @@ func Test_hazelcastConfigMultipleCRs(t *testing.T) {
 			c := fakeK8sClient(objects...)
 			data, err := hazelcastConfig(context.Background(), c, h, logr.Discard())
 			if err != nil {
-				t.Errorf("Error retreiving Secret data")
+				t.Errorf("Error retrieving Secret data")
 			}
 			actualConfig := &config.HazelcastWrapper{}
 			err = yaml.Unmarshal(data, actualConfig)
 			if err != nil {
-				t.Errorf("Error unmarshaling actial Hazelcast config YAML")
+				t.Errorf("Error on unmarshal actual Hazelcast config YAML")
 			}
 			listKeys := test.listKeys(actualConfig.Hazelcast)
 			Expect(listKeys).Should(HaveLen(len(crNames)))
@@ -352,12 +352,12 @@ func Test_hazelcastConfig(t *testing.T) {
 			c := fakeK8sClient(h)
 			data, err := hazelcastConfig(context.Background(), c, h, logr.Discard())
 			if err != nil {
-				t.Errorf("Error retreiving Secret data")
+				t.Errorf("Error retrieving Secret data")
 			}
 			actualConfig := &config.HazelcastWrapper{}
 			err = yaml.Unmarshal(data, actualConfig)
 			if err != nil {
-				t.Errorf("Error unmarshaling actial Hazelcast config YAML")
+				t.Errorf("Error on unmarshal actual Hazelcast config YAML")
 			}
 
 			Expect(test.actualResult(actualConfig.Hazelcast)).Should(Equal(test.expectedResult))

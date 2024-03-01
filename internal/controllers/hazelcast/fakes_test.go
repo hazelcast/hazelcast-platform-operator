@@ -14,7 +14,6 @@ import (
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -28,10 +27,85 @@ import (
 
 func fakeK8sClient(initObjs ...client.Object) client.Client {
 	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
-		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{},
-			&hazelcastv1alpha1.Cache{}, &hazelcastv1alpha1.CacheList{}, &corev1.Secret{}).
+		Register(
+			&hazelcastv1alpha1.Hazelcast{},
+			&hazelcastv1alpha1.HazelcastList{},
+			&hazelcastv1alpha1.Map{},
+			&hazelcastv1alpha1.MapList{},
+			&hazelcastv1alpha1.Cache{},
+			&hazelcastv1alpha1.CacheList{},
+			&hazelcastv1alpha1.HotBackup{},
+			&hazelcastv1alpha1.HotBackupList{},
+			&hazelcastv1alpha1.CronHotBackup{},
+			&hazelcastv1alpha1.CronHotBackupList{},
+			&hazelcastv1alpha1.MultiMap{},
+			&hazelcastv1alpha1.MultiMapList{},
+			&hazelcastv1alpha1.ReplicatedMap{},
+			&hazelcastv1alpha1.ReplicatedMapList{},
+			&hazelcastv1alpha1.Topic{},
+			&hazelcastv1alpha1.TopicList{},
+			&hazelcastv1alpha1.Queue{},
+			&hazelcastv1alpha1.QueueList{},
+			&hazelcastv1alpha1.JetJob{},
+			&hazelcastv1alpha1.JetJobList{},
+			&hazelcastv1alpha1.JetJobSnapshot{},
+			&hazelcastv1alpha1.JetJobSnapshotList{},
+			&hazelcastv1alpha1.WanReplication{},
+			&hazelcastv1alpha1.WanReplicationList{},
+			&hazelcastv1alpha1.WanSync{},
+			&hazelcastv1alpha1.WanSyncList{},
+			&hazelcastv1alpha1.HazelcastEndpoint{},
+			&hazelcastv1alpha1.HazelcastEndpointList{}).
 		Build()
-	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+
+	corev1.AddToScheme(scheme)
+	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).
+		WithIndex(&hazelcastv1alpha1.Map{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			hzMap := o.(*hazelcastv1alpha1.Map)
+			return []string{hzMap.Spec.HazelcastResourceName}
+		})).
+		WithIndex(&hazelcastv1alpha1.Cache{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			cache := o.(*hazelcastv1alpha1.Cache)
+			return []string{cache.Spec.HazelcastResourceName}
+		})).
+		WithIndex(&hazelcastv1alpha1.HotBackup{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			backup := o.(*hazelcastv1alpha1.HotBackup)
+			return []string{backup.Spec.HazelcastResourceName}
+		})).
+		WithIndex(&hazelcastv1alpha1.CronHotBackup{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			cronBackup := o.(*hazelcastv1alpha1.CronHotBackup)
+			return []string{cronBackup.Spec.HotBackupTemplate.Spec.HazelcastResourceName}
+		})).
+		WithIndex(&hazelcastv1alpha1.MultiMap{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			mmap := o.(*hazelcastv1alpha1.MultiMap)
+			return []string{mmap.Spec.HazelcastResourceName}
+		})).
+		WithIndex(&hazelcastv1alpha1.ReplicatedMap{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			rmap := o.(*hazelcastv1alpha1.ReplicatedMap)
+			return []string{rmap.Spec.HazelcastResourceName}
+		})).
+		WithIndex(&hazelcastv1alpha1.Topic{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			topic := o.(*hazelcastv1alpha1.Topic)
+			return []string{topic.Spec.HazelcastResourceName}
+		})).
+		WithIndex(&hazelcastv1alpha1.Queue{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			queue := o.(*hazelcastv1alpha1.Queue)
+			return []string{queue.Spec.HazelcastResourceName}
+		})).
+		WithIndex(&hazelcastv1alpha1.JetJob{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			jj := o.(*hazelcastv1alpha1.JetJob)
+			return []string{jj.Spec.HazelcastResourceName}
+		})).
+		WithIndex(&hazelcastv1alpha1.WanReplication{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+			wr := o.(*hazelcastv1alpha1.WanReplication)
+			hzResources := []string{}
+			for k := range wr.Status.WanReplicationMapsStatus {
+				hzName, _ := splitWanMapKey(k)
+				hzResources = append(hzResources, hzName)
+			}
+			return hzResources
+		})).
+		Build()
 }
 
 func fakeHttpServer(url string, handler http.HandlerFunc) (*httptest.Server, error) {
