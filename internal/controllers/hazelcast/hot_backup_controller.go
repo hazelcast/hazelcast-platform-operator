@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	recoptions "github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/backup"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	localbackup "github.com/hazelcast/hazelcast-platform-operator/internal/local_backup"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
