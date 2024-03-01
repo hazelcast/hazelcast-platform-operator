@@ -58,7 +58,7 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 			&hazelcastv1alpha1.HazelcastEndpointList{}).
 		Build()
 
-	corev1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).
 		WithIndex(&hazelcastv1alpha1.Map{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
 			hzMap := o.(*hazelcastv1alpha1.Map)

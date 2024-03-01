@@ -299,7 +299,6 @@ func hotBackupReconcilerWithCRs(clientReg hzclient.ClientRegistry, serviceReg hz
 		clientReg,
 		serviceReg,
 	)
-
 }
 
 func defaultFakeClientAndService() (fakeHzClient, fakeHzStatusService, []cluster.MemberInfo) {
