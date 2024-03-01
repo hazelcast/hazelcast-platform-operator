@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -279,7 +280,13 @@ func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore
 
 func fail(t *testing.T) func(message string, callerSkip ...int) {
 	return func(message string, callerSkip ...int) {
-		t.Errorf(message)
+		if len(callerSkip) > 0 {
+			_, file, line, _ := runtime.Caller(callerSkip[0])
+			lineInfo := fmt.Sprintf("%s:%d", file, line)
+			t.Errorf("%s\n%s", lineInfo, message)
+		} else {
+			t.Error(message)
+		}
 	}
 }
 
@@ -292,7 +299,6 @@ func hotBackupReconcilerWithCRs(clientReg hzclient.ClientRegistry, serviceReg hz
 		clientReg,
 		serviceReg,
 	)
-
 }
 
 func defaultFakeClientAndService() (fakeHzClient, fakeHzStatusService, []cluster.MemberInfo) {
