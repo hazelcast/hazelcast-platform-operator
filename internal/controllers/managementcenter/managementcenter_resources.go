@@ -15,7 +15,6 @@ import (
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -214,7 +212,7 @@ func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
 	return l
 }
 
-func httpPort() v1.ServicePort {
+func httpPort() corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:       "http",
 		Protocol:   corev1.ProtocolTCP,
@@ -223,7 +221,7 @@ func httpPort() v1.ServicePort {
 	}
 }
 
-func httpsPort() v1.ServicePort {
+func httpsPort() corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:       "https",
 		Protocol:   corev1.ProtocolTCP,
@@ -241,22 +239,22 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 			Selector: &metav1.LabelSelector{
 				MatchLabels: selectorLabels(mc),
 			},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels(mc),
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
 						Name: n.ManagementCenter,
-						Ports: []v1.ContainerPort{{
+						Ports: []corev1.ContainerPort{{
 							ContainerPort: 8080,
 							Name:          n.MancenterPort,
-							Protocol:      v1.ProtocolTCP,
+							Protocol:      corev1.ProtocolTCP,
 						}},
 						VolumeMounts: []corev1.VolumeMount{},
-						LivenessProbe: &v1.Probe{
-							ProbeHandler: v1.ProbeHandler{
-								HTTPGet: &v1.HTTPGetAction{
+						LivenessProbe: &corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
 									Port:   intstr.FromInt(8081),
 									Scheme: corev1.URISchemeHTTP,
 								},
@@ -267,9 +265,9 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 							SuccessThreshold:    1,
 							FailureThreshold:    10,
 						},
-						ReadinessProbe: &v1.Probe{
-							ProbeHandler: v1.ProbeHandler{
-								TCPSocket: &v1.TCPSocketAction{
+						ReadinessProbe: &corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								TCPSocket: &corev1.TCPSocketAction{
 									Port: intstr.FromInt(8080),
 								},
 							},
@@ -296,14 +294,14 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 		if mc.Spec.Persistence.ExistingVolumeClaimName == "" {
 			sts.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{persistentVolumeClaim(mc)}
 		} else {
-			sts.Spec.Template.Spec.Volumes = []v1.Volume{existingVolumeClaim(mc.Spec.Persistence.ExistingVolumeClaimName)}
+			sts.Spec.Template.Spec.Volumes = []corev1.Volume{existingVolumeClaim(mc.Spec.Persistence.ExistingVolumeClaimName)}
 		}
 	} else {
 		// Add emptyDir volume to make /data writable
-		sts.Spec.Template.Spec.Volumes = []v1.Volume{emptyDirVolume(mc.Spec.Persistence.ExistingVolumeClaimName)}
+		sts.Spec.Template.Spec.Volumes = []corev1.Volume{emptyDirVolume(mc.Spec.Persistence.ExistingVolumeClaimName)}
 	}
 
-	sts.Spec.Template.Spec.Containers[0].VolumeMounts = []v1.VolumeMount{persistentVolumeMount(), tmpDirMount(), configMount()}
+	sts.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{persistentVolumeMount(), tmpDirMount(), configMount()}
 
 	// Add tmpDir to make /tmp writable
 	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, tmpDir())
@@ -378,15 +376,15 @@ func (r *ManagementCenterReconciler) reconcileSecret(ctx context.Context, mc *ha
 	return err
 }
 
-func podSecurityContext() *v1.PodSecurityContext {
+func podSecurityContext() *corev1.PodSecurityContext {
 	// Openshift assigns user and fsgroup ids itself
 	if platform.GetType() == platform.OpenShift {
-		return &v1.PodSecurityContext{
+		return &corev1.PodSecurityContext{
 			RunAsNonRoot: pointer.Bool(true),
 		}
 	}
 
-	return &v1.PodSecurityContext{
+	return &corev1.PodSecurityContext{
 		RunAsNonRoot: pointer.Bool(true),
 		// Do not have to give User and FSGroup IDs because MC image's default user is 1001 so kubelet
 		// does not complain when RunAsNonRoot is true
@@ -396,14 +394,14 @@ func podSecurityContext() *v1.PodSecurityContext {
 	}
 }
 
-func containerSecurityContext() *v1.SecurityContext {
-	sec := &v1.SecurityContext{
+func containerSecurityContext() *corev1.SecurityContext {
+	sec := &corev1.SecurityContext{
 		RunAsNonRoot:             pointer.Bool(true),
 		Privileged:               pointer.Bool(false),
 		ReadOnlyRootFilesystem:   pointer.Bool(true),
 		AllowPrivilegeEscalation: pointer.Bool(false),
-		Capabilities: &v1.Capabilities{
-			Drop: []v1.Capability{"ALL"},
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{"ALL"},
 		},
 	}
 
@@ -444,40 +442,40 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 	}
 }
 
-func existingVolumeClaim(claimName string) v1.Volume {
-	return v1.Volume{
+func existingVolumeClaim(claimName string) corev1.Volume {
+	return corev1.Volume{
 		Name: n.MancenterStorageName,
-		VolumeSource: v1.VolumeSource{
-			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 				ClaimName: claimName,
 			},
 		},
 	}
 }
 
-func emptyDirVolume(claimName string) v1.Volume {
-	return v1.Volume{
+func emptyDirVolume(claimName string) corev1.Volume {
+	return corev1.Volume{
 		Name: n.MancenterStorageName,
-		VolumeSource: v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
 }
 
-func tmpDir() v1.Volume {
-	return v1.Volume{
+func tmpDir() corev1.Volume {
+	return corev1.Volume{
 		Name: n.TmpDirVolName,
-		VolumeSource: v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
 }
 
-func configVolume(mc *hazelcastv1alpha1.ManagementCenter) v1.Volume {
-	return v1.Volume{
+func configVolume(mc *hazelcastv1alpha1.ManagementCenter) corev1.Volume {
+	return corev1.Volume{
 		Name: "config",
-		VolumeSource: v1.VolumeSource{
-			Secret: &v1.SecretVolumeSource{
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
 				SecretName:  mc.Name,
 				DefaultMode: pointer.Int32(420),
 			},
@@ -492,8 +490,8 @@ func configMount() corev1.VolumeMount {
 	}
 }
 
-func env(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.Client, logger logr.Logger) []v1.EnvVar {
-	envs := []v1.EnvVar{
+func env(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.Client, logger logr.Logger) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
 		{
 			Name:  mcInitCmd,
 			Value: buildMcInitCmd(ctx, mc, c, logger),
@@ -502,11 +500,11 @@ func env(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.C
 
 	if mc.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
-			v1.EnvVar{
+			corev1.EnvVar{
 				Name: mcLicenseKey,
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
 							Name: mc.Spec.GetLicenseKeySecretName(),
 						},
 						Key: n.LicenseDataKey,
@@ -519,7 +517,7 @@ func env(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.C
 	// This env must be set after MC_LICENSE_KEY env var since it might have a reference
 	// to MC_LICENSE_KEY (e.g. -Dhazelcast.mc.license=$(MC_LICENSE_KEY)).
 	envs = append(envs,
-		v1.EnvVar{
+		corev1.EnvVar{
 			Name:  javaOpts,
 			Value: javaOPTS(mc),
 		},
@@ -541,7 +539,7 @@ func buildMcInitCmd(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter,
 
 func ldapConfigure(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, c client.Client, logger logr.Logger) []string {
 	ldap := mc.Spec.SecurityProviders.LDAP
-	s := &v1.Secret{}
+	s := &corev1.Secret{}
 	err := c.Get(ctx, types.NamespacedName{Name: ldap.CredentialsSecretName, Namespace: mc.Namespace}, s)
 	if err != nil {
 		logger.Error(err, "unable to get the secret with credentials, LDAP config will be ignored")
@@ -618,7 +616,7 @@ func hazelcastKeystore(ctx context.Context, c client.Client, mc *hazelcastv1alph
 }
 
 func loadTLSKeyPair(ctx context.Context, c client.Client, mc *hazelcastv1alpha1.ManagementCenter, secretName string) (cert []byte, key []byte, err error) {
-	var s v1.Secret
+	var s corev1.Secret
 	err = c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: mc.Namespace}, &s)
 	if err != nil {
 		return
@@ -701,10 +699,10 @@ type SSL struct {
 	Properties       map[string]string `yaml:"properties"`
 }
 
-func NewSSLProperties(path string, auth v1alpha1.MutualAuthentication) map[string]string {
+func NewSSLProperties(path string, auth hazelcastv1alpha1.MutualAuthentication) map[string]string {
 	const pass = "hazelcast"
 	switch auth {
-	case v1alpha1.MutualAuthenticationRequired:
+	case hazelcastv1alpha1.MutualAuthenticationRequired:
 		return map[string]string{
 			"protocol":           "TLSv1.2",
 			"keyStore":           path,

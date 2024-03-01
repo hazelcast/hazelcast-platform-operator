@@ -22,7 +22,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )

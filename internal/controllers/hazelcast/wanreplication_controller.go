@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	recoptions "github.com/hazelcast/hazelcast-platform-operator/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/dialer"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
