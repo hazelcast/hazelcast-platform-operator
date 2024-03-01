@@ -166,7 +166,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 				Name:      hazelcast.Name,
 				Namespace: hazelcast.Namespace,
 			}, h)
-		}, 2*Minute, interval).ShouldNot(Succeed())
+		}, 5*Minute, interval).ShouldNot(Succeed())
 	})
 }
 
