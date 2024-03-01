@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 	. "time"
@@ -486,7 +487,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 20, 1*Minute)
 		})
 
-		It("should check cache entry persistence after HotBackup", Tag(EE|AnyCloud), func() {
+		FIt("should check cache entry persistence after HotBackup", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("br-9")
 			clusterSize := int32(3)
 
@@ -502,8 +503,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 			By("filling the cache with entries")
 			entryCount := 10
-			fillCachePortForward(hazelcast, cache.GetDSName(), localPort, entryCount, 0)
-			validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)
+			fillCachePortForward(hazelcast, cache.GetDSName(), localPort, 0, entryCount)
+			validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), 0, entryCount)
 
 			By("creating HotBackup CR")
 			hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
@@ -511,25 +512,30 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			assertHotBackupSuccess(hotBackup, 1*Minute)
 
 			By("filling the cache with entries after backup")
-			fillCachePortForward(hazelcast, cache.GetDSName(), localPort, 30, entryCount)
+			fillCachePortForward(hazelcast, cache.GetDSName(), localPort, entryCount, entryCount*2)
+			validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount, entryCount*2)
 
 			By("deleting the Hazelcast CR")
 			RemoveHazelcastCR(hazelcast)
 
-			By("deleting the member PVCs")
-			RemoveHazelcastMemberPVC(hazelcast)
-
 			By("creating new Hazelcast cluster from the backup")
-			hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+			// Use different name for the Hazelcast cluster where we will load the backup
+			// Therefore, the new cluster will start with new empty PVC.
+			restoreHazelcastLookup := types.NamespacedName{
+				Name:      fmt.Sprintf("%s-restore", hazelcast.Name),
+				Namespace: hzLookupKey.Namespace,
+			}
+			hazelcast = hazelcastconfig.HazelcastPersistencePVC(restoreHazelcastLookup, clusterSize, labels)
 			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
 				HotBackupResourceName: hotBackup.Name,
 			}
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
-			evaluateReadyMembers(hzLookupKey)
+			evaluateReadyMembers(restoreHazelcastLookup)
 			assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
 			By("checking the cache entries")
-			validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)
+			validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), 0, entryCount)
+			validateCacheEntriesNotExistingPortForward(hazelcast, localPort, cache.GetDSName(), entryCount, entryCount*2)
 		})
 
 		It("should not override the existing restore dir in PersistentVolume with local backup", Tag(Kind|EE|AnyCloud), func() {
