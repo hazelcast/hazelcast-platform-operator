@@ -166,26 +166,38 @@ var (
 		}
 	}
 
-	HazelcastCPSubsystem = func(lk types.NamespacedName, clusterSize int32, labels map[string]string) *hazelcastcomv1alpha1.Hazelcast {
-		return &hazelcastcomv1alpha1.Hazelcast{
-			ObjectMeta: v1.ObjectMeta{
-				Name:      lk.Name,
-				Namespace: lk.Namespace,
-				Labels:    labels,
-			},
-			Spec: hazelcastcomv1alpha1.HazelcastSpec{
-				ClusterSize:          pointer.Int32(clusterSize),
-				Repository:           repo(true),
-				Version:              "5.4.0-SNAPSHOT",
-				LicenseKeySecretName: licenseKey(true),
-				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
-				CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
-					MemberCount: clusterSize,
-					PVC: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
-						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
-					},
+	HazelcastCPSubsystem = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
+		return hazelcastcomv1alpha1.HazelcastSpec{
+			ClusterSize:          pointer.Int32(clusterSize),
+			Repository:           repo(true),
+			Version:              "5.4.0-SNAPSHOT",
+			LicenseKeySecretName: licenseKey(true),
+			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
+				MemberCount: clusterSize,
+				PVC: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 				},
+			},
+		}
+	}
+
+	HazelcastCPSubsystemPersistence = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
+		return hazelcastcomv1alpha1.HazelcastSpec{
+			ClusterSize:          pointer.Int32(clusterSize),
+			Repository:           repo(true),
+			Version:              "5.4.0-SNAPSHOT",
+			LicenseKeySecretName: licenseKey(true),
+			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+			Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
+				Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+				},
+			},
+			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
+				MemberCount: clusterSize,
 			},
 		}
 	}

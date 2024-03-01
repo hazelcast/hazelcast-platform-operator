@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -29,13 +30,19 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should store data into CP Map", Tag(EE|AnyCloud), func() {
+	DescribeTable("should store data into CP Map", Tag(EE|AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
 		setLabelAndCRName("cp-1")
-		clusterSize := int32(3)
 		ctx := context.Background()
 		cpMapName := "my-map"
 
-		hazelcast := hazelcastconfig.HazelcastCPSubsystem(hzLookupKey, clusterSize, labels)
+		hazelcast := &hazelcastcomv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      hzLookupKey.Name,
+				Namespace: hzLookupKey.Namespace,
+				Labels:    labels,
+			},
+			Spec: hazelcastSpec,
+		}
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -61,15 +68,24 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		response, err := cli.DecodeData(codec.DecodeCPMapGetResponse(r))
 		Expect(err).To(BeNil())
 		Expect(response).To(Equal("value"))
-	})
+	},
+		Entry("with CP Subsystem PVC", hazelcastconfig.HazelcastCPSubsystem(3)),
+		Entry("with Persistence PVC", hazelcastconfig.HazelcastCPSubsystemPersistence(3)),
+	)
 
-	It("should restore the data from CP Persistence", Tag(EE|AnyCloud), func() {
+	DescribeTable("should store data into CP Map", Tag(EE|AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
 		setLabelAndCRName("cp-2")
-		clusterSize := int32(3)
 		ctx := context.Background()
 		cpMapName := "my-map"
 
-		hazelcast := hazelcastconfig.HazelcastCPSubsystem(hzLookupKey, clusterSize, labels)
+		hazelcast := &hazelcastcomv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      hzLookupKey.Name,
+				Namespace: hzLookupKey.Namespace,
+				Labels:    labels,
+			},
+			Spec: hazelcastSpec,
+		}
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -109,5 +125,8 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		response, err := cli.DecodeData(codec.DecodeCPMapGetResponse(r))
 		Expect(err).To(BeNil())
 		Expect(response).To(Equal("value"))
-	})
+	},
+		Entry("with CP Subsystem PVC", hazelcastconfig.HazelcastCPSubsystem(3)),
+		Entry("with Persistence PVC", hazelcastconfig.HazelcastCPSubsystemPersistence(3)),
+	)
 })
