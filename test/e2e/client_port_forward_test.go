@@ -143,20 +143,6 @@ func validateCacheEntriesPortForward(h *hazelcastcomv1alpha1.Hazelcast, localPor
 	}
 }
 
-func validateCacheEntriesNotExistingPortForward(h *hazelcastcomv1alpha1.Hazelcast, localPort, cacheName string, startIndex int, lastIndex int) {
-	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
-	defer closeChannel(stopChan)
-	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
-	cli := hzClient.NewClientInternal(cl)
-	for i := startIndex; i < lastIndex; i++ {
-		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
-		Expect(err).To(BeNil())
-		getRequest := codec.EncodeCacheGetRequest("/hz/"+cacheName, key, nil)
-		_, err = cli.InvokeOnKey(context.Background(), getRequest, key, nil)
-		Expect(err).To(HaveOccurred())
-	}
-}
-
 func assertClusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string, state codecTypes.ClusterState) {
 	By("waiting for Cluster state", func() {
 		Eventually(func() codecTypes.ClusterState {
