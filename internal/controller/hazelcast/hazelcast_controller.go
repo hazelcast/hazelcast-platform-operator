@@ -315,7 +315,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	)
 }
 
-func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request {
+func (r *HazelcastReconciler) podUpdates(_ context.Context, pod client.Object) []reconcile.Request {
 	p, ok := pod.(*corev1.Pod)
 	if !ok {
 		return []reconcile.Request{}
@@ -336,7 +336,7 @@ func (r *HazelcastReconciler) podUpdates(pod client.Object) []reconcile.Request 
 	}
 }
 
-func (r *HazelcastReconciler) mapUpdates(m client.Object) []reconcile.Request {
+func (r *HazelcastReconciler) mapUpdates(_ context.Context, m client.Object) []reconcile.Request {
 	mp, ok := m.(*hazelcastv1alpha1.Map)
 	if !ok {
 		return []reconcile.Request{}
@@ -456,9 +456,9 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&corev1.ServiceAccount{}).
-		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
-		Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).
-		Watches(&source.Kind{Type: &hazelcastv1alpha1.Map{}}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates))
+		WatchesRawSource(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
+		Watches(&corev1.Pod{}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).
+		Watches(&hazelcastv1alpha1.Map{}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates))
 
 	if util.NodeDiscoveryEnabled() {
 		controller.
