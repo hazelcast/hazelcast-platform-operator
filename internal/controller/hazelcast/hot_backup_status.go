@@ -5,7 +5,7 @@ import (
 	"time"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,7 +43,7 @@ func (w withHotBackupBackupUUIDs) HotBackupStatusApply(ms *hazelcastv1alpha1.Hot
 	ms.BackupUUIDs = w
 }
 
-func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.NamespacedName, recOption controllers.ReconcilerOption, options ...HotBackupStatusApplier) (ctrl.Result, error) {
+func (r *HotBackupReconciler) updateStatus(ctx context.Context, name types.NamespacedName, recOption controller.ReconcilerOption, options ...HotBackupStatusApplier) (ctrl.Result, error) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Always fetch the new version of the resource
