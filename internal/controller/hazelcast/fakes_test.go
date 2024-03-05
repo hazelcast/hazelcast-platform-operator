@@ -59,7 +59,24 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 		Build()
 
 	_ = corev1.AddToScheme(scheme)
-	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).
+	return fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(initObjs...).
+		WithStatusSubresource( // https://github.com/kubernetes-sigs/controller-runtime/issues/2362
+			&hazelcastv1alpha1.Hazelcast{},
+			&hazelcastv1alpha1.Map{},
+			&hazelcastv1alpha1.Cache{},
+			&hazelcastv1alpha1.HotBackup{},
+			&hazelcastv1alpha1.CronHotBackup{},
+			&hazelcastv1alpha1.MultiMap{},
+			&hazelcastv1alpha1.ReplicatedMap{},
+			&hazelcastv1alpha1.Topic{},
+			&hazelcastv1alpha1.Queue{},
+			&hazelcastv1alpha1.JetJob{},
+			&hazelcastv1alpha1.JetJobSnapshot{},
+			&hazelcastv1alpha1.WanReplication{},
+			&hazelcastv1alpha1.WanSync{},
+			&hazelcastv1alpha1.HazelcastEndpoint{}).
 		WithIndex(&hazelcastv1alpha1.Map{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
 			hzMap := o.(*hazelcastv1alpha1.Map)
 			return []string{hzMap.Spec.HazelcastResourceName}
