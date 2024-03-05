@@ -1110,6 +1110,18 @@ func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *c
 	return nil
 }
 
+func getMapConfigFromMemberConfig(memberConfigXML string, mapName string) *codecTypes.AddMapConfigInput {
+	var maps codecTypes.MapConfigs
+	err := xml.Unmarshal([]byte(memberConfigXML), &maps)
+	Expect(err).To(BeNil())
+	for _, m := range maps.Maps {
+		if m.Name == mapName {
+			return &m
+		}
+	}
+	return nil
+}
+
 func DnsLookupAddressMatched(ctx context.Context, host, addr string) (bool, error) {
 	IPs, err := net.DefaultResolver.LookupHost(ctx, host)
 	if err != nil {

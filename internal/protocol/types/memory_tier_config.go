@@ -1,5 +1,5 @@
 package types
 
 type MemoryTierConfig struct {
-	Capacity Capacity
+	Capacity Capacity `xml:"capacity"`
 }

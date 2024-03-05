@@ -6,19 +6,23 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
+type MapConfigs struct {
+	Maps []AddMapConfigInput `xml:"map"`
+}
+
 type AddMapConfigInput struct {
-	Name              string
-	BackupCount       int32
-	AsyncBackupCount  int32
-	TimeToLiveSeconds int32
-	MaxIdleSeconds    int32
+	Name              string `xml:"name,attr"`
+	BackupCount       int32  `xml:"backup-count"`
+	AsyncBackupCount  int32  `xml:"async-backup-count"`
+	TimeToLiveSeconds int32  `xml:"time-to-live-seconds"`
+	MaxIdleSeconds    int32  `xml:"max-idle-seconds"`
 	// nullable
 	EvictionConfig          EvictionConfigHolder
 	ReadBackupData          bool
 	CacheDeserializedValues string
 	MergePolicy             string
 	MergeBatchSize          int32
-	InMemoryFormat          string
+	InMemoryFormat          string `xml:"in-memory-format"`
 	// nullable
 	ListenerConfigs []ListenerConfigHolder
 	// nullable
@@ -50,7 +54,7 @@ type AddMapConfigInput struct {
 	MerkleTreeConfig      MerkleTreeConfig
 	MetadataPolicy        int32
 	PerEntryStatsEnabled  bool
-	TieredStoreConfig     TieredStoreConfig
+	TieredStoreConfig     TieredStoreConfig `xml:"tiered-store"`
 	DataPersistenceConfig DataPersistenceConfig
 }
 
@@ -88,8 +92,8 @@ func DefaultAddMapConfigInput() *AddMapConfigInput {
 			Enabled: false,
 			MemoryTierConfig: MemoryTierConfig{
 				Capacity: Capacity{ // These values are the default values taken from Hazelcast doc.
-					Value: int64(256), // 256 MB
-					Unit:  int32(2),   // 2 refers MB.
+					Value: int64(256),  // 256 MB
+					Unit:  "MEGABYTES", // 2 refers MB.
 				},
 			},
 			DiskTierConfig: DiskTierConfig{

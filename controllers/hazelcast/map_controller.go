@@ -346,7 +346,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 		mapInput.TieredStoreConfig.Enabled = true
 		mapInput.TieredStoreConfig.MemoryTierConfig.Capacity = codecTypes.Capacity{
 			Value: ms.TieredStore.MemoryRequestStorage.Value(),
-			Unit:  0, // 0 refers BYTES
+			Unit:  "BYTES",
 		}
 		mapInput.TieredStoreConfig.DiskTierConfig.Enabled = true
 		mapInput.TieredStoreConfig.DiskTierConfig.DeviceName = ms.TieredStore.DiskDeviceName

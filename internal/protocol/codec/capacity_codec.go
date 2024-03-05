@@ -21,6 +21,21 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
+var (
+	EncodeUnit = map[string]int32{
+		"BYTES":     0,
+		"KILOBYTES": 1,
+		"MEGABYTES": 2,
+		"GIGABYTES": 3,
+	}
+	DecodeUnit = map[int32]string{
+		0: "BYTES",
+		1: "KILOBYTES",
+		2: "MEGABYTES",
+		3: "GIGABYTES",
+	}
+)
+
 const (
 	CapacityCodecValueFieldOffset     = 0
 	CapacityCodecUnitFieldOffset      = CapacityCodecValueFieldOffset + proto.LongSizeInBytes
@@ -31,7 +46,7 @@ func EncodeCapacity(clientMessage *proto.ClientMessage, capacity types.Capacity)
 	clientMessage.AddFrame(proto.BeginFrame.Copy())
 	initialFrame := proto.NewFrame(make([]byte, CapacityCodecUnitInitialFrameSize))
 	EncodeLong(initialFrame.Content, CapacityCodecValueFieldOffset, int64(capacity.Value))
-	EncodeInt(initialFrame.Content, CapacityCodecUnitFieldOffset, int32(capacity.Unit))
+	EncodeInt(initialFrame.Content, CapacityCodecUnitFieldOffset, EncodeUnit[capacity.Unit])
 	clientMessage.AddFrame(initialFrame)
 
 	clientMessage.AddFrame(proto.EndFrame.Copy())
@@ -47,6 +62,6 @@ func DecodeCapacity(frameIterator *proto.ForwardFrameIterator) types.Capacity {
 
 	return types.Capacity{
 		Value: value,
-		Unit:  unit,
+		Unit:  DecodeUnit[unit],
 	}
 }

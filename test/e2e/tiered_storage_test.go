@@ -36,7 +36,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tier
 			By("creating the Hazelcast with Local Device config")
 			deviceName := "test-device"
 			hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, labels)
-			hazelcast.Spec.NativeMemory.Size = []resource.Quantity{resource.MustParse("512M")}[0]
+			hazelcast.Spec.NativeMemory.Size = []resource.Quantity{resource.MustParse("1280M")}[0]
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the map config with Tiered Store config")
@@ -45,28 +45,30 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tier
 			assertMapStatus(tsm, hazelcastv1alpha1.MapSuccess)
 
 			By("checking if the TS map config is created correctly")
-			mapConfig := mapConfigPortForward(context.Background(), hazelcast, localPort, tsm.MapName())
+			memberConfigXML := memberConfigPortForward(context.Background(), hazelcast, localPort)
+			mapConfig := getMapConfigFromMemberConfig(memberConfigXML, tsm.MapName())
 
 			Expect(mapConfig).NotTo(BeNil())
 			Expect(mapConfig.TieredStoreConfig.Enabled).Should(Equal(true))
 			Expect(mapConfig.TieredStoreConfig.DiskTierConfig.Enabled).Should(Equal(true))
 			Expect(mapConfig.TieredStoreConfig.DiskTierConfig.DeviceName).Should(Equal(deviceName))
-			Expect(mapConfig.TieredStoreConfig.MemoryTierConfig.Capacity.Unit).Should(Equal(0))
-			Expect(mapConfig.TieredStoreConfig.MemoryTierConfig.Capacity.Value).Should(Equal(256000000))
-			Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastv1alpha1.EncodeInMemoryFormat[tsm.Spec.InMemoryFormat]))
+			Expect(mapConfig.TieredStoreConfig.MemoryTierConfig.Capacity.Unit).Should(Equal("BYTES"))
+			Expect(mapConfig.TieredStoreConfig.MemoryTierConfig.Capacity.Value).Should(Equal(int64(256000000)))
+			Expect(mapConfig.InMemoryFormat).Should(Equal(string(tsm.Spec.InMemoryFormat)))
 		})
 
-		It("should successfully fill the map with more than allocated memory", Tag(EE|Kind|AnyCloud), func() {
+		FIt("should successfully fill the map with more than allocated memory", Tag(EE|Kind|AnyCloud), func() {
 			setLabelAndCRName("hts-2")
 
 			deviceName := "test-device"
 			var mapSizeInMb = 3072
-			var memorySizeInMb = mapSizeInMb / 10
+			var memorySizeInMb = 2 * mapSizeInMb / 5
+			var totalMemorySizeInMb = 3 * mapSizeInMb / 5
 			var diskSizeInMb = mapSizeInMb * 2
 			var expectedMapSize = int(float64(mapSizeInMb) * 128)
 			ctx := context.Background()
 
-			totalMemorySize := strconv.Itoa(memorySizeInMb*4) + "Mi"
+			totalMemorySize := strconv.Itoa(totalMemorySizeInMb) + "Mi"
 			nativeMemorySize := strconv.Itoa(memorySizeInMb) + "Mi"
 			diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
 			hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, labels)

@@ -3044,5 +3044,5 @@ func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorS
 }
 
 func localDevicePath(hzResourceName, localDeviceName string) string {
-	return fmt.Sprintf("%s-%s", hzResourceName, localDeviceName)
+	return fmt.Sprintf("/%s-%s/", hzResourceName, localDeviceName)
 }

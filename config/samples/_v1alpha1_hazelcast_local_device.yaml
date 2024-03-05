@@ -8,10 +8,9 @@ spec:
   licenseKeySecretName: hazelcast-license-key
   localDevices:
     - name: device1
-      baseDir: "/test/path"
       pvc:
-        accessModes: ["ReadWriteMany"]
+        accessModes: ["ReadWriteOnce"]
         requestStorage: 8Gi
   nativeMemory:
     allocatorType: POOLED
-    size: 256M
+    size: 1280M
