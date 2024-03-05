@@ -60,7 +60,7 @@ jobs:
             --region=${AWS_REGION}
 
   grafana-setup:
-    needs: [ prepare-env ]
+    needs: [prepare-env]
     uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
@@ -168,7 +168,7 @@ jobs:
             --group-id=${SECURITY_GROUP_ID} \
             --cidr=${{ steps.ip.outputs.ipv4 }}/32 \
             --protocol=tcp \
-            --port=30000-32767   
+            --port=30000-32767
 
       - name: Get Secrets
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
