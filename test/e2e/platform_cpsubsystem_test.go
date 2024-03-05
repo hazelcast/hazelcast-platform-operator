@@ -30,7 +30,7 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	DescribeTable("should store data into CP Map", Tag(EE|AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
+	DescribeTable("should store data in CP Map", Tag(EE|AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
 		setLabelAndCRName("cp-1")
 		ctx := context.Background()
 		cpMapName := "my-map"
@@ -74,7 +74,7 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		Entry("with Persistence PVC", hazelcastconfig.HazelcastCPSubsystemPersistence(3)),
 	)
 
-	DescribeTable("should store data into CP Map", Tag(EE|AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
+	DescribeTable("should store data in CP Map with cluster pause", Tag(EE|AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
 		setLabelAndCRName("cp-2")
 		ctx := context.Background()
 		cpMapName := "my-map"
