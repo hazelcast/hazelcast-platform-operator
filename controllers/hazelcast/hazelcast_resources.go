@@ -1960,13 +1960,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
-	if h.Spec.Persistence.IsEnabled() {
-		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
-	}
-
-	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
-		sts.Spec.VolumeClaimTemplates = cpPersistentVolumeClaim(h)
-	}
+	sts.Spec.VolumeClaimTemplates = persistentVolumeClaims(h)
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
@@ -2019,9 +2013,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
-func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
-	return []v1.PersistentVolumeClaim{
-		{
+func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
+	var pvcs []v1.PersistentVolumeClaim
+	if h.Spec.Persistence.IsEnabled() {
+		pvcs = append(pvcs, v1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        n.PersistenceVolumeName,
 				Namespace:   h.Namespace,
@@ -2037,13 +2032,10 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolume
 				},
 				StorageClassName: h.Spec.Persistence.Pvc.StorageClassName,
 			},
-		},
+		})
 	}
-}
-
-func cpPersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
-	return []v1.PersistentVolumeClaim{
-		{
+	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
+		pvcs = append(pvcs, v1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        n.CPPersistenceVolumeName,
 				Namespace:   h.Namespace,
@@ -2059,8 +2051,9 @@ func cpPersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolu
 				},
 				StorageClassName: h.Spec.CPSubsystem.PVC.StorageClassName,
 			},
-		},
+		})
 	}
+	return pvcs
 }
 
 func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
