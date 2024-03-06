@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'helm-charts/**'
+      - "helm-charts/**"
     branches:
       - main
-      -
+
 env:
   AWS_REGION: us-east-1
 
