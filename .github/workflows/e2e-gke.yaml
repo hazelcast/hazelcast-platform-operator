@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       k8s-cluster-version:
-        description: "kuberentes cluster version"
+        description: "kubernetes cluster version"
         required: false
         type: string
         default: "1.29"
