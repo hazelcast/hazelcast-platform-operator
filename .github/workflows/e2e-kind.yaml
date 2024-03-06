@@ -65,9 +65,11 @@ jobs:
           build-args: |
             version=${{github.sha}}
             pardotID=dockerhub
-            file: Dockerfile
-            push: true
-            tags: ${{ steps.get-image-tag.outputs.IMG }}
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.get-image-tag.outputs.IMG }}
+          cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+          cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
 
   kind-e2e-tests:
     name: Run E2E tests
