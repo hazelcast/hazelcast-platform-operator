@@ -17,10 +17,6 @@ env:
   GAR_REPO: hazelcast-platform-operator
   AWS_REGION: us-east-1
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   get-image:
     name: Get Image
