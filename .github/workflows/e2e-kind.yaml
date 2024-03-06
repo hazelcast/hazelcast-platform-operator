@@ -81,7 +81,7 @@ jobs:
         edition: ["os", "ee"]
     env:
       NAMESPACE: kind-test-operator-${{ matrix.edition }}
-      RELEASE_NAME: compatibility-${{ inputs.k8s-cluster-version }}-${{ matrix.edition }}
+      RELEASE_NAME: kind-${{ inputs.k8s-cluster-version }}-${{ matrix.edition }}
       CLUSTER_NAME: kind
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
@@ -243,6 +243,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report-compatibility
+          name: test-report-kind
           path: allure-results/pr/
           retention-days: 5
