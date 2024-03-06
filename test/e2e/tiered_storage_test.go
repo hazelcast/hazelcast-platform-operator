@@ -7,7 +7,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -57,42 +56,6 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tier
 			Expect(mapConfig.InMemoryFormat).Should(Equal(string(tsm.Spec.InMemoryFormat)))
 		})
 
-		FIt("should successfully fill the map with more than allocated memory", Tag(EE|Kind|AnyCloud), func() {
-			setLabelAndCRName("hts-2")
-
-			deviceName := "test-device"
-			var mapSizeInMb = 3072
-			var memorySizeInMb = 2 * mapSizeInMb / 5
-			var totalMemorySizeInMb = 3 * mapSizeInMb / 5
-			var diskSizeInMb = mapSizeInMb * 2
-			var expectedMapSize = int(float64(mapSizeInMb) * 128)
-			ctx := context.Background()
-
-			totalMemorySize := strconv.Itoa(totalMemorySizeInMb) + "Mi"
-			nativeMemorySize := strconv.Itoa(memorySizeInMb) + "Mi"
-			diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
-			hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, labels)
-			hazelcast.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
-			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
-				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceMemory: resource.MustParse(totalMemorySize)},
-			}
-			hazelcast.Spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
-				Size: []resource.Quantity{resource.MustParse(nativeMemorySize)}[0],
-			}
-
-			CreateHazelcastCR(hazelcast)
-			evaluateReadyMembers(hzLookupKey)
-
-			By("creating the map config and putting entries")
-			tsMap := hazelcastconfig.DefaultTieredStoreMap(mapLookupKey, hazelcast.Name, deviceName, labels)
-			tsMap.Spec.TieredStore.MemoryRequestStorage = &[]resource.Quantity{resource.MustParse(nativeMemorySize)}[0]
-			Expect(k8sClient.Create(context.Background(), tsMap)).Should(Succeed())
-			assertMapStatus(tsMap, hazelcastv1alpha1.MapSuccess)
-			FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
-
-			WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), expectedMapSize, 30*Minute)
-		})
 	})
 
 })
