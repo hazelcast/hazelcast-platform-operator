@@ -94,18 +94,23 @@ jobs:
 
       - name: Create Kind Config
         run: |
+          kind_node_image_tag=$(curl 'https://hub.docker.com/v2/namespaces/kindest/repositories/node/tags?page_size=1000' \
+            | jq -r '.results[] | select(.name | startswith("v${{ inputs.k8s-cluster-version }}")) | .name' \
+            | sort -V \
+            | tail -n 1)
+          echo "Kind node image: kindest/node:${kind_node_image_tag}"
           cat <<EOT >> ./kind-config.yaml
           kind: Cluster
           apiVersion: kind.x-k8s.io/v1alpha4
           nodes:
           - role: control-plane
-            image: kindest/node:${{ inputs.k8s-cluster-version }}
+            image: kindest/node:${kind_node_image_tag}
           - role: worker
-            image: kindest/node:${{ inputs.k8s-cluster-version }}
+            image: kindest/node:${kind_node_image_tag}
           - role: worker
-            image: kindest/node:${{ inputs.k8s-cluster-version }}
+            image: kindest/node:${kind_node_image_tag}
           - role: worker
-            image: kindest/node:${{ inputs.k8s-cluster-version }}
+            image: kindest/node:${kind_node_image_tag}
           EOT
 
       - name: Create Kind Cluster

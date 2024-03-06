@@ -95,6 +95,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.29.2", "v1.28.7", "v1.27.11"] # todo
+        kubernetes-versions: ["1.29", "1.28", "1.27"]
     with:
       k8s-cluster-version: ${{ matrix.kubernetes-versions }}
