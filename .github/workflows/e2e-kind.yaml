@@ -1,25 +1,17 @@
-name: Pull Request Builder
+name: (E2E) Kind Tests
 
 on:
-  pull_request_target:
-    types:
-      - labeled
-    branches:
-      - main
-      - "release/**"
-    paths-ignore:
-      - "**.md"
-  pull_request:
-    branches:
-      - main
-      - "release/**"
-    paths-ignore:
-      - "**.md"
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      k8s-cluster-version:
+        description: "kubernetes cluster version"
+        required: false
+        type: string
+        default: "1.29"
 
 env:
   GO_VERSION: "1.21.0"
-  NR_OF_SUITES: 10
-  GOBIN: ${{ github.workspace }}/bin
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
@@ -30,98 +22,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  linter:
-    name: Run linters
-    runs-on: ubuntu-latest
-    permissions: {}
-    if: ( !cancelled() && github.event_name == 'pull_request' )
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4.0.0
-        if: ${{ !cancelled() }}
-        with:
-          args: --timeout 5m --build-tags hazelcastinternal
-          skip-cache: true
-
-      - name: Run yamllint
-        uses: ibiqlik/action-yamllint@v3
-        if: ${{ !cancelled() }}
-        with:
-          config_file: hack/yamllint.yaml
-
-      - name: Check if tests are unfocused
-        if: ${{ !cancelled() }}
-        run: |
-          make ginkgo
-          if [[ $($(make ginkgo PRINT_TOOL_NAME=true) unfocus | wc -l) -gt 1 ]]; then
-            echo "Some tests have 'F' before the test name. Run the 'ginkgo unfocus' command against your branch '${{ github.event.pull_request.head.ref }}' and push the changes."
-            exit 1
-          fi
-
-      - name: Check if all manifests are synced
-        run: |
-          CRD_PATH=./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds/templates
-          mv $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
-
-          make sync-manifests
-          if ! cmp -s $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old; then
-              echo "Please make sure your branch is up to date with main and run 'make sync-manifests'"
-              diff -u $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
-              exit 1
-          fi
-
-      - name: Check formating
-        if: ${{ !cancelled() }}
-        run: |
-          make fmt
-
-      - name: Run vet tool
-        if: ${{ !cancelled() }}
-        run: |
-          make vet
-
-  unit-tests:
-    name: Run unit and integration tests
-    runs-on: ubuntu-latest
-    permissions: {}
-    if: ( !cancelled() && github.event_name == 'pull_request' )
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Run unit tests
-        run: make test-unit
-
-      - name: Run integration tests (OS)
-        run: make GO_TEST_FLAGS="-ee=false" test-it
-
-      - name: Run integration tests (EE)
-        run: make GO_TEST_FLAGS="-ee=true" test-it
-
   get-image:
     name: Get Image
     runs-on: ubuntu-latest
-    permissions: {}
-    if: ( !cancelled() && github.event_name == 'pull_request' )
     timeout-minutes: 10
     outputs:
       IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Set Up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v3.0.0
@@ -161,11 +69,11 @@ jobs:
           build-args: |
             version=${{github.sha}}
             pardotID=dockerhub
-          file: Dockerfile
-          push: true
-          tags: ${{ steps.get-image-tag.outputs.IMG }}
-          cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
-          cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+            file: Dockerfile
+            push: true
+            tags: ${{ steps.get-image-tag.outputs.IMG }}
+            cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
+            cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
 
   kind-e2e-tests:
     name: Run E2E tests
@@ -174,38 +82,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node_number:
-          ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]
         edition: ["os", "ee"]
-    if: >-
-      ( !cancelled()
-      && ((github.event_name == 'pull_request_target'
-            && github.event.action == 'labeled'
-            && github.event.label.name == 'safe-to-test'
-            && github.event.pull_request.head.repo.full_name != github.repository)
-          ||
-          (github.event_name == 'pull_request'
-            && github.event.pull_request.head.repo.full_name == github.repository))
-      )
     env:
       NAMESPACE: kind-test-operator-${{ matrix.edition }}
-      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
+      RELEASE_NAME: compatibility-${{ inputs.k8s-cluster-version }}-${{ matrix.edition }}
       CLUSTER_NAME: kind
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
-      - name: Decide which ref to checkout
-        id: decide-ref
-        run: |
-          if [[ "${{github.event_name}}" == "pull_request" ]]; then
-            echo "ref=${{github.ref}}" >> $GITHUB_OUTPUT
-          else
-            echo "ref=refs/pull/${{ github.event.pull_request.number }}/merge" >> $GITHUB_OUTPUT
-          fi
-
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{steps.decide-ref.outputs.ref}}
 
       - uses: actions/setup-go@v5
         with:
@@ -218,9 +103,13 @@ jobs:
           apiVersion: kind.x-k8s.io/v1alpha4
           nodes:
           - role: control-plane
+            image: kindest/node:${{ inputs.k8s-cluster-version }}
           - role: worker
+            image: kindest/node:${{ inputs.k8s-cluster-version }}
           - role: worker
+            image: kindest/node:${{ inputs.k8s-cluster-version }}
           - role: worker
+            image: kindest/node:${{ inputs.k8s-cluster-version }}
           EOT
 
       - name: Create Kind Cluster
@@ -286,39 +175,39 @@ jobs:
             apiVersion: metallb.io/v1beta1
             kind: IPAddressPool
             metadata:
-              name: kind-pool
-              namespace: metallb-system
+                name: kind-pool
+                namespace: metallb-system
             spec:
-              addresses:
-              - $IP_RANGE
+                addresses:
+                - $IP_RANGE
             ---
             apiVersion: metallb.io/v1beta1
             kind: L2Advertisement
             metadata:
-              name: l2
-              namespace: metallb-system
+                name: l2
+                namespace: metallb-system
             spec:
-              ipAddressPools:
-              - kind-pool
+                ipAddressPools:
+                - kind-pool
             EOF
 
       - name: Create Secrets
         if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
-             --namespace ${{ env.NAMESPACE }} \
-             --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+              --namespace ${{ env.NAMESPACE }} \
+              --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
           kubectl create secret generic br-secret-s3 \
-            --namespace ${{ env.NAMESPACE }} \
-            --from-literal=region=us-east-1 \
-            --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          --namespace ${{ env.NAMESPACE }} \
+          --from-literal=region=us-east-1 \
+          --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
           kubectl create secret generic br-secret-az \
-            --namespace ${{ env.NAMESPACE }} \
-            --from-literal=storage-account=operatortest \
-            --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
+          --namespace ${{ env.NAMESPACE }} \
+          --from-literal=storage-account=operatortest \
+          --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
 
       - name: Create Secret For Both OS and EE Tests
         run: |
@@ -348,11 +237,11 @@ jobs:
         id: e2e-test
         run: |
           case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
+          os) GO_TEST_FLAGS=-ee=false;;
+          ee) GO_TEST_FLAGS=-ee=true;;
+          *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e-split-kind REPORT_SUFFIX=${{ matrix.edition }}_${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr SHARD_ID="${{ matrix.node_number }}"
+          make test-e2e REPORT_SUFFIX=${{ matrix.edition }}_${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr
 
       - name: Upload Test Report
         if: always()
@@ -361,12 +250,3 @@ jobs:
           name: test-report-pr
           path: allure-results/pr/
           retention-days: 5
-
-  report-generation:
-    needs: ["kind-e2e-tests"]
-    if: always() && (needs.kind-e2e-tests.result == 'success' || needs.kind-e2e-tests.result == 'failure')
-    uses: ./.github/workflows/generate-test-report.yaml
-    secrets: inherit
-    with:
-      WORKFLOW_ID: pr
-      CLUSTER_NAME: kind
