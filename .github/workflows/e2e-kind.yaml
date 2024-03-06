@@ -68,8 +68,6 @@ jobs:
             file: Dockerfile
             push: true
             tags: ${{ steps.get-image-tag.outputs.IMG }}
-            cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
-            cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
 
   kind-e2e-tests:
     name: Run E2E tests
@@ -237,7 +235,7 @@ jobs:
           ee) GO_TEST_FLAGS=-ee=true;;
           *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e REPORT_SUFFIX=${{ matrix.edition }}_${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr
+          make test-e2e REPORT_SUFFIX=${{ matrix.edition }}_${{ inputs.k8s-cluster-version }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr
 
       - name: Upload Test Report
         if: always()
