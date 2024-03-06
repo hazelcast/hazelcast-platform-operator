@@ -2333,7 +2333,7 @@ var _ = Describe("Hazelcast CR", func() {
 				})
 
 				expectedLocalDeviceConfig := config.LocalDevice{
-					BaseDir: fmt.Sprintf("%s-%s", fetchedCR.Name, "local-device-test"),
+					BaseDir: fmt.Sprintf("/%s-%s/", fetchedCR.Name, "local-device-test"),
 					Capacity: config.Size{
 						Value: 8589934592,
 						Unit:  "BYTES",
