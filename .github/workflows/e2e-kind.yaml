@@ -243,6 +243,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report-pr
+          name: test-report-compatibility
           path: allure-results/pr/
           retention-days: 5
