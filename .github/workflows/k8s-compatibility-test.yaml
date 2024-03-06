@@ -1,0 +1,19 @@
+name: (E2E) K8s Compatibility Tests
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  run-test:
+    uses: ./.github/workflows/e2e-gke.yaml
+    secrets: inherit
+    name: Run E2E tests
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions: ["1.29", "1.28", "1.27"]
+    with:
+      k8s-cluster-version: ${{ matrix.kubernetes-versions }}

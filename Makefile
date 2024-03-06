@@ -19,11 +19,11 @@ TOOLBIN = $(shell pwd)/bin
 # Used API version is set in go.mod file
 K8S_VERSION ?= 1.25.4
 SETUP_ENVTEST_VERSION ?= latest
-ENVTEST_K8S_VERSION ?= 1.25.x
+ENVTEST_K8S_VERSION ?= 1.26.x
 # https://github.com/operator-framework/operator-sdk/releases
-OPERATOR_SDK_VERSION ?= v1.25.4
+OPERATOR_SDK_VERSION ?= v1.28.1
 # https://github.com/kubernetes-sigs/controller-tools/releases
-CONTROLLER_GEN_VERSION ?= v0.10.0
+CONTROLLER_GEN_VERSION ?= v0.11.3
 # https://github.com/kubernetes-sigs/controller-runtime/releases
 # It is set in the go.mod file
 CONTROLLER_RUNTIME_VERSION ?= v0.13.1
@@ -154,7 +154,7 @@ test: test-unit test-it
 
 test-unit: GO_BUILD_TAGS = "hazelcastinternal,unittest"
 test-unit: manifests generate
-	go test -tags $(GO_BUILD_TAGS) -v ./controllers/... ./internal/... ./api/...
+	go test -tags $(GO_BUILD_TAGS) -v ./internal/... ./api/...
 
 lint: lint-go lint-yaml
 
@@ -249,17 +249,17 @@ test-e2e-focus: generate ginkgo ## Run focused end-to-end tests
 
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
-build: generate vet fmt ## Build manager binary.
-	go build -o bin/manager -tags "$(GO_BUILD_TAGS)" main.go
+build: manifests generate vet fmt ## Build manager binary.
+	go build -o bin/manager -tags "$(GO_BUILD_TAGS)" cmd/main.go
 
 build-tilt: generate # This is not going to work if client and server cpu architectures are different
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager cmd/main.go
 
 build-tilt-debug: generate # This is not going to work if client and server cpu architectures are different
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -gcflags "-N -l" -o bin/tilt/manager-debug main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -gcflags "-N -l" -o bin/tilt/manager-debug cmd/main.go
 
 run: manifests generate ## Run a controller from your host.
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS)" ./main.go
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS)" cmd/main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
