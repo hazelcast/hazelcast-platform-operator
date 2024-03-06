@@ -81,7 +81,7 @@ jobs:
         edition: ["os", "ee"]
     env:
       NAMESPACE: kind-test-operator-${{ matrix.edition }}
-      RELEASE_NAME: kind-${{ inputs.k8s-cluster-version }}-${{ matrix.edition }}
+      RELEASE_NAME: kind-${{ matrix.edition }}
       CLUSTER_NAME: kind
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
