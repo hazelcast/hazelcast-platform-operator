@@ -51,7 +51,7 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
-            --cluster-version=${{ inputs.k8s-cluster-version }}
+            --cluster-version=${{ inputs.k8s-cluster-version }} \
             --zone=${{ env.GKE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
