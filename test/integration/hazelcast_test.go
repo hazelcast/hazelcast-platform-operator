@@ -2324,7 +2324,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
-	FContext("with CP Subsystem configuration", func() {
+	Context("with CP Subsystem configuration", func() {
 		It("should not allow member size greater than cluster size", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ClusterSize = pointer.Int32(3)
