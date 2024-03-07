@@ -13,6 +13,7 @@ env:
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
   AWS_REGION: us-east-1
+  CHAOS_MESH_NAMESPACE: chaos-testing
 
 jobs:
   get-image:
@@ -197,6 +198,22 @@ jobs:
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
           make install-operator IMG=$IMG NAMESPACE=${{ matrix.namespace }} RELEASE_NAME=${{ matrix.namespace }}
           kubectl rollout status deployment $DEPLOY_NAME
+
+      - name: Install Chaos Mesh
+        if: matrix.namespace == 'trg-ns'
+        run: |
+          helm repo add chaos-mesh https://charts.chaos-mesh.org
+          helm upgrade \
+          --install \
+          chaos-mesh \
+          chaos-mesh/chaos-mesh \
+          -n ${CHAOS_MESH_NAMESPACE} \
+          --create-namespace \
+          --set chaosDaemon.runtime=containerd \
+          --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
+          --version v2.6.2 \
+          --wait
+          kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io chaos-mesh-validation-auth
 
       - name: Create Secret On ${{ matrix.cluster }} Cluster and ${{ matrix.namespace }} namespace
         run: |

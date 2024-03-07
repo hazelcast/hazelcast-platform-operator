@@ -2,6 +2,10 @@ package e2e
 
 import (
 	"context"
+	"fmt"
+	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 	"strconv"
 	"strings"
 	. "time"
@@ -448,5 +452,292 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 
 		By("checking the second source Map size")
 		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize, 30*Minute)
+	})
+
+	Context("Data Sync between separate clusters", func() {
+		It("shouldn't fail in active-passive mode across separate clusters", Serial, Tag(EE|AnyCloud), func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			var mapSizeInMb = 5000
+			expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
+
+			setLabelAndCRName("hpwans-6")
+
+			By("creating source Hazelcast cluster")
+			SwitchContext(context1)
+			setupEnv()
+			hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
+			hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
+			}
+			hazelcastSource.Spec.ClusterName = "source"
+			hazelcastSource.Spec.ClusterSize = pointer.Int32(3)
+			CreateHazelcastCR(hazelcastSource)
+			evaluateReadyMembers(sourceLookupKey)
+
+			By("creating first map for source Hazelcast cluster")
+			mapSrc1 := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
+			mapSrc1.Spec.Name = "wanmap1"
+			Expect(k8sClient.Create(context.Background(), mapSrc1)).Should(Succeed())
+			mapSrc1 = assertMapStatus(mapSrc1, hazelcastcomv1alpha1.MapSuccess)
+
+			By("creating second map for source Hazelcast cluster")
+			mapSrc2 := hazelcastconfig.DefaultMap(sourceLookupKey2, hazelcastSource.Name, labels)
+			mapSrc2.Spec.Name = "wanmap2"
+			Expect(k8sClient.Create(context.Background(), mapSrc2)).Should(Succeed())
+			mapSrc2 = assertMapStatus(mapSrc2, hazelcastcomv1alpha1.MapSuccess)
+
+			By("creating target Hazelcast cluster")
+			SwitchContext(context2)
+			setupEnv()
+			hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
+			hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
+			}
+			hazelcastTarget.Spec.ClusterName = "target"
+			hazelcastTarget.Spec.ClusterSize = pointer.Int32(3)
+			CreateHazelcastCR(hazelcastTarget)
+			targetAddress := waitForLBAddress(targetLookupKey)
+
+			By("creating WAN configuration for source Hazelcast cluster")
+			SwitchContext(context1)
+			setupEnv()
+			wanSrc := hazelcastconfig.CustomWanReplication(
+				sourceLookupKey,
+				hazelcastTarget.Spec.ClusterName,
+				targetAddress,
+				labels,
+			)
+			wanSrc.Spec.Resources = []hazelcastcomv1alpha1.ResourceSpec{{
+				Name: mapSrc1.Name,
+				Kind: hazelcastcomv1alpha1.ResourceKindMap,
+			},
+				{
+					Name: mapSrc2.Name,
+					Kind: hazelcastcomv1alpha1.ResourceKindMap,
+				}}
+			wanSrc.Spec.Queue.Capacity = 300000
+			Expect(k8sClient.Create(context.Background(), wanSrc)).Should(Succeed())
+
+			Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+				wanSrc := &hazelcastcomv1alpha1.WanReplication{}
+				err := k8sClient.Get(context.Background(), sourceLookupKey, wanSrc)
+				if err != nil {
+					return hazelcastcomv1alpha1.WanStatusFailed, err
+				}
+				return wanSrc.Status.Status, nil
+			}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+
+			By("update to wrong Hazelcast image")
+			SwitchContext(context2)
+			setupEnv()
+			UpdateHazelcastCR(hazelcastTarget, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+				hazelcast.Spec.Repository = "docker.io/hazelcast/hazelcast-enterprise2"
+				return hazelcast
+			})
+			DeletePod(hazelcastTarget.Name+"-0", 0, targetLookupKey)
+			DeletePod(hazelcastTarget.Name+"-1", 0, targetLookupKey)
+			DeletePod(hazelcastTarget.Name+"-2", 0, targetLookupKey)
+
+			By("filling the first source Map")
+			SwitchContext(context1)
+			setupEnv()
+			FillMapBySizeInMb(context.Background(), mapSrc1.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+
+			By("filling the second source Map")
+			FillMapBySizeInMb(context.Background(), mapSrc2.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+
+			By("update to correct Hazelcast image")
+			SwitchContext(context2)
+			setupEnv()
+			UpdateHazelcastCR(hazelcastTarget, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+				hazelcast.Spec.Repository = "docker.io/hazelcast/hazelcast-enterprise"
+				return hazelcast
+			})
+			DeletePod(hazelcastTarget.Name+"-0", 0, targetLookupKey)
+			DeletePod(hazelcastTarget.Name+"-1", 0, targetLookupKey)
+			DeletePod(hazelcastTarget.Name+"-2", 0, targetLookupKey)
+
+			By("checking HZ status after update")
+			Eventually(func() hazelcastcomv1alpha1.Phase {
+				err := k8sClient.Get(context.Background(), targetLookupKey, hazelcastTarget)
+				Expect(err).ToNot(HaveOccurred())
+				return hazelcastTarget.Status.Phase
+			}, 5*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
+
+			By("trigger WAN sync")
+			SwitchContext(context1)
+			setupEnv()
+			createWanSync(context.Background(), sourceLookupKey, wanSrc.Name, 2, labels)
+
+			By("checking the first target Map size")
+			SwitchContext(context2)
+			setupEnv()
+			WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 15*Minute)
+
+			By("checking the second target Map size")
+			WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 15*Minute)
+		})
+
+		It("shouldn't fail due to split brain in active-passive mode across separate clusters", Serial, Tag(EE|AnyCloud), func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			var mapSizeInMb = 1024
+			duration := "3m"
+			expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
+
+			setLabelAndCRName("hpwans-7")
+
+			By("creating source Hazelcast cluster")
+			SwitchContext(context1)
+			setupEnv()
+			hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
+			hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
+			}
+			hazelcastSource.Spec.ClusterName = "source"
+			hazelcastSource.Spec.ClusterSize = pointer.Int32(6)
+			CreateHazelcastCR(hazelcastSource)
+			evaluateReadyMembers(sourceLookupKey)
+
+			By("creating first map for source Hazelcast cluster")
+			mapSrc1 := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
+			mapSrc1.Spec.Name = "wanmap1"
+			Expect(k8sClient.Create(context.Background(), mapSrc1)).Should(Succeed())
+			mapSrc1 = assertMapStatus(mapSrc1, hazelcastcomv1alpha1.MapSuccess)
+
+			By("creating second map for source Hazelcast cluster")
+			mapSrc2 := hazelcastconfig.DefaultMap(sourceLookupKey2, hazelcastSource.Name, labels)
+			mapSrc2.Spec.Name = "wanmap2"
+			Expect(k8sClient.Create(context.Background(), mapSrc2)).Should(Succeed())
+			mapSrc2 = assertMapStatus(mapSrc2, hazelcastcomv1alpha1.MapSuccess)
+
+			By("creating target Hazelcast cluster")
+			SwitchContext(context2)
+			setupEnv()
+			hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
+			hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
+			}
+			hazelcastTarget.Spec.ClusterName = "target"
+			hazelcastTarget.Spec.ClusterSize = pointer.Int32(6)
+			CreateHazelcastCR(hazelcastTarget)
+			targetAddress := waitForLBAddress(targetLookupKey)
+
+			By("split the members into 2 groups")
+			podLabels := []PodLabel{
+				{"statefulset.kubernetes.io/pod-name=" + hazelcastTarget.Name + "-0", "group", "group1"},
+				{"statefulset.kubernetes.io/pod-name=" + hazelcastTarget.Name + "-1", "group", "group1"},
+				{"statefulset.kubernetes.io/pod-name=" + hazelcastTarget.Name + "-2", "group", "group1"},
+				{"statefulset.kubernetes.io/pod-name=" + hazelcastTarget.Name + "-3", "group", "group2"},
+				{"statefulset.kubernetes.io/pod-name=" + hazelcastTarget.Name + "-4", "group", "group2"},
+				{"statefulset.kubernetes.io/pod-name=" + hazelcastTarget.Name + "-5", "group", "group2"},
+			}
+			err := LabelPods(hazelcastTarget.Namespace, podLabels)
+			if err != nil {
+				fmt.Printf("Error labeling pods: %s\n", err)
+			} else {
+				fmt.Println("Pods labeled successfully")
+			}
+			evaluateReadyMembers(targetLookupKey)
+
+			By("run split brain scenario")
+			networkPartitionChaos := &chaosmeshv1alpha1.NetworkChaos{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      hazelcastTarget.Name,
+					Namespace: hazelcastTarget.Namespace,
+				},
+				Spec: chaosmeshv1alpha1.NetworkChaosSpec{
+					PodSelector: chaosmeshv1alpha1.PodSelector{
+						Mode: chaosmeshv1alpha1.AllMode,
+						Selector: chaosmeshv1alpha1.PodSelectorSpec{
+							GenericSelectorSpec: chaosmeshv1alpha1.GenericSelectorSpec{
+								LabelSelectors: map[string]string{
+									"group": "group1",
+								},
+							},
+						},
+					},
+					Action:    chaosmeshv1alpha1.PartitionAction,
+					Direction: chaosmeshv1alpha1.Both,
+					Target: &chaosmeshv1alpha1.PodSelector{
+						Mode: chaosmeshv1alpha1.AllMode,
+						Selector: chaosmeshv1alpha1.PodSelectorSpec{
+							GenericSelectorSpec: chaosmeshv1alpha1.GenericSelectorSpec{
+								LabelSelectors: map[string]string{
+									"group": "group2",
+								},
+							},
+						},
+					},
+					Duration: &duration,
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), networkPartitionChaos)).To(Succeed(), "Failed to create network partition chaos")
+
+			By("wait until Hazelcast cluster will be injected by split-brain experiment")
+			Eventually(func() bool {
+				err = k8sClient.Get(context.Background(), targetLookupKey, networkPartitionChaos)
+				Expect(err).ToNot(HaveOccurred())
+				for _, condition := range networkPartitionChaos.Status.ChaosStatus.Conditions {
+					if condition.Type == chaosmeshv1alpha1.ConditionAllInjected && condition.Status == "True" {
+						return true
+					}
+				}
+				return false
+			}, 1*Minute, interval).Should(BeTrue())
+
+			By("creating WAN configuration for source Hazelcast cluster")
+			SwitchContext(context1)
+			setupEnv()
+			wanSrc := hazelcastconfig.CustomWanReplication(
+				sourceLookupKey,
+				hazelcastTarget.Spec.ClusterName,
+				targetAddress,
+				labels,
+			)
+			wanSrc.Spec.Resources = []hazelcastcomv1alpha1.ResourceSpec{{
+				Name: mapSrc1.Name,
+				Kind: hazelcastcomv1alpha1.ResourceKindMap,
+			},
+				{
+					Name: mapSrc2.Name,
+					Kind: hazelcastcomv1alpha1.ResourceKindMap,
+				}}
+			wanSrc.Spec.Queue.Capacity = 300000
+			Expect(k8sClient.Create(context.Background(), wanSrc)).Should(Succeed())
+
+			Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+				wanSrc := &hazelcastcomv1alpha1.WanReplication{}
+				err := k8sClient.Get(context.Background(), sourceLookupKey, wanSrc)
+				if err != nil {
+					return hazelcastcomv1alpha1.WanStatusFailed, err
+				}
+				return wanSrc.Status.Status, nil
+			}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+
+			By("filling the first source Map")
+			FillMapBySizeInMb(context.Background(), mapSrc1.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+
+			By("filling the second source Map")
+			FillMapBySizeInMb(context.Background(), mapSrc2.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+
+			By("trigger WAN sync")
+			createWanSync(context.Background(), sourceLookupKey, wanSrc.Name, 2, labels)
+
+			By("checking the first target Map size")
+			SwitchContext(context2)
+			setupEnv()
+			WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 15*Minute)
+
+			By("checking the second target Map size")
+			WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 15*Minute)
+		})
 	})
 })
