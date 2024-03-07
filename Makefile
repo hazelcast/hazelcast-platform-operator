@@ -19,11 +19,11 @@ TOOLBIN = $(shell pwd)/bin
 # Used API version is set in go.mod file
 K8S_VERSION ?= 1.25.4
 SETUP_ENVTEST_VERSION ?= latest
-ENVTEST_K8S_VERSION ?= 1.25.x
+ENVTEST_K8S_VERSION ?= 1.26.x
 # https://github.com/operator-framework/operator-sdk/releases
-OPERATOR_SDK_VERSION ?= v1.25.4
+OPERATOR_SDK_VERSION ?= v1.28.1
 # https://github.com/kubernetes-sigs/controller-tools/releases
-CONTROLLER_GEN_VERSION ?= v0.10.0
+CONTROLLER_GEN_VERSION ?= v0.11.3
 # https://github.com/kubernetes-sigs/controller-runtime/releases
 # It is set in the go.mod file
 CONTROLLER_RUNTIME_VERSION ?= v0.13.1
@@ -154,7 +154,7 @@ test: test-unit test-it
 
 test-unit: GO_BUILD_TAGS = "hazelcastinternal,unittest"
 test-unit: manifests generate
-	go test -tags $(GO_BUILD_TAGS) -v ./controllers/... ./internal/... ./api/...
+	go test -tags $(GO_BUILD_TAGS) -v ./internal/... ./api/...
 
 lint: lint-go lint-yaml
 
@@ -198,10 +198,19 @@ test-it-focus: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/...  $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
 
+E2E_TEST_LABELS?=operator
+
 GINKGO_PARALLEL_PROCESSES ?= 4
 GINKGO_KIND_PARALLEL_PROCESSES ?= 2
 
-E2E_TEST_LABELS?=operator
+GINKGO_TEST_FLAGS =
+
+ifeq ($(DRY_RUN),true)
+GINKGO_TEST_FLAGS:=$(GINKGO_TEST_FLAGS) --dry-run
+# ginkgo only performs -dryRun in serial mode.
+GINKGO_KIND_PARALLEL_PROCESSES=1
+GINKGO_PARALLEL_PROCESSES=1
+endif
 
 ifeq ($(WORKFLOW_ID),gke)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && gcp
@@ -224,33 +233,33 @@ E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && kind
 endif
 
 test-e2e-split-kind: generate ginkgo ## Run end-to-end tests on Kind
-	$(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --label-filter="(kind && shard$(SHARD_ID)) && $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+	$(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --label-filter="(kind && shard$(SHARD_ID)) && $(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m $(GINKGO_TEST_FLAGS) ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 test-e2e: generate ginkgo ## Run end-to-end tests
-	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="$(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -deployNamespace "$(WATCHED_NAMESPACES)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_PARALLEL_PROCESSES) --trace --label-filter="$(E2E_TEST_LABELS)" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 70m --flake-attempts 2 --output-interceptor-mode=none $(GINKGO_TEST_FLAGS) ./test/e2e -- -namespace "$(NAMESPACE)" -deployNamespace "$(WATCHED_NAMESPACES)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 test-ph: generate ginkgo ## Run phone-home tests
-	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none ./test/ph -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 40m --output-interceptor-mode=none $(GINKGO_TEST_FLAGS) ./test/ph -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" -eventually-timeout 8m  -delete-timeout 8m $(GO_TEST_FLAGS)
 
 test-soak: generate ginkgo ## Run soak tests
-	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="soak" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 1500m --flake-attempts 1 --output-interceptor-mode=none ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+	$(GINKGO) -r --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs 1 --trace --label-filter="soak" --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) --vv --progress --timeout 1500m --flake-attempts 1 --output-interceptor-mode=none $(GINKGO_TEST_FLAGS) ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 test-e2e-focus: generate ginkgo ## Run focused end-to-end tests
-	$(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) -v --progress --timeout 70m ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
+	$(GINKGO) --trace --slow-spec-threshold=100s --tags $(GO_BUILD_TAGS) -v --progress --timeout 70m $(GINKGO_TEST_FLAGS) ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
 ##@ Build
 GO_BUILD_TAGS = hazelcastinternal
-build: generate vet fmt ## Build manager binary.
-	go build -o bin/manager -tags "$(GO_BUILD_TAGS)" main.go
+build: manifests generate vet fmt ## Build manager binary.
+	go build -o bin/manager -tags "$(GO_BUILD_TAGS)" cmd/main.go
 
 build-tilt: generate # This is not going to work if client and server cpu architectures are different
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -ldflags "-s -w" -o bin/tilt/manager cmd/main.go
 
 build-tilt-debug: generate # This is not going to work if client and server cpu architectures are different
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -gcflags "-N -l" -o bin/tilt/manager-debug main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "$(GO_BUILD_TAGS)" -gcflags "-N -l" -o bin/tilt/manager-debug cmd/main.go
 
 run: manifests generate ## Run a controller from your host.
-	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS)" ./main.go
+	PHONE_HOME_ENABLED=$(PHONE_HOME_ENABLED) DEVELOPER_MODE_ENABLED=$(DEVELOPER_MODE_ENABLED) go run -tags "$(GO_BUILD_TAGS)" cmd/main.go
 
 docker-build: test docker-build-ci ## Build docker image with the manager.
 
@@ -351,8 +360,8 @@ bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and met
 	 $(YQ)  eval-all '. | select(.kind == "Role" ) | . as $$item ireduce ({}; . *+ $$item) '  config/rbac/role.yaml) > config/rbac/role.yaml.new && mv config/rbac/role.yaml.new config/rbac/role.yaml
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --use-image-digests --overwrite --version $(BUNDLE_VERSION) $(BUNDLE_METADATA_OPTS)
 	$(MAKE) manifests # Revert changes done for generating bundle
-	sed -i  "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
-	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	sed -i "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	sed -i "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 
 olm-deploy: operator-sdk ## Deploying Operator with OLM bundle. Available modes are AllNamespace|OwnNamespace|SingleNamespace
