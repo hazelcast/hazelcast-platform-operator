@@ -449,7 +449,7 @@ func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
 		}
 	}
 
-	if cp.PVC == nil && h.Spec.Persistence.Pvc == nil {
+	if cp.PVC == nil && (!h.Spec.Persistence.IsEnabled() || h.Spec.Persistence.Pvc == nil) {
 		v.Required(Path("spec", "cpSubsystem", "pvc"), "PVC should be configured")
 	}
 }
