@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -130,4 +131,50 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		Entry("with CP Subsystem PVC", hazelcastconfig.HazelcastCPSubsystem(3)),
 		Entry("with Persistence PVC", hazelcastconfig.HazelcastCPSubsystemPersistence(3)),
 	)
+
+	FIt("should start CP with Persistence and different PVCs", Tag(EE|AnyCloud), func() {
+		setLabelAndCRName("cp-3")
+		ctx := context.Background()
+		cpMapName := "my-map"
+
+		spec := hazelcastconfig.HazelcastCPSubsystemPersistence(3)
+		spec.CPSubsystem.PVC = &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+			AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			RequestStorage: &[]resource.Quantity{resource.MustParse("2Gi")}[0],
+		}
+		hazelcast := &hazelcastcomv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      hzLookupKey.Name,
+				Namespace: hzLookupKey.Namespace,
+				Labels:    labels,
+			},
+			Spec: spec,
+		}
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		clientHz := GetHzClient(ctx, hzLookupKey, true)
+		cli := hzClient.NewClientInternal(clientHz)
+
+		grResp, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPGroupCreateCPGroupRequest("new-group"), nil)
+		Expect(err).To(BeNil())
+		rg := codec.DecodeCPGroupCreateCPGroupResponse(grResp)
+
+		key, _ := cli.EncodeData("key")
+		value, _ := cli.EncodeData("value")
+		_, err = cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapPutRequest(rg, cpMapName, key, value), nil)
+		Expect(err).To(BeNil())
+
+		r, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapGetRequest(rg, cpMapName, key), nil)
+		Expect(err).To(BeNil())
+		response, err := cli.DecodeData(codec.DecodeCPMapGetResponse(r))
+		Expect(err).To(BeNil())
+		Expect(response).To(Equal("value"))
+	})
 })
