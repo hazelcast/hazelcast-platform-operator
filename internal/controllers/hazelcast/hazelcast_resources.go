@@ -1281,7 +1281,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			DataLoadTimeoutSeconds:            h.Spec.CPSubsystem.DataLoadTimeoutSeconds,
 		}
 		if h.Spec.Persistence.IsEnabled() && !h.Spec.CPSubsystem.IsPVC() {
-			cfg.CPSubsystem.BaseDir = n.BaseDir + n.CPDirSuffix
+			cfg.CPSubsystem.BaseDir = n.PersistenceMountPath + n.CPDirSuffix
 		}
 	}
 
@@ -2299,7 +2299,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
-			MountPath: n.BaseDir,
+			MountPath: n.PersistenceMountPath,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
@@ -2340,7 +2340,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      n.PersistenceVolumeName,
-			MountPath: n.BaseDir,
+			MountPath: n.PersistenceMountPath,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
@@ -2514,7 +2514,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
-			MountPath: n.BaseDir,
+			MountPath: n.PersistenceMountPath,
 		})
 	}
 	return vm
@@ -2538,7 +2538,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      n.PersistenceVolumeName,
-			MountPath: n.BaseDir,
+			MountPath: n.PersistenceMountPath,
 		})
 	}
 

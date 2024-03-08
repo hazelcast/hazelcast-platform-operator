@@ -2303,7 +2303,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.PersistenceVolumeName))
 			hzContainer := fetchedSts.Spec.Template.Spec.Containers[0]
-			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.PersistenceVolumeName, n.BaseDir))
+			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.PersistenceVolumeName, n.PersistenceMountPath))
 			Expect(hzContainer.VolumeMounts).Should(Not(test.ContainVolumeMount(n.CPPersistenceVolumeName, n.CPBaseDir)))
 
 			Eventually(func() config.CPSubsystem {

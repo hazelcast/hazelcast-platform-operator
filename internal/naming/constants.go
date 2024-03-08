@@ -64,7 +64,8 @@ const (
 	JetConfigMapNamePrefix      = "jet-cm-"
 	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
-	BaseDir                     = "/data/hot-restart"
+	BaseDir                     = "/data/persistence/base-dir"
+	PersistenceMountPath        = "/data/persistence"
 	CPDirSuffix                 = "/cp-data"
 	CPBaseDir                   = "/data" + CPDirSuffix
 
