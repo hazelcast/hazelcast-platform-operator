@@ -64,6 +64,7 @@ const (
 	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 	BaseDir                     = "/data/hot-restart"
+	TieredStorageBaseDir        = "/data/tiered-storage"
 
 	SidecarAgent        = "sidecar-agent"
 	BackupAgentPortName = "backup-agent-port"

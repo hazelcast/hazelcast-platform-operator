@@ -1279,7 +1279,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	if h.Spec.IsTieredStorageEnabled() {
 		cfg.LocalDevice = map[string]config.LocalDevice{}
 		for _, ld := range h.Spec.LocalDevices {
-			cfg.LocalDevice[ld.Name] = createLocalDeviceConfig(ld, h.GetName())
+			cfg.LocalDevice[ld.Name] = createLocalDeviceConfig(ld)
 		}
 	}
 	return cfg
@@ -1732,7 +1732,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 	if ms.TieredStore != nil {
 		mc.TieredStore.Enabled = true
 		mc.TieredStore.MemoryTier.Capacity = config.Size{
-			Value: ms.TieredStore.MemoryRequestStorage.Value(),
+			Value: ms.TieredStore.MemoryCapacity.Value(),
 			Unit:  "BYTES",
 		}
 		mc.TieredStore.DiskTier.Enabled = true
@@ -1935,9 +1935,9 @@ func createBatchPublisherConfig(wr hazelcastv1alpha1.WanReplication) config.Batc
 	return bpc
 }
 
-func createLocalDeviceConfig(ld hazelcastv1alpha1.LocalDeviceConfig, hzResourceName string) config.LocalDevice {
+func createLocalDeviceConfig(ld hazelcastv1alpha1.LocalDeviceConfig) config.LocalDevice {
 	return config.LocalDevice{
-		BaseDir: localDevicePath(hzResourceName, ld.Name),
+		BaseDir: path.Join(n.TieredStorageBaseDir, ld.Name),
 		Capacity: config.Size{
 			Value: ld.PVC.RequestStorage.Value(),
 			Unit:  "BYTES",
@@ -2587,10 +2587,10 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 
 func localDeviceVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	var vms []v1.VolumeMount
-	for _, localDeviceConfig := range h.Spec.LocalDevices {
+	for _, ld := range h.Spec.LocalDevices {
 		vms = append(vms, v1.VolumeMount{
-			Name:      localDeviceConfig.Name,
-			MountPath: localDevicePath(h.Name, localDeviceConfig.Name),
+			Name:      ld.Name,
+			MountPath: path.Join(n.TieredStorageBaseDir, ld.Name),
 		})
 	}
 	return vms
@@ -3041,8 +3041,4 @@ func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorS
 	esInput.Capacity = es.Capacity
 	esInput.CapacityPolicy = es.CapacityPolicy
 	esInput.Durability = es.Durability
-}
-
-func localDevicePath(hzResourceName, localDeviceName string) string {
-	return fmt.Sprintf("/%s-%s/", hzResourceName, localDeviceName)
 }

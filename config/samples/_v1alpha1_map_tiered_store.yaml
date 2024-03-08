@@ -6,5 +6,5 @@ spec:
   hazelcastResourceName: hazelcast
   inMemoryFormat: NATIVE
   tieredStore:
-    requestStorage: 128M
+    memoryCapacity: 128M
     diskDeviceName: device1

@@ -392,10 +392,10 @@ type EventJournal struct {
 }
 
 type TieredStore struct {
-	// MemoryRequestStorage sets Memory tier capacity, i.e., how much main memory should this tier consume at most.
+	// MemoryCapacity sets Memory tier capacity, i.e., how much main memory should this tier consume at most.
 	// +kubebuilder:default:="256M"
 	// +optional
-	MemoryRequestStorage *resource.Quantity `json:"requestStorage,omitempty"`
+	MemoryCapacity *resource.Quantity `json:"memoryCapacity,omitempty"`
 	// diskDeviceName defines the name of the device for a given disk tier.
 	// +required
 	DiskDeviceName string `json:"diskDeviceName,omitempty"`

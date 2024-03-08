@@ -4736,13 +4736,13 @@ spec:
                     description: diskDeviceName defines the name of the device for
                       a given disk tier.
                     type: string
-                  requestStorage:
+                  memoryCapacity:
                     anyOf:
                     - type: integer
                     - type: string
                     default: 256M
-                    description: MemoryRequestStorage sets Memory tier capacity, i.e.,
-                      how much main memory should this tier consume at most.
+                    description: MemoryCapacity sets Memory tier capacity, i.e., how
+                      much main memory should this tier consume at most.
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                 type: object

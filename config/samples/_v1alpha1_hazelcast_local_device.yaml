@@ -6,6 +6,9 @@ spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
   licenseKeySecretName: hazelcast-license-key
+  exposeExternally:
+    type: Unisocket
+    discoveryServiceType: LoadBalancer
   localDevices:
     - name: device1
       pvc:

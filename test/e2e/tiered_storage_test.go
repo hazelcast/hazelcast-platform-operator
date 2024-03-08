@@ -35,7 +35,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tier
 			By("creating the Hazelcast with Local Device config")
 			deviceName := "test-device"
 			hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, labels)
-			hazelcast.Spec.NativeMemory.Size = []resource.Quantity{resource.MustParse("1280M")}[0]
+			hazelcast.Spec.NativeMemory.Size = []resource.Quantity{resource.MustParse("1200M")}[0]
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the map config with Tiered Store config")

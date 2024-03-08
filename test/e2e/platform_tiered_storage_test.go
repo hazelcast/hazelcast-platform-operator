@@ -28,7 +28,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 
 	})
-	Context("Tiered Store enabled for map", func() {
+	FContext("Tiered Store enabled for map", func() {
 		It("should successfully fill the map with more than allocated memory", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("hpts-1")
 
@@ -62,7 +62,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 
 			By("creating the map config and putting entries")
 			tsMap := hazelcastconfig.DefaultTieredStoreMap(mapLookupKey, hazelcast.Name, deviceName, labels)
-			tsMap.Spec.TieredStore.MemoryRequestStorage = &[]resource.Quantity{resource.MustParse(nativeMemorySize)}[0]
+			tsMap.Spec.TieredStore.MemoryCapacity = &[]resource.Quantity{resource.MustParse(nativeMemorySize)}[0]
 			Expect(k8sClient.Create(context.Background(), tsMap)).Should(Succeed())
 			assertMapStatus(tsMap, hazelcastv1alpha1.MapSuccess)
 			FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)

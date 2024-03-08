@@ -107,6 +107,7 @@ type PhoneHomeData struct {
 	CustomConfigCount             int                    `json:"ccon"`
 	JetJobSnapshotCount           int                    `json:"jjsc"`
 	SQLCount                      int                    `json:"sc"`
+	TieredStorage                 TieredStorage          `json:"ts"`
 }
 
 type JVMConfigUsage struct {
@@ -182,6 +183,10 @@ type TLS struct {
 	MTLSCount int `json:"mc"`
 }
 
+type TieredStorage struct {
+	MapCount int `json:"mc"`
+}
+
 func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:           opInfo.UID,
@@ -206,6 +211,7 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillTopicMetrics(cl)
 	phd.fillJetMetrics(cl)
 	phd.fillSnapshotMetrics(cl)
+	phd.fillTieredStorageMetrics(cl)
 	return phd
 }
 
@@ -525,7 +531,7 @@ func (phm *PhoneHomeData) fillWanSyncMetrics(cl client.Client) {
 	if err != nil || wsl.Items == nil {
 		return
 	}
-	phm.WanReplicationCount = len(wsl.Items)
+	phm.WanSyncCount = len(wsl.Items)
 }
 
 func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {
@@ -605,6 +611,22 @@ func (phm *PhoneHomeData) fillSnapshotMetrics(cl client.Client) {
 		return
 	}
 	phm.JetJobSnapshotCount = len(jjsl.Items)
+}
+
+func (phm *PhoneHomeData) fillTieredStorageMetrics(cl client.Client) {
+	tsMapCount := 0
+	ml := &hazelcastv1alpha1.MapList{}
+	err := cl.List(context.Background(), ml, listOptions()...)
+	if err != nil {
+		return //TODO maybe add retry
+	}
+
+	for _, m := range ml.Items {
+		if m.Spec.TieredStore != nil {
+			tsMapCount += 1
+		}
+	}
+	phm.TieredStorage.MapCount = tsMapCount
 }
 
 func listOptions() []client.ListOption {
