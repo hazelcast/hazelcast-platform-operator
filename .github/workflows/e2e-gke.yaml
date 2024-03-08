@@ -2,12 +2,6 @@ name: (E2E) GKE Tests
 on:
   workflow_dispatch:
   workflow_call:
-    inputs:
-      k8s-cluster-version:
-        description: "kubernetes cluster version"
-        required: false
-        type: string
-        default: "1.29"
 
 env:
   GCP_PROJECT_ID: hazelcast-33
@@ -51,7 +45,6 @@ jobs:
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
-            --cluster-version=${{ inputs.k8s-cluster-version }}
             --zone=${{ env.GKE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
