@@ -1,0 +1,100 @@
+name: (E2E) K8s Compatibility Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 13 * * 0"
+
+env:
+  GO_VERSION: "1.21.0"
+  GOBIN: ${{ github.workspace }}/bin
+
+jobs:
+  linter:
+    name: Run linters
+    runs-on: ubuntu-latest
+    permissions: {}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4.0.0
+        if: ${{ !cancelled() }}
+        with:
+          args: --timeout 5m --build-tags hazelcastinternal
+          skip-cache: true
+
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        if: ${{ !cancelled() }}
+        with:
+          config_file: hack/yamllint.yaml
+
+      - name: Check if tests are unfocused
+        if: ${{ !cancelled() }}
+        run: |
+          make ginkgo
+          if [[ $($(make ginkgo PRINT_TOOL_NAME=true) unfocus | wc -l) -gt 1 ]]; then
+            exit 1
+          fi
+
+      - name: Check if all manifests are synced
+        run: |
+          CRD_PATH=./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds/templates
+          mv $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
+
+          make sync-manifests
+          if ! cmp -s $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old; then
+              echo "Please make sure your branch is up to date with main and run 'make sync-manifests'"
+              diff -u $CRD_PATH/all-crds.yaml $CRD_PATH/all-crds.yaml.old
+              exit 1
+          fi
+
+      - name: Check formating
+        if: ${{ !cancelled() }}
+        run: |
+          make fmt
+
+      - name: Run vet tool
+        if: ${{ !cancelled() }}
+        run: |
+          make vet
+
+  unit-tests:
+    name: Run unit and integration tests
+    runs-on: ubuntu-latest
+    permissions: {}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run unit tests
+        run: make test-unit
+
+      - name: Run integration tests (OS)
+        run: make GO_TEST_FLAGS="-ee=false" test-it
+
+      - name: Run integration tests (EE)
+        run: make GO_TEST_FLAGS="-ee=true" test-it
+
+  run-test:
+    uses: ./.github/workflows/e2e-kind.yaml
+    secrets: inherit
+    name: Run E2E tests
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions: ["1.29", "1.28", "1.27", "1.26", "1.25"]
+    with:
+      k8s-cluster-version: ${{ matrix.kubernetes-versions }}

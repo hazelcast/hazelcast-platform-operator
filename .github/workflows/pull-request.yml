@@ -6,13 +6,13 @@ on:
       - labeled
     branches:
       - main
-      - 'release/**'
+      - "release/**"
     paths-ignore:
       - "**.md"
   pull_request:
     branches:
       - main
-      - 'release/**'
+      - "release/**"
     paths-ignore:
       - "**.md"
 
@@ -124,7 +124,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.1.0
         with:
           install: true
 
@@ -174,8 +174,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node_number: ["01","02","03","04","05","06","07","08","09","10"]
-        edition: ["os","ee"]
+        node_number:
+          ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]
+        edition: ["os", "ee"]
     if: >-
       ( !cancelled()
       && ((github.event_name == 'pull_request_target'
