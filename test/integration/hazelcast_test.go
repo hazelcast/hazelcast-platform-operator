@@ -2318,7 +2318,7 @@ var _ = Describe("Hazelcast CR", func() {
 			}, timeout, interval).Should(Equal(config.CPSubsystem{
 				CPMemberCount:      5,
 				GroupSize:          pointer.Int32(3),
-				BaseDir:            n.BaseDir + n.CPDirSuffix,
+				BaseDir:            n.PersistenceMountPath + n.CPDirSuffix,
 				PersistenceEnabled: true,
 			}))
 		})
