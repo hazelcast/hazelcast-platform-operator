@@ -211,6 +211,13 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
 		v.Forbidden(Path("spec", "persistence", "startupAction"), "PartialStart can be used only with Partial clusterDataRecoveryPolicy")
 	}
+
+	if p.RestoreFromLocalBackup() {
+		if p.Restore.LocalConfiguration.BackupFolder == "" {
+			v.Required(Path("spec", "persistence", "restore", "localConfig", "backupFolder"), "cannot be blank")
+			return
+		}
+	}
 }
 
 func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {

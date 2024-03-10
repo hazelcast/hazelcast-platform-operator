@@ -2305,7 +2305,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1
 		SecurityContext: containerSecurityContext(),
 	}
 
-	// operator works with the default baseDir (/data/hot-restart),
+	// operator works with the default baseDir (/data/persistence),
 	// so if different baseDir is used in the backup we also need to mount the operator's base directory
 	if baseDir != n.BaseDir {
 		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{

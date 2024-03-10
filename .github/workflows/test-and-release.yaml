@@ -129,7 +129,6 @@ jobs:
               memberAccess: NodePortExternalIP
             licenseKeySecret: hazelcast-license-key
             persistence:
-              baseDir: "/data/hot-restart/"
               clusterDataRecoveryPolicy: "FullRecoveryOnly"
               pvc:
                 accessModes: ["ReadWriteOnce"]

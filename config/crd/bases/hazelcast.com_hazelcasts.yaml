@@ -90,7 +90,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/kutluhanhazelcast/platform-operator-agent
-                  version: 0.1.25
+                  version: 0.1.26
                 description: B&R Agent configurations
                 properties:
                   repository:

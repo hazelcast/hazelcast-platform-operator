@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/kutluhanhazelcast/platform-operator-agent", version: "0.1.25"}
+	// +kubebuilder:default:={repository: "docker.io/kutluhanhazelcast/platform-operator-agent", version: "0.1.26"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -675,7 +675,7 @@ func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() b
 
 // RestoreFromLocalBackup returns true if Restore is done from local backup
 func (p *HazelcastPersistenceConfiguration) RestoreFromLocalBackup() bool {
-	return p.IsRestoreEnabled() && p.Restore.LocalConfiguration.BackupDir != ""
+	return p.IsRestoreEnabled() && p.Restore.LocalConfiguration != nil && p.Restore.LocalConfiguration.BackupDir != ""
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
@@ -690,21 +690,22 @@ type RestoreConfiguration struct {
 	HotBackupResourceName string `json:"hotBackupResourceName,omitempty"`
 
 	// Configuration to restore from local backup
+	// +optional
 	LocalConfiguration *RestoreFromLocalConfiguration `json:"localConfig,omitempty"`
 }
 
 type RestoreFromLocalConfiguration struct {
 	// Persistence base directory
 	// +optional
-	BaseDir string `json:"baseDir"`
+	BaseDir string `json:"baseDir,omitempty"`
 
 	// Local backup base directory
 	// +optional
-	BackupDir string `json:"backupDir"`
+	BackupDir string `json:"backupDir,omitempty"`
 
 	// Backup directory
 	// +required
-	BackupFolder string `json:"backupFolder,omitempty"`
+	BackupFolder string `json:"backupFolder"`
 }
 
 func (rc RestoreConfiguration) Hash() string {
