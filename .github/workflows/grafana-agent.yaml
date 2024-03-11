@@ -102,7 +102,7 @@ jobs:
           aws eks update-kubeconfig --name "${{ env.CLUSTER_NAME }}"
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         if: ${{ contains(inputs.cluster_type, 'aks') }}
         with:
           creds: ${{ env.AZURE_CREDENTIALS }}
