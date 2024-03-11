@@ -1008,6 +1008,8 @@ spec:
                           baseDir:
                             description: Persistence base directory
                             type: string
+                        required:
+                        - backupFolder
                         type: object
                     type: object
                   startupAction:
