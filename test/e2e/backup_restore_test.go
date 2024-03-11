@@ -590,4 +590,45 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		)
 	})
 
+	Context("Restoring from local backup", func() {
+		It("should restore successfully", Tag(EE|AnyCloud), func() {
+			clusterSize := int32(3)
+			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+
+			By("creating cluster with backup enabled")
+			CreateHazelcastCR(hazelcast)
+			evaluateReadyMembers(hzLookupKey)
+
+			By("creating the map config and adding entries")
+			m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
+
+			By("triggering backup")
+			hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
+			t := Now()
+			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+			hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
+
+			By("checking if backup status is correct")
+			assertCorrectBackupStatus(hotBackup, GetBackupSequence(t, hzLookupKey))
+
+			By("removing Hazelcast CR")
+			RemoveHazelcastCR(hazelcast)
+
+			By("creating cluster from backup")
+			fromLocal := hazelcastcomv1alpha1.RestoreConfiguration{
+				LocalConfiguration: &hazelcastcomv1alpha1.RestoreFromLocalConfiguration{
+					BackupFolder: hotBackup.Status.GetBackupFolder(),
+				},
+			}
+			restoredHz := hazelcastconfig.HazelcastRestore(hazelcast, fromLocal)
+			CreateHazelcastCR(restoredHz)
+			evaluateReadyMembers(hzLookupKey)
+
+			waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
+		})
+	})
+
 })
