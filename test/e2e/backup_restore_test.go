@@ -591,7 +591,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 	})
 
 	Context("Restoring from local backup", func() {
-		It("should restore successfully", Tag(EE|AnyCloud), func() {
+		It("should restore successfully", Tag(Kind|EE|AnyCloud), func() {
 			clusterSize := int32(3)
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 
