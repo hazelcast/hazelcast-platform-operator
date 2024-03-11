@@ -14,7 +14,6 @@ import (
 	"github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	clientTypes "github.com/hazelcast/hazelcast-go-client/types"
-	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/matchers"
 	corev1 "k8s.io/api/core/v1"
@@ -189,9 +188,7 @@ func TestHotBackupReconciler_shouldCancelContextIfHotbackupCRIsDeleted(t *testin
 	Expect(r.Client.Get(context.TODO(), nn, hb)).Should(Succeed())
 	Expect(r.cancelMap).Should(&matchers.HaveLenMatcher{Count: 1})
 
-	timeNow := metav1.Now()
-	hb.ObjectMeta.DeletionTimestamp = &timeNow
-	err = r.Client.Update(context.TODO(), hb)
+	err = r.Client.Delete(context.TODO(), hb)
 	Expect(err).Should(BeNil())
 
 	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
@@ -201,7 +198,7 @@ func TestHotBackupReconciler_shouldCancelContextIfHotbackupCRIsDeleted(t *testin
 }
 
 func TestHotBackupReconciler_shouldNotSetStatusToFailedIfHazelcastCRNotFound(t *testing.T) {
-	RegisterFailHandler(Fail)
+	RegisterFailHandler(fail(t))
 	nn, _, hb := defaultCRs()
 
 	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, &fakeHttpClientRegistry{}, hb)
@@ -215,7 +212,7 @@ func TestHotBackupReconciler_shouldNotSetStatusToFailedIfHazelcastCRNotFound(t *
 }
 
 func TestHotBackupReconciler_shouldFailIfPersistenceNotEnabledAtHazelcast(t *testing.T) {
-	RegisterFailHandler(Fail)
+	RegisterFailHandler(fail(t))
 	nn, h, hb := defaultCRs()
 	h.Spec = hazelcastv1alpha1.HazelcastSpec{}
 	hs, _ := json.Marshal(h.Spec)
@@ -237,7 +234,7 @@ func TestHotBackupReconciler_shouldFailIfPersistenceNotEnabledAtHazelcast(t *tes
 }
 
 func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore(t *testing.T) {
-	RegisterFailHandler(Fail)
+	RegisterFailHandler(fail(t))
 	nn, h, hb := defaultCRs()
 
 	// set it as deleted

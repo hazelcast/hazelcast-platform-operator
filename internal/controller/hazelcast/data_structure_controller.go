@@ -18,7 +18,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
-	recoptions "github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
+	recoptions "github.com/hazelcast/hazelcast-platform-operator/internal/controller"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"

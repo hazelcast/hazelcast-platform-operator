@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller"
 )
 
 type JetJobSnapshotStatusApplierFunc func(s *hazelcastv1alpha1.JetJobSnapshotStatus)
@@ -31,7 +31,7 @@ func withJetJobSnapshotFailedState(message string) JetJobSnapshotStatusApplierFu
 }
 
 func updateJetJobSnapshotStatus(ctx context.Context, c client.Client, jjs *hazelcastv1alpha1.JetJobSnapshot,
-	recOption controllers.ReconcilerOption, options ...JetJobSnapshotStatusApplierFunc) (ctrl.Result, error) {
+	recOption controller.ReconcilerOption, options ...JetJobSnapshotStatusApplierFunc) (ctrl.Result, error) {
 
 	for _, applierFunc := range options {
 		applierFunc(&jjs.Status)

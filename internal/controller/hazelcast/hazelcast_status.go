@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
@@ -207,7 +207,7 @@ func hzMemberPods(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Haz
 }
 
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
-func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, recOption controllers.ReconcilerOption, options ...HzStatusApplier) (ctrl.Result, error) {
+func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, recOption controller.ReconcilerOption, options ...HzStatusApplier) (ctrl.Result, error) {
 	for _, applier := range options {
 		applier.HzStatusApply(&h.Status)
 	}

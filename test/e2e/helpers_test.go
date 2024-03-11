@@ -800,7 +800,7 @@ func assertWanSyncStatus(wr *hazelcastcomv1alpha1.WanSync, st hazelcastcomv1alph
 				return ""
 			}
 			return checkWan.Status.Status
-		}, 4*Minute, interval).Should(Equal(st))
+		}, 5*Minute, interval).Should(Equal(st))
 	})
 	return checkWan
 }

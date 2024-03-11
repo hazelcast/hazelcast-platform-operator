@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller"
 )
 
 const retryAfterForDataStructures = 5 * time.Second
@@ -46,7 +46,7 @@ func (w withDSMemberStatuses) DSStatusApply(ds *hazelcastv1alpha1.DataStructureS
 	ds.MemberStatuses = w
 }
 
-func updateDSStatus(ctx context.Context, c client.Client, obj client.Object, recOption controllers.ReconcilerOption, options ...DSStatusApplier) (ctrl.Result, error) {
+func updateDSStatus(ctx context.Context, c client.Client, obj client.Object, recOption controller.ReconcilerOption, options ...DSStatusApplier) (ctrl.Result, error) {
 	status := obj.(hazelcastv1alpha1.DataStructure).GetStatus()
 	for _, applier := range options {
 		applier.DSStatusApply(status)

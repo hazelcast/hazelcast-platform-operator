@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/ptr"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers/hazelcast"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
