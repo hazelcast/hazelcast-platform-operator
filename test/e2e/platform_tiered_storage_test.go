@@ -28,7 +28,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 
 	})
-	FContext("Tiered Store enabled for map", func() {
+	Context("Tiered Store enabled for map", func() {
 		It("should successfully fill the map with more than allocated memory", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("hpts-1")
 
