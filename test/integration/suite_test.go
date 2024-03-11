@@ -119,7 +119,6 @@ var _ = BeforeSuite(func() {
 	err = hazelcast.NewMapReconciler(
 		k8sManager.GetClient(),
 		controllerLogger.WithName("Map"),
-		k8sManager.GetScheme(),
 		nil,
 		cs,
 	).SetupWithManager(k8sManager)

@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -70,6 +71,10 @@ type MapSpec struct {
 	// EventJournal specifies event journal configuration of the Map
 	// +optional
 	EventJournal *EventJournal `json:"eventJournal,omitempty"`
+
+	// TieredStore enables the Hazelcast's Tiered-Store feature for the Map
+	// +optional
+	TieredStore *TieredStore `json:"tieredStore,omitempty"`
 
 	// MerkleTree defines the configuration for the Merkle tree data structure.
 	// +optional
@@ -384,6 +389,16 @@ type EventJournal struct {
 	// TimeToLiveSeconds indicates how long the items remain in the event journal before they are expired.
 	// +kubebuilder:default:=0
 	TimeToLiveSeconds int32 `json:"timeToLiveSeconds,omitempty"`
+}
+
+type TieredStore struct {
+	// MemoryCapacity sets Memory tier capacity, i.e., how much main memory should this tier consume at most.
+	// +kubebuilder:default:="256M"
+	// +optional
+	MemoryCapacity *resource.Quantity `json:"memoryCapacity,omitempty"`
+	// diskDeviceName defines the name of the device for a given disk tier.
+	// +required
+	DiskDeviceName string `json:"diskDeviceName,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.3.5"
+	// +kubebuilder:default:="5.4.0-SNAPSHOT"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -167,6 +167,10 @@ type HazelcastSpec struct {
 	// Hazelcast SQL configuration
 	// +optional
 	SQL *SQL `json:"sql,omitempty"`
+
+	// Hazelcast LocalDevice configuration
+	// +optional
+	LocalDevices []LocalDeviceConfig `json:"localDevices,omitempty"`
 
 	// Hazelcast Kubernetes resource annotations
 	// +optional
@@ -645,7 +649,7 @@ type HazelcastPersistenceConfiguration struct {
 
 	// Configuration of PersistenceVolumeClaim.
 	// +required
-	Pvc *PersistencePvcConfiguration `json:"pvc,omitempty"`
+	PVC *PvcConfiguration `json:"pvc,omitempty"`
 
 	// Restore configuration
 	// +kubebuilder:default:={}
@@ -658,7 +662,7 @@ func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 	return p.ClusterDataRecoveryPolicy != FullRecovery
 }
 
-// Returns true if Persistence configuration is specified.
+// IsEnabled Returns true if Persistence configuration is specified.
 func (p *HazelcastPersistenceConfiguration) IsEnabled() bool {
 	return p != nil
 }
@@ -690,7 +694,7 @@ func (rc RestoreConfiguration) Hash() string {
 	return strconv.Itoa(int(FNV32a(string(str))))
 }
 
-type PersistencePvcConfiguration struct {
+type PvcConfiguration struct {
 	// AccessModes contains the actual access modes of the volume backing the PVC has.
 	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
 	// +optional
@@ -1083,6 +1087,39 @@ type SQL struct {
 	// +kubebuilder:default:=false
 	// +optional
 	CatalogPersistenceEnabled bool `json:"catalogPersistenceEnabled"`
+}
+
+type LocalDeviceConfig struct {
+	// Name represents the name of the local device
+	// +required
+	Name string `json:"name"`
+
+	// BlockSize defines Device block/sector size in bytes.
+	// +kubebuilder:validation:Minimum=512
+	// +kubebuilder:default:=4096
+	// +optional
+	BlockSize *int32 `json:"blockSize,omitempty"`
+
+	// ReadIOThreadCount is Read IO thread count.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:default:=4
+	// +optional
+	ReadIOThreadCount *int32 `json:"readIOThreadCount,omitempty"`
+
+	// WriteIOThreadCount is Write IO thread count.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:default:=4
+	// +optional
+	WriteIOThreadCount *int32 `json:"writeIOThreadCount,omitempty"`
+
+	// Configuration of PersistenceVolumeClaim.
+	// +required
+	PVC *PvcConfiguration `json:"pvc,omitempty"`
+}
+
+// IsTieredStorageEnabled Returns true if LocalDevices configuration is specified.
+func (hs *HazelcastSpec) IsTieredStorageEnabled() bool {
+	return len(hs.LocalDevices) != 0
 }
 
 // HazelcastStatus defines the observed state of Hazelcast

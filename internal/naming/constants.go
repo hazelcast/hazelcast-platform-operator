@@ -64,6 +64,7 @@ const (
 	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 	BaseDir                     = "/data/hot-restart"
+	TieredStorageBaseDir        = "/data/tiered-storage"
 
 	SidecarAgent        = "sidecar-agent"
 	BackupAgentPortName = "backup-agent-port"
@@ -100,7 +101,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.3.5"
+	HazelcastVersion = "5.4.0-SNAPSHOT"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
