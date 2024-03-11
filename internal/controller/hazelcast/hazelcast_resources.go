@@ -36,7 +36,7 @@ import (
 	"github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
@@ -2835,7 +2835,7 @@ func serviceAccountName(h *hazelcastv1alpha1.Hazelcast) string {
 
 func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	opResult, err := util.Update(ctx, r.Client, h, func() error {
-		controllers.InsertLastSuccessfullyAppliedSpec(h.Spec, h)
+		controller.InsertLastSuccessfullyAppliedSpec(h.Spec, h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

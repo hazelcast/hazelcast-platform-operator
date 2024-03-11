@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -220,7 +220,7 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 		}
 	}(ctx, metaData, jjnn, c, logger)
 	checker.runChecker(ctx, js, r.updateJob, logger)
-	if util.IsPhoneHomeEnabled() && !controllers.IsSuccessfullyApplied(job) {
+	if util.IsPhoneHomeEnabled() && !controller.IsSuccessfullyApplied(job) {
 		go func() { r.phoneHomeTrigger <- struct{}{} }()
 	}
 	return r.updateStatus(ctx, jjnn, jetJobWithStatus(hazelcastv1alpha1.JetJobStarting))
@@ -362,7 +362,7 @@ func (r *JetJobReconciler) updateLastSuccessfulConfiguration(ctx context.Context
 		if err := r.Client.Get(ctx, name, jj); err != nil {
 			return err
 		}
-		controllers.InsertLastSuccessfullyAppliedSpec(jj.Spec, jj)
+		controller.InsertLastSuccessfullyAppliedSpec(jj.Spec, jj)
 		return r.Client.Update(ctx, jj)
 	})
 }

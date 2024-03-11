@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller"
 )
 
 type WanRepStatusApplier interface {
@@ -34,7 +34,7 @@ func (w withWanRepMessage) WanRepStatusApply(ms *hazelcastv1alpha1.WanReplicatio
 	ms.Message = string(w)
 }
 
-func updateWanStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, recOption controllers.ReconcilerOption, options ...WanRepStatusApplier) (ctrl.Result, error) {
+func updateWanStatus(ctx context.Context, c client.Client, wan *hazelcastv1alpha1.WanReplication, recOption controller.ReconcilerOption, options ...WanRepStatusApplier) (ctrl.Result, error) {
 	for _, applier := range options {
 		applier.WanRepStatusApply(&wan.Status)
 	}

@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller"
 )
 
 type MapStatusApplier interface {
@@ -43,7 +43,7 @@ func (w withMapMemberStatuses) MapStatusApply(ms *hazelcastv1alpha1.MapStatus) {
 	ms.MemberStatuses = w
 }
 
-func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1alpha1.Map, recOption controllers.ReconcilerOption, options ...MapStatusApplier) (ctrl.Result, error) {
+func updateMapStatus(ctx context.Context, c client.Client, m *hazelcastv1alpha1.Map, recOption controller.ReconcilerOption, options ...MapStatusApplier) (ctrl.Result, error) {
 	for _, applier := range options {
 		applier.MapStatusApply(&m.Status)
 	}

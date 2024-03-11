@@ -17,7 +17,7 @@ on:
       - "**.md"
 
 env:
-  GO_VERSION: "1.21.0"
+  GO_VERSION: '1.20.0'
   NR_OF_SUITES: 10
   GOBIN: ${{ github.workspace }}/bin
   GAR_REGION: us-east1
