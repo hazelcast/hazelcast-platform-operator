@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: caches.hazelcast.com
 spec:
   group: hazelcast.com
@@ -155,8 +154,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: cronhotbackups.hazelcast.com
 spec:
   group: hazelcast.com
@@ -288,8 +286,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: hazelcastendpoints.hazelcast.com
 spec:
   group: hazelcast.com
@@ -381,8 +378,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: hazelcasts.hazelcast.com
 spec:
   group: hazelcast.com
@@ -478,6 +474,28 @@ spec:
                   resources:
                     description: Compute Resources required by the Agent container.
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -498,7 +516,8 @@ spec:
                         description: 'Requests describes the minimum amount of compute
                           resources required. If Requests is omitted for a container,
                           it defaults to Limits if that is explicitly specified, otherwise
-                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                          to an implementation-defined value. Requests cannot exceed
+                          Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
                   version:
@@ -787,6 +806,57 @@ spec:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string
+              localDevices:
+                description: Hazelcast LocalDevice configuration
+                items:
+                  properties:
+                    blockSize:
+                      default: 4096
+                      description: BlockSize defines Device block/sector size in bytes.
+                      format: int32
+                      minimum: 512
+                      type: integer
+                    name:
+                      description: Name represents the name of the local device
+                      type: string
+                    pvc:
+                      description: Configuration of PersistenceVolumeClaim.
+                      properties:
+                        accessModes:
+                          description: 'AccessModes contains the actual access modes
+                            of the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
+                          items:
+                            type: string
+                          type: array
+                        requestStorage:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          default: 8Gi
+                          description: A description of the PVC request capacity.
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        storageClassName:
+                          description: Name of StorageClass which this persistent
+                            volume belongs to.
+                          type: string
+                      type: object
+                    readIOThreadCount:
+                      default: 4
+                      description: ReadIOThreadCount is Read IO thread count.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    writeIOThreadCount:
+                      default: 4
+                      description: WriteIOThreadCount is Write IO thread count.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                  required:
+                  - name
+                  type: object
+                type: array
               loggingLevel:
                 default: INFO
                 description: Logging level for Hazelcast members
@@ -960,6 +1030,27 @@ spec:
               resources:
                 description: Compute Resources required by the Hazelcast container.
                 properties:
+                  claims:
+                    description: "Claims lists the names of resources, defined in
+                      spec.resourceClaims, that are used by this container. \n This
+                      is an alpha field and requires enabling the DynamicResourceAllocation
+                      feature gate. \n This field is immutable. It can only be set
+                      for containers."
+                    items:
+                      description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                      properties:
+                        name:
+                          description: Name must match the name of one entry in pod.spec.resourceClaims
+                            of the Pod where this field is used. It makes that resource
+                            available inside a container.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                   limits:
                     additionalProperties:
                       anyOf:
@@ -980,7 +1071,8 @@ spec:
                     description: 'Requests describes the minimum amount of compute
                       resources required. If Requests is omitted for a container,
                       it defaults to Limits if that is explicitly specified, otherwise
-                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                      to an implementation-defined value. Requests cannot exceed Limits.
+                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
               scheduledExecutorServices:
@@ -1986,14 +2078,19 @@ spec:
                           type: object
                           x-kubernetes-map-type: atomic
                         matchLabelKeys:
-                          description: MatchLabelKeys is a set of pod label keys to
-                            select the pods over which spreading will be calculated.
+                          description: "MatchLabelKeys is a set of pod label keys
+                            to select the pods over which spreading will be calculated.
                             The keys are used to lookup values from the incoming pod
                             labels, those key-value labels are ANDed with labelSelector
                             to select the group of existing pods over which spreading
-                            will be calculated for the incoming pod. Keys that don't
-                            exist in the incoming pod labels will be ignored. A null
-                            or empty list means only match against labelSelector.
+                            will be calculated for the incoming pod. The same key
+                            is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                            MatchLabelKeys cannot be set when LabelSelector isn't
+                            set. Keys that don't exist in the incoming pod labels
+                            will be ignored. A null or empty list means only match
+                            against labelSelector. \n This is a beta field and requires
+                            the MatchLabelKeysInPodTopologySpread feature gate to
+                            be enabled (enabled by default)."
                           items:
                             type: string
                           type: array
@@ -2053,7 +2150,7 @@ spec:
                             - Ignore: nodeAffinity/nodeSelector are ignored. All nodes
                             are included in the calculations. \n If this value is
                             nil, the behavior is equivalent to the Honor policy. This
-                            is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         nodeTaintsPolicy:
@@ -2063,8 +2160,8 @@ spec:
                             tainted nodes for which the incoming pod has a toleration,
                             are included. - Ignore: node taints are ignored. All nodes
                             are included. \n If this value is nil, the behavior is
-                            equivalent to the Ignore policy. This is a alpha-level
-                            feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            equivalent to the Ignore policy. This is a beta-level
+                            feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         topologyKey:
@@ -2331,7 +2428,7 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.3.5
+                default: 5.4.0-SNAPSHOT
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
@@ -2464,8 +2561,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: hotbackups.hazelcast.com
 spec:
   group: hazelcast.com
@@ -2563,8 +2659,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: jetjobs.hazelcast.com
 spec:
   group: hazelcast.com
@@ -2720,8 +2815,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: jetjobsnapshots.hazelcast.com
 spec:
   group: hazelcast.com
@@ -2814,8 +2908,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: managementcenters.hazelcast.com
 spec:
   group: hazelcast.com
@@ -3031,6 +3124,27 @@ spec:
               resources:
                 description: Compute Resources required by the MC container.
                 properties:
+                  claims:
+                    description: "Claims lists the names of resources, defined in
+                      spec.resourceClaims, that are used by this container. \n This
+                      is an alpha field and requires enabling the DynamicResourceAllocation
+                      feature gate. \n This field is immutable. It can only be set
+                      for containers."
+                    items:
+                      description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                      properties:
+                        name:
+                          description: Name must match the name of one entry in pod.spec.resourceClaims
+                            of the Pod where this field is used. It makes that resource
+                            available inside a container.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                   limits:
                     additionalProperties:
                       anyOf:
@@ -3051,7 +3165,8 @@ spec:
                     description: 'Requests describes the minimum amount of compute
                       resources required. If Requests is omitted for a container,
                       it defaults to Limits if that is explicitly specified, otherwise
-                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                      to an implementation-defined value. Requests cannot exceed Limits.
+                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
               scheduling:
@@ -4026,14 +4141,19 @@ spec:
                           type: object
                           x-kubernetes-map-type: atomic
                         matchLabelKeys:
-                          description: MatchLabelKeys is a set of pod label keys to
-                            select the pods over which spreading will be calculated.
+                          description: "MatchLabelKeys is a set of pod label keys
+                            to select the pods over which spreading will be calculated.
                             The keys are used to lookup values from the incoming pod
                             labels, those key-value labels are ANDed with labelSelector
                             to select the group of existing pods over which spreading
-                            will be calculated for the incoming pod. Keys that don't
-                            exist in the incoming pod labels will be ignored. A null
-                            or empty list means only match against labelSelector.
+                            will be calculated for the incoming pod. The same key
+                            is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                            MatchLabelKeys cannot be set when LabelSelector isn't
+                            set. Keys that don't exist in the incoming pod labels
+                            will be ignored. A null or empty list means only match
+                            against labelSelector. \n This is a beta field and requires
+                            the MatchLabelKeysInPodTopologySpread feature gate to
+                            be enabled (enabled by default)."
                           items:
                             type: string
                           type: array
@@ -4093,7 +4213,7 @@ spec:
                             - Ignore: nodeAffinity/nodeSelector are ignored. All nodes
                             are included in the calculations. \n If this value is
                             nil, the behavior is equivalent to the Honor policy. This
-                            is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         nodeTaintsPolicy:
@@ -4103,8 +4223,8 @@ spec:
                             tainted nodes for which the incoming pod has a toleration,
                             are included. - Ignore: node taints are ignored. All nodes
                             are included. \n If this value is nil, the behavior is
-                            equivalent to the Ignore policy. This is a alpha-level
-                            feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            equivalent to the Ignore policy. This is a beta-level
+                            feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         topologyKey:
@@ -4266,8 +4386,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: maps.hazelcast.com
 spec:
   group: hazelcast.com
@@ -4629,6 +4748,24 @@ spec:
                 description: When enabled, map data will be persisted. It cannot be
                   updated after map config is created successfully.
                 type: boolean
+              tieredStore:
+                description: TieredStore enables the Hazelcast's Tiered-Store feature
+                  for the Map
+                properties:
+                  diskDeviceName:
+                    description: diskDeviceName defines the name of the device for
+                      a given disk tier.
+                    type: string
+                  memoryCapacity:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    default: 256M
+                    description: MemoryCapacity sets Memory tier capacity, i.e., how
+                      much main memory should this tier consume at most.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                type: object
               timeToLiveSeconds:
                 default: 0
                 description: Maximum time in seconds for each entry to stay in the
@@ -4675,8 +4812,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: multimaps.hazelcast.com
 spec:
   group: hazelcast.com
@@ -4802,8 +4938,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: queues.hazelcast.com
 spec:
   group: hazelcast.com
@@ -4936,8 +5071,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: replicatedmaps.hazelcast.com
 spec:
   group: hazelcast.com
@@ -5049,8 +5183,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: topics.hazelcast.com
 spec:
   group: hazelcast.com
@@ -5157,8 +5290,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: wanreplications.hazelcast.com
 spec:
   group: hazelcast.com
@@ -5345,8 +5477,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.0
   name: wansyncs.hazelcast.com
 spec:
   group: hazelcast.com

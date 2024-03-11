@@ -8,6 +8,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -26,24 +27,24 @@ var _ webhook.Validator = &Hazelcast{}
 var _ webhook.Defaulter = &Hazelcast{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Hazelcast) ValidateCreate() error {
+func (r *Hazelcast) ValidateCreate() (admission.Warnings, error) {
 	hazelcastlog.Info("validate create", "name", r.Name)
-	return ValidateHazelcastSpec(r)
+	return admission.Warnings{}, ValidateHazelcastSpec(r)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Hazelcast) ValidateUpdate(old runtime.Object) error {
+func (r *Hazelcast) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	hazelcastlog.Info("validate update", "name", r.Name)
 	if r.GetDeletionTimestamp() != nil {
-		return nil
+		return admission.Warnings{}, nil
 	}
-	return ValidateHazelcastSpec(r)
+	return admission.Warnings{}, ValidateHazelcastSpec(r)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Hazelcast) ValidateDelete() error {
+func (r *Hazelcast) ValidateDelete() (admission.Warnings, error) {
 	hazelcastlog.Info("validate delete", "name", r.Name)
-	return nil
+	return admission.Warnings{}, nil
 }
 
 func (r *Hazelcast) Default() {

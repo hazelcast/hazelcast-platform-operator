@@ -5,6 +5,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -21,20 +22,20 @@ func (r *JetJobSnapshot) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &JetJobSnapshot{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (jjs *JetJobSnapshot) ValidateCreate() error {
+func (jjs *JetJobSnapshot) ValidateCreate() (admission.Warnings, error) {
 	jetjobsnapshotlog.Info("validate create", "name", jjs.Name)
-	return nil
+	return admission.Warnings{}, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (jjs *JetJobSnapshot) ValidateUpdate(old runtime.Object) error {
+func (jjs *JetJobSnapshot) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	jetjobsnapshotlog.Info("validate update", "name", jjs.Name)
 	oldJjs := old.(*JetJobSnapshot)
-	return ValidateJetJobSnapshotSpecUpdate(jjs, oldJjs)
+	return admission.Warnings{}, ValidateJetJobSnapshotSpecUpdate(jjs, oldJjs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (jjs *JetJobSnapshot) ValidateDelete() error {
+func (jjs *JetJobSnapshot) ValidateDelete() (admission.Warnings, error) {
 	jetjobsnapshotlog.Info("validate delete", "name", jjs.Name)
-	return nil
+	return admission.Warnings{}, nil
 }

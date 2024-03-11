@@ -142,7 +142,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -212,7 +212,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 			By("creating cluster with external backup enabled")
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -291,7 +291,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the map config and putting entries")
@@ -322,7 +322,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -374,7 +374,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -411,7 +411,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 

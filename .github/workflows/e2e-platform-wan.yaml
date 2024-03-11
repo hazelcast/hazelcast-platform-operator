@@ -13,6 +13,7 @@ env:
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
   AWS_REGION: us-east-1
+  CHAOS_MESH_NAMESPACE: chaos-testing
 
 jobs:
   get-image:
@@ -25,7 +26,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.1.0
         with:
           install: true
 
@@ -99,7 +100,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -150,7 +151,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.21.0"
+          go-version: "1.20.0"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -167,7 +168,7 @@ jobs:
             HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
 
       - name: Authenticate To ${{ matrix.cluster }} GCP Cluster
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -198,6 +199,22 @@ jobs:
           make install-operator IMG=$IMG NAMESPACE=${{ matrix.namespace }} RELEASE_NAME=${{ matrix.namespace }}
           kubectl rollout status deployment $DEPLOY_NAME
 
+      - name: Install Chaos Mesh
+        if: matrix.namespace == 'trg-ns'
+        run: |
+          helm repo add chaos-mesh https://charts.chaos-mesh.org
+          helm upgrade \
+          --install \
+          chaos-mesh \
+          chaos-mesh/chaos-mesh \
+          -n ${CHAOS_MESH_NAMESPACE} \
+          --create-namespace \
+          --set chaosDaemon.runtime=containerd \
+          --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
+          --version v2.6.2 \
+          --wait
+          kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io chaos-mesh-validation-auth
+
       - name: Create Secret On ${{ matrix.cluster }} Cluster and ${{ matrix.namespace }} namespace
         run: |
           kubectl create secret generic hazelcast-license-key \
@@ -214,7 +231,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.21.0"
+          go-version: "1.20.0"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -230,7 +247,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -326,7 +343,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate To GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -377,7 +394,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate To GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.2'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 

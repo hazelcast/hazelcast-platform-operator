@@ -60,19 +60,6 @@ jobs:
             --cluster "${CLUSTER_NAME}" \
             --region=${AWS_REGION}
 
-      - name: Configure SecurityGroup of Nodes
-        run: |-
-          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=$AWS_REGION --name=$CLUSTER_NAME --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
-
-          echo "SecurityGroupID: $SECURITY_GROUP_ID"
-
-          aws ec2 authorize-security-group-ingress \
-            --region=${AWS_REGION} \
-            --group-id=${SECURITY_GROUP_ID} \
-            --cidr=0.0.0.0/0 \
-            --protocol=tcp \
-            --port=30000-32767
-
   grafana-setup:
     needs: [ prepare-env ]
     uses: ./.github/workflows/grafana-agent.yaml
@@ -95,7 +82,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.1.0
         with:
           install: true
 
@@ -159,7 +146,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.21.0"
+          go-version: "1.20.0"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -167,6 +154,22 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get GH Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Configure SecurityGroup of Nodes
+        run: |-
+          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=${{ env.AWS_REGION }} --name=${{ needs.prepare-env.outputs.CLUSTER_NAME }} --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
+          echo "SecurityGroupID: $SECURITY_GROUP_ID"
+
+          aws ec2 authorize-security-group-ingress \
+            --region=${AWS_REGION} \
+            --group-id=${SECURITY_GROUP_ID} \
+            --cidr=${{ steps.ip.outputs.ipv4 }}/32 \
+            --protocol=tcp \
+            --port=30000-32767  
 
       - name: Get Secrets
         uses: aws-actions/aws-secretsmanager-get-secrets@v2

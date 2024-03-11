@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
+      NRG: ${{ steps.create-cluster.outputs.NRG }}
+      NSG: ${{ steps.create-cluster.outputs.NSG }}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -51,13 +53,16 @@ jobs:
               --enable-node-public-ip \
               --generate-ssh-keys | jq -r .nodeResourceGroup)
             echo "NodeResourceGroup: ${NRG}"
+            echo "NRG=${NRG}" >> $GITHUB_OUTPUT
 
             NSG=$(az network nsg list --resource-group=${NRG} --query='[0].name' --output=tsv)
             echo "NetworkSecurityGroup: ${NSG}"
+            echo "NSG=${NSG}" >> $GITHUB_OUTPUT
 
             az network nsg rule create \
               --name=AllowExternalAccess \
               --nsg-name=${NSG} \
+              --source-address-prefixes="192.0.2.0/24" \
               --priority=100 \
               --resource-group=${NRG} \
               --access=Allow \
@@ -87,7 +92,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.1.0
         with:
           install: true
 
@@ -151,7 +156,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.21.0"
+          go-version: "1.20.0"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -180,6 +185,23 @@ jobs:
         uses: azure/login@v1
         with:
           creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: Get GH Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Update Network Security Group
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 1
+          max_attempts: 3
+          retry_on: error
+          command: |
+            az network nsg rule update \
+              --name AllowExternalAccess \
+              --nsg-name ${{ needs.prepare-env.outputs.NSG }} \
+              --resource-group ${{ needs.prepare-env.outputs.NRG }} \
+              --add sourceAddressPrefixes ${{ steps.ip.outputs.ipv4 }}/32
 
       - name: Update kubeconfig
         run: |-

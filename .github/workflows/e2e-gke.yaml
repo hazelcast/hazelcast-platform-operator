@@ -10,6 +10,7 @@ env:
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
   AWS_REGION: us-east-1
+  FIREWALL_RULE_NAME: node-port-range
 
 jobs:
   create-gke-cluster:
@@ -34,7 +35,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: "google-github-actions/auth@v2.1.2"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -54,9 +55,13 @@ jobs:
 
       - name: Create Firewall Rules if not existing
         run: |-
-          gcloud compute firewall-rules create node-port-allow-all \
+          gcloud compute firewall-rules create ${FIREWALL_RULE_NAME} \
             --allow tcp:30000-32767 \
             --network=${{ env.GCP_NETWORK }} | true
+
+          gcloud compute firewall-rules update ${FIREWALL_RULE_NAME} \
+          --source-ranges="192.0.2.0/24" \
+          --project ${{ env.GCP_PROJECT_ID }}
 
       - name: Ensure Service Account allows using Workload Identity
         run: |-
@@ -67,7 +72,7 @@ jobs:
             --member "serviceAccount:${{ env.GCP_PROJECT_ID }}.svc.id.goog[test-operator-ee/cn-workload-identity-test]"
 
   grafana-setup:
-    needs: [ create-gke-cluster ]
+    needs: [create-gke-cluster]
     uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
@@ -88,7 +93,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.1.0
         with:
           install: true
 
@@ -151,7 +156,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.21.0"
+          go-version: "1.20.0"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -169,7 +174,7 @@ jobs:
             AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.0"
+        uses: "google-github-actions/auth@v2.1.2"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -181,11 +186,31 @@ jobs:
           password: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
-        uses: 'google-github-actions/get-gke-credentials@v2'
+        uses: "google-github-actions/get-gke-credentials@v2"
         with:
           cluster_name: ${{ env.CLUSTER_NAME }}
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
+
+      - name: Get GH Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Update Firewall Rules
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 1
+          max_attempts: 3
+          retry_on: error
+          command: |
+            EXISTING_SOURCES=$(gcloud compute firewall-rules describe ${FIREWALL_RULE_NAME} \
+            --format="get(sourceRanges)" \
+            --project ${{ env.GCP_PROJECT_ID }} |  sed 's/;/,/g')
+            NEW_SOURCE_RANGES="${EXISTING_SOURCES},${{ steps.ip.outputs.ipv4 }}/32"
+
+            gcloud compute firewall-rules update ${FIREWALL_RULE_NAME} \
+            --source-ranges=$NEW_SOURCE_RANGES \
+            --project ${{ env.GCP_PROJECT_ID }}
 
       - name: Deploy Operator to GKE
         run: |
@@ -271,7 +296,7 @@ jobs:
           update_status_badges ${{ github.run_id }} ${{ env.TEST_STATUSES_GIST_ID }} ${{ env.GIST_CREATION_TOKEN }}
 
   report-generation:
-    needs: ["gke-e2e-tests","create-gke-cluster"]
+    needs: ["gke-e2e-tests", "create-gke-cluster"]
     if: always() && (needs.gke-e2e-tests.result == 'success' || needs.gke-e2e-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
@@ -311,9 +336,13 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.0"
+        uses: "google-github-actions/auth@v2.1.2"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
+
+      - name: Delete Firewall Rule
+        run: |-
+          gcloud compute firewall-rules delete ${FIREWALL_RULE_NAME} --quiet --project ${{ env.GCP_PROJECT_ID }}
 
       - name: Delete GKE cluster
         if: always()

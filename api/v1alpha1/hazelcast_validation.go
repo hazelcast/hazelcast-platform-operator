@@ -58,6 +58,7 @@ func (v *hazelcastValidator) validateSpecCurrent(h *Hazelcast) {
 	v.validateCustomConfig(h)
 	v.validateNativeMemory(h)
 	v.validateSQL(h)
+	v.validateTieredStorage(h)
 }
 
 func (v *hazelcastValidator) validateSpecUpdate(h *Hazelcast) {
@@ -200,10 +201,10 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 		return
 	}
 
-	if p.Pvc == nil {
+	if p.PVC == nil {
 		v.Required(Path("spec", "persistence", "pvc"), "must be set when persistence is enabled")
 	} else {
-		if p.Pvc.AccessModes == nil {
+		if p.PVC.AccessModes == nil {
 			v.Required(Path("spec", "persistence", "pvc", "accessModes"), "must be set when persistence is enabled")
 		}
 	}
@@ -367,10 +368,10 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 		v.Forbidden(Path("spec", "persistence"), "field cannot be disabled after creation")
 		return
 	}
-	if !reflect.DeepEqual(current.Pvc, last.Pvc) {
+	if !reflect.DeepEqual(current.PVC, last.PVC) {
 		v.Forbidden(Path("spec", "persistence", "pvc"), "field cannot be updated")
 	}
-	if current.Restore != last.Restore {
+	if !reflect.DeepEqual(current.Restore, last.Restore) {
 		v.Forbidden(Path("spec", "persistence", "restore"), "field cannot be updated")
 	}
 }
@@ -432,5 +433,34 @@ func (v *hazelcastValidator) validateSQL(h *Hazelcast) {
 
 	if h.Spec.SQL.CatalogPersistenceEnabled && !h.Spec.Persistence.IsEnabled() {
 		v.Forbidden(Path("spec", "sql", "catalogPersistence"), "catalogPersistence requires Hazelcast persistence enabled")
+	}
+}
+
+func (v *hazelcastValidator) validateTieredStorage(h *Hazelcast) {
+	// skip validation if LocalDevice is not set
+	if !h.Spec.IsTieredStorageEnabled() {
+		return
+	}
+	lds := h.Spec.LocalDevices
+
+	if h.Spec.GetLicenseKeySecretName() == "" {
+		v.Required(Path("spec", "localDevices"), "Hazelcast Tiered Storage requires enterprise version")
+	}
+
+	if !h.Spec.NativeMemory.IsEnabled() {
+		v.Required(Path("spec", "nativeMemory"), "Native Memory must be enabled at Hazelcast when Tiered Storage is enabled")
+	}
+	for _, ld := range lds {
+		v.validateLocalDevice(ld)
+	}
+}
+
+func (v *hazelcastValidator) validateLocalDevice(ld LocalDeviceConfig) {
+	if ld.PVC == nil {
+		v.Required(Path("spec", "localDevices", "pvc"), "must be set when LocalDevice is defined")
+		return
+	}
+	if ld.PVC.AccessModes == nil {
+		v.Required(Path("spec", "localDevices", "pvc", "accessModes"), "must be set when LocalDevice is defined")
 	}
 }
