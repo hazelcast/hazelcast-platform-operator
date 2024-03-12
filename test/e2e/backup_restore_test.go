@@ -592,8 +592,10 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 	Context("Restoring from local backup", func() {
 		It("should restore successfully", Tag(Kind|EE|AnyCloud), func() {
+			setLabelAndCRName("br-13")
 			clusterSize := int32(3)
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+			hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 
 			By("creating cluster with backup enabled")
 			CreateHazelcastCR(hazelcast)
@@ -606,7 +608,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
 
 			By("triggering backup")
-			hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
 			t := Now()
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 			hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
@@ -627,7 +628,10 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			CreateHazelcastCR(restoredHz)
 			evaluateReadyMembers(hzLookupKey)
 
-			waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
+			By("checking the cluster state and map size")
+			assertHazelcastRestoreStatus(restoredHz, hazelcastcomv1alpha1.RestoreSucceeded)
+			assertClusterStatePortForward(context.Background(), restoredHz, localPort, codecTypes.ClusterStateActive)
+			waitForMapSizePortForward(context.Background(), restoredHz, localPort, m.MapName(), 10, 1*Minute)
 		})
 	})
 

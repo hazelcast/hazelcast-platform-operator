@@ -616,13 +616,13 @@ func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
 }
 
 type AgentConfiguration struct {
-	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
+	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/kutluhanhazelcast/platform-operator-agent)
+	// +kubebuilder:default:="docker.io/kutluhanhazelcast/platform-operator-agent"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.23"
+	// +kubebuilder:default:="0.1.26"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -679,7 +679,7 @@ func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() b
 
 // RestoreFromLocalBackup returns true if Restore is done from local backup
 func (p *HazelcastPersistenceConfiguration) RestoreFromLocalBackup() bool {
-	return p.IsRestoreEnabled() && p.Restore.LocalConfiguration != nil && p.Restore.LocalConfiguration.BackupDir != ""
+	return p.IsRestoreEnabled() && p.Restore.LocalConfiguration != nil && p.Restore.LocalConfiguration.BackupFolder != ""
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
