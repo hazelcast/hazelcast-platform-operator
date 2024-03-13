@@ -867,30 +867,30 @@ func hazelcastEndpointFromService(nn types.NamespacedName, hz *hazelcastv1alpha1
 }
 
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	cm := &corev1.Secret{
+	scrt := &corev1.Secret{
 		ObjectMeta: metadata(h),
 		Data:       make(map[string][]byte),
 	}
 
-	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
+	err := controllerutil.SetControllerReference(h, scrt, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
+		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, scrt, func() error {
 			config, err := hazelcastConfig(ctx, r.Client, h, logger)
 			if err != nil {
 				return err
 			}
-			cm.Data["hazelcast.yaml"] = config
+			scrt.Data["hazelcast.yaml"] = config
 
-			if _, ok := cm.Data["hazelcast.jks"]; !ok {
+			if _, ok := scrt.Data["hazelcast.jks"]; !ok {
 				keystore, err := hazelcastKeystore(ctx, r.Client, h)
 				if err != nil {
 					return err
 				}
-				cm.Data["hazelcast.jks"] = keystore
+				scrt.Data["hazelcast.jks"] = keystore
 			}
 
 			return nil
@@ -925,6 +925,16 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
+
+	// For backward compatibility purpose; if the BaseDir is not equal to the expected, keep set it equal to MountPath
+	existingConfig, err := getHazelcastConfig(ctx, c, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+	if err != nil {
+		logger.V(util.WarnLevel).Info(fmt.Sprintf("failed to fetch old config secret %v", err))
+	}
+	if existingConfig != nil && existingConfig.Hazelcast.Persistence.BaseDir != n.BaseDir {
+		cfg.Persistence.BaseDir = n.PersistenceMountPath
+		cfg.Persistence.BackupDir = path.Join(n.PersistenceMountPath, "hot-backup")
+	}
 
 	if h.Spec.Properties != nil {
 		h.Spec.Properties = mergeProperties(logger, h.Spec.Properties)
@@ -2019,7 +2029,11 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Containers[0].ReadinessProbe.ProbeHandler.HTTPGet.Path = "/hazelcast/health/ready"
 		}
 
-		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client)
+		hzConf, err := getHazelcastConfig(ctx, r.Client, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+		if err != nil {
+			return fmt.Errorf("unable to fetch existing HZ config: %v", err)
+		}
+		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client, hzConf)
 		if err != nil {
 			return err
 		}
@@ -2190,7 +2204,7 @@ func containerSecurityContext() *v1.SecurityContext {
 	}
 }
 
-func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
+func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, conf *config.HazelcastWrapper) ([]v1.Container, error) {
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
@@ -2221,7 +2235,7 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 
 	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
 		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
-			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName})
+			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, conf.Hazelcast.Persistence.BaseDir)
 		if err != nil {
 			return nil, err
 		}
@@ -2232,12 +2246,12 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 
 	// restoring from bucket config
 	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
-		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
+		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, conf.Hazelcast.Persistence.BaseDir))
 
 	return containers, nil
 }
 
-func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
+func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName, baseDir string) (v1.Container, error) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := cl.Get(ctx, key, hb)
 	if err != nil {
@@ -2251,16 +2265,16 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 	var cont corev1.Container
 	if hb.Spec.IsExternal() {
 		bucketURI := hb.Status.GetBucketURI()
-		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI)
+		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI, baseDir)
 	} else {
 		backupFolder := hb.Status.GetBackupFolder()
-		cont = restoreLocalAgentContainer(h, backupFolder)
+		cont = restoreLocalAgentContainer(h, backupFolder, baseDir)
 	}
 
 	return cont, nil
 }
 
-func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, baseDir string) v1.Container {
 	commandName := "restore_pvc"
 
 	return v1.Container{
@@ -2279,7 +2293,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 			},
 			{
 				Name:  "RESTORE_DESTINATION",
-				Value: n.BaseDir,
+				Value: baseDir,
 			},
 			{
 				Name:  "RESTORE_ID",
@@ -2305,7 +2319,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 	}
 }
 
-func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder string) v1.Container {
+func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder, baseDir string) v1.Container {
 	commandName := "restore_pvc_local"
 
 	return v1.Container{
@@ -2320,7 +2334,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder str
 			},
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
-				Value: n.BaseDir,
+				Value: baseDir,
 			},
 			{
 				Name:  "RESTORE_LOCAL_ID",
@@ -2520,7 +2534,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	return vm
 }
 
-func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,

@@ -13,7 +13,9 @@ import (
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -59,44 +61,46 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 		Build()
 
 	_ = corev1.AddToScheme(scheme)
+	_ = appsv1.AddToScheme(scheme)
+	_ = rbacv1.AddToScheme(scheme)
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).
-		WithIndex(&hazelcastv1alpha1.Map{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		WithIndex(&hazelcastv1alpha1.Map{}, "hazelcastResourceName", func(o client.Object) []string {
 			hzMap := o.(*hazelcastv1alpha1.Map)
 			return []string{hzMap.Spec.HazelcastResourceName}
-		})).
-		WithIndex(&hazelcastv1alpha1.Cache{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		}).
+		WithIndex(&hazelcastv1alpha1.Cache{}, "hazelcastResourceName", func(o client.Object) []string {
 			cache := o.(*hazelcastv1alpha1.Cache)
 			return []string{cache.Spec.HazelcastResourceName}
-		})).
-		WithIndex(&hazelcastv1alpha1.HotBackup{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		}).
+		WithIndex(&hazelcastv1alpha1.HotBackup{}, "hazelcastResourceName", func(o client.Object) []string {
 			backup := o.(*hazelcastv1alpha1.HotBackup)
 			return []string{backup.Spec.HazelcastResourceName}
-		})).
-		WithIndex(&hazelcastv1alpha1.CronHotBackup{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		}).
+		WithIndex(&hazelcastv1alpha1.CronHotBackup{}, "hazelcastResourceName", func(o client.Object) []string {
 			cronBackup := o.(*hazelcastv1alpha1.CronHotBackup)
 			return []string{cronBackup.Spec.HotBackupTemplate.Spec.HazelcastResourceName}
-		})).
-		WithIndex(&hazelcastv1alpha1.MultiMap{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		}).
+		WithIndex(&hazelcastv1alpha1.MultiMap{}, "hazelcastResourceName", func(o client.Object) []string {
 			mmap := o.(*hazelcastv1alpha1.MultiMap)
 			return []string{mmap.Spec.HazelcastResourceName}
-		})).
-		WithIndex(&hazelcastv1alpha1.ReplicatedMap{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		}).
+		WithIndex(&hazelcastv1alpha1.ReplicatedMap{}, "hazelcastResourceName", func(o client.Object) []string {
 			rmap := o.(*hazelcastv1alpha1.ReplicatedMap)
 			return []string{rmap.Spec.HazelcastResourceName}
-		})).
-		WithIndex(&hazelcastv1alpha1.Topic{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		}).
+		WithIndex(&hazelcastv1alpha1.Topic{}, "hazelcastResourceName", func(o client.Object) []string {
 			topic := o.(*hazelcastv1alpha1.Topic)
 			return []string{topic.Spec.HazelcastResourceName}
-		})).
-		WithIndex(&hazelcastv1alpha1.Queue{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		}).
+		WithIndex(&hazelcastv1alpha1.Queue{}, "hazelcastResourceName", func(o client.Object) []string {
 			queue := o.(*hazelcastv1alpha1.Queue)
 			return []string{queue.Spec.HazelcastResourceName}
-		})).
-		WithIndex(&hazelcastv1alpha1.JetJob{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		}).
+		WithIndex(&hazelcastv1alpha1.JetJob{}, "hazelcastResourceName", func(o client.Object) []string {
 			jj := o.(*hazelcastv1alpha1.JetJob)
 			return []string{jj.Spec.HazelcastResourceName}
-		})).
-		WithIndex(&hazelcastv1alpha1.WanReplication{}, "hazelcastResourceName", client.IndexerFunc(func(o client.Object) []string {
+		}).
+		WithIndex(&hazelcastv1alpha1.WanReplication{}, "hazelcastResourceName", func(o client.Object) []string {
 			wr := o.(*hazelcastv1alpha1.WanReplication)
 			hzResources := []string{}
 			for k := range wr.Status.WanReplicationMapsStatus {
@@ -104,7 +108,7 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 				hzResources = append(hzResources, hzName)
 			}
 			return hzResources
-		})).
+		}).
 		Build()
 }
 
@@ -127,7 +131,7 @@ type fakeHzClientRegistry struct {
 func (cr *fakeHzClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (hzclient.Client, error) {
 	client, ok := cr.Get(nn)
 	if !ok {
-		return client, fmt.Errorf("Fake client was not set before test")
+		return client, fmt.Errorf("fake client was not set before test")
 	}
 	return client, nil
 }

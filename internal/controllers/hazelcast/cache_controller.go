@@ -118,7 +118,7 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 }
 
 func (r *CacheReconciler) validateCacheConfigPersistence(ctx context.Context, c *hazelcastv1alpha1.Cache) (bool, error) {
-	hzConfig, err := getHazelcastConfig(ctx, r.Client, c)
+	hzConfig, err := getHazelcastConfig(ctx, r.Client, getHzNamespacedName(c))
 	if err != nil {
 		return false, err
 	}

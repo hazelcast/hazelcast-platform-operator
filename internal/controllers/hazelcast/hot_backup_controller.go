@@ -296,12 +296,16 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 		m := m
 		i := i
 		g.Go(func() error {
+			config, err := getHazelcastConfig(ctx, r.Client, types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace})
+			if err != nil {
+				return err
+			}
 			// if local backup
 			if !isExternal {
 				b, err := localbackup.NewLocalBackup(&localbackup.Config{
 					MemberAddress: m.Address,
 					MTLSClient:    mtlsClient,
-					BackupBaseDir: n.BaseDir,
+					BackupBaseDir: config.Hazelcast.Persistence.BaseDir,
 					MemberID:      i,
 				})
 				if err != nil {
@@ -324,7 +328,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 				MemberAddress: m.Address,
 				MTLSClient:    mtlsClient,
 				BucketURI:     hb.Spec.BucketURI,
-				BackupBaseDir: n.BaseDir,
+				BackupBaseDir: config.Hazelcast.Persistence.BaseDir,
 				HazelcastName: hb.Spec.HazelcastResourceName,
 				SecretName:    hb.Spec.GetSecretName(),
 				MemberID:      i,
@@ -349,7 +353,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 					if cancelErr != nil {
 						return cancelErr
 					}
-					return fmt.Errorf("Upload error for member %s: %w", m.UUID, err)
+					return fmt.Errorf("upload error for member %s: %w", m.UUID, err)
 				}
 				return err
 			}

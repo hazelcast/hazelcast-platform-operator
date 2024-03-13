@@ -259,11 +259,30 @@ func sendCodecRequest(
 	return memberStatuses, nil
 }
 
-func getHazelcastConfig(ctx context.Context, c client.Client, obj client.Object) (*config.HazelcastWrapper, error) {
+func getHazelcastConfig2(ctx context.Context, c client.Client, obj client.Object) (*config.HazelcastWrapper, error) {
 	cm := &corev1.Secret{}
 	err := c.Get(ctx, types.NamespacedName{Name: obj.(hazelcastv1alpha1.DataStructure).GetHZResourceName(), Namespace: obj.GetNamespace()}, cm)
 	if err != nil {
 		return nil, fmt.Errorf("could not find Secret for %v config persistence", hazelcastv1alpha1.GetKind(obj))
+	}
+
+	hzConfig := &config.HazelcastWrapper{}
+	err = yaml.Unmarshal(cm.Data["hazelcast.yaml"], hzConfig)
+	if err != nil {
+		return nil, fmt.Errorf("persisted Secret is not formatted correctly")
+	}
+	return hzConfig, nil
+}
+
+func getHzNamespacedName(obj client.Object) types.NamespacedName {
+	return types.NamespacedName{Name: obj.(hazelcastv1alpha1.DataStructure).GetHZResourceName(), Namespace: obj.GetNamespace()}
+}
+
+func getHazelcastConfig(ctx context.Context, c client.Client, nn types.NamespacedName) (*config.HazelcastWrapper, error) {
+	cm := &corev1.Secret{}
+	err := c.Get(ctx, nn, cm)
+	if err != nil {
+		return nil, fmt.Errorf("could not find Secret for config persistence for %v", nn)
 	}
 
 	hzConfig := &config.HazelcastWrapper{}
