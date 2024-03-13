@@ -285,6 +285,131 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		Expect(err).Should(MatchError(MatchRegexp("Split brain protection exception: " + splitBrainConfName + " has failed!")))
 	})
 
+	It("should not lose any data from tiered store during a split-brain scenario", Tag(Any), Serial, func() {
+		setLabelAndCRName("sbts-1")
+		duration := "100s"
+		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
+		restConfig, _ := kubeConfig.ClientConfig()
+		k8sClient, _ := cli.New(restConfig, cli.Options{Scheme: scheme.Scheme})
+
+		deviceName := "test-device"
+		var memorySizeInMb = 1536      // 1.5Gi
+		var mapSizeInMb = 2000         // 2 Gi
+		var totalMemorySizeInMb = 2048 // 2 Gi
+		var diskSizeInMb = mapSizeInMb * 2
+		var expectedMapSize = int(float64(mapSizeInMb) * 128)
+		ctx := context.Background()
+
+		totalMemorySize := strconv.Itoa(totalMemorySizeInMb) + "Mi"
+		nativeMemorySize := strconv.Itoa(memorySizeInMb) + "Mi"
+		diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
+		hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, labels)
+		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+		}
+		hazelcast.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
+		hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(totalMemorySize)},
+		}
+		hazelcast.Spec.NativeMemory = &hazelcastcomv1alpha1.NativeMemoryConfiguration{
+			Size: []resource.Quantity{resource.MustParse(nativeMemorySize)}[0],
+		}
+		hazelcast.Spec.ClusterSize = pointer.Int32(6)
+
+		CreateHazelcastCR(hazelcast)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("creating the map config and putting entries")
+		tsMap := hazelcastconfig.DefaultTieredStoreMap(mapLookupKey, hazelcast.Name, deviceName, labels)
+		tsMap.Spec.TieredStore.MemoryCapacity = &[]resource.Quantity{resource.MustParse(nativeMemorySize)}[0]
+		Expect(k8sClient.Create(context.Background(), tsMap)).Should(Succeed())
+		assertMapStatus(tsMap, hazelcastcomv1alpha1.MapSuccess)
+		FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
+		WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), expectedMapSize, 10*Minute)
+
+		By("split the members into 2 groups")
+		podLabels := []PodLabel{
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-0", "group", "group1"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-1", "group", "group1"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-2", "group", "group1"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-3", "group", "group2"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-4", "group", "group2"},
+			{"statefulset.kubernetes.io/pod-name=" + hazelcast.Name + "-5", "group", "group2"},
+		}
+		err := LabelPods(hazelcast.Namespace, podLabels)
+		if err != nil {
+			fmt.Printf("Error labeling pods: %s\n", err)
+		} else {
+			fmt.Println("Pods labeled successfully")
+		}
+		evaluateReadyMembers(hzLookupKey)
+
+		By("run split brain scenario")
+		networkPartitionChaos := &chaosmeshv1alpha1.NetworkChaos{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      hazelcast.Name,
+				Namespace: hazelcast.Namespace,
+			},
+			Spec: chaosmeshv1alpha1.NetworkChaosSpec{
+				PodSelector: chaosmeshv1alpha1.PodSelector{
+					Mode: chaosmeshv1alpha1.AllMode,
+					Selector: chaosmeshv1alpha1.PodSelectorSpec{
+						GenericSelectorSpec: chaosmeshv1alpha1.GenericSelectorSpec{
+							LabelSelectors: map[string]string{
+								"group": "group1",
+							},
+						},
+					},
+				},
+				Action:    chaosmeshv1alpha1.PartitionAction,
+				Direction: chaosmeshv1alpha1.Both,
+				Target: &chaosmeshv1alpha1.PodSelector{
+					Mode: chaosmeshv1alpha1.AllMode,
+					Selector: chaosmeshv1alpha1.PodSelectorSpec{
+						GenericSelectorSpec: chaosmeshv1alpha1.GenericSelectorSpec{
+							LabelSelectors: map[string]string{
+								"group": "group2",
+							},
+						},
+					},
+				},
+				Duration: &duration,
+			},
+		}
+		Expect(k8sClient.Create(context.Background(), networkPartitionChaos)).To(Succeed(), "Failed to create network partition chaos")
+
+		By("wait until Hazelcast cluster will be injected by split-brain experiment")
+		Eventually(func() bool {
+			err = k8sClient.Get(context.Background(), hzLookupKey, networkPartitionChaos)
+			Expect(err).ToNot(HaveOccurred())
+			for _, condition := range networkPartitionChaos.Status.ChaosStatus.Conditions {
+				if condition.Type == chaosmeshv1alpha1.ConditionAllInjected && condition.Status == "True" {
+					return true
+				}
+			}
+			return false
+		}, 1*Minute, interval).Should(BeTrue())
+
+		By("Add more data to TS map during split-brain")
+		FillMapBySizeInMb(ctx, tsMap.MapName(), 48, mapSizeInMb+48, hazelcast)
+
+		By("wait until Hazelcast cluster will be recovered from split-brain experiment")
+		Eventually(func() bool {
+			err = k8sClient.Get(context.Background(), hzLookupKey, networkPartitionChaos)
+			Expect(err).ToNot(HaveOccurred())
+			for _, condition := range networkPartitionChaos.Status.ChaosStatus.Conditions {
+				if condition.Type == chaosmeshv1alpha1.ConditionAllInjected && condition.Status == "True" {
+					return true
+				}
+			}
+			return false
+		}, 2*Minute, interval).Should(BeFalse())
+
+		WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), int(float64(mapSizeInMb+48)*128), 10*Minute)
+	})
+
 	It("should have no data lose after zone outage", Tag(Any), Serial, func() {
 		setLabelAndCRName("hr-2")
 
