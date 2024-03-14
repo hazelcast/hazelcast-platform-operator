@@ -33,7 +33,7 @@ jobs:
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ env.AZURE_CREDENTIALS }}
 
@@ -182,7 +182,7 @@ jobs:
           password: ${{ env.GKE_SA_KEY }}
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ env.AZURE_CREDENTIALS }}
 
@@ -332,7 +332,7 @@ jobs:
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ env.AZURE_CREDENTIALS }}
 
