@@ -40,7 +40,7 @@ jobs:
           creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Delete AKS cluster
-        uses: azure/CLI@v1
+        uses: azure/CLI@v2
         with:
           azcliversion: 2.31.0
           inlineScript: |
