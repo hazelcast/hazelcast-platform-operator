@@ -927,13 +927,15 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	cfg := hazelcastBasicConfig(h)
 
 	// For backward compatibility purpose; if the BaseDir is not equal to the expected, keep set it equal to MountPath
-	existingConfig, err := getHazelcastConfig(ctx, c, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
-	if err != nil {
-		logger.V(util.WarnLevel).Info(fmt.Sprintf("failed to fetch old config secret %v", err))
-	}
-	if existingConfig != nil && existingConfig.Hazelcast.Persistence.BaseDir != n.BaseDir {
-		cfg.Persistence.BaseDir = n.PersistenceMountPath
-		cfg.Persistence.BackupDir = path.Join(n.PersistenceMountPath, "hot-backup")
+	if h.Spec.Persistence.IsEnabled() {
+		existingConfig, err := getHazelcastConfig(ctx, c, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+		if err != nil {
+			logger.V(util.WarnLevel).Info(fmt.Sprintf("failed to fetch old config secret %v", err))
+		}
+		if existingConfig != nil && existingConfig.Hazelcast.Persistence.BaseDir != n.BaseDir {
+			cfg.Persistence.BaseDir = n.PersistenceMountPath
+			cfg.Persistence.BackupDir = path.Join(n.PersistenceMountPath, "hot-backup")
+		}
 	}
 
 	if h.Spec.Properties != nil {
@@ -1155,7 +1157,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			Parallelism:               1,
 			ValidationTimeoutSec:      120,
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
-			AutoRemoveStaleData:       &[]bool{h.Spec.Persistence.AutoRemoveStaleData()}[0],
+			AutoRemoveStaleData:       pointer.Bool(h.Spec.Persistence.AutoRemoveStaleData()),
 		}
 		if h.Spec.Persistence.DataRecoveryTimeout != 0 {
 			cfg.Persistence.ValidationTimeoutSec = h.Spec.Persistence.DataRecoveryTimeout
