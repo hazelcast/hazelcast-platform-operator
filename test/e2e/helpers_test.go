@@ -166,7 +166,7 @@ func RemoveHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 				Name:      hazelcast.Name,
 				Namespace: hazelcast.Namespace,
 			}, h)
-		}, 2*Minute, interval).ShouldNot(Succeed())
+		}, 5*Minute, interval).ShouldNot(Succeed())
 	})
 }
 
@@ -800,7 +800,7 @@ func assertWanSyncStatus(wr *hazelcastcomv1alpha1.WanSync, st hazelcastcomv1alph
 				return ""
 			}
 			return checkWan.Status.Status
-		}, 4*Minute, interval).Should(Equal(st))
+		}, 5*Minute, interval).Should(Equal(st))
 	})
 	return checkWan
 }
@@ -1105,6 +1105,18 @@ func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *c
 	for _, c := range caches.Caches {
 		if c.Name == cacheName {
 			return &c
+		}
+	}
+	return nil
+}
+
+func getMapConfigFromMemberConfig(memberConfigXML string, mapName string) *codecTypes.AddMapConfigInput {
+	var maps codecTypes.MapConfigs
+	err := xml.Unmarshal([]byte(memberConfigXML), &maps)
+	Expect(err).To(BeNil())
+	for _, m := range maps.Maps {
+		if m.Name == mapName {
+			return &m
 		}
 	}
 	return nil

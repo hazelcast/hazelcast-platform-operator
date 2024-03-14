@@ -8,6 +8,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -25,24 +26,24 @@ var _ webhook.Validator = &ManagementCenter{}
 var _ webhook.Defaulter = &ManagementCenter{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *ManagementCenter) ValidateCreate() error {
+func (r *ManagementCenter) ValidateCreate() (admission.Warnings, error) {
 	managementcenterlog.Info("validate create", "name", r.Name)
-	return ValidateManagementCenterSpec(r)
+	return admission.Warnings{}, ValidateManagementCenterSpec(r)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *ManagementCenter) ValidateUpdate(old runtime.Object) error {
+func (r *ManagementCenter) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	managementcenterlog.Info("validate update", "name", r.Name)
 	if r.GetDeletionTimestamp() != nil {
-		return nil
+		return admission.Warnings{}, nil
 	}
-	return ValidateManagementCenterSpec(r)
+	return admission.Warnings{}, ValidateManagementCenterSpec(r)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *ManagementCenter) ValidateDelete() error {
+func (r *ManagementCenter) ValidateDelete() (admission.Warnings, error) {
 	managementcenterlog.Info("validate delete", "name", r.Name)
-	return nil
+	return admission.Warnings{}, nil
 }
 
 func (r *ManagementCenter) Default() {

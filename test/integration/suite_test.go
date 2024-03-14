@@ -21,8 +21,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/managementcenter"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
@@ -119,7 +119,6 @@ var _ = BeforeSuite(func() {
 	err = hazelcast.NewMapReconciler(
 		k8sManager.GetClient(),
 		controllerLogger.WithName("Map"),
-		k8sManager.GetScheme(),
 		nil,
 		cs,
 	).SetupWithManager(k8sManager)

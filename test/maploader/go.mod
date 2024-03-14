@@ -1,6 +1,6 @@
 module github.com/hazelcast/hazelcast-platform-operator/maploader
 
-go 1.19
+go 1.20
 
 require (
 	github.com/hazelcast/hazelcast-go-client v1.4.0

@@ -6,7 +6,7 @@ on:
     - cron: "0 9 * * *"
 
 env:
-  GO_VERSION: '1.21.0'
+  GO_VERSION: '1.20.0'
   GOBIN: ${{ github.workspace }}/bin
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
@@ -30,7 +30,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.1.0
         with:
           install: true
 
