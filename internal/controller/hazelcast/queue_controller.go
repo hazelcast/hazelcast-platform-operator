@@ -87,7 +87,7 @@ func (r *QueueReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 }
 
 func (r *QueueReconciler) validateQueueConfigPersistence(ctx context.Context, q *hazelcastv1alpha1.Queue) (bool, error) {
-	hzConfig, err := getHazelcastConfig(ctx, r.Client, q)
+	hzConfig, err := getHazelcastConfig(ctx, r.Client, getHzNamespacedName(q))
 	if err != nil {
 		return false, err
 	}

@@ -2,17 +2,25 @@ package hazelcast
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"path"
 	"reflect"
 	"testing"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	"gopkg.in/yaml.v3"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -363,6 +371,90 @@ func Test_hazelcastConfig(t *testing.T) {
 			Expect(test.actualResult(actualConfig.Hazelcast)).Should(Equal(test.expectedResult))
 		})
 	}
+}
+
+func Test_configBaseDirShouldNotChangeWhenExists(t *testing.T) {
+	RegisterFailHandler(fail(t))
+	nn := types.NamespacedName{Name: "hazelcast", Namespace: "default"}
+	h := &hazelcastv1alpha1.Hazelcast{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+		Spec: hazelcastv1alpha1.HazelcastSpec{
+			ClusterSize: pointer.Int32(3),
+			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+				},
+				Restore: hazelcastv1alpha1.RestoreConfiguration{
+					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
+						BucketURI:  "s3://mybucketuri/dir",
+						SecretName: "mysecretname",
+					},
+				},
+			},
+		},
+	}
+	basicConfig := hazelcastBasicConfig(h)
+	basicConfig.Persistence.BaseDir = n.PersistenceMountPath
+	basicConfig.Persistence.BackupDir = path.Join(n.PersistenceMountPath, "hot-backup")
+	cfg, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: basicConfig})
+	if err != nil {
+		t.Errorf("Error forming config")
+	}
+	cm := &corev1.Secret{
+		ObjectMeta: metadata(h),
+		Data:       make(map[string][]byte),
+	}
+	mtlsSec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.MTLSCertSecretName,
+			Namespace: nn.Namespace,
+		},
+	}
+	cm.Data["hazelcast.yaml"] = cfg
+
+	c := fakeK8sClient(h, cm, mtlsSec)
+
+	hr := &fakeHttpClientRegistry{}
+	hr.Set(nn.Namespace, &http.Client{})
+	r := NewHazelcastReconciler(
+		c,
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		c.Scheme(),
+		nil,
+		&fakeHzClientRegistry{},
+		&fakeHzStatusServiceRegistry{},
+		hr,
+	)
+	_, err = r.Reconcile(context.Background(), ctrl.Request{NamespacedName: nn})
+	if err != nil {
+		t.Error(fmt.Errorf("unexpected reconcile error: %w", err))
+	}
+	actualConf, err := getHazelcastConfig(context.Background(), c, nn)
+	if err != nil {
+		t.Errorf("Error getting config")
+	}
+	Expect(actualConf.Hazelcast.Persistence.BaseDir).Should(Equal(n.PersistenceMountPath))
+	Expect(actualConf.Hazelcast.Persistence.BackupDir).Should(Equal(path.Join(n.PersistenceMountPath, "hot-backup")))
+	sts := &appsv1.StatefulSet{}
+	err = c.Get(context.Background(), nn, sts)
+	if err != nil {
+		t.Errorf("Error getting StatefulSet")
+	}
+	Expect(sts.Spec.Template.Spec.InitContainers).Should(WithTransform(func(containers []corev1.Container) []corev1.EnvVar {
+		for _, container := range containers {
+			if container.Name == n.RestoreAgent {
+				return container.Env
+			}
+		}
+		return []corev1.EnvVar{}
+	}, ContainElement(corev1.EnvVar{
+		Name:  "RESTORE_DESTINATION",
+		Value: n.PersistenceMountPath,
+	})))
 }
 
 // Client used to mock List() method for the WanReplicationList CR

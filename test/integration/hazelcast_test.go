@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/ptr"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -22,6 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
@@ -2411,6 +2412,161 @@ var _ = Describe("Hazelcast CR", func() {
 					))),
 				)
 			})
+		})
+	})
+
+	Context("CP subsystem", func() {
+		It("should configure CP subsystem with PVC", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize: pointer.Int32(7),
+					CPSubsystem: &hazelcastv1alpha1.CPSubsystem{
+						MemberCount: 5,
+						GroupSize:   pointer.Int32(3),
+						PVC: &hazelcastv1alpha1.PvcConfiguration{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						},
+					},
+				},
+			}
+			create(hz)
+			assertHzStatusIsPending(hz)
+			fetchedSts := &v1.StatefulSet{}
+			assertExists(lookupKey(hz), fetchedSts)
+
+			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.CPPersistenceVolumeName))
+			hzContainer := fetchedSts.Spec.Template.Spec.Containers[0]
+			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.CPPersistenceVolumeName, n.CPBaseDir))
+
+			Eventually(func() config.CPSubsystem {
+				cfg := getSecret(hz)
+				a := &config.HazelcastWrapper{}
+
+				if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+					return config.CPSubsystem{}
+				}
+
+				return a.Hazelcast.CPSubsystem
+			}, timeout, interval).Should(Equal(config.CPSubsystem{
+				CPMemberCount:      5,
+				GroupSize:          pointer.Int32(3),
+				BaseDir:            n.CPBaseDir,
+				PersistenceEnabled: true,
+			}))
+		})
+		It("should configure CP subsystem with Persistence PVC", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize: pointer.Int32(7),
+					Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+						PVC: &hazelcastv1alpha1.PvcConfiguration{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						},
+					},
+					CPSubsystem: &hazelcastv1alpha1.CPSubsystem{
+						MemberCount: 5,
+						GroupSize:   pointer.Int32(3),
+					},
+				},
+			}
+			create(hz)
+			assertHzStatusIsPending(hz)
+			fetchedSts := &v1.StatefulSet{}
+			assertExists(lookupKey(hz), fetchedSts)
+
+			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.PersistenceVolumeName))
+			hzContainer := fetchedSts.Spec.Template.Spec.Containers[0]
+			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.PersistenceVolumeName, n.PersistenceMountPath))
+			Expect(hzContainer.VolumeMounts).Should(Not(test.ContainVolumeMount(n.CPPersistenceVolumeName, n.CPBaseDir)))
+
+			Eventually(func() config.CPSubsystem {
+				cfg := getSecret(hz)
+				a := &config.HazelcastWrapper{}
+
+				if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+					return config.CPSubsystem{}
+				}
+
+				return a.Hazelcast.CPSubsystem
+			}, timeout, interval).Should(Equal(config.CPSubsystem{
+				CPMemberCount:      5,
+				GroupSize:          pointer.Int32(3),
+				BaseDir:            n.PersistenceMountPath + n.CPDirSuffix,
+				PersistenceEnabled: true,
+			}))
+		})
+	})
+
+	Context("with CP Subsystem configuration", func() {
+		It("should not allow member size greater than cluster size", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.ClusterSize = pointer.Int32(3)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				MemberCount: 5,
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("can not be greater the clusterSize")))
+		})
+		It("should not allow member size greater than default cluster size", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.ClusterSize = nil
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				MemberCount: 5,
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("can not be greater the clusterSize")))
+		})
+		It("group size should not be greater than member size", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.ClusterSize = pointer.Int32(5)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				MemberCount: 5,
+				GroupSize:   pointer.Int32(7),
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("can be 3, 5, or 7, but not greater that memberCount")))
+		})
+		It("should not allow no PVC configuration", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				MemberCount: 3,
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("PVC should be configured")))
 		})
 	})
 })
