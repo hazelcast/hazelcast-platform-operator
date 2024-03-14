@@ -26,6 +26,7 @@ type Hazelcast struct {
 	ManagementCenter         ManagementCenterConfig              `yaml:"management-center,omitempty"`
 	Serialization            Serialization                       `yaml:"serialization,omitempty"`
 	SQL                      SQL                                 `yaml:"sql,omitempty"`
+	LocalDevice              map[string]LocalDevice              `yaml:"local-device,omitempty"`
 	CPSubsystem              CPSubsystem                         `yaml:"cp-subsystem,omitempty"`
 }
 
@@ -164,6 +165,7 @@ type Map struct {
 	EntryListeners          []EntryListener                    `yaml:"entry-listeners,omitempty"`
 	NearCache               NearCacheConfig                    `yaml:"near-cache,omitempty"`
 	EventJournal            EventJournal                       `yaml:"event-journal,omitempty"`
+	TieredStore             TieredStore                        `yaml:"tiered-store,omitempty"`
 	MerkleTree              MerkleTree                         `yaml:"merkle-tree,omitempty"`
 }
 
@@ -256,9 +258,24 @@ type NearCacheEviction struct {
 }
 
 type EventJournal struct {
-	Enabled           bool  `json:"enabled"`
-	Capacity          int32 `json:"capacity"`
-	TimeToLiveSeconds int32 `json:"time-to-live-seconds"`
+	Enabled           bool  `yaml:"enabled"`
+	Capacity          int32 `yaml:"capacity"`
+	TimeToLiveSeconds int32 `yaml:"time-to-live-seconds"`
+}
+
+type TieredStore struct {
+	Enabled    bool       `yaml:"enabled"`
+	MemoryTier MemoryTier `yaml:"memory-tier"`
+	DiskTier   DiskTier   `yaml:"disk-tier"`
+}
+
+type MemoryTier struct {
+	Capacity Size `yaml:"capacity,omitempty"`
+}
+
+type DiskTier struct {
+	Enabled    bool   `yaml:"enabled"`
+	DeviceName string `yaml:"device-name"`
 }
 
 type Topic struct {
@@ -344,15 +361,15 @@ type BatchPublisherConfig struct {
 }
 
 type NativeMemory struct {
-	Enabled                 bool             `yaml:"enabled"`
-	AllocatorType           string           `yaml:"allocator-type"`
-	Size                    NativeMemorySize `yaml:"size,omitempty"`
-	MinBlockSize            int32            `yaml:"min-block-size,omitempty"`
-	PageSize                int32            `yaml:"page-size,omitempty"`
-	MetadataSpacePercentage int32            `yaml:"metadata-space-percentage,omitempty"`
+	Enabled                 bool   `yaml:"enabled"`
+	AllocatorType           string `yaml:"allocator-type"`
+	Size                    Size   `yaml:"size,omitempty"`
+	MinBlockSize            int32  `yaml:"min-block-size,omitempty"`
+	PageSize                int32  `yaml:"page-size,omitempty"`
+	MetadataSpacePercentage int32  `yaml:"metadata-space-percentage,omitempty"`
 }
 
-type NativeMemorySize struct {
+type Size struct {
 	Value int64  `yaml:"value"`
 	Unit  string `yaml:"unit"`
 }
@@ -425,6 +442,14 @@ type ClassFactories struct {
 type SQL struct {
 	StatementTimeout   int32 `yaml:"statement-timeout-millis"`
 	CatalogPersistence bool  `yaml:"catalog-persistence-enabled"`
+}
+
+type LocalDevice struct {
+	BaseDir            string `yaml:"base-dir"`
+	Capacity           Size   `yaml:"capacity,omitempty"`
+	BlockSize          *int32 `yaml:"block-size,omitempty"`
+	ReadIOThreadCount  *int32 `yaml:"read-io-thread-count"`
+	WriteIOThreadCount *int32 `yaml:"write-io-thread-count"`
 }
 
 type CPSubsystem struct {

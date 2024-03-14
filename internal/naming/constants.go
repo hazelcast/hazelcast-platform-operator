@@ -66,6 +66,7 @@ const (
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 	PersistenceMountPath        = "/data/persistence"
 	BaseDir                     = PersistenceMountPath + "/base-dir"
+	TieredStorageBaseDir        = "/data/tiered-storage"
 	CPDirSuffix                 = "/cp-data"
 	CPBaseDir                   = "/data" + CPDirSuffix
 
@@ -104,7 +105,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.3.5"
+	HazelcastVersion = "5.4.0-SNAPSHOT"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
