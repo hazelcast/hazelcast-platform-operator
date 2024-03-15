@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"strconv"
 	. "time"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
@@ -14,11 +15,40 @@ import (
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
-	//localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
+var _ = Describe("CP Subsystem", func() {
+	localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
+
+	createCPGroup := func(ctx context.Context, cli *hzClient.ClientInternal) types.RaftGroupId {
+		grResp, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPGroupCreateCPGroupRequest("new-group"), nil)
+		Expect(err).To(BeNil())
+		return codec.DecodeCPGroupCreateCPGroupResponse(grResp)
+	}
+
+	writeToCPMap := func(ctx context.Context, cli *hzClient.ClientInternal, mapName, key, value string, rg types.RaftGroupId) {
+		keyD, _ := cli.EncodeData(key)
+		valueD, _ := cli.EncodeData(value)
+		_, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapPutRequest(rg, mapName, keyD, valueD), nil)
+		Expect(err).To(BeNil())
+	}
+
+	readFromCPMap := func(ctx context.Context, cli *hzClient.ClientInternal, mapName, key, expectedValue string, rg types.RaftGroupId) {
+		keyD, _ := cli.EncodeData(key)
+		r, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapGetRequest(rg, mapName, keyD), nil)
+		Expect(err).To(BeNil())
+		response, err := cli.DecodeData(codec.DecodeCPMapGetResponse(r))
+		Expect(err).To(BeNil())
+		Expect(response).To(Equal(expectedValue))
+	}
+
+	validateCPMap := func(ctx context.Context, cli *hzClient.ClientInternal, mapName, key, value string) {
+		rg := createCPGroup(ctx, cli)
+		writeToCPMap(ctx, cli, mapName, key, value, rg)
+		readFromCPMap(ctx, cli, mapName, key, value, rg)
+	}
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
@@ -56,20 +86,7 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		clientHz := GetHzClient(ctx, hzLookupKey, true)
 		cli := hzClient.NewClientInternal(clientHz)
 
-		grResp, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPGroupCreateCPGroupRequest("new-group"), nil)
-		Expect(err).To(BeNil())
-		rg := codec.DecodeCPGroupCreateCPGroupResponse(grResp)
-
-		key, _ := cli.EncodeData("key")
-		value, _ := cli.EncodeData("value")
-		_, err = cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapPutRequest(rg, cpMapName, key, value), nil)
-		Expect(err).To(BeNil())
-
-		r, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapGetRequest(rg, cpMapName, key), nil)
-		Expect(err).To(BeNil())
-		response, err := cli.DecodeData(codec.DecodeCPMapGetResponse(r))
-		Expect(err).To(BeNil())
-		Expect(response).To(Equal("value"))
+		validateCPMap(ctx, cli, cpMapName, randString(5), randString(5))
 	},
 		Entry("with CP Subsystem PVC", hazelcastconfig.HazelcastCPSubsystem(3)),
 		Entry("with Persistence PVC", hazelcastconfig.HazelcastCPSubsystemPersistence(3)),
@@ -100,14 +117,11 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		clientHz := GetHzClient(ctx, hzLookupKey, true)
 		cli := hzClient.NewClientInternal(clientHz)
 
-		grResp, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPGroupCreateCPGroupRequest("new-group"), nil)
-		Expect(err).To(BeNil())
-		rg := codec.DecodeCPGroupCreateCPGroupResponse(grResp)
+		rg := createCPGroup(ctx, cli)
 
-		key, _ := cli.EncodeData("key")
-		value, _ := cli.EncodeData("value")
-		_, err = cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapPutRequest(rg, cpMapName, key, value), nil)
-		Expect(err).To(BeNil())
+		key := randString(5)
+		value := randString(5)
+		writeToCPMap(ctx, cli, cpMapName, key, value, rg)
 
 		By("pause Hazelcast")
 		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
@@ -123,11 +137,7 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		})
 		evaluateReadyMembers(hzLookupKey)
 
-		r, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapGetRequest(rg, cpMapName, key), nil)
-		Expect(err).To(BeNil())
-		response, err := cli.DecodeData(codec.DecodeCPMapGetResponse(r))
-		Expect(err).To(BeNil())
-		Expect(response).To(Equal("value"))
+		readFromCPMap(ctx, cli, cpMapName, key, value, rg)
 	},
 		Entry("with CP Subsystem PVC", hazelcastconfig.HazelcastCPSubsystem(3)),
 		Entry("with Persistence PVC", hazelcastconfig.HazelcastCPSubsystemPersistence(3)),
@@ -163,19 +173,46 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		clientHz := GetHzClient(ctx, hzLookupKey, true)
 		cli := hzClient.NewClientInternal(clientHz)
 
-		grResp, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPGroupCreateCPGroupRequest("new-group"), nil)
-		Expect(err).To(BeNil())
-		rg := codec.DecodeCPGroupCreateCPGroupResponse(grResp)
-
-		key, _ := cli.EncodeData("key")
-		value, _ := cli.EncodeData("value")
-		_, err = cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapPutRequest(rg, cpMapName, key, value), nil)
-		Expect(err).To(BeNil())
-
-		r, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapGetRequest(rg, cpMapName, key), nil)
-		Expect(err).To(BeNil())
-		response, err := cli.DecodeData(codec.DecodeCPMapGetResponse(r))
-		Expect(err).To(BeNil())
-		Expect(response).To(Equal("value"))
+		validateCPMap(ctx, cli, cpMapName, randString(5), randString(5))
 	})
-})
+
+	It("Should work on cluster restored from HotBackup", Tag(EE|AnyCloud), func() {
+		setLabelAndCRName("cp-3")
+		ctx := context.Background()
+		initialCluster := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, 3, labels)
+		CreateHazelcastCR(initialCluster)
+		evaluateReadyMembers(hzLookupKey)
+
+		By("creating the map config and adding entries")
+		m := hazelcastconfig.PersistedMap(mapLookupKey, initialCluster.Name, labels)
+		Expect(k8sClient.Create(ctx, m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		fillTheMapDataPortForward(ctx, initialCluster, localPort, m.MapName(), 10)
+
+		By("triggering backup")
+		hotBackup := hazelcastconfig.HotBackup(hbLookupKey, initialCluster.Name, labels)
+		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+		hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
+
+		By("removing Hazelcast CR")
+		RemoveHazelcastCR(initialCluster)
+
+		By("creating cluster from backup")
+		restoredHz := hazelcastconfig.HazelcastRestore(initialCluster, restoreConfig(hotBackup, false))
+		restoredHz.Spec.CPSubsystem = hazelcastconfig.HazelcastCPSubsystemPersistence(3).CPSubsystem
+		restoredHz.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+		}
+		CreateHazelcastCR(restoredHz)
+		evaluateReadyMembers(hzLookupKey)
+		waitForMapSizePortForward(context.Background(), restoredHz, localPort, m.MapName(), 10, 1*Minute)
+
+		cpMapName := "my-cp-map"
+		clientHz := GetHzClient(ctx, hzLookupKey, true)
+		cli := hzClient.NewClientInternal(clientHz)
+		validateCPMap(ctx, cli, cpMapName, randString(5), randString(5))
+	})
+
+}, Label("cp_subsystem"))
