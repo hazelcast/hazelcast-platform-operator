@@ -27,6 +27,7 @@ type Hazelcast struct {
 	Serialization            Serialization                       `yaml:"serialization,omitempty"`
 	SQL                      SQL                                 `yaml:"sql,omitempty"`
 	LocalDevice              map[string]LocalDevice              `yaml:"local-device,omitempty"`
+	CPSubsystem              CPSubsystem                         `yaml:"cp-subsystem,omitempty"`
 }
 
 type ManagementCenterConfig struct {
@@ -449,4 +450,16 @@ type LocalDevice struct {
 	BlockSize          *int32 `yaml:"block-size,omitempty"`
 	ReadIOThreadCount  *int32 `yaml:"read-io-thread-count"`
 	WriteIOThreadCount *int32 `yaml:"write-io-thread-count"`
+}
+
+type CPSubsystem struct {
+	CPMemberCount                     int32  `yaml:"cp-member-count"`
+	PersistenceEnabled                bool   `yaml:"persistence-enabled"`
+	BaseDir                           string `yaml:"base-dir"`
+	GroupSize                         *int32 `yaml:"group-size,omitempty"`
+	SessionTimeToLiveSeconds          *int32 `yaml:"session-time-to-live-seconds,omitempty"`
+	SessionHeartbeatIntervalSeconds   *int32 `yaml:"session-heartbeat-interval-seconds,omitempty"`
+	MissingCpMemberAutoRemovalSeconds *int32 `yaml:"missing-cp-member-auto-removal-seconds,omitempty"`
+	FailOnIndeterminateOperationState *bool  `yaml:"fail-on-indeterminate-operation-state,omitempty"`
+	DataLoadTimeoutSeconds            *int32 `yaml:"data-load-timeout-seconds,omitempty"`
 }

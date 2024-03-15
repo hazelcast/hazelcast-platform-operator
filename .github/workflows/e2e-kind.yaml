@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.1.0
         with:
           install: true
 
@@ -58,7 +58,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v5.2.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}

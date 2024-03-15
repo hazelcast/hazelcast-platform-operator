@@ -59,6 +59,7 @@ func (v *hazelcastValidator) validateSpecCurrent(h *Hazelcast) {
 	v.validateNativeMemory(h)
 	v.validateSQL(h)
 	v.validateTieredStorage(h)
+	v.validateCPSubsystem(h)
 }
 
 func (v *hazelcastValidator) validateSpecUpdate(h *Hazelcast) {
@@ -462,5 +463,30 @@ func (v *hazelcastValidator) validateLocalDevice(ld LocalDeviceConfig) {
 	}
 	if ld.PVC.AccessModes == nil {
 		v.Required(Path("spec", "localDevices", "pvc", "accessModes"), "must be set when LocalDevice is defined")
+	}
+}
+
+func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
+	if h.Spec.CPSubsystem == nil {
+		return
+	}
+
+	cp := h.Spec.CPSubsystem
+	if h.Spec.ClusterSize == nil {
+		if cp.MemberCount > 3 {
+			v.Invalid(Path("spec", "cpSubsystem", "memberCount"), cp.MemberCount, "can not be greater the clusterSize")
+		}
+	} else if cp.MemberCount > *h.Spec.ClusterSize && *h.Spec.ClusterSize != 0 { // ClusterSize of 0 means pausing the cluster, should be ignored
+		v.Invalid(Path("spec", "cpSubsystem", "memberCount"), cp.MemberCount, "can not be greater the clusterSize")
+	}
+
+	if cp.GroupSize != nil {
+		if (*cp.GroupSize != 3 && *cp.GroupSize != 5 && *cp.GroupSize != 7) || *cp.GroupSize > cp.MemberCount {
+			v.Invalid(Path("spec", "cpSubsystem", "memberCount"), cp.GroupSize, "can be 3, 5, or 7, but not greater that memberCount")
+		}
+	}
+
+	if cp.PVC == nil && (!h.Spec.Persistence.IsEnabled() || h.Spec.Persistence.PVC == nil) {
+		v.Required(Path("spec", "cpSubsystem", "pvc"), "PVC should be configured")
 	}
 }

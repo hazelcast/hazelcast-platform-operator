@@ -33,13 +33,13 @@ jobs:
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Create AKS cluster
         id: create-cluster
-        uses: azure/CLI@v1
+        uses: azure/CLI@v2
         with:
           azcliversion: 2.31.0
           inlineScript: |
@@ -122,7 +122,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v5.2.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -182,7 +182,7 @@ jobs:
           password: ${{ env.GKE_SA_KEY }}
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ env.AZURE_CREDENTIALS }}
 
@@ -332,12 +332,12 @@ jobs:
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Delete AKS cluster
-        uses: azure/CLI@v1
+        uses: azure/CLI@v2
         with:
           azcliversion: 2.31.0
           inlineScript: |

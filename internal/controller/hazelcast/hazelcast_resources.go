@@ -867,30 +867,30 @@ func hazelcastEndpointFromService(nn types.NamespacedName, hz *hazelcastv1alpha1
 }
 
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	cm := &corev1.Secret{
+	scrt := &corev1.Secret{
 		ObjectMeta: metadata(h),
 		Data:       make(map[string][]byte),
 	}
 
-	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
+	err := controllerutil.SetControllerReference(h, scrt, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Secret: %w", err)
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
+		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, scrt, func() error {
 			config, err := hazelcastConfig(ctx, r.Client, h, logger)
 			if err != nil {
 				return err
 			}
-			cm.Data["hazelcast.yaml"] = config
+			scrt.Data["hazelcast.yaml"] = config
 
-			if _, ok := cm.Data["hazelcast.jks"]; !ok {
+			if _, ok := scrt.Data["hazelcast.jks"]; !ok {
 				keystore, err := hazelcastKeystore(ctx, r.Client, h)
 				if err != nil {
 					return err
 				}
-				cm.Data["hazelcast.jks"] = keystore
+				scrt.Data["hazelcast.jks"] = keystore
 			}
 
 			return nil
@@ -925,6 +925,18 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
+
+	// For backward compatibility purpose; if the BaseDir is not equal to the expected, keep set it equal to MountPath
+	if h.Spec.Persistence.IsEnabled() {
+		existingConfig, err := getHazelcastConfig(ctx, c, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+		if err != nil {
+			logger.V(util.WarnLevel).Info(fmt.Sprintf("failed to fetch old config secret %v", err))
+		}
+		if existingConfig != nil && existingConfig.Hazelcast.Persistence.BaseDir != n.BaseDir {
+			cfg.Persistence.BaseDir = n.PersistenceMountPath
+			cfg.Persistence.BackupDir = path.Join(n.PersistenceMountPath, "hot-backup")
+		}
+	}
 
 	if h.Spec.Properties != nil {
 		h.Spec.Properties = mergeProperties(logger, h.Spec.Properties)
@@ -1145,7 +1157,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			Parallelism:               1,
 			ValidationTimeoutSec:      120,
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
-			AutoRemoveStaleData:       &[]bool{h.Spec.Persistence.AutoRemoveStaleData()}[0],
+			AutoRemoveStaleData:       pointer.Bool(h.Spec.Persistence.AutoRemoveStaleData()),
 		}
 		if h.Spec.Persistence.DataRecoveryTimeout != 0 {
 			cfg.Persistence.ValidationTimeoutSec = h.Spec.Persistence.DataRecoveryTimeout
@@ -1282,6 +1294,23 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			cfg.LocalDevice[ld.Name] = createLocalDeviceConfig(ld)
 		}
 	}
+	if h.Spec.CPSubsystem.IsEnabled() {
+		cfg.CPSubsystem = config.CPSubsystem{
+			CPMemberCount:                     h.Spec.CPSubsystem.MemberCount,
+			PersistenceEnabled:                true,
+			BaseDir:                           n.CPBaseDir,
+			GroupSize:                         h.Spec.CPSubsystem.GroupSize,
+			SessionTimeToLiveSeconds:          h.Spec.CPSubsystem.SessionTTLSeconds,
+			SessionHeartbeatIntervalSeconds:   h.Spec.CPSubsystem.SessionHeartbeatIntervalSeconds,
+			MissingCpMemberAutoRemovalSeconds: h.Spec.CPSubsystem.MissingCpMemberAutoRemovalSeconds,
+			FailOnIndeterminateOperationState: h.Spec.CPSubsystem.FailOnIndeterminateOperationState,
+			DataLoadTimeoutSeconds:            h.Spec.CPSubsystem.DataLoadTimeoutSeconds,
+		}
+		if h.Spec.Persistence.IsEnabled() && !h.Spec.CPSubsystem.IsPVC() {
+			cfg.CPSubsystem.BaseDir = n.PersistenceMountPath + n.CPDirSuffix
+		}
+	}
+
 	return cfg
 }
 
@@ -2012,9 +2041,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
-	if h.Spec.Persistence.IsEnabled() {
-		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h, pvcName)
-	}
+	sts.Spec.VolumeClaimTemplates = persistentVolumeClaims(h, pvcName)
 	if h.Spec.IsTieredStorageEnabled() {
 		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, localDevicePersistentVolumeClaim(h)...)
 	}
@@ -2052,7 +2079,11 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Containers[0].ReadinessProbe.ProbeHandler.HTTPGet.Path = "/hazelcast/health/ready"
 		}
 
-		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client, pvcName)
+		hzConf, err := getHazelcastConfig(ctx, r.Client, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+		if err != nil {
+			return fmt.Errorf("unable to fetch existing HZ config: %v", err)
+		}
+		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client, hzConf, pvcName)
 		if err != nil {
 			return err
 		}
@@ -2102,9 +2133,10 @@ func resolvePVCName(ctx context.Context, c client.Client, h *hazelcastv1alpha1.H
 	return "", nil
 }
 
-func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.PersistentVolumeClaim {
-	return []v1.PersistentVolumeClaim{
-		{
+func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.PersistentVolumeClaim {
+	var pvcs []v1.PersistentVolumeClaim
+	if h.Spec.Persistence.IsEnabled() {
+		pvcs = append(pvcs, v1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        pvcName,
 				Namespace:   h.Namespace,
@@ -2120,8 +2152,28 @@ func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.
 				},
 				StorageClassName: h.Spec.Persistence.PVC.StorageClassName,
 			},
-		},
+		})
 	}
+	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
+		pvcs = append(pvcs, v1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        n.CPPersistenceVolumeName,
+				Namespace:   h.Namespace,
+				Labels:      labels(h),
+				Annotations: h.Spec.Annotations,
+			},
+			Spec: v1.PersistentVolumeClaimSpec{
+				AccessModes: h.Spec.CPSubsystem.PVC.AccessModes,
+				Resources: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						corev1.ResourceStorage: *h.Spec.CPSubsystem.PVC.RequestStorage,
+					},
+				},
+				StorageClassName: h.Spec.CPSubsystem.PVC.StorageClassName,
+			},
+		})
+	}
+	return pvcs
 }
 
 func localDevicePersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
@@ -2257,7 +2309,7 @@ func containerSecurityContext() *v1.SecurityContext {
 	}
 }
 
-func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, pvcName string) ([]corev1.Container, error) {
+func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, conf *config.HazelcastWrapper, pvcName string) ([]v1.Container, error) {
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
@@ -2288,23 +2340,23 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 
 	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
 		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
-			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, pvcName)
+			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, , conf.Hazelcast.Persistence.BaseDir, pvcName)
 		if err != nil {
 			return nil, err
 		}
 		containers = append(containers, cont)
-	} else if h.Spec.Persistence.RestoreFromLocalBackup() {
-		containers = append(containers, restoreLocalAgentContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, pvcName))
-	} else {
-		// restoring from bucket config
-		containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
-			h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, pvcName))
+
+		return containers, nil
 	}
+
+	// restoring from bucket config
+	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
+		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, conf.Hazelcast.Persistence.BaseDir, pvcName))
 
 	return containers, nil
 }
 
-func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName, pvcName string) (corev1.Container, error) {
+func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName, baseDir, pvcName string) (v1.Container, error) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := cl.Get(ctx, key, hb)
 	if err != nil {
@@ -2318,18 +2370,18 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 	var cont corev1.Container
 	if hb.Spec.IsExternal() {
 		bucketURI := hb.Status.GetBucketURI()
-		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI, pvcName)
+		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI, baseDir, pvcName)
 	} else {
 		backupFolder := hb.Status.GetBackupFolder()
 		cont = restoreLocalAgentContainer(h, hazelcastv1alpha1.RestoreFromLocalConfiguration{
 			BackupFolder: backupFolder,
-		}, pvcName)
+		}, baseDir, pvcName)
 	}
 
 	return cont, nil
 }
 
-func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, pvcName string) v1.Container {
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, baseDir, pvcName string) v1.Container {
 	commandName := "restore_pvc"
 
 	return v1.Container{
@@ -2348,7 +2400,7 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, p
 			},
 			{
 				Name:  "RESTORE_DESTINATION",
-				Value: n.BaseDir,
+				Value: baseDir,
 			},
 			{
 				Name:  "RESTORE_ID",
@@ -2368,13 +2420,13 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, p
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
 			Name:      pvcName,
-			MountPath: n.BaseDir,
+			MountPath: n.PersistenceMountPath,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
 }
 
-func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration, pvcName string) v1.Container {
+func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration, baseDir, pvcName string) v1.Container {
 	commandName := "restore_pvc_local"
 
 	baseDir := n.BaseDir
@@ -2408,6 +2460,10 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1
 				Value: backupFolder,
 			},
 			{
+				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
+				Value: baseDir,
+			},
+			{
 				Name:  "RESTORE_LOCAL_ID",
 				Value: h.Spec.Persistence.Restore.Hash(),
 			},
@@ -2426,7 +2482,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1
 		VolumeMounts: []v1.VolumeMount{
 			{
 				Name:      pvcName,
-				MountPath: baseDir,
+				MountPath: n.PersistenceMountPath,
 			},
 		},
 		SecurityContext: containerSecurityContext(),
@@ -2612,13 +2668,13 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.Vo
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
 			Name:      pvcName,
-			MountPath: n.BaseDir,
+			MountPath: n.PersistenceMountPath,
 		})
 	}
 	return vm
 }
 
-func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []corev1.VolumeMount {
+func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,
@@ -2636,7 +2692,14 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []c
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      pvcName,
-			MountPath: n.BaseDir,
+			MountPath: n.PersistenceMountPath,
+		})
+	}
+
+	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
+		mounts = append(mounts, v1.VolumeMount{
+			Name:      n.CPPersistenceVolumeName,
+			MountPath: n.CPBaseDir,
 		})
 	}
 
@@ -2947,6 +3010,7 @@ func configForcingRestart(hz config.Hazelcast) config.Hazelcast {
 				SSL: hz.AdvancedNetwork.MemberServerSocketEndpointConfig.SSL,
 			},
 		},
+		CPSubsystem: hz.CPSubsystem,
 	}
 }
 

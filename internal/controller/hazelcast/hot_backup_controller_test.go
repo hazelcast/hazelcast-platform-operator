@@ -16,6 +16,7 @@ import (
 	clientTypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/matchers"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -24,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
@@ -50,8 +52,17 @@ func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 	cr.Set(nn, &fakeHzClient)
 	sr.Set(nn, &fakeHzStatusService)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
-	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	cfg, err := yaml.Marshal(config.HazelcastWrapper{})
+	if err != nil {
+		t.Errorf("Error forming config")
+	}
+	cm := &corev1.Secret{
+		ObjectMeta: metadata(h),
+		Data:       make(map[string][]byte),
+	}
+	cm.Data["hazelcast.yaml"] = cfg
+	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb, cm)
+	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
 	Eventually(func() hazelcastv1alpha1.HotBackupState {

@@ -57,16 +57,20 @@ const (
 	MancenterStorageName = Mancenter + "-storage"
 
 	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
-	PersistenceVolumeName           = "persistence"
+	PersistenceVolumeName       = "persistence"
 	DeprecatedPersistenceVolumeName = "hot-restart-persistence"
-	UserCodeBucketVolumeName        = "user-code-bucket"
-	JetJobJarsVolumeName            = "jet-job-jars-bucket"
-	JetConfigMapNamePrefix          = "jet-cm-"
-	UserCodeURLVolumeName           = "user-code-url"
-	UserCodeConfigMapNamePrefix     = "user-code-cm-"
-	BaseDir                         = "/data/persistence"
+	CPPersistenceVolumeName     = "cp-subsystem-persistence"
+	UserCodeBucketVolumeName    = "user-code-bucket"
+	JetJobJarsVolumeName        = "jet-job-jars-bucket"
+	JetConfigMapNamePrefix      = "jet-cm-"
+	UserCodeURLVolumeName       = "user-code-url"
+	UserCodeConfigMapNamePrefix = "user-code-cm-"
+	PersistenceMountPath        = "/data/persistence"
+	BaseDir                     = PersistenceMountPath + "/base-dir"
 	BackupDir                       = "/hot-backup"
-	TieredStorageBaseDir            = "/data/tiered-storage"
+	TieredStorageBaseDir        = "/data/tiered-storage"
+	CPDirSuffix                 = "/cp-data"
+	CPBaseDir                   = "/data" + CPDirSuffix
 
 	SidecarAgent        = "sidecar-agent"
 	BackupAgentPortName = "backup-agent-port"

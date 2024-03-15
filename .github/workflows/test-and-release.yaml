@@ -235,7 +235,7 @@ jobs:
 
       - name: Build Image
         id: build-image
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v5.2.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -454,6 +454,7 @@ jobs:
       - uses: redhat-actions/openshift-tools-installer@v1
         with:
           operator-sdk: "latest"
+          source: github
           skip_cache: true
 
       - name: Authenticate to GAR

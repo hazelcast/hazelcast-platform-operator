@@ -184,6 +184,10 @@ type HazelcastSpec struct {
 	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// CPSubsystem is the configuration of the Hazelcast CP Subsystem.
+	// +optional
+	CPSubsystem *CPSubsystem `json:"cpSubsystem,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -206,6 +210,44 @@ const (
 	// LittleEndian uses the kittle-endian byte order.
 	LittleEndian ByteOrder = "LittleEndian"
 )
+
+// CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
+type CPSubsystem struct {
+
+	// MemberCount is the number of CP members to initialize the CP Subsystem.
+	// +required
+	MemberCount int32 `json:"memberCount"`
+
+	// GroupSize is the number of CP members to participate in each CP group.
+	// Allowed values are 3, 5, and 7.
+	// +optional
+	GroupSize *int32 `json:"groupSize,omitempty"`
+
+	// SessionTTLSeconds is the duration for a CP session to be kept alive after the last received heartbeat.
+	// Must be greater than or equal to SessionTTLSeconds.
+	// +optional
+	SessionTTLSeconds *int32 `json:"sessionTTLSeconds,omitempty"`
+
+	// SessionHeartbeatIntervalSeconds Interval in seconds for the periodically committed CP session heartbeats.
+	// Must be greater than or equal to SessionTTLSeconds.
+	// +optional
+	SessionHeartbeatIntervalSeconds *int32 `json:"sessionHeartbeatIntervalSeconds,omitempty"`
+
+	// MissingCpMemberAutoRemovalSeconds is the duration in seconds to wait before automatically removing a missing CP member from the CP Subsystem.
+	MissingCpMemberAutoRemovalSeconds *int32 `json:"missingCpMemberAutoRemovalSeconds,omitempty"`
+
+	// FailOnIndeterminateOperationState indicated whether CP Subsystem operations use at-least-once and at-most-once execution guarantees.
+	// +optional
+	FailOnIndeterminateOperationState *bool `json:"failOnIndeterminateOperationState,omitempty"`
+
+	// DataLoadTimeoutSeconds is the timeout duration in seconds for CP members to restore their persisted data from disk
+	// +optional
+	DataLoadTimeoutSeconds *int32 `json:"dataLoadTimeoutSeconds,omitempty"`
+
+	// PVC is the configuration of PersistenceVolumeClaim.
+	// +optional
+	PVC *PvcConfiguration `json:"pvc,omitempty"`
+}
 
 // SerializationConfig contains the configuration for the Hazelcast serialization.
 type SerializationConfig struct {
@@ -670,6 +712,14 @@ func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 // IsEnabled Returns true if Persistence configuration is specified.
 func (p *HazelcastPersistenceConfiguration) IsEnabled() bool {
 	return p != nil
+}
+
+func (p *CPSubsystem) IsEnabled() bool {
+	return p != nil
+}
+
+func (p *CPSubsystem) IsPVC() bool {
+	return p != nil && p.PVC != nil
 }
 
 // IsRestoreEnabled returns true if Restore configuration is specified

@@ -114,7 +114,7 @@ func fillMultiMapConfigInput(multiMapInput *codecTypes.MultiMapConfig, mm *hazel
 }
 
 func (r *MultiMapReconciler) validateMultiMapConfigPersistence(ctx context.Context, mm *hazelcastv1alpha1.MultiMap) (bool, error) {
-	hzConfig, err := getHazelcastConfig(ctx, r.Client, mm)
+	hzConfig, err := getHazelcastConfig(ctx, r.Client, getHzNamespacedName(mm))
 	if err != nil {
 		return false, err
 	}
