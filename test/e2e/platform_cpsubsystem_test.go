@@ -132,13 +132,13 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		Entry("with Persistence PVC", hazelcastconfig.HazelcastCPSubsystemPersistence(3)),
 	)
 
-	FIt("should start CP with Persistence and different PVCs", Tag(EE|AnyCloud), func() {
+	It("should start CP with Persistence and different PVCs", Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("cp-3")
 		ctx := context.Background()
 		cpMapName := "my-map"
 
 		spec := hazelcastconfig.HazelcastCPSubsystemPersistence(3)
-		spec.CPSubsystem.PVC = &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+		spec.CPSubsystem.PVC = &hazelcastcomv1alpha1.PvcConfiguration{
 			AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			RequestStorage: &[]resource.Quantity{resource.MustParse("2Gi")}[0],
 		}
