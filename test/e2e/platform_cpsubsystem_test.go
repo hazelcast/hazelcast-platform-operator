@@ -19,7 +19,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("CP Subsystem", func() {
+var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 	localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
 
 	createCPGroup := func(ctx context.Context, cli *hzClient.ClientInternal) types.RaftGroupId {
@@ -215,4 +215,4 @@ var _ = Describe("CP Subsystem", func() {
 		validateCPMap(ctx, cli, cpMapName, randString(5), randString(5))
 	})
 
-}, Label("cp_subsystem"))
+})
