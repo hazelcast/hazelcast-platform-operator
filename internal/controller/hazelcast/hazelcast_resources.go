@@ -2340,18 +2340,24 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 
 	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
 		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
-			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, , conf.Hazelcast.Persistence.BaseDir, pvcName)
+			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, conf.Hazelcast.Persistence.BaseDir, pvcName)
 		if err != nil {
 			return nil, err
 		}
 		containers = append(containers, cont)
 
 		return containers, nil
+	} else if h.Spec.Persistence.RestoreFromLocalBackup() {
+		baseDir := conf.Hazelcast.Persistence.BaseDir
+		if h.Spec.Persistence.Restore.LocalConfiguration.BaseDir != "" {
+			baseDir = h.Spec.Persistence.Restore.LocalConfiguration.BaseDir
+		}
+		containers = append(containers, restoreLocalAgentContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, baseDir, pvcName))
+	} else {
+		// restoring from bucket config
+		containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
+			h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, conf.Hazelcast.Persistence.BaseDir, pvcName))
 	}
-
-	// restoring from bucket config
-	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
-		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, conf.Hazelcast.Persistence.BaseDir, pvcName))
 
 	return containers, nil
 }
@@ -2428,11 +2434,6 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, b
 
 func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration, baseDir, pvcName string) v1.Container {
 	commandName := "restore_pvc_local"
-
-	baseDir := n.BaseDir
-	if conf.BaseDir != "" {
-		baseDir = conf.BaseDir
-	}
 
 	backupDir := n.BackupDir
 	if conf.BackupDir != "" {
