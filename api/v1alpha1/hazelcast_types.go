@@ -734,7 +734,7 @@ func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() b
 
 // RestoreFromLocalBackup returns true if Restore is done from local backup
 func (p *HazelcastPersistenceConfiguration) RestoreFromLocalBackup() bool {
-	return p.IsRestoreEnabled() && p.Restore.LocalConfiguration != nil && p.Restore.LocalConfiguration.BackupFolder != ""
+	return p.IsRestoreEnabled() && p.Restore.LocalConfiguration != nil
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
