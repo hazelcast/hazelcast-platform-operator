@@ -124,6 +124,7 @@ var _ = Describe("CP Subsystem", Label("cp_subsystem"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		r, err := cli.InvokeOnRandomTarget(ctx, codec.EncodeCPMapGetRequest(rg, cpMapName, key), nil)
+		Expect(err).To(BeNil())
 		response, err := cli.DecodeData(codec.DecodeCPMapGetResponse(r))
 		Expect(err).To(BeNil())
 		Expect(response).To(Equal("value"))
