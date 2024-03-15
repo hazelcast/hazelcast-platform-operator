@@ -2130,7 +2130,7 @@ func resolvePVCName(ctx context.Context, c client.Client, h *hazelcastv1alpha1.H
 		return n.DeprecatedPersistenceVolumeName, nil
 	}
 
-	return "", nil
+	return n.PersistenceVolumeName, nil
 }
 
 func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.PersistentVolumeClaim {
