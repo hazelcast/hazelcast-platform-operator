@@ -2632,13 +2632,6 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 		mounts = append(mounts, localDeviceVolumeMounts(h)...)
 	}
 
-	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
-		mounts = append(mounts, v1.VolumeMount{
-			Name:      n.CPPersistenceVolumeName,
-			MountPath: n.CPBaseDir,
-		})
-	}
-
 	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
 		mounts = append(mounts,
 			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
