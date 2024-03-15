@@ -930,6 +930,11 @@ spec:
               persistence:
                 description: Persistence configuration
                 properties:
+                  baseDir:
+                    description: 'Persistence base directory. DeprecatedBaseDir is
+                      a depreciated. Deprecated: Use restore.localConfig to restore
+                      from a local backup.'
+                    type: string
                   clusterDataRecoveryPolicy:
                     default: FullRecoveryOnly
                     description: Configuration of the cluster recovery strategy.
@@ -1008,8 +1013,6 @@ spec:
                           baseDir:
                             description: Persistence base directory
                             type: string
-                        required:
-                        - backupFolder
                         type: object
                     type: object
                   startupAction:

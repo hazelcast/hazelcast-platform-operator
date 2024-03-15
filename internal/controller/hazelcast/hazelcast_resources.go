@@ -2003,15 +2003,23 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
+	var err error
+	var pvcName string
+	if h.Spec.Persistence.IsEnabled() {
+		if pvcName, err = resolvePVCName(ctx, r.Client, h); err != nil {
+			return err
+		}
+	}
+
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
 	if h.Spec.Persistence.IsEnabled() {
-		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h)
+		sts.Spec.VolumeClaimTemplates = persistentVolumeClaim(h, pvcName)
 	}
 	if h.Spec.IsTieredStorageEnabled() {
 		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, localDevicePersistentVolumeClaim(h)...)
 	}
 
-	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
+	err = controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Statefulset: %w", err)
 	}
@@ -2044,13 +2052,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Containers[0].ReadinessProbe.ProbeHandler.HTTPGet.Path = "/hazelcast/health/ready"
 		}
 
-		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client)
+		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client, pvcName)
 		if err != nil {
 			return err
 		}
 		sts.Spec.Template.Spec.Volumes = volumes(h)
-		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h)
-		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts(h)
+		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h, pvcName)
+		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts(h, pvcName)
 		if h.Spec.Agent.Resources != nil {
 			sts.Spec.Template.Spec.Containers[1].Resources = *h.Spec.Agent.Resources
 		}
@@ -2062,11 +2070,43 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
-func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
+// resolvePVCName is used to determine which PVC name should be used.
+// until now two different PVC prefixes used in operator and helm chart by default: "hot-restart-persistence" and "persistence".
+// we want to support both of them otherwise when an upgrade is triggered, it will fail.
+// So, to support them both, we check the existing PVC prefixes and if their names match one of them, we mount that PVC.
+// "persistence" has priority that is the latest supported prefix.
+func resolvePVCName(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (string, error) {
+	pvcList := &v1.PersistentVolumeClaimList{}
+	if err := c.List(ctx, pvcList); err != nil {
+		return "", err
+	}
+
+	persistenceCount := 0
+	hrPersistenceCount := 0
+	for _, pvc := range pvcList.Items {
+		if strings.HasPrefix(pvc.Name, n.DeprecatedPersistenceVolumeName) {
+			hrPersistenceCount++
+		}
+		if strings.HasPrefix(pvc.Name, n.PersistenceVolumeName) {
+			persistenceCount++
+		}
+	}
+
+	if *h.Spec.ClusterSize == int32(persistenceCount) {
+		return n.PersistenceVolumeName, nil
+	}
+	if *h.Spec.ClusterSize == int32(hrPersistenceCount) {
+		return n.DeprecatedPersistenceVolumeName, nil
+	}
+
+	return "", nil
+}
+
+func persistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.PersistentVolumeClaim {
 	return []v1.PersistentVolumeClaim{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        n.PersistenceVolumeName,
+				Name:        pvcName,
 				Namespace:   h.Namespace,
 				Labels:      labels(h),
 				Annotations: h.Spec.Annotations,
@@ -2217,7 +2257,7 @@ func containerSecurityContext() *v1.SecurityContext {
 	}
 }
 
-func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client) ([]corev1.Container, error) {
+func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, pvcName string) ([]corev1.Container, error) {
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
@@ -2248,23 +2288,23 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 
 	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
 		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
-			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName})
+			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, pvcName)
 		if err != nil {
 			return nil, err
 		}
 		containers = append(containers, cont)
 	} else if h.Spec.Persistence.RestoreFromLocalBackup() {
-		containers = append(containers, restoreLocalAgentContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration))
+		containers = append(containers, restoreLocalAgentContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, pvcName))
 	} else {
 		// restoring from bucket config
 		containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
-			h.Spec.Persistence.Restore.BucketConfiguration.BucketURI))
+			h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, pvcName))
 	}
 
 	return containers, nil
 }
 
-func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName) (corev1.Container, error) {
+func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName, pvcName string) (corev1.Container, error) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := cl.Get(ctx, key, hb)
 	if err != nil {
@@ -2278,18 +2318,18 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 	var cont corev1.Container
 	if hb.Spec.IsExternal() {
 		bucketURI := hb.Status.GetBucketURI()
-		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI)
+		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI, pvcName)
 	} else {
 		backupFolder := hb.Status.GetBackupFolder()
 		cont = restoreLocalAgentContainer(h, hazelcastv1alpha1.RestoreFromLocalConfiguration{
 			BackupFolder: backupFolder,
-		})
+		}, pvcName)
 	}
 
 	return cont, nil
 }
 
-func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket string) v1.Container {
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, pvcName string) v1.Container {
 	commandName := "restore_pvc"
 
 	return v1.Container{
@@ -2327,14 +2367,14 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket st
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
-			Name:      n.PersistenceVolumeName,
+			Name:      pvcName,
 			MountPath: n.BaseDir,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
 }
 
-func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration) v1.Container {
+func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration, pvcName string) v1.Container {
 	commandName := "restore_pvc_local"
 
 	baseDir := n.BaseDir
@@ -2385,7 +2425,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{
 			{
-				Name:      n.PersistenceVolumeName,
+				Name:      pvcName,
 				MountPath: baseDir,
 			},
 		},
@@ -2396,7 +2436,7 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1
 	// so if different baseDir is used in the backup we also need to mount the operator's base directory
 	if baseDir != n.BaseDir {
 		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
-			Name:      n.PersistenceVolumeName,
+			Name:      pvcName,
 			MountPath: n.BaseDir,
 		})
 	}
@@ -2561,7 +2601,7 @@ func configMapVolumes(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFi
 	return vols
 }
 
-func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
+func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.VolumeMount {
 	vm := []v1.VolumeMount{
 		{
 			Name:      n.MTLSCertSecretName,
@@ -2571,14 +2611,14 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
-			Name:      n.PersistenceVolumeName,
+			Name:      pvcName,
 			MountPath: n.BaseDir,
 		})
 	}
 	return vm
 }
 
-func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []corev1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,
@@ -2595,7 +2635,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMoun
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
-			Name:      n.PersistenceVolumeName,
+			Name:      pvcName,
 			MountPath: n.BaseDir,
 		})
 	}
