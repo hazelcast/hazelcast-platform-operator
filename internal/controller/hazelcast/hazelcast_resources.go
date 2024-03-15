@@ -2038,10 +2038,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, localDevicePersistentVolumeClaim(h)...)
 	}
 
-	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
-		sts.Spec.VolumeClaimTemplates = cpPersistentVolumeClaim(h)
-	}
-
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Statefulset: %w", err)
@@ -2161,28 +2157,6 @@ func localDevicePersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.Persi
 		})
 	}
 	return pvcs
-}
-
-func cpPersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
-	return []v1.PersistentVolumeClaim{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        n.CPPersistenceVolumeName,
-				Namespace:   h.Namespace,
-				Labels:      labels(h),
-				Annotations: h.Spec.Annotations,
-			},
-			Spec: v1.PersistentVolumeClaimSpec{
-				AccessModes: h.Spec.CPSubsystem.PVC.AccessModes,
-				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
-						corev1.ResourceStorage: *h.Spec.CPSubsystem.PVC.RequestStorage,
-					},
-				},
-				StorageClassName: h.Spec.CPSubsystem.PVC.StorageClassName,
-			},
-		},
-	}
 }
 
 func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
