@@ -740,19 +740,23 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 15*Minute)
 		})
 
-		It("should replicate data for maps with TS and non TS storage in active-passive WAN replication mode", Tag(EE|AnyCloud), func() {
+		FIt("should replicate data for maps with TS and non TS storage in active-passive WAN replication mode", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("hpts-1")
 			SwitchContext(context1)
 			setupEnv()
 
 			deviceName := "test-device"
 			var nativeMemorySizeInMb = 1536 // 1.5Gi
-			var totalMemorySizeInMb = 2048  // 2 Gi
-			var nonTsMapSizeInMb = 48       // 48 Mi
-			var tsMapSizeInMb = 2000        // 2000 mi
-			var diskSizeInMb = tsMapSizeInMb * 2
-			var expectedNonTsMapSize = int(float64(nonTsMapSizeInMb) * 128)
-			var expectedTsMapSize = int(float64(tsMapSizeInMb) * 128)
+			var totalMemorySizeInMb = 2150  // 2 Gi
+			var firstNonTsMapSize = 50      // 50 Mi
+			var secondNonTsMapSize = 50     // 50 Mi
+			var thirdNonTsMapSize = 50      // 50 Mi
+			var firstTsMapSize = 50         // 50 mi
+			var secondTsMapSize = 1900      // 1900 mi
+			var thirdTsMapSize = 50         // 50 mi
+			var diskSizeInMb = (firstTsMapSize + secondTsMapSize + thirdTsMapSize) * 2
+			var expectedNonTsMapSize = int(float64(firstNonTsMapSize+secondNonTsMapSize+thirdNonTsMapSize) * 128)
+			var expectedTsMapSize = int(float64(firstTsMapSize+secondTsMapSize+thirdTsMapSize) * 128)
 
 			totalMemorySize := strconv.Itoa(totalMemorySizeInMb) + "Mi"
 			nativeMemorySize := strconv.Itoa(nativeMemorySizeInMb) + "Mi"
@@ -837,6 +841,14 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 				return wanSrc.Status.Status, nil
 			}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
+			By("filling the first non TS Map")
+			SwitchContext(context1)
+			setupEnv()
+			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), firstNonTsMapSize, firstNonTsMapSize, hazelcastSource)
+
+			By("filling the second TS Map")
+			FillMapBySizeInMb(context.Background(), tsMap.MapName(), firstTsMapSize, firstTsMapSize, hazelcastSource)
+
 			By("update to wrong Hazelcast image")
 			SwitchContext(context2)
 			setupEnv()
@@ -848,13 +860,13 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			DeletePod(hazelcastTarget.Name+"-1", 0, targetLookupKey)
 			DeletePod(hazelcastTarget.Name+"-2", 0, targetLookupKey)
 
-			By("filling the first non TS Map")
+			By("add more data to the first non TS Map")
 			SwitchContext(context1)
 			setupEnv()
-			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), nonTsMapSizeInMb, nonTsMapSizeInMb, hazelcastSource)
+			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), secondNonTsMapSize, firstNonTsMapSize+secondNonTsMapSize, hazelcastSource)
 
-			By("filling the second TS Map")
-			FillMapBySizeInMb(context.Background(), tsMap.MapName(), tsMapSizeInMb, tsMapSizeInMb, hazelcastSource)
+			By("add more data to the second TS Map")
+			FillMapBySizeInMb(context.Background(), tsMap.MapName(), secondTsMapSize, firstTsMapSize+secondTsMapSize, hazelcastSource)
 
 			By("update to correct Hazelcast image")
 			SwitchContext(context2)
@@ -878,6 +890,14 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			SwitchContext(context1)
 			setupEnv()
 			createWanSync(context.Background(), sourceLookupKey, wanSrc.Name, 2, labels)
+
+			By("add more data to the first non TS Map")
+			SwitchContext(context1)
+			setupEnv()
+			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), thirdNonTsMapSize, firstNonTsMapSize+secondNonTsMapSize+thirdNonTsMapSize, hazelcastSource)
+
+			By("add more data to the second TS Map")
+			FillMapBySizeInMb(context.Background(), tsMap.MapName(), thirdTsMapSize, firstTsMapSize+secondTsMapSize+thirdTsMapSize, hazelcastSource)
 
 			By("checking the first target non-TS map size")
 			SwitchContext(context2)
