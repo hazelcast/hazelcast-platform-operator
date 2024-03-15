@@ -214,11 +214,9 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 		v.Forbidden(Path("spec", "persistence", "startupAction"), "PartialStart can be used only with Partial clusterDataRecoveryPolicy")
 	}
 
-	if p.RestoreFromLocalBackup() {
-		if p.Restore.LocalConfiguration.BackupFolder == "" {
-			v.Required(Path("spec", "persistence", "restore", "localConfig", "backupFolder"), "cannot be blank")
-			return
-		}
+	if p.RestoreFromLocalBackup() && p.Restore.LocalConfiguration.BackupFolder == "" {
+		v.Required(Path("spec", "persistence", "restore", "localConfig", "backupFolder"), "cannot be blank")
+		return
 	}
 }
 
