@@ -175,7 +175,7 @@ var (
 			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
 				MemberCount: clusterSize,
-				PVC: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 				},
@@ -191,7 +191,7 @@ var (
 			LicenseKeySecretName: licenseKey(true),
 			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
-				Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 				},
