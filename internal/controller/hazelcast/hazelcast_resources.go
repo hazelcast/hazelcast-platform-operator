@@ -2461,10 +2461,6 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1
 				Value: backupFolder,
 			},
 			{
-				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
-				Value: baseDir,
-			},
-			{
 				Name:  "RESTORE_LOCAL_ID",
 				Value: h.Spec.Persistence.Restore.Hash(),
 			},

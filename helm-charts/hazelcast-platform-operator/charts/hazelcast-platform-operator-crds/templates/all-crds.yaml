@@ -464,7 +464,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/kutluhanhazelcast/platform-operator-agent
-                  version: 0.1.26
+                  version: 0.1.27
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -521,7 +521,7 @@ spec:
                         type: object
                     type: object
                   version:
-                    default: 0.1.26
+                    default: 0.1.27
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
