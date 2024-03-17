@@ -2115,10 +2115,9 @@ func resolvePVCName(ctx context.Context, c client.Client, h *hazelcastv1alpha1.H
 	persistenceCount := 0
 	hrPersistenceCount := 0
 	for _, pvc := range pvcList.Items {
-		if strings.HasPrefix(pvc.Name, n.DeprecatedPersistenceVolumeName) {
+		if strings.HasPrefix(pvc.Name, fmt.Sprintf("%s-%s", n.DeprecatedPersistenceVolumeName, h.Spec.ClusterName)) {
 			hrPersistenceCount++
-		}
-		if strings.HasPrefix(pvc.Name, n.PersistenceVolumeName) {
+		} else if strings.HasPrefix(pvc.Name, fmt.Sprintf("%s-%s", n.PersistenceVolumeName, h.Spec.ClusterName)) {
 			persistenceCount++
 		}
 	}
@@ -2432,8 +2431,15 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, b
 	}
 }
 
-func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration, baseDir, pvcName string) v1.Container {
+func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration, destBaseDir, pvcName string) v1.Container {
 	commandName := "restore_pvc_local"
+
+	// it maybe configured by restore.localConfig.
+	// HotBackup CR does not configure it. For HotBackup CR source and destination base directories are always the same.
+	srcBaseDir := destBaseDir
+	if conf.BaseDir != "" {
+		srcBaseDir = conf.BaseDir
+	}
 
 	backupDir := n.BackupDir
 	if conf.BackupDir != "" {
@@ -2449,8 +2455,12 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1
 		Args:            []string{commandName},
 		Env: []v1.EnvVar{
 			{
-				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
-				Value: baseDir,
+				Name:  "RESTORE_LOCAL_BACKUP_SRC_BASE_DIR",
+				Value: srcBaseDir,
+			},
+			{
+				Name:  "RESTORE_LOCAL_BACKUP_DEST_BASE_DIR",
+				Value: destBaseDir,
 			},
 			{
 				Name:  "RESTORE_LOCAL_BACKUP_BACKUP_DIR",
