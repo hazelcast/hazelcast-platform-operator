@@ -118,11 +118,9 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		} else {
 			fmt.Println("Pods labeled successfully")
 		}
-		By("create 5 maps")
-		ConcurrentlyCreateMaps(context.Background(), nMaps, hazelcast.Name, hazelcast)
 
-		By("put the entries")
-		ConcurrentlyFillMultipleMapsByMb(context.Background(), nMaps, mapSizeInMb, hazelcast.Name, mapSizeInMb, hazelcast)
+		By("creating the map config and putting entries")
+		ConcurrentlyCreateAndFillMultipleMapsByMb(nMaps, mapSizeInMb, hazelcast.Name, hazelcast)
 
 		By("run chaos mesh pod kill scenario")
 		podKillChaos := &chaosmeshv1alpha1.PodChaos{

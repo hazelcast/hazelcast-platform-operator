@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	routev1 "github.com/openshift/api/route/v1"
 	"io"
+	"sync"
 	"testing"
 
 	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
-	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -102,6 +103,7 @@ var recordedManifests = make(map[types.NamespacedName]io.Writer)
 // manifestRecorder keeps track of applied manifests
 type manifestRecorder struct {
 	client.Client
+	Mutex sync.Mutex
 }
 
 func NewManifestRecorder(client client.Client) *manifestRecorder {
@@ -109,6 +111,9 @@ func NewManifestRecorder(client client.Client) *manifestRecorder {
 }
 
 func (d *manifestRecorder) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	d.Mutex.Lock()         // Lock before accessing recordedManifests
+	defer d.Mutex.Unlock() // Ensure the lock is released at the end of the function
+
 	gvk, _, err := d.Client.Scheme().ObjectKinds(obj)
 	if err != nil {
 		return err

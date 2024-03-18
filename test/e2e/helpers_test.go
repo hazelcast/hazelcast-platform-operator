@@ -185,7 +185,7 @@ func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(15 * time.Second)
 		if podExists() {
 			log.Println("Pod still exists. Retrying delete operation.")
 			err := getKubernetesClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
@@ -361,18 +361,18 @@ func ConcurrentlyFillMultipleMapsByMb(ctx context.Context, numMaps int, sizePerM
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, mapNameSuffix), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
-			FillMapBySizeInMb(ctx, m.MapName(), sizePerMap, expectedSize, hazelcast)
+			FillMapBySizeInMb(ctx, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), sizePerMap, expectedSize, hazelcast)
 		}(i)
 	}
 	wg.Wait()
 }
 
-func ConcurrentlyCreateAndFillMultipleMapsByMb(ctx context.Context, numMaps int, sizePerMap int, mapNameSuffix string, hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+func ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps int, sizePerMap int, mapNameSuffix string, hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 10)
-	errCh := make(chan error, numMaps)
-
+	createErrCh := make(chan error, numMaps)
+	fillErrCh := make(chan error, numMaps)
+	mapReadyCh := make(chan *hazelcastcomv1alpha1.Map, numMaps)
 	for i := 0; i < numMaps; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -383,16 +383,34 @@ func ConcurrentlyCreateAndFillMultipleMapsByMb(ctx context.Context, numMaps int,
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, mapNameSuffix), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
 			m.Spec.PersistenceEnabled = true
-			if err := k8sClient.Create(ctx, m); err != nil {
-				errCh <- err
+			if err := k8sClient.Create(context.Background(), m); err != nil {
+				createErrCh <- err
 				return
 			}
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-			FillMapBySizeInMb(ctx, m.MapName(), sizePerMap, sizePerMap, hazelcast)
+			mapReadyCh <- m // Signal that the map is ready to be filled
 		}(i)
 	}
+
+	go func() {
+		for m := range mapReadyCh {
+			wg.Add(1)
+			go func(m *hazelcastcomv1alpha1.Map) {
+				defer wg.Done()
+				FillMapBySizeInMb(context.Background(), m.MapName(), sizePerMap, sizePerMap, hazelcast)
+			}(m)
+		}
+	}()
 	wg.Wait()
-	close(errCh)
+	close(createErrCh)
+	close(fillErrCh)
+	close(mapReadyCh)
+	for err := range createErrCh {
+		log.Printf("Error creating map: %v", err)
+	}
+	for err := range fillErrCh {
+		log.Printf("Error filling map: %v", err)
+	}
 }
 
 func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, expectedMapSize int, timeout time.Duration) {
@@ -422,7 +440,7 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 		}
 		log.Printf("Current size of map '%s': %d", mapName, mapSize)
 		return mapSize, nil
-	}, timeout, 60*time.Second).Should(Equal(expectedMapSize))
+	}, timeout, 5*time.Minute).Should(Equal(expectedMapSize))
 	log.Printf("Map '%s' reached expected size '%d'", mapName, expectedMapSize)
 }
 
