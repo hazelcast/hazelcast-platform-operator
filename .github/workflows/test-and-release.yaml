@@ -178,7 +178,7 @@ jobs:
           kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast
           echo "Checking Map CR after upgrade"
           kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent
-          echo "Checking Management Center CR a after upgrade"
+          echo "Checking Management Center CR after upgrade"
           kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter
 
   test_container:
