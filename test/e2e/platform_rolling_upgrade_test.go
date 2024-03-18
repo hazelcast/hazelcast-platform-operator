@@ -90,9 +90,8 @@ var _ = Describe("Platform Rolling UpgradeTests", Label("rolling_upgrade"), func
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		By("create the map config and put the entries")
-
-		ConcurrentlyCreateAndFillMultipleMapsByMb(ctx, numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
+		By("creating the map config and putting entries")
+		ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
 
 		By("pause Hazelcast")
 		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {

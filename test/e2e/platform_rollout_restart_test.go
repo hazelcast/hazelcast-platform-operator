@@ -55,8 +55,8 @@ var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), fun
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		By("create the map config and put entries")
-		ConcurrentlyCreateAndFillMultipleMapsByMb(ctx, numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
+		By("creating the map config and putting entries")
+		ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
 
 		By("making rollout StatefulSet restart")
 		err := RolloutRestart(ctx, hazelcast)

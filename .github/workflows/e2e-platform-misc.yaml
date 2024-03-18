@@ -51,7 +51,7 @@ jobs:
             --cluster "${CLUSTER_NAME}" \
             --region=${AWS_REGION} \
             --name node-group-1 \
-            --node-type t3a.2xlarge \
+            --node-type m5.4xlarge \
             --nodes 3 \
             --managed
 
@@ -220,7 +220,7 @@ jobs:
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
         run: |
-          make test-e2e E2E_TEST_LABELS="rolling_upgrade || rollout_restart || platform_persistence" GO_TEST_FLAGS=-ee=true NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
+          make test-e2e GO_TEST_FLAGS=-ee=true E2E_TEST_LABELS="platform_persistence || rollout_restart || rolling_upgrade" NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
 
       - name: Clean up after Tests
         if: always()
