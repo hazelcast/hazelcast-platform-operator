@@ -429,7 +429,7 @@ jobs:
 
       - name: Create Bundle Index
         run: |
-          opm index add --mode=semver --bundles ${BUNDLE_IMAGE} --tag ${PFLT_INDEXIMAGE}
+          opm index add --mode=replaces-mode --bundles ${BUNDLE_IMAGE} --tag ${PFLT_INDEXIMAGE}
           podman push ${PFLT_INDEXIMAGE}
 
   test_operator:
