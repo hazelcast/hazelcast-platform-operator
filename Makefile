@@ -362,6 +362,9 @@ bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and met
 	$(MAKE) manifests # Revert changes done for generating bundle
 	sed -i "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	sed -i "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	sed -i "s|RELEASE_VERSION|$(BUNDLE_VERSION)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
+	@IFS='.' read -r MAJOR MINOR PATCH <<< "$(BUNDLE_VERSION)"; \
+	sed -i "s|hazelcast-platform-operator.v5.0.0|hazelcast-platform-operator.v$$MAJOR.$$((MINOR-1)).$$PATCH|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 
 olm-deploy: operator-sdk ## Deploying Operator with OLM bundle. Available modes are AllNamespace|OwnNamespace|SingleNamespace
