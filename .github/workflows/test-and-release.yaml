@@ -156,8 +156,6 @@ jobs:
             name: managementcenter
           spec:
             repository: 'hazelcast/management-center'
-            externalConnectivity:
-              type: LoadBalancer
             hazelcastClusters:
               - address: hazelcast
                 name: dev
