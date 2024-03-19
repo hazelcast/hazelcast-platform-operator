@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"strconv"
 
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,7 +99,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/kutluhanhazelcast/platform-operator-agent", version: "0.1.29"}
+	// +kubebuilder:default:={repository: "docker.io/kutluhanhazelcast/platform-operator-agent", version: "0.1.32"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -664,7 +665,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.29"
+	// +kubebuilder:default:="0.1.32"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -753,7 +754,24 @@ type RestoreConfiguration struct {
 	LocalConfiguration *RestoreFromLocalConfiguration `json:"localConfig,omitempty"`
 }
 
+// PVCNameFormat specifies the naming format of the existing PVCs that will be restored from.
+// +kubebuilder:validation:Enum=Legacy;Present
+type PVCNameFormat string
+
+const (
+	// Legacy format is hot-restart-persistence.
+	Legacy PVCNameFormat = "Legacy"
+
+	// Present format is persistence.
+	Present PVCNameFormat = "Present"
+)
+
 type RestoreFromLocalConfiguration struct {
+	// Name format used in existing PVCs
+	// +optional
+	// +kubebuilder:default:="Present"
+	PVCNameFormat PVCNameFormat `json:"pvcNameFormat,omitempty"`
+
 	// Persistence base directory
 	// +optional
 	BaseDir string `json:"baseDir,omitempty"`
@@ -765,6 +783,15 @@ type RestoreFromLocalConfiguration struct {
 	// Backup directory
 	// +optional
 	BackupFolder string `json:"backupFolder,omitempty"`
+}
+
+func (r *RestoreFromLocalConfiguration) PVCPrefix() string {
+	switch r.PVCNameFormat {
+	case Legacy:
+		return n.LegacyPVCPrefix
+	default:
+		return n.PresentPVCPrefix
+	}
 }
 
 func (rc RestoreConfiguration) Hash() string {

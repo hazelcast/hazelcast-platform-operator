@@ -464,7 +464,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/kutluhanhazelcast/platform-operator-agent
-                  version: 0.1.29
+                  version: 0.1.32
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -521,7 +521,7 @@ spec:
                         type: object
                     type: object
                   version:
-                    default: 0.1.29
+                    default: 0.1.32
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -1080,6 +1080,13 @@ spec:
                             type: string
                           baseDir:
                             description: Persistence base directory
+                            type: string
+                          pvcNameFormat:
+                            default: Present
+                            description: Name format used in existing PVCs
+                            enum:
+                            - Legacy
+                            - Present
                             type: string
                         type: object
                     type: object

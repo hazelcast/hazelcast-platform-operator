@@ -2032,12 +2032,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
-	var err error
-	var pvcName string
-	if h.Spec.Persistence.IsEnabled() {
-		if pvcName, err = resolvePVCName(ctx, r.Client, h); err != nil {
-			return err
-		}
+	pvcName := n.PresentPVCPrefix
+	if h.Spec.Persistence.RestoreFromLocalBackup() {
+		pvcName = h.Spec.Persistence.Restore.LocalConfiguration.PVCPrefix()
 	}
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
@@ -2046,7 +2043,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, localDevicePersistentVolumeClaim(h)...)
 	}
 
-	err = controllerutil.SetControllerReference(h, sts, r.Scheme)
+	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on Statefulset: %w", err)
 	}
@@ -2099,37 +2096,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
 	}
 	return err
-}
-
-// resolvePVCName is used to determine which PVC name should be used.
-// until now two different PVC prefixes used in operator and helm chart by default: "hot-restart-persistence" and "persistence".
-// we want to support both of them otherwise when an upgrade is triggered, it will fail.
-// So, to support them both, we check the existing PVC prefixes and if their names match one of them, we mount that PVC.
-// "persistence" has priority that is the latest supported prefix.
-func resolvePVCName(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (string, error) {
-	pvcList := &v1.PersistentVolumeClaimList{}
-	if err := c.List(ctx, pvcList); err != nil {
-		return "", err
-	}
-
-	persistenceCount := 0
-	hrPersistenceCount := 0
-	for _, pvc := range pvcList.Items {
-		if strings.HasPrefix(pvc.Name, fmt.Sprintf("%s-%s", n.DeprecatedPersistenceVolumeName, h.Spec.ClusterName)) {
-			hrPersistenceCount++
-		} else if strings.HasPrefix(pvc.Name, fmt.Sprintf("%s-%s", n.PersistenceVolumeName, h.Spec.ClusterName)) {
-			persistenceCount++
-		}
-	}
-
-	if *h.Spec.ClusterSize == int32(persistenceCount) {
-		return n.PersistenceVolumeName, nil
-	}
-	if *h.Spec.ClusterSize == int32(hrPersistenceCount) {
-		return n.DeprecatedPersistenceVolumeName, nil
-	}
-
-	return n.PersistenceVolumeName, nil
 }
 
 func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.PersistentVolumeClaim {
@@ -2347,11 +2313,7 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 
 		return containers, nil
 	} else if h.Spec.Persistence.RestoreFromLocalBackup() {
-		baseDir := conf.Hazelcast.Persistence.BaseDir
-		if h.Spec.Persistence.Restore.LocalConfiguration.BaseDir != "" {
-			baseDir = h.Spec.Persistence.Restore.LocalConfiguration.BaseDir
-		}
-		containers = append(containers, restoreLocalAgentContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, baseDir, pvcName))
+		containers = append(containers, restoreLocalAgentContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, conf.Hazelcast.Persistence.BaseDir, pvcName))
 	} else {
 		// restoring from bucket config
 		containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
