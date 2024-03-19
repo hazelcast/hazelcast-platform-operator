@@ -220,7 +220,7 @@ jobs:
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
         run: |
-          make test-e2e GO_TEST_FLAGS=-ee=true GINKGO_PARALLEL_PROCESSES=1 E2E_TEST_LABELS="platform_persistence || rollout_restart || rolling_upgrade" NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
+          make test-e2e GO_TEST_FLAGS=-ee=true GINKGO_PARALLEL_PROCESSES=2 E2E_TEST_LABELS="platform_persistence || rollout_restart || rolling_upgrade" NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
 
       - name: Clean up after Tests
         if: always()
