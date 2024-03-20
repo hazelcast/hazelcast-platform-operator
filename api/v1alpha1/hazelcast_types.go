@@ -675,8 +675,8 @@ type AgentConfiguration struct {
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
 type HazelcastPersistenceConfiguration struct {
-	// Persistence base directory.
 	// DeprecatedBaseDir is a depreciated. Deprecated: Use restore.localConfig to restore from a local backup.
+	// Persistence base directory.
 	// +optional
 	DeprecatedBaseDir string `json:"baseDir"`
 
@@ -781,6 +781,7 @@ type RestoreFromLocalConfiguration struct {
 
 	// Backup directory
 	// +optional
+	// +kubebuilder:validation:MinLength:=1
 	BackupFolder string `json:"backupFolder,omitempty"`
 }
 
