@@ -25,8 +25,8 @@ var _ = Describe("Hazelcast WAN Sync", Group("wan_sync"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	Context("Basic WAN Sync functionality", func() {
-		It("should sync one map with another cluster", Tag(Kind|EE|AnyCloud), func() {
+	DescribeTable("Basic WAN Sync functionality", func(isDelta bool) {
+		It("should sync one map with another cluster", func() {
 			setLabelAndCRName("hws-1")
 
 			hzCrs, _ := createWanResources(context.Background(), map[string][]string{
@@ -47,7 +47,7 @@ var _ = Describe("Hazelcast WAN Sync", Group("wan_sync"), func() {
 			waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, mapLookupKey.Name, mapSize, 1*Minute)
 		})
 
-		It("should sync two maps with another cluster", Tag(Kind|AnyCloud), func() {
+		It("should sync two maps with another cluster", func() {
 			suffix := setLabelAndCRName("hws-2")
 
 			// Hazelcast and Map CRs
@@ -74,5 +74,8 @@ var _ = Describe("Hazelcast WAN Sync", Group("wan_sync"), func() {
 			waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, srcMap1, mapSize, 1*Minute)
 			waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, srcMap2, mapSize, 1*Minute)
 		})
-	})
+	},
+		Entry("using Full WAN Sync", Tag(EE|AnyCloud), false),
+		Entry("using Delta WAN Sync", Tag(EE|AnyCloud), true),
+	)
 })
