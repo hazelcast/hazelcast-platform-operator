@@ -6,7 +6,6 @@ import (
 	"hash/fnv"
 	"strconv"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -754,23 +753,23 @@ type RestoreConfiguration struct {
 	LocalConfiguration *RestoreFromLocalConfiguration `json:"localConfig,omitempty"`
 }
 
-// PVCNameFormat specifies the naming format of the existing PVCs that will be restored from.
-// +kubebuilder:validation:Enum=Legacy;Present
-type PVCNameFormat string
+// PVCNamePrefix specifies the prefix of existing PVCs
+// +kubebuilder:validation:Enum=persistence;hot-restart-persistence
+type PVCNamePrefix string
 
 const (
-	// Legacy format is hot-restart-persistence.
-	Legacy PVCNameFormat = "Legacy"
+	// Persistence format is hot-restart-persistence.
+	Persistence PVCNamePrefix = "persistence"
 
-	// Present format is persistence.
-	Present PVCNameFormat = "Present"
+	// HotRestartPersistence format is persistence.
+	HotRestartPersistence PVCNamePrefix = "hot-restart-persistence"
 )
 
 type RestoreFromLocalConfiguration struct {
-	// Name format used in existing PVCs
+	// PVC name prefix used in existing PVCs
 	// +optional
-	// +kubebuilder:default:="Present"
-	PVCNameFormat PVCNameFormat `json:"pvcNameFormat,omitempty"`
+	// +kubebuilder:default:="persistence"
+	PVCNamePrefix PVCNamePrefix `json:"pvcNamePrefix,omitempty"`
 
 	// Persistence base directory
 	// +optional
@@ -783,15 +782,6 @@ type RestoreFromLocalConfiguration struct {
 	// Backup directory
 	// +optional
 	BackupFolder string `json:"backupFolder,omitempty"`
-}
-
-func (r *RestoreFromLocalConfiguration) PVCPrefix() string {
-	switch r.PVCNameFormat {
-	case Legacy:
-		return n.LegacyPVCPrefix
-	default:
-		return n.PresentPVCPrefix
-	}
 }
 
 func (rc RestoreConfiguration) Hash() string {

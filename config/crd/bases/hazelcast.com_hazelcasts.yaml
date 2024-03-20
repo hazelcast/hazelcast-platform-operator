@@ -706,12 +706,12 @@ spec:
                           baseDir:
                             description: Persistence base directory
                             type: string
-                          pvcNameFormat:
-                            default: Present
-                            description: Name format used in existing PVCs
+                          pvcNamePrefix:
+                            default: persistence
+                            description: PVC name prefix used in existing PVCs
                             enum:
-                            - Legacy
-                            - Present
+                            - persistence
+                            - hot-restart-persistence
                             type: string
                         type: object
                     type: object

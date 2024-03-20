@@ -77,7 +77,4 @@ func (r *Hazelcast) defaultOptionalToNil() {
 	if r.Spec.ManagementCenterConfig != nil && reflect.DeepEqual(*r.Spec.ManagementCenterConfig, ManagementCenterConfig{}) {
 		r.Spec.ManagementCenterConfig = nil
 	}
-	if r.Spec.Persistence != nil && r.Spec.Persistence.DeprecatedBaseDir != "" {
-		r.Spec.Persistence.DeprecatedBaseDir = ""
-	}
 }

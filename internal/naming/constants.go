@@ -56,9 +56,8 @@ const (
 	// MancenterStorageName storage name for MC
 	MancenterStorageName = Mancenter + "-storage"
 
-	// PresentPVCPrefix is the name the Persistence Volume Claim used in Persistence configuration.
-	PresentPVCPrefix            = "persistence"
-	LegacyPVCPrefix             = "hot-restart-persistence"
+	// PVCName is the name the Persistence Volume Claim used in Persistence configuration.
+	PVCName                     = "persistence"
 	CPPersistenceVolumeName     = "cp-subsystem-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
 	JetJobJarsVolumeName        = "jet-job-jars-bucket"

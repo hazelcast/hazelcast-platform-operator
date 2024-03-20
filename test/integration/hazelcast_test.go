@@ -2476,9 +2476,9 @@ var _ = Describe("Hazelcast CR", func() {
 			fetchedSts := &v1.StatefulSet{}
 			assertExists(lookupKey(hz), fetchedSts)
 
-			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.PresentPVCPrefix))
+			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.PVCName))
 			hzContainer := fetchedSts.Spec.Template.Spec.Containers[0]
-			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.PresentPVCPrefix, n.PersistenceMountPath))
+			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.PVCName, n.PersistenceMountPath))
 			Expect(hzContainer.VolumeMounts).Should(Not(test.ContainVolumeMount(n.CPPersistenceVolumeName, n.CPBaseDir)))
 
 			Eventually(func() config.CPSubsystem {

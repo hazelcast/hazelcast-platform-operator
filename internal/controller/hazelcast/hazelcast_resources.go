@@ -2032,9 +2032,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
-	pvcName := n.PresentPVCPrefix
+	pvcName := n.PVCName
 	if h.Spec.Persistence.RestoreFromLocalBackup() {
-		pvcName = h.Spec.Persistence.Restore.LocalConfiguration.PVCPrefix()
+		pvcName = string(h.Spec.Persistence.Restore.LocalConfiguration.PVCNamePrefix)
 	}
 
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
@@ -2049,6 +2049,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, sts, func() error {
+		pvcName = sts.Spec.VolumeClaimTemplates[0].Name
 		sts.Spec.Replicas = h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(sts, h)
 		sts.Spec.Template.Annotations, err = podAnnotations(sts.Spec.Template.Annotations, h)
