@@ -232,6 +232,10 @@ ifeq ($(WORKFLOW_ID),pr)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && kind
 endif
 
+ifeq ($(WORKFLOW_ID),cluster_scope)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && kind
+endif
+
 test-e2e-split-kind: generate ginkgo ## Run end-to-end tests on Kind
 	$(GINKGO) -r --compilers=2 --keep-going --junit-report=test_report_$(REPORT_SUFFIX).xml --output-dir=allure-results/$(WORKFLOW_ID) --procs $(GINKGO_KIND_PARALLEL_PROCESSES) --flake-attempts 2 --trace --label-filter="(kind && shard$(SHARD_ID)) && $(E2E_TEST_LABELS)" --tags $(GO_BUILD_TAGS) --v --timeout 70m $(GINKGO_TEST_FLAGS) ./test/e2e -- -namespace "$(NAMESPACE)" -hazelcast-version "$(HZ_VERSION)" -mc-version "$(MC_VERSION)" $(GO_TEST_FLAGS)
 
