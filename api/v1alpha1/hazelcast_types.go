@@ -758,10 +758,10 @@ type RestoreConfiguration struct {
 type PVCNamePrefix string
 
 const (
-	// Persistence format is hot-restart-persistence.
+	// Persistence format is persistence.
 	Persistence PVCNamePrefix = "persistence"
 
-	// HotRestartPersistence format is persistence.
+	// HotRestartPersistence format is hot-restart-persistence.
 	HotRestartPersistence PVCNamePrefix = "hot-restart-persistence"
 )
 
