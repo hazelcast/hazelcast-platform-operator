@@ -2049,7 +2049,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, sts, func() error {
-		pvcName = sts.Spec.VolumeClaimTemplates[0].Name
+		if len(sts.Spec.VolumeClaimTemplates) > 0 {
+			pvcName = sts.Spec.VolumeClaimTemplates[0].Name
+		}
 		sts.Spec.Replicas = h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(sts, h)
 		sts.Spec.Template.Annotations, err = podAnnotations(sts.Spec.Template.Annotations, h)
