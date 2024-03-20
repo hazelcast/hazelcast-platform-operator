@@ -151,7 +151,6 @@ Rules needed for operator in its own namespace
   - apps
   resources:
   - deployments
-  - persistentvolumeclaims
   verbs:
   - get
 - apiGroups:
@@ -181,7 +180,6 @@ Rules needed for operator watched namespaces
   - secrets
   - serviceaccounts
   - services
-  - persistentvolumeclaims
   verbs:
   - create
   - delete
