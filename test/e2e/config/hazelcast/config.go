@@ -166,6 +166,42 @@ var (
 		}
 	}
 
+	HazelcastCPSubsystem = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
+		return hazelcastcomv1alpha1.HazelcastSpec{
+			ClusterSize:          pointer.Int32(clusterSize),
+			Repository:           repo(true),
+			Version:              "5.4.0-SNAPSHOT",
+			LicenseKeySecretName: licenseKey(true),
+			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
+				MemberCount: clusterSize,
+				PVC: &hazelcastcomv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+				},
+			},
+		}
+	}
+
+	HazelcastCPSubsystemPersistence = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
+		return hazelcastcomv1alpha1.HazelcastSpec{
+			ClusterSize:          pointer.Int32(clusterSize),
+			Repository:           repo(true),
+			Version:              "5.4.0-SNAPSHOT",
+			LicenseKeySecretName: licenseKey(true),
+			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+			Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
+				PVC: &hazelcastcomv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+				},
+			},
+			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
+				MemberCount: clusterSize,
+			},
+		}
+	}
+
 	HazelcastRestore = func(hz *hazelcastcomv1alpha1.Hazelcast, restoreConfig hazelcastcomv1alpha1.RestoreConfiguration) *hazelcastcomv1alpha1.Hazelcast {
 		hzRestore := &hazelcastcomv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{
