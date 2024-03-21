@@ -799,6 +799,7 @@ func assertWanSyncStatus(wr *hazelcastcomv1alpha1.WanSync, st hazelcastcomv1alph
 			if err != nil {
 				return ""
 			}
+			Expect(checkWan.Status.Status).ShouldNot(Equal(hazelcastcomv1alpha1.WanSyncFailed))
 			return checkWan.Status.Status
 		}, 5*Minute, interval).Should(Equal(st))
 	})

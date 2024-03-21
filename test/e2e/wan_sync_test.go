@@ -6,6 +6,8 @@ import (
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
@@ -45,6 +47,23 @@ var _ = Context("Hazelcast WAN Sync", Group("wan_sync"), func() {
 			hzSrcLookupKey.Name: {mapLookupKey.Name},
 			hzTrgLookupKey.Name: nil,
 		}, hzSrcLookupKey.Namespace, labels, mFns...)
+
+		By("restart Hazelcast CR to overcome the issue with the Merkle Tree config in DynamicConfigAddMapConfigRequest codec", func() {
+			for _, hz := range hzCrs {
+				UpdateHazelcastCR(hz, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+					hazelcast.Spec.ClusterSize = pointer.Int32(0)
+					return hazelcast
+				})
+				WaitForReplicaSize(hz.Namespace, hz.Name, 0)
+
+				UpdateHazelcastCR(hz, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+					hazelcast.Spec.ClusterSize = pointer.Int32(3)
+					return hazelcast
+				})
+				evaluateReadyMembers(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace})
+			}
+		})
+
 		mapSize := 1024
 		fillTheMapDataPortForward(context.Background(), hzCrs[hzSrcLookupKey.Name], localPort, mapLookupKey.Name, mapSize)
 
@@ -74,6 +93,23 @@ var _ = Context("Hazelcast WAN Sync", Group("wan_sync"), func() {
 			hzSrcLookupKey.Name: {srcMap1, srcMap2},
 			hzTrgLookupKey.Name: nil,
 		}, hzSrcLookupKey.Namespace, labels, mFns...)
+
+		By("restart Hazelcast CR to overcome the issue with the Merkle Tree config in DynamicConfigAddMapConfigRequest codec", func() {
+			for _, hz := range hzCrs {
+				UpdateHazelcastCR(hz, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+					hazelcast.Spec.ClusterSize = pointer.Int32(0)
+					return hazelcast
+				})
+				WaitForReplicaSize(hz.Namespace, hz.Name, 0)
+
+				UpdateHazelcastCR(hz, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+					hazelcast.Spec.ClusterSize = pointer.Int32(3)
+					return hazelcast
+				})
+				evaluateReadyMembers(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace})
+			}
+		})
+
 		mapSize := 1024
 		fillTheMapDataPortForward(context.Background(), hzCrs[hzSrcLookupKey.Name], localPort, srcMap1, mapSize)
 		fillTheMapDataPortForward(context.Background(), hzCrs[hzSrcLookupKey.Name], localPort, srcMap2, mapSize)
