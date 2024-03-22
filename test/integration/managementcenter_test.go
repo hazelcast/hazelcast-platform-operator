@@ -865,4 +865,30 @@ var _ = Describe("ManagementCenter CR", func() {
 			}
 		})
 	})
+
+	Context("defaulter webhook", func() {
+		It("should set empty TLS to nil", func() {
+			mcS := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
+			mcS.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{
+				{
+					Name: "cluster1",
+					TLS:  &hazelcastv1alpha1.TLS{},
+				},
+				{
+					Name: "cluster2",
+					TLS:  &hazelcastv1alpha1.TLS{},
+				},
+			}
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       mcS,
+			}
+			Create(mc)
+			EnsureStatusIsPending(mc)
+			actualMC := &hazelcastv1alpha1.ManagementCenter{}
+			Expect(k8sClient.Get(context.Background(), types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, actualMC)).Should(Succeed())
+			Expect(actualMC.Spec.HazelcastClusters[0].TLS).Should(BeNil())
+			Expect(actualMC.Spec.HazelcastClusters[1].TLS).Should(BeNil())
+		})
+	})
 })

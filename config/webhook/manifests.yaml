@@ -1,5 +1,51 @@
 ---
 apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-hazelcast-com-v1alpha1-hazelcast
+  failurePolicy: Ignore
+  name: vhazelcast.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - hazelcasts
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-hazelcast-com-v1alpha1-managementcenter
+  failurePolicy: Ignore
+  name: vmanagementcenter.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - managementcenters
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: validating-webhook-configuration

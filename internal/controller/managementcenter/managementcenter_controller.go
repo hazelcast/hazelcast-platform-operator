@@ -3,6 +3,7 @@ package managementcenter
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -84,6 +85,13 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
+	if mutated := mutate(mc); mutated {
+		err = r.Client.Update(ctx, mc)
+		if err != nil {
+			return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(fmt.Sprintf("error mutating new Spec: %s", err.Error())))
+		}
+	}
+
 	err = hazelcastv1alpha1.ValidateManagementCenterSpec(mc)
 	if err != nil {
 		return update(ctx, r.Client, mc, recoptions.Error(err), withMcFailedPhase(err.Error()))
@@ -161,6 +169,15 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.McConfiguring), withConfigured(true))
 	}
 	return update(ctx, r.Client, mc, recoptions.Empty(), withMcPhase(hazelcastv1alpha1.McRunning), withMcExternalAddresses(enrichedAddrs))
+}
+
+func mutate(mc *hazelcastv1alpha1.ManagementCenter) bool {
+	oldMC := &mc
+	mc.Default()
+	if !reflect.DeepEqual(oldMC, &mc) {
+		return true
+	}
+	return false
 }
 
 func isMCReconfigured(mc *hazelcastv1alpha1.ManagementCenter) bool {
