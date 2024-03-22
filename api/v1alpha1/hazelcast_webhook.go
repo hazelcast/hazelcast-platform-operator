@@ -57,7 +57,8 @@ func (r *Hazelcast) Default() {
 }
 
 func (r *Hazelcast) defaultOptionalToNil() {
-	if r.Spec.TLS != nil && r.Spec.TLS.SecretName == "" {
+	// Is default TLS
+	if r.Spec.TLS != nil && r.Spec.TLS.SecretName == "" && r.Spec.TLS.MutualAuthentication == MutualAuthenticationNone {
 		r.Spec.TLS = nil
 	}
 	if r.Spec.Scheduling != nil && reflect.DeepEqual(*r.Spec.Scheduling, SchedulingConfiguration{}) {

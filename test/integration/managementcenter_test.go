@@ -635,7 +635,8 @@ var _ = Describe("ManagementCenter CR", func() {
 					Name:    "dev",
 					Address: "dummy",
 					TLS: &hazelcastv1alpha1.TLS{
-						SecretName: "",
+						SecretName:           "",
+						MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 					},
 				}}
 

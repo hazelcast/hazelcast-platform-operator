@@ -48,7 +48,6 @@ func (r *ManagementCenter) ValidateDelete() (admission.Warnings, error) {
 }
 
 func (r *ManagementCenter) Default() {
-	managementcenterlog.Info("webhook defaulter", "name", r.Name)
 	r.defaultOptionalToNil()
 }
 
@@ -67,7 +66,8 @@ func (r *ManagementCenter) defaultOptionalToNil() {
 	}
 	if r.Spec.HazelcastClusters != nil {
 		for i, cluster := range r.Spec.HazelcastClusters {
-			if cluster.TLS != nil && cluster.TLS.SecretName == "" {
+			// Is default TLS
+			if cluster.TLS != nil && cluster.TLS.SecretName == "" && cluster.TLS.MutualAuthentication == MutualAuthenticationNone {
 				r.Spec.HazelcastClusters[i].TLS = nil
 			}
 		}

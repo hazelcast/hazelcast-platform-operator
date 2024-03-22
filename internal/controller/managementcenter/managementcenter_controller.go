@@ -174,10 +174,7 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func mutate(mc *hazelcastv1alpha1.ManagementCenter) bool {
 	oldMC := &mc
 	mc.Default()
-	if !reflect.DeepEqual(oldMC, &mc) {
-		return true
-	}
-	return false
+	return !reflect.DeepEqual(oldMC, &mc)
 }
 
 func isMCReconfigured(mc *hazelcastv1alpha1.ManagementCenter) bool {
