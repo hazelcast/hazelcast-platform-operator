@@ -724,7 +724,7 @@ func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
 
 // RestoreFromHotBackupResourceName returns true if Restore is done from a HotBackup resource
 func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() bool {
-	return p.IsRestoreEnabled() && *p.Restore.HotBackupResourceName != ""
+	return p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != nil
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
