@@ -218,7 +218,7 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 		v.Required(Path("spec", "persistence", "restore", "hotBackupResourceName"), "cannot be empty")
 	}
 
-	if p.IsRestoreEnabled() && *p.Restore.HotBackupResourceName != "" {
+	if p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != nil {
 		// make sure hot-backup exists
 		hbName := types.NamespacedName{
 			Name:      *p.Restore.HotBackupResourceName,
