@@ -1145,7 +1145,7 @@ func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bo
 		}
 	}
 	return hazelcastcomv1alpha1.RestoreConfiguration{
-		HotBackupResourceName: hotBackup.Name,
+		HotBackupResourceName: &hotBackup.Name,
 	}
 }
 

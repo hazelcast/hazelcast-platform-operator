@@ -374,7 +374,7 @@ var (
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
 					Restore: hazelcastcomv1alpha1.RestoreConfiguration{
-						HotBackupResourceName: hbn,
+						HotBackupResourceName: &hbn,
 					},
 				},
 			},

@@ -1891,6 +1891,49 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
+	Context("Hazelcast Persistence Restore Validation", func() {
+		It("should return hotBackupResourceName cannot be empty error", func() {
+			emptyStr := ""
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+				},
+				Restore: hazelcastv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: &emptyStr,
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			err := k8sClient.Create(context.Background(), hz)
+			Expect(err).Should(MatchError(
+				ContainSubstring("cannot be empty")))
+		})
+		It("should return hot backup cannot be found error", func() {
+			notexistName := "notexist"
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+				},
+				Restore: hazelcastv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: &notexistName,
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			err := k8sClient.Create(context.Background(), hz)
+			Expect(err).Should(MatchError(
+				ContainSubstring(fmt.Sprintf("There is not hot backup found with name %s", notexistName))))
+		})
+	})
+
 	Context("with JetEngine configuration", func() {
 		When("fully configured", func() {
 			It("should create jet engine configuration", func() {

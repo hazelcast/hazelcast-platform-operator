@@ -260,7 +260,7 @@ func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 		},
 		Restore: hazelcastv1alpha1.RestoreConfiguration{
-			HotBackupResourceName: hb.Name,
+			HotBackupResourceName: &hb.Name,
 		},
 	}}
 	hs, _ := json.Marshal(h.Spec)

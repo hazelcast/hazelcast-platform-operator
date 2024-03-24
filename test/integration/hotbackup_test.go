@@ -62,7 +62,7 @@ var _ = Describe("HotBackup CR", func() {
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 				Restore: hazelcastv1alpha1.RestoreConfiguration{
-					HotBackupResourceName: hb.Name,
+					HotBackupResourceName: &hb.Name,
 				},
 			}
 			hz := &hazelcastv1alpha1.Hazelcast{

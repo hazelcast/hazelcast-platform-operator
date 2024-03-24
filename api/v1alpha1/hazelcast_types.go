@@ -724,7 +724,7 @@ func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
 
 // RestoreFromHotBackupResourceName returns true if Restore is done from a HotBackup resource
 func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() bool {
-	return p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != ""
+	return p.IsRestoreEnabled() && *p.Restore.HotBackupResourceName != ""
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
@@ -736,7 +736,7 @@ type RestoreConfiguration struct {
 
 	// Name of the HotBackup resource from which backup will be fetched.
 	// +optional
-	HotBackupResourceName string `json:"hotBackupResourceName,omitempty"`
+	HotBackupResourceName *string `json:"hotBackupResourceName,omitempty"`
 }
 
 func (rc RestoreConfiguration) Hash() string {

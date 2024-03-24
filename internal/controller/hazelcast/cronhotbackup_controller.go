@@ -302,7 +302,7 @@ func (r *CronHotBackupReconciler) cleanupResources(ctx context.Context, chb haze
 
 func findRestoreResourceName(hazelcastList *hazelcastv1alpha1.HazelcastList, name string) bool {
 	for _, h := range hazelcastList.Items {
-		if h.Spec.Persistence.IsRestoreEnabled() && h.Spec.Persistence.Restore.HotBackupResourceName == name {
+		if h.Spec.Persistence.IsRestoreEnabled() && *h.Spec.Persistence.Restore.HotBackupResourceName == name {
 			return true
 		}
 	}

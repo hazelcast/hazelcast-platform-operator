@@ -2300,7 +2300,7 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 
 	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
 		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
-			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, conf.Hazelcast.Persistence.BaseDir)
+			types.NamespacedName{Namespace: h.Namespace, Name: *h.Spec.Persistence.Restore.HotBackupResourceName}, conf.Hazelcast.Persistence.BaseDir)
 		if err != nil {
 			return nil, err
 		}
