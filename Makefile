@@ -19,14 +19,14 @@ TOOLBIN = $(shell pwd)/bin
 # Used API version is set in go.mod file
 K8S_VERSION ?= 1.25.4
 SETUP_ENVTEST_VERSION ?= latest
-ENVTEST_K8S_VERSION ?= 1.27.1
+ENVTEST_K8S_VERSION ?= 1.28.3
 # https://github.com/operator-framework/operator-sdk/releases
-OPERATOR_SDK_VERSION ?= v1.33.0
+OPERATOR_SDK_VERSION ?= v1.34.1
 # https://github.com/kubernetes-sigs/controller-tools/releases
-CONTROLLER_GEN_VERSION ?= v0.12.0
+CONTROLLER_GEN_VERSION ?= v0.13.0
 # https://github.com/kubernetes-sigs/controller-runtime/releases
 # It is set in the go.mod file
-CONTROLLER_RUNTIME_VERSION ?= v0.15.0
+CONTROLLER_RUNTIME_VERSION ?= v0.16.0
 # https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases
 OCP_OLM_CATALOG_VALIDATOR_VERSION ?= v0.0.1
 # https://github.com/operator-framework/operator-registry/releases
@@ -35,12 +35,17 @@ OPM_VERSION ?= v1.26.2
 # It is set in the go.mod file
 GINKGO_VERSION ?= $(shell go list -m -f "{{.Version}}" github.com/onsi/ginkgo/v2)
 # https://github.com/kubernetes-sigs/kustomize/releases
-KUSTOMIZE_VERSION ?= v5.0.1
+KUSTOMIZE_VERSION ?= v5.2.1
 # https://github.com/helm/helm/releases
 HELM_VERSION ?= v3.10.3
 # https://github.com/mikefarah/yq/releases
 YQ_VERSION ?= v4.30.7
 
+# CONTAINER_TOOL defines the container tool to be used for building images.
+# Be aware that the target commands are only tested with Docker which is
+# scaffolded by default. However, you might want to replace it to use other
+# tools. (i.e. podman)
+CONTAINER_TOOL ?= docker
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -265,7 +270,7 @@ docker-build: test docker-build-ci ## Build docker image with the manager.
 
 PARDOT_ID ?= "dockerhub"
 docker-build-ci: ## Build docker image with the manager without running tests.
-	DOCKER_BUILDKIT=1 docker build -t ${IMG} --build-arg version=${VERSION} --build-arg pardotID=${PARDOT_ID} .
+	DOCKER_BUILDKIT=1 $(CONTAINER_TOOL) build -t ${IMG} --build-arg version=${VERSION} --build-arg pardotID=${PARDOT_ID} .
 
 # PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -278,19 +283,19 @@ PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- docker buildx create --name project-v3-builder
-	docker buildx use project-v3-builder
-	- docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- docker buildx rm project-v3-builder
+	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
+	$(CONTAINER_TOOL) buildx use project-v3-builder
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx rm project-v3-builder
 	rm Dockerfile.cross
 
 ##@ Deployment
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	$(CONTAINER_TOOL) push ${IMG}
 
 docker-push-latest:
-	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
-	docker push ${IMAGE_TAG_BASE}:latest
+	$(CONTAINER_TOOL) tag ${IMG} ${IMAGE_TAG_BASE}:latest
+	$(CONTAINER_TOOL) push ${IMAGE_TAG_BASE}:latest
 
 sync-manifests: manifests yq
 # Move CRDs into helm template
