@@ -624,8 +624,8 @@ spec:
                 description: Persistence configuration
                 properties:
                   baseDir:
-                    description: BaseDir is a deprecated. Use restore.localConfig
-                      to restore from a local backup.
+                    description: BaseDir is deprecated. Use restore.localConfig to
+                      restore from a local backup.
                     type: string
                   clusterDataRecoveryPolicy:
                     default: FullRecoveryOnly
