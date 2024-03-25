@@ -5,6 +5,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -21,19 +22,19 @@ func (m *Map) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &Map{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (m *Map) ValidateCreate() error {
+func (m *Map) ValidateCreate() (admission.Warnings, error) {
 	maplog.Info("validate create", "name", m.Name)
-	return ValidateMapSpecCreate(m)
+	return admission.Warnings{}, ValidateMapSpecCreate(m)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (m *Map) ValidateUpdate(old runtime.Object) error {
+func (m *Map) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	maplog.Info("validate update", "name", m.Name)
-	return ValidateMapSpecUpdate(m)
+	return admission.Warnings{}, ValidateMapSpecUpdate(m)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (m *Map) ValidateDelete() error {
+func (m *Map) ValidateDelete() (admission.Warnings, error) {
 	maplog.Info("validate delete", "name", m.Name)
-	return nil
+	return admission.Warnings{}, nil
 }

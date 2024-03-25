@@ -1,0 +1,19 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Hazelcast
+metadata:
+  name: hazelcast
+spec:
+  clusterSize: 3
+  repository: 'docker.io/hazelcast/hazelcast-enterprise'
+  licenseKeySecretName: hazelcast-license-key
+  exposeExternally:
+    type: Unisocket
+    discoveryServiceType: LoadBalancer
+  localDevices:
+    - name: device1
+      pvc:
+        accessModes: ["ReadWriteOnce"]
+        requestStorage: 8Gi
+  nativeMemory:
+    allocatorType: POOLED
+    size: 1280M

@@ -149,12 +149,24 @@ jobs:
                 evictionPolicy: LRU
                 maxSizePolicy: USED_NATIVE_MEMORY_SIZE
                 size: 5000
+          ---
+          apiVersion: hazelcast.com/v1alpha1
+          kind: ManagementCenter
+          metadata:
+            name: managementcenter
+          spec:
+            repository: 'hazelcast/management-center'
+            hazelcastClusters:
+              - address: hazelcast
+                name: dev
           EOF
           
           echo "Checking Hazelcast CR before upgrade"
           kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast
           echo "Checking Map CR before upgrade"
           kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent
+          echo "Checking Management Center CR before upgrade"
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter
           
           helm upgrade operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
           
@@ -164,6 +176,8 @@ jobs:
           kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast
           echo "Checking Map CR after upgrade"
           kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent
+          echo "Checking Management Center CR after upgrade"
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter
 
   test_container:
     name: Build and Test Container
@@ -223,7 +237,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.1.0
+        uses: docker/setup-buildx-action@v3.2.0
         with:
           install: true
 
@@ -236,7 +250,7 @@ jobs:
 
       - name: Build Image
         id: build-image
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v5.3.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -455,6 +469,7 @@ jobs:
       - uses: redhat-actions/openshift-tools-installer@v1
         with:
           operator-sdk: "latest"
+          source: github
           skip_cache: true
 
       - name: Authenticate to GAR

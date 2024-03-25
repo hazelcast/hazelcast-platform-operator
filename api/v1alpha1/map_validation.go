@@ -42,6 +42,7 @@ func (v *mapValidator) validateMapSpecCurrent(m *Map, h *Hazelcast) {
 	v.validateMapPersistence(m, h)
 	v.validateMapNativeMemory(m, h)
 	v.validateNearCacheMemory(m, h)
+	v.validateMapTieredStore(m, h)
 }
 
 func (v *mapValidator) validateMapPersistence(m *Map, h *Hazelcast) {
@@ -49,16 +50,8 @@ func (v *mapValidator) validateMapPersistence(m *Map, h *Hazelcast) {
 		return
 	}
 
-	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-	if !ok {
-		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
-		return
-	}
-
-	lastSpec := &HazelcastSpec{}
-	err := json.Unmarshal([]byte(s), lastSpec)
-	if err != nil {
-		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+	lastSpec := v.getHzSpec(h)
+	if lastSpec == nil {
 		return
 	}
 
@@ -77,16 +70,8 @@ func (v *mapValidator) validateNearCacheMemory(m *Map, h *Hazelcast) {
 		return
 	}
 
-	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-	if !ok {
-		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
-		return
-	}
-
-	lastSpec := &HazelcastSpec{}
-	err := json.Unmarshal([]byte(s), lastSpec)
-	if err != nil {
-		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+	lastSpec := v.getHzSpec(h)
+	if lastSpec == nil {
 		return
 	}
 
@@ -101,22 +86,36 @@ func (v *mapValidator) validateMapNativeMemory(m *Map, h *Hazelcast) {
 		return
 	}
 
-	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
-	if !ok {
-		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
-		return
-	}
-
-	lastSpec := &HazelcastSpec{}
-	err := json.Unmarshal([]byte(s), lastSpec)
-	if err != nil {
-		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec for update errors: %w", err))
+	lastSpec := v.getHzSpec(h)
+	if lastSpec == nil {
 		return
 	}
 
 	if !lastSpec.NativeMemory.IsEnabled() {
 		v.Invalid(Path("spec", "inMemoryFormat"), lastSpec.NativeMemory.IsEnabled(), "Native Memory must be enabled at Hazelcast")
 		return
+	}
+}
+
+func (v *mapValidator) validateMapTieredStore(m *Map, h *Hazelcast) {
+	if m.Spec.TieredStore == nil {
+		return
+	}
+	if m.Spec.InMemoryFormat != InMemoryFormatNative {
+		v.Invalid(Path("spec", "inMemoryFormat"), m.Spec.InMemoryFormat, "In-memory format of the map must be NATIVE to enable the Tiered Storage")
+	}
+	if len(m.Spec.Indexes) != 0 {
+		v.Invalid(Path("spec", "indexes"), m.Spec.Indexes, "Indexes can not be created on maps that have Tiered Storage enabled")
+	}
+
+	lastSpec := v.getHzSpec(h)
+	if lastSpec == nil {
+		return
+	}
+
+	if !deviceExist(lastSpec.LocalDevices, m.Spec.TieredStore.DiskDeviceName) {
+		v.Invalid(Path("spec", "tieredStore", "diskDeviceName"), m.Spec.TieredStore.DiskDeviceName, fmt.Sprintf("device with the name %s does not exist", m.Spec.TieredStore.DiskDeviceName))
+
 	}
 }
 
@@ -161,6 +160,9 @@ func (v *mapValidator) validateNotUpdatableMapFields(current *MapSpec, last *Map
 	}
 	if !reflect.DeepEqual(current.NearCache, last.NearCache) {
 		v.Forbidden(Path("spec", "nearCache"), "field cannot be updated")
+	}
+	if !reflect.DeepEqual(current.TieredStore, last.TieredStore) {
+		v.Forbidden(Path("spec", "tieredStore"), "field cannot be updated")
 	}
 }
 
@@ -211,4 +213,29 @@ func stringSliceEquals(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func (v *mapValidator) getHzSpec(h *Hazelcast) *HazelcastSpec {
+	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		return nil
+	}
+
+	lastSpec := &HazelcastSpec{}
+	err := json.Unmarshal([]byte(s), lastSpec)
+	if err != nil {
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec: %w", err))
+		return nil
+	}
+	return lastSpec
+}
+
+func deviceExist(localDevices []LocalDeviceConfig, deviceName string) bool {
+	for _, localDevice := range localDevices {
+		if localDevice.Name == deviceName {
+			return true
+		}
+	}
+	return false
 }

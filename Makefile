@@ -19,14 +19,14 @@ TOOLBIN = $(shell pwd)/bin
 # Used API version is set in go.mod file
 K8S_VERSION ?= 1.25.4
 SETUP_ENVTEST_VERSION ?= latest
-ENVTEST_K8S_VERSION ?= 1.26.x
+ENVTEST_K8S_VERSION ?= 1.27.1
 # https://github.com/operator-framework/operator-sdk/releases
-OPERATOR_SDK_VERSION ?= v1.28.1
+OPERATOR_SDK_VERSION ?= v1.33.0
 # https://github.com/kubernetes-sigs/controller-tools/releases
-CONTROLLER_GEN_VERSION ?= v0.11.3
+CONTROLLER_GEN_VERSION ?= v0.12.0
 # https://github.com/kubernetes-sigs/controller-runtime/releases
 # It is set in the go.mod file
-CONTROLLER_RUNTIME_VERSION ?= v0.13.1
+CONTROLLER_RUNTIME_VERSION ?= v0.15.0
 # https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases
 OCP_OLM_CATALOG_VALIDATOR_VERSION ?= v0.0.1
 # https://github.com/operator-framework/operator-registry/releases
@@ -35,7 +35,7 @@ OPM_VERSION ?= v1.26.2
 # It is set in the go.mod file
 GINKGO_VERSION ?= $(shell go list -m -f "{{.Version}}" github.com/onsi/ginkgo/v2)
 # https://github.com/kubernetes-sigs/kustomize/releases
-KUSTOMIZE_VERSION ?= v4.5.3
+KUSTOMIZE_VERSION ?= v5.0.1
 # https://github.com/helm/helm/releases
 HELM_VERSION ?= v3.10.3
 # https://github.com/mikefarah/yq/releases

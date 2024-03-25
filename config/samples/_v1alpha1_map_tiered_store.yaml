@@ -1,0 +1,10 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Map
+metadata:
+  name: map
+spec:
+  hazelcastResourceName: hazelcast
+  inMemoryFormat: NATIVE
+  tieredStore:
+    memoryCapacity: 128M
+    diskDeviceName: device1

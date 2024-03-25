@@ -19,8 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers/hazelcast"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controllers/managementcenter"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/managementcenter"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
@@ -163,7 +163,6 @@ func main() {
 	if err = hazelcast.NewMapReconciler(
 		mgr.GetClient(),
 		controllerLogger.WithName("Map"),
-		mgr.GetScheme(),
 		phoneHomeTrigger,
 		cr,
 	).SetupWithManager(mgr); err != nil {
@@ -386,10 +385,10 @@ func setManagerWatchedNamespaces(mgrOptions *ctrl.Options, operatorNamespace str
 		setupLog.Info("Watching all namespaces")
 	case util.WatchedNsTypeOwn:
 		setupLog.Info("Watching own namespace", "namespace", watchedNamespaces[0])
-		mgrOptions.Namespace = watchedNamespaces[0]
+		mgrOptions.Namespace = watchedNamespaces[0] //nolint:all
 	case util.WatchedNsTypeSingle, util.WatchedNsTypeMulti:
 		setupLog.Info("Watching namespaces", "watched_namespaces", watchedNamespaces, "operator_namespace", operatorNamespace)
-		mgrOptions.NewCache = cache.MultiNamespacedCacheBuilder(watchedNamespaces)
+		mgrOptions.NewCache = cache.MultiNamespacedCacheBuilder(watchedNamespaces) //nolint:all
 	default:
 		setupLog.Info("Watching all namespaces by default")
 	}

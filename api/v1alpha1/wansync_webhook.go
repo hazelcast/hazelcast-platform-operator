@@ -5,6 +5,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -21,19 +22,19 @@ func (r *WanSync) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &WanSync{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *WanSync) ValidateCreate() error {
+func (r *WanSync) ValidateCreate() (admission.Warnings, error) {
 	wansynclog.Info("validate create", "name", r.Name)
-	return nil
+	return admission.Warnings{}, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *WanSync) ValidateUpdate(_ runtime.Object) error {
+func (r *WanSync) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
 	wansynclog.Info("validate update", "name", r.Name)
-	return ValidateWanSyncSpec(r)
+	return admission.Warnings{}, ValidateWanSyncSpec(r)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *WanSync) ValidateDelete() error {
+func (r *WanSync) ValidateDelete() (admission.Warnings, error) {
 	wansynclog.Info("validate delete", "name", r.Name)
-	return nil
+	return admission.Warnings{}, nil
 }

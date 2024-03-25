@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VERSION: '1.21.0'
+  GO_VERSION: '1.20.0'
   NR_OF_SUITES: 5
   GOBIN: ${{ github.workspace }}/bin
   GAR_REGION: us-east1
@@ -69,7 +69,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.1.0
+        uses: docker/setup-buildx-action@v3.2.0
         with:
           install: true
 
@@ -99,7 +99,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v5.3.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
