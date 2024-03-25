@@ -64,8 +64,8 @@ func ValidateHotBackupIsNotReferencedByHazelcast(hb *HotBackup) error {
 }
 
 func (v *hotbackupValidator) validateHotBackupRestoreReference(h *Hazelcast, hb *HotBackup) {
-	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
-		if *h.Spec.Persistence.Restore.HotBackupResourceName == hb.Name && h.DeletionTimestamp == nil {
+	if h.Spec.Persistence.IsEnabled() {
+		if h.Spec.Persistence.Restore.HotBackupResourceName == hb.Name && h.DeletionTimestamp == nil {
 			v.Forbidden(Path("spec", "persistence", "restore", "hotBackupResourceName"), fmt.Sprintf("Hazelcast '%s' has a restore reference to the Hotbackup", h.Name))
 		}
 	}

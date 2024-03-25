@@ -310,8 +310,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 			By("creating new Hazelcast cluster from the first backup")
 			hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
-				HotBackupResourceName: &hotBackup.Name,
+			hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+				HotBackupResourceName: hotBackup.Name,
 			}
 			hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -400,8 +400,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 			By("creating cluster from external backup")
 			hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
-				HotBackupResourceName: &hotBackup.Name}
+			hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+				HotBackupResourceName: hotBackup.Name}
 			hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -454,8 +454,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 			By("creating cluster from from first backup")
 			hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
-				HotBackupResourceName: &hotBackup.Name,
+			hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+				HotBackupResourceName: hotBackup.Name,
 			}
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -469,8 +469,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 			By("creating cluster from from second backup")
 			hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
-				HotBackupResourceName: &hotBackup2.Name,
+			hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+				HotBackupResourceName: hotBackup2.Name,
 			}
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -512,8 +512,8 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 			By("creating new Hazelcast cluster from existing backup")
 			hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
-				HotBackupResourceName: &hotBackup.Name,
+			hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+				HotBackupResourceName: hotBackup.Name,
 			}
 
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
@@ -580,7 +580,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
 				hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = dataPolicy
 				hazelcast.Spec.Persistence.StartupAction = action
-				hazelcast.Spec.Persistence.Restore.HotBackupResourceName = &hotBackup.Name
+				hazelcast.Spec.Persistence.Restore.HotBackupResourceName = hotBackup.Name
 				CreateHazelcastCR(hazelcast)
 				evaluateReadyMembers(hzLookupKey)
 				assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)

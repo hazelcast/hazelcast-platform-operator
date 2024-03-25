@@ -61,8 +61,8 @@ var _ = Describe("HotBackup CR", func() {
 				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
-				Restore: hazelcastv1alpha1.RestoreConfiguration{
-					HotBackupResourceName: &hb.Name,
+				Restore: &hazelcastv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: hb.Name,
 				},
 			}
 			hz := &hazelcastv1alpha1.Hazelcast{
