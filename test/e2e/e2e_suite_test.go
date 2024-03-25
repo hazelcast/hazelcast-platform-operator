@@ -103,7 +103,7 @@ var recordedManifests = make(map[types.NamespacedName]io.Writer)
 // manifestRecorder keeps track of applied manifests
 type manifestRecorder struct {
 	client.Client
-	Mutex sync.Mutex
+	mu sync.Mutex
 }
 
 func NewManifestRecorder(client client.Client) *manifestRecorder {
