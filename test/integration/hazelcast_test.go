@@ -1909,7 +1909,7 @@ var _ = Describe("Hazelcast CR", func() {
 			}
 			err := k8sClient.Create(context.Background(), hz)
 			Expect(err).Should(MatchError(
-				ContainSubstring("Required value")))
+				ContainSubstring("You must provide a valid restore configuration")))
 		})
 		It("should return hot backup cannot be found error", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)

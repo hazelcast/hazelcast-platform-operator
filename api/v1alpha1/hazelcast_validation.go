@@ -215,7 +215,7 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	}
 
 	if p.IsRestoreEnabled() && p.Restore.BucketConfiguration == nil && p.Restore.HotBackupResourceName == "" {
-		v.Required(Path("spec", "persistence", "restore", "hotBackupResourceName"), "")
+		v.Invalid(Path("spec", "persistence", "restore"), h.Spec.Persistence.Restore, "You must provide a valid restore configuration")
 	}
 
 	if p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != "" {
