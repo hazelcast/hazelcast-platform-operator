@@ -111,8 +111,8 @@ func NewManifestRecorder(client client.Client) *manifestRecorder {
 }
 
 func (d *manifestRecorder) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-	d.Mutex.Lock()         // Lock before accessing recordedManifests
-	defer d.Mutex.Unlock() // Ensure the lock is released at the end of the function
+	d.mu.Lock()         // Lock before accessing recordedManifests
+	defer d.mu.Unlock() // Ensure the lock is released at the end of the function
 
 	gvk, _, err := d.Client.Scheme().ObjectKinds(obj)
 	if err != nil {
