@@ -214,7 +214,7 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 		v.Forbidden(Path("spec", "persistence", "startupAction"), "PartialStart can be used only with Partial clusterDataRecoveryPolicy")
 	}
 
-	if p.IsRestoreEnabled() && p.Restore.BucketConfiguration == nil && p.Restore.HotBackupResourceName == "" {
+	if p.IsRestoreEnabled() && p.Restore.BucketConfiguration == nil && p.Restore.LocalConfiguration == nil && p.Restore.HotBackupResourceName == "" {
 		v.Invalid(Path("spec", "persistence", "restore"), h.Spec.Persistence.Restore, "You must provide a valid restore configuration")
 	}
 
