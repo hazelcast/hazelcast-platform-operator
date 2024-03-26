@@ -904,7 +904,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			setupEnv()
 			WaitForMapSize(context.Background(), targetLookupKey, nonTsMap.MapName(), expectedNonTsMapSize, 10*Minute)
 
-			By("checking the second target TS map size")
+			By("checking the target TS map size")
 			WaitForMapSize(context.Background(), targetLookupKey, tsMap.MapName(), expectedTsMapSize, 10*Minute)
 		})
 	})
