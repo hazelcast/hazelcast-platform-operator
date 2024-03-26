@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.23"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.24"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -664,7 +664,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.23"
+	// +kubebuilder:default:="0.1.24"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -675,6 +675,10 @@ type AgentConfiguration struct {
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
 type HazelcastPersistenceConfiguration struct {
+	// BaseDir is deprecated. Use restore.localConfig to restore from a local backup.
+	// +optional
+	DeprecatedBaseDir string `json:"baseDir"`
+
 	// Configuration of the cluster recovery strategy.
 	// +kubebuilder:default:="FullRecoveryOnly"
 	// +optional
@@ -727,6 +731,11 @@ func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() b
 	return p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != ""
 }
 
+// RestoreFromLocalBackup returns true if Restore is done from local backup
+func (p *HazelcastPersistenceConfiguration) RestoreFromLocalBackup() bool {
+	return p.IsRestoreEnabled() && p.Restore.LocalConfiguration != nil
+}
+
 // RestoreConfiguration contains the configuration for Restore operation
 // +kubebuilder:validation:MaxProperties=1
 type RestoreConfiguration struct {
@@ -737,6 +746,42 @@ type RestoreConfiguration struct {
 	// Name of the HotBackup resource from which backup will be fetched.
 	// +optional
 	HotBackupResourceName string `json:"hotBackupResourceName,omitempty"`
+
+	// Configuration to restore from local backup
+	// +optional
+	LocalConfiguration *RestoreFromLocalConfiguration `json:"localConfig,omitempty"`
+}
+
+// PVCNamePrefix specifies the prefix of existing PVCs
+// +kubebuilder:validation:Enum=persistence;hot-restart-persistence
+type PVCNamePrefix string
+
+const (
+	// Persistence format is persistence.
+	Persistence PVCNamePrefix = "persistence"
+
+	// HotRestartPersistence format is hot-restart-persistence.
+	HotRestartPersistence PVCNamePrefix = "hot-restart-persistence"
+)
+
+type RestoreFromLocalConfiguration struct {
+	// PVC name prefix used in existing PVCs
+	// +optional
+	// +kubebuilder:default:="persistence"
+	PVCNamePrefix PVCNamePrefix `json:"pvcNamePrefix,omitempty"`
+
+	// Persistence base directory
+	// +optional
+	BaseDir string `json:"baseDir,omitempty"`
+
+	// Local backup base directory
+	// +optional
+	BackupDir string `json:"backupDir,omitempty"`
+
+	// Backup directory
+	// +optional
+	// +kubebuilder:validation:MinLength:=1
+	BackupFolder string `json:"backupFolder,omitempty"`
 }
 
 func (rc RestoreConfiguration) Hash() string {
