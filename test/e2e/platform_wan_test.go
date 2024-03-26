@@ -896,7 +896,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			setupEnv()
 			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), thirdNonTsMapSize, firstNonTsMapSize+secondNonTsMapSize+thirdNonTsMapSize, hazelcastSource)
 
-			By("add more data to the second TS Map")
+			By("add more data to the TS Map")
 			FillMapBySizeInMb(context.Background(), tsMap.MapName(), thirdTsMapSize, firstTsMapSize+secondTsMapSize+thirdTsMapSize, hazelcastSource)
 
 			By("checking the target non-TS map size")
