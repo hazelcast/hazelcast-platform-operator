@@ -785,7 +785,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			Expect(k8sClient.Create(context.Background(), nonTsMap)).Should(Succeed())
 			nonTsMap = assertMapStatus(nonTsMap, hazelcastcomv1alpha1.MapSuccess)
 
-			By("creating the second map config")
+			By("creating the TS map for source Hazelcast cluster")
 			tsMap := hazelcastconfig.DefaultTieredStoreMap(mapLookupKey, hazelcastSource.Name, deviceName, labels)
 			tsMap.Spec.Name = "wanmap2"
 			tsMap.Spec.TieredStore.MemoryCapacity = &[]resource.Quantity{resource.MustParse(nativeMemorySize)}[0]
