@@ -891,7 +891,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			setupEnv()
 			createWanSync(context.Background(), sourceLookupKey, wanSrc.Name, 2, labels)
 
-			By("add more data to the first non TS Map")
+			By("add more data to the non TS Map")
 			SwitchContext(context1)
 			setupEnv()
 			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), thirdNonTsMapSize, firstNonTsMapSize+secondNonTsMapSize+thirdNonTsMapSize, hazelcastSource)
