@@ -779,7 +779,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			CreateHazelcastCR(hazelcastSource)
 			evaluateReadyMembers(sourceLookupKey)
 
-			By("creating first map for source Hazelcast cluster")
+			By("creating the non-TS map for source Hazelcast cluster")
 			nonTsMap := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
 			nonTsMap.Spec.Name = "wanmap1"
 			Expect(k8sClient.Create(context.Background(), nonTsMap)).Should(Succeed())
