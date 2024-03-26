@@ -88,8 +88,8 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 
 		validateCPMap(ctx, cli, cpMapName, randString(5), randString(5))
 	},
-		Entry("with CP Subsystem PVC", hazelcastconfig.HazelcastCPSubsystem(3)),
-		Entry("with Persistence PVC", hazelcastconfig.HazelcastCPSubsystemPersistence(3)),
+		Entry("with CP Subsystem PVC", hazelcastconfig.CPSubsystem(3)),
+		Entry("with Persistence PVC", hazelcastconfig.CPSubsystemPersistence(3)),
 	)
 
 	DescribeTable("should store data in CP Map with cluster pause", Tag(EE|AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
@@ -139,8 +139,8 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 
 		readFromCPMap(ctx, cli, cpMapName, key, value, rg)
 	},
-		Entry("with CP Subsystem PVC", hazelcastconfig.HazelcastCPSubsystem(3)),
-		Entry("with Persistence PVC", hazelcastconfig.HazelcastCPSubsystemPersistence(3)),
+		Entry("with CP Subsystem PVC", hazelcastconfig.CPSubsystem(3)),
+		Entry("with Persistence PVC", hazelcastconfig.CPSubsystemPersistence(3)),
 	)
 
 	It("should start CP with Persistence and different PVCs", Tag(EE|AnyCloud), func() {
@@ -148,7 +148,7 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 		ctx := context.Background()
 		cpMapName := "my-map"
 
-		spec := hazelcastconfig.HazelcastCPSubsystemPersistence(3)
+		spec := hazelcastconfig.CPSubsystemPersistence(3)
 		spec.CPSubsystem.PVC = &hazelcastcomv1alpha1.PvcConfiguration{
 			AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			RequestStorage: &[]resource.Quantity{resource.MustParse("2Gi")}[0],
@@ -199,7 +199,7 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 
 		By("creating cluster from backup")
 		restoredHz := hazelcastconfig.HazelcastRestore(initialCluster, restoreConfig(hotBackup, false))
-		restoredHz.Spec.CPSubsystem = hazelcastconfig.HazelcastCPSubsystemPersistence(3).CPSubsystem
+		restoredHz.Spec.CPSubsystem = hazelcastconfig.CPSubsystemPersistence(3).CPSubsystem
 		restoredHz.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
