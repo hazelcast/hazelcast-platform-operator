@@ -285,7 +285,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		Expect(err).Should(MatchError(MatchRegexp("Split brain protection exception: " + splitBrainConfName + " has failed!")))
 	})
 
-	It("should not lose any data from tiered store during a split-brain scenario", Tag(Any), Serial, func() {
+	It("should not lose any data from tiered store during a split-brain scenario", Tag(EE|AnyCloud), Serial, func() {
 		setLabelAndCRName("sbts-1")
 		duration := "100s"
 		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
