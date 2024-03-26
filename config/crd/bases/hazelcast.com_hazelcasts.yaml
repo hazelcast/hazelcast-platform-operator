@@ -88,13 +88,13 @@ spec:
                 type: object
               agent:
                 default:
-                  repository: docker.io/kutluhanhazelcast/platform-operator-agent
+                  repository: docker.io/hazelcast/platform-operator-agent
                   version: 0.1.24
                 description: B&R Agent configurations
                 properties:
                   repository:
-                    default: docker.io/kutluhanhazelcast/platform-operator-agent
-                    description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/kutluhanhazelcast/platform-operator-agent)
+                    default: docker.io/hazelcast/platform-operator-agent
+                    description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   resources:
                     description: Compute Resources required by the Agent container.
