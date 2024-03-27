@@ -388,7 +388,7 @@ func Test_configBaseDirShouldNotChangeWhenExists(t *testing.T) {
 					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 				},
-				Restore: hazelcastv1alpha1.RestoreConfiguration{
+				Restore: &hazelcastv1alpha1.RestoreConfiguration{
 					BucketConfiguration: &hazelcastv1alpha1.BucketConfiguration{
 						BucketURI:  "s3://mybucketuri/dir",
 						SecretName: "mysecretname",

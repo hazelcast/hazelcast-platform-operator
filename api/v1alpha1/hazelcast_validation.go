@@ -213,6 +213,25 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
 		v.Forbidden(Path("spec", "persistence", "startupAction"), "PartialStart can be used only with Partial clusterDataRecoveryPolicy")
 	}
+
+	if p.IsRestoreEnabled() && p.Restore.BucketConfiguration == nil && p.Restore.LocalConfiguration == nil && p.Restore.HotBackupResourceName == "" {
+		v.Invalid(Path("spec", "persistence", "restore"), h.Spec.Persistence.Restore, "You must provide a valid restore configuration")
+	}
+
+	if p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != "" {
+		// make sure hot-backup exists
+		hbName := types.NamespacedName{
+			Name:      p.Restore.HotBackupResourceName,
+			Namespace: h.Namespace,
+		}
+
+		var hb HotBackup
+		err := kubeclient.Get(context.Background(), hbName, &hb)
+		if kerrors.IsNotFound(err) {
+			// we care only about not found error
+			v.NotFound(Path("spec", "persistence", "restore", "hotBackupResourceName"), fmt.Sprintf("There is not hot backup found with name %s", p.Restore.HotBackupResourceName))
+		}
+	}
 }
 
 func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {
