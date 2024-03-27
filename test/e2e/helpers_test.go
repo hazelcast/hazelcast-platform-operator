@@ -179,19 +179,24 @@ func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 		}
 		podExists := func() bool {
 			_, err := getKubernetesClientSet().CoreV1().Pods(lk.Namespace).Get(context.Background(), podName, metav1.GetOptions{})
-			return err == nil
+			return err != nil && !errors.IsNotFound(err)
 		}
 		err := getKubernetesClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			log.Fatal(err)
 		}
-		time.Sleep(15 * time.Second)
-		if podExists() {
-			log.Println("Pod still exists. Retrying delete operation.")
+		attempt := 0
+		maxAttempts := 5
+		var waitTime time.Duration = 2
+		for attempt < maxAttempts && podExists() {
+			log.Printf("Pod '%s' still exists. Waiting %d seconds before retrying delete operation.\n", podName, waitTime)
+			time.Sleep(waitTime * time.Second)
 			err := getKubernetesClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
-			if err != nil {
+			if err != nil && !errors.IsNotFound(err) {
 				log.Fatal(err)
 			}
+			attempt++
+			waitTime *= 2
 		}
 	})
 }
@@ -419,7 +424,7 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 		timeout = 10 * time.Minute
 		log.Printf("No timeout specified, defaulting to %v", timeout)
 	}
-	clientHz := GetHzClient(ctx, lk, true)
+	clientHz := GetHzClient(context.Background(), lk, true)
 	defer func() {
 		log.Printf("Shutting down Hazelcast client")
 		if err := clientHz.Shutdown(ctx); err != nil {
@@ -427,7 +432,7 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 			Expect(err).ToNot(HaveOccurred())
 		}
 	}()
-	hzMap, err := clientHz.GetMap(ctx, mapName)
+	hzMap, err := clientHz.GetMap(context.Background(), mapName)
 	if err != nil {
 		log.Printf("Failed to get map '%s': %v", mapName, err)
 		Expect(err).ToNot(HaveOccurred())
@@ -440,7 +445,7 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 		}
 		log.Printf("Current size of map '%s': %d", mapName, mapSize)
 		return mapSize, nil
-	}, timeout, 5*time.Minute).Should(Equal(expectedMapSize))
+	}, timeout, interval).Should(Equal(expectedMapSize))
 	log.Printf("Map '%s' reached expected size '%d'", mapName, expectedMapSize)
 }
 

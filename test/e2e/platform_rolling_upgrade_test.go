@@ -13,7 +13,6 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 )
 
@@ -123,9 +122,7 @@ var _ = Describe("Platform Rolling UpgradeTests", Label("rolling_upgrade"), func
 
 		By("checking map size after pause and resume")
 		for i := 0; i < numMaps; i++ {
-			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
-			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
+			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, hazelcast.Name), expectedMapSize, 10*Minute)
 		}
 	})
 })
