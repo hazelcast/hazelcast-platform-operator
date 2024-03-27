@@ -166,7 +166,7 @@ var (
 		}
 	}
 
-	HazelcastCPSubsystem = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
+	CPSubsystem = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
 		return hazelcastcomv1alpha1.HazelcastSpec{
 			ClusterSize:          pointer.Int32(clusterSize),
 			Repository:           repo(true),
@@ -174,7 +174,6 @@ var (
 			LicenseKeySecretName: licenseKey(true),
 			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
-				MemberCount: clusterSize,
 				PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
@@ -183,7 +182,7 @@ var (
 		}
 	}
 
-	HazelcastCPSubsystemPersistence = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
+	CPSubsystemPersistence = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
 		return hazelcastcomv1alpha1.HazelcastSpec{
 			ClusterSize:          pointer.Int32(clusterSize),
 			Repository:           repo(true),
@@ -196,9 +195,7 @@ var (
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 				},
 			},
-			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
-				MemberCount: clusterSize,
-			},
+			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{},
 		}
 	}
 

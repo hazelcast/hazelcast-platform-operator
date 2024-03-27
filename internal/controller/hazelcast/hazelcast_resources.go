@@ -1296,7 +1296,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 	if h.Spec.CPSubsystem.IsEnabled() {
 		cfg.CPSubsystem = config.CPSubsystem{
-			CPMemberCount:                     h.Spec.CPSubsystem.MemberCount,
+			CPMemberCount:                     *h.Spec.ClusterSize,
 			PersistenceEnabled:                true,
 			BaseDir:                           n.CPBaseDir,
 			GroupSize:                         h.Spec.CPSubsystem.GroupSize,
