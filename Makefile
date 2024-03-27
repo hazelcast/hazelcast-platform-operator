@@ -41,12 +41,6 @@ HELM_VERSION ?= v3.10.3
 # https://github.com/mikefarah/yq/releases
 YQ_VERSION ?= v4.30.7
 
-# CONTAINER_TOOL defines the container tool to be used for building images.
-# Be aware that the target commands are only tested with Docker which is
-# scaffolded by default. However, you might want to replace it to use other
-# tools. (i.e. podman)
-CONTAINER_TOOL ?= docker
-
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -270,7 +264,7 @@ docker-build: test docker-build-ci ## Build docker image with the manager.
 
 PARDOT_ID ?= "dockerhub"
 docker-build-ci: ## Build docker image with the manager without running tests.
-	DOCKER_BUILDKIT=1 $(CONTAINER_TOOL) build -t ${IMG} --build-arg version=${VERSION} --build-arg pardotID=${PARDOT_ID} .
+	DOCKER_BUILDKIT=1 docker build -t ${IMG} --build-arg version=${VERSION} --build-arg pardotID=${PARDOT_ID} .
 
 # PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -283,19 +277,19 @@ PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
-	$(CONTAINER_TOOL) buildx use project-v3-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm project-v3-builder
+	- docker buildx create --name project-v3-builder
+	docker buildx use project-v3-builder
+	- docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
+	- docker buildx rm project-v3-builder
 	rm Dockerfile.cross
 
 ##@ Deployment
 docker-push: ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${IMG}
+	docker push ${IMG}
 
 docker-push-latest:
-	$(CONTAINER_TOOL) tag ${IMG} ${IMAGE_TAG_BASE}:latest
-	$(CONTAINER_TOOL) push ${IMAGE_TAG_BASE}:latest
+	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
+	docker push ${IMAGE_TAG_BASE}:latest
 
 sync-manifests: manifests yq
 # Move CRDs into helm template
