@@ -26,7 +26,7 @@ OPERATOR_SDK_VERSION ?= v1.34.1
 CONTROLLER_GEN_VERSION ?= v0.13.0
 # https://github.com/kubernetes-sigs/controller-runtime/releases
 # It is set in the go.mod file
-CONTROLLER_RUNTIME_VERSION ?= v0.16.0
+CONTROLLER_RUNTIME_VERSION ?= v0.16.3
 # https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases
 OCP_OLM_CATALOG_VALIDATOR_VERSION ?= v0.0.1
 # https://github.com/operator-framework/operator-registry/releases
