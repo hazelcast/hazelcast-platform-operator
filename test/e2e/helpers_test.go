@@ -445,7 +445,7 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 		}
 		log.Printf("Current size of map '%s': %d", mapName, mapSize)
 		return mapSize, nil
-	}, timeout, interval).Should(Equal(expectedMapSize))
+	}, timeout, 1*Minute).Should(Equal(expectedMapSize))
 	log.Printf("Map '%s' reached expected size '%d'", mapName, expectedMapSize)
 }
 
