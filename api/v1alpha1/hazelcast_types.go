@@ -213,11 +213,6 @@ const (
 
 // CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
 type CPSubsystem struct {
-
-	// MemberCount is the number of CP members to initialize the CP Subsystem.
-	// +required
-	MemberCount int32 `json:"memberCount"`
-
 	// GroupSize is the number of CP members to participate in each CP group.
 	// Allowed values are 3, 5, and 7.
 	// +optional
