@@ -352,7 +352,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 				MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 			}
-			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
+			hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
 				HotBackupResourceName: hotBackup2.Name,
 			}
 			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
