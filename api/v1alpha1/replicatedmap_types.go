@@ -28,6 +28,10 @@ type ReplicatedMapSpec struct {
 	// +kubebuilder:validation:MinLength:=1
 	// +required
 	HazelcastResourceName string `json:"hazelcastResourceName"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 // ReplicatedMapStatus defines the observed state of ReplicatedMap

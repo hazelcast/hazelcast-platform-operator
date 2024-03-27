@@ -49,6 +49,7 @@ func EncodeDynamicConfigAddExecutorConfigRequest(es *types.ExecutorServiceConfig
 
 	EncodeString(clientMessage, es.Name)
 	EncodeNullableForString(clientMessage, es.SplitBrainProtectionName)
+	EncodeNullableForString(clientMessage, es.UserCodeNamespace)
 
 	return clientMessage
 }

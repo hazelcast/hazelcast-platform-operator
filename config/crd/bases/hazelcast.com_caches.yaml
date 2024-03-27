@@ -109,6 +109,9 @@ spec:
                 default: false
                 description: When enabled, cache data will be persisted.
                 type: boolean
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                type: string
               valueType:
                 description: Class name of the value type
                 type: string

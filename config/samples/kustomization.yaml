@@ -13,4 +13,5 @@ resources:
 - _v1alpha1_jetjob.yaml
 - _v1alpha1_jetjobsnapshot.yaml
 - _v1alpha1_wansync.yaml
+- _v1alpha1_usercodenamespace.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

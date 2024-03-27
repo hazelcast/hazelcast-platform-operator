@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.24"}
+	// +kubebuilder:default:={repository: "docker.io/dzeromskhazelcast/platform-operator-agent", version: "0.1.23"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -514,6 +514,10 @@ type ExecutorServiceConfiguration struct {
 	// +kubebuilder:default:=0
 	// +optional
 	QueueCapacity int32 `json:"queueCapacity"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 type DurableExecutorServiceConfiguration struct {
@@ -538,6 +542,10 @@ type DurableExecutorServiceConfiguration struct {
 	// +kubebuilder:default:=100
 	// +optional
 	Capacity int32 `json:"capacity,omitempty"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 type ScheduledExecutorServiceConfiguration struct {
@@ -567,6 +575,10 @@ type ScheduledExecutorServiceConfiguration struct {
 	// +kubebuilder:default:=PER_NODE
 	// +optional
 	CapacityPolicy string `json:"capacityPolicy,omitempty"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 // CapacityPolicyType represents the active policy types for the capacity setting
@@ -654,7 +666,7 @@ func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
+	// +kubebuilder:default:="docker.io/dzeromskhazelcast/platform-operator-agent"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 

@@ -56,6 +56,7 @@ func EncodeDynamicConfigAddMultiMapConfigRequest(c *types.MultiMapConfig) *proto
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.ListenerConfigs)
 	EncodeNullableForString(clientMessage, c.SplitBrainProtectionName)
 	EncodeString(clientMessage, c.MergePolicy)
+	EncodeNullableForString(clientMessage, c.UserCodeNamespace)
 
 	return clientMessage
 }

@@ -9,6 +9,7 @@ import (
 	"hash/crc32"
 	"net"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -973,6 +974,12 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	}
 	fillHazelcastConfigWithWanReplications(&cfg, wrl)
 
+	ucn, err := filterUserCodeNamespaces(ctx, c, h)
+	if err != nil {
+		return nil, err
+	}
+	fillHazelcastConfigWithUserCodeNamespaces(&cfg, ucn)
+
 	dataStructures := []client.ObjectList{
 		&hazelcastv1alpha1.MultiMapList{},
 		&hazelcastv1alpha1.TopicList{},
@@ -1497,6 +1504,17 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, h *haz
 	return l, nil
 }
 
+func filterUserCodeNamespaces(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.UserCodeNamespace, error) {
+	var list hazelcastv1alpha1.UserCodeNamespaceList
+	if err := c.List(ctx, &list,
+		client.InNamespace(h.Namespace),
+		client.MatchingFields{"hazelcastResourceName": h.Name},
+	); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
 	cfg.Properties = h.Spec.Properties
 }
@@ -1523,6 +1541,23 @@ func fillHazelcastConfigWithWanReplications(cfg *config.Hazelcast, wrl map[strin
 			wanConfig := createWanReplicationConfig(wanKey, wan)
 			cfg.WanReplication[wanName(mapName)] = wanConfig
 		}
+	}
+}
+
+func fillHazelcastConfigWithUserCodeNamespaces(cfg *config.Hazelcast, ucn []hazelcastv1alpha1.UserCodeNamespace) {
+	if len(ucn) == 0 {
+		return
+	}
+	cfg.UserCodeNamespaces = config.UserCodeNamespaces{
+		Enabled:    pointer.Bool(true),
+		Namespaces: make(map[string][]config.UserCodeNamespaceResource, len(ucn)),
+	}
+	for _, u := range ucn {
+		cfg.UserCodeNamespaces.Namespaces[u.Name] = []config.UserCodeNamespaceResource{{
+			ID:           "bundle",
+			ResourceType: "JARS_IN_ZIP",
+			URL:          "file://" + filepath.Join(n.UserCodeBucketPath, u.Name+".zip"),
+		}}
 	}
 }
 
@@ -1705,6 +1740,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
 			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
 		},
+		UserCodeNamespace: ms.UserCodeNamespace,
 	}
 
 	if util.IsEnterprise(hz.Spec.Repository) {
@@ -1835,15 +1871,30 @@ func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
 }
 
 func createExecutorServiceConfig(es *hazelcastv1alpha1.ExecutorServiceConfiguration) config.ExecutorService {
-	return config.ExecutorService{PoolSize: es.PoolSize, QueueCapacity: es.QueueCapacity}
+	return config.ExecutorService{
+		PoolSize:          es.PoolSize,
+		QueueCapacity:     es.QueueCapacity,
+		UserCodeNamespace: es.UserCodeNamespace,
+	}
 }
 
 func createDurableExecutorServiceConfig(des *hazelcastv1alpha1.DurableExecutorServiceConfiguration) config.DurableExecutorService {
-	return config.DurableExecutorService{PoolSize: des.PoolSize, Durability: des.Durability, Capacity: des.Capacity}
+	return config.DurableExecutorService{
+		PoolSize:          des.PoolSize,
+		Durability:        des.Durability,
+		Capacity:          des.Capacity,
+		UserCodeNamespace: des.UserCodeNamespace,
+	}
 }
 
 func createScheduledExecutorServiceConfig(ses *hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) config.ScheduledExecutorService {
-	return config.ScheduledExecutorService{PoolSize: ses.PoolSize, Durability: ses.Durability, Capacity: ses.Capacity, CapacityPolicy: ses.CapacityPolicy}
+	return config.ScheduledExecutorService{
+		PoolSize:          ses.PoolSize,
+		Durability:        ses.Durability,
+		Capacity:          ses.Capacity,
+		CapacityPolicy:    ses.CapacityPolicy,
+		UserCodeNamespace: ses.UserCodeNamespace,
+	}
 }
 
 func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
@@ -1858,6 +1909,7 @@ func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
 			ClassName: n.DefaultMultiMapMergePolicy,
 			BatchSize: n.DefaultMultiMapMergeBatchSize,
 		},
+		UserCodeNamespace: mms.UserCodeNamespace,
 	}
 }
 
@@ -1874,6 +1926,7 @@ func createQueueConfig(q *hazelcastv1alpha1.Queue) config.Queue {
 			ClassName: n.DefaultQueueMergePolicy,
 			BatchSize: n.DefaultQueueMergeBatchSize,
 		},
+		UserCodeNamespace: qs.UserCodeNamespace,
 	}
 }
 
@@ -1895,6 +1948,7 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 			Enabled: cs.PersistenceEnabled,
 			Fsync:   false,
 		},
+		UserCodeNamespace: cs.UserCodeNamespace,
 	}
 	if cs.KeyType != "" {
 		cache.KeyType = config.ClassType{
@@ -1921,6 +1975,7 @@ func createTopicConfig(t *hazelcastv1alpha1.Topic) config.Topic {
 		GlobalOrderingEnabled: ts.GlobalOrderingEnabled,
 		MultiThreadingEnabled: ts.MultiThreadingEnabled,
 		StatisticsEnabled:     n.DefaultTopicStatisticsEnabled,
+		UserCodeNamespace:     ts.UserCodeNamespace,
 	}
 }
 
@@ -1934,6 +1989,7 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 			ClassName: n.DefaultReplicatedMapMergePolicy,
 			BatchSize: n.DefaultReplicatedMapMergeBatchSize,
 		},
+		UserCodeNamespace: rms.UserCodeNamespace,
 	}
 }
 
@@ -2627,6 +2683,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.Vo
 			MountPath: n.MTLSCertPath,
 		},
 		jetJobJarsVolumeMount(),
+		ucdBucketAgentVolumeMount(),
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{

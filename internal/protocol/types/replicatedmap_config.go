@@ -19,6 +19,8 @@ type ReplicatedMapConfig struct {
 	ListenerConfigs []ListenerConfigHolder
 	// nullable
 	SplitBrainProtectionName string
+	// nullable
+	UserCodeNamespace string
 }
 
 // Default values are explicitly written for all fields that are not nullable

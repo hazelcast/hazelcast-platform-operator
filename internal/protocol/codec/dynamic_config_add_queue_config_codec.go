@@ -59,6 +59,7 @@ func EncodeDynamicConfigAddQueueConfigRequest(input *types.QueueConfigInput) *pr
 	EncodeNullableForQueueStoreConfigHolder(clientMessage, input.QueueStoreConfig)
 	EncodeString(clientMessage, input.MergePolicy)
 	EncodeNullableForString(clientMessage, input.PriorityComparatorClassName)
+	EncodeNullableForString(clientMessage, input.UserCodeNamespace)
 
 	return clientMessage
 }

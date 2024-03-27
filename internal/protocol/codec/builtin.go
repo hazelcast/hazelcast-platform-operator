@@ -338,6 +338,14 @@ func EncodeByteArray(message *proto.ClientMessage, value []byte) {
 	message.AddFrame(proto.NewFrame(value))
 }
 
+func EncodeNullableForByteArray(message *proto.ClientMessage, data []byte) {
+	if len(data) == 0 {
+		message.AddFrame(proto.NullFrame.Copy())
+	} else {
+		EncodeByteArray(message, data)
+	}
+}
+
 func DecodeNullableForSqlSummary(it *proto.ForwardFrameIterator) (types.SqlSummary, bool) {
 	if NextFrameIsNullFrame(it) {
 		return types.SqlSummary{}, false

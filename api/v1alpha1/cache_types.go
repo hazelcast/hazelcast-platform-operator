@@ -34,6 +34,10 @@ type CacheSpec struct {
 	// EventJournal specifies event journal configuration of the Cache
 	// +optional
 	EventJournal *EventJournal `json:"eventJournal,omitempty"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 // CacheStatus defines the observed state of Cache
