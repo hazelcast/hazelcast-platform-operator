@@ -58,7 +58,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.MapName(), 100)
 		Expect(err).To(BeNil())
 
-		DeletePod(hazelcast.Name+"-2", 5, hzLookupKey)
+		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
 		WaitForPodReady(hazelcast.Name+"-2", hzLookupKey, 5*Minute)
 		evaluateReadyMembers(hzLookupKey)
 
