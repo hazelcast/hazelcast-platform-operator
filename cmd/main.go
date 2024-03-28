@@ -389,11 +389,7 @@ func setManagerWatchedNamespaces(mgrOptions *ctrl.Options, operatorNamespace str
 	switch watchedNamespaceType {
 	case util.WatchedNsTypeAll:
 		setupLog.Info("Watching all namespaces")
-		mgrOptions.Cache = cache.Options{
-			DefaultNamespaces: map[string]cache.Config{
-				cache.AllNamespaces: {},
-			},
-		}
+		mgrOptions.Cache = cache.Options{}
 	case util.WatchedNsTypeOwn:
 		setupLog.Info("Watching own namespace", "namespace", watchedNamespaces[0])
 		mgrOptions.Cache = cache.Options{
