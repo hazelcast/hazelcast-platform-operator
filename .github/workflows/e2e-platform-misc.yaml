@@ -293,7 +293,7 @@ jobs:
 
       - name: Delete Firewall Rule
         run: |-
-          gcloud compute firewall-rules delete ${FIREWALL_RULE_NAME} --quiet --project ${{ env.GCP_PROJECT_ID }}
+          gcloud compute firewall-rules list --project "$PROJECT_ID" --filter="name=($FIREWALL_RULE_NAME)" --format="value(name)" | grep -q "$FIREWALL_RULE_NAME" && gcloud compute firewall-rules delete "$FIREWALL_RULE_NAME" --quiet --project "$PROJECT_ID" || echo "Firewall rule $FIREWALL_RULE_NAME does not exist."
 
       - name: Delete GKE cluster
         if: always()
