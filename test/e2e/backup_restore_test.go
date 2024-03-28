@@ -613,7 +613,9 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
 				hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = dataPolicy
 				hazelcast.Spec.Persistence.StartupAction = action
-				hazelcast.Spec.Persistence.Restore.HotBackupResourceName = hotBackup.Name
+				hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: hotBackup.Name,
+				}
 				CreateHazelcastCR(hazelcast)
 				evaluateReadyMembers(hzLookupKey)
 				assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
