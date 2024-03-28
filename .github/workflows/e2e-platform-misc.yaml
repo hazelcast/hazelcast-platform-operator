@@ -1,22 +1,25 @@
 name: (E2E) Misc Platform Tests
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * *"
+  workflow_call:
 
 env:
-  AWS_REGION: us-east-1
-  DELETE_EKS_STACK_TIMEOUT_IN_MINS: "15"
+  GCP_PROJECT_ID: hazelcast-33
+  GKE_ZONE: us-east1-b
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
+  AWS_REGION: us-east-1
+  FIREWALL_RULE_NAME: node-port-range
 
 jobs:
-  prepare-env:
-    name: Create EKS cluster
+  create-gke-cluster:
+    name: Create GKE cluster
     runs-on: ubuntu-latest
     outputs:
-      CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
+      CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
+    env:
+      GCP_NETWORK: operator-test-network
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -25,48 +28,55 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install eksctl
-        run: |-
-          curl --silent --location \
-            "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" \
-            | tar xz -C /tmp
-          sudo mv /tmp/eksctl /usr/local/bin
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
 
-      - name: Create EKS cluster
-        id: create-cluster
+      - name: Authenticate to GCP
+        uses: "google-github-actions/auth@v2.1.2"
+        with:
+          credentials_json: ${{ env.GKE_SA_KEY }}
+
+      - name: Create GKE cluster
+        id: set-cluster-name
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
-          eksctl create cluster \
-            --name "${CLUSTER_NAME}" \
-            --region=${AWS_REGION} \
-            --zones ${AWS_REGION}a \
-            --zones ${AWS_REGION}c \
-            --version auto \
-            --with-oidc \
-            --without-nodegroup
+          gcloud container clusters create ${CLUSTER_NAME} \
+            --zone=${{ env.GKE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --network=${{ env.GCP_NETWORK }} \
+            --machine-type=n1-standard-16 \
+            --workload-pool=${{ env.GCP_PROJECT_ID }}.svc.id.goog \
+            --num-nodes=3
+          sleep 30
 
-          eksctl create nodegroup \
-            --cluster "${CLUSTER_NAME}" \
-            --region=${AWS_REGION} \
-            --name node-group-1 \
-            --node-type t3a.2xlarge \
-            --nodes 3 \
-            --managed
+      - name: Create Firewall Rules if not existing
+        run: |-
+          gcloud compute firewall-rules create ${FIREWALL_RULE_NAME} \
+            --allow tcp:30000-32767 \
+            --network=${{ env.GCP_NETWORK }} | true
 
-          eksctl create addon \
-            --name aws-ebs-csi-driver \
-            --cluster "${CLUSTER_NAME}" \
-            --region=${AWS_REGION}
+          gcloud compute firewall-rules update ${FIREWALL_RULE_NAME} \
+          --source-ranges="192.0.2.0/24" \
+          --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Ensure Service Account allows using Workload Identity
+        run: |-
+          gcloud iam service-accounts add-iam-policy-binding cn-workload-identity-test@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --project ${{ env.GCP_PROJECT_ID }} \
+            --role roles/iam.workloadIdentityUser \
+            --member "serviceAccount:${{ env.GCP_PROJECT_ID }}.svc.id.goog[test-operator-ee/cn-workload-identity-test]"
 
   grafana-setup:
-    needs: [ prepare-env ]
+    needs: [create-gke-cluster]
     uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
-      cluster_name: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
-      cluster_type: eks
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      cluster_type: gke
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
@@ -125,21 +135,16 @@ jobs:
           cache-from: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
           cache-to: type=registry,ref=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/${{ hashFiles('Dockerfile','main.go','api/**','controllers/**','internal/**','licenses/**','**/go.mod','**/go.sum') }}:14d
 
-  eks-e2e-tests:
-    name: Run e2e test on EKS
+  gke-e2e-tests:
+    name: Run e2e test on GKE
     runs-on: ubuntu-latest
-    needs: ["prepare-env", "grafana-setup", "get-image"]
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        edition: ["ee"]
+    needs: [create-gke-cluster, grafana-setup, get-image]
     env:
-      NAMESPACE: test-operator-${{ matrix.edition }}
-      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
+      NAMESPACE: test-operator-ee
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      RELEASE_NAME: hp-ee-${{ github.run_id }}
       IMG: ${{ needs.get-image.outputs.IMG }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -155,22 +160,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get GH Public IP
-        id: ip
-        uses: haythem/public-ip@v1.3
-
-      - name: Configure SecurityGroup of Nodes
-        run: |-
-          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=${{ env.AWS_REGION }} --name=${{ needs.prepare-env.outputs.CLUSTER_NAME }} --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
-          echo "SecurityGroupID: $SECURITY_GROUP_ID"
-
-          aws ec2 authorize-security-group-ingress \
-            --region=${AWS_REGION} \
-            --group-id=${SECURITY_GROUP_ID} \
-            --cidr=${{ steps.ip.outputs.ipv4 }}/32 \
-            --protocol=tcp \
-            --port=30000-32767  
-
       - name: Get Secrets
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
@@ -179,6 +168,11 @@ jobs:
             HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
             AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
 
+      - name: Authenticate to GCP
+        uses: "google-github-actions/auth@v2.1.2"
+        with:
+          credentials_json: ${{ env.GKE_SA_KEY }}
+
       - name: Authenticate to GAR
         uses: docker/login-action@v3
         with:
@@ -186,48 +180,64 @@ jobs:
           username: _json_key
           password: ${{ env.GKE_SA_KEY }}
 
-      - name: Update kubeconfig
-        run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          aws eks update-kubeconfig --name "${CLUSTER_NAME}"
-
-      - name: Authenticate to GAR
-        uses: docker/login-action@v3
+      - name: Connect to the GKE cluster
+        uses: "google-github-actions/get-gke-credentials@v2"
         with:
-          registry: us-east1-docker.pkg.dev
-          username: _json_key
-          password: ${{ env.GKE_SA_KEY }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          location: ${{ env.GKE_ZONE }}
 
-      - name: Deploy Operator to EKS
+      - name: Get GH Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Update Firewall Rules
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 1
+          max_attempts: 3
+          retry_on: error
+          command: |
+            EXISTING_SOURCES=$(gcloud compute firewall-rules describe ${FIREWALL_RULE_NAME} \
+            --format="get(sourceRanges)" \
+            --project ${{ env.GCP_PROJECT_ID }} |  sed 's/;/,/g')
+            NEW_SOURCE_RANGES="${EXISTING_SOURCES},${{ steps.ip.outputs.ipv4 }}/32"
+
+            gcloud compute firewall-rules update ${FIREWALL_RULE_NAME} \
+            --source-ranges=$NEW_SOURCE_RANGES \
+            --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Deploy Operator to GKE
         run: |
           make install-crds
           kubectl create namespace ${NAMESPACE}
-          kubectl config set-context --current --namespace=${NAMESPACE}
+          kubectl config set-context --current --namespace=$NAMESPACE
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make install-operator NAMESPACE=${NAMESPACE} IMG=${IMG} RELEASE_NAME=$RELEASE_NAME
+          make install-operator IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
 
-      - name: Create secrets
-        if: matrix.edition == 'ee'
+      - name: Create secrets and service accounts
         run: |
           kubectl create secret generic hazelcast-license-key \
-            --namespace ${NAMESPACE} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
-          
-          kubectl create secret generic br-secret-gcp \
-            --namespace ${{ env.NAMESPACE }} --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
+            --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
-      - name: Run Hazelcast E2E tests on EKS
+          kubectl create serviceaccount cn-workload-identity-test --namespace ${NAMESPACE}
+
+          kubectl annotate serviceaccount cn-workload-identity-test --namespace ${NAMESPACE} \
+            iam.gke.io/gcp-service-account=cn-workload-identity-test@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+          
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
+
+      - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
         run: |
-          make test-e2e E2E_TEST_LABELS="rolling_upgrade || rollout_restart || platform_persistence" GO_TEST_FLAGS=-ee=true NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
+          make test-e2e GO_TEST_FLAGS=-ee=true GINKGO_PARALLEL_PROCESSES=2 E2E_TEST_LABELS="platform_persistence || rollout_restart || rolling_upgrade" NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=platform
 
       - name: Clean up after Tests
         if: always()
         run: |
           make clean-up-namespace NAMESPACE=${NAMESPACE}
-          source .github/scripts/utils.sh
-          wait_for_elb_deleted $DELETE_EKS_STACK_TIMEOUT_IN_MINS
 
       - name: Upload Test Report
         if: always()
@@ -237,33 +247,32 @@ jobs:
           path: allure-results/platform/
 
   report-generation:
-    needs: ["prepare-env", "eks-e2e-tests"]
-    if: always() && (needs.eks-e2e-tests.result == 'success' || needs.eks-e2e-tests.result == 'failure')
+    needs: ["gke-e2e-tests", "create-gke-cluster"]
+    if: always() && (needs.gke-e2e-tests.result == 'success' || needs.gke-e2e-tests.result == 'failure')
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
       WORKFLOW_ID: platform
-      CLUSTER_NAME: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
 
   cleanup-namespaces:
     if: always()
-    needs: ["prepare-env", "eks-e2e-tests"]
+    needs: ["create-gke-cluster", "gke-e2e-tests"]
     uses: ./.github/workflows/cleanup-namespace.yaml
     secrets: inherit
     with:
-      cluster_name: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
-      cluster_type: eks
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      cluster_type: gke
       namespaces: "test-operator-ee,grafana"
 
   delete-cluster:
-    name: Delete EKS cluster
+    name: Delete GKE cluster
     runs-on: ubuntu-latest
     if: always()
-    needs: ["prepare-env", "eks-e2e-tests", "cleanup-namespaces"]
+    needs: [create-gke-cluster, gke-e2e-tests, cleanup-namespaces]
+    env:
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
@@ -271,24 +280,30 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install eksctl
-        run: |-
-          curl --silent --location \
-            "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" \
-            | tar xz -C /tmp
-          sudo mv /tmp/eksctl /usr/local/bin
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
 
-      - name: Delete EKS cluster
+      - name: Authenticate to GCP
+        uses: "google-github-actions/auth@v2.1.2"
+        with:
+          credentials_json: ${{ env.GKE_SA_KEY }}
+
+      - name: Delete Firewall Rule
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          source .github/scripts/utils.sh
-          wait_for_eks_stack_deleted eksctl-$CLUSTER_NAME $DELETE_EKS_STACK_TIMEOUT_IN_MINS
-          clean_open_id_connect_providers ${{ env.AWS_REGION }} $CLUSTER_NAME
+          gcloud compute firewall-rules list --project "$PROJECT_ID" --filter="name=($FIREWALL_RULE_NAME)" --format="value(name)" | grep -q "$FIREWALL_RULE_NAME" && gcloud compute firewall-rules delete "$FIREWALL_RULE_NAME" --quiet --project "$PROJECT_ID" || echo "Firewall rule $FIREWALL_RULE_NAME does not exist."
+
+      - name: Delete GKE cluster
+        if: always()
+        run: |-
+          gcloud container clusters delete ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --quiet
 
   slack_notify:
     name: Slack Notify
-    needs: ["eks-e2e-tests", "delete-cluster"]
-    if: always() && ( needs.eks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
+    needs: ["gke-e2e-tests", "delete-cluster"]
+    if: always() && ( needs.gke-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
