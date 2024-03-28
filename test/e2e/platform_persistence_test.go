@@ -66,7 +66,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		logReader := test.NewLogReader(logs)
 		defer logReader.Close()
 		test.EventuallyInLogs(logReader, 30*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
-		WaitForMapSize(ctx, hzLookupKey, m.MapName(), 100, 10*Minute)
+		WaitForMapSize(hzLookupKey, m.MapName(), 100, 10*Minute)
 	})
 
 	It("should restore 3 GB data after planned shutdown", Tag(EE|AnyCloud), func() {
@@ -130,7 +130,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		By("checking the cluster state and map size")
 		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
-		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
+		WaitForMapSize(hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
 	It("should not start repartitioning after one member restart", Tag(EE|AnyCloud), func() {
@@ -172,7 +172,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		test.EventuallyInLogs(logReader, 50*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		WaitForMapSize(context.Background(), hzLookupKey, m.GetName(), 100, 10*Minute)
+		WaitForMapSize(hzLookupKey, m.GetName(), 100, 10*Minute)
 	})
 
 	It("should not start repartitioning after planned shutdown", Tag(EE|AnyCloud), func() {
@@ -230,7 +230,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=3"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		WaitForMapSize(context.Background(), hzLookupKey, m.GetName(), 100, 10*Minute)
+		WaitForMapSize(hzLookupKey, m.GetName(), 100, 10*Minute)
 	})
 
 	It("should persist SQL mappings", Tag(EE|AnyCloud), func() {
@@ -306,7 +306,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 
 		By("checking map size after rollout sts restart")
 		for i := 0; i < numMaps; i++ {
-			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), expectedMapSize, 10*Minute)
+			WaitForMapSize(hzLookupKey, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), expectedMapSize, 10*Minute)
 		}
 	},
 		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(EE|AnyCloud), hazelcastcomv1alpha1.FullRecovery, "fr"),

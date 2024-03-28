@@ -75,7 +75,7 @@ var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), fun
 		for i := 0; i < numMaps; i++ {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
+			WaitForMapSize(hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
 		}
 	})
 })

@@ -67,7 +67,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			assertMapStatus(tsMap, hazelcastv1alpha1.MapSuccess)
 			FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
 
-			WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), expectedMapSize, 30*Minute)
+			WaitForMapSize(hzLookupKey, tsMap.MapName(), expectedMapSize, 30*Minute)
 		})
 	})
 

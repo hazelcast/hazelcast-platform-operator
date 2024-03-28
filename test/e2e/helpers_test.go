@@ -440,27 +440,27 @@ func fillCachePortForward(h *hazelcastcomv1alpha1.Hazelcast, cacheName, localPor
 	}
 }
 
-func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, expectedMapSize int, timeout time.Duration) {
+func WaitForMapSize(lk types.NamespacedName, mapName string, expectedMapSize int, timeout time.Duration) {
 	fmt.Printf("Waiting for the '%s' map to be of size '%d' using lookup name '%s'", mapName, expectedMapSize, lk.Name)
 	if timeout == 0 {
 		timeout = 10 * time.Minute
 		log.Printf("No timeout specified, defaulting to %v", timeout)
 	}
 	clientHz := GetHzClient(context.Background(), lk, true)
-	defer func() {
+	/*	defer func() {
 		log.Printf("Shutting down Hazelcast client")
-		if err := clientHz.Shutdown(ctx); err != nil {
+		if err := clientHz.Shutdown(context.Background()); err != nil {
 			log.Printf("Error while shutting down Hazelcast client: %v", err)
 			Expect(err).ToNot(HaveOccurred())
 		}
-	}()
+	}()*/
 	hzMap, err := clientHz.GetMap(context.Background(), mapName)
 	if err != nil {
 		log.Printf("Failed to get map '%s': %v", mapName, err)
 		Expect(err).ToNot(HaveOccurred())
 	}
 	Eventually(func() (int, error) {
-		mapSize, err := hzMap.Size(ctx)
+		mapSize, err := hzMap.Size(context.Background())
 		if err != nil {
 			log.Printf("Error getting size of map '%s': %v", mapName, err)
 			return 0, err

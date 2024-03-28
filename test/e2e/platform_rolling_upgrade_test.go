@@ -122,7 +122,7 @@ var _ = Describe("Platform Rolling UpgradeTests", Label("rolling_upgrade"), func
 
 		By("checking map size after pause and resume")
 		for i := 0; i < numMaps; i++ {
-			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, hazelcast.Name), expectedMapSize, 10*Minute)
+			WaitForMapSize(hzLookupKey, fmt.Sprintf("map-%d-%s", i, hazelcast.Name), expectedMapSize, 10*Minute)
 		}
 	})
 })

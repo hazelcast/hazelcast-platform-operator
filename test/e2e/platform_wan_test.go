@@ -100,7 +100,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		FillMapBySizeInMb(context.Background(), m.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 		By("checking the target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
 	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Tag(EE|AnyCloud), func() {
@@ -217,10 +217,10 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		FillMapBySizeInMb(context.Background(), mapSrc2.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 		By("checking the first target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.MapName(), expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(targetLookupKey, mapSrc1.MapName(), expectedTrgMapSize, 30*Minute)
 
 		By("checking the second target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 30*Minute)
 
 		By("filling the first target Map")
 		FillMapBySizeInMb(context.Background(), mapTrg1.MapName(), mapSizeInMb, mapSizeInMb, hazelcastTarget)
@@ -229,10 +229,10 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		FillMapBySizeInMb(context.Background(), mapTrg2.MapName(), mapSizeInMb, mapSizeInMb, hazelcastTarget)
 
 		By("checking the first source Map size")
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg1.MapName(), expectedSrcMapSize, 30*Minute)
+		WaitForMapSize(sourceLookupKey, mapTrg1.MapName(), expectedSrcMapSize, 30*Minute)
 
 		By("checking the second source Map size")
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.MapName(), expectedSrcMapSize, 30*Minute)
+		WaitForMapSize(sourceLookupKey, mapTrg2.MapName(), expectedSrcMapSize, 30*Minute)
 	})
 
 	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(EE|AnyCloud), func() {
@@ -302,7 +302,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		By("checking the target Map size")
 		SwitchContext(context2)
 		setupEnv()
-		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
 	It("should send 6 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Tag(EE|AnyCloud), func() {
@@ -434,10 +434,10 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		By("checking the first target Map size")
 		SwitchContext(context2)
 		setupEnv()
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.MapName(), expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(targetLookupKey, mapSrc1.MapName(), expectedTrgMapSize, 30*Minute)
 
 		By("checking the second target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 30*Minute)
 
 		By("filling the first target Map")
 		FillMapBySizeInMb(context.Background(), mapTrg1.MapName(), mapSizeInMb, mapSizeInMb, hazelcastTarget)
@@ -448,10 +448,10 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		By("checking the first source Map size")
 		SwitchContext(context1)
 		setupEnv()
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg1.Spec.Name, expectedSrcMapSize, 30*Minute)
+		WaitForMapSize(sourceLookupKey, mapTrg1.Spec.Name, expectedSrcMapSize, 30*Minute)
 
 		By("checking the second source Map size")
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize, 30*Minute)
+		WaitForMapSize(sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize, 30*Minute)
 	})
 
 	Context("Data Sync between separate clusters", func() {
@@ -576,10 +576,10 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			By("checking the first target Map size")
 			SwitchContext(context2)
 			setupEnv()
-			WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 15*Minute)
+			WaitForMapSize(targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 15*Minute)
 
 			By("checking the second target Map size")
-			WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 15*Minute)
+			WaitForMapSize(targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 15*Minute)
 		})
 
 		It("shouldn't fail due to split brain in active-passive mode across separate clusters", Serial, Tag(EE|AnyCloud), func() {
@@ -734,10 +734,10 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			By("checking the first target Map size")
 			SwitchContext(context2)
 			setupEnv()
-			WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.MapName(), expectedTrgMapSize, 15*Minute)
+			WaitForMapSize(targetLookupKey, mapSrc1.MapName(), expectedTrgMapSize, 15*Minute)
 
 			By("checking the second target Map size")
-			WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 15*Minute)
+			WaitForMapSize(targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 15*Minute)
 		})
 	})
 })

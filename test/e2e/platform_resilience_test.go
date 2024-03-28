@@ -160,7 +160,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		for i := 0; i < nMaps; i++ {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(context.Background(), hzLookupKey, m.MapName(), int(float64(mapSizeInMb*128)), 1*Minute)
+			WaitForMapSize(hzLookupKey, m.MapName(), int(float64(mapSizeInMb*128)), 1*Minute)
 		}
 	})
 
@@ -304,7 +304,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		mapSize := 30000
 		err = FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
 		Expect(err).To(BeNil())
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		WaitForMapSize(hzLookupKey, mapName, mapSize, Minute)
 
 		By("detecting the node which the operator is running on")
 		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
@@ -334,7 +334,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		waitForDroppedNodes(ctx, numberOfNodesInDroppingZone)
 
 		By("checking map size after zone outage")
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		WaitForMapSize(hzLookupKey, mapName, mapSize, Minute)
 	})
 
 	It("should have no data lose after node outage", Tag(Any), Serial, func() {
@@ -358,7 +358,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		mapSize := 30000
 		err = FillMapByEntryCount(ctx, hzLookupKey, true, mapName, mapSize)
 		Expect(err).To(BeNil())
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		WaitForMapSize(hzLookupKey, mapName, mapSize, Minute)
 
 		By("detecting the node which the operator is running on")
 		nodeNameOperatorRunningOn, err := nodeNameWhichOperatorRunningOn(ctx)
@@ -389,7 +389,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		waitForDroppedNodes(ctx, 1)
 
 		By("checking map size after node outage")
-		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
+		WaitForMapSize(hzLookupKey, mapName, mapSize, Minute)
 	})
 
 	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Serial, Tag(Any), func() {

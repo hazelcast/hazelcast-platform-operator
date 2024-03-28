@@ -338,7 +338,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			By("checking the cluster state and map size")
 			assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 			assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
-			WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize+additionalEntries, 10*Minute)
+			WaitForMapSize(hzLookupKey, dm.MapName(), expectedMapSize+additionalEntries, 10*Minute)
 		})
 
 	})
@@ -418,7 +418,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			By("checking the cluster state and map size")
 			assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 			assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
-			WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
+			WaitForMapSize(hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 		})
 
 		It("should restore multiple times from HotBackupResourceName", Tag(EE|AnyCloud), func() {
