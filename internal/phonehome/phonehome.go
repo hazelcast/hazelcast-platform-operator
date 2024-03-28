@@ -108,6 +108,11 @@ type PhoneHomeData struct {
 	JetJobSnapshotCount           int                    `json:"jjsc"`
 	SQLCount                      int                    `json:"sc"`
 	TieredStorage                 TieredStorage          `json:"ts"`
+	CPSubsystem                   CPSubsystem            `json:"cp"`
+}
+
+type CPSubsystem struct {
+	Count int `json:"c"`
 }
 
 type JVMConfigUsage struct {
@@ -270,6 +275,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
 		phm.TLS.addUsageMetrics(hz.Spec.TLS)
+		phm.CPSubsystem.addUsageMetrics(hz.Spec.CPSubsystem)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -365,6 +371,13 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 	if hucd.IsRemoteURLsEnabled() {
 		ucd.FromURL++
 	}
+}
+
+func (cp *CPSubsystem) addUsageMetrics(cpc *hazelcastv1alpha1.CPSubsystem) {
+	if cpc == nil {
+		return
+	}
+	cp.Count++
 }
 
 func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration) {
