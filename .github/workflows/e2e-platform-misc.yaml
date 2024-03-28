@@ -226,6 +226,8 @@ jobs:
 
           kubectl annotate serviceaccount cn-workload-identity-test --namespace ${NAMESPACE} \
             iam.gke.io/gcp-service-account=cn-workload-identity-test@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+          
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
 
       - name: Run Hazelcast E2E tests at GKE
         id: e2e-test
