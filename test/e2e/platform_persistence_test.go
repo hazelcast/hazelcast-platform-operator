@@ -257,7 +257,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		waitForSQLMappingsPortForward(context.Background(), hazelcast, localPort, hzLookupKey.Name, 1*Minute)
 	})
 
-	DescribeTable("Hazelcast", Serial, Ordered, ContinueOnFailure, func(policyType hazelcastcomv1alpha1.DataRecoveryPolicyType, mapNameSuffix string) {
+	DescribeTable("Hazelcast", func(policyType hazelcastcomv1alpha1.DataRecoveryPolicyType, mapNameSuffix string) {
 		setLabelAndCRName("hps-6")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
@@ -309,8 +309,8 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), expectedMapSize, 10*Minute)
 		}
 	},
-		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(EE|AnyCloud), Serial, Ordered, ContinueOnFailure, hazelcastcomv1alpha1.FullRecovery, "fr"),
-		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Tag(EE|AnyCloud), Serial, Ordered, ContinueOnFailure, hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(EE|AnyCloud), Serial, ContinueOnFailure, hazelcastcomv1alpha1.FullRecovery, "fr"),
+		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Tag(EE|AnyCloud), Serial, ContinueOnFailure, hazelcastcomv1alpha1.MostRecent, "pr"),
 	)
 
 })
