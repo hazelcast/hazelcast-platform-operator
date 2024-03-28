@@ -309,8 +309,8 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), expectedMapSize, 10*Minute)
 		}
 	},
-		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(EE|AnyCloud), Serial, ContinueOnFailure, hazelcastcomv1alpha1.FullRecovery, "fr"),
-		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Tag(EE|AnyCloud), Serial, ContinueOnFailure, hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(EE|AnyCloud), Serial, Ordered, ContinueOnFailure, hazelcastcomv1alpha1.FullRecovery, "fr"),
+		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Tag(EE|AnyCloud), Serial, Ordered, ContinueOnFailure, hazelcastcomv1alpha1.MostRecent, "pr"),
 	)
 
 })
