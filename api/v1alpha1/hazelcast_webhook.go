@@ -21,6 +21,7 @@ func (r *Hazelcast) SetupWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 //+kubebuilder:webhook:path=/validate-hazelcast-com-v1alpha1-hazelcast,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=hazelcasts,verbs=create;update,versions=v1alpha1,name=vhazelcast.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-hazelcast-com-v1alpha1-hazelcast,mutating=true,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=hazelcasts,verbs=create;update,versions=v1alpha1,name=vhazelcast.kb.io,admissionReviewVersions=v1
 // Role related to webhooks
 
 var _ webhook.Validator = &Hazelcast{}
@@ -56,7 +57,8 @@ func (r *Hazelcast) Default() {
 }
 
 func (r *Hazelcast) defaultOptionalToNil() {
-	if r.Spec.TLS != nil && r.Spec.TLS.SecretName == "" {
+	// Is default TLS
+	if r.Spec.TLS != nil && r.Spec.TLS.SecretName == "" && r.Spec.TLS.MutualAuthentication == MutualAuthenticationNone {
 		r.Spec.TLS = nil
 	}
 	if r.Spec.Scheduling != nil && reflect.DeepEqual(*r.Spec.Scheduling, SchedulingConfiguration{}) {

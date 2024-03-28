@@ -1805,7 +1805,8 @@ var _ = Describe("Hazelcast CR", func() {
 
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.TLS = &hazelcastv1alpha1.TLS{
-					SecretName: "",
+					SecretName:           "",
+					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
