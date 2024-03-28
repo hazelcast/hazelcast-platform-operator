@@ -860,7 +860,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			DeletePod(hazelcastTarget.Name+"-1", 0, targetLookupKey)
 			DeletePod(hazelcastTarget.Name+"-2", 0, targetLookupKey)
 
-			By("add more data to the first non TS Map")
+			By("add more data to the non TS Map")
 			SwitchContext(context1)
 			setupEnv()
 			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), nonTsMapSecondInputSize, nonTsMapFirstInputSize+nonTsMapSecondInputSize, hazelcastSource)
