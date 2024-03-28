@@ -1296,7 +1296,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 	}
 	if h.Spec.CPSubsystem.IsEnabled() {
 		cfg.CPSubsystem = config.CPSubsystem{
-			CPMemberCount:                     h.Spec.CPSubsystem.MemberCount,
+			CPMemberCount:                     *h.Spec.ClusterSize,
 			PersistenceEnabled:                true,
 			BaseDir:                           n.CPBaseDir,
 			GroupSize:                         h.Spec.CPSubsystem.GroupSize,
@@ -2032,8 +2032,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
+	pvcName := n.PVCName
+	if h.Spec.Persistence.RestoreFromLocalBackup() {
+		pvcName = string(h.Spec.Persistence.Restore.LocalConfiguration.PVCNamePrefix)
+	}
+
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, sidecarContainer(h))
-	sts.Spec.VolumeClaimTemplates = persistentVolumeClaims(h)
+	sts.Spec.VolumeClaimTemplates = persistentVolumeClaims(h, pvcName)
 	if h.Spec.IsTieredStorageEnabled() {
 		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, localDevicePersistentVolumeClaim(h)...)
 	}
@@ -2044,6 +2049,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	opResult, err := util.CreateOrUpdateForce(ctx, r.Client, sts, func() error {
+		if len(sts.Spec.VolumeClaimTemplates) > 0 {
+			pvcName = sts.Spec.VolumeClaimTemplates[0].Name
+		}
 		sts.Spec.Replicas = h.Spec.ClusterSize
 		sts.ObjectMeta.Annotations = statefulSetAnnotations(sts, h)
 		sts.Spec.Template.Annotations, err = podAnnotations(sts.Spec.Template.Annotations, h)
@@ -2075,13 +2083,13 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		if err != nil {
 			return fmt.Errorf("unable to fetch existing HZ config: %v", err)
 		}
-		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client, hzConf)
+		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client, hzConf, pvcName)
 		if err != nil {
 			return err
 		}
 		sts.Spec.Template.Spec.Volumes = volumes(h)
-		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h)
-		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts(h)
+		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h, pvcName)
+		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts(h, pvcName)
 		if h.Spec.Agent.Resources != nil {
 			sts.Spec.Template.Spec.Containers[1].Resources = *h.Spec.Agent.Resources
 		}
@@ -2093,12 +2101,12 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
-func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
+func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.PersistentVolumeClaim {
 	var pvcs []v1.PersistentVolumeClaim
 	if h.Spec.Persistence.IsEnabled() {
 		pvcs = append(pvcs, v1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        n.PersistenceVolumeName,
+				Name:        pvcName,
 				Namespace:   h.Namespace,
 				Labels:      labels(h),
 				Annotations: h.Spec.Annotations,
@@ -2269,7 +2277,7 @@ func containerSecurityContext() *v1.SecurityContext {
 	}
 }
 
-func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, conf *config.HazelcastWrapper) ([]v1.Container, error) {
+func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, conf *config.HazelcastWrapper, pvcName string) ([]v1.Container, error) {
 	var containers []corev1.Container
 
 	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
@@ -2300,23 +2308,25 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 
 	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
 		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
-			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, conf.Hazelcast.Persistence.BaseDir)
+			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, conf.Hazelcast.Persistence.BaseDir, pvcName)
 		if err != nil {
 			return nil, err
 		}
 		containers = append(containers, cont)
 
 		return containers, nil
+	} else if h.Spec.Persistence.RestoreFromLocalBackup() {
+		containers = append(containers, restoreLocalAgentContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, conf.Hazelcast.Persistence.BaseDir, pvcName))
+	} else {
+		// restoring from bucket config
+		containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
+			h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, conf.Hazelcast.Persistence.BaseDir, pvcName))
 	}
-
-	// restoring from bucket config
-	containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
-		h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, conf.Hazelcast.Persistence.BaseDir))
 
 	return containers, nil
 }
 
-func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName, baseDir string) (v1.Container, error) {
+func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName, baseDir, pvcName string) (v1.Container, error) {
 	hb := &hazelcastv1alpha1.HotBackup{}
 	err := cl.Get(ctx, key, hb)
 	if err != nil {
@@ -2330,16 +2340,18 @@ func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Cli
 	var cont corev1.Container
 	if hb.Spec.IsExternal() {
 		bucketURI := hb.Status.GetBucketURI()
-		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI, baseDir)
+		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI, baseDir, pvcName)
 	} else {
 		backupFolder := hb.Status.GetBackupFolder()
-		cont = restoreLocalAgentContainer(h, backupFolder, baseDir)
+		cont = restoreLocalAgentContainer(h, hazelcastv1alpha1.RestoreFromLocalConfiguration{
+			BackupFolder: backupFolder,
+		}, baseDir, pvcName)
 	}
 
 	return cont, nil
 }
 
-func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, baseDir string) v1.Container {
+func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, baseDir, pvcName string) v1.Container {
 	commandName := "restore_pvc"
 
 	return v1.Container{
@@ -2377,29 +2389,51 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, b
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
 		VolumeMounts: []v1.VolumeMount{{
-			Name:      n.PersistenceVolumeName,
+			Name:      pvcName,
 			MountPath: n.PersistenceMountPath,
 		}},
 		SecurityContext: containerSecurityContext(),
 	}
 }
 
-func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder, baseDir string) v1.Container {
+func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration, destBaseDir, pvcName string) v1.Container {
 	commandName := "restore_pvc_local"
 
-	return v1.Container{
+	// it maybe configured by restore.localConfig.
+	// HotBackup CR does not configure it. For HotBackup CR source and destination base directories are always the same.
+	srcBaseDir := destBaseDir
+	if conf.BaseDir != "" {
+		srcBaseDir = conf.BaseDir
+	}
+
+	backupDir := n.BackupDir
+	if conf.BackupDir != "" {
+		backupDir = conf.BackupDir
+	}
+
+	backupFolder := conf.BackupFolder
+
+	c := v1.Container{
 		Name:            n.RestoreLocalAgent,
 		Image:           h.AgentDockerImage(),
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Args:            []string{commandName},
 		Env: []v1.EnvVar{
 			{
-				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
-				Value: backupFolder,
+				Name:  "RESTORE_LOCAL_BACKUP_SRC_BASE_DIR",
+				Value: srcBaseDir,
 			},
 			{
-				Name:  "RESTORE_LOCAL_BACKUP_BASE_DIR",
-				Value: baseDir,
+				Name:  "RESTORE_LOCAL_BACKUP_DEST_BASE_DIR",
+				Value: destBaseDir,
+			},
+			{
+				Name:  "RESTORE_LOCAL_BACKUP_BACKUP_DIR",
+				Value: backupDir,
+			},
+			{
+				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
+				Value: backupFolder,
 			},
 			{
 				Name:  "RESTORE_LOCAL_ID",
@@ -2417,12 +2451,16 @@ func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, backupFolder, ba
 		},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
-		VolumeMounts: []v1.VolumeMount{{
-			Name:      n.PersistenceVolumeName,
-			MountPath: n.PersistenceMountPath,
-		}},
+		VolumeMounts: []v1.VolumeMount{
+			{
+				Name:      pvcName,
+				MountPath: n.PersistenceMountPath,
+			},
+		},
 		SecurityContext: containerSecurityContext(),
 	}
+
+	return c
 }
 
 func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
@@ -2582,7 +2620,7 @@ func configMapVolumes(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFi
 	return vols
 }
 
-func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
+func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.VolumeMount {
 	vm := []v1.VolumeMount{
 		{
 			Name:      n.MTLSCertSecretName,
@@ -2592,14 +2630,14 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
-			Name:      n.PersistenceVolumeName,
+			Name:      pvcName,
 			MountPath: n.PersistenceMountPath,
 		})
 	}
 	return vm
 }
 
-func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
+func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,
@@ -2616,7 +2654,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
-			Name:      n.PersistenceVolumeName,
+			Name:      pvcName,
 			MountPath: n.PersistenceMountPath,
 		})
 	}

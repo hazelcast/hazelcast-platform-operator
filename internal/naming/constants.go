@@ -56,8 +56,8 @@ const (
 	// MancenterStorageName storage name for MC
 	MancenterStorageName = Mancenter + "-storage"
 
-	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
-	PersistenceVolumeName       = "hot-restart-persistence"
+	// PVCName is the name the Persistence Volume Claim used in Persistence configuration.
+	PVCName                     = "persistence"
 	CPPersistenceVolumeName     = "cp-subsystem-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
 	JetJobJarsVolumeName        = "jet-job-jars-bucket"
@@ -66,6 +66,7 @@ const (
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
 	PersistenceMountPath        = "/data/persistence"
 	BaseDir                     = PersistenceMountPath + "/base-dir"
+	BackupDir                   = "/hot-backup"
 	TieredStorageBaseDir        = "/data/tiered-storage"
 	CPDirSuffix                 = "/cp-data"
 	CPBaseDir                   = "/data" + CPDirSuffix

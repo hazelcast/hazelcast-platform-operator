@@ -213,6 +213,25 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
 		v.Forbidden(Path("spec", "persistence", "startupAction"), "PartialStart can be used only with Partial clusterDataRecoveryPolicy")
 	}
+
+	if p.IsRestoreEnabled() && p.Restore.BucketConfiguration == nil && p.Restore.LocalConfiguration == nil && p.Restore.HotBackupResourceName == "" {
+		v.Invalid(Path("spec", "persistence", "restore"), h.Spec.Persistence.Restore, "You must provide a valid restore configuration")
+	}
+
+	if p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != "" {
+		// make sure hot-backup exists
+		hbName := types.NamespacedName{
+			Name:      p.Restore.HotBackupResourceName,
+			Namespace: h.Namespace,
+		}
+
+		var hb HotBackup
+		err := kubeclient.Get(context.Background(), hbName, &hb)
+		if kerrors.IsNotFound(err) {
+			// we care only about not found error
+			v.NotFound(Path("spec", "persistence", "restore", "hotBackupResourceName"), fmt.Sprintf("There is not hot backup found with name %s", p.Restore.HotBackupResourceName))
+		}
+	}
 }
 
 func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {
@@ -465,17 +484,15 @@ func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
 	}
 
 	cp := h.Spec.CPSubsystem
-	if h.Spec.ClusterSize == nil {
-		if cp.MemberCount > 3 {
-			v.Invalid(Path("spec", "cpSubsystem", "memberCount"), cp.MemberCount, "can not be greater the clusterSize")
-		}
-	} else if cp.MemberCount > *h.Spec.ClusterSize && *h.Spec.ClusterSize != 0 { // ClusterSize of 0 means pausing the cluster, should be ignored
-		v.Invalid(Path("spec", "cpSubsystem", "memberCount"), cp.MemberCount, "can not be greater the clusterSize")
+	var memberSize int32
+	memberSize = 3
+	if h.Spec.ClusterSize != nil {
+		memberSize = *h.Spec.ClusterSize
 	}
 
 	if cp.GroupSize != nil {
-		if (*cp.GroupSize != 3 && *cp.GroupSize != 5 && *cp.GroupSize != 7) || *cp.GroupSize > cp.MemberCount {
-			v.Invalid(Path("spec", "cpSubsystem", "memberCount"), cp.GroupSize, "can be 3, 5, or 7, but not greater that memberCount")
+		if (*cp.GroupSize != 3 && *cp.GroupSize != 5 && *cp.GroupSize != 7) || *cp.GroupSize > memberSize {
+			v.Invalid(Path("spec", "cpSubsystem", "groupSize"), cp.GroupSize, "can be 3, 5, or 7, but not greater that clusterSize")
 		}
 	}
 

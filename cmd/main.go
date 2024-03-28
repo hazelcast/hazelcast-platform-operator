@@ -17,6 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast"
@@ -69,11 +71,15 @@ func main() {
 
 	mgrOptions := ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "8d830316.hazelcast.com",
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port: 9443,
+		}),
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
 	}
 
 	// Get operatorNamespace from environment variable.
@@ -383,12 +389,23 @@ func setManagerWatchedNamespaces(mgrOptions *ctrl.Options, operatorNamespace str
 	switch watchedNamespaceType {
 	case util.WatchedNsTypeAll:
 		setupLog.Info("Watching all namespaces")
+		mgrOptions.Cache = cache.Options{}
 	case util.WatchedNsTypeOwn:
 		setupLog.Info("Watching own namespace", "namespace", watchedNamespaces[0])
-		mgrOptions.Namespace = watchedNamespaces[0] //nolint:all
+		mgrOptions.Cache = cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				watchedNamespaces[0]: {},
+			},
+		}
 	case util.WatchedNsTypeSingle, util.WatchedNsTypeMulti:
 		setupLog.Info("Watching namespaces", "watched_namespaces", watchedNamespaces, "operator_namespace", operatorNamespace)
-		mgrOptions.NewCache = cache.MultiNamespacedCacheBuilder(watchedNamespaces) //nolint:all
+		cacheOpts := cache.Options{
+			DefaultNamespaces: map[string]cache.Config{},
+		}
+		for _, watchedNamespace := range watchedNamespaces {
+			cacheOpts.DefaultNamespaces[watchedNamespace] = cache.Config{}
+		}
+		mgrOptions.Cache = cacheOpts
 	default:
 		setupLog.Info("Watching all namespaces by default")
 	}

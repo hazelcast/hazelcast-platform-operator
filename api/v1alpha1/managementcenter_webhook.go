@@ -21,6 +21,7 @@ func (r *ManagementCenter) SetupWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 //+kubebuilder:webhook:path=/validate-hazelcast-com-v1alpha1-managementcenter,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=managementcenters,verbs=create;update,versions=v1alpha1,name=vmanagementcenter.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-hazelcast-com-v1alpha1-managementcenter,mutating=true,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=managementcenters,verbs=create;update,versions=v1alpha1,name=vmanagementcenter.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &ManagementCenter{}
 var _ webhook.Defaulter = &ManagementCenter{}
@@ -62,5 +63,13 @@ func (r *ManagementCenter) defaultOptionalToNil() {
 	}
 	if r.Spec.Resources != nil && reflect.DeepEqual(*r.Spec.Resources, corev1.ResourceRequirements{}) {
 		r.Spec.Resources = nil
+	}
+	if r.Spec.HazelcastClusters != nil {
+		for i, cluster := range r.Spec.HazelcastClusters {
+			// Is default TLS
+			if cluster.TLS != nil && cluster.TLS.SecretName == "" && cluster.TLS.MutualAuthentication == MutualAuthenticationNone {
+				r.Spec.HazelcastClusters[i].TLS = nil
+			}
+		}
 	}
 }

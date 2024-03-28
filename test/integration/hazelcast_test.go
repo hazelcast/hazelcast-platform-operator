@@ -1805,7 +1805,8 @@ var _ = Describe("Hazelcast CR", func() {
 
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.TLS = &hazelcastv1alpha1.TLS{
-					SecretName: "",
+					SecretName:           "",
+					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -1888,6 +1889,47 @@ var _ = Describe("Hazelcast CR", func() {
 				ContainSubstring("spec.advancedNetwork.wan[0]:")))
 			Expect(err).Should(MatchError(
 				ContainSubstring("spec.exposeExternally.discoveryServiceType:")))
+		})
+	})
+
+	Context("Hazelcast Persistence Restore Validation", func() {
+		It("should return hotBackupResourceName required value error", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+				},
+				Restore: &hazelcastv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: "",
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			err := k8sClient.Create(context.Background(), hz)
+			Expect(err).Should(MatchError(
+				ContainSubstring("You must provide a valid restore configuration")))
+		})
+		It("should return hot backup cannot be found error", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+				},
+				Restore: &hazelcastv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: "notexist",
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			err := k8sClient.Create(context.Background(), hz)
+			Expect(err).Should(MatchError(
+				ContainSubstring("There is not hot backup found with name notexist")))
 		})
 	})
 
@@ -2420,10 +2462,9 @@ var _ = Describe("Hazelcast CR", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize: pointer.Int32(7),
+					ClusterSize: pointer.Int32(5),
 					CPSubsystem: &hazelcastv1alpha1.CPSubsystem{
-						MemberCount: 5,
-						GroupSize:   pointer.Int32(3),
+						GroupSize: pointer.Int32(3),
 						PVC: &hazelcastv1alpha1.PvcConfiguration{
 							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						},
@@ -2459,15 +2500,14 @@ var _ = Describe("Hazelcast CR", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize: pointer.Int32(7),
+					ClusterSize: pointer.Int32(5),
 					Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 						PVC: &hazelcastv1alpha1.PvcConfiguration{
 							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						},
 					},
 					CPSubsystem: &hazelcastv1alpha1.CPSubsystem{
-						MemberCount: 5,
-						GroupSize:   pointer.Int32(3),
+						GroupSize: pointer.Int32(3),
 					},
 				},
 			}
@@ -2476,9 +2516,9 @@ var _ = Describe("Hazelcast CR", func() {
 			fetchedSts := &v1.StatefulSet{}
 			assertExists(lookupKey(hz), fetchedSts)
 
-			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.PersistenceVolumeName))
+			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.PVCName))
 			hzContainer := fetchedSts.Spec.Template.Spec.Containers[0]
-			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.PersistenceVolumeName, n.PersistenceMountPath))
+			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.PVCName, n.PersistenceMountPath))
 			Expect(hzContainer.VolumeMounts).Should(Not(test.ContainVolumeMount(n.CPPersistenceVolumeName, n.CPBaseDir)))
 
 			Eventually(func() config.CPSubsystem {
@@ -2500,29 +2540,11 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("with CP Subsystem configuration", func() {
-		It("should not allow member size greater than cluster size", func() {
-			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.ClusterSize = pointer.Int32(3)
-			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
-				MemberCount: 5,
-				PVC: &hazelcastv1alpha1.PvcConfiguration{
-					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
-				},
-			}
-			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       spec,
-			}
-
-			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("can not be greater the clusterSize")))
-		})
-		It("should not allow member size greater than default cluster size", func() {
+		It("should not allow group size greater than default cluster size", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ClusterSize = nil
 			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
-				MemberCount: 5,
+				GroupSize: pointer.Int32(5),
 				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
@@ -2534,14 +2556,13 @@ var _ = Describe("Hazelcast CR", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("can not be greater the clusterSize")))
+				Should(MatchError(ContainSubstring("can be 3, 5, or 7, but not greater that clusterSize")))
 		})
-		It("group size should not be greater than member size", func() {
+		It("group size should not be greater than cluster size", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ClusterSize = pointer.Int32(5)
 			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
-				MemberCount: 5,
-				GroupSize:   pointer.Int32(7),
+				GroupSize: pointer.Int32(7),
 				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
@@ -2553,13 +2574,11 @@ var _ = Describe("Hazelcast CR", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("can be 3, 5, or 7, but not greater that memberCount")))
+				Should(MatchError(ContainSubstring("can be 3, 5, or 7, but not greater that clusterSize")))
 		})
 		It("should not allow no PVC configuration", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
-				MemberCount: 3,
-			}
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{}
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       spec,

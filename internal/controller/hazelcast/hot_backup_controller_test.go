@@ -259,7 +259,7 @@ func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore
 		PVC: &hazelcastv1alpha1.PvcConfiguration{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 		},
-		Restore: hazelcastv1alpha1.RestoreConfiguration{
+		Restore: &hazelcastv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hb.Name,
 		},
 	}}

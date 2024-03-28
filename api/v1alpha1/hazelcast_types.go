@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.23"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.24"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -213,11 +213,6 @@ const (
 
 // CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
 type CPSubsystem struct {
-
-	// MemberCount is the number of CP members to initialize the CP Subsystem.
-	// +required
-	MemberCount int32 `json:"memberCount"`
-
 	// GroupSize is the number of CP members to participate in each CP group.
 	// Allowed values are 3, 5, and 7.
 	// +optional
@@ -664,7 +659,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.23"
+	// +kubebuilder:default:="0.1.24"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -675,6 +670,10 @@ type AgentConfiguration struct {
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
 type HazelcastPersistenceConfiguration struct {
+	// BaseDir is deprecated. Use restore.localConfig to restore from a local backup.
+	// +optional
+	DeprecatedBaseDir string `json:"baseDir"`
+
 	// Configuration of the cluster recovery strategy.
 	// +kubebuilder:default:="FullRecoveryOnly"
 	// +optional
@@ -696,7 +695,7 @@ type HazelcastPersistenceConfiguration struct {
 	// Restore configuration
 	// +kubebuilder:default:={}
 	// +optional
-	Restore RestoreConfiguration `json:"restore,omitempty"`
+	Restore *RestoreConfiguration `json:"restore,omitempty"`
 }
 
 // Returns true if ClusterDataRecoveryPolicy is not FullRecoveryOnly
@@ -719,12 +718,17 @@ func (p *CPSubsystem) IsPVC() bool {
 
 // IsRestoreEnabled returns true if Restore configuration is specified
 func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
-	return p.IsEnabled() && !(p.Restore == (RestoreConfiguration{}))
+	return p.IsEnabled() && p.Restore != nil
 }
 
 // RestoreFromHotBackupResourceName returns true if Restore is done from a HotBackup resource
 func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() bool {
 	return p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != ""
+}
+
+// RestoreFromLocalBackup returns true if Restore is done from local backup
+func (p *HazelcastPersistenceConfiguration) RestoreFromLocalBackup() bool {
+	return p.IsRestoreEnabled() && p.Restore.LocalConfiguration != nil
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
@@ -737,6 +741,42 @@ type RestoreConfiguration struct {
 	// Name of the HotBackup resource from which backup will be fetched.
 	// +optional
 	HotBackupResourceName string `json:"hotBackupResourceName,omitempty"`
+
+	// Configuration to restore from local backup
+	// +optional
+	LocalConfiguration *RestoreFromLocalConfiguration `json:"localConfig,omitempty"`
+}
+
+// PVCNamePrefix specifies the prefix of existing PVCs
+// +kubebuilder:validation:Enum=persistence;hot-restart-persistence
+type PVCNamePrefix string
+
+const (
+	// Persistence format is persistence.
+	Persistence PVCNamePrefix = "persistence"
+
+	// HotRestartPersistence format is hot-restart-persistence.
+	HotRestartPersistence PVCNamePrefix = "hot-restart-persistence"
+)
+
+type RestoreFromLocalConfiguration struct {
+	// PVC name prefix used in existing PVCs
+	// +optional
+	// +kubebuilder:default:="persistence"
+	PVCNamePrefix PVCNamePrefix `json:"pvcNamePrefix,omitempty"`
+
+	// Persistence base directory
+	// +optional
+	BaseDir string `json:"baseDir,omitempty"`
+
+	// Local backup base directory
+	// +optional
+	BackupDir string `json:"backupDir,omitempty"`
+
+	// Backup directory
+	// +optional
+	// +kubebuilder:validation:MinLength:=1
+	BackupFolder string `json:"backupFolder,omitempty"`
 }
 
 func (rc RestoreConfiguration) Hash() string {
