@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast"
@@ -80,10 +81,14 @@ var _ = BeforeSuite(func() {
 
 	webhookInstallOptions := testEnv.WebhookInstallOptions
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:  scheme.Scheme,
-		Host:    webhookInstallOptions.LocalServingHost,
-		Port:    webhookInstallOptions.LocalServingPort,
-		CertDir: webhookInstallOptions.LocalServingCertDir,
+		Scheme: scheme.Scheme,
+		WebhookServer: webhook.NewServer(
+			webhook.Options{
+				Host:    webhookInstallOptions.LocalServingHost,
+				Port:    webhookInstallOptions.LocalServingPort,
+				CertDir: webhookInstallOptions.LocalServingCertDir,
+			},
+		),
 	})
 	Expect(err).ToNot(HaveOccurred())
 
