@@ -17,7 +17,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = FDescribe("Hazelcast CR with expose externally feature", Group("expose_externally"), func() {
+var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_externally"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
