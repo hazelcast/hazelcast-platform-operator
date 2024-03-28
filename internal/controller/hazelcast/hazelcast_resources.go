@@ -1961,6 +1961,11 @@ func createBatchPublisherConfig(wr hazelcastv1alpha1.WanReplication) config.Batc
 		BatchSize:             wr.Spec.Batch.Size,
 		BatchMaxDelayMillis:   wr.Spec.Batch.MaximumDelay,
 	}
+	if wr.Spec.SyncConsistencyCheckStrategy != "" {
+		bpc.Sync = &config.Sync{
+			ConsistencyCheckStrategy: string(wr.Spec.SyncConsistencyCheckStrategy),
+		}
+	}
 	return bpc
 }
 

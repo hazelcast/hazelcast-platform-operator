@@ -35,6 +35,10 @@ type WanReplicationSpec struct {
 	// +kubebuilder:default:={type: ACK_ON_OPERATION_COMPLETE, timeout: 60000}
 	// +optional
 	Acknowledgement AcknowledgementSetting `json:"acknowledgement,omitempty"`
+
+	// SyncConsistencyCheckStrategy is the strategy for checking the consistency of data between replicas.
+	// +optional
+	SyncConsistencyCheckStrategy SyncConsistencyCheckStrategy `json:"syncConsistencyCheckStrategy,omitempty"`
 }
 
 type ResourceSpec struct {
@@ -48,6 +52,13 @@ type ResourceSpec struct {
 	// +optional
 	Kind ResourceKind `json:"kind,omitempty"`
 }
+
+type SyncConsistencyCheckStrategy string
+
+// +kubebuilder:validation:Enum=MerkleTrees
+const (
+	ConsistencyCheckStrategyMerkleTrees = "MERKLE_TREES"
+)
 
 // +kubebuilder:validation:Enum=Map;Hazelcast
 type ResourceKind string

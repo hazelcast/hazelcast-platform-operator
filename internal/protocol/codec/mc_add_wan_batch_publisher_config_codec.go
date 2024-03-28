@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008-2022, Hazelcast, Inc. All Rights Reserved.
+* Copyright (c) 2008-2024, Hazelcast, Inc. All Rights Reserved.
 *
 * Licensed under the Apache License, Version 2.0 (the "License")
 * you may not use this file except in compliance with the License.
@@ -24,18 +24,19 @@ const (
 	MCAddWanBatchPublisherConfigCodecRequestMessageType  = int32(0x201500)
 	MCAddWanBatchPublisherConfigCodecResponseMessageType = int32(0x201501)
 
-	MCAddWanBatchPublisherConfigCodecRequestQueueCapacityOffset         = proto.PartitionIDOffset + proto.IntSizeInBytes
-	MCAddWanBatchPublisherConfigCodecRequestBatchSizeOffset             = MCAddWanBatchPublisherConfigCodecRequestQueueCapacityOffset + proto.IntSizeInBytes
-	MCAddWanBatchPublisherConfigCodecRequestBatchMaxDelayMillisOffset   = MCAddWanBatchPublisherConfigCodecRequestBatchSizeOffset + proto.IntSizeInBytes
-	MCAddWanBatchPublisherConfigCodecRequestResponseTimeoutMillisOffset = MCAddWanBatchPublisherConfigCodecRequestBatchMaxDelayMillisOffset + proto.IntSizeInBytes
-	MCAddWanBatchPublisherConfigCodecRequestAckTypeOffset               = MCAddWanBatchPublisherConfigCodecRequestResponseTimeoutMillisOffset + proto.IntSizeInBytes
-	MCAddWanBatchPublisherConfigCodecRequestQueueFullBehaviorOffset     = MCAddWanBatchPublisherConfigCodecRequestAckTypeOffset + proto.IntSizeInBytes
-	MCAddWanBatchPublisherConfigCodecRequestInitialFrameSize            = MCAddWanBatchPublisherConfigCodecRequestQueueFullBehaviorOffset + proto.IntSizeInBytes
+	MCAddWanBatchPublisherConfigCodecRequestQueueCapacityOffset            = proto.PartitionIDOffset + proto.IntSizeInBytes
+	MCAddWanBatchPublisherConfigCodecRequestBatchSizeOffset                = MCAddWanBatchPublisherConfigCodecRequestQueueCapacityOffset + proto.IntSizeInBytes
+	MCAddWanBatchPublisherConfigCodecRequestBatchMaxDelayMillisOffset      = MCAddWanBatchPublisherConfigCodecRequestBatchSizeOffset + proto.IntSizeInBytes
+	MCAddWanBatchPublisherConfigCodecRequestResponseTimeoutMillisOffset    = MCAddWanBatchPublisherConfigCodecRequestBatchMaxDelayMillisOffset + proto.IntSizeInBytes
+	MCAddWanBatchPublisherConfigCodecRequestAckTypeOffset                  = MCAddWanBatchPublisherConfigCodecRequestResponseTimeoutMillisOffset + proto.IntSizeInBytes
+	MCAddWanBatchPublisherConfigCodecRequestQueueFullBehaviorOffset        = MCAddWanBatchPublisherConfigCodecRequestAckTypeOffset + proto.IntSizeInBytes
+	MCAddWanBatchPublisherConfigCodecRequestConsistencyCheckStrategyOffset = MCAddWanBatchPublisherConfigCodecRequestQueueFullBehaviorOffset + proto.IntSizeInBytes
+	MCAddWanBatchPublisherConfigCodecRequestInitialFrameSize               = MCAddWanBatchPublisherConfigCodecRequestConsistencyCheckStrategyOffset + proto.ByteSizeInBytes
 )
 
 // Add a new WAN batch publisher configuration
 
-func EncodeMCAddWanBatchPublisherConfigRequest(name string, targetCluster string, publisherId string, endpoints string, queueCapacity int32, batchSize int32, batchMaxDelayMillis int32, responseTimeoutMillis int32, ackType int32, queueFullBehavior int32) *proto.ClientMessage {
+func EncodeMCAddWanBatchPublisherConfigRequest(name string, targetCluster string, publisherId string, endpoints string, queueCapacity int32, batchSize int32, batchMaxDelayMillis int32, responseTimeoutMillis int32, ackType int32, queueFullBehavior int32, consistencyCheckStrategy byte) *proto.ClientMessage {
 	clientMessage := proto.NewClientMessageForEncode()
 	clientMessage.SetRetryable(false)
 
@@ -46,6 +47,7 @@ func EncodeMCAddWanBatchPublisherConfigRequest(name string, targetCluster string
 	EncodeInt(initialFrame.Content, MCAddWanBatchPublisherConfigCodecRequestResponseTimeoutMillisOffset, responseTimeoutMillis)
 	EncodeInt(initialFrame.Content, MCAddWanBatchPublisherConfigCodecRequestAckTypeOffset, ackType)
 	EncodeInt(initialFrame.Content, MCAddWanBatchPublisherConfigCodecRequestQueueFullBehaviorOffset, queueFullBehavior)
+	EncodeByte(initialFrame.Content, MCAddWanBatchPublisherConfigCodecRequestConsistencyCheckStrategyOffset, consistencyCheckStrategy)
 	clientMessage.AddFrame(initialFrame)
 	clientMessage.SetMessageType(MCAddWanBatchPublisherConfigCodecRequestMessageType)
 	clientMessage.SetPartitionId(-1)

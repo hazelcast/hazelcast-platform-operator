@@ -1,7 +1,7 @@
 package types
 
 type MerkleTreeConfig struct {
-	Enabled    bool
-	Depth      int32
+	Enabled    bool  `xml:"enabled"`
+	Depth      int32 `xml:"depth"`
 	EnabledSet bool
 }

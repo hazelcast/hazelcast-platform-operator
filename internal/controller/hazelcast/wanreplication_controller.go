@@ -499,14 +499,18 @@ func (r *WanReplicationReconciler) applyWanReplication(ctx context.Context, cli 
 	publisherId := wan.Name + "-" + mapWanKey
 
 	req := &hzclient.AddBatchPublisherRequest{
-		TargetCluster:         wan.Spec.TargetClusterName,
-		Endpoints:             wan.Spec.Endpoints,
-		ResponseTimeoutMillis: wan.Spec.Acknowledgement.Timeout,
-		AckType:               wan.Spec.Acknowledgement.Type,
-		QueueCapacity:         wan.Spec.Queue.Capacity,
-		QueueFullBehavior:     wan.Spec.Queue.FullBehavior,
-		BatchSize:             wan.Spec.Batch.Size,
-		BatchMaxDelayMillis:   wan.Spec.Batch.MaximumDelay,
+		TargetCluster:            wan.Spec.TargetClusterName,
+		Endpoints:                wan.Spec.Endpoints,
+		ResponseTimeoutMillis:    wan.Spec.Acknowledgement.Timeout,
+		AckType:                  wan.Spec.Acknowledgement.Type,
+		QueueCapacity:            wan.Spec.Queue.Capacity,
+		QueueFullBehavior:        wan.Spec.Queue.FullBehavior,
+		BatchSize:                wan.Spec.Batch.Size,
+		BatchMaxDelayMillis:      wan.Spec.Batch.MaximumDelay,
+		ConsistencyCheckStrategy: hzclient.None,
+	}
+	if wan.Spec.SyncConsistencyCheckStrategy == hazelcastv1alpha1.ConsistencyCheckStrategyMerkleTrees {
+		req.ConsistencyCheckStrategy = hzclient.MerkleTrees
 	}
 
 	ws := hzclient.NewWanService(cli, wanName(mapName), publisherId)

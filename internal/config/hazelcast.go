@@ -358,6 +358,11 @@ type BatchPublisherConfig struct {
 	QueueFullBehavior     string `yaml:"queue-full-behavior,omitempty"`
 	QueueCapacity         int32  `yaml:"queue-capacity,omitempty"`
 	TargetEndpoints       string `yaml:"target-endpoints,omitempty"`
+	Sync                  *Sync  `yaml:"sync,omitempty"`
+}
+
+type Sync struct {
+	ConsistencyCheckStrategy string `yaml:"consistency-check-strategy,omitempty"`
 }
 
 type NativeMemory struct {
