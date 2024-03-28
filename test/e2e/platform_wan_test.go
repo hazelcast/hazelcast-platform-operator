@@ -841,7 +841,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 				return wanSrc.Status.Status, nil
 			}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
-			By("filling the first non TS Map")
+			By("filling the non TS Map")
 			SwitchContext(context1)
 			setupEnv()
 			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), nonTsMapFirstInputSize, nonTsMapFirstInputSize, hazelcastSource)
