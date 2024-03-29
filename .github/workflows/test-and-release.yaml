@@ -162,22 +162,22 @@ jobs:
           EOF
           
           echo "Checking Hazelcast CR before upgrade"
-          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast || (echo "Hazelcast CR Check Failed" && kubectl get hazelcasts.hazelcast.com hazelcast -o wide)
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast || (echo "Hazelcast CR Check Failed" && kubectl get hazelcasts.hazelcast.com hazelcast -o wide; exit 1;)
           echo "Checking Map CR before upgrade"
-          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent || (echo "Map CR Check Failed" && kubectl get maps.hazelcast.com persistent -o wide)
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent || (echo "Map CR Check Failed" && kubectl get maps.hazelcast.com persistent -o wide; exit 1;)
           echo "Checking Management Center CR before upgrade"
-          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter || (echo "Management Center CR Check Failed" && kubectl get managementcenters.hazelcast.com managementcenter -o wide)
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter || (echo "Management Center CR Check Failed" && kubectl get managementcenters.hazelcast.com managementcenter -o wide; exit 1;)
           
           helm upgrade operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
           
           echo "Checking Operator Pod after upgrade"
           kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=300s
           echo "Checking Hazelcast CR after upgrade"
-          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast || (echo "Hazelcast CR Check Failed" && kubectl get hazelcasts.hazelcast.com hazelcast -o wide)
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast || (echo "Hazelcast CR Check Failed" && kubectl get hazelcasts.hazelcast.com hazelcast -o wide; exit 1;)
           echo "Checking Map CR after upgrade"
-          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent || (echo "Map CR Check Failed" && kubectl get maps.hazelcast.com persistent -o wide)
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent || (echo "Map CR Check Failed" && kubectl get maps.hazelcast.com persistent -o wide; exit 1;)
           echo "Checking Management Center CR after upgrade"
-          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter || (echo "Management Center CR Check Failed" && kubectl get managementcenters.hazelcast.com managementcenter -o wide)
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter || (echo "Management Center CR Check Failed" && kubectl get managementcenters.hazelcast.com managementcenter -o wide; exit 1;)
 
   test_container:
     name: Build and Test Container
