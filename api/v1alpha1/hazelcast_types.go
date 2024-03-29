@@ -236,6 +236,7 @@ type CPSubsystem struct {
 	FailOnIndeterminateOperationState *bool `json:"failOnIndeterminateOperationState,omitempty"`
 
 	// DataLoadTimeoutSeconds is the timeout duration in seconds for CP members to restore their persisted data from disk
+	// +kubebuilder:validation:Minimum:=1
 	// +optional
 	DataLoadTimeoutSeconds *int32 `json:"dataLoadTimeoutSeconds,omitempty"`
 

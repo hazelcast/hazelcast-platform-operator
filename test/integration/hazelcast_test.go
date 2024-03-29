@@ -2587,5 +2587,44 @@ var _ = Describe("Hazelcast CR", func() {
 			Expect(k8sClient.Create(context.Background(), hz)).
 				Should(MatchError(ContainSubstring("PVC should be configured")))
 		})
+		It("DataLoadTimeoutSeconds cannot be zero", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				DataLoadTimeoutSeconds: pointer.Int32(0),
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("spec.cpSubsystem.dataLoadTimeoutSeconds in body should be greater than or equal to 1")))
+		})
+		It("Session TTL must be greater than session heartbeat interval", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				SessionTTLSeconds:               pointer.Int32(3),
+				SessionHeartbeatIntervalSeconds: pointer.Int32(5),
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("must be greater than sessionHeartbeatIntervalSeconds")))
+		})
+
+		It("Session TTL must be smaller than or equal to missing CP member auto-removal seconds", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				SessionTTLSeconds:                 pointer.Int32(10),
+				MissingCpMemberAutoRemovalSeconds: pointer.Int32(5),
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("must be smaller than or equal to missingCpMemberAutoRemovalSeconds")))
+		})
 	})
 })

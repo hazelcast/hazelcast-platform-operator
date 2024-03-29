@@ -499,4 +499,26 @@ func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
 	if cp.PVC == nil && (!h.Spec.Persistence.IsEnabled() || h.Spec.Persistence.PVC == nil) {
 		v.Required(Path("spec", "cpSubsystem", "pvc"), "PVC should be configured")
 	}
+	v.validateSessionTTLSeconds(h.Spec.CPSubsystem)
+}
+
+func (v *hazelcastValidator) validateSessionTTLSeconds(cp *CPSubsystem) {
+	ttl := int32(300)
+	heartbeat := int32(5)
+	autoremoval := int32(14400)
+	if cp.SessionTTLSeconds != nil {
+		ttl = *cp.SessionTTLSeconds
+	}
+	if cp.SessionHeartbeatIntervalSeconds != nil {
+		heartbeat = *cp.SessionHeartbeatIntervalSeconds
+	}
+	if cp.MissingCpMemberAutoRemovalSeconds != nil {
+		autoremoval = *cp.MissingCpMemberAutoRemovalSeconds
+	}
+	if ttl <= heartbeat {
+		v.Invalid(Path("spec", "cpSubsystem", "sessionTTLSeconds"), ttl, "must be greater than sessionHeartbeatIntervalSeconds")
+	}
+	if ttl > autoremoval {
+		v.Invalid(Path("spec", "cpSubsystem", "sessionTTLSeconds"), ttl, "must be smaller than or equal to missingCpMemberAutoRemovalSeconds")
+	}
 }
