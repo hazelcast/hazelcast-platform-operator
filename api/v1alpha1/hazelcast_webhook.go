@@ -79,4 +79,7 @@ func (r *Hazelcast) defaultOptionalToNil() {
 	if r.Spec.ManagementCenterConfig != nil && reflect.DeepEqual(*r.Spec.ManagementCenterConfig, ManagementCenterConfig{}) {
 		r.Spec.ManagementCenterConfig = nil
 	}
+	if r.Spec.Persistence.Restore != nil && reflect.DeepEqual(r.Spec.Persistence.Restore, RestoreConfiguration{}) {
+		r.Spec.Persistence.Restore = nil
+	}
 }
