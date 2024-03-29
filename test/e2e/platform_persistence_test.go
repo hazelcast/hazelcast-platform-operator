@@ -259,13 +259,13 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 
 	DescribeTable("Hazelcast", func(policyType hazelcastcomv1alpha1.DataRecoveryPolicyType, mapNameSuffix string) {
 		setLabelAndCRName("hps-6")
-		var mapSizeInMb = 500
-		var pvcSizeInMb = 14500
-		var numMaps = 28
+		var mapSizeInMb = 1000
+		var pvcSizeInMb = 16000
+		var numMaps = 14
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
 		clusterSize := int32(3)
 
-		By("creating Hazelcast cluster with 7999 partition count and 14Gb in 28 maps")
+		By("creating Hazelcast cluster with 7999 partition count and 14Gb in 14 maps")
 		jvmArgs := []string{
 			"-Dhazelcast.partition.count=7999",
 		}
@@ -302,15 +302,17 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 			err := k8sClient.Get(context.Background(), hzLookupKey, hazelcast)
 			Expect(err).ToNot(HaveOccurred())
 			return hazelcast.Status.Phase
-		}, 10*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
+		}, 15*Minute, 30*Second).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
+
+		evaluateReadyMembers(hzLookupKey)
 
 		By("checking map size after rollout sts restart")
 		for i := 0; i < numMaps; i++ {
-			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), expectedMapSize, 10*Minute)
+			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), expectedMapSize, 15*Minute)
 		}
 	},
-		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(EE|AnyCloud), hazelcastcomv1alpha1.FullRecovery, "fr"),
-		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Tag(EE|AnyCloud), hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Tag(EE|AnyCloud), Serial, hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(EE|AnyCloud), Serial, hazelcastcomv1alpha1.FullRecovery, "fr"),
 	)
 
 })

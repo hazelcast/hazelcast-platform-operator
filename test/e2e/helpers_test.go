@@ -419,34 +419,40 @@ func ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps int, sizePerMap int, mapN
 }
 
 func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, expectedMapSize int, timeout time.Duration) {
-	fmt.Printf("Waiting for the '%s' map to be of size '%d' using lookup name '%s'", mapName, expectedMapSize, lk.Name)
+	fmt.Printf("Waiting for the '%s' map to be of size '%d' using lookup name '%s'\n", mapName, expectedMapSize, lk.Name)
 	if timeout == 0 {
-		timeout = 10 * time.Minute
-		log.Printf("No timeout specified, defaulting to %v", timeout)
+		timeout = 15 * time.Minute
+		log.Printf("No timeout specified, defaulting to %v\n", timeout)
 	}
-	clientHz := GetHzClient(context.Background(), lk, true)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	clientHz := GetHzClient(ctxWithTimeout, lk, true)
+
 	defer func() {
-		log.Printf("Shutting down Hazelcast client")
-		if err := clientHz.Shutdown(ctx); err != nil {
-			log.Printf("Error while shutting down Hazelcast client: %v", err)
+		log.Println("Shutting down Hazelcast client")
+		if err := clientHz.Shutdown(ctxWithTimeout); err != nil {
+			log.Printf("Error while shutting down Hazelcast client: %v\n", err)
 			Expect(err).ToNot(HaveOccurred())
 		}
 	}()
-	hzMap, err := clientHz.GetMap(context.Background(), mapName)
+
+	hzMap, err := clientHz.GetMap(ctxWithTimeout, mapName)
 	if err != nil {
-		log.Printf("Failed to get map '%s': %v", mapName, err)
+		log.Printf("Failed to get map '%s': %v\n", mapName, err)
 		Expect(err).ToNot(HaveOccurred())
 	}
+
 	Eventually(func() (int, error) {
-		mapSize, err := hzMap.Size(ctx)
+		mapSize, err := hzMap.Size(ctxWithTimeout)
 		if err != nil {
-			log.Printf("Error getting size of map '%s': %v", mapName, err)
+			log.Printf("Error getting size of map '%s': %v\n", mapName, err)
 			return 0, err
 		}
-		log.Printf("Current size of map '%s': %d", mapName, mapSize)
+		log.Printf("Current size of map '%s': %d\n", mapName, mapSize)
 		return mapSize, nil
-	}, timeout, 1*Minute).Should(Equal(expectedMapSize))
-	log.Printf("Map '%s' reached expected size '%d'", mapName, expectedMapSize)
+	}, timeout, time.Minute).Should(Equal(expectedMapSize))
+
+	log.Printf("Map '%s' reached expected size '%d'\n", mapName, expectedMapSize)
 }
 
 func LabelPods(namespace string, podLabels []PodLabel) error {
