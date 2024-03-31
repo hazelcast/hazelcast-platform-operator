@@ -97,7 +97,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
 		By("filling the Map")
-		FillMapBySizeInMb(context.Background(), m.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+		FillMapBySizeInMb(context.Background(), m.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 		By("checking the target Map size")
 		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
@@ -211,28 +211,28 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
 		By("filling the first source Map")
-		FillMapBySizeInMb(context.Background(), mapSrc1.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+		FillMapBySizeInMb(context.Background(), mapSrc1.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 		By("filling the second source Map")
-		FillMapBySizeInMb(context.Background(), mapSrc2.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+		FillMapBySizeInMb(context.Background(), mapSrc2.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 		By("checking the first target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.MapName(), expectedTrgMapSize, 30*Minute)
 
 		By("checking the second target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 30*Minute)
 
 		By("filling the first target Map")
-		FillMapBySizeInMb(context.Background(), mapTrg1.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastTarget)
+		FillMapBySizeInMb(context.Background(), mapTrg1.MapName(), mapSizeInMb, mapSizeInMb, hazelcastTarget)
 
 		By("filling the second target Map")
-		FillMapBySizeInMb(context.Background(), mapTrg2.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastTarget)
+		FillMapBySizeInMb(context.Background(), mapTrg2.MapName(), mapSizeInMb, mapSizeInMb, hazelcastTarget)
 
 		By("checking the first source Map size")
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg1.Spec.Name, expectedSrcMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg1.MapName(), expectedSrcMapSize, 30*Minute)
 
 		By("checking the second source Map size")
-		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.Spec.Name, expectedSrcMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.MapName(), expectedSrcMapSize, 30*Minute)
 	})
 
 	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(EE|AnyCloud), func() {
@@ -297,7 +297,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
 		By("filling the Map")
-		FillMapBySizeInMb(context.Background(), m.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+		FillMapBySizeInMb(context.Background(), m.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 		By("checking the target Map size")
 		SwitchContext(context2)
@@ -426,24 +426,24 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		By("filling the first source Map")
 		SwitchContext(context1)
 		setupEnv()
-		FillMapBySizeInMb(context.Background(), mapSrc1.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+		FillMapBySizeInMb(context.Background(), mapSrc1.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 		By("filling the second source Map")
-		FillMapBySizeInMb(context.Background(), mapSrc2.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+		FillMapBySizeInMb(context.Background(), mapSrc2.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 		By("checking the first target Map size")
 		SwitchContext(context2)
 		setupEnv()
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.MapName(), expectedTrgMapSize, 30*Minute)
 
 		By("checking the second target Map size")
-		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 30*Minute)
+		WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 30*Minute)
 
 		By("filling the first target Map")
-		FillMapBySizeInMb(context.Background(), mapTrg1.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastTarget)
+		FillMapBySizeInMb(context.Background(), mapTrg1.MapName(), mapSizeInMb, mapSizeInMb, hazelcastTarget)
 
 		By("filling the second target Map")
-		FillMapBySizeInMb(context.Background(), mapTrg2.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastTarget)
+		FillMapBySizeInMb(context.Background(), mapTrg2.MapName(), mapSizeInMb, mapSizeInMb, hazelcastTarget)
 
 		By("checking the first source Map size")
 		SwitchContext(context1)
@@ -545,10 +545,10 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			By("filling the first source Map")
 			SwitchContext(context1)
 			setupEnv()
-			FillMapBySizeInMb(context.Background(), mapSrc1.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+			FillMapBySizeInMb(context.Background(), mapSrc1.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 			By("filling the second source Map")
-			FillMapBySizeInMb(context.Background(), mapSrc2.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+			FillMapBySizeInMb(context.Background(), mapSrc2.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 			By("update to correct Hazelcast image")
 			SwitchContext(context2)
@@ -723,10 +723,10 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
 
 			By("filling the first source Map")
-			FillMapBySizeInMb(context.Background(), mapSrc1.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+			FillMapBySizeInMb(context.Background(), mapSrc1.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 			By("filling the second source Map")
-			FillMapBySizeInMb(context.Background(), mapSrc2.Spec.Name, mapSizeInMb, mapSizeInMb, hazelcastSource)
+			FillMapBySizeInMb(context.Background(), mapSrc2.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
 
 			By("trigger WAN sync")
 			createWanSync(context.Background(), sourceLookupKey, wanSrc.Name, 2, labels)
@@ -734,10 +734,10 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			By("checking the first target Map size")
 			SwitchContext(context2)
 			setupEnv()
-			WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.Spec.Name, expectedTrgMapSize, 15*Minute)
+			WaitForMapSize(context.Background(), targetLookupKey, mapSrc1.MapName(), expectedTrgMapSize, 15*Minute)
 
 			By("checking the second target Map size")
-			WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 15*Minute)
+			WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 15*Minute)
 		})
 
 		It("should replicate data for maps with TS and non TS storage in active-passive WAN replication mode", Tag(EE|AnyCloud), func() {

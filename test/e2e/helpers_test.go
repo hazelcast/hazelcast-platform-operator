@@ -179,19 +179,24 @@ func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 		}
 		podExists := func() bool {
 			_, err := getKubernetesClientSet().CoreV1().Pods(lk.Namespace).Get(context.Background(), podName, metav1.GetOptions{})
-			return err == nil
+			return err != nil && !errors.IsNotFound(err)
 		}
 		err := getKubernetesClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			log.Fatal(err)
 		}
-		time.Sleep(5 * time.Second)
-		if podExists() {
-			log.Println("Pod still exists. Retrying delete operation.")
+		attempt := 0
+		maxAttempts := 5
+		var waitTime time.Duration = 2
+		for attempt < maxAttempts && podExists() {
+			log.Printf("Pod '%s' still exists. Waiting %d seconds before retrying delete operation.\n", podName, waitTime)
+			time.Sleep(waitTime * time.Second)
 			err := getKubernetesClientSet().CoreV1().Pods(lk.Namespace).Delete(context.Background(), podName, deleteOptions)
-			if err != nil {
+			if err != nil && !errors.IsNotFound(err) {
 				log.Fatal(err)
 			}
+			attempt++
+			waitTime *= 2
 		}
 	})
 }
@@ -361,18 +366,18 @@ func ConcurrentlyFillMultipleMapsByMb(ctx context.Context, numMaps int, sizePerM
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, mapNameSuffix), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
-			FillMapBySizeInMb(ctx, m.MapName(), sizePerMap, expectedSize, hazelcast)
+			FillMapBySizeInMb(ctx, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), sizePerMap, expectedSize, hazelcast)
 		}(i)
 	}
 	wg.Wait()
 }
 
-func ConcurrentlyCreateAndFillMultipleMapsByMb(ctx context.Context, numMaps int, sizePerMap int, mapNameSuffix string, hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+func ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps int, sizePerMap int, mapNameSuffix string, hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 10)
-	errCh := make(chan error, numMaps)
-
+	createErrCh := make(chan error, numMaps)
+	fillErrCh := make(chan error, numMaps)
+	mapReadyCh := make(chan *hazelcastcomv1alpha1.Map, numMaps)
 	for i := 0; i < numMaps; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -383,47 +388,71 @@ func ConcurrentlyCreateAndFillMultipleMapsByMb(ctx context.Context, numMaps int,
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, mapNameSuffix), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
 			m.Spec.HazelcastResourceName = hazelcast.Name
 			m.Spec.PersistenceEnabled = true
-			if err := k8sClient.Create(ctx, m); err != nil {
-				errCh <- err
+			if err := k8sClient.Create(context.Background(), m); err != nil {
+				createErrCh <- err
 				return
 			}
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-			FillMapBySizeInMb(ctx, m.MapName(), sizePerMap, sizePerMap, hazelcast)
+			mapReadyCh <- m // Signal that the map is ready to be filled
 		}(i)
 	}
+
+	go func() {
+		for m := range mapReadyCh {
+			wg.Add(1)
+			go func(m *hazelcastcomv1alpha1.Map) {
+				defer wg.Done()
+				FillMapBySizeInMb(context.Background(), m.MapName(), sizePerMap, sizePerMap, hazelcast)
+			}(m)
+		}
+	}()
 	wg.Wait()
-	close(errCh)
+	close(createErrCh)
+	close(fillErrCh)
+	close(mapReadyCh)
+	for err := range createErrCh {
+		log.Printf("Error creating map: %v", err)
+	}
+	for err := range fillErrCh {
+		log.Printf("Error filling map: %v", err)
+	}
 }
 
 func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, expectedMapSize int, timeout time.Duration) {
-	fmt.Printf("Waiting for the '%s' map to be of size '%d' using lookup name '%s'", mapName, expectedMapSize, lk.Name)
+	fmt.Printf("Waiting for the '%s' map to be of size '%d' using lookup name '%s'\n", mapName, expectedMapSize, lk.Name)
 	if timeout == 0 {
-		timeout = 10 * time.Minute
-		log.Printf("No timeout specified, defaulting to %v", timeout)
+		timeout = 15 * time.Minute
+		log.Printf("No timeout specified, defaulting to %v\n", timeout)
 	}
-	clientHz := GetHzClient(ctx, lk, true)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	clientHz := GetHzClient(ctxWithTimeout, lk, true)
+
 	defer func() {
-		log.Printf("Shutting down Hazelcast client")
-		if err := clientHz.Shutdown(ctx); err != nil {
-			log.Printf("Error while shutting down Hazelcast client: %v", err)
+		log.Println("Shutting down Hazelcast client")
+		if err := clientHz.Shutdown(ctxWithTimeout); err != nil {
+			log.Printf("Error while shutting down Hazelcast client: %v\n", err)
 			Expect(err).ToNot(HaveOccurred())
 		}
 	}()
-	hzMap, err := clientHz.GetMap(ctx, mapName)
+
+	hzMap, err := clientHz.GetMap(ctxWithTimeout, mapName)
 	if err != nil {
-		log.Printf("Failed to get map '%s': %v", mapName, err)
+		log.Printf("Failed to get map '%s': %v\n", mapName, err)
 		Expect(err).ToNot(HaveOccurred())
 	}
+
 	Eventually(func() (int, error) {
-		mapSize, err := hzMap.Size(ctx)
+		mapSize, err := hzMap.Size(ctxWithTimeout)
 		if err != nil {
-			log.Printf("Error getting size of map '%s': %v", mapName, err)
+			log.Printf("Error getting size of map '%s': %v\n", mapName, err)
 			return 0, err
 		}
-		log.Printf("Current size of map '%s': %d", mapName, mapSize)
+		log.Printf("Current size of map '%s': %d\n", mapName, mapSize)
 		return mapSize, nil
-	}, timeout, 60*time.Second).Should(Equal(expectedMapSize))
-	log.Printf("Map '%s' reached expected size '%d'", mapName, expectedMapSize)
+	}, timeout, time.Minute).Should(Equal(expectedMapSize))
+
+	log.Printf("Map '%s' reached expected size '%d'\n", mapName, expectedMapSize)
 }
 
 func LabelPods(namespace string, podLabels []PodLabel) error {

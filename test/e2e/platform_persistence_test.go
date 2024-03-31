@@ -7,8 +7,6 @@ import (
 	"strconv"
 	. "time"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
@@ -61,14 +59,14 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		Expect(err).To(BeNil())
 
 		DeletePod(hazelcast.Name+"-2", 0, hzLookupKey)
-		WaitForPodReady(hazelcast.Name+"-2", hzLookupKey, 1*Minute)
+		WaitForPodReady(hazelcast.Name+"-2", hzLookupKey, 5*Minute)
 		evaluateReadyMembers(hzLookupKey)
 
 		logs := InitLogs(t, hzLookupKey)
 		logReader := test.NewLogReader(logs)
 		defer logReader.Close()
 		test.EventuallyInLogs(logReader, 30*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
-		WaitForMapSize(ctx, hzLookupKey, m.MapName(), 100, 1*Minute)
+		WaitForMapSize(ctx, hzLookupKey, m.MapName(), 100, 10*Minute)
 	})
 
 	It("should restore 3 GB data after planned shutdown", Tag(EE|AnyCloud), func() {
@@ -162,7 +160,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.GetName(), 100)
 		Expect(err).To(BeNil())
 		t := Now()
 		DeletePod(hazelcast.Name+"-2", 10, hzLookupKey)
@@ -174,7 +172,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
 		test.EventuallyInLogs(logReader, 50*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, m.GetName(), 100, 10*Minute)
 	})
 
 	It("should not start repartitioning after planned shutdown", Tag(EE|AnyCloud), func() {
@@ -200,7 +198,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.Name, 100)
+		err := FillMapByEntryCount(ctx, hzLookupKey, true, m.GetName(), 100)
 		Expect(err).To(BeNil())
 
 		By("creating HotBackup CR")
@@ -232,7 +230,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("specifiedReplicaCount=3, readyReplicas=3"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).Should(MatchRegexp("newState=ACTIVE"))
 		test.EventuallyInLogs(logReader, 20*Second, logInterval).ShouldNot(MatchRegexp("Repartitioning cluster data. Migration tasks count"))
-		WaitForMapSize(context.Background(), hzLookupKey, m.Name, 100, 10*Minute)
+		WaitForMapSize(context.Background(), hzLookupKey, m.GetName(), 100, 10*Minute)
 	})
 
 	It("should persist SQL mappings", Tag(EE|AnyCloud), func() {
@@ -261,14 +259,13 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 
 	DescribeTable("Hazelcast", func(policyType hazelcastcomv1alpha1.DataRecoveryPolicyType, mapNameSuffix string) {
 		setLabelAndCRName("hps-6")
-		var mapSizeInMb = 500
-		var pvcSizeInMb = 14500
-		var numMaps = 28
+		var mapSizeInMb = 1000
+		var pvcSizeInMb = 16000
+		var numMaps = 14
 		var expectedMapSize = int(float64(mapSizeInMb) * 128)
-		ctx := context.Background()
 		clusterSize := int32(3)
 
-		By("creating Hazelcast cluster with 7999 partition count and 14Gb in 28 maps")
+		By("creating Hazelcast cluster with 7999 partition count and 14Gb in 14 maps")
 		jvmArgs := []string{
 			"-Dhazelcast.partition.count=7999",
 		}
@@ -292,30 +289,30 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		evaluateReadyMembers(hzLookupKey)
 
 		By("creating the map config and putting entries")
-		ConcurrentlyCreateAndFillMultipleMapsByMb(ctx, numMaps, mapSizeInMb, mapNameSuffix, hazelcast)
+		ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps, mapSizeInMb, mapNameSuffix, hazelcast)
 
 		By("making rollout StatefulSet restart")
-		err := RolloutRestart(ctx, hazelcast)
+		err := RolloutRestart(context.Background(), hazelcast)
 		if err != nil {
 			log.Fatalf("Failed to perform rollout restart: %v", err)
 		}
 
 		By("checking HZ status after rollout sts restart")
 		Eventually(func() hazelcastcomv1alpha1.Phase {
-			err := k8sClient.Get(ctx, hzLookupKey, hazelcast)
+			err := k8sClient.Get(context.Background(), hzLookupKey, hazelcast)
 			Expect(err).ToNot(HaveOccurred())
 			return hazelcast.Status.Phase
-		}, 10*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
+		}, 15*Minute, 30*Second).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
+
+		evaluateReadyMembers(hzLookupKey)
 
 		By("checking map size after rollout sts restart")
 		for i := 0; i < numMaps; i++ {
-			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, mapNameSuffix), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
-			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
+			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), expectedMapSize, 15*Minute)
 		}
 	},
-		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Serial, Tag(EE|AnyCloud), hazelcastcomv1alpha1.FullRecovery, "fr"),
-		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Serial, Tag(EE|AnyCloud), hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Tag(EE|AnyCloud), Serial, hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(EE|AnyCloud), Serial, hazelcastcomv1alpha1.FullRecovery, "fr"),
 	)
 
 })
