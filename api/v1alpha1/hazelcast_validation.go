@@ -387,7 +387,7 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 
 	// We changed restore's type to pointer, so during upgrade we need to convert its value, from RestoreConfiguration{} to nil
 	// So it should be updatable just in this case
-	if current.Restore == nil && reflect.DeepEqual(*last.Restore, RestoreConfiguration{}) {
+	if current.Restore == nil && last.Restore != nil && reflect.DeepEqual(*last.Restore, RestoreConfiguration{}) {
 		return
 	}
 	if !reflect.DeepEqual(current.Restore, last.Restore) {
