@@ -1900,7 +1900,7 @@ var _ = Describe("Hazelcast CR", func() {
 					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 				},
-				Restore: &hazelcastv1alpha1.RestoreConfiguration{
+				Restore: hazelcastv1alpha1.RestoreConfiguration{
 					HotBackupResourceName: "",
 				},
 			}
@@ -1919,7 +1919,7 @@ var _ = Describe("Hazelcast CR", func() {
 					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 				},
-				Restore: &hazelcastv1alpha1.RestoreConfiguration{
+				Restore: hazelcastv1alpha1.RestoreConfiguration{
 					HotBackupResourceName: "notexist",
 				},
 			}

@@ -695,7 +695,7 @@ type HazelcastPersistenceConfiguration struct {
 	// Restore configuration
 	// +kubebuilder:default:={}
 	// +optional
-	Restore *RestoreConfiguration `json:"restore,omitempty"`
+	Restore RestoreConfiguration `json:"restore,omitempty"`
 }
 
 // Returns true if ClusterDataRecoveryPolicy is not FullRecoveryOnly
@@ -718,7 +718,7 @@ func (p *CPSubsystem) IsPVC() bool {
 
 // IsRestoreEnabled returns true if Restore configuration is specified
 func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
-	return p.IsEnabled() && p.Restore != nil
+	return p.IsEnabled() && !(p.Restore == (RestoreConfiguration{}))
 }
 
 // RestoreFromHotBackupResourceName returns true if Restore is done from a HotBackup resource
