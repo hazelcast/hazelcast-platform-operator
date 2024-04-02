@@ -2626,5 +2626,17 @@ var _ = Describe("Hazelcast CR", func() {
 			Expect(k8sClient.Create(context.Background(), hz)).
 				Should(MatchError(ContainSubstring("must be smaller than or equal to missingCpMemberAutoRemovalSeconds")))
 		})
+
+		It("Should not allow member count less than 3", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.ClusterSize = pointer.Int32(2)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("cluster with CP Subsystem enabled cannot have less than 3 members")))
+		})
 	})
 })

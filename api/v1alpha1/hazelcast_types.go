@@ -219,12 +219,12 @@ type CPSubsystem struct {
 	GroupSize *int32 `json:"groupSize,omitempty"`
 
 	// SessionTTLSeconds is the duration for a CP session to be kept alive after the last received heartbeat.
-	// Must be greater than or equal to SessionTTLSeconds.
+	// Must be greater than or equal to SessionHeartbeatIntervalSeconds and smaller than or equal to MissingCpMemberAutoRemovalSeconds.
 	// +optional
 	SessionTTLSeconds *int32 `json:"sessionTTLSeconds,omitempty"`
 
 	// SessionHeartbeatIntervalSeconds Interval in seconds for the periodically committed CP session heartbeats.
-	// Must be greater than or equal to SessionTTLSeconds.
+	// Must be smaller than SessionTTLSeconds.
 	// +optional
 	SessionHeartbeatIntervalSeconds *int32 `json:"sessionHeartbeatIntervalSeconds,omitempty"`
 

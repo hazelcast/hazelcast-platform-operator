@@ -217,13 +217,14 @@ spec:
                   sessionHeartbeatIntervalSeconds:
                     description: SessionHeartbeatIntervalSeconds Interval in seconds
                       for the periodically committed CP session heartbeats. Must be
-                      greater than or equal to SessionTTLSeconds.
+                      smaller than SessionTTLSeconds.
                     format: int32
                     type: integer
                   sessionTTLSeconds:
                     description: SessionTTLSeconds is the duration for a CP session
                       to be kept alive after the last received heartbeat. Must be
-                      greater than or equal to SessionTTLSeconds.
+                      greater than or equal to SessionHeartbeatIntervalSeconds and
+                      smaller than or equal to MissingCpMemberAutoRemovalSeconds.
                     format: int32
                     type: integer
                 type: object

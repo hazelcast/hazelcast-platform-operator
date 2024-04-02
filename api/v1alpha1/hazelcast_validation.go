@@ -490,8 +490,16 @@ func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
 		memberSize = *h.Spec.ClusterSize
 	}
 
+	if memberSize < 3 {
+		v.Invalid(Path("spec", "clusterSize"), h.Spec.ClusterSize, "cluster with CP Subsystem enabled cannot have less than 3 members")
+	}
+
 	if cp.GroupSize != nil {
 		if (*cp.GroupSize != 3 && *cp.GroupSize != 5 && *cp.GroupSize != 7) || *cp.GroupSize > memberSize {
+			v.Invalid(Path("spec", "cpSubsystem", "groupSize"), cp.GroupSize, "can be 3, 5, or 7, but not greater that clusterSize")
+		}
+	} else {
+		if memberSize != 3 && memberSize != 5 && memberSize != 7 {
 			v.Invalid(Path("spec", "cpSubsystem", "groupSize"), cp.GroupSize, "can be 3, 5, or 7, but not greater that clusterSize")
 		}
 	}
