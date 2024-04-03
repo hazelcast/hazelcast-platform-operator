@@ -101,11 +101,23 @@ func (v *mapValidator) validateMapTieredStore(m *Map, h *Hazelcast) {
 	if m.Spec.TieredStore == nil {
 		return
 	}
+	if m.Spec.PersistenceEnabled {
+		v.Invalid(Path("spec", "persistenceEnabled"), m.Spec.PersistenceEnabled, "Tiered store and data persistence are mutually exclusive features. Persistence must be disabled to enable the Tiered Storage")
+	}
 	if m.Spec.InMemoryFormat != InMemoryFormatNative {
 		v.Invalid(Path("spec", "inMemoryFormat"), m.Spec.InMemoryFormat, "In-memory format of the map must be NATIVE to enable the Tiered Storage")
 	}
 	if len(m.Spec.Indexes) != 0 {
-		v.Invalid(Path("spec", "indexes"), m.Spec.Indexes, "Indexes can not be created on maps that have Tiered Storage enabled")
+		v.Invalid(Path("spec", "indexes"), m.Spec.Indexes, "Indexes is not supported for Tiered-Store map")
+	}
+	if !(m.Spec.Eviction.EvictionPolicy == "" || m.Spec.Eviction.EvictionPolicy == EvictionPolicyNone) {
+		v.Invalid(Path("spec", "eviction", "evictionPolicy"), m.Spec.Eviction.EvictionPolicy, "Eviction is not supported for Tiered-Store map")
+	}
+	if m.Spec.TimeToLiveSeconds != 0 {
+		v.Invalid(Path("spec", "timeToLiveSeconds"), m.Spec.TimeToLiveSeconds, "TTL expiry is not supported for Tiered-Store map")
+	}
+	if m.Spec.MaxIdleSeconds != 0 {
+		v.Invalid(Path("spec", "maxIdleSeconds"), m.Spec.MaxIdleSeconds, "MaxIdle expiry is not supported for Tiered-Store map")
 	}
 
 	lastSpec := v.getHzSpec(h)
@@ -113,10 +125,33 @@ func (v *mapValidator) validateMapTieredStore(m *Map, h *Hazelcast) {
 		return
 	}
 
-	if !deviceExist(lastSpec.LocalDevices, m.Spec.TieredStore.DiskDeviceName) {
+	deviceSize := deviceSize(lastSpec.LocalDevices, m.Spec.TieredStore.DiskDeviceName)
+	if deviceSize == 0 {
 		v.Invalid(Path("spec", "tieredStore", "diskDeviceName"), m.Spec.TieredStore.DiskDeviceName, fmt.Sprintf("device with the name %s does not exist", m.Spec.TieredStore.DiskDeviceName))
-
 	}
+	if deviceSize < m.Spec.TieredStore.MemoryCapacity.Value() {
+		v.Invalid(Path("spec", "tieredStore", "memoryCapacity"), m.Spec.TieredStore.MemoryCapacity, fmt.Sprintf("Tiered Storage in-memory tier must be smaller than the disk tier. Map memoryCapacity is %v and local device size is %v", m.Spec.TieredStore.MemoryCapacity.Value(), deviceSize))
+	}
+	v.validateTSMemory(m, h)
+}
+
+func deviceSize(localDevices []LocalDeviceConfig, deviceName string) int64 {
+	for _, localDevice := range localDevices {
+		if localDevice.Name == deviceName {
+			return localDevice.PVC.RequestStorage.Value()
+		}
+	}
+	return 0
+}
+
+func (v *mapValidator) validateTSMemory(m *Map, h *Hazelcast) {
+	mapMemoryCapacity := m.Spec.TieredStore.MemoryCapacity.Value()
+	nativeMemorySize := h.Spec.NativeMemory.Size.Value()
+	if nativeMemorySize < mapMemoryCapacity {
+		v.Invalid(Path("spec", "tieredStore", "memoryCapacity"), m.Spec.TieredStore.MemoryCapacity, fmt.Sprintf("Memory capacity must be less than Native Memory size. Map memoryCapacity is %v and Native Memory size is %v", mapMemoryCapacity, nativeMemorySize))
+	}
+
+	return
 }
 
 func (v *mapValidator) validateMapSpecUpdate(m *Map) {
@@ -229,13 +264,4 @@ func (v *mapValidator) getHzSpec(h *Hazelcast) *HazelcastSpec {
 		return nil
 	}
 	return lastSpec
-}
-
-func deviceExist(localDevices []LocalDeviceConfig, deviceName string) bool {
-	for _, localDevice := range localDevices {
-		if localDevice.Name == deviceName {
-			return true
-		}
-	}
-	return false
 }

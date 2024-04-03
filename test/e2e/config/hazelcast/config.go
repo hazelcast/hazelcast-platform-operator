@@ -655,7 +655,6 @@ var (
 			Spec: hazelcastcomv1alpha1.MapSpec{
 				DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
 					HazelcastResourceName: hzName,
-					BackupCount:           pointer.Int32(0),
 				},
 				InMemoryFormat: hazelcastcomv1alpha1.InMemoryFormatNative,
 				TieredStore: &hazelcastcomv1alpha1.TieredStore{
