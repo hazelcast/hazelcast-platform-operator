@@ -5,7 +5,6 @@ import (
 	"fmt"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
-	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
@@ -131,9 +130,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 
 			CheckPodStatus(types.NamespacedName{Name: mapLoaderPod.Name, Namespace: mapLoaderPod.Namespace}, corev1.PodFailed)
 
-			var logs io.ReadCloser
-
-			logs = GetPodLogs(context.Background(), types.NamespacedName{
+			logs := GetPodLogs(context.Background(), types.NamespacedName{
 				Name:      mapLoaderPod.Name,
 				Namespace: mapLoaderPod.Namespace,
 			}, &corev1.PodLogOptions{

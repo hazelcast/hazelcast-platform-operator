@@ -150,8 +150,6 @@ func (v *mapValidator) validateTSMemory(m *Map, h *Hazelcast) {
 	if nativeMemorySize < mapMemoryCapacity {
 		v.Invalid(Path("spec", "tieredStore", "memoryCapacity"), m.Spec.TieredStore.MemoryCapacity, fmt.Sprintf("Memory capacity must be less than Native Memory size. Map memoryCapacity is %v and Native Memory size is %v", mapMemoryCapacity, nativeMemorySize))
 	}
-
-	return
 }
 
 func (v *mapValidator) validateMapSpecUpdate(m *Map) {
