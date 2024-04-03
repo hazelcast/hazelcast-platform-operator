@@ -2,7 +2,6 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: manager-role
 rules:
 - apiGroups:
@@ -21,6 +20,32 @@ rules:
   - update
   - watch
 - apiGroups:
+  - hazelcast.com
+  resources:
+  - wansyncs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - wansyncs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - wansyncs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
@@ -37,7 +62,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  creationTimestamp: null
   name: manager-role
   namespace: operator-namespace
 rules:
@@ -63,7 +87,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  creationTimestamp: null
   name: manager-role
   namespace: watched
 rules:
@@ -184,6 +207,32 @@ rules:
 - apiGroups:
   - hazelcast.com
   resources:
+  - hazelcastendpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - hazelcastendpoints/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - hazelcastendpoints/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
   - hazelcasts
   verbs:
   - create
@@ -255,6 +304,32 @@ rules:
   - hazelcast.com
   resources:
   - jetjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobsnapshots
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobsnapshots/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobsnapshots/status
   verbs:
   - get
   - patch

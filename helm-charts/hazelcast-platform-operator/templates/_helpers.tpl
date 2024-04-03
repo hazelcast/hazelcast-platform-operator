@@ -51,6 +51,21 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Return the proper Image Pull Secret Names
+*/}}
+{{- define "hazelcast-platform-operator.imagePullSecrets" -}}
+{{ if .Values.image.pullSecrets }}
+{{- range .Values.image.pullSecrets }}
+- name: {{ . }}
+{{- end }}
+{{- else }}
+{{- range .Values.imagePullSecrets }}
+- name: {{ . }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "hazelcast-platform-operator.serviceAccountName" -}}
@@ -76,7 +91,11 @@ Create the image name of the deployment
 Watched namespaces list concatenated as comma separated string
 */}}
 {{- define "watched-namespaces.string" -}}
-{{ trim (join "," .Values.watchedNamespaces) }}
+{{- $str := "" -}}
+{{- range .Values.watchedNamespaces -}}
+  {{- $str = print $str (trim .) "," }}
+{{- end }}
+{{- trimSuffix "," $str -}}
 {{- end -}}
 
 {{/*
@@ -106,6 +125,7 @@ Rules needed for giving Hazelcast node read permissions
   - nodes
   verbs:
   - get
+  - list
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -155,9 +175,9 @@ Rules needed for operator watched namespaces
   - ""
   resources:
   - configmaps
-  - secrets
   - events
   - pods
+  - secrets
   - serviceaccounts
   - services
   verbs:
@@ -197,6 +217,15 @@ Rules needed for operator watched namespaces
   - secrets
   verbs:
   - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
   - get
   - list
   - watch
@@ -267,6 +296,32 @@ Rules needed for operator watched namespaces
 - apiGroups:
   - hazelcast.com
   resources:
+  - hazelcastendpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - hazelcastendpoints/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - hazelcastendpoints/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
   - hazelcasts
   verbs:
   - create
@@ -312,6 +367,58 @@ Rules needed for operator watched namespaces
   - hazelcast.com
   resources:
   - hotbackups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobsnapshots
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobsnapshots/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - jetjobsnapshots/status
   verbs:
   - get
   - patch
@@ -397,32 +504,6 @@ Rules needed for operator watched namespaces
 - apiGroups:
   - hazelcast.com
   resources:
-  - jetjobs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - jetjobs/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - jetjobs/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
   - queues
   verbs:
   - create
@@ -494,6 +575,32 @@ Rules needed for operator watched namespaces
   - hazelcast.com
   resources:
   - topics/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - wansyncs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - wansyncs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - wansyncs/status
   verbs:
   - get
   - patch

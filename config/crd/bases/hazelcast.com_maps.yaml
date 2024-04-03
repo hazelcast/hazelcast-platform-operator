@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: maps.hazelcast.com
 spec:
   group: hazelcast.com
@@ -19,6 +18,11 @@ spec:
     - description: Current state of the Map Config
       jsonPath: .status.state
       name: Status
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
       type: string
     - description: Message for the current Map Config
       jsonPath: .status.message
@@ -52,6 +56,22 @@ spec:
                 maximum: 6
                 minimum: 0
                 type: integer
+              attributes:
+                description: Attributes to be used with Predicates API. You can learn
+                  more at https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+                items:
+                  properties:
+                    extractorClassName:
+                      description: Name of the extractor class https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#implementing-a-valueextractor
+                      type: string
+                    name:
+                      description: Name of the attribute https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+                      type: string
+                  required:
+                  - extractorClassName
+                  - name
+                  type: object
+                type: array
               backupCount:
                 default: 1
                 description: Number of synchronous backups.
@@ -86,6 +106,23 @@ spec:
                   - className
                   type: object
                 type: array
+              eventJournal:
+                description: EventJournal specifies event journal configuration of
+                  the Map
+                properties:
+                  capacity:
+                    default: 10000
+                    description: Capacity sets the capacity of the ringbuffer underlying
+                      the event journal.
+                    format: int32
+                    type: integer
+                  timeToLiveSeconds:
+                    default: 0
+                    description: TimeToLiveSeconds indicates how long the items remain
+                      in the event journal before they are expired.
+                    format: int32
+                    type: integer
+                type: object
               eviction:
                 default:
                   evictionPolicy: NONE
@@ -206,7 +243,7 @@ spec:
                     format: int32
                     minimum: 1
                     type: integer
-                  writeCoealescing:
+                  writeCoalescing:
                     default: true
                     description: It is meaningful if you are using write behind in
                       MapStore. When it is set to true, only the latest store operation
@@ -227,6 +264,16 @@ spec:
                   automatically. It can be updated.
                 format: int32
                 type: integer
+              merkleTree:
+                description: MerkleTree defines the configuration for the Merkle tree
+                  data structure.
+                properties:
+                  depth:
+                    default: 10
+                    description: Depth of the merkle tree.
+                    format: int32
+                    type: integer
+                type: object
               name:
                 description: Name of the data structure config to be created. If empty,
                   CR name will be used. It cannot be updated after the config is created
@@ -242,6 +289,9 @@ spec:
                       are cached
                     type: boolean
                   eviction:
+                    default:
+                      evictionPolicy: NONE
+                      maxSizePolicy: ENTRY_COUNT
                     description: NearCacheEviction specifies the eviction behavior
                       in Near Cache
                     properties:
@@ -273,6 +323,7 @@ spec:
                         - ENTRY_COUNT
                         type: string
                       size:
+                        default: 0
                         description: Size is maximum size of the Near Cache used for
                           max-size-policy
                         format: int32
@@ -306,12 +357,32 @@ spec:
                     description: TimeToLiveSeconds maximum number of seconds for each
                       entry to stay in the Near Cache
                     type: integer
+                required:
+                - eviction
                 type: object
               persistenceEnabled:
                 default: false
                 description: When enabled, map data will be persisted. It cannot be
                   updated after map config is created successfully.
                 type: boolean
+              tieredStore:
+                description: TieredStore enables the Hazelcast's Tiered-Store feature
+                  for the Map
+                properties:
+                  diskDeviceName:
+                    description: diskDeviceName defines the name of the device for
+                      a given disk tier.
+                    type: string
+                  memoryCapacity:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    default: 256M
+                    description: MemoryCapacity sets Memory tier capacity, i.e., how
+                      much main memory should this tier consume at most.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                type: object
               timeToLiveSeconds:
                 default: 0
                 description: Maximum time in seconds for each entry to stay in the

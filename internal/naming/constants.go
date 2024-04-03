@@ -22,6 +22,12 @@ const (
 	LastSuccessfulSpecAnnotation                 = "hazelcast.com/last-successful-spec"
 	CurrentHazelcastConfigForcingRestartChecksum = "hazelcast.com/current-hazelcast-config-forcing-restart-checksum"
 
+	// ServiceEndpointTypeLabelName defines the name of the service referred by the HazelcastEndpoint
+	ServiceEndpointTypeLabelName           = "hazelcast.com/hazelcast-service-endpoint-type"
+	ServiceEndpointTypeDiscoveryLabelValue = "discovery"
+	ServiceEndpointTypeMemberLabelValue    = "member"
+	ServiceEndpointTypeWANLabelValue       = "wan"
+
 	// PodNameLabel label that represents the name of the pod in the StatefulSet
 	PodNameLabel = "statefulset.kubernetes.io/pod-name"
 	// ApplicationNameLabel label for the name of the application
@@ -50,13 +56,20 @@ const (
 	// MancenterStorageName storage name for MC
 	MancenterStorageName = Mancenter + "-storage"
 
-	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
-	PersistenceVolumeName       = "hot-restart-persistence"
+	// PVCName is the name the Persistence Volume Claim used in Persistence configuration.
+	PVCName                     = "persistence"
+	CPPersistenceVolumeName     = "cp-subsystem-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
 	JetJobJarsVolumeName        = "jet-job-jars-bucket"
 	JetConfigMapNamePrefix      = "jet-cm-"
 	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
+	PersistenceMountPath        = "/data/persistence"
+	BaseDir                     = PersistenceMountPath + "/base-dir"
+	BackupDir                   = "/hot-backup"
+	TieredStorageBaseDir        = "/data/tiered-storage"
+	CPDirSuffix                 = "/cp-data"
+	CPBaseDir                   = "/data" + CPDirSuffix
 
 	SidecarAgent        = "sidecar-agent"
 	BackupAgentPortName = "backup-agent-port"
@@ -77,6 +90,9 @@ const (
 	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
 )
 
+// Annotations
+const HazelcastCustomConfigOverwrite = "hazelcast.com/custom-config-overwrite"
+
 // Hazelcast default configurations
 const (
 	// DefaultHzPort Hazelcast default port
@@ -90,7 +106,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.3.0-BETA-2"
+	HazelcastVersion = "5.4.0-SNAPSHOT"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
@@ -100,7 +116,7 @@ const (
 	// MCRepo image repository for Management Center
 	MCRepo = "docker.io/hazelcast/management-center"
 	// MCVersion version of Management Center image
-	MCVersion = "5.2.0"
+	MCVersion = "5.3.3"
 	// MCImagePullPolicy pull policy for Management Center image
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )
@@ -197,7 +213,7 @@ const (
 const (
 	// DefaultMergePolicyClassName is the default value for
 	// merge policy in WAN reference config
-	DefaultMergePolicyClassName = "PassThroughMergePolicy"
+	DefaultMergePolicyClassName = "com.hazelcast.spi.merge.PassThroughMergePolicy"
 )
 
 // Cluster Size Limit constants

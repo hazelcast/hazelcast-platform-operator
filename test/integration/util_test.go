@@ -2,7 +2,10 @@ package integration
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
+	"net"
 	"reflect"
 	"time"
 
@@ -14,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -137,7 +141,7 @@ func randomObjectMeta(ns string, annotations ...string) metav1.ObjectMeta {
 	}
 }
 
-func ensureHzStatusIsPending(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+func assertHzStatusIsPending(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 	By("ensuring that the status is correct")
 	Eventually(func() hazelcastv1alpha1.Phase {
 		hz = fetchHz(hz)
@@ -180,6 +184,17 @@ func defaultMcSpecValues() *test.MCSpecValues {
 	}
 }
 
+func updateCR[CR client.Object](obj CR, updFn func(object CR)) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj)
+		if err != nil {
+			return err
+		}
+		updFn(obj)
+		return k8sClient.Update(context.Background(), obj)
+	})
+}
+
 func CreateLicenseKeySecret(name, namespace string) *corev1.Secret {
 	licenseSec := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -197,6 +212,21 @@ func CreateLicenseKeySecret(name, namespace string) *corev1.Secret {
 	return licenseSec
 }
 
+func CreateBucketSecret(name, namespace string) *corev1.Secret {
+	sec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{},
+	}
+	Eventually(func() bool {
+		err := k8sClient.Create(context.Background(), sec)
+		return err == nil || errors.IsAlreadyExists(err)
+	}, timeout, interval).Should(BeTrue())
+	return sec
+}
+
 func CreateTLSSecret(name, namespace string) *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -208,6 +238,29 @@ func CreateTLSSecret(name, namespace string) *corev1.Secret {
 			corev1.TLSPrivateKeyKey: []byte(exampleKey),
 		},
 		Type: corev1.SecretTypeTLS,
+	}
+	Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
+	return secret
+}
+
+func RandomIpAddress() string {
+	buf := make([]byte, 4)
+	ip := rand.Uint32()
+	binary.LittleEndian.PutUint32(buf, ip)
+	return net.IP(buf).String()
+}
+
+func CreateLdapSecret(name, namespace string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			"username": "username",
+			"password": "password",
+		},
+		Type: corev1.SecretTypeOpaque,
 	}
 	Expect(k8sClient.Create(context.Background(), secret)).Should(Succeed())
 	return secret

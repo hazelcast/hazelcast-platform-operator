@@ -6,33 +6,40 @@ on:
     paths-ignore:
       - '**.md'
 
+env:
+  AWS_REGION: us-east-1
+
 jobs:
   publish-snapshot-image:
     name: Publish Snapshot to Docker Hub
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+        uses: actions/checkout@v4
 
       - name: Build Operator Image
         run: make docker-build IMG="hazelcast/hazelcast-platform-operator:latest-snapshot" VERSION="latest-snapshot"
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DOCKERHUB_USERNAME,CN/DOCKERHUB_USERNAME
+            DOCKERHUB_PASSWORD,CN/DOCKERHUB_PASSWORD
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD }}
 
       - name: Push Operator Image
         run: make docker-push IMG="hazelcast/hazelcast-platform-operator:latest-snapshot"
@@ -42,11 +49,11 @@ jobs:
           make api-ref-doc > api-ref.adoc
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/hazelcast-platform-operator-docs
           ref: main
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
           path: docs-repo
 
       - name: Push API Reference to Docs repo
@@ -69,11 +76,24 @@ jobs:
     if: always() &&  needs.publish-snapshot-image.result != 'success' 
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
       - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
           channel: "#github-actions-log"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
 

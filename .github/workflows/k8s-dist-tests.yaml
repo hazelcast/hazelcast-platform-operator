@@ -30,6 +30,9 @@ permissions:
   id-token: write
   actions: write
 
+env:
+  AWS_REGION: us-east-1
+
 jobs:
   decide-run-tests:
     name: Decide to run tests
@@ -102,13 +105,27 @@ jobs:
     if: always() && needs.decide-run-tests.outputs.RUN_TESTS == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            TEST_STATUSES_GIST_ID,CN/TEST_STATUSES_GIST_ID
+            GIST_CREATION_TOKEN,CN/GIST_CREATION_TOKEN
+
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Update Status Badges
         run: |
           source .github/scripts/utils.sh
-          update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+          update_status_badges ${{ github.run_id }} ${{ env.TEST_STATUSES_GIST_ID }} ${{ env.GIST_CREATION_TOKEN }}
 
   unit-tests:
     name: Unit Tests
@@ -116,35 +133,14 @@ jobs:
     if: github.event_name == 'push'
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.19.0
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          go-version: "1.21.0"
 
       - name: Run unit tests
         run: make test-unit
-
-      - name: Upload Unit Test Coverage Report
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-coverage
-          path: |
-            cover-controllers.out
-            cover-internal.out
-            cover-api.out
-          retention-days: 1
 
   integration-tests:
     name: Integration Tests
@@ -156,83 +152,44 @@ jobs:
         edition: ["os", "ee"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.19.0
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          go-version: "1.21.0"
 
       - name: Run integration tests
         run: |
           case ${{ matrix.edition }} in
-            os) COVER_OUT='cover-it-os.out';GO_TEST_FLAGS='-ee=false';;
-            ee) COVER_OUT='cover-it-ee.out';GO_TEST_FLAGS='-ee=true';;
+            os) GO_TEST_FLAGS='-ee=false';;
+            ee) GO_TEST_FLAGS='-ee=true';;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          echo "COVER_OUT=${COVER_OUT}" >> $GITHUB_ENV
-          make GO_TEST_FLAGS=${GO_TEST_FLAGS} COVER_OUT=${COVER_OUT} test-it
-
-      - name: Upload Integration Coverage Report
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-coverage
-          path: ${{ env.COVER_OUT }}
-          retention-days: 1
-
-  upload-coverage:
-    name: Upload Test Coverage
-    needs: [unit-tests,integration-tests]
-    runs-on: ubuntu-latest
-    if: always() && github.event_name == 'push'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Download Test Coverage Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: test-coverage
-
-      - name: Publish Integration Test results to Codecov
-        uses: codecov/codecov-action@v2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: cover-it-ee.out,cover-it-os.out
-          flags: integration
-          name: Integration Tests Report
-          fail_ci_if_error: true
-
-      - name: Publish Unit Test results to Codecov
-        uses: codecov/codecov-action@v2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: cover-controllers.out,cover-internal.out,cover-api.out
-          flags: unit
-          name: Unit Tests Report
-          fail_ci_if_error: true
-
+          make GO_TEST_FLAGS=${GO_TEST_FLAGS} test-it
 
   slack_notify:
     name: Slack Notify
     timeout-minutes: 15
-    needs: ["update-test-run-status-badges","upload-coverage"]
+    needs: ["update-test-run-status-badges"]
     if: failure() && github.event_name == 'push'
     runs-on: ubuntu-latest
     env:
       ACTION_API_URL: ${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/k8s-dist-tests.yaml/runs?branch=main
       ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL_CLOUD_NATIVE,CN/SLACK_WEBHOOK_URL_CLOUD_NATIVE
+
       - name: decide to notify
         id: decide
         run: |
@@ -261,7 +218,6 @@ jobs:
           else
               echo "SEND_SLACK_MESSAGE=false" >> $GITHUB_OUTPUT
           fi
-        
 
       - uses: rtCamp/action-slack-notify@v2
         if: steps.decide.outputs.SEND_SLACK_MESSAGE == 'true'
@@ -271,6 +227,6 @@ jobs:
           SLACK_MESSAGE: '${{ github.actor}} broke the <${{ env.ACTION_RUN_URL }}|main branch> :bomb: previous successful run number was ${{ steps.decide.outputs.LAST_RUN_NUMBER }}'
           SLACK_TITLE: Main Branch Broken
           SLACK_USERNAME: rtCamp
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CLOUD_NATIVE }}
+          SLACK_WEBHOOK: ${{ env.SLACK_WEBHOOK_URL_CLOUD_NATIVE }}
           MSG_MINIMAL: true
 

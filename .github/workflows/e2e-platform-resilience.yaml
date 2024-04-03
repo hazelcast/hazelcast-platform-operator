@@ -1,0 +1,266 @@
+name: (E2E) Platform Resilience Tests on GKE
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 */3 * *"
+
+env:
+  GCP_PROJECT_ID: hazelcast-33
+  CLOUD_KEY_SECRET_NAME: cloud-key-secret
+  CHAOS_MESH_NAMESPACE: chaos-testing
+  AWS_REGION: us-east-1
+  FIREWALL_RULE_NAME: node-port-range-resilience
+
+jobs:
+  create-gke-cluster:
+    name: Create GKE Cluster
+    runs-on: ubuntu-latest
+    outputs:
+      CLUSTER_NAME: ${{ steps.set-cluster-name.outputs.CLUSTER_NAME }}
+      GKE_REGION: ${{ steps.set-cluster-name.outputs.GKE_REGION }}
+    env:
+      GCP_NETWORK: operator-test-network
+      GKE_REGION: europe-west1
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v2.1.2'
+        with:
+          credentials_json: ${{ env.GKE_SA_KEY }}
+
+      - name: Create GKE cluster
+        id: set-cluster-name
+        run: |-
+          CLUSTER_NAME="operator-ha-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
+          echo "GKE_REGION=${GKE_REGION}" >> $GITHUB_OUTPUT
+          gcloud container clusters create ${CLUSTER_NAME} \
+            --region=${{ env.GKE_REGION }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --network=${{ env.GCP_NETWORK }} \
+            --machine-type=n1-standard-2 \
+            --num-nodes=2 \
+            --workload-pool=${{ env.GCP_PROJECT_ID }}.svc.id.goog \
+            --node-locations "${GKE_REGION}-c","${GKE_REGION}-d"
+          sleep 30
+
+  grafana-setup:
+    needs: [ create-gke-cluster ]
+    uses: ./.github/workflows/grafana-agent.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      cluster_type: gke-resilience
+      gke_zone: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
+      gh_run_id: ${{ github.run_id }}
+      gh_run_number: ${{ github.run_number }}
+      gh_sha: ${{ github.sha }}
+      namespaces: "test-resilience"
+
+  get-image:
+    name: Get Image
+    runs-on: ubuntu-latest
+    outputs:
+      IMG: ${{ steps.build-img.outputs.IMG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and push image to ttl.sh
+        id: build-img
+        run: |
+          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
+            IMG=ttl.sh/$(uuidgen):2h
+            make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
+            make docker-push IMG=$IMG
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+          else
+            IMG=hazelcast/hazelcast-platform-operator:latest-snapshot
+            echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+          fi
+
+  gke-resilience-tests:
+    name: Run Resilience tests
+    runs-on: ubuntu-latest
+    needs: [ create-gke-cluster, grafana-setup, get-image ]
+    env:
+      IMG: ${{ needs.get-image.outputs.IMG }}
+      NAMESPACE: test-resilience
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
+      RELEASE_NAME: resilience-${{ github.run_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21.0"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
+
+      - name: Authenticate to GCP
+        uses: "google-github-actions/auth@v2.1.2"
+        with:
+          credentials_json: ${{ env.GKE_SA_KEY }}
+
+      - name: Connect to the GKE cluster
+        uses: 'google-github-actions/get-gke-credentials@v2'
+        with:
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          location: ${{ env.GKE_REGION }}
+
+      - name: Deploy Operator to GKE
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }}
+          kubectl config set-context --current --namespace=$NAMESPACE
+          
+          DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME PHONE_HOME_ENABLED=${{ env.PHONE_HOME_ENABLED }}
+          kubectl rollout status deployment $DEPLOY_NAME
+
+      - name: Install Chaos Mesh
+        run: |
+          helm repo add chaos-mesh https://charts.chaos-mesh.org
+          helm upgrade \
+          --install \
+          chaos-mesh \
+          chaos-mesh/chaos-mesh \
+          -n ${CHAOS_MESH_NAMESPACE} \
+          --create-namespace \
+          --set chaosDaemon.runtime=containerd \
+          --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
+          --version v2.6.2 \
+          --wait
+          kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io chaos-mesh-validation-auth
+
+      - name: Create secrets
+        run: |
+          kubectl create secret generic hazelcast-license-key \
+            --namespace ${NAMESPACE} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+
+          GKE_SA_BASE64=$(echo -E '${{ env.GKE_SA_KEY }}' | base64)
+          kubectl create secret generic ${CLOUD_KEY_SECRET_NAME} \
+            --namespace ${CHAOS_MESH_NAMESPACE} --from-literal=service_account="$GKE_SA_BASE64"
+
+      - name: Run Resilience tests at GKE
+        run: make test-e2e E2E_TEST_LABELS="resilience" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=resilience
+
+      - name: Clean up after Tests
+        if: always()
+        run: |
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
+          helm uninstall chaos-mesh -n ${CHAOS_MESH_NAMESPACE}
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report-resilience
+          path: allure-results/resilience/
+
+  report-generation:
+    needs: [ "create-gke-cluster", "gke-resilience-tests" ]
+    if: always() && (needs.gke-resilience-tests.result == 'success' || needs.gke-resilience-tests.result == 'failure')
+    uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
+    with:
+      WORKFLOW_ID: resilience
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+
+  cleanup-namespaces:
+    if: always()
+    needs: ["create-gke-cluster", "gke-resilience-tests"]
+    uses: ./.github/workflows/cleanup-namespace.yaml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      cluster_type: gke-resilience
+      gke_zone: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
+      namespaces: "test-resilience,grafana"
+
+  delete-cluster:
+    name: Delete Resilience cluster
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [ create-gke-cluster, gke-resilience-tests, cleanup-namespaces ]
+    env:
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
+      GKE_REGION: ${{ needs.create-gke-cluster.outputs.GKE_REGION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
+      - name: Authenticate to GCP
+        uses: "google-github-actions/auth@v2.1.2"
+        with:
+          credentials_json: ${{ env.GKE_SA_KEY }}
+
+      - name: Delete GKE cluster
+        run: |-
+          gcloud container clusters delete ${{ env.CLUSTER_NAME }} --region ${{ env.GKE_REGION }} --quiet
+
+  slack_notify:
+    name: Slack Notify
+    needs: [ "gke-resilience-tests", "delete-cluster" ]
+    if: always() &&  ( needs.gke-resilience-tests.result != 'success' || needs.delete-cluster.result != 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
+      - uses: 8398a7/action-slack@v3
+        with:
+          fields: repo,commit,author,action,eventName,workflow
+          status: failure
+          channel: "#github-actions-log"
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: caches.hazelcast.com
 spec:
   group: hazelcast.com
@@ -21,6 +20,11 @@ spec:
     - description: Current state of the Cache Config
       jsonPath: .status.state
       name: Status
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
       type: string
     - description: Message for the current Cache Config
       jsonPath: .status.message
@@ -62,6 +66,23 @@ spec:
                 maximum: 6
                 minimum: 0
                 type: integer
+              eventJournal:
+                description: EventJournal specifies event journal configuration of
+                  the Cache
+                properties:
+                  capacity:
+                    default: 10000
+                    description: Capacity sets the capacity of the ringbuffer underlying
+                      the event journal.
+                    format: int32
+                    type: integer
+                  timeToLiveSeconds:
+                    default: 0
+                    description: TimeToLiveSeconds indicates how long the items remain
+                      in the event journal before they are expired.
+                    format: int32
+                    type: integer
+                type: object
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource that this resource is created for.
@@ -133,8 +154,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: cronhotbackups.hazelcast.com
 spec:
   group: hazelcast.com
@@ -152,6 +172,11 @@ spec:
       jsonPath: .spec.suspend
       name: SUSPENDED
       type: boolean
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hotBackupTemplate.spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -261,8 +286,99 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: hazelcastendpoints.hazelcast.com
+spec:
+  group: hazelcast.com
+  names:
+    kind: HazelcastEndpoint
+    listKind: HazelcastEndpointList
+    plural: hazelcastendpoints
+    shortNames:
+    - hzep
+    singular: hazelcastendpoint
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Type of the HazelcastEndpoint
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    - description: Address of the HazelcastEndpoint
+      jsonPath: .status.address
+      name: Address
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
+      type: string
+    - description: Message for the current HazelcastEndpoint
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: HazelcastEndpoint is the Schema for the hazelcastendpoints API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: HazelcastEndpointSpec defines the desired state of HazelcastEndpoint
+            properties:
+              hazelcastResourceName:
+                description: HazelcastResourceName defines the name of the Hazelcast
+                  resource that this resource is created for.
+                minLength: 1
+                type: string
+              port:
+                description: Port of the endpoint.
+                format: int32
+                type: integer
+              type:
+                description: Type defines the endpoint connection. It is used to identify
+                  the target of the endpoint.
+                enum:
+                - Discovery
+                - Member
+                - WAN
+                type: string
+            required:
+            - hazelcastResourceName
+            - port
+            - type
+            type: object
+          status:
+            description: HazelcastEndpointStatus defines the observed state of HazelcastEndpoint
+            properties:
+              address:
+                description: Address is the external address of the endpoint. It is
+                  taken from the corresponding service.
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: hazelcasts.hazelcast.com
 spec:
   group: hazelcast.com
@@ -283,14 +399,6 @@ spec:
     - description: Current numbers of ready Hazelcast members
       jsonPath: .status.hazelcastClusterStatus.readyMembers
       name: Members
-      type: string
-    - description: External addresses of the Hazelcast cluster
-      jsonPath: .status.externalAddresses
-      name: External-Addresses
-      type: string
-    - description: WAN addresses of the Hazelcast cluster
-      jsonPath: .status.wanAddresses
-      name: WAN-Addresses
       type: string
     - description: Message for the current Hazelcast Config
       jsonPath: .status.message
@@ -322,6 +430,13 @@ spec:
               advancedNetwork:
                 description: Hazelcast Advanced Network configuration
                 properties:
+                  clientServerSocketEndpointConfig:
+                    properties:
+                      interfaces:
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   memberServerSocketEndpointConfig:
                     properties:
                       interfaces:
@@ -333,6 +448,7 @@ spec:
                     items:
                       properties:
                         name:
+                          maxLength: 8
                           type: string
                         port:
                           type: integer
@@ -348,17 +464,71 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.20
+                  version: 0.1.24
                 description: B&R Agent configurations
                 properties:
                   repository:
                     default: docker.io/hazelcast/platform-operator-agent
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
+                  resources:
+                    description: Compute Resources required by the Agent container.
+                    properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. Requests cannot exceed
+                          Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
                   version:
-                    default: 0.1.20
+                    default: 0.1.24
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
+                type: object
+              annotations:
+                additionalProperties:
+                  type: string
+                description: Hazelcast Kubernetes resource annotations
                 type: object
               clusterName:
                 default: dev
@@ -370,6 +540,67 @@ spec:
                 format: int32
                 minimum: 0
                 type: integer
+              cpSubsystem:
+                description: CPSubsystem is the configuration of the Hazelcast CP
+                  Subsystem.
+                properties:
+                  dataLoadTimeoutSeconds:
+                    description: DataLoadTimeoutSeconds is the timeout duration in
+                      seconds for CP members to restore their persisted data from
+                      disk
+                    format: int32
+                    type: integer
+                  failOnIndeterminateOperationState:
+                    description: FailOnIndeterminateOperationState indicated whether
+                      CP Subsystem operations use at-least-once and at-most-once execution
+                      guarantees.
+                    type: boolean
+                  groupSize:
+                    description: GroupSize is the number of CP members to participate
+                      in each CP group. Allowed values are 3, 5, and 7.
+                    format: int32
+                    type: integer
+                  missingCpMemberAutoRemovalSeconds:
+                    description: MissingCpMemberAutoRemovalSeconds is the duration
+                      in seconds to wait before automatically removing a missing CP
+                      member from the CP Subsystem.
+                    format: int32
+                    type: integer
+                  pvc:
+                    description: PVC is the configuration of PersistenceVolumeClaim.
+                    properties:
+                      accessModes:
+                        description: 'AccessModes contains the actual access modes
+                          of the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
+                        items:
+                          type: string
+                        type: array
+                      requestStorage:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        default: 8Gi
+                        description: A description of the PVC request capacity.
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      storageClassName:
+                        description: Name of StorageClass which this persistent volume
+                          belongs to.
+                        type: string
+                    type: object
+                  sessionHeartbeatIntervalSeconds:
+                    description: SessionHeartbeatIntervalSeconds Interval in seconds
+                      for the periodically committed CP session heartbeats. Must be
+                      greater than or equal to SessionTTLSeconds.
+                    format: int32
+                    type: integer
+                  sessionTTLSeconds:
+                    description: SessionTTLSeconds is the duration for a CP session
+                      to be kept alive after the last received heartbeat. Must be
+                      greater than or equal to SessionTTLSeconds.
+                    format: int32
+                    type: integer
+                type: object
               customConfigCmName:
                 description: Name of the ConfigMap with the Hazelcast custom configuration.
                   This configuration from the ConfigMap might be overridden by the
@@ -624,6 +855,11 @@ spec:
                         type: string
                     type: object
                 type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: Hazelcast Kubernetes resource labels
+                type: object
               licenseKeySecret:
                 description: licenseKeySecret is a deprecated alias for licenseKeySecretName.
                 type: string
@@ -631,6 +867,57 @@ spec:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string
+              localDevices:
+                description: Hazelcast LocalDevice configuration
+                items:
+                  properties:
+                    blockSize:
+                      default: 4096
+                      description: BlockSize defines Device block/sector size in bytes.
+                      format: int32
+                      minimum: 512
+                      type: integer
+                    name:
+                      description: Name represents the name of the local device
+                      type: string
+                    pvc:
+                      description: Configuration of PersistenceVolumeClaim.
+                      properties:
+                        accessModes:
+                          description: 'AccessModes contains the actual access modes
+                            of the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
+                          items:
+                            type: string
+                          type: array
+                        requestStorage:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          default: 8Gi
+                          description: A description of the PVC request capacity.
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        storageClassName:
+                          description: Name of StorageClass which this persistent
+                            volume belongs to.
+                          type: string
+                      type: object
+                    readIOThreadCount:
+                      default: 4
+                      description: ReadIOThreadCount is Read IO thread count.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    writeIOThreadCount:
+                      default: 4
+                      description: WriteIOThreadCount is Write IO thread count.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                  required:
+                  - name
+                  type: object
+                type: array
               loggingLevel:
                 default: INFO
                 description: Logging level for Hazelcast members
@@ -705,7 +992,8 @@ spec:
                 description: Persistence configuration
                 properties:
                   baseDir:
-                    description: Persistence base directory.
+                    description: BaseDir is deprecated. Use restore.localConfig to
+                      restore from a local backup.
                     type: string
                   clusterDataRecoveryPolicy:
                     default: FullRecoveryOnly
@@ -734,6 +1022,7 @@ spec:
                         anyOf:
                         - type: integer
                         - type: string
+                        default: 8Gi
                         description: A description of the PVC request capacity.
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
@@ -772,6 +1061,27 @@ spec:
                         description: Name of the HotBackup resource from which backup
                           will be fetched.
                         type: string
+                      localConfig:
+                        description: Configuration to restore from local backup
+                        properties:
+                          backupDir:
+                            description: Local backup base directory
+                            type: string
+                          backupFolder:
+                            description: Backup directory
+                            minLength: 1
+                            type: string
+                          baseDir:
+                            description: Persistence base directory
+                            type: string
+                          pvcNamePrefix:
+                            default: persistence
+                            description: PVC name prefix used in existing PVCs
+                            enum:
+                            - persistence
+                            - hot-restart-persistence
+                            type: string
+                        type: object
                     type: object
                   startupAction:
                     description: StartupAction represents the action triggered when
@@ -780,8 +1090,6 @@ spec:
                     - ForceStart
                     - PartialStart
                     type: string
-                required:
-                - baseDir
                 type: object
               properties:
                 additionalProperties:
@@ -795,6 +1103,27 @@ spec:
               resources:
                 description: Compute Resources required by the Hazelcast container.
                 properties:
+                  claims:
+                    description: "Claims lists the names of resources, defined in
+                      spec.resourceClaims, that are used by this container. \n This
+                      is an alpha field and requires enabling the DynamicResourceAllocation
+                      feature gate. \n This field is immutable. It can only be set
+                      for containers."
+                    items:
+                      description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                      properties:
+                        name:
+                          description: Name must match the name of one entry in pod.spec.resourceClaims
+                            of the Pod where this field is used. It makes that resource
+                            available inside a container.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                   limits:
                     additionalProperties:
                       anyOf:
@@ -815,7 +1144,8 @@ spec:
                     description: 'Requests describes the minimum amount of compute
                       resources required. If Requests is omitted for a container,
                       it defaults to Limits if that is explicitly specified, otherwise
-                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                      to an implementation-defined value. Requests cannot exceed Limits.
+                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
               scheduledExecutorServices:
@@ -1821,14 +2151,19 @@ spec:
                           type: object
                           x-kubernetes-map-type: atomic
                         matchLabelKeys:
-                          description: MatchLabelKeys is a set of pod label keys to
-                            select the pods over which spreading will be calculated.
+                          description: "MatchLabelKeys is a set of pod label keys
+                            to select the pods over which spreading will be calculated.
                             The keys are used to lookup values from the incoming pod
                             labels, those key-value labels are ANDed with labelSelector
                             to select the group of existing pods over which spreading
-                            will be calculated for the incoming pod. Keys that don't
-                            exist in the incoming pod labels will be ignored. A null
-                            or empty list means only match against labelSelector.
+                            will be calculated for the incoming pod. The same key
+                            is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                            MatchLabelKeys cannot be set when LabelSelector isn't
+                            set. Keys that don't exist in the incoming pod labels
+                            will be ignored. A null or empty list means only match
+                            against labelSelector. \n This is a beta field and requires
+                            the MatchLabelKeysInPodTopologySpread feature gate to
+                            be enabled (enabled by default)."
                           items:
                             type: string
                           type: array
@@ -1888,7 +2223,7 @@ spec:
                             - Ignore: nodeAffinity/nodeSelector are ignored. All nodes
                             are included in the calculations. \n If this value is
                             nil, the behavior is equivalent to the Honor policy. This
-                            is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         nodeTaintsPolicy:
@@ -1898,8 +2233,8 @@ spec:
                             tainted nodes for which the incoming pod has a toleration,
                             are included. - Ignore: node taints are ignored. All nodes
                             are included. \n If this value is nil, the behavior is
-                            equivalent to the Ignore policy. This is a alpha-level
-                            feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            equivalent to the Ignore policy. This is a beta-level
+                            feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         topologyKey:
@@ -2079,6 +2414,31 @@ spec:
                       type: object
                     type: array
                 type: object
+              serviceAccountName:
+                description: 'ServiceAccountName is the name of the ServiceAccount
+                  to use to run Hazelcast cluster. More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/'
+                type: string
+              sql:
+                description: Hazelcast SQL configuration
+                properties:
+                  catalogPersistenceEnabled:
+                    default: false
+                    description: CatalogPersistenceEnabled sets whether SQL Catalog
+                      persistence is enabled for the node. With SQL Catalog persistence
+                      enabled you can restart the whole cluster without losing schema
+                      definition objects (such as MAPPINGs, TYPEs, VIEWs and DATA
+                      CONNECTIONs). The feature is implemented on top of the Hot Restart
+                      feature of Hazelcast which persists the data to disk. If enabled,
+                      you have to also configure Hot Restart. Feature is disabled
+                      by default.
+                    type: boolean
+                  statementTimeout:
+                    default: 0
+                    description: StatementTimeout defines the timeout in milliseconds
+                      that is applied to queries without an explicit timeout.
+                    format: int32
+                    type: integer
+                type: object
               tls:
                 description: Hazelcast TLS configuration
                 properties:
@@ -2141,16 +2501,17 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.3.0-BETA-2
+                default: 5.4.0-SNAPSHOT
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
           status:
             description: HazelcastStatus defines the observed state of Hazelcast
             properties:
-              externalAddresses:
-                description: External addresses of the Hazelcast cluster members
-                type: string
+              clusterSize:
+                description: Number of Hazelcast members in the cluster.
+                format: int32
+                type: integer
               hazelcastClusterStatus:
                 description: Status of the Hazelcast cluster
                 properties:
@@ -2254,22 +2615,26 @@ spec:
                     - Succeeded
                     type: string
                 type: object
-              wanAddresses:
-                description: WAN addresses of the Hazelcast cluster members
+              selector:
+                description: Selector is a label selector used by HorizontalPodAutoscaler
+                  to autoscale Hazelcast resource.
                 type: string
             type: object
         type: object
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.selector
+        specReplicasPath: .spec.clusterSize
+        statusReplicasPath: .status.clusterSize
       status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: hotbackups.hazelcast.com
 spec:
   group: hazelcast.com
@@ -2286,6 +2651,11 @@ spec:
     - description: Current state of the HotBackup process
       jsonPath: .status.state
       name: Status
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
       type: string
     - description: Message for the current HotBackup Config
       jsonPath: .status.message
@@ -2362,8 +2732,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: jetjobs.hazelcast.com
 spec:
   group: hazelcast.com
@@ -2384,6 +2753,11 @@ spec:
     - description: ID of the JetJob
       jsonPath: .status.id
       name: Id
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
       type: string
     - description: Time when the JetJob was submitted
       jsonPath: .status.submissionTime
@@ -2437,6 +2811,10 @@ spec:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource that this resource is created for.
                 minLength: 1
+                type: string
+              initialSnapshotResourceName:
+                description: InitialSnapshotResourceName specify the name of the JetJobSnapshot
+                  object from which the JetJob is initialized.
                 type: string
               jarName:
                 description: JarName specify the name of the Jar to run that is present
@@ -2510,8 +2888,100 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: jetjobsnapshots.hazelcast.com
+spec:
+  group: hazelcast.com
+  names:
+    kind: JetJobSnapshot
+    listKind: JetJobSnapshotList
+    plural: jetjobsnapshots
+    shortNames:
+    - jjs
+    singular: jetjobsnapshot
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Current state of the JetJobSnapshot
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: Time when the JetJobSnapshot was created, if created
+      jsonPath: .status.creationTime
+      name: CreationTime
+      type: string
+    - description: Message for the JetJobSnapshot
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: JetJobSnapshot is the Schema for the jetjobsnapshots API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: JetJobSnapshotSpec defines the desired state of JetJobSnapshot
+            properties:
+              cancelJob:
+                default: false
+                description: CancelJob determines whether the job is canceled after
+                  exporting snapshot
+                type: boolean
+              jetJobResourceName:
+                description: JetJobResourceName is the name of the JetJob CR where
+                  the Snapshot is exported from
+                minLength: 1
+                type: string
+              name:
+                description: Name of the exported snapshot
+                type: string
+            required:
+            - jetJobResourceName
+            type: object
+          status:
+            default:
+              state: Waiting
+            description: JetJobSnapshotStatus defines the observed state of JetJobSnapshot
+            properties:
+              creationTime:
+                format: date-time
+                type: string
+              message:
+                type: string
+              state:
+                enum:
+                - Waiting
+                - Exporting
+                - Exported
+                - Failed
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: managementcenters.hazelcast.com
 spec:
   group: hazelcast.com
@@ -2560,6 +3030,11 @@ spec:
               repository: docker.io/hazelcast/management-center
             description: Initial values will be filled with its fields' default values.
             properties:
+              annotations:
+                additionalProperties:
+                  type: string
+                description: ManagementCenter Kubernetes resource annotations
+                type: object
               externalConnectivity:
                 default:
                   type: LoadBalancer
@@ -2580,6 +3055,10 @@ spec:
                         type: string
                       ingressClassName:
                         description: IngressClassName of the ingress object.
+                        type: string
+                      path:
+                        default: /
+                        description: Path of the ingress rule.
                         type: string
                     required:
                     - hostname
@@ -2661,6 +3140,20 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
+              jvm:
+                description: ManagementCenter JVM configuration
+                properties:
+                  args:
+                    description: Args is for arbitrary JVM arguments
+                    items:
+                      type: string
+                    type: array
+                type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: ManagementCenter Kubernetes resource labels
+                type: object
               licenseKeySecret:
                 description: licenseKeySecret is a deprecated alias for licenseKeySecretName.
                 type: string
@@ -2704,6 +3197,27 @@ spec:
               resources:
                 description: Compute Resources required by the MC container.
                 properties:
+                  claims:
+                    description: "Claims lists the names of resources, defined in
+                      spec.resourceClaims, that are used by this container. \n This
+                      is an alpha field and requires enabling the DynamicResourceAllocation
+                      feature gate. \n This field is immutable. It can only be set
+                      for containers."
+                    items:
+                      description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                      properties:
+                        name:
+                          description: Name must match the name of one entry in pod.spec.resourceClaims
+                            of the Pod where this field is used. It makes that resource
+                            available inside a container.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                   limits:
                     additionalProperties:
                       anyOf:
@@ -2724,7 +3238,8 @@ spec:
                     description: 'Requests describes the minimum amount of compute
                       resources required. If Requests is omitted for a container,
                       it defaults to Limits if that is explicitly specified, otherwise
-                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                      to an implementation-defined value. Requests cannot exceed Limits.
+                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
               scheduling:
@@ -3699,14 +4214,19 @@ spec:
                           type: object
                           x-kubernetes-map-type: atomic
                         matchLabelKeys:
-                          description: MatchLabelKeys is a set of pod label keys to
-                            select the pods over which spreading will be calculated.
+                          description: "MatchLabelKeys is a set of pod label keys
+                            to select the pods over which spreading will be calculated.
                             The keys are used to lookup values from the incoming pod
                             labels, those key-value labels are ANDed with labelSelector
                             to select the group of existing pods over which spreading
-                            will be calculated for the incoming pod. Keys that don't
-                            exist in the incoming pod labels will be ignored. A null
-                            or empty list means only match against labelSelector.
+                            will be calculated for the incoming pod. The same key
+                            is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                            MatchLabelKeys cannot be set when LabelSelector isn't
+                            set. Keys that don't exist in the incoming pod labels
+                            will be ignored. A null or empty list means only match
+                            against labelSelector. \n This is a beta field and requires
+                            the MatchLabelKeysInPodTopologySpread feature gate to
+                            be enabled (enabled by default)."
                           items:
                             type: string
                           type: array
@@ -3766,7 +4286,7 @@ spec:
                             - Ignore: nodeAffinity/nodeSelector are ignored. All nodes
                             are included in the calculations. \n If this value is
                             nil, the behavior is equivalent to the Honor policy. This
-                            is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         nodeTaintsPolicy:
@@ -3776,8 +4296,8 @@ spec:
                             tainted nodes for which the incoming pod has a toleration,
                             are included. - Ignore: node taints are ignored. All nodes
                             are included. \n If this value is nil, the behavior is
-                            equivalent to the Ignore policy. This is a alpha-level
-                            feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            equivalent to the Ignore policy. This is a beta-level
+                            feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         topologyKey:
@@ -3819,14 +4339,100 @@ spec:
                       type: object
                     type: array
                 type: object
+              securityProvider:
+                description: SecurityProviders to authenticate users in Management
+                  Center
+                properties:
+                  ldap:
+                    description: LDAP security provider
+                    properties:
+                      adminGroups:
+                        description: Members of these groups and its nested groups
+                          have admin privileges on the Management Center.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      credentialsSecretName:
+                        description: CredentialsSecretName is the name of the secret
+                          that contains username and password of a user that has admin
+                          privileges on the LDAP server. The username must be the
+                          DN of the user. It is used to connect to the server when
+                          authenticating users.
+                        type: string
+                      groupDN:
+                        description: DN to be used for searching groups.
+                        type: string
+                      groupSearchFilter:
+                        description: LDAP search filter expression to search for the
+                          groups. For example, uniquemember={0} searches for a group
+                          that matches with the uniquemember attribute.
+                        type: string
+                      metricsOnlyGroups:
+                        description: Members of these groups and its nested groups
+                          have the privilege to see only the metrics on the Management
+                          Center.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      nestedGroupSearch:
+                        default: false
+                        description: NestedGroupSearch enables searching for nested
+                          LDAP groups.
+                        type: boolean
+                      readonlyUserGroups:
+                        description: Members of these groups and its nested groups
+                          have only read privilege on the Management Center.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      url:
+                        description: URL of your LDAP server, including schema (ldap://)
+                          and port.
+                        type: string
+                      userDN:
+                        description: DN to be used for searching users.
+                        type: string
+                      userGroups:
+                        description: Members of these groups and its nested groups
+                          have read and write privileges on the Management Center.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      userSearchFilter:
+                        description: LDAP search filter expression to search for the
+                          users. For example, uid={0} searches for a username that
+                          matches with the uid attribute.
+                        type: string
+                    required:
+                    - adminGroups
+                    - credentialsSecretName
+                    - groupDN
+                    - groupSearchFilter
+                    - metricsOnlyGroups
+                    - nestedGroupSearch
+                    - readonlyUserGroups
+                    - url
+                    - userDN
+                    - userGroups
+                    - userSearchFilter
+                    type: object
+                type: object
               version:
-                default: 5.2.0
+                default: 5.3.3
                 description: Version of Management Center.
                 type: string
             type: object
           status:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
             properties:
+              configured:
+                description: Configured is a flag that indicates if the configuration
+                  step has successfully passed
+                type: boolean
               externalAddresses:
                 description: External addresses of the Management Center instance
                 type: string
@@ -3839,6 +4445,7 @@ spec:
                 - Running
                 - Failed
                 - Pending
+                - Configuring
                 - Terminating
                 type: string
             type: object
@@ -3852,8 +4459,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: maps.hazelcast.com
 spec:
   group: hazelcast.com
@@ -3868,6 +4474,11 @@ spec:
     - description: Current state of the Map Config
       jsonPath: .status.state
       name: Status
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
       type: string
     - description: Message for the current Map Config
       jsonPath: .status.message
@@ -3901,6 +4512,22 @@ spec:
                 maximum: 6
                 minimum: 0
                 type: integer
+              attributes:
+                description: Attributes to be used with Predicates API. You can learn
+                  more at https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+                items:
+                  properties:
+                    extractorClassName:
+                      description: Name of the extractor class https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#implementing-a-valueextractor
+                      type: string
+                    name:
+                      description: Name of the attribute https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+                      type: string
+                  required:
+                  - extractorClassName
+                  - name
+                  type: object
+                type: array
               backupCount:
                 default: 1
                 description: Number of synchronous backups.
@@ -3935,6 +4562,23 @@ spec:
                   - className
                   type: object
                 type: array
+              eventJournal:
+                description: EventJournal specifies event journal configuration of
+                  the Map
+                properties:
+                  capacity:
+                    default: 10000
+                    description: Capacity sets the capacity of the ringbuffer underlying
+                      the event journal.
+                    format: int32
+                    type: integer
+                  timeToLiveSeconds:
+                    default: 0
+                    description: TimeToLiveSeconds indicates how long the items remain
+                      in the event journal before they are expired.
+                    format: int32
+                    type: integer
+                type: object
               eviction:
                 default:
                   evictionPolicy: NONE
@@ -4055,7 +4699,7 @@ spec:
                     format: int32
                     minimum: 1
                     type: integer
-                  writeCoealescing:
+                  writeCoalescing:
                     default: true
                     description: It is meaningful if you are using write behind in
                       MapStore. When it is set to true, only the latest store operation
@@ -4076,6 +4720,16 @@ spec:
                   automatically. It can be updated.
                 format: int32
                 type: integer
+              merkleTree:
+                description: MerkleTree defines the configuration for the Merkle tree
+                  data structure.
+                properties:
+                  depth:
+                    default: 10
+                    description: Depth of the merkle tree.
+                    format: int32
+                    type: integer
+                type: object
               name:
                 description: Name of the data structure config to be created. If empty,
                   CR name will be used. It cannot be updated after the config is created
@@ -4091,6 +4745,9 @@ spec:
                       are cached
                     type: boolean
                   eviction:
+                    default:
+                      evictionPolicy: NONE
+                      maxSizePolicy: ENTRY_COUNT
                     description: NearCacheEviction specifies the eviction behavior
                       in Near Cache
                     properties:
@@ -4122,6 +4779,7 @@ spec:
                         - ENTRY_COUNT
                         type: string
                       size:
+                        default: 0
                         description: Size is maximum size of the Near Cache used for
                           max-size-policy
                         format: int32
@@ -4155,12 +4813,32 @@ spec:
                     description: TimeToLiveSeconds maximum number of seconds for each
                       entry to stay in the Near Cache
                     type: integer
+                required:
+                - eviction
                 type: object
               persistenceEnabled:
                 default: false
                 description: When enabled, map data will be persisted. It cannot be
                   updated after map config is created successfully.
                 type: boolean
+              tieredStore:
+                description: TieredStore enables the Hazelcast's Tiered-Store feature
+                  for the Map
+                properties:
+                  diskDeviceName:
+                    description: diskDeviceName defines the name of the device for
+                      a given disk tier.
+                    type: string
+                  memoryCapacity:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    default: 256M
+                    description: MemoryCapacity sets Memory tier capacity, i.e., how
+                      much main memory should this tier consume at most.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                type: object
               timeToLiveSeconds:
                 default: 0
                 description: Maximum time in seconds for each entry to stay in the
@@ -4207,8 +4885,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: multimaps.hazelcast.com
 spec:
   group: hazelcast.com
@@ -4225,6 +4902,11 @@ spec:
     - description: Current state of the MultiMap Config
       jsonPath: .status.state
       name: Status
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
       type: string
     - description: Message for the current MultiMap Config
       jsonPath: .status.message
@@ -4329,8 +5011,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: queues.hazelcast.com
 spec:
   group: hazelcast.com
@@ -4347,6 +5028,11 @@ spec:
     - description: Current state of the Queue Config
       jsonPath: .status.state
       name: Status
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
       type: string
     - description: Message for the current Queue Config
       jsonPath: .status.message
@@ -4458,8 +5144,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: replicatedmaps.hazelcast.com
 spec:
   group: hazelcast.com
@@ -4476,6 +5161,11 @@ spec:
     - description: Current state of the ReplicatedMap Config
       jsonPath: .status.state
       name: Status
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
       type: string
     - description: Message for the current ReplicatedMap Config
       jsonPath: .status.message
@@ -4566,8 +5256,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: topics.hazelcast.com
 spec:
   group: hazelcast.com
@@ -4582,6 +5271,11 @@ spec:
     - description: Current state of the Topic Config
       jsonPath: .status.state
       name: Status
+      type: string
+    - description: Name of the Hazelcast resource that this resource is created for
+      jsonPath: .spec.hazelcastResourceName
+      name: Hazelcast-Resource
+      priority: 1
       type: string
     - description: Message for the current Topic Config
       jsonPath: .status.message
@@ -4669,8 +5363,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: wanreplications.hazelcast.com
 spec:
   group: hazelcast.com
@@ -4843,6 +5536,100 @@ spec:
                 description: WanReplicationMapsStatus is the WAN Replication status
                   of the Maps given in the spec directly or indirectly by Hazelcast
                   resource.
+                type: object
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: wansyncs.hazelcast.com
+spec:
+  group: hazelcast.com
+  names:
+    kind: WanSync
+    listKind: WanSyncList
+    plural: wansyncs
+    shortNames:
+    - ws
+    singular: wansync
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Current state of the Hazelcast WAN Sync
+      jsonPath: .status.status
+      name: Status
+      type: string
+    - description: Message for the current WanSync
+      jsonPath: .status.message
+      name: Message
+      priority: 1
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: WanSync is the Schema for the wansyncs API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: WanSyncSpec defines the desired state of WanSync
+            properties:
+              wanReplicationResourceName:
+                description: WanReplicationResourceName is the name of WanReplication
+                  CR that contains the WAN publisher configuration. If specified the
+                  Sync operation will use existing WAN publisher.
+                minLength: 1
+                type: string
+            required:
+            - wanReplicationResourceName
+            type: object
+          status:
+            description: WanSyncStatus defines the observed state of WanSync
+            properties:
+              message:
+                description: Message is the field to show detail information or error
+                type: string
+              status:
+                description: Status is the status of WAN Sync
+                type: string
+              wanSyncMapsStatus:
+                additionalProperties:
+                  properties:
+                    message:
+                      description: Message is the field to show detail information
+                        or error
+                      type: string
+                    phase:
+                      description: Status is the status of the resource WAN sync
+                      type: string
+                    publisherId:
+                      description: PublisherId is the ID used for WAN publisher ID
+                      type: string
+                    resourceName:
+                      description: ResourceName is the name of the Map Custom Resource.
+                      type: string
+                  type: object
+                description: WanSyncMapStatus is the WAN Sync status of the Maps given
+                  in the spec directly or indirectly by Hazelcast resource.
                 type: object
             type: object
         required:

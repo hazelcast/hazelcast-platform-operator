@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.3.0-BETA-2"
+	// +kubebuilder:default:="5.4.0-SNAPSHOT"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.20"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.24"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -163,6 +163,31 @@ type HazelcastSpec struct {
 	// This configuration from the ConfigMap might be overridden by the Hazelcast CR configuration.
 	// +optional
 	CustomConfigCmName string `json:"customConfigCmName,omitempty"`
+
+	// Hazelcast SQL configuration
+	// +optional
+	SQL *SQL `json:"sql,omitempty"`
+
+	// Hazelcast LocalDevice configuration
+	// +optional
+	LocalDevices []LocalDeviceConfig `json:"localDevices,omitempty"`
+
+	// Hazelcast Kubernetes resource annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Hazelcast Kubernetes resource labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// ServiceAccountName is the name of the ServiceAccount to use to run Hazelcast cluster.
+	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// CPSubsystem is the configuration of the Hazelcast CP Subsystem.
+	// +optional
+	CPSubsystem *CPSubsystem `json:"cpSubsystem,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -185,6 +210,39 @@ const (
 	// LittleEndian uses the kittle-endian byte order.
 	LittleEndian ByteOrder = "LittleEndian"
 )
+
+// CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
+type CPSubsystem struct {
+	// GroupSize is the number of CP members to participate in each CP group.
+	// Allowed values are 3, 5, and 7.
+	// +optional
+	GroupSize *int32 `json:"groupSize,omitempty"`
+
+	// SessionTTLSeconds is the duration for a CP session to be kept alive after the last received heartbeat.
+	// Must be greater than or equal to SessionTTLSeconds.
+	// +optional
+	SessionTTLSeconds *int32 `json:"sessionTTLSeconds,omitempty"`
+
+	// SessionHeartbeatIntervalSeconds Interval in seconds for the periodically committed CP session heartbeats.
+	// Must be greater than or equal to SessionTTLSeconds.
+	// +optional
+	SessionHeartbeatIntervalSeconds *int32 `json:"sessionHeartbeatIntervalSeconds,omitempty"`
+
+	// MissingCpMemberAutoRemovalSeconds is the duration in seconds to wait before automatically removing a missing CP member from the CP Subsystem.
+	MissingCpMemberAutoRemovalSeconds *int32 `json:"missingCpMemberAutoRemovalSeconds,omitempty"`
+
+	// FailOnIndeterminateOperationState indicated whether CP Subsystem operations use at-least-once and at-most-once execution guarantees.
+	// +optional
+	FailOnIndeterminateOperationState *bool `json:"failOnIndeterminateOperationState,omitempty"`
+
+	// DataLoadTimeoutSeconds is the timeout duration in seconds for CP members to restore their persisted data from disk
+	// +optional
+	DataLoadTimeoutSeconds *int32 `json:"dataLoadTimeoutSeconds,omitempty"`
+
+	// PVC is the configuration of PersistenceVolumeClaim.
+	// +optional
+	PVC *PvcConfiguration `json:"pvc,omitempty"`
+}
 
 // SerializationConfig contains the configuration for the Hazelcast serialization.
 type SerializationConfig struct {
@@ -601,16 +659,20 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.20"
+	// +kubebuilder:default:="0.1.24"
 	// +optional
 	Version string `json:"version,omitempty"`
+
+	// Compute Resources required by the Agent container.
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // HazelcastPersistenceConfiguration contains the configuration for Hazelcast Persistence and K8s storage.
 type HazelcastPersistenceConfiguration struct {
-	// Persistence base directory.
-	// +required
-	BaseDir string `json:"baseDir"`
+	// BaseDir is deprecated. Use restore.localConfig to restore from a local backup.
+	// +optional
+	DeprecatedBaseDir string `json:"baseDir"`
 
 	// Configuration of the cluster recovery strategy.
 	// +kubebuilder:default:="FullRecoveryOnly"
@@ -627,14 +689,13 @@ type HazelcastPersistenceConfiguration struct {
 	DataRecoveryTimeout int32 `json:"dataRecoveryTimeout,omitempty"`
 
 	// Configuration of PersistenceVolumeClaim.
-	// +kubebuilder:default:={}
-	// +optional
-	Pvc PersistencePvcConfiguration `json:"pvc,omitempty"`
+	// +required
+	PVC *PvcConfiguration `json:"pvc,omitempty"`
 
 	// Restore configuration
 	// +kubebuilder:default:={}
 	// +optional
-	Restore RestoreConfiguration `json:"restore,omitempty"`
+	Restore *RestoreConfiguration `json:"restore,omitempty"`
 }
 
 // Returns true if ClusterDataRecoveryPolicy is not FullRecoveryOnly
@@ -642,19 +703,32 @@ func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 	return p.ClusterDataRecoveryPolicy != FullRecovery
 }
 
-// Returns true if Persistence configuration is specified.
+// IsEnabled Returns true if Persistence configuration is specified.
 func (p *HazelcastPersistenceConfiguration) IsEnabled() bool {
-	return p != nil && p.BaseDir != ""
+	return p != nil
+}
+
+func (p *CPSubsystem) IsEnabled() bool {
+	return p != nil
+}
+
+func (p *CPSubsystem) IsPVC() bool {
+	return p != nil && p.PVC != nil
 }
 
 // IsRestoreEnabled returns true if Restore configuration is specified
 func (p *HazelcastPersistenceConfiguration) IsRestoreEnabled() bool {
-	return p.IsEnabled() && !(p.Restore == (RestoreConfiguration{}))
+	return p.IsEnabled() && p.Restore != nil
 }
 
 // RestoreFromHotBackupResourceName returns true if Restore is done from a HotBackup resource
 func (p *HazelcastPersistenceConfiguration) RestoreFromHotBackupResourceName() bool {
 	return p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != ""
+}
+
+// RestoreFromLocalBackup returns true if Restore is done from local backup
+func (p *HazelcastPersistenceConfiguration) RestoreFromLocalBackup() bool {
+	return p.IsRestoreEnabled() && p.Restore.LocalConfiguration != nil
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
@@ -667,6 +741,42 @@ type RestoreConfiguration struct {
 	// Name of the HotBackup resource from which backup will be fetched.
 	// +optional
 	HotBackupResourceName string `json:"hotBackupResourceName,omitempty"`
+
+	// Configuration to restore from local backup
+	// +optional
+	LocalConfiguration *RestoreFromLocalConfiguration `json:"localConfig,omitempty"`
+}
+
+// PVCNamePrefix specifies the prefix of existing PVCs
+// +kubebuilder:validation:Enum=persistence;hot-restart-persistence
+type PVCNamePrefix string
+
+const (
+	// Persistence format is persistence.
+	Persistence PVCNamePrefix = "persistence"
+
+	// HotRestartPersistence format is hot-restart-persistence.
+	HotRestartPersistence PVCNamePrefix = "hot-restart-persistence"
+)
+
+type RestoreFromLocalConfiguration struct {
+	// PVC name prefix used in existing PVCs
+	// +optional
+	// +kubebuilder:default:="persistence"
+	PVCNamePrefix PVCNamePrefix `json:"pvcNamePrefix,omitempty"`
+
+	// Persistence base directory
+	// +optional
+	BaseDir string `json:"baseDir,omitempty"`
+
+	// Local backup base directory
+	// +optional
+	BackupDir string `json:"backupDir,omitempty"`
+
+	// Backup directory
+	// +optional
+	// +kubebuilder:validation:MinLength:=1
+	BackupFolder string `json:"backupFolder,omitempty"`
 }
 
 func (rc RestoreConfiguration) Hash() string {
@@ -674,23 +784,20 @@ func (rc RestoreConfiguration) Hash() string {
 	return strconv.Itoa(int(FNV32a(string(str))))
 }
 
-type PersistencePvcConfiguration struct {
+type PvcConfiguration struct {
 	// AccessModes contains the actual access modes of the volume backing the PVC has.
 	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
 	// +optional
 	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
 
 	// A description of the PVC request capacity.
+	// +kubebuilder:default:="8Gi"
 	// +optional
 	RequestStorage *resource.Quantity `json:"requestStorage,omitempty"`
 
 	// Name of StorageClass which this persistent volume belongs to.
 	// +optional
 	StorageClassName *string `json:"storageClassName,omitempty"`
-}
-
-func (pvc PersistencePvcConfiguration) IsEmpty() bool {
-	return pvc.AccessModes == nil && pvc.RequestStorage == nil && pvc.StorageClassName == nil
 }
 
 // DataRecoveryPolicyType represents the options for data recovery policy when the whole cluster restarts.
@@ -1005,7 +1112,11 @@ func (c *NativeMemoryConfiguration) IsEnabled() bool {
 
 type AdvancedNetwork struct {
 	// +optional
-	MemberServerSocketEndpointConfig MemberServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
+	MemberServerSocketEndpointConfig ServerSocketEndpointConfig `json:"memberServerSocketEndpointConfig,omitempty"`
+
+	// +optional
+	ClientServerSocketEndpointConfig ServerSocketEndpointConfig `json:"clientServerSocketEndpointConfig,omitempty"`
+
 	// +optional
 	WAN []WANConfig `json:"wan,omitempty"`
 }
@@ -1014,15 +1125,11 @@ type WANConfig struct {
 	Port        uint               `json:"port,omitempty"`
 	PortCount   uint               `json:"portCount,omitempty"`
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
-	Name        string             `json:"name,omitempty"`
+	// +kubebuilder:validation:MaxLength:=8
+	Name string `json:"name,omitempty"`
 }
 
-type MemberServerSocketEndpointConfig struct {
-	Interfaces []string `json:"interfaces,omitempty"`
-}
-
-type ClientServerSocketEndpointConfig struct {
-	Port       uint     `json:"port,omitempty"`
+type ServerSocketEndpointConfig struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 }
 
@@ -1054,8 +1161,67 @@ type TLS struct {
 	MutualAuthentication MutualAuthentication `json:"mutualAuthentication,omitempty"`
 }
 
+type SQL struct {
+	// StatementTimeout defines the timeout in milliseconds that is applied
+	// to queries without an explicit timeout.
+	// +kubebuilder:default:=0
+	// +optional
+	StatementTimeout int32 `json:"statementTimeout"`
+
+	// CatalogPersistenceEnabled sets whether SQL Catalog persistence is enabled for the node.
+	// With SQL Catalog persistence enabled you can restart the whole cluster without
+	// losing schema definition objects (such as MAPPINGs, TYPEs, VIEWs and DATA CONNECTIONs).
+	// The feature is implemented on top of the Hot Restart feature of Hazelcast
+	// which persists the data to disk. If enabled, you have to also configure
+	// Hot Restart. Feature is disabled by default.
+	// +kubebuilder:default:=false
+	// +optional
+	CatalogPersistenceEnabled bool `json:"catalogPersistenceEnabled"`
+}
+
+type LocalDeviceConfig struct {
+	// Name represents the name of the local device
+	// +required
+	Name string `json:"name"`
+
+	// BlockSize defines Device block/sector size in bytes.
+	// +kubebuilder:validation:Minimum=512
+	// +kubebuilder:default:=4096
+	// +optional
+	BlockSize *int32 `json:"blockSize,omitempty"`
+
+	// ReadIOThreadCount is Read IO thread count.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:default:=4
+	// +optional
+	ReadIOThreadCount *int32 `json:"readIOThreadCount,omitempty"`
+
+	// WriteIOThreadCount is Write IO thread count.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:default:=4
+	// +optional
+	WriteIOThreadCount *int32 `json:"writeIOThreadCount,omitempty"`
+
+	// Configuration of PersistenceVolumeClaim.
+	// +required
+	PVC *PvcConfiguration `json:"pvc,omitempty"`
+}
+
+// IsTieredStorageEnabled Returns true if LocalDevices configuration is specified.
+func (hs *HazelcastSpec) IsTieredStorageEnabled() bool {
+	return len(hs.LocalDevices) != 0
+}
+
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
+	// Number of Hazelcast members in the cluster.
+	// +optional
+	ClusterSize int32 `json:"clusterSize"`
+
+	// Selector is a label selector used by HorizontalPodAutoscaler to autoscale Hazelcast resource.
+	// +optional
+	Selector string `json:"selector"`
+
 	// Phase of the Hazelcast cluster
 	// +optional
 	Phase Phase `json:"phase,omitempty"`
@@ -1067,14 +1233,6 @@ type HazelcastStatus struct {
 	// Message about the Hazelcast cluster state
 	// +optional
 	Message string `json:"message,omitempty"`
-
-	// External addresses of the Hazelcast cluster members
-	// +optional
-	ExternalAddresses string `json:"externalAddresses,omitempty"`
-
-	// WAN addresses of the Hazelcast cluster members
-	// +optional
-	WanAddresses string `json:"wanAddresses,omitempty"`
 
 	// Status of Hazelcast members
 	// +optional
@@ -1185,10 +1343,9 @@ type HazelcastClusterStatus struct {
 
 // Hazelcast is the Schema for the hazelcasts API
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.clusterSize,statuspath=.status.clusterSize,selectorpath=.status.selector
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 // +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
-// +kubebuilder:printcolumn:name="External-Addresses",type="string",JSONPath=".status.externalAddresses",description="External addresses of the Hazelcast cluster"
-// +kubebuilder:printcolumn:name="WAN-Addresses",type="string",JSONPath=".status.wanAddresses",description="WAN addresses of the Hazelcast cluster"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Hazelcast Config"
 // +kubebuilder:resource:shortName=hz
 type Hazelcast struct {

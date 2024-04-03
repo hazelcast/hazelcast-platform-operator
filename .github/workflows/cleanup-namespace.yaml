@@ -29,7 +29,9 @@ on:
         required: false
         default: operator-test
     secrets:
-      GKE_SA_KEY:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
         required: true
 jobs:
   cleanup-namespaces:
@@ -45,16 +47,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v1.1.1"
+        uses: "google-github-actions/auth@v2.1.2"
         if: ${{ contains(inputs.cluster_type, 'gke') }}
         with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
+          credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Connect to the GKE cluster
-        uses: 'google-github-actions/get-gke-credentials@v1'
+        uses: 'google-github-actions/get-gke-credentials@v2'
         if: ${{ contains(inputs.cluster_type, 'gke') }}
         with:
           cluster_name: ${{ env.CLUSTER_NAME }}
@@ -62,7 +78,7 @@ jobs:
           location: ${{ env.GKE_ZONE }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         if: ${{ contains(inputs.cluster_type, 'eks') }}
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -75,10 +91,10 @@ jobs:
           aws eks update-kubeconfig --name "${{ env.CLUSTER_NAME }}"
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         if: ${{ contains(inputs.cluster_type, 'aks') }}
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Update kubeconfig
         if: ${{ contains(inputs.cluster_type, 'aks') }}

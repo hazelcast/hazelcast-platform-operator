@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -35,6 +36,11 @@ type MapSpec struct {
 	// +optional
 	Indexes []IndexConfig `json:"indexes,omitempty"`
 
+	// Attributes to be used with Predicates API.
+	// You can learn more at https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+	// +optional
+	Attributes []AttributeConfig `json:"attributes,omitempty"`
+
 	// When enabled, map data will be persisted.
 	// It cannot be updated after map config is created successfully.
 	// +kubebuilder:default:=false
@@ -61,6 +67,24 @@ type MapSpec struct {
 	// InMemoryFormat specifies near cache configuration for map
 	// +optional
 	NearCache *NearCache `json:"nearCache"`
+
+	// EventJournal specifies event journal configuration of the Map
+	// +optional
+	EventJournal *EventJournal `json:"eventJournal,omitempty"`
+
+	// TieredStore enables the Hazelcast's Tiered-Store feature for the Map
+	// +optional
+	TieredStore *TieredStore `json:"tieredStore,omitempty"`
+
+	// MerkleTree defines the configuration for the Merkle tree data structure.
+	// +optional
+	MerkleTree *MerkleTreeConfig `json:"merkleTree,omitempty"`
+}
+
+type MerkleTreeConfig struct {
+	// Depth of the merkle tree.
+	// +kubebuilder:default:=10
+	Depth int32 `json:"depth,omitempty"`
 }
 
 type NearCache struct {
@@ -90,8 +114,8 @@ type NearCache struct {
 	MaxIdleSeconds uint `json:"maxIdleSeconds,omitempty"`
 
 	// NearCacheEviction specifies the eviction behavior in Near Cache
-	// +optional
-	NearCacheEviction *NearCacheEviction `json:"eviction,omitempty"`
+	// +kubebuilder:default:={evictionPolicy: NONE, maxSizePolicy: ENTRY_COUNT}
+	NearCacheEviction NearCacheEviction `json:"eviction"`
 
 	// CacheLocalEntries specifies whether the local entries are cached
 	// +kubebuilder:default:=true
@@ -111,8 +135,9 @@ type NearCacheEviction struct {
 	MaxSizePolicy MaxSizePolicyType `json:"maxSizePolicy,omitempty"`
 
 	// Size is maximum size of the Near Cache used for max-size-policy
+	// +kubebuilder:default:=0
 	// +optional
-	Size uint32 `json:"size,omitempty"`
+	Size uint32 `json:"size"`
 }
 
 type EntryListenerConfiguration struct {
@@ -241,6 +266,16 @@ type IndexConfig struct {
 	BitmapIndexOptions *BitmapIndexOptionsConfig `json:"bitMapIndexOptions,omitempty"`
 }
 
+type AttributeConfig struct {
+	// Name of the attribute https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#creating-custom-query-attributes
+	// +required
+	Name string `json:"name"`
+
+	// Name of the extractor class https://docs.hazelcast.com/hazelcast/latest/query/predicate-overview#implementing-a-valueextractor
+	// +required
+	ExtractorClassName string `json:"extractorClassName"`
+}
+
 // +kubebuilder:validation:Enum=SORTED;HASH;BITMAP
 type IndexType string
 
@@ -315,7 +350,7 @@ type MapStoreConfig struct {
 	// reflected to MapStore.
 	// +kubebuilder:default:=true
 	// +optional
-	WriteCoealescing *bool `json:"writeCoealescing,omitempty"`
+	WriteCoealescing *bool `json:"writeCoalescing,omitempty"`
 
 	// Properties can be used for giving information to the MapStore implementation
 	// +optional
@@ -332,11 +367,46 @@ const (
 	InitialModeEager InitialModeType = "EAGER"
 )
 
+// InMemoryFormatType represents the format options for storing the data in the map/cache.
+// +kubebuilder:validation:Enum=BINARY;OBJECT;NATIVE
+type InMemoryFormatType string
+
+const (
+	// InMemoryFormatBinary Data will be stored in serialized binary format.
+	InMemoryFormatBinary InMemoryFormatType = "BINARY"
+
+	// InMemoryFormatObject Data will be stored in deserialized form.
+	InMemoryFormatObject InMemoryFormatType = "OBJECT"
+
+	// InMemoryFormatNative Data will be stored in the map that uses Hazelcast's High-Density Memory Store feature.
+	InMemoryFormatNative InMemoryFormatType = "NATIVE"
+)
+
+type EventJournal struct {
+	// Capacity sets the capacity of the ringbuffer underlying the event journal.
+	// +kubebuilder:default:=10000
+	Capacity int32 `json:"capacity,omitempty"`
+	// TimeToLiveSeconds indicates how long the items remain in the event journal before they are expired.
+	// +kubebuilder:default:=0
+	TimeToLiveSeconds int32 `json:"timeToLiveSeconds,omitempty"`
+}
+
+type TieredStore struct {
+	// MemoryCapacity sets Memory tier capacity, i.e., how much main memory should this tier consume at most.
+	// +kubebuilder:default:="256M"
+	// +optional
+	MemoryCapacity *resource.Quantity `json:"memoryCapacity,omitempty"`
+	// diskDeviceName defines the name of the device for a given disk tier.
+	// +required
+	DiskDeviceName string `json:"diskDeviceName,omitempty"`
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
 // Map is the Schema for the maps API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the Map Config"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Map Config"
 type Map struct {
 	metav1.TypeMeta `json:",inline"`

@@ -12,6 +12,7 @@ on:
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   REPORT_PAGE_URL: http://reportboard.s3-website-us-east-1.amazonaws.com
+  AWS_REGION: us-east-1
 
 jobs:
   report-creation:
@@ -25,17 +26,18 @@ jobs:
       url: ${{ env.REPORT_PAGE_URL }}/${{ inputs.WORKFLOW_ID }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Get Test Run History
         run: |
+          aws configure set default.s3.max_concurrent_requests 50
           aws s3 sync s3://reportboard/${{ inputs.WORKFLOW_ID }}/last-history test-report-history/${{ inputs.WORKFLOW_ID }}/last-history
           aws s3 cp s3://reportboard/styles.css test-report-history/styles.css
           aws s3 cp s3://reportboard/favicon.ico test-report-history/favicon.ico
@@ -73,7 +75,7 @@ jobs:
 
       - name: Create Custom Defects Classification
         run: |-
-          echo "[{\"name\":\"Backup Slow Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_backup_slow_test.*\"},{\"name\":\"Expose Externally Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_expose_externally_test.*\"},{\"name\":\"Map Custom Class Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_custom_class_test.*\"},{\"name\":\"Map Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_persistence_test.*\"},{\"name\":\"Map Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_map_test.*\"},{\"name\":\"Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_persistence_test.*\"},{\"name\":\"Hazelcast Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_test.*\"},{\"name\":\"Hazelcast Wan Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_wan_test.*\"},{\"name\":\"Management Center Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*management_center_test.*\"},{\"name\":\"Phone Home Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*phone_home_test.*\"}]" > allure-results/${{ inputs.WORKFLOW_ID }}/categories.json
+          echo "[{\"name\":\"Platform Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*platform_persistence_test.*\"},[{\"name\":\"Platform Persistence Resilience Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*platform_persistence_resilience_test.*\"},{\"name\":\"Expose Externally Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*expose_externally_test.*\"},{\"name\":\"Map Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*map_test.*\"},{\"name\":\"Platform Persistence Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*platfrom_persistence_test.*\"},{\"name\":\"Hazelcast Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*hazelcast_test.*\"},{\"name\":\"Wan Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*wan_test.*\"},{\"name\":\"Management Center Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*management_center_test.*\"},{\"name\":\"Phone Home Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*phone_home_test.*\"},{\"name\":\"Backup Restore Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*backup_restore_test.*\"},{\"name\":\"Cache Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*cache_test.*\"},{\"name\":\"Jet Job Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*jetjob_test.*\"},{\"name\":\"Jet Job Snapshot Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*jetjobsnapshot_test.*\"},{\"name\":\"Multi Namespace Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*multi_ns_test.*\"},{\"name\":\"Multimap Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*multimap_test.*\"},{\"name\":\"Options Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*options_test.*\"},{\"name\":\"Platform WAN Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*paltform_wan_test.*\"},{\"name\":\"Platform Rolling Upgrade Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*platform_rolling_upgrade_test.*\"},{\"name\":\"Platform Rollout Restart Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*platform_rollout_restart_test.*\"},{\"name\":\"Platform Soak Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*platform_soak_test.*\"},{\"name\":\"Platform Tiered Storage Resilience Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*platform_tiered_storage_resilience_test.*\"},{\"name\":\"Queue Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*queue_test.*\"},{\"name\":\"Replicated Map Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*replicatedmap_test.*\"},{\"name\":\"Resilience Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*resilience_test.*\"},{\"name\":\"Tiered Storage Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*tiered_storage_test.*\"},{\"name\":\"Topic Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*topic_test.*\"},{\"name\":\"User Code Tests\",\"matchedStatuses\":[\"broken\",\"failed\"],\"traceRegex\":\".*user_code_test.*\"}]" > allure-results/${{ inputs.WORKFLOW_ID }}/categories.json
 
       - name: Generate Test Report
         id: generate-report
@@ -118,8 +120,9 @@ jobs:
       - name: Upload Report to AWS S3
         if: steps.generate-report.outcome == 'success'
         run: |
-          aws s3 sync ./allure-history s3://reportboard
-          
+           aws configure set default.s3.max_concurrent_requests 50
+           aws s3 cp --recursive ./allure-history/ s3://reportboard
+
       - name: Add Test Report Summary To PR
         if: ${{ contains(inputs.WORKFLOW_ID, 'pr') }}
         run: |

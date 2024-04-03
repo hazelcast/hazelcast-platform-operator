@@ -8,6 +8,7 @@ env:
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
+  AWS_REGION: us-east-1
 
 jobs:
   prepare-env:
@@ -15,22 +16,59 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
+      NRG: ${{ steps.create-cluster.outputs.NRG }}
+      NSG: ${{ steps.create-cluster.outputs.NSG }}
     steps:
-      - name: Azure login
-        uses: azure/login@v1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Create AKS cluster
         id: create-cluster
-        uses: azure/CLI@v1
+        uses: azure/CLI@v2
         with:
           azcliversion: 2.31.0
           inlineScript: |
             CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
             echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
-            az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" \
-              --node-count 3 --generate-ssh-keys
+            NRG=$(az aks create \
+              --resource-group=${AZURE_RESOURCE_GROUP} \
+              --name="${CLUSTER_NAME}" \
+              --node-count=3 \
+              --node-vm-size Standard_D4_v2 \
+              --enable-node-public-ip \
+              --generate-ssh-keys | jq -r .nodeResourceGroup)
+            echo "NodeResourceGroup: ${NRG}"
+            echo "NRG=${NRG}" >> $GITHUB_OUTPUT
+
+            NSG=$(az network nsg list --resource-group=${NRG} --query='[0].name' --output=tsv)
+            echo "NetworkSecurityGroup: ${NSG}"
+            echo "NSG=${NSG}" >> $GITHUB_OUTPUT
+
+            az network nsg rule create \
+              --name=AllowExternalAccess \
+              --nsg-name=${NSG} \
+              --source-address-prefixes="192.0.2.0/24" \
+              --priority=100 \
+              --resource-group=${NRG} \
+              --access=Allow \
+              --destination-port-ranges=30000-32767 \
+              --direction=Inbound \
+              --protocol=Tcp
 
   grafana-setup:
     needs: [prepare-env]
@@ -50,20 +88,33 @@ jobs:
     outputs:
       IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2.4.1
+        uses: docker/setup-buildx-action@v3.2.0
         with:
           install: true
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Generate Image Name
         id: get-image-tag
@@ -71,7 +122,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v4.0.0
+        uses: docker/build-push-action@v5.3.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -101,33 +152,56 @@ jobs:
       RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: ">=1.19.0"
+          go-version: "1.21.0"
 
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
+            AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
 
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: Get GH Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Update Network Security Group
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 1
+          max_attempts: 3
+          retry_on: error
+          command: |
+            az network nsg rule update \
+              --name AllowExternalAccess \
+              --nsg-name ${{ needs.prepare-env.outputs.NSG }} \
+              --resource-group ${{ needs.prepare-env.outputs.NRG }} \
+              --add sourceAddressPrefixes ${{ steps.ip.outputs.ipv4 }}/32
 
       - name: Update kubeconfig
         run: |-
@@ -135,11 +209,11 @@ jobs:
           az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
 
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Deploy Operator to EKS
         run: |
@@ -155,7 +229,7 @@ jobs:
         if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key --namespace ${NAMESPACE} \
-            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+            --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
           kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
             --from-literal=region=us-east-1 \
@@ -164,11 +238,11 @@ jobs:
 
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
-            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
+            --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
 
       - name: Create secret for both OS and EE tests
         run: |
-          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
 
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
@@ -198,12 +272,26 @@ jobs:
     if: always() && github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            TEST_STATUSES_GIST_ID,CN/TEST_STATUSES_GIST_ID
+            GIST_CREATION_TOKEN,CN/GIST_CREATION_TOKEN
 
       - name: Update Status Badge
         run: |
           source .github/scripts/utils.sh
-          update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+          update_status_badges ${{ github.run_id }} ${{ env.TEST_STATUSES_GIST_ID }} ${{ env.GIST_CREATION_TOKEN }}
 
   report-generation:
     needs: ["prepare-env", "aks-e2e-tests"]
@@ -230,13 +318,26 @@ jobs:
     if: always()
     needs: ["prepare-env", "aks-e2e-tests", "cleanup-namespaces"]
     steps:
-      - name: Azure login
-        uses: azure/login@v1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Delete AKS cluster
-        uses: azure/CLI@v1
+        uses: azure/CLI@v2
         with:
           azcliversion: 2.31.0
           inlineScript: |
@@ -249,10 +350,23 @@ jobs:
     if: always() && ( needs.aks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
       - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
           channel: "#github-actions-log"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

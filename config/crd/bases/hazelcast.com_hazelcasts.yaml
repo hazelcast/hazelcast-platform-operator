@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: hazelcasts.hazelcast.com
 spec:
   group: hazelcast.com
@@ -25,14 +24,6 @@ spec:
     - description: Current numbers of ready Hazelcast members
       jsonPath: .status.hazelcastClusterStatus.readyMembers
       name: Members
-      type: string
-    - description: External addresses of the Hazelcast cluster
-      jsonPath: .status.externalAddresses
-      name: External-Addresses
-      type: string
-    - description: WAN addresses of the Hazelcast cluster
-      jsonPath: .status.wanAddresses
-      name: WAN-Addresses
       type: string
     - description: Message for the current Hazelcast Config
       jsonPath: .status.message
@@ -64,6 +55,13 @@ spec:
               advancedNetwork:
                 description: Hazelcast Advanced Network configuration
                 properties:
+                  clientServerSocketEndpointConfig:
+                    properties:
+                      interfaces:
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   memberServerSocketEndpointConfig:
                     properties:
                       interfaces:
@@ -75,6 +73,7 @@ spec:
                     items:
                       properties:
                         name:
+                          maxLength: 8
                           type: string
                         port:
                           type: integer
@@ -90,17 +89,71 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.20
+                  version: 0.1.24
                 description: B&R Agent configurations
                 properties:
                   repository:
                     default: docker.io/hazelcast/platform-operator-agent
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
+                  resources:
+                    description: Compute Resources required by the Agent container.
+                    properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. Requests cannot exceed
+                          Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
                   version:
-                    default: 0.1.20
+                    default: 0.1.24
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
+                type: object
+              annotations:
+                additionalProperties:
+                  type: string
+                description: Hazelcast Kubernetes resource annotations
                 type: object
               clusterName:
                 default: dev
@@ -112,6 +165,67 @@ spec:
                 format: int32
                 minimum: 0
                 type: integer
+              cpSubsystem:
+                description: CPSubsystem is the configuration of the Hazelcast CP
+                  Subsystem.
+                properties:
+                  dataLoadTimeoutSeconds:
+                    description: DataLoadTimeoutSeconds is the timeout duration in
+                      seconds for CP members to restore their persisted data from
+                      disk
+                    format: int32
+                    type: integer
+                  failOnIndeterminateOperationState:
+                    description: FailOnIndeterminateOperationState indicated whether
+                      CP Subsystem operations use at-least-once and at-most-once execution
+                      guarantees.
+                    type: boolean
+                  groupSize:
+                    description: GroupSize is the number of CP members to participate
+                      in each CP group. Allowed values are 3, 5, and 7.
+                    format: int32
+                    type: integer
+                  missingCpMemberAutoRemovalSeconds:
+                    description: MissingCpMemberAutoRemovalSeconds is the duration
+                      in seconds to wait before automatically removing a missing CP
+                      member from the CP Subsystem.
+                    format: int32
+                    type: integer
+                  pvc:
+                    description: PVC is the configuration of PersistenceVolumeClaim.
+                    properties:
+                      accessModes:
+                        description: 'AccessModes contains the actual access modes
+                          of the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
+                        items:
+                          type: string
+                        type: array
+                      requestStorage:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        default: 8Gi
+                        description: A description of the PVC request capacity.
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      storageClassName:
+                        description: Name of StorageClass which this persistent volume
+                          belongs to.
+                        type: string
+                    type: object
+                  sessionHeartbeatIntervalSeconds:
+                    description: SessionHeartbeatIntervalSeconds Interval in seconds
+                      for the periodically committed CP session heartbeats. Must be
+                      greater than or equal to SessionTTLSeconds.
+                    format: int32
+                    type: integer
+                  sessionTTLSeconds:
+                    description: SessionTTLSeconds is the duration for a CP session
+                      to be kept alive after the last received heartbeat. Must be
+                      greater than or equal to SessionTTLSeconds.
+                    format: int32
+                    type: integer
+                type: object
               customConfigCmName:
                 description: Name of the ConfigMap with the Hazelcast custom configuration.
                   This configuration from the ConfigMap might be overridden by the
@@ -366,6 +480,11 @@ spec:
                         type: string
                     type: object
                 type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: Hazelcast Kubernetes resource labels
+                type: object
               licenseKeySecret:
                 description: licenseKeySecret is a deprecated alias for licenseKeySecretName.
                 type: string
@@ -373,6 +492,57 @@ spec:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string
+              localDevices:
+                description: Hazelcast LocalDevice configuration
+                items:
+                  properties:
+                    blockSize:
+                      default: 4096
+                      description: BlockSize defines Device block/sector size in bytes.
+                      format: int32
+                      minimum: 512
+                      type: integer
+                    name:
+                      description: Name represents the name of the local device
+                      type: string
+                    pvc:
+                      description: Configuration of PersistenceVolumeClaim.
+                      properties:
+                        accessModes:
+                          description: 'AccessModes contains the actual access modes
+                            of the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
+                          items:
+                            type: string
+                          type: array
+                        requestStorage:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          default: 8Gi
+                          description: A description of the PVC request capacity.
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        storageClassName:
+                          description: Name of StorageClass which this persistent
+                            volume belongs to.
+                          type: string
+                      type: object
+                    readIOThreadCount:
+                      default: 4
+                      description: ReadIOThreadCount is Read IO thread count.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    writeIOThreadCount:
+                      default: 4
+                      description: WriteIOThreadCount is Write IO thread count.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                  required:
+                  - name
+                  type: object
+                type: array
               loggingLevel:
                 default: INFO
                 description: Logging level for Hazelcast members
@@ -447,7 +617,8 @@ spec:
                 description: Persistence configuration
                 properties:
                   baseDir:
-                    description: Persistence base directory.
+                    description: BaseDir is deprecated. Use restore.localConfig to
+                      restore from a local backup.
                     type: string
                   clusterDataRecoveryPolicy:
                     default: FullRecoveryOnly
@@ -476,6 +647,7 @@ spec:
                         anyOf:
                         - type: integer
                         - type: string
+                        default: 8Gi
                         description: A description of the PVC request capacity.
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
@@ -514,6 +686,27 @@ spec:
                         description: Name of the HotBackup resource from which backup
                           will be fetched.
                         type: string
+                      localConfig:
+                        description: Configuration to restore from local backup
+                        properties:
+                          backupDir:
+                            description: Local backup base directory
+                            type: string
+                          backupFolder:
+                            description: Backup directory
+                            minLength: 1
+                            type: string
+                          baseDir:
+                            description: Persistence base directory
+                            type: string
+                          pvcNamePrefix:
+                            default: persistence
+                            description: PVC name prefix used in existing PVCs
+                            enum:
+                            - persistence
+                            - hot-restart-persistence
+                            type: string
+                        type: object
                     type: object
                   startupAction:
                     description: StartupAction represents the action triggered when
@@ -522,8 +715,6 @@ spec:
                     - ForceStart
                     - PartialStart
                     type: string
-                required:
-                - baseDir
                 type: object
               properties:
                 additionalProperties:
@@ -537,6 +728,27 @@ spec:
               resources:
                 description: Compute Resources required by the Hazelcast container.
                 properties:
+                  claims:
+                    description: "Claims lists the names of resources, defined in
+                      spec.resourceClaims, that are used by this container. \n This
+                      is an alpha field and requires enabling the DynamicResourceAllocation
+                      feature gate. \n This field is immutable. It can only be set
+                      for containers."
+                    items:
+                      description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                      properties:
+                        name:
+                          description: Name must match the name of one entry in pod.spec.resourceClaims
+                            of the Pod where this field is used. It makes that resource
+                            available inside a container.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                   limits:
                     additionalProperties:
                       anyOf:
@@ -557,7 +769,8 @@ spec:
                     description: 'Requests describes the minimum amount of compute
                       resources required. If Requests is omitted for a container,
                       it defaults to Limits if that is explicitly specified, otherwise
-                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                      to an implementation-defined value. Requests cannot exceed Limits.
+                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
               scheduledExecutorServices:
@@ -1563,14 +1776,19 @@ spec:
                           type: object
                           x-kubernetes-map-type: atomic
                         matchLabelKeys:
-                          description: MatchLabelKeys is a set of pod label keys to
-                            select the pods over which spreading will be calculated.
+                          description: "MatchLabelKeys is a set of pod label keys
+                            to select the pods over which spreading will be calculated.
                             The keys are used to lookup values from the incoming pod
                             labels, those key-value labels are ANDed with labelSelector
                             to select the group of existing pods over which spreading
-                            will be calculated for the incoming pod. Keys that don't
-                            exist in the incoming pod labels will be ignored. A null
-                            or empty list means only match against labelSelector.
+                            will be calculated for the incoming pod. The same key
+                            is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                            MatchLabelKeys cannot be set when LabelSelector isn't
+                            set. Keys that don't exist in the incoming pod labels
+                            will be ignored. A null or empty list means only match
+                            against labelSelector. \n This is a beta field and requires
+                            the MatchLabelKeysInPodTopologySpread feature gate to
+                            be enabled (enabled by default)."
                           items:
                             type: string
                           type: array
@@ -1630,7 +1848,7 @@ spec:
                             - Ignore: nodeAffinity/nodeSelector are ignored. All nodes
                             are included in the calculations. \n If this value is
                             nil, the behavior is equivalent to the Honor policy. This
-                            is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         nodeTaintsPolicy:
@@ -1640,8 +1858,8 @@ spec:
                             tainted nodes for which the incoming pod has a toleration,
                             are included. - Ignore: node taints are ignored. All nodes
                             are included. \n If this value is nil, the behavior is
-                            equivalent to the Ignore policy. This is a alpha-level
-                            feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            equivalent to the Ignore policy. This is a beta-level
+                            feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         topologyKey:
@@ -1821,6 +2039,31 @@ spec:
                       type: object
                     type: array
                 type: object
+              serviceAccountName:
+                description: 'ServiceAccountName is the name of the ServiceAccount
+                  to use to run Hazelcast cluster. More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/'
+                type: string
+              sql:
+                description: Hazelcast SQL configuration
+                properties:
+                  catalogPersistenceEnabled:
+                    default: false
+                    description: CatalogPersistenceEnabled sets whether SQL Catalog
+                      persistence is enabled for the node. With SQL Catalog persistence
+                      enabled you can restart the whole cluster without losing schema
+                      definition objects (such as MAPPINGs, TYPEs, VIEWs and DATA
+                      CONNECTIONs). The feature is implemented on top of the Hot Restart
+                      feature of Hazelcast which persists the data to disk. If enabled,
+                      you have to also configure Hot Restart. Feature is disabled
+                      by default.
+                    type: boolean
+                  statementTimeout:
+                    default: 0
+                    description: StatementTimeout defines the timeout in milliseconds
+                      that is applied to queries without an explicit timeout.
+                    format: int32
+                    type: integer
+                type: object
               tls:
                 description: Hazelcast TLS configuration
                 properties:
@@ -1883,16 +2126,17 @@ spec:
                     type: string
                 type: object
               version:
-                default: 5.3.0-BETA-2
+                default: 5.4.0-SNAPSHOT
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
           status:
             description: HazelcastStatus defines the observed state of Hazelcast
             properties:
-              externalAddresses:
-                description: External addresses of the Hazelcast cluster members
-                type: string
+              clusterSize:
+                description: Number of Hazelcast members in the cluster.
+                format: int32
+                type: integer
               hazelcastClusterStatus:
                 description: Status of the Hazelcast cluster
                 properties:
@@ -1996,12 +2240,17 @@ spec:
                     - Succeeded
                     type: string
                 type: object
-              wanAddresses:
-                description: WAN addresses of the Hazelcast cluster members
+              selector:
+                description: Selector is a label selector used by HorizontalPodAutoscaler
+                  to autoscale Hazelcast resource.
                 type: string
             type: object
         type: object
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.selector
+        specReplicasPath: .spec.clusterSize
+        statusReplicasPath: .status.clusterSize
       status: {}

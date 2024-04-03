@@ -1,7 +1,9 @@
+
+<img src="https://hazelcast.com/files/brand-images/logo/hazelcast-logo.png">
+<br />
+
 # Hazelcast Platform Operator #
 [![GKE](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FdevOpsHelm%2Fe513bc27d500818292261e4235723e5b%2Fraw%2FGKE.json%3Fcachebust%3D1)](http://reportboard.s3-website-us-east-1.amazonaws.com/gke)&nbsp; [![EKS](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FdevOpsHelm%2Fe513bc27d500818292261e4235723e5b%2Fraw%2FEKS.json%3Fcachebust%3D1)](http://reportboard.s3-website-us-east-1.amazonaws.com/eks)&nbsp; [![AKS](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FdevOpsHelm%2Fe513bc27d500818292261e4235723e5b%2Fraw%2FAKS.json%3Fcachebust%3D1)](http://reportboard.s3-website-us-east-1.amazonaws.com/aks)&nbsp; [![OCP](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FdevOpsHelm%2Fe513bc27d500818292261e4235723e5b%2Fraw%2FOCP.json%3Fcachebust%3D1)](http://reportboard.s3-website-us-east-1.amazonaws.com/ocp)&nbsp; [![KinD](https://img.shields.io/github/actions/workflow/status/hazelcast/hazelcast-platform-operator/pull-request.yml?label=KinD&style=flat)](http://reportboard.s3-website-us-east-1.amazonaws.com/pr)
-
-<img align="right" src="https://hazelcast.com/brand-assets/files/hazelcast-stacked-flat-sm.png">
 
 Easily deploy Hazelcast clusters and Management Center into Kubernetes/OpenShift environments and manage their lifecycles.
 
@@ -34,18 +36,22 @@ Hazelcast Platform Operator supports the features below:
 * Observe status of Hazelcast clusters and Management Center instances
 * High Availability Mode configuration to create clusters that are resilient to node and zone failures
 * Support for TLS connections between members using self-signed certificates
+* Support LDAP Security Provider for Management Center CR
 * Scale up and down Hazelcast clusters
 * Expose Hazelcast cluster to external
   clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/latest/clients/java#java-client-operation-modes))
 * Backup Hazelcast persistence data to cloud storage with the possibility of scheduling it and restoring the data accordingly
 * WAN Replication feature when you need to synchronize multiple Hazelcast clusters, which are connected by WANs
-* User Code Deployment feature, which allows you to deploy custom and domain classes from cloud storages to Hazelcast members
+* User Code Deployment feature, which allows you to deploy custom and domain classes from cloud storages and URLs to Hazelcast members
 * Support the configuration of advanced networking options
 * Support Multi-namespace configuration
 * ExecutorService and EntryProcessor support
 * Support several data structures like Map, Topic, MultiMap, ReplicatedMap, Queue and Cache which can be created dynamically via specific Custom Resources
-* MapStore, Near Cache and Native Memory support for the Map CR
-* Native memory support for the Cache CR
+* MapStore, Near Cache and off-heap memory (HD memory and native memory) support for the Map CR
+* Native Memory support for the Cache CR
+* Support Jet configuration and Jet Job submission using the JetJob CR
+* Support for exporting the snapshots of JetJob CRs using JetJobSnapshot CR
+* Support for custom configurations using ConfigMap
 
 For Hazelcast Platform Enterprise, you can request a trial license key from [here](https://trialrequest.hazelcast.com).
 

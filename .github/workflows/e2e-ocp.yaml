@@ -8,9 +8,6 @@ on:
 env:
   AWS_REGION: us-east-1
   RESTART_OCP_NODE_TIMEOUT: 15
-  OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
-  OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
-  OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
   GRAFANA_NAMESPACE: grafana
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
@@ -24,19 +21,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            OCP_CLUSTER_URL,CN/OCP_CLUSTER_URL
+            OCP_USERNAME,CN/OCP_USERNAME
+            OCP_PASSWORD,CN/OCP_PASSWORD
+
       - name: Restart Non-Ready Instances
         run: |
           source .github/scripts/utils.sh
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc login ${{ env.OCP_CLUSTER_URL }} -u=${{ env.OCP_USERNAME }} -p=${{ env.OCP_PASSWORD }} --insecure-skip-tls-verify
           wait_for_instance_restarted $RESTART_OCP_NODE_TIMEOUT
 
   get-image:
@@ -45,20 +50,33 @@ jobs:
     outputs:
       IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2.4.1
+        uses: docker/setup-buildx-action@v3.2.0
         with:
           install: true
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Generate Image Name
         id: get-image-tag
@@ -66,7 +84,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v4.0.0
+        uses: docker/build-push-action@v5.3.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -88,22 +106,38 @@ jobs:
       GH_RUN_ID: ${{ github.run_id }}
       GH_RUN_NUMBER: ${{ github.run_number }}
       GH_SHA: ${{ github.sha }}
-      GRAFANA_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_REMOTE_WRITE_URL }}
-      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
-      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-      GRAFANA_PROM_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_PROM_REMOTE_WRITE_URL }}
-      GRAFANA_PROM_USERNAME: ${{ secrets.GRAFANA_PROM_USERNAME }}
-      GRAFANA_PROM_PASSWORD: ${{ secrets.GRAFANA_PROM_PASSWORD }}
       NAMESPACES: "oc-e2e-test-operator-os-${{ github.run_id }}, oc-e2e-test-operator-ee-${{ github.run_id }}"
     runs-on: ubuntu-latest
     needs: check-and-restart-nodes
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            OCP_CLUSTER_URL,CN/OCP_CLUSTER_URL
+            OCP_USERNAME,CN/OCP_USERNAME
+            OCP_PASSWORD,CN/OCP_PASSWORD
+            GRAFANA_REMOTE_WRITE_URL,CN/GRAFANA_REMOTE_WRITE_URL
+            GRAFANA_PROM_REMOTE_WRITE_URL,CN/GRAFANA_PROM_REMOTE_WRITE_URL
+            GRAFANA_PROM_USERNAME,CN/GRAFANA_PROM_USERNAME
+            GRAFANA_PROM_PASSWORD,CN/GRAFANA_PROM_PASSWORD
+            LOKI_USERNAME,CN/GRAFANA_LOKI_USERNAME
+            LOKI_PASSWORD,CN/GRAFANA_LOKI_PASSWORD
+
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Update kubeconfig
         run: |-
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc login ${{ env.OCP_CLUSTER_URL }} -u=${{ env.OCP_USERNAME }} -p=${{ env.OCP_PASSWORD }} --insecure-skip-tls-verify
 
       - name: Install Grafana Agent metrics
         env:
@@ -142,38 +176,45 @@ jobs:
       run:
         shell: bash
     env:
-      HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
       NAMESPACE: oc-e2e-test-operator-${{ matrix.edition }}-${{ github.run_id }}
       RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
+            AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            OCP_CLUSTER_URL,CN/OCP_CLUSTER_URL
+            OCP_USERNAME,CN/OCP_USERNAME
+            OCP_PASSWORD,CN/OCP_PASSWORD
+
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: ">=1.19.0"
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          go-version: "1.21.0"
 
       - name: Update kubeconfig
         run: |-
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc login ${{ env.OCP_CLUSTER_URL }} -u=${{ env.OCP_USERNAME }} -p=${{ env.OCP_PASSWORD }} --insecure-skip-tls-verify
 
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
@@ -188,7 +229,7 @@ jobs:
         run: |
           kubectl create secret generic hazelcast-license-key \
             --namespace ${{ env.NAMESPACE }} \
-            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+            --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
           kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
             --from-literal=region=us-east-1 \
@@ -197,11 +238,11 @@ jobs:
 
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
-            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
+            --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
 
       - name: Create secret for both OS and EE tests
         run: |
-          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
 
       - name: Run Hazelcast E2E tests at OCP
         id: e2e-test
@@ -211,7 +252,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}_01 WORKFLOW_ID=ocp
+          make test-e2e GO_TEST_FLAGS="${GO_TEST_FLAGS}" NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}_01 WORKFLOW_ID=ocp
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
@@ -236,11 +277,25 @@ jobs:
       GRAFANA_NS: "grafana-${{ github.run_id }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            OCP_CLUSTER_URL,CN/OCP_CLUSTER_URL
+            OCP_USERNAME,CN/OCP_USERNAME
+            OCP_PASSWORD,CN/OCP_PASSWORD
       - name: Image Prune And 'ksm-kube-state-metrics' Cleanup
         run: |
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc login ${{ env.OCP_CLUSTER_URL }} -u=${{ env.OCP_USERNAME }} -p=${{ env.OCP_PASSWORD }} --insecure-skip-tls-verify
           helm uninstall ksm --namespace ${GRAFANA_NS}
           kubectl delete namespace ${GRAFANA_NS} --grace-period=0 --force
           for NODE in $(oc get nodes --no-headers -o name); do
@@ -253,12 +308,26 @@ jobs:
     if: always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            TEST_STATUSES_GIST_ID,CN/TEST_STATUSES_GIST_ID
+            GIST_CREATION_TOKEN,CN/GIST_CREATION_TOKEN
 
       - name: Update Status Badge
         run: |
           source .github/scripts/utils.sh
-          update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+          update_status_badges ${{ github.run_id }} ${{ env.TEST_STATUSES_GIST_ID }} ${{ env.GIST_CREATION_TOKEN }}
 
   report-generation:
     needs: ocp-e2e-tests
@@ -275,10 +344,23 @@ jobs:
     if: always() &&  needs.ocp-e2e-tests.result != 'success'
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
       - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
           channel: "#github-actions-log"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

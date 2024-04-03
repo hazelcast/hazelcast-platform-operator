@@ -18,7 +18,7 @@ jobs:
       CLUSTER_NAME: ${{ steps.create-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -35,8 +35,10 @@ jobs:
         id: create-cluster
         run: |-
           CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
-          eksctl create cluster --name "${CLUSTER_NAME}" \
+          eksctl create cluster \
+            --name "${CLUSTER_NAME}" \
             --region=${AWS_REGION} \
             --zones ${AWS_REGION}a \
             --zones ${AWS_REGION}c \
@@ -44,16 +46,21 @@ jobs:
             --with-oidc \
             --without-nodegroup
 
-          eksctl create nodegroup --cluster "${CLUSTER_NAME}" \
+          eksctl create nodegroup \
+            --cluster "${CLUSTER_NAME}" \
+            --region=${AWS_REGION} \
             --name node-group-1 \
-            --node-type t3.medium \
+            --node-type t3a.2xlarge \
             --nodes 3 \
             --managed
 
-          eksctl create addon --name aws-ebs-csi-driver --cluster "${CLUSTER_NAME}"
+          eksctl create addon \
+            --name aws-ebs-csi-driver \
+            --cluster "${CLUSTER_NAME}" \
+            --region=${AWS_REGION}
 
   grafana-setup:
-    needs: [ prepare-env ]
+    needs: [prepare-env]
     uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
@@ -70,20 +77,33 @@ jobs:
     outputs:
       IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2.4.1
+        uses: docker/setup-buildx-action@v3.2.0
         with:
           install: true
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Generate Image Name
         id: get-image-tag
@@ -91,7 +111,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v4.0.0
+        uses: docker/build-push-action@v5.3.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -121,35 +141,49 @@ jobs:
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: ">=1.19.0"
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          go-version: "1.21.0"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get GH Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Configure SecurityGroup of Nodes
+        run: |-
+          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=${{ env.AWS_REGION }} --name=${{ needs.prepare-env.outputs.CLUSTER_NAME }} --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
+          echo "SecurityGroupID: $SECURITY_GROUP_ID"
+
+          aws ec2 authorize-security-group-ingress \
+            --region=${AWS_REGION} \
+            --group-id=${SECURITY_GROUP_ID} \
+            --cidr=${{ steps.ip.outputs.ipv4 }}/32 \
+            --protocol=tcp \
+            --port=30000-32767
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
+            AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
+
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Update kubeconfig
         run: |-
@@ -157,11 +191,11 @@ jobs:
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Deploy Operator to EKS
         run: |
@@ -177,7 +211,7 @@ jobs:
         if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
-            --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+            --namespace ${NAMESPACE} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
 
           kubectl create secret generic br-secret-s3 --namespace ${NAMESPACE} \
             --from-literal=region=us-east-1 \
@@ -186,11 +220,11 @@ jobs:
 
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
-            --from-literal=storage-key=${{ secrets.AZURE_STORAGE_KEY }}
+            --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
 
       - name: Create secret for both OS and EE tests
         run: |
-          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ secrets.GKE_SA_KEY }}'
+          kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
 
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
@@ -222,12 +256,26 @@ jobs:
     if: always() && github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GIST_CREATION_TOKEN,CN/GIST_CREATION_TOKEN
+            TEST_STATUSES_GIST_ID,CN/TEST_STATUSES_GIST_ID
 
       - name: Update Status Badge
         run: |
           source .github/scripts/utils.sh
-          update_status_badges ${{ github.run_id }} ${{ secrets.TEST_STATUSES_GIST_ID }} ${{ secrets.GIST_CREATION_TOKEN }}
+          update_status_badges ${{ github.run_id }} ${{ env.TEST_STATUSES_GIST_ID }} ${{ env.GIST_CREATION_TOKEN }}
 
   report-generation:
     needs: ["prepare-env", "eks-e2e-tests"]
@@ -255,10 +303,10 @@ jobs:
     needs: ["prepare-env", "eks-e2e-tests", "cleanup-namespaces"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -284,10 +332,23 @@ jobs:
     if: always() && ( needs.eks-e2e-tests.result != 'success' || needs.delete-cluster.result != 'success')
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
       - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
           channel: "#github-actions-log"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

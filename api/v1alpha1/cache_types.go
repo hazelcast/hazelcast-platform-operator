@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,6 +30,10 @@ type CacheSpec struct {
 	// +kubebuilder:default:=BINARY
 	// +optional
 	InMemoryFormat InMemoryFormatType `json:"inMemoryFormat,omitempty"`
+
+	// EventJournal specifies event journal configuration of the Cache
+	// +optional
+	EventJournal *EventJournal `json:"eventJournal,omitempty"`
 }
 
 // CacheStatus defines the observed state of Cache
@@ -42,6 +44,7 @@ type CacheStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the Cache Config"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Cache Config"
 // +kubebuilder:resource:shortName=ch
 
@@ -96,17 +99,11 @@ func (c *Cache) ValidateSpecCurrent(h *Hazelcast) error {
 }
 
 func (c *Cache) ValidateSpecCreate() error {
-	errors := validateDataStructureSpec(&c.Spec.DataStructureSpec)
-	if len(errors) == 0 {
-		return nil
-	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Queue"}, c.Name, errors)
+	return validateCacheSpecCreate(c)
 }
 
 func (c *Cache) ValidateSpecUpdate() error {
-	return validateDSSpecUnchanged(c,
-		validateDataStructureSpec(&c.Spec.DataStructureSpec),
-	)
+	return validateCacheSpecUpdate(c)
 }
 
 //+kubebuilder:object:root=true

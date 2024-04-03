@@ -57,6 +57,11 @@ type JetJobSpec struct {
 	// +optional
 	MainClass string `json:"mainClass,omitempty"`
 
+	// InitialSnapshotResourceName specify the name of the JetJobSnapshot object from which
+	// the JetJob is initialized.
+	// +optional
+	InitialSnapshotResourceName string `json:"initialSnapshotResourceName,omitempty"`
+
 	// Configuration for downloading the file from remote.
 	// +optional
 	JetRemoteFileConfiguration `json:",inline"`
@@ -115,6 +120,7 @@ func (jjs JetJobStatusPhase) IsSuspended() bool {
 //+kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the JetJob"
 // +kubebuilder:printcolumn:name="Id",type="string",JSONPath=".status.id",description="ID of the JetJob"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="SubmissionTime",type="string",JSONPath=".status.submissionTime",description="Time when the JetJob was submitted"
 // +kubebuilder:printcolumn:name="CompletionTime",type="string",JSONPath=".status.completionTime",description="Time when the JetJob was completed"
 // +kubebuilder:resource:shortName=jj

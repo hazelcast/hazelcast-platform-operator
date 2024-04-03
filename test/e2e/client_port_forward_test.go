@@ -102,6 +102,47 @@ func mapConfigPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcas
 	return cfg
 }
 
+func fillCachePortForward(h *hazelcastcomv1alpha1.Hazelcast, cacheName, localPort string, entryCount int) {
+	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
+	defer closeChannel(stopChan)
+	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
+	cli := hzClient.NewClientInternal(cl)
+
+	for _, mi := range cli.OrderedMembers() {
+		configRequest := codec.EncodeCacheGetConfigRequest("/hz/"+cacheName, cacheName)
+		_, _ = cli.InvokeOnMember(context.Background(), configRequest, mi.UUID, nil)
+	}
+
+	for i := 0; i < entryCount; i++ {
+		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
+		Expect(err).To(BeNil())
+		value, err := cli.EncodeData(fmt.Sprintf("myvalue%d", i))
+		Expect(err).To(BeNil())
+		cpr := codec.EncodeCachePutRequest("/hz/"+cacheName, key, value, nil, false, 0)
+		_, err = cli.InvokeOnKey(context.Background(), cpr, key, nil)
+		Expect(err).To(BeNil())
+	}
+}
+
+func validateCacheEntriesPortForward(h *hazelcastcomv1alpha1.Hazelcast, localPort, cacheName string, entryCount int) {
+	stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
+	defer closeChannel(stopChan)
+	cl := newHazelcastClientPortForward(context.Background(), h, localPort)
+	cli := hzClient.NewClientInternal(cl)
+	for i := 0; i < entryCount; i++ {
+		key, err := cli.EncodeData(fmt.Sprintf("mykey%d", i))
+		Expect(err).To(BeNil())
+		value := fmt.Sprintf("myvalue%d", i)
+		getRequest := codec.EncodeCacheGetRequest("/hz/"+cacheName, key, nil)
+		resp, err := cli.InvokeOnKey(context.Background(), getRequest, key, nil)
+		pairs := codec.DecodeCacheGetResponse(resp)
+		Expect(err).To(BeNil())
+		data, err := cli.DecodeData(pairs)
+		Expect(err).To(BeNil())
+		Expect(fmt.Sprintf("%v", data)).Should(Equal(value))
+	}
+}
+
 func assertClusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort string, state codecTypes.ClusterState) {
 	By("waiting for Cluster state", func() {
 		Eventually(func() codecTypes.ClusterState {
@@ -130,4 +171,81 @@ func clusterStatePortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazel
 		state = metadata.CurrentState
 	})
 	return state
+}
+
+func createSQLMappingPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mappingName string) {
+	By(fmt.Sprintf("creating the '%s' sqk mapping using '%s' lookup name and '%s' namespace", mappingName, hz.Name, hz.Namespace), func() {
+		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+
+		client := newHazelcastClientPortForward(ctx, hz, localPort)
+		defer func() {
+			err := client.Shutdown(ctx)
+			Expect(err).To(BeNil())
+		}()
+
+		sql := client.SQL()
+
+		r, err := sql.Execute(ctx, fmt.Sprintf(createMapping, mappingName))
+		Expect(err).ToNot(HaveOccurred())
+		r.Close()
+	})
+}
+
+const createMapping = `CREATE MAPPING IF NOT EXISTS "%s" (
+	__key BIGINT,
+	name VARCHAR
+)
+TYPE IMAP
+OPTIONS (
+	'keyFormat' = 'bigint',
+	'valueFormat' = 'json-flat'
+)`
+
+func waitForSQLMappingsPortForward(ctx context.Context, hz *hazelcastcomv1alpha1.Hazelcast, localPort, mappingName string, timeout Duration) {
+	By(fmt.Sprintf("waiting for the '%s' sql mapping using lookup name '%s'", mappingName, hz.Name), func() {
+		stopChan := portForwardPod(hz.Name+"-0", hz.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+
+		client := newHazelcastClientPortForward(ctx, hz, localPort)
+		defer func() {
+			err := client.Shutdown(ctx)
+			Expect(err).To(BeNil())
+		}()
+
+		if timeout == 0 {
+			timeout = 10 * Minute
+		}
+
+		sql := client.SQL()
+
+		Eventually(func() (string, error) {
+			r, err := sql.Execute(ctx, `SHOW MAPPINGS`)
+			if err != nil {
+				return "", err
+			}
+			defer r.Close()
+
+			iter, err := r.Iterator()
+			if err != nil {
+				return "", err
+			}
+
+			//nolint:staticcheck
+			for iter.HasNext() {
+				row, err := iter.Next()
+				if err != nil {
+					return "", err
+				}
+				name, err := row.Get(0)
+				if err != nil {
+					return "", err
+				}
+
+				return name.(string), nil
+			}
+
+			return "", nil
+		}, timeout, 10*Second).Should(Equal(mappingName))
+	})
 }

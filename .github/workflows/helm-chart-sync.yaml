@@ -4,22 +4,38 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'helm-charts/**'
+      - "helm-charts/**"
     branches:
       - main
+
+env:
+  AWS_REGION: us-east-1
 
 jobs:
   push-new-chart-version:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Commit And Push Changes To 'Hazelcast Charts' Repository
         run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
           git subtree add --prefix=charts https://github.com/hazelcast/charts.git master --squash

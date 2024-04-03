@@ -1,15 +1,16 @@
 package ph
 
 import (
-	"cloud.google.com/go/bigquery"
 	"context"
 	"fmt"
+	"time"
+
+	"cloud.google.com/go/bigquery"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -18,16 +19,6 @@ import (
 )
 
 var _ = Describe("Hazelcast", func() {
-
-	BeforeEach(func() {
-		if !useExistingCluster() {
-			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
-		}
-		if runningLocally() {
-			return
-		}
-	})
-
 	assertAnnotationExists := func(obj client.Object) {
 		cpy, ok := obj.DeepCopyObject().(client.Object)
 		if !ok {
@@ -45,11 +36,11 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Phone Home Table with installed Hazelcast", func() {
 		AfterEach(func() {
-			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, &hazelcastcomv1alpha1.HazelcastList{}, hzNamespace, labels)
+			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
 			assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 		})
 
-		DescribeTable("should have correct metrics",
+		DescribeTable("should have correct metrics", Serial,
 			func(config string, createdEnterpriseClusterCount int, unisocket int, smart int, discoveryLoadBalancer int, discoveryNodePort int, memberNodePortExternalIP int, memberNodePortNodeName int, memberLoadBalancer int) {
 				var cfg *hazelcastcomv1alpha1.Hazelcast
 				switch config {
@@ -72,7 +63,7 @@ var _ = Describe("Hazelcast", func() {
 				hzCreationTime := time.Now().UTC().Truncate(time.Hour)
 				evaluateReadyMembers(hzLookupKey)
 				assertAnnotationExists(cfg)
-				time.Sleep(35 * time.Second)
+				time.Sleep(40 * time.Second)
 
 				bigQueryTable := getBigQueryTable()
 				Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")
@@ -97,13 +88,17 @@ var _ = Describe("Hazelcast", func() {
 				Expect(bigQueryTable.ExposeExternally.MemberNodePortNodeName).Should(Equal(memberNodePortNodeName), "MemberNodePortNodeName metric")
 				Expect(bigQueryTable.ExposeExternally.MemberLoadBalancer).Should(Equal(memberLoadBalancer), "MemberLoadBalancer metric")
 			},
-			Entry("with ExposeExternallyUnisocket configuration", Label("slow"), "unisocket", 1, 1, 0, 1, 0, 0, 0, 0),
-			Entry("with ExposeExternallySmartNodePort configuration", Label("slow"), "smartNodePort", 1, 0, 1, 1, 0, 1, 0, 0),
-			Entry("with ExposeExternallySmartLoadBalancer configuration", Label("slow"), "smartLoadBalancer", 1, 0, 1, 1, 0, 0, 0, 1),
-			Entry("with ExposeExternallySmartNodePortNodeName configuration", Label("fast"), "smartNodePortNodeName", 1, 0, 1, 0, 1, 0, 1, 0),
+			Entry("with ExposeExternallyUnisocket configuration", "unisocket", 1, 1, 0, 1, 0, 0, 0, 0),
+			Entry("with ExposeExternallySmartNodePort configuration", "smartNodePort", 1, 0, 1, 1, 0, 1, 0, 0),
+			Entry("with ExposeExternallySmartLoadBalancer configuration", "smartLoadBalancer", 1, 0, 1, 1, 0, 0, 0, 1),
+			Entry("with ExposeExternallySmartNodePortNodeName configuration", "smartNodePortNodeName", 1, 0, 1, 0, 1, 0, 1, 0),
 		)
 	})
-	Describe("Phone Home table with installed Management Center", func() {
+	Describe("Phone Home table with installed Management Center", Serial, func() {
+		BeforeEach(func() {
+			DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, nil, hzNamespace, labels)
+			assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		})
 		AfterEach(func() {
 			DeleteAllOf(&hazelcastcomv1alpha1.ManagementCenter{}, &hazelcastcomv1alpha1.ManagementCenterList{}, hzNamespace, labels)
 			assertDoesNotExist(mcLookupKey, &hazelcastcomv1alpha1.ManagementCenter{})
@@ -113,13 +108,13 @@ var _ = Describe("Hazelcast", func() {
 			}
 			deleteIfExists(pvcLookupKey, &corev1.PersistentVolumeClaim{})
 		})
-		It("should have correct metrics", Label("fast"), func() {
+		It("should have correct metrics", func() {
 			setLabelAndCRName("phmc")
 			mc := mcconfig.Default(mcLookupKey, ee, labels)
 			CreateMC(mc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
 			assertAnnotationExists(mc)
-			time.Sleep(35 * time.Second)
+			time.Sleep(40 * time.Second)
 
 			bigQueryTable := getBigQueryTable()
 			Expect(bigQueryTable.IP).Should(MatchRegexp("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"), "IP address should be present and match regexp")

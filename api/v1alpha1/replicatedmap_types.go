@@ -52,6 +52,7 @@ const (
 
 // ReplicatedMap is the Schema for the replicatedmaps API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current state of the ReplicatedMap Config"
+// +kubebuilder:printcolumn:name="Hazelcast-Resource",type="string",priority=1,JSONPath=".spec.hazelcastResourceName",description="Name of the Hazelcast resource that this resource is created for"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current ReplicatedMap Config"
 // +kubebuilder:resource:shortName=rmap
 type ReplicatedMap struct {
@@ -104,7 +105,7 @@ func (rm *ReplicatedMap) ValidateSpecCurrent(_ *Hazelcast) error {
 }
 
 func (rm *ReplicatedMap) ValidateSpecUpdate() error {
-	return validateDSSpecUnchanged(rm)
+	return validateReplicatedMapSpecUpdate(rm)
 }
 
 //+kubebuilder:object:root=true

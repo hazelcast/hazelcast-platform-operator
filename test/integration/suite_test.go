@@ -19,16 +19,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/managementcenter"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/platform"
-
-	. "github.com/hazelcast/hazelcast-platform-operator/test"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -45,7 +44,6 @@ var (
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-	SpecLabelsChecker()
 	RunSpecs(t, "Controller Suite")
 }
 
@@ -83,10 +81,14 @@ var _ = BeforeSuite(func() {
 
 	webhookInstallOptions := testEnv.WebhookInstallOptions
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:  scheme.Scheme,
-		Host:    webhookInstallOptions.LocalServingHost,
-		Port:    webhookInstallOptions.LocalServingPort,
-		CertDir: webhookInstallOptions.LocalServingCertDir,
+		Scheme: scheme.Scheme,
+		WebhookServer: webhook.NewServer(
+			webhook.Options{
+				Host:    webhookInstallOptions.LocalServingHost,
+				Port:    webhookInstallOptions.LocalServingPort,
+				CertDir: webhookInstallOptions.LocalServingCertDir,
+			},
+		),
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -122,7 +124,6 @@ var _ = BeforeSuite(func() {
 	err = hazelcast.NewMapReconciler(
 		k8sManager.GetClient(),
 		controllerLogger.WithName("Map"),
-		k8sManager.GetScheme(),
 		nil,
 		cs,
 	).SetupWithManager(k8sManager)
@@ -180,6 +181,12 @@ var _ = BeforeSuite(func() {
 	err = (&hazelcastcomv1alpha1.ManagementCenter{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 	err = (&hazelcastcomv1alpha1.JetJob{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.JetJobSnapshot{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.HazelcastEndpoint{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+	err = (&hazelcastcomv1alpha1.WanSync{}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook

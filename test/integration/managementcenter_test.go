@@ -3,16 +3,19 @@ package integration
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -39,12 +42,12 @@ var _ = Describe("ManagementCenter CR", func() {
 		return fetchedCR
 	}
 
-	EnsureStatus := func(mc *hazelcastv1alpha1.ManagementCenter) *hazelcastv1alpha1.ManagementCenter {
+	EnsureStatusIsPending := func(mc *hazelcastv1alpha1.ManagementCenter) *hazelcastv1alpha1.ManagementCenter {
 		By("ensuring that the status is correct")
-		Eventually(func() hazelcastv1alpha1.Phase {
+		Eventually(func() hazelcastv1alpha1.MCPhase {
 			mc = Fetch(mc)
 			return mc.Status.Phase
-		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
+		}, timeout, interval).Should(Equal(hazelcastv1alpha1.McPending))
 		return mc
 	}
 
@@ -71,23 +74,23 @@ var _ = Describe("ManagementCenter CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create CR with default values when empty specs are applied", Label("fast"), func() {
+		It("should create CR with default values when empty specs are applied", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 			}
 			Create(mc)
-			fetchedCR := EnsureStatus(mc)
+			fetchedCR := EnsureStatusIsPending(mc)
 			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), false)
 		})
 
-		It("Should handle CR and sub resources correctly", Label("fast"), func() {
+		It("Should handle CR and sub resources correctly", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 			}
 
 			Create(mc)
-			fetchedCR := EnsureStatus(mc)
+			fetchedCR := EnsureStatusIsPending(mc)
 			test.CheckManagementCenterCR(fetchedCR, defaultMcSpecValues(), ee)
 
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(BeNil())
@@ -135,7 +138,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should create CR with default values", Label("fast"), func() {
+			It("should create CR with default values", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
@@ -158,36 +161,36 @@ var _ = Describe("ManagementCenter CR", func() {
 	})
 
 	Context("with ExternalConnectivity configuration", func() {
-		It("should create and update service correctly", Label("fast"), func() {
+		It("should create and update service correctly", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 			}
 
 			Create(mc)
-			fetchedMc := EnsureStatus(mc)
+			fetchedMc := EnsureStatusIsPending(mc)
 			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
 			EnsureServiceType(mc, corev1.ServiceTypeLoadBalancer)
 
 			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeNodePort
 			Update(fetchedMc)
-			fetchedMc = EnsureStatus(mc)
+			fetchedMc = EnsureStatusIsPending(mc)
 			EnsureServiceType(mc, corev1.ServiceTypeNodePort)
 
 			fetchedMc.Spec.ExternalConnectivity.Type = hazelcastv1alpha1.ExternalConnectivityTypeClusterIP
 			Update(fetchedMc)
-			EnsureStatus(mc)
+			EnsureStatusIsPending(mc)
 			EnsureServiceType(mc, corev1.ServiceTypeClusterIP)
 		})
 
-		It("should handle Ingress correctly", Label("fast"), func() {
+		It("should handle Ingress correctly", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
 			}
 
 			Create(mc)
-			fetchedMc := EnsureStatus(mc)
+			fetchedMc := EnsureStatusIsPending(mc)
 			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
 
 			ing := &networkingv1.Ingress{}
@@ -210,8 +213,11 @@ var _ = Describe("ManagementCenter CR", func() {
 			}
 
 			Update(fetchedMc)
-			fetchedMc = EnsureStatus(mc)
-			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(externalConnectivityIngress))
+			fetchedMc = EnsureStatusIsPending(mc)
+
+			expectedExternalConnectivityIngress := externalConnectivityIngress.DeepCopy()
+			expectedExternalConnectivityIngress.Path = "/"
+			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(expectedExternalConnectivityIngress))
 			assertExists(lookupKey(mc), ing)
 			Expect(*ing.Spec.IngressClassName).Should(Equal(externalConnectivityIngress.IngressClassName))
 			Expect(ing.Annotations).Should(Equal(externalConnectivityIngress.Annotations))
@@ -226,10 +232,11 @@ var _ = Describe("ManagementCenter CR", func() {
 				IngressClassName: "traefik",
 				Annotations:      map[string]string{"app": "hazelcast-mc", "management-center": "ingress"},
 				Hostname:         "mc.app",
+				Path:             "/mc",
 			}
 			fetchedMc.Spec.ExternalConnectivity.Ingress = updatedExternalConnectivityIngress
 			Update(fetchedMc)
-			fetchedMc = EnsureStatus(mc)
+			fetchedMc = EnsureStatusIsPending(mc)
 			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(Equal(updatedExternalConnectivityIngress))
 			assertExistsAndBeAsExpected(lookupKey(mc), ing, func(ing *networkingv1.Ingress) bool {
 				return *ing.Spec.IngressClassName == updatedExternalConnectivityIngress.IngressClassName
@@ -237,19 +244,94 @@ var _ = Describe("ManagementCenter CR", func() {
 			Expect(ing.Annotations).Should(Equal(updatedExternalConnectivityIngress.Annotations))
 			Expect(ing.Spec.Rules).Should(HaveLen(1))
 			Expect(ing.Spec.Rules[0].Host).Should(Equal(updatedExternalConnectivityIngress.Hostname))
+			Expect(ing.Spec.Rules[0].HTTP.Paths).Should(HaveLen(1))
+			Expect(ing.Spec.Rules[0].HTTP.Paths[0].Path).Should(Equal(updatedExternalConnectivityIngress.Path))
+			Expect(*ing.Spec.Rules[0].HTTP.Paths[0].PathType).Should(Equal(networkingv1.PathTypePrefix))
 			Expect(ing.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedMc.Spec.ExternalConnectivity.Ingress = nil
 			Update(fetchedMc)
 			Expect(fetchedMc.Spec.ExternalConnectivity.Ingress).Should(BeNil())
-			EnsureStatus(mc)
+			EnsureStatusIsPending(mc)
 			assertDoesNotExist(lookupKey(mc), ing)
+		})
+
+		It("should configure contextPath in MC pod when custom path is set in Ingress", func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+			}
+
+			mc.Spec.ExternalConnectivity = &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Ingress: &hazelcastv1alpha1.ExternalConnectivityIngress{
+					IngressClassName: "nginx",
+					Annotations:      map[string]string{"app": "hazelcast-mc"},
+					Hostname:         "mancenter",
+					Path:             "/mc",
+				},
+			}
+
+			Create(mc)
+			fetchedMc := EnsureStatusIsPending(mc)
+			test.CheckManagementCenterCR(fetchedMc, defaultMcSpecValues(), ee)
+
+			By("checking contextPath configuration")
+			fetchedSts := &appsv1.StatefulSet{}
+			assertExists(lookupKey(mc), fetchedSts)
+			Expect(fetchedSts.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Env).Should(ContainElements(
+				And(
+					HaveField("Name", "JAVA_OPTS"),
+					HaveField("Value", ContainSubstring("-Dhazelcast.mc.contextPath=/mc")),
+				),
+			))
+
+			By("checking liveness probe path")
+			Expect(fetchedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/mc/health"))
+
+			By("updating ingress path")
+			fetchedMc = Fetch(mc)
+			fetchedMc.Spec.ExternalConnectivity.Ingress.Path = "/hz-mc"
+			Update(fetchedMc)
+
+			By("checking contextPath configuration after update")
+			updatedSts := &appsv1.StatefulSet{}
+			Eventually(func() []corev1.EnvVar {
+				assertExists(lookupKey(mc), updatedSts)
+				return updatedSts.Spec.Template.Spec.Containers[0].Env
+			}, timeout, interval).Should(ContainElements(
+				And(HaveField("Name", "JAVA_OPTS"),
+					HaveField("Value", ContainSubstring("-Dhazelcast.mc.contextPath=/hz-mc")),
+				),
+			))
+
+			By("checking contextPath configuration after update")
+			Expect(updatedSts.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Path).Should(Equal("/hz-mc/health"))
+		})
+
+		It("should fail if ingress path is not an absolute path", func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+			}
+
+			mc.Spec.ExternalConnectivity = &hazelcastv1alpha1.ExternalConnectivityConfiguration{
+				Ingress: &hazelcastv1alpha1.ExternalConnectivityIngress{
+					IngressClassName: "nginx",
+					Annotations:      map[string]string{"app": "hazelcast-mc"},
+					Hostname:         "mancenter",
+					Path:             "mc",
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), mc)).
+				Should(MatchError(ContainSubstring("must be an absolute path")))
 		})
 	})
 
 	Context("with Persistence configuration", func() {
 		When("persistence is enabled with existing Volume Claim", func() {
-			It("should add existing Volume Claim to statefulset", Label("fast"), func() {
+			It("should add existing Volume Claim to statefulset", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
@@ -260,7 +342,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}
 				Create(mc)
-				fetchedCR := EnsureStatus(mc)
+				fetchedCR := EnsureStatusIsPending(mc)
 				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(lookupKey(fetchedCR), fetchedSts)
 				expectedVolume := corev1.Volume{
@@ -284,7 +366,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	Context("with Image configuration", func() {
 		When("ImagePullSecrets are defined", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				pullSecrets := []corev1.LocalObjectReference{
 					{Name: "mc-secret1"},
 					{Name: "mc-secret2"},
@@ -296,7 +378,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}
 				Create(mc)
-				EnsureStatus(mc)
+				EnsureStatusIsPending(mc)
 				fetchedSts := &appsv1.StatefulSet{}
 				assertExists(types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, fetchedSts)
 				Expect(fetchedSts.Spec.Template.Spec.ImagePullSecrets).Should(Equal(pullSecrets))
@@ -306,7 +388,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	Context("with Scheduling configuration", func() {
 		When("NodeSelector is given", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
@@ -327,7 +409,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 
 		When("Affinity is given", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
@@ -378,7 +460,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 
 		When("Toleration is given", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
@@ -404,7 +486,7 @@ var _ = Describe("ManagementCenter CR", func() {
 
 	Context("with Resources parameters", func() {
 		When("resources are used", func() {
-			It("should be set to Container spec", Label("fast"), func() {
+			It("should be set to Container spec", func() {
 				spec := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
 				spec.Resources = &corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
@@ -441,9 +523,90 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 	})
 
+	Context("with LDAP security provider", func() {
+		When("LDAP security provider is configured", func() {
+			It("should be enabled", func() {
+				ldapSecret := CreateLdapSecret("ldap-credential", namespace)
+				assertExists(lookupKey(ldapSecret), ldapSecret)
+				defer DeleteIfExists(lookupKey(ldapSecret), ldapSecret)
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.SecurityProviders = &hazelcastv1alpha1.SecurityProviders{
+					LDAP: &hazelcastv1alpha1.LDAPProvider{
+						URL:                   "ldap://10.124.0.27:1389",
+						CredentialsSecretName: ldapSecret.Name,
+						GroupDN:               "ou=users,dc=example,dc=org",
+						GroupSearchFilter:     "member={0}",
+						NestedGroupSearch:     false,
+						UserDN:                "ou=users,dc=example,dc=org",
+						UserGroups:            []string{"readers"},
+						MetricsOnlyGroups:     []string{"readers"},
+						AdminGroups:           []string{"readers"},
+						ReadonlyUserGroups:    []string{"readers"},
+						UserSearchFilter:      "cn={0}",
+					},
+				}
+				Create(mc)
+				EnsureStatusIsPending(mc)
+			})
+
+			It("should error when credentialsSecretName is empty", func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.SecurityProviders = &hazelcastv1alpha1.SecurityProviders{
+					LDAP: &hazelcastv1alpha1.LDAPProvider{
+						URL:                   "ldap://10.124.0.27:1389",
+						CredentialsSecretName: "",
+						GroupDN:               "ou=users,dc=example,dc=org",
+						GroupSearchFilter:     "member={0}",
+						NestedGroupSearch:     false,
+						UserDN:                "ou=users,dc=example,dc=org",
+						UserGroups:            []string{"readers"},
+						MetricsOnlyGroups:     []string{"readers"},
+						AdminGroups:           []string{"readers"},
+						ReadonlyUserGroups:    []string{"readers"},
+						UserSearchFilter:      "cn={0}",
+					},
+				}
+
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center LDAP credentials Secret name is empty")))
+			})
+
+			It("should error when credentialsSecretName does not exist", func() {
+				mc := &hazelcastv1alpha1.ManagementCenter{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+				}
+				mc.Spec.SecurityProviders = &hazelcastv1alpha1.SecurityProviders{
+					LDAP: &hazelcastv1alpha1.LDAPProvider{
+						URL:                   "ldap://10.124.0.27:1389",
+						CredentialsSecretName: "ldap-credential",
+						GroupDN:               "ou=users,dc=example,dc=org",
+						GroupSearchFilter:     "member={0}",
+						NestedGroupSearch:     false,
+						UserDN:                "ou=users,dc=example,dc=org",
+						UserGroups:            []string{"readers"},
+						MetricsOnlyGroups:     []string{"readers"},
+						AdminGroups:           []string{"readers"},
+						ReadonlyUserGroups:    []string{"readers"},
+						UserSearchFilter:      "cn={0}",
+					},
+				}
+
+				Expect(k8sClient.Create(context.Background(), mc)).
+					Should(MatchError(ContainSubstring("Management Center LDAP credentials Secret not found")))
+			})
+		})
+	})
+
 	Context("with cluster TLS configuration", func() {
 		When("cluster TLS property is configured", func() {
-			It("should be enabled", Label("fast"), func() {
+			It("should be enabled", func() {
 				tlsSecret := CreateTLSSecret("tls-secret", namespace)
 				assertExists(lookupKey(tlsSecret), tlsSecret)
 				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
@@ -460,10 +623,10 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}}
 				Create(mc)
-				EnsureStatus(mc)
+				EnsureStatusIsPending(mc)
 			})
 
-			It("should error when secretName is empty", Label("fast"), func() {
+			It("should error when secretName is empty", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -472,7 +635,8 @@ var _ = Describe("ManagementCenter CR", func() {
 					Name:    "dev",
 					Address: "dummy",
 					TLS: &hazelcastv1alpha1.TLS{
-						SecretName: "",
+						SecretName:           "",
+						MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 					},
 				}}
 
@@ -480,7 +644,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					Should(MatchError(ContainSubstring("Management Center Cluster config TLS Secret name is empty")))
 			})
 
-			It("should error when secretName does not exist", Label("fast"), func() {
+			It("should error when secretName does not exist", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
@@ -499,7 +663,7 @@ var _ = Describe("ManagementCenter CR", func() {
 		})
 
 		When("MutualAuthentication is configured", func() {
-			It("should be enabled", Label("fast"), func() {
+			It("should be enabled", func() {
 				tlsSecret := CreateTLSSecret("tls-secret", namespace)
 				assertExists(lookupKey(tlsSecret), tlsSecret)
 				defer DeleteIfExists(lookupKey(tlsSecret), tlsSecret)
@@ -517,7 +681,7 @@ var _ = Describe("ManagementCenter CR", func() {
 					},
 				}}
 				Create(mc)
-				EnsureStatus(mc)
+				EnsureStatusIsPending(mc)
 			})
 		})
 	})
@@ -569,14 +733,14 @@ var _ = Describe("ManagementCenter CR", func() {
 		}
 
 		When("updating", func() {
-			It("should forward changes to StatefulSet", Label("fast"), func() {
+			It("should forward changes to StatefulSet", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       firstSpec,
 				}
 
 				Create(mc)
-				mc = EnsureStatus(mc)
+				mc = EnsureStatusIsPending(mc)
 				mc.Spec = secondSpec
 
 				Expect(k8sClient.Update(context.Background(), mc)).Should(Succeed())
@@ -600,7 +764,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				for _, env := range el {
 					if env.Name == "MC_INIT_CMD" {
 						for _, cl := range hzcl {
-							Expect(env.Value).To(ContainSubstring(fmt.Sprintf("--client-config /config/%s.xml", cl.Name)))
+							Expect(env.Value).To(ContainSubstring(fmt.Sprintf("--client-config /config/%s.yaml", cl.Name)))
 
 						}
 					}
@@ -621,6 +785,111 @@ var _ = Describe("ManagementCenter CR", func() {
 				By("checking if StatefulSet Resources is updated")
 				Expect(ss.Spec.Template.Spec.Containers[0].Resources).To(Equal(*secondSpec.Resources))
 			})
+		})
+	})
+
+	Context("JVM args configuration", func() {
+		It("should set the given jvm args to java opts env in pod template", func() {
+			jvmArgs := []string{
+				"-arg1=value1",
+				"-arg2=value2",
+				"-arg3=value3",
+			}
+
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.ManagementCenterSpec{
+					JVM: &hazelcastv1alpha1.MCJVMConfiguration{
+						Args: jvmArgs,
+					},
+				},
+			}
+			Create(mc)
+			mc = EnsureStatusIsPending(mc)
+
+			Expect(k8sClient.Get(context.Background(), lookupKey(mc), mc)).Should(Succeed())
+			Expect(mc.Spec.JVM.Args).Should(Equal(jvmArgs))
+
+			sts := appsv1.StatefulSet{}
+			Expect(k8sClient.Get(context.Background(), lookupKey(mc), &sts)).Should(Succeed())
+			envs := sts.Spec.Template.Spec.Containers[0].Env
+			matched := false
+			for i := 0; i < len(envs) && !matched; i++ {
+				envVars := strings.Split(envs[i].Value, " ")
+				argsMatched, err := ContainElements(jvmArgs).Match(envVars)
+				if err != nil {
+					Fail(err.Error())
+				}
+				matched = argsMatched
+			}
+			Expect(matched).To(BeTrue())
+		})
+	})
+
+	Context("with labels and annotations", func() {
+		It("should set labels and annotations to sub-resources", func() {
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.ManagementCenterSpec(defaultMcSpecValues(), ee),
+			}
+			mc.Spec.Annotations = map[string]string{
+				"annotation-example": "hazelcast",
+			}
+			mc.Spec.Labels = map[string]string{
+				//user labels
+				"label-example": "hazelcast",
+
+				// reserved labels
+				n.ApplicationNameLabel:         "user",
+				n.ApplicationInstanceNameLabel: "user",
+				n.ApplicationManagedByLabel:    "user",
+			}
+
+			Create(mc)
+			EnsureStatusIsPending(mc)
+
+			resources := map[string]client.Object{
+				"Secret":      &corev1.Secret{},
+				"Service":     &corev1.Service{},
+				"StatefulSet": &v1.StatefulSet{},
+			}
+			for name, r := range resources {
+				assertExists(lookupKey(mc), r)
+				// make sure user annotations and labels are present
+				Expect(r.GetAnnotations()).To(HaveKeyWithValue("annotation-example", "hazelcast"), name)
+				Expect(r.GetLabels()).To(HaveKeyWithValue("label-example", "hazelcast"), name)
+
+				// make sure operator overwrites selector labels
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationInstanceNameLabel, "user")), name)
+				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationManagedByLabel, "user")), name)
+			}
+		})
+	})
+
+	Context("defaulter webhook", func() {
+		It("should set empty TLS to nil", func() {
+			mcS := test.ManagementCenterSpec(defaultMcSpecValues(), ee)
+			mcS.HazelcastClusters = []hazelcastv1alpha1.HazelcastClusterConfig{
+				{
+					Name: "cluster1",
+					TLS:  &hazelcastv1alpha1.TLS{},
+				},
+				{
+					Name: "cluster2",
+					TLS:  &hazelcastv1alpha1.TLS{},
+				},
+			}
+			mc := &hazelcastv1alpha1.ManagementCenter{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       mcS,
+			}
+			Create(mc)
+			EnsureStatusIsPending(mc)
+			actualMC := &hazelcastv1alpha1.ManagementCenter{}
+			Expect(k8sClient.Get(context.Background(), types.NamespacedName{Name: mc.Name, Namespace: mc.Namespace}, actualMC)).Should(Succeed())
+			Expect(actualMC.Spec.HazelcastClusters[0].TLS).Should(BeNil())
+			Expect(actualMC.Spec.HazelcastClusters[1].TLS).Should(BeNil())
 		})
 	})
 })

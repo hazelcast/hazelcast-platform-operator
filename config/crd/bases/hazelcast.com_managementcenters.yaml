@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: managementcenters.hazelcast.com
 spec:
   group: hazelcast.com
@@ -53,6 +52,11 @@ spec:
               repository: docker.io/hazelcast/management-center
             description: Initial values will be filled with its fields' default values.
             properties:
+              annotations:
+                additionalProperties:
+                  type: string
+                description: ManagementCenter Kubernetes resource annotations
+                type: object
               externalConnectivity:
                 default:
                   type: LoadBalancer
@@ -73,6 +77,10 @@ spec:
                         type: string
                       ingressClassName:
                         description: IngressClassName of the ingress object.
+                        type: string
+                      path:
+                        default: /
+                        description: Path of the ingress rule.
                         type: string
                     required:
                     - hostname
@@ -154,6 +162,20 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
+              jvm:
+                description: ManagementCenter JVM configuration
+                properties:
+                  args:
+                    description: Args is for arbitrary JVM arguments
+                    items:
+                      type: string
+                    type: array
+                type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: ManagementCenter Kubernetes resource labels
+                type: object
               licenseKeySecret:
                 description: licenseKeySecret is a deprecated alias for licenseKeySecretName.
                 type: string
@@ -197,6 +219,27 @@ spec:
               resources:
                 description: Compute Resources required by the MC container.
                 properties:
+                  claims:
+                    description: "Claims lists the names of resources, defined in
+                      spec.resourceClaims, that are used by this container. \n This
+                      is an alpha field and requires enabling the DynamicResourceAllocation
+                      feature gate. \n This field is immutable. It can only be set
+                      for containers."
+                    items:
+                      description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                      properties:
+                        name:
+                          description: Name must match the name of one entry in pod.spec.resourceClaims
+                            of the Pod where this field is used. It makes that resource
+                            available inside a container.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                   limits:
                     additionalProperties:
                       anyOf:
@@ -217,7 +260,8 @@ spec:
                     description: 'Requests describes the minimum amount of compute
                       resources required. If Requests is omitted for a container,
                       it defaults to Limits if that is explicitly specified, otherwise
-                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                      to an implementation-defined value. Requests cannot exceed Limits.
+                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
               scheduling:
@@ -1192,14 +1236,19 @@ spec:
                           type: object
                           x-kubernetes-map-type: atomic
                         matchLabelKeys:
-                          description: MatchLabelKeys is a set of pod label keys to
-                            select the pods over which spreading will be calculated.
+                          description: "MatchLabelKeys is a set of pod label keys
+                            to select the pods over which spreading will be calculated.
                             The keys are used to lookup values from the incoming pod
                             labels, those key-value labels are ANDed with labelSelector
                             to select the group of existing pods over which spreading
-                            will be calculated for the incoming pod. Keys that don't
-                            exist in the incoming pod labels will be ignored. A null
-                            or empty list means only match against labelSelector.
+                            will be calculated for the incoming pod. The same key
+                            is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                            MatchLabelKeys cannot be set when LabelSelector isn't
+                            set. Keys that don't exist in the incoming pod labels
+                            will be ignored. A null or empty list means only match
+                            against labelSelector. \n This is a beta field and requires
+                            the MatchLabelKeysInPodTopologySpread feature gate to
+                            be enabled (enabled by default)."
                           items:
                             type: string
                           type: array
@@ -1259,7 +1308,7 @@ spec:
                             - Ignore: nodeAffinity/nodeSelector are ignored. All nodes
                             are included in the calculations. \n If this value is
                             nil, the behavior is equivalent to the Honor policy. This
-                            is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         nodeTaintsPolicy:
@@ -1269,8 +1318,8 @@ spec:
                             tainted nodes for which the incoming pod has a toleration,
                             are included. - Ignore: node taints are ignored. All nodes
                             are included. \n If this value is nil, the behavior is
-                            equivalent to the Ignore policy. This is a alpha-level
-                            feature enabled by the NodeInclusionPolicyInPodTopologySpread
+                            equivalent to the Ignore policy. This is a beta-level
+                            feature default enabled by the NodeInclusionPolicyInPodTopologySpread
                             feature flag."
                           type: string
                         topologyKey:
@@ -1312,14 +1361,100 @@ spec:
                       type: object
                     type: array
                 type: object
+              securityProvider:
+                description: SecurityProviders to authenticate users in Management
+                  Center
+                properties:
+                  ldap:
+                    description: LDAP security provider
+                    properties:
+                      adminGroups:
+                        description: Members of these groups and its nested groups
+                          have admin privileges on the Management Center.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      credentialsSecretName:
+                        description: CredentialsSecretName is the name of the secret
+                          that contains username and password of a user that has admin
+                          privileges on the LDAP server. The username must be the
+                          DN of the user. It is used to connect to the server when
+                          authenticating users.
+                        type: string
+                      groupDN:
+                        description: DN to be used for searching groups.
+                        type: string
+                      groupSearchFilter:
+                        description: LDAP search filter expression to search for the
+                          groups. For example, uniquemember={0} searches for a group
+                          that matches with the uniquemember attribute.
+                        type: string
+                      metricsOnlyGroups:
+                        description: Members of these groups and its nested groups
+                          have the privilege to see only the metrics on the Management
+                          Center.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      nestedGroupSearch:
+                        default: false
+                        description: NestedGroupSearch enables searching for nested
+                          LDAP groups.
+                        type: boolean
+                      readonlyUserGroups:
+                        description: Members of these groups and its nested groups
+                          have only read privilege on the Management Center.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      url:
+                        description: URL of your LDAP server, including schema (ldap://)
+                          and port.
+                        type: string
+                      userDN:
+                        description: DN to be used for searching users.
+                        type: string
+                      userGroups:
+                        description: Members of these groups and its nested groups
+                          have read and write privileges on the Management Center.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      userSearchFilter:
+                        description: LDAP search filter expression to search for the
+                          users. For example, uid={0} searches for a username that
+                          matches with the uid attribute.
+                        type: string
+                    required:
+                    - adminGroups
+                    - credentialsSecretName
+                    - groupDN
+                    - groupSearchFilter
+                    - metricsOnlyGroups
+                    - nestedGroupSearch
+                    - readonlyUserGroups
+                    - url
+                    - userDN
+                    - userGroups
+                    - userSearchFilter
+                    type: object
+                type: object
               version:
-                default: 5.2.0
+                default: 5.3.3
                 description: Version of Management Center.
                 type: string
             type: object
           status:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.
             properties:
+              configured:
+                description: Configured is a flag that indicates if the configuration
+                  step has successfully passed
+                type: boolean
               externalAddresses:
                 description: External addresses of the Management Center instance
                 type: string
@@ -1332,6 +1467,7 @@ spec:
                 - Running
                 - Failed
                 - Pending
+                - Configuring
                 - Terminating
                 type: string
             type: object

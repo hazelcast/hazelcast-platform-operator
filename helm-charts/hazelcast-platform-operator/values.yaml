@@ -2,14 +2,13 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
-
 image:
   imageOverride: ""
   repository: hazelcast/hazelcast-platform-operator
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: latest-snapshot
+  pullSecrets: []
 
 developerModeEnabled: false
 phoneHomeEnabled: true
@@ -30,7 +29,8 @@ debug:
   enabled: false
   port: 40000
 
-imagePullSecrets: []
+## DEPRECATED: Use 'image.pullSecrets' instead of imagePullSecrets.
+# imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 

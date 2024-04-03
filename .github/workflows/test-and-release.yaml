@@ -3,20 +3,182 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE_VERSION:
-        description: "Release version in the form of X.Y[.Z]"
+        description: "Release version in the form of X.Y.Z"
         required: true
   schedule:
     - cron: "0 9 * * *"
 
 env:
-  PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
   NAMESPACE: oc-test-operator-${{ github.run_id }}
   PARDOT_ID: redhat
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
+  GKE_ZONE: us-east1-b
+  AWS_REGION: us-east-1
 
 jobs:
+  migration-test:
+    name: Run migration test
+    runs-on: ubuntu-latest
+    env:
+      CLUSTER_NAME: kind
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
+
+      - name: Create Kind Config
+        run: |
+          cat <<EOT >> ./kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+          - role: worker
+          EOT
+
+      - name: Create Kind Cluster
+        uses: helm/kind-action@v1.9.0
+        with:
+          config: ./kind-config.yaml
+          cluster_name: ${{ env.CLUSTER_NAME }}
+
+      - name: Install metallb
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_on: error
+          command: |
+            kubectl create namespace ${NAMESPACE}
+            kubectl config set-context --current --namespace=$NAMESPACE
+            kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
+            kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
+            HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
+            HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
+            IP_RANGE=$HOST_MIN-$HOST_MAX
+            
+            cat <<EOF | kubectl apply -f -
+            apiVersion: metallb.io/v1beta1
+            kind: IPAddressPool
+            metadata:
+              name: kind-pool
+              namespace: metallb-system
+            spec:
+              addresses:
+              - $IP_RANGE
+            ---
+            apiVersion: metallb.io/v1beta1
+            kind: L2Advertisement
+            metadata:
+              name: l2
+              namespace: metallb-system
+            spec:
+              ipAddressPools:
+              - kind-pool
+            EOF
+
+      - name: Create Secrets
+        if: matrix.edition == 'ee'
+        run: |
+          kubectl create secret generic hazelcast-license-key \
+             --namespace ${NAMESPACE} \
+             --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+
+      - name: Deploy and Run Migration test
+        run: |
+          STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$STABLE_VERSION"
+          ((MINOR++))
+          LATEST_VERSION="$MAJOR.$MINOR.$PATCH-snapshot"
+          
+          kubectl create secret generic hazelcast-license-key --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
+          helm repo update && \
+          helm install operator hazelcast/hazelcast-platform-operator --version=$STABLE_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          echo "Checking Operator Deployment  before upgrade"
+          kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
+          echo "Checking Operator Pod before  upgrade"
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=300s
+          
+          kubectl apply -f - <<EOF
+          apiVersion: hazelcast.com/v1alpha1
+          kind: Hazelcast
+          metadata:
+            name: hazelcast
+          spec:
+            nativeMemory:
+              allocatorType: POOLED
+              size: 100M
+            clusterSize: 3
+            repository: "docker.io/hazelcast/hazelcast-enterprise"
+            exposeExternally:
+              discoveryServiceType: LoadBalancer
+              memberAccess: NodePortExternalIP
+            licenseKeySecret: hazelcast-license-key
+            persistence:
+              baseDir: "/data/hot-restart/"
+              clusterDataRecoveryPolicy: "FullRecoveryOnly"
+              pvc:
+                accessModes: ["ReadWriteOnce"]
+                requestStorage: 10Mi
+          ---
+          apiVersion: hazelcast.com/v1alpha1
+          kind: Map
+          metadata:
+            name: persistent
+          spec:
+            hazelcastResourceName: hazelcast
+            persistenceEnabled: false
+            backupCount: 4
+            nearCache:
+              inMemoryFormat: NATIVE
+              eviction:
+                evictionPolicy: LRU
+                maxSizePolicy: USED_NATIVE_MEMORY_SIZE
+                size: 5000
+          ---
+          apiVersion: hazelcast.com/v1alpha1
+          kind: ManagementCenter
+          metadata:
+            name: managementcenter
+          spec:
+            repository: 'hazelcast/management-center'
+            hazelcastClusters:
+              - address: hazelcast
+                name: dev
+          EOF
+          
+          echo "Checking Hazelcast CR before upgrade"
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast || (echo "Hazelcast CR Check Failed" && kubectl get hazelcasts.hazelcast.com hazelcast -o wide; exit 1;)
+          echo "Checking Map CR before upgrade"
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent || (echo "Map CR Check Failed" && kubectl get maps.hazelcast.com persistent -o wide; exit 1;)
+          echo "Checking Management Center CR before upgrade"
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter || (echo "Management Center CR Check Failed" && kubectl get managementcenters.hazelcast.com managementcenter -o wide; exit 1;)
+          
+          helm upgrade operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          
+          echo "Checking Operator Pod after upgrade"
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=300s
+          echo "Checking Hazelcast CR after upgrade"
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s hazelcast/hazelcast || (echo "Hazelcast CR Check Failed" && kubectl get hazelcasts.hazelcast.com hazelcast -o wide; exit 1;)
+          echo "Checking Map CR after upgrade"
+          kubectl wait --for=jsonpath='{.status.state}'=Success --timeout=300s map/persistent || (echo "Map CR Check Failed" && kubectl get maps.hazelcast.com persistent -o wide; exit 1;)
+          echo "Checking Management Center CR after upgrade"
+          kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter || (echo "Management Center CR Check Failed" && kubectl get managementcenters.hazelcast.com managementcenter -o wide; exit 1;)
+
   test_container:
     name: Build and Test Container
     defaults:
@@ -30,7 +192,21 @@ jobs:
       REFS: ${{ steps.setup-envs.outputs.ref }}
     steps:
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
+            GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Setup Preflight and Get Certification Project ID
         uses: redhat-actions/openshift-tools-installer@v1
@@ -57,24 +233,24 @@ jobs:
       - name: Validate version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER.$NUMBER?$"
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2.4.1
+        uses: docker/setup-buildx-action@v3.2.0
         with:
           install: true
 
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Build Image
         id: build-image
-        uses: docker/build-push-action@v4.0.0
+        uses: docker/build-push-action@v5.3.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -90,7 +266,7 @@ jobs:
       - name: Initiating a Container Scan
         run: |
           echo "Running the container scan tests"
-          preflight check container $CONTAINER_IMAGE
+          preflight check container $CONTAINER_IMAGE --platform amd64
           grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
 
   openscap_image_scan:
@@ -103,20 +279,36 @@ jobs:
       CONTAINER_IMAGE: ${{ needs.test_container.outputs.CONTAINER_IMAGE }}
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            OPENSCAP_SCANHOST,CN/OPENSCAP_SCANHOST
+            OPENSCAP_PRIVATE_KEY,CN/OPENSCAP_PRIVATE_KEY
+            OPENSCAP_FINGERPRINT,CN/OPENSCAP_FINGERPRINT
+
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Run OpenSCAP Vulnerability Scan
         id: vulnerabilityScan
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SCANHOST }}
+          host: ${{ env.OPENSCAP_SCANHOST }}
           username: ec2-user
-          key: ${{ secrets.KEY }}
+          key: ${{ env.OPENSCAP_PRIVATE_KEY }}
           envs: CONTAINER_IMAGE
           script: |
             sudo podman pull $CONTAINER_IMAGE
@@ -127,10 +319,10 @@ jobs:
         uses: nicklasfrahm/scp-action@v1.0.1
         with:
           direction: download
-          host: ${{ secrets.SCANHOST }}
+          host: ${{ env.OPENSCAP_SCANHOST }}
           username: ec2-user
-          fingerprint: ${{ secrets.FINGERPRINT }}
-          key: ${{ secrets.KEY }}
+          fingerprint: ${{ env.OPENSCAP_FINGERPRINT }}
+          key: ${{ env.OPENSCAP_PRIVATE_KEY }}
           source: ~/vulnerability_report.html
           target: vulnerability_report.html
 
@@ -159,7 +351,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Preflight and OPM Tools
         uses: redhat-actions/openshift-tools-installer@v1
@@ -173,12 +365,25 @@ jobs:
           opm: "latest"
           skip_cache: true
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            GKE_SA_KEY,CN/GKE_SA_KEY
+
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Set Environment Variables And Job Outputs
         id: build-bundle-outputs
@@ -232,13 +437,27 @@ jobs:
       PFLT_INDEXIMAGE: ${{ needs.build_bundle.outputs.PFLT_INDEXIMAGE }}
       BUNDLE_IMAGE: ${{ needs.build_bundle.outputs.BUNDLE_IMAGE }}
       BUNDLE_IMAGE_DIGEST: ${{ needs.build_bundle.outputs.BUNDLE_IMAGE_DIGEST }}
-      OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
-      OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
-      OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
       KUBECONFIG: $HOME/.kube/config
     steps:
       - name: Checkout to hazelcast-operator
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
+            GKE_SA_KEY,CN/GKE_SA_KEY
+            OCP_CLUSTER_URL,CN/OCP_CLUSTER_URL
+            OCP_USERNAME,CN/OCP_USERNAME
+            OCP_PASSWORD,CN/OCP_PASSWORD
 
       - name: Setup Preflight and Operator SDK
         uses: redhat-actions/openshift-tools-installer@v1
@@ -250,19 +469,20 @@ jobs:
       - uses: redhat-actions/openshift-tools-installer@v1
         with:
           operator-sdk: "latest"
+          source: github
           skip_cache: true
 
       - name: Authenticate to GAR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: us-east1-docker.pkg.dev
           username: _json_key
-          password: ${{ secrets.GKE_SA_KEY }}
+          password: ${{ env.GKE_SA_KEY }}
 
       - name: Login to OCP and Create New Project
         id: project_creation
         run: |
-          oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
+          oc login ${{ env.OCP_CLUSTER_URL }} -u=${{ env.OCP_USERNAME }} -p=${{ env.OCP_PASSWORD }} --insecure-skip-tls-verify
           oc new-project ${NAMESPACE}
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
@@ -288,10 +508,23 @@ jobs:
     name: Create Operator Tag
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Create a New Tag
         run: |
@@ -301,7 +534,7 @@ jobs:
 
   publish_release:
     if: needs.test_container.outputs.REFS == github.ref && github.ref != 'refs/heads/main'
-    needs: [create_operator_tag, test_container, test_operator, community_operators_test_suite]
+    needs: [migration-test, create_operator_tag, test_container, test_operator, community_operators_test_suite]
     uses: ./.github/workflows/publish-release.yaml
     with:
       RELEASE_VERSION: ${{ needs.test_container.outputs.RELEASE_VERSION }}
@@ -314,15 +547,30 @@ jobs:
     name: Clean The Bundle Artifact and Test Image
     steps:
       - name: Delete Bundle Artifact
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           name: |
             bundle-artifacts
 
-      - name: Delete Test Image For Security Scan
-        uses: appleboy/ssh-action@v0.1.10
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
-          host: ${{ secrets.SCANHOST }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            OPENSCAP_SCANHOST,CN/OPENSCAP_SCANHOST
+            OPENSCAP_PRIVATE_KEY,CN/OPENSCAP_PRIVATE_KEY
+
+      - name: Delete Test Image For Security Scan
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.OPENSCAP_SCANHOST }}
           username: ec2-user
-          key: ${{ secrets.KEY }}
+          key: ${{ env.OPENSCAP_PRIVATE_KEY }}
           script: sudo podman image prune -af

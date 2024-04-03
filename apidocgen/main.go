@@ -357,7 +357,7 @@ func printContentTable(types []*doc.Type) {
 func printStructs(structTypes []StructType) {
 	for _, t := range structTypes {
 		if len(t.Fields) <= 0 {
-			return
+			continue
 		}
 		fmt.Printf("\n=== %s\n\n%s\n\n", t.Name, t.Doc)
 		printFields(t.Fields)

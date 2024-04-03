@@ -3,141 +3,167 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
+	"reflect"
 
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type mapValidator struct {
+	datastructValidator
+}
+
+func NewMapValidator(o client.Object) mapValidator {
+	return mapValidator{NewDatastructValidator(o)}
+}
+
 func ValidateMapSpecCreate(m *Map) error {
-	errors := validateDataStructureSpec(&m.Spec.DataStructureSpec)
-	if len(errors) == 0 {
-		return nil
-	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, errors)
+	v := NewMapValidator(m)
+	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)
+	return v.Err()
 }
 
 func ValidateMapSpecUpdate(m *Map) error {
-	var errors field.ErrorList
-	errors = append(errors, validateMapSpecUpdate(m)...)
-	errors = append(errors, validateDataStructureSpec(&m.Spec.DataStructureSpec)...)
-	if len(errors) == 0 {
-		return nil
-	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, errors)
+	v := NewMapValidator(m)
+	v.validateMapSpecUpdate(m)
+	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)
+	return v.Err()
 }
 
 func ValidateMapSpec(m *Map, h *Hazelcast) error {
-	var errors field.ErrorList
-	errors = append(errors, validateMapSpecCurrent(m, h)...)
-	errors = append(errors, validateMapSpecUpdate(m)...)
-	errors = append(errors, validateDataStructureSpec(&m.Spec.DataStructureSpec)...)
-	if len(errors) == 0 {
-		return nil
-	}
-	return kerrors.NewInvalid(schema.GroupKind{Group: "hazelcast.com", Kind: "Map"}, m.Name, errors)
+	v := NewMapValidator(m)
+	v.validateMapSpecCurrent(m, h)
+	v.validateMapSpecUpdate(m)
+	v.validateDataStructureSpec(&m.Spec.DataStructureSpec)
+	return v.Err()
 }
 
-func validateMapSpecCurrent(m *Map, h *Hazelcast) field.ErrorList {
-	var allErrs field.ErrorList
-	allErrs = appendIfNotNil(allErrs, ValidateAppliedPersistence(m.Spec.PersistenceEnabled, h))
-	allErrs = appendIfNotNil(allErrs, ValidateAppliedNativeMemory(m.Spec.InMemoryFormat, h))
-	if m.Spec.NearCache != nil {
-		allErrs = appendIfNotNil(allErrs, ValidateAppliedNativeMemory(m.Spec.NearCache.InMemoryFormat, h))
-	}
-	if len(allErrs) == 0 {
-		return nil
-	}
-	return allErrs
+func (v *mapValidator) validateMapSpecCurrent(m *Map, h *Hazelcast) {
+	v.validateMapPersistence(m, h)
+	v.validateMapNativeMemory(m, h)
+	v.validateNearCacheMemory(m, h)
+	v.validateMapTieredStore(m, h)
 }
 
-func validateMapSpecUpdate(m *Map) field.ErrorList {
+func (v *mapValidator) validateMapPersistence(m *Map, h *Hazelcast) {
+	if !m.Spec.PersistenceEnabled {
+		return
+	}
+
+	lastSpec := v.getHzSpec(h)
+	if lastSpec == nil {
+		return
+	}
+
+	if !lastSpec.Persistence.IsEnabled() {
+		v.Invalid(Path("spec", "persistenceEnabled"), lastSpec.Persistence.IsEnabled(), "Persistence must be enabled at Hazelcast")
+		return
+	}
+}
+
+func (v *mapValidator) validateNearCacheMemory(m *Map, h *Hazelcast) {
+	if m.Spec.NearCache == nil {
+		return
+	}
+
+	if m.Spec.NearCache.InMemoryFormat != InMemoryFormatNative {
+		return
+	}
+
+	lastSpec := v.getHzSpec(h)
+	if lastSpec == nil {
+		return
+	}
+
+	if !lastSpec.NativeMemory.IsEnabled() {
+		v.Invalid(Path("spec", "inMemoryFormat"), lastSpec.NativeMemory.IsEnabled(), "Native Memory must be enabled at Hazelcast")
+		return
+	}
+}
+
+func (v *mapValidator) validateMapNativeMemory(m *Map, h *Hazelcast) {
+	if m.Spec.InMemoryFormat != InMemoryFormatNative {
+		return
+	}
+
+	lastSpec := v.getHzSpec(h)
+	if lastSpec == nil {
+		return
+	}
+
+	if !lastSpec.NativeMemory.IsEnabled() {
+		v.Invalid(Path("spec", "inMemoryFormat"), lastSpec.NativeMemory.IsEnabled(), "Native Memory must be enabled at Hazelcast")
+		return
+	}
+}
+
+func (v *mapValidator) validateMapTieredStore(m *Map, h *Hazelcast) {
+	if m.Spec.TieredStore == nil {
+		return
+	}
+	if m.Spec.InMemoryFormat != InMemoryFormatNative {
+		v.Invalid(Path("spec", "inMemoryFormat"), m.Spec.InMemoryFormat, "In-memory format of the map must be NATIVE to enable the Tiered Storage")
+	}
+	if len(m.Spec.Indexes) != 0 {
+		v.Invalid(Path("spec", "indexes"), m.Spec.Indexes, "Indexes can not be created on maps that have Tiered Storage enabled")
+	}
+
+	lastSpec := v.getHzSpec(h)
+	if lastSpec == nil {
+		return
+	}
+
+	if !deviceExist(lastSpec.LocalDevices, m.Spec.TieredStore.DiskDeviceName) {
+		v.Invalid(Path("spec", "tieredStore", "diskDeviceName"), m.Spec.TieredStore.DiskDeviceName, fmt.Sprintf("device with the name %s does not exist", m.Spec.TieredStore.DiskDeviceName))
+
+	}
+}
+
+func (v *mapValidator) validateMapSpecUpdate(m *Map) {
 	last, ok := m.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
 	if !ok {
-		return nil
+		return
 	}
 	var parsed MapSpec
 	if err := json.Unmarshal([]byte(last), &parsed); err != nil {
-		return field.ErrorList{field.InternalError(field.NewPath("spec"), fmt.Errorf("error parsing last Map spec for update errors: %w", err))}
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Map spec for update errors: %w", err))
+		return
 	}
 
-	return ValidateNotUpdatableMapFields(&m.Spec, &parsed)
+	v.validateNotUpdatableMapFields(&m.Spec, &parsed)
 }
 
-func ValidateNotUpdatableMapFields(current *MapSpec, last *MapSpec) field.ErrorList {
-	var allErrs field.ErrorList
-
+func (v *mapValidator) validateNotUpdatableMapFields(current *MapSpec, last *MapSpec) {
 	if current.Name != last.Name {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("name"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "name"), "field cannot be updated")
 	}
 	if *current.BackupCount != *last.BackupCount {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("backupCount"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "backupCount"), "field cannot be updated")
 	}
 	if current.AsyncBackupCount != last.AsyncBackupCount {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("asyncBackupCount"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "asyncBackupCount"), "field cannot be updated")
 	}
 	if !indexConfigSliceEquals(current.Indexes, last.Indexes) {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("indexes"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "indexes"), "field cannot be updated")
 	}
 	if current.PersistenceEnabled != last.PersistenceEnabled {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("persistenceEnabled"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "persistenceEnabled"), "field cannot be updated")
 	}
 	if current.HazelcastResourceName != last.HazelcastResourceName {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("hazelcastResourceName"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "hazelcastResourceName"), "field cannot be updated")
 	}
 	if current.InMemoryFormat != last.InMemoryFormat {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("inMemoryFormat"), "field cannot be updated"))
+		v.Forbidden(Path("spec", "inMemoryFormat"), "field cannot be updated")
 	}
-
-	if isNearCacheUpdated(current, last) {
-		allErrs = append(allErrs,
-			field.Forbidden(field.NewPath("spec").Child("nearCache"), "field cannot be updated"))
+	if !reflect.DeepEqual(current.EventJournal, last.EventJournal) {
+		v.Forbidden(Path("spec", "eventJournal"), "field cannot be updated")
 	}
-
-	if len(allErrs) == 0 {
-		return nil
+	if !reflect.DeepEqual(current.NearCache, last.NearCache) {
+		v.Forbidden(Path("spec", "nearCache"), "field cannot be updated")
 	}
-	return allErrs
-}
-
-func isNearCacheUpdated(current *MapSpec, last *MapSpec) bool {
-	if current.NearCache != nil && last.NearCache != nil {
-		if *current.NearCache.InvalidateOnChange != *last.NearCache.InvalidateOnChange ||
-			current.NearCache.Name != last.NearCache.Name ||
-			*current.NearCache.CacheLocalEntries != *last.NearCache.CacheLocalEntries ||
-			current.NearCache.TimeToLiveSeconds != last.NearCache.TimeToLiveSeconds ||
-			current.NearCache.MaxIdleSeconds != last.NearCache.MaxIdleSeconds ||
-			current.NearCache.InMemoryFormat != last.NearCache.InMemoryFormat {
-			return true
-		}
-
-		if current.NearCache.NearCacheEviction != nil && last.NearCache.NearCacheEviction != nil {
-			if current.NearCache.NearCacheEviction.EvictionPolicy != last.NearCache.NearCacheEviction.EvictionPolicy ||
-				current.NearCache.NearCacheEviction.Size != last.NearCache.NearCacheEviction.Size ||
-				current.NearCache.NearCacheEviction.MaxSizePolicy != last.NearCache.NearCacheEviction.MaxSizePolicy {
-				return true
-			}
-		}
-
-		if current.NearCache.NearCacheEviction == nil && last.NearCache.NearCacheEviction != nil {
-			return true
-		}
+	if !reflect.DeepEqual(current.TieredStore, last.TieredStore) {
+		v.Forbidden(Path("spec", "tieredStore"), "field cannot be updated")
 	}
-
-	if current.NearCache == nil && last.NearCache != nil {
-		return true
-	}
-
-	return false
 }
 
 func indexConfigSliceEquals(a, b []IndexConfig) bool {
@@ -187,4 +213,29 @@ func stringSliceEquals(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func (v *mapValidator) getHzSpec(h *Hazelcast) *HazelcastSpec {
+	s, ok := h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation]
+	if !ok {
+		v.InternalError(Path("spec"), fmt.Errorf("hazelcast resource %s is not successfully started yet", h.Name))
+		return nil
+	}
+
+	lastSpec := &HazelcastSpec{}
+	err := json.Unmarshal([]byte(s), lastSpec)
+	if err != nil {
+		v.InternalError(Path("spec"), fmt.Errorf("error parsing last Hazelcast spec: %w", err))
+		return nil
+	}
+	return lastSpec
+}
+
+func deviceExist(localDevices []LocalDeviceConfig, deviceName string) bool {
+	for _, localDevice := range localDevices {
+		if localDevice.Name == deviceName {
+			return true
+		}
+	}
+	return false
 }

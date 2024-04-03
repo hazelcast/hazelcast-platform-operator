@@ -25,6 +25,9 @@ type Hazelcast struct {
 	AdvancedNetwork          AdvancedNetwork                     `yaml:"advanced-network,omitempty"`
 	ManagementCenter         ManagementCenterConfig              `yaml:"management-center,omitempty"`
 	Serialization            Serialization                       `yaml:"serialization,omitempty"`
+	SQL                      SQL                                 `yaml:"sql,omitempty"`
+	LocalDevice              map[string]LocalDevice              `yaml:"local-device,omitempty"`
+	CPSubsystem              CPSubsystem                         `yaml:"cp-subsystem,omitempty"`
 }
 
 type ManagementCenterConfig struct {
@@ -43,14 +46,15 @@ type AdvancedNetwork struct {
 }
 
 type MemberServerSocketEndpointConfig struct {
-	Port       PortAndPortCount     `yaml:"port,omitempty"`
-	Interfaces EnabledAndInterfaces `yaml:"interfaces,omitempty"`
-	SSL        SSL                  `yaml:"ssl,omitempty"`
+	Port       PortAndPortCount `yaml:"port,omitempty"`
+	Interfaces Interfaces       `yaml:"interfaces,omitempty"`
+	SSL        SSL              `yaml:"ssl,omitempty"`
 }
 
 type ClientServerSocketEndpointConfig struct {
-	Port PortAndPortCount `yaml:"port,omitempty"`
-	SSL  SSL              `yaml:"ssl,omitempty"`
+	Port       PortAndPortCount `yaml:"port,omitempty"`
+	Interfaces Interfaces       `yaml:"interfaces,omitempty"`
+	SSL        SSL              `yaml:"ssl,omitempty"`
 }
 
 type RestServerSocketEndpointConfig struct {
@@ -68,7 +72,7 @@ type PortAndPortCount struct {
 	PortCount uint `yaml:"port-count,omitempty"`
 }
 
-type EnabledAndInterfaces struct {
+type Interfaces struct {
 	Enabled    bool     `yaml:"enabled,omitempty"`
 	Interfaces []string `yaml:"interfaces,omitempty"`
 }
@@ -154,11 +158,20 @@ type Map struct {
 	InMemoryFormat          string                             `yaml:"in-memory-format"`
 	StatisticsEnabled       bool                               `yaml:"statistics-enabled"`
 	Indexes                 []MapIndex                         `yaml:"indexes,omitempty"`
+	Attributes              []Attribute                        `yaml:"attributes,omitempty"`
 	DataPersistence         DataPersistence                    `yaml:"data-persistence,omitempty"`
 	WanReplicationReference map[string]WanReplicationReference `yaml:"wan-replication-ref,omitempty"`
 	MapStoreConfig          MapStoreConfig                     `yaml:"map-store,omitempty"`
 	EntryListeners          []EntryListener                    `yaml:"entry-listeners,omitempty"`
 	NearCache               NearCacheConfig                    `yaml:"near-cache,omitempty"`
+	EventJournal            EventJournal                       `yaml:"event-journal,omitempty"`
+	TieredStore             TieredStore                        `yaml:"tiered-store,omitempty"`
+	MerkleTree              MerkleTree                         `yaml:"merkle-tree,omitempty"`
+}
+
+type MerkleTree struct {
+	Enabled bool  `yaml:"enabled"`
+	Depth   int32 `yaml:"depth"`
 }
 
 type EntryListener struct {
@@ -178,6 +191,11 @@ type MapIndex struct {
 	Type               string             `yaml:"type"`
 	Attributes         []string           `yaml:"attributes"`
 	BitmapIndexOptions BitmapIndexOptions `yaml:"bitmap-index-options,omitempty"`
+}
+
+type Attribute struct {
+	Name               string `yaml:"name"`
+	ExtractorClassName string `yaml:"extractor-class-name"`
 }
 
 type BitmapIndexOptions struct {
@@ -239,6 +257,27 @@ type NearCacheEviction struct {
 	EvictionPolicy string `yaml:"eviction-policy,omitempty"`
 }
 
+type EventJournal struct {
+	Enabled           bool  `yaml:"enabled"`
+	Capacity          int32 `yaml:"capacity"`
+	TimeToLiveSeconds int32 `yaml:"time-to-live-seconds"`
+}
+
+type TieredStore struct {
+	Enabled    bool       `yaml:"enabled"`
+	MemoryTier MemoryTier `yaml:"memory-tier"`
+	DiskTier   DiskTier   `yaml:"disk-tier"`
+}
+
+type MemoryTier struct {
+	Capacity Size `yaml:"capacity,omitempty"`
+}
+
+type DiskTier struct {
+	Enabled    bool   `yaml:"enabled"`
+	DeviceName string `yaml:"device-name"`
+}
+
 type Topic struct {
 	GlobalOrderingEnabled bool     `yaml:"global-ordering-enabled"`
 	MultiThreadingEnabled bool     `yaml:"multi-threading-enabled"`
@@ -286,6 +325,7 @@ type Cache struct {
 	ValueType         ClassType       `yaml:"value-type,omitempty"`
 	InMemoryFormat    string          `yaml:"in-memory-format"`
 	DataPersistence   DataPersistence `yaml:"data-persistence,omitempty"`
+	EventJournal      EventJournal    `yaml:"event-journal,omitempty"`
 }
 
 type ClassType struct {
@@ -321,15 +361,15 @@ type BatchPublisherConfig struct {
 }
 
 type NativeMemory struct {
-	Enabled                 bool             `yaml:"enabled"`
-	AllocatorType           string           `yaml:"allocator-type"`
-	Size                    NativeMemorySize `yaml:"size,omitempty"`
-	MinBlockSize            int32            `yaml:"min-block-size,omitempty"`
-	PageSize                int32            `yaml:"page-size,omitempty"`
-	MetadataSpacePercentage int32            `yaml:"metadata-space-percentage,omitempty"`
+	Enabled                 bool   `yaml:"enabled"`
+	AllocatorType           string `yaml:"allocator-type"`
+	Size                    Size   `yaml:"size,omitempty"`
+	MinBlockSize            int32  `yaml:"min-block-size,omitempty"`
+	PageSize                int32  `yaml:"page-size,omitempty"`
+	MetadataSpacePercentage int32  `yaml:"metadata-space-percentage,omitempty"`
 }
 
-type NativeMemorySize struct {
+type Size struct {
 	Value int64  `yaml:"value"`
 	Unit  string `yaml:"unit"`
 }
@@ -397,4 +437,29 @@ type GlobalSerializer struct {
 type ClassFactories struct {
 	FactoryId int32  `yaml:"factory-id"`
 	ClassName string `yaml:"class-name"`
+}
+
+type SQL struct {
+	StatementTimeout   int32 `yaml:"statement-timeout-millis"`
+	CatalogPersistence bool  `yaml:"catalog-persistence-enabled"`
+}
+
+type LocalDevice struct {
+	BaseDir            string `yaml:"base-dir"`
+	Capacity           Size   `yaml:"capacity,omitempty"`
+	BlockSize          *int32 `yaml:"block-size,omitempty"`
+	ReadIOThreadCount  *int32 `yaml:"read-io-thread-count"`
+	WriteIOThreadCount *int32 `yaml:"write-io-thread-count"`
+}
+
+type CPSubsystem struct {
+	CPMemberCount                     int32  `yaml:"cp-member-count"`
+	PersistenceEnabled                bool   `yaml:"persistence-enabled"`
+	BaseDir                           string `yaml:"base-dir"`
+	GroupSize                         *int32 `yaml:"group-size,omitempty"`
+	SessionTimeToLiveSeconds          *int32 `yaml:"session-time-to-live-seconds,omitempty"`
+	SessionHeartbeatIntervalSeconds   *int32 `yaml:"session-heartbeat-interval-seconds,omitempty"`
+	MissingCpMemberAutoRemovalSeconds *int32 `yaml:"missing-cp-member-auto-removal-seconds,omitempty"`
+	FailOnIndeterminateOperationState *bool  `yaml:"fail-on-indeterminate-operation-state,omitempty"`
+	DataLoadTimeoutSeconds            *int32 `yaml:"data-load-timeout-seconds,omitempty"`
 }

@@ -8,6 +8,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -20,27 +21,31 @@ func (r *Hazelcast) SetupWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 //+kubebuilder:webhook:path=/validate-hazelcast-com-v1alpha1-hazelcast,mutating=false,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=hazelcasts,verbs=create;update,versions=v1alpha1,name=vhazelcast.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-hazelcast-com-v1alpha1-hazelcast,mutating=true,failurePolicy=ignore,sideEffects=None,groups=hazelcast.com,resources=hazelcasts,verbs=create;update,versions=v1alpha1,name=vhazelcast.kb.io,admissionReviewVersions=v1
 // Role related to webhooks
 
 var _ webhook.Validator = &Hazelcast{}
 var _ webhook.Defaulter = &Hazelcast{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Hazelcast) ValidateCreate() error {
+func (r *Hazelcast) ValidateCreate() (admission.Warnings, error) {
 	hazelcastlog.Info("validate create", "name", r.Name)
-	return ValidateHazelcastSpec(r)
+	return admission.Warnings{}, ValidateHazelcastSpec(r)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Hazelcast) ValidateUpdate(old runtime.Object) error {
+func (r *Hazelcast) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	hazelcastlog.Info("validate update", "name", r.Name)
-	return ValidateHazelcastSpec(r)
+	if r.GetDeletionTimestamp() != nil {
+		return admission.Warnings{}, nil
+	}
+	return admission.Warnings{}, ValidateHazelcastSpec(r)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Hazelcast) ValidateDelete() error {
+func (r *Hazelcast) ValidateDelete() (admission.Warnings, error) {
 	hazelcastlog.Info("validate delete", "name", r.Name)
-	return nil
+	return admission.Warnings{}, nil
 }
 
 func (r *Hazelcast) Default() {
@@ -52,7 +57,8 @@ func (r *Hazelcast) Default() {
 }
 
 func (r *Hazelcast) defaultOptionalToNil() {
-	if r.Spec.TLS != nil && r.Spec.TLS.SecretName == "" {
+	// Is default TLS
+	if r.Spec.TLS != nil && r.Spec.TLS.SecretName == "" && r.Spec.TLS.MutualAuthentication == MutualAuthenticationNone {
 		r.Spec.TLS = nil
 	}
 	if r.Spec.Scheduling != nil && reflect.DeepEqual(*r.Spec.Scheduling, SchedulingConfiguration{}) {
@@ -60,6 +66,9 @@ func (r *Hazelcast) defaultOptionalToNil() {
 	}
 	if r.Spec.Resources != nil && reflect.DeepEqual(*r.Spec.Resources, corev1.ResourceRequirements{}) {
 		r.Spec.Resources = nil
+	}
+	if r.Spec.Agent.Resources != nil && reflect.DeepEqual(*r.Spec.Agent.Resources, corev1.ResourceRequirements{}) {
+		r.Spec.Agent.Resources = nil
 	}
 	if r.Spec.UserCodeDeployment != nil && reflect.DeepEqual(*r.Spec.UserCodeDeployment, UserCodeDeploymentConfig{}) {
 		r.Spec.UserCodeDeployment = nil

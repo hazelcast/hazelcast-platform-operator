@@ -88,6 +88,7 @@ type PhoneHomeData struct {
 	Cache                         Cache                  `json:"c"`
 	Jet                           Jet                    `json:"jet"`
 	WanReplicationCount           int                    `json:"wrc"`
+	WanSyncCount                  int                    `json:"wsc"`
 	BackupAndRestore              BackupAndRestore       `json:"br"`
 	UserCodeDeployment            UserCodeDeployment     `json:"ucd"`
 	McExternalConnectivity        McExternalConnectivity `json:"mcec"`
@@ -104,6 +105,14 @@ type PhoneHomeData struct {
 	TLS                           TLS                    `json:"t"`
 	SerializationCount            int                    `json:"serc"`
 	CustomConfigCount             int                    `json:"ccon"`
+	JetJobSnapshotCount           int                    `json:"jjsc"`
+	SQLCount                      int                    `json:"sc"`
+	TieredStorage                 TieredStorage          `json:"ts"`
+	CPSubsystem                   CPSubsystem            `json:"cp"`
+}
+
+type CPSubsystem struct {
+	Count int `json:"c"`
 }
 
 type JVMConfigUsage struct {
@@ -179,6 +188,10 @@ type TLS struct {
 	MTLSCount int `json:"mc"`
 }
 
+type TieredStorage struct {
+	MapCount int `json:"mc"`
+}
+
 func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:           opInfo.UID,
@@ -195,12 +208,15 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillMapMetrics(cl)
 	phd.fillCacheMetrics(cl)
 	phd.fillWanReplicationMetrics(cl)
+	phd.fillWanSyncMetrics(cl)
 	phd.fillHotBackupMetrics(cl)
 	phd.fillMultiMapMetrics(cl)
 	phd.fillReplicatedMapMetrics(cl)
 	phd.fillCronHotBackupMetrics(cl)
 	phd.fillTopicMetrics(cl)
 	phd.fillJetMetrics(cl)
+	phd.fillSnapshotMetrics(cl)
+	phd.fillTieredStorageMetrics(cl)
 	return phd
 }
 
@@ -219,6 +235,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	clusterUUIDs := []string{}
 	highAvailabilityModes := []string{}
 	nativeMemoryCount := 0
+	sqlCount := 0
 
 	hzl := &hazelcastv1alpha1.HazelcastList{}
 	err := cl.List(context.Background(), hzl, listOptions()...)
@@ -245,6 +262,10 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 			customConfigCount++
 		}
 
+		if hz.Spec.SQL != nil {
+			sqlCount++
+		}
+
 		phm.ExposeExternally.addUsageMetrics(hz.Spec.ExposeExternally)
 		if hz.Spec.AdvancedNetwork != nil {
 			phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
@@ -254,6 +275,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
 		phm.TLS.addUsageMetrics(hz.Spec.TLS)
+		phm.CPSubsystem.addUsageMetrics(hz.Spec.CPSubsystem)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
@@ -272,6 +294,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.NativeMemoryCount = nativeMemoryCount
 	phm.SerializationCount = serializationCount
 	phm.CustomConfigCount = customConfigCount
+	phm.SQLCount = sqlCount
 }
 
 func ClusterUUID(reg hzclient.ClientRegistry, hzName, hzNamespace string) (string, bool) {
@@ -324,7 +347,7 @@ func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersis
 	if !p.IsEnabled() {
 		return
 	}
-	if !p.Pvc.IsEmpty() {
+	if p.PVC != nil {
 		br.PvcCount += 1
 	}
 	if p.IsRestoreEnabled() {
@@ -348,6 +371,13 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 	if hucd.IsRemoteURLsEnabled() {
 		ucd.FromURL++
 	}
+}
+
+func (cp *CPSubsystem) addUsageMetrics(cpc *hazelcastv1alpha1.CPSubsystem) {
+	if cpc == nil {
+		return
+	}
+	cp.Count++
 }
 
 func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration) {
@@ -411,7 +441,7 @@ func (phm *PhoneHomeData) fillMCMetrics(cl client.Client) {
 
 	for _, mc := range mcl.Items {
 		createdMCCount += 1
-		if mc.Status.Phase == hazelcastv1alpha1.Running {
+		if mc.Status.Phase == hazelcastv1alpha1.McRunning {
 			successfullyCreatedMCCount += 1
 		}
 		phm.McExternalConnectivity.addUsageMetrics(mc.Spec.ExternalConnectivity)
@@ -508,6 +538,15 @@ func (phm *PhoneHomeData) fillWanReplicationMetrics(cl client.Client) {
 	phm.WanReplicationCount = len(wrl.Items)
 }
 
+func (phm *PhoneHomeData) fillWanSyncMetrics(cl client.Client) {
+	wsl := &hazelcastv1alpha1.WanSyncList{}
+	err := cl.List(context.Background(), wsl, listOptions()...)
+	if err != nil || wsl.Items == nil {
+		return
+	}
+	phm.WanSyncCount = len(wsl.Items)
+}
+
 func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {
 	hbl := &hazelcastv1alpha1.HotBackupList{}
 	err := cl.List(context.Background(), hbl, listOptions()...)
@@ -578,9 +617,34 @@ func (phm *PhoneHomeData) fillJetMetrics(cl client.Client) {
 	phm.Jet.Count = len(jjl.Items)
 }
 
+func (phm *PhoneHomeData) fillSnapshotMetrics(cl client.Client) {
+	jjsl := &hazelcastv1alpha1.JetJobSnapshotList{}
+	err := cl.List(context.Background(), jjsl, listOptions()...)
+	if err != nil || jjsl.Items == nil {
+		return
+	}
+	phm.JetJobSnapshotCount = len(jjsl.Items)
+}
+
+func (phm *PhoneHomeData) fillTieredStorageMetrics(cl client.Client) {
+	tsMapCount := 0
+	ml := &hazelcastv1alpha1.MapList{}
+	err := cl.List(context.Background(), ml, listOptions()...)
+	if err != nil {
+		return //TODO maybe add retry
+	}
+
+	for _, m := range ml.Items {
+		if m.Spec.TieredStore != nil {
+			tsMapCount += 1
+		}
+	}
+	phm.TieredStorage.MapCount = tsMapCount
+}
+
 func listOptions() []client.ListOption {
 	lo := []client.ListOption{}
-	if util.WatchedNamespaceType() == util.WatchedNsTypeAll {
+	if util.WatchedNamespaceType(util.OperatorNamespace(), util.WatchedNamespaces()) == util.WatchedNsTypeAll {
 		// Watching all namespaces, no need to filter
 		return lo
 	}

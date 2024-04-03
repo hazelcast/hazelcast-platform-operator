@@ -9,10 +9,9 @@ on:
 env:
   OPERATOR_NAME: "hazelcast-platform-operator"
   RELEASE_VERSION: ${{ inputs.RELEASE_VERSION }}
-  PROJECT_ID: ${{ secrets.PROJECT_ID }}
-  PFLT_PYXIS_API_TOKEN: ${{ secrets.RHEL_API_KEY }}
   PUBLISH_TIMEOUT_IN_MINS: "60"
   GRADE_CHECK_TIMEOUT_IN_MINS: "10"
+  AWS_REGION: us-east-1
 
 jobs:
   publish_docker_image:
@@ -23,24 +22,32 @@ jobs:
       IMAGE_NAME: ${{ steps.set-outputs.outputs.IMAGE_NAME }}
       IMAGE_DIGEST: ${{ steps.push-operator-image.outputs.IMAGE_DIGEST }}
       CURRENT_LATEST_TAG: ${{ steps.get-current-latest-tag.outputs.CURRENT_LATEST_TAG }}
+      BUNDLE_RELEASE_VERSION: ${{ steps.set-outputs.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DOCKERHUB_USERNAME,CN/DOCKERHUB_USERNAME
+            DOCKERHUB_PASSWORD,CN/DOCKERHUB_PASSWORD
+
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set Release Version
         id: set-outputs
         run: |
           IMAGE_NAME=docker.io/hazelcast/${OPERATOR_NAME}:${RELEASE_VERSION}
+          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
+          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_ENV
+          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_OUTPUT
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
@@ -52,24 +59,24 @@ jobs:
           token=$(curl --fail -L -s -X POST 'https://hub.docker.com/v2/users/login' \
           -H 'Content-Type: application/json' \
           --data-raw '{
-            "username": "${{ secrets.DOCKERHUB_USERNAME }}",
-            "password": "${{ secrets.DOCKERHUB_PASSWORD }}"
+            "username": "${{ env.DOCKERHUB_USERNAME }}",
+            "password": "${{ env.DOCKERHUB_PASSWORD }}"
           }'| jq -r '.token')
 
           CURRENT_LATEST_TAG=$(curl --fail -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
-          -H "Authorization: Bearer $token" | jq -r  '.results[] | select((.tags | length == 2) and .tags[].tag =="latest") | select(.tags[1].is_current == true) | .tags[].tag | select(. !="latest")')
-          echo "CURRENT_LATEST_TAG=$CURRENT_LATEST_TAG" >> $GITHUB_ENV
-          echo "CURRENT_LATEST_TAG=$CURRENT_LATEST_TAG" >> $GITHUB_OUTPUT
+          -H "Authorization: Bearer $token" | jq -r  '.results[] | select(any(.tags[]; .tag == "latest" and .is_current == true)) | .tags[] | select(.is_current == true and .tag != "latest" and (.tag | test("\\d+\\.\\d+\\.\\d+")))| .tag')
+          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
+          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_OUTPUT
 
       - name: Build Operator Image
         run: |
           make docker-build-ci IMG=${IMAGE_NAME} VERSION=${RELEASE_VERSION}
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD }}
 
       - name: Push Operator Image
         id: push-operator-image
@@ -90,7 +97,23 @@ jobs:
       IMAGE_NAME: ${{ needs.publish_docker_image.outputs.IMAGE_NAME }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DOCKERHUB_USERNAME,CN/DOCKERHUB_USERNAME
+            DOCKERHUB_PASSWORD,CN/DOCKERHUB_PASSWORD
+            PREFLIGHT_PROJECT_ID,CN/PREFLIGHT_PROJECT_ID
+            PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
 
       - name: Setup Preflight
         id: setup-tools
@@ -103,12 +126,12 @@ jobs:
       - name: Test and Submit Container Results to Red Hat
         run: |
           echo "Submit test container results to Red Hat"
-          podman login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_PASSWORD }} index.docker.io --authfile /home/runner/.docker/config.json
+          podman login -u ${{ env.DOCKERHUB_USERNAME }} -p ${{ env.DOCKERHUB_PASSWORD }} index.docker.io --authfile /home/runner/.docker/config.json
 
           preflight check container index.$IMAGE_NAME \
           --submit \
           --docker-config=/home/runner/.docker/config.json \
-          --certification-project-id=$PROJECT_ID
+          --certification-project-id=${{ env.PREFLIGHT_PROJECT_ID }}
           grep -E -q "Preflight result: PASSED\"( |$)" preflight.log || exit 1
           CERT_IMAGE_ID=$(cat preflight.log | grep "The container's image id is:" | awk '{print $8}' | cut -d '.' -f1)
           echo "CERT_IMAGE_ID=${CERT_IMAGE_ID}" >> $GITHUB_ENV
@@ -116,13 +139,13 @@ jobs:
       - name: Publish the Hazelcast-Platform-Operator Image
         run: |
           source .github/scripts/utils.sh
-          checking_image_grade "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$GRADE_CHECK_TIMEOUT_IN_MINS"
-          wait_for_container_publish "$PROJECT_ID" "$RELEASE_VERSION" "$PFLT_PYXIS_API_TOKEN" "$PUBLISH_TIMEOUT_IN_MINS"
+          checking_image_grade "${{ env.PREFLIGHT_PROJECT_ID }}" "$RELEASE_VERSION" "${{ env.PFLT_PYXIS_API_TOKEN }}" "$GRADE_CHECK_TIMEOUT_IN_MINS"
+          wait_for_container_publish "${{ env.PREFLIGHT_PROJECT_ID }}" "$RELEASE_VERSION" "${{ env.PFLT_PYXIS_API_TOKEN }}" "$PUBLISH_TIMEOUT_IN_MINS"
 
       - name: Sync Latest Image
         run: |
           source .github/scripts/utils.sh
-          sync_certificated_image_tags "$PROJECT_ID" "$CERT_IMAGE_ID" "$PFLT_PYXIS_API_TOKEN"
+          sync_certificated_image_tags "${{ env.PREFLIGHT_PROJECT_ID }}" "$CERT_IMAGE_ID" "${{ env.PFLT_PYXIS_API_TOKEN }}"
 
   redhat_certified_operator_release:
     name: Create a PR in 'certified-operators' Repository
@@ -132,11 +155,24 @@ jobs:
       REPO_NAME: certified-operators
       REPO_OWNER: redhat-openshift-ecosystem
       RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.RELEASE_VERSION }}
-      IMAGE_NAME: ${{ needs.publish_docker_image.outputs.IMAGE_NAME }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
+      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Build Red Hat Bundle
         run: |
@@ -153,11 +189,11 @@ jobs:
           make bundle-ocp-validate
 
       - name: Checkout to devOpsHelm
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: devOpsHelm/${{ env.REPO_NAME }}
           path: ${{ env.REPO_NAME }}
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Update main branch of the fork
         working-directory: ${{ env.REPO_NAME }}
@@ -166,11 +202,6 @@ jobs:
           git remote add upstream https://github.com/${REPO_OWNER}/${REPO_NAME}.git
           git pull upstream main
           git push origin main
-
-      - name: Set Bundle Release Version
-        run: |
-          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
-          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_ENV
 
       - name: Commit and push changes to bundle
         working-directory: ${{ env.REPO_NAME }}
@@ -192,7 +223,7 @@ jobs:
       - name: Create PR
         working-directory: ${{ env.REPO_NAME }}
         run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title \
           "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
 
@@ -213,35 +244,41 @@ jobs:
       REPO_NAME: ${{ matrix.repo-name }}
       REPO_OWNER: ${{ matrix.repo-owner }}
       RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.RELEASE_VERSION }}
-      IMAGE_NAME: ${{ needs.publish_docker_image.outputs.IMAGE_NAME }}
+      IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
+      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Cache Golang dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Build Bundle
+      - name: Build Red Hat Bundle
         run: |
-          make bundle IMG=${IMAGE_NAME} VERSION=${RELEASE_VERSION}
+          IMAGE_NAME_DIGEST=docker.io/hazelcast/${OPERATOR_NAME}@${IMAGE_DIGEST}
+          make bundle IMG=${IMAGE_NAME_DIGEST} VERSION=${RELEASE_VERSION}
           cat >> ./bundle/metadata/annotations.yaml <<EOF
             # OpenShift annotations.
             com.redhat.openshift.versions: v4.8
+            operators.operatorframework.io.bundle.channel.default.v1: alpha
           EOF
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
+
       - name: Checkout to devOpsHelm/${{ env.REPO_NAME }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: devopsHelm/${{ env.REPO_NAME }}
           path: ${{ env.REPO_NAME }}
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Update main branch of the fork
         working-directory: ${{ env.REPO_NAME}}
@@ -250,11 +287,6 @@ jobs:
           git remote add upstream https://github.com/${REPO_OWNER}/${REPO_NAME}.git
           git pull upstream main
           git push origin main
-
-      - name: Set Bundle Release Version
-        run: |
-          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
-          echo "BUNDLE_RELEASE_VERSION=${BUNDLE_RELEASE_VERSION}" >> $GITHUB_ENV
 
       - name: Commit and push changes to bundle
         working-directory: ${{ env.REPO_NAME}}
@@ -276,7 +308,7 @@ jobs:
       - name: Create PR
         working-directory: ${{ env.REPO_NAME }}
         run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" \
             --body "" --repo ${REPO_OWNER}/${REPO_NAME}
 
@@ -286,32 +318,79 @@ jobs:
     needs: ['operatorhub_release']
     steps:
       - name: Checkout 'Hazelcast Operator' Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Package operator chart and add it into index.yaml
         run: |
           helm package ./helm-charts/hazelcast-platform-operator
           helm package ./helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds
           aws s3 cp s3://hazelcast-charts/index.yaml .
+          cp ./index.yaml ${{ runner.temp }}/index.yaml
           helm repo index --url=https://hazelcast-charts.s3.amazonaws.com --merge ./index.yaml .
+
+      - name: Upload Backup of the Helm Chart Index
+        uses: actions/upload-artifact@v3
+        with:
+          name: index.yaml
+          path: ${{ runner.temp }}/index.yaml
 
       - name: Push operator chart and index.yaml to S3 bucket
         run: |
           for CHART_TGZ in *.tgz; do aws s3 cp ${CHART_TGZ} s3://hazelcast-charts; done
           aws s3 cp ./index.yaml s3://hazelcast-charts
 
+      - name: Create Kind Config
+        run: |
+          cat <<EOT >> ./kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+          - role: worker
+          EOT
+
+      - name: Create Kind Cluster
+        uses: helm/kind-action@v1.9.0
+        with:
+          config: ./kind-config.yaml
+          cluster_name: kind
+
+      - name: Install and Verify Hazelcast Operator Image Tag
+        run: |
+          LATEST_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
+          helm repo update && \
+          helm install operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
+          kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=180s
+          INSTALLED_VERSION=$(kubectl get deployment operator-hazelcast-platform-operator -o=jsonpath="{.spec.template.spec.containers[*].image}" | awk -F ':' '{print $2}')
+          if [[ ${LATEST_VERSION} == ${INSTALLED_VERSION} ]]; then
+            echo "The latest operator image is successfully installed."
+          else
+            echo "The latest operator image tag doesn't equal the installed image tag."
+            exit 1
+          fi
+
       - name: Checkout to 'Hazelcast Charts' Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/charts
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Create Release Branch
         run: |
@@ -321,15 +400,15 @@ jobs:
           git push -u origin $RELEASE_VERSION
 
       - name: Checkout to Hazelcast Platform Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/hazelcast-platform-operator
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
           ref: ${{ inputs.RELEASE_VERSION }}
 
       - name: Commit And Push Changes To 'Hazelcast Charts' Repository
         run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
           git subtree add --prefix=charts https://github.com/hazelcast/charts.git $RELEASE_VERSION --squash
@@ -340,10 +419,10 @@ jobs:
           git subtree push --prefix=charts https://github.com/hazelcast/charts.git $RELEASE_VERSION
 
       - name: Checkout to 'Hazelcast Charts' Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/charts
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
           ref: ${{ inputs.RELEASE_VERSION }}
 
       - name: Create a New Tag in 'Hazelcast Charts' Repository
@@ -356,16 +435,16 @@ jobs:
           git push origin --delete $RELEASE_VERSION
 
       - name: Checkout 'main' Branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/hazelcast-platform-operator
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
           ref: main
 
       - name: Update Chart Version in Main Branch
         working-directory: helm-charts/hazelcast-platform-operator
         run: |
-          REPLACED_VERSION=$(echo "$RELEASE_BRANCH" | awk -F'.' '{print $1"."$2+1".0"}')
+          REPLACED_VERSION=$(echo "$RELEASE_VERSION" | awk -F'.' '{print $1"."$2+1".0"}')
           echo "REPLACED_VERSION=${REPLACED_VERSION}" >> $GITHUB_ENV
           sed -i -E -e 's/(version: ).*/\1"'$REPLACED_VERSION-snapshot'"/' -e 's/(appVersion: ).*/\1"'$REPLACED_VERSION-snapshot'"/' charts/hazelcast-platform-operator-crds/Chart.yaml Chart.yaml
 
@@ -377,38 +456,54 @@ jobs:
           BRANCH_NAME=update-helm-chart-to-${REPLACED_VERSION}
           git checkout -b $BRANCH_NAME
           git add .
-          git commit --signoff -m "$(echo -e "Update helm chart to ${REPLACED_VERSION} version\n\n[no ci]")"
+          git commit --signoff -m "$(echo -e "Update helm chart to ${REPLACED_VERSION} version")"
           git push -u origin $BRANCH_NAME
 
       - name: Create and Merge PR to Main Branch
         run: |
-          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" \
           --label "non-release" \
-          --milestone "${RELEASE_BRANCH}" \
+          --milestone "${RELEASE_VERSION}" \
           --body ""
-          PR_NUMBER=$(gh pr list --search "update-helm-chart" --json number | jq -r '.[].number')
-          gh pr merge $PR_NUMBER --admin --squash --delete-branch 
 
   revert_changes:
     name: Revert Release Changes
     needs: ['publish_docker_image', 'publish_image_to_redhat', 'helm_chart_release']
-    if: always() && (needs.publish_docker_image.result == 'failure' || needs.publish_image_to_redhat.result == 'failure' || needs.helm_chart_release.result == 'failure')
+    if: always() && (needs.publish_docker_image.result == 'failure' || needs.publish_image_to_redhat.result == 'failure' || needs.operatorhub_release.result == 'failure' || needs.helm_chart_release.result == 'failure')
     runs-on: ubuntu-latest
     env:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
+      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DOCKERHUB_USERNAME,CN/DOCKERHUB_USERNAME
+            DOCKERHUB_PASSWORD,CN/DOCKERHUB_PASSWORD
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
+            PREFLIGHT_PROJECT_ID,CN/PREFLIGHT_PROJECT_ID
+            PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
 
       - name: Removing Published Docker Image
         run: |
           auth_token=$(curl --fail -L -s -X POST 'https://hub.docker.com/v2/users/login' \
           -H 'Content-Type: application/json' \
           --data-raw '{
-            "username": "${{ secrets.DOCKERHUB_USERNAME }}",
-            "password": "${{ secrets.DOCKERHUB_PASSWORD }}"
+            "username": "${{ env.DOCKERHUB_USERNAME }}",
+            "password": "${{ env.DOCKERHUB_PASSWORD }}"
           }'| jq -r '.token')
 
           curl --fail -L -s -X POST 'https://hub.docker.com/v2/namespaces/hazelcast/delete-images' \
@@ -440,25 +535,27 @@ jobs:
           }'
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD }}
 
       - name: Making Previous Docker Image Tag As 'latest'
         run: |
           docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
           make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
 
-      - name: Removing Release Tag in 'Hazelcast Operator' Repo
+      - name: Removing Release Notes and Tag in 'Hazelcast Operator' Repo
+        if: always()
         run: |
-          git push --delete origin v${RELEASE_VERSION}
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          gh release delete v${RELEASE_VERSION} --cleanup-tag --yes
 
       - name: Checkout to 'Hazelcast Charts' Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hazelcast/charts
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Deleting Branch and Tag in 'Hazelcast Charts' Repo
         run: |
@@ -468,16 +565,53 @@ jobs:
           git push origin --delete ${TAG_VERSION}
           set -e
 
+      - name: Download a Backup of the Helm Chart Index
+        uses: actions/download-artifact@v3
+        with:
+          name: index.yaml
+          path: ./index.yaml
+
+      - name: Restore the Helm Chart Index
+        run: |
+          aws s3 rm s3://hazelcast-charts/hazelcast-platform-operator-${RELEASE_VERSION}.tgz
+          aws s3 rm s3://hazelcast-charts/hazelcast-platform-operator-crds-${RELEASE_VERSION}.tgz
+          aws s3 cp ./index.yaml s3://hazelcast-charts
+
+      - name: Close PR's in 'certified-operators, community-operators and community-operators-prod' Repo's
+        run: |
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          for REPO in "redhat-openshift-ecosystem/certified-operators" "k8s-operatorhub/community-operators" "redhat-openshift-ecosystem/community-operators-prod"; do   
+            PR_NUMBER=$(gh pr list --repo $REPO --search "operator ${{ env.OPERATOR_NAME }} (${BUNDLE_RELEASE_VERSION})" --json number | jq -r '.[].number')
+            gh pr close $PR_NUMBER --repo $REPO --delete-branch 2>/dev/null
+          done
+
+      - name: Delete Published and Certified Opehshift Image
+        run: |
+          delete_container_image "${{ env.PREFLIGHT_PROJECT_ID }}" "${RELEASE_VERSION}" "${{ env.PFLT_PYXIS_API_TOKEN }}" "5"
+
   slack_notify:
     name: Slack Notify
     needs: ['publish_docker_image', 'publish_image_to_redhat', 'operatorhub_release', 'redhat_certified_operator_release', 'helm_chart_release']
     if: needs.operatorhub_release.result != 'success' && needs.redhat_certified_operator_release.result != 'success' && needs.helm_chart_release.result != 'success'
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
       - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
           channel: "#github-actions-log"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

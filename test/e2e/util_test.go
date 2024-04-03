@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"os"
 	"reflect"
 	"strings"
@@ -17,15 +16,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
-
-func useExistingCluster() bool {
-	return strings.ToLower(os.Getenv("USE_EXISTING_CLUSTER")) == "true"
-}
-
-func runningLocally() bool {
-	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
-}
 
 func GetControllerManagerName() string {
 	return os.Getenv("DEPLOYMENT_NAME")
@@ -38,11 +32,11 @@ func GetSuiteName() string {
 	}
 	hazelcastVersion := os.Getenv("HZ_VERSION")
 	if hazelcastVersion == "" {
-		hazelcastVersion = naming.HazelcastVersion
+		hazelcastVersion = n.HazelcastVersion
 	}
 	managementCenterVersion := os.Getenv("MC_VERSION")
 	if managementCenterVersion == "" {
-		managementCenterVersion = naming.MCVersion
+		managementCenterVersion = n.MCVersion
 	}
 	return fmt.Sprintf("Operator Suite %s (HZ:%s; MC:%s)", edition, hazelcastVersion, managementCenterVersion)
 }
@@ -138,4 +132,97 @@ func DeleteAllOf(obj client.Object, objList client.ObjectList, ns string, labels
 		items := objListVal.FieldByName("Items")
 		return items.Len()
 	}, 10*Minute, interval).Should(Equal(0))
+}
+
+func checkJetJobStatus(nn types.NamespacedName, phase hazelcastcomv1alpha1.JetJobStatusPhase) {
+	jjCheck := &hazelcastcomv1alpha1.JetJob{}
+	Eventually(func() hazelcastcomv1alpha1.JetJobStatusPhase {
+		err := k8sClient.Get(context.Background(), nn, jjCheck)
+		if err != nil {
+			return ""
+		}
+		return jjCheck.Status.Phase
+	}, 5*Minute, interval).Should(Equal(phase))
+}
+
+func checkJetJobSnapshotStatus(nn types.NamespacedName, state hazelcastcomv1alpha1.JetJobSnapshotState) *hazelcastcomv1alpha1.JetJobSnapshot {
+	jjsCheck := &hazelcastcomv1alpha1.JetJobSnapshot{}
+	Eventually(func() hazelcastcomv1alpha1.JetJobSnapshotState {
+		err := k8sClient.Get(context.Background(), nn, jjsCheck)
+		if err != nil {
+			return ""
+		}
+		return jjsCheck.Status.State
+	}, 5*Minute, interval).Should(Equal(state))
+	return jjsCheck
+}
+
+// Group works like ginkgo Labels but with the intention of grouping related tests
+func Group(group string) Labels {
+	return Label(group, "operator")
+}
+
+// A set of well known labels used by tests
+const (
+	OS    = 1 << 2 // Open Source License
+	EE    = 1 << 3 // Enterprise License
+	Kind  = 1 << 4
+	AWS   = 1 << 5
+	GCP   = 1 << 6
+	AZURE = 1 << 7
+	OCP   = 1 << 8
+)
+
+// tagNames maps tags to label representation
+var tagNames = map[uint32]string{
+	OS:    "os",
+	EE:    "ee",
+	Kind:  "kind",
+	AWS:   "aws",
+	GCP:   "gcp",
+	AZURE: "azure",
+	OCP:   "ocp",
+}
+
+const (
+	// AnyCloud tagged tests will run on all cloud providers
+	AnyCloud = AWS | GCP | AZURE | OCP
+
+	// AnyLicense tagged tests will run on all cloud providers
+	AnyLicense = OS | EE
+
+	// Any tagged tests will always run
+	Any = AnyCloud | AnyLicense
+)
+
+// Tag works like ginkgo Labels but is using typed labels
+func Tag(tag uint32) Labels {
+	var tags []string
+	for i := uint32(0); i < 32; i++ {
+		if (tag & (1 << i)) != 0 {
+			tags = append(tags, tagNames[1<<i])
+		}
+	}
+	tags = append(tags, shard())
+	return Labels(tags)
+}
+
+var counter int
+
+func shard() string {
+	s := fmt.Sprintf("shard%0*d", countDigits(shards), (counter%shards)+1)
+	counter++
+	return s
+}
+
+func countDigits(i int) int {
+	if i == 0 {
+		return 1
+	}
+	var count int
+	for i != 0 {
+		i /= 10
+		count++
+	}
+	return count
 }

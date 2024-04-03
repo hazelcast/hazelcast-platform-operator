@@ -3,12 +3,15 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE_BRANCH:
-        description: "Release branch name in the form of X.Y"
+        description: "Release branch name in the form of X.Y.Z"
         required: true
 
 permissions:
   contents: write
   pull-requests: write
+
+env:
+  AWS_REGION: us-east-1
 
 jobs:
   create_release_branch:
@@ -16,28 +19,77 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_BRANCH: ${{ github.event.inputs.RELEASE_BRANCH }}
+      HZ_REPO: hazelcast/hazelcast
+      MC_REPO: hazelcast/management-center
     steps:
       - name: Validate version
         run: |
           NUMBER='(0|[1-9][0-9]*)'
-          echo ${RELEASE_BRANCH} | egrep "^$NUMBER.$NUMBER?$"
+          echo ${RELEASE_BRANCH} | egrep "^$NUMBER.$NUMBER.$NUMBER?$"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
-      - name: Create Release Branch
+      - name: Set the latest HZ and MC versions and Create Release Branch
+        id: update_version
         run: |
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
-          git checkout -b ${RELEASE_BRANCH}
-          git push -u origin ${RELEASE_BRANCH} 
+          
+          get_latest_tag() {
+            echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+            local LATEST_TAG=$(gh api repos/$1/git/matching-refs/tags --jq '.[].ref | select(test("^refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+$")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
+            echo $LATEST_TAG
+          }
+          
+          HZ_LATEST_TAG=$(get_latest_tag "$HZ_REPO")
+          MC_LATEST_TAG=$(get_latest_tag "$MC_REPO")
+          sed -i '/Version of Hazelcast Platform\./{n; /^\s*$/! {s#// +kubebuilder:default:="\([0-9][^"]*\)"#// +kubebuilder:default:="'"$HZ_LATEST_TAG"'"#;};}' api/v1alpha1/hazelcast_types.go
+          sed -i '/Version of Management Center\./{n; /^\s*$/! {s#// +kubebuilder:default:="\([0-9][^"]*\)"#// +kubebuilder:default:="'"$MC_LATEST_TAG"'"#;};}' api/v1alpha1/managementcenter_types.go
+          sed -i 's/HazelcastVersion = \".*\"/HazelcastVersion = \"'$HZ_LATEST_TAG'\"/' internal/naming/constants.go
+          sed -i 's/MCVersion = \".*\"/MCVersion = \"'$MC_LATEST_TAG'\"/' internal/naming/constants.go
+          grep -rl 'kind: Hazelcast' config/samples | xargs sed -i -E -e 's/(version: ).*/\1'"'$HZ_LATEST_TAG'"'/'
+          
+          if git diff --quiet; then
+            #Create the release branch based on 'main' branch
+              git checkout -b ${RELEASE_BRANCH}
+              git push -u origin ${RELEASE_BRANCH} 
+          else
+            #Create PR against main branch
+             make sync-manifests
+             git checkout -b "update-hz-and-mc"
+             git add .
+             git commit --signoff -m "Update Hazelcast and MC version"
+             git push -u origin "update-hz-and-mc"
+             gh pr create --fill \
+              --reviewer "hazelcast/cloud-native" \
+              --label "non-release" \
+              --milestone "${RELEASE_BRANCH}"
+          
+            #Create the release branch based on 'update-hz-and-mc' branch         
+             git checkout -b ${RELEASE_BRANCH} "update-hz-and-mc"
+             git push -u origin ${RELEASE_BRANCH}
+          fi
 
       - name: Checkout 'Release' Branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
           ref: ${{ inputs.RELEASE_BRANCH }}
 
       - name: Convert latest-snapshot to Release Version
@@ -50,6 +102,7 @@ jobs:
         run: |
           sed -i 's/-snapshot//g' charts/hazelcast-platform-operator-crds/Chart.yaml
           sed -i 's/-snapshot//g' Chart.yaml
+          sed -i "s|tag: .*|tag: |" values.yaml
 
       - name: Commit and Push Changes
         run: |
@@ -66,10 +119,23 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && needs.create_release_branch.result != 'success' 
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            SLACK_WEBHOOK_URL,CN/SLACK_WEBHOOK_URL
+
       - uses: 8398a7/action-slack@v3
         with:
           fields: repo,commit,author,action,eventName,workflow
           status: failure
           channel: "#github-actions-log"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

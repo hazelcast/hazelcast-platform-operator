@@ -90,6 +90,33 @@ wait_for_container_publish()
     done
 }
 
+wait_for_container_unpublish()
+{
+    local PROJECT_ID=$1
+    local VERSION=$2
+    local RHEL_API_KEY=$3
+    local TIMEOUT_IN_MINS=$4
+
+    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 6 ))
+    # Wait until the image is unpublished
+    for i in `seq 1 ${NOF_RETRIES}`; do
+        local IS_NOT_PUBLISHED=$(get_image not_published "${PROJECT_ID}" "${VERSION}" "${RHEL_API_KEY}" | jq -r '.total')
+
+        if [[ $IS_NOT_PUBLISHED == "1" ]]; then
+            echo "Image is unpublished, exiting."
+            return 0
+        else
+            echo "Image is still unpublishing, waiting..."
+        fi
+
+        if [[ $i == $NOF_RETRIES ]]; then
+            echo "Timeout! Unpublishing could not be finished"
+            return 42
+        fi
+        sleep 10
+    done
+}
+
 checking_image_grade()
 {
     local PROJECT_ID=$1
@@ -128,6 +155,35 @@ checking_image_grade()
         fi
         sleep 20
     done
+}
+
+delete_container_image()
+{
+    local PROJECT_ID=$1
+    local VERSION=$2
+    local RHEL_API_KEY=$3
+    local TIMEOUT_IN_MINS=$4
+
+    IMAGE_ID=$(curl -X 'GET' --silent \
+    -H "X-API-KEY: $RHEL_API_KEY" \
+    -H 'Content-Type: application/json' \
+    "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/requests/images" | jq -r 'del(.data[] | select(.status =="completed" and (.operation == "sync-tags")|not))|.data[-1].image_id')
+
+    echo "Unpublishing certified image..."
+    curl --request POST "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/requests/images" \
+    -H 'content-type: application/json' \
+    -H "X-API-KEY: $RHEL_API_KEY" \
+    --data-raw '{"image_id":"'$IMAGE_ID'","operation":"unpublish"}' \
+    --compressed
+
+    wait_for_container_unpublish $PROJECT_ID $VERSION $RHEL_API_KEY $TIMEOUT_IN_MINS
+
+    echo "Deleting certified image..."
+    curl --request POST "https://catalog.redhat.com/api/containers/v1/projects/certification/id/${PROJECT_ID}/requests/images" \
+    -H 'content-type: application/json' \
+    -H "X-API-KEY: $RHEL_API_KEY" \
+    --data-raw '{"image_id":"'$IMAGE_ID'","operation":"delete"}' \
+    --compressed
 }
 
 # The function waits until all EKS stacks will be deleted. Takes 2 arguments - cluster name and timeout.
@@ -224,7 +280,8 @@ post_test_result()
     )
 
     # Initialize the table header
-    comment="Test Results\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | ---- | :----: | :----: |\n"
+    success_comment="✅ All tests have passed\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
+    failed_comment="❌ Some tests failed\n--\n|| Total Tests | 🔴 Failures | 🟠 Errors | ⚪ Skipped |\n| :----: | :----: | :----: | :----: | :----: |\n"
     # Initialize the failed test section
     failed_test_block="\n<details><summary>Failed Tests</summary>\n\n|||\n| :----: | ---- |\n"
 
@@ -257,13 +314,21 @@ post_test_result()
         failed_tests_row="| ${type^^} | $failed_tests |\n"
 
         # Append the row to the output
-        comment+="$row"
+        success_comment+="$row"
+        failed_comment+="$row"
         failed_test_block+="$failed_tests_row"
     done
-    comment+="$failed_test_block"
+    success_comment+="$failed_test_block"
+    failed_comment+="$failed_test_block"
     # Send the output as a comment on the pull request using gh
+    COMMENT_ID=$(gh api -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/$PR_NUMBER/comments | jq '.[] | select(.user.login == "github-actions[bot]") | .id')
+    if [[ $COMMENT_ID -ne "" ]]; then
+        gh api --method DELETE -H "Accept: application/vnd.github+json" /repos/hazelcast/hazelcast-platform-operator/issues/comments/$COMMENT_ID
+    fi
     if [[ "${test_run_status[*]}" == *"true"* ]]; then
-       echo -e "$comment" | gh pr comment ${PR_NUMBER} -F -
+        echo -e "$failed_comment" | gh pr comment ${PR_NUMBER} -F -
+    else
+        echo -e "$success_comment" | gh pr comment ${PR_NUMBER} -F -
     fi
 }
 
@@ -302,34 +367,6 @@ wait_for_instance_restarted()
    fi
 }
 
-# The function generates test suite files which are contains list of focused tests. Takes a single argument - number of files to be generated.
-# Returns the specified number of files with name test_suite_XX where XX - suffix number of file starting with '01'. The tests will be equally splitted between files.
-generate_test_suites()
-{
-   make ginkgo
-   mkdir suite_files
-   SUITE_LIST=$(find test/e2e -type f \
-     -name "*_test.go" \
-   ! -name "hazelcast_backup_slow_test.go" \
-   ! -name "hazelcast_wan_slow_test.go" \
-   ! -name "hazelcast_high_availability_test.go" \
-   ! -name "custom_resource_test.go" \
-   ! -name "client_port_forward_test.go" \
-   ! -name "e2e_suite_test.go" \
-   ! -name "helpers_test.go" \
-   ! -name "util_test.go" \
-   ! -name "options_test.go")
-   for SUITE_NAME in $SUITE_LIST; do
-       $(make ginkgo PRINT_TOOL_NAME=true) outline --format=csv "$SUITE_NAME" | grep -E "It|DescribeTable" | awk -F "\"*,\"*" '{print $2}' | awk '{ print "\""$0"\""}'| awk '{print "--focus=" $0}' | shuf >> TESTS_LIST
-   done
-   split --number=r/$1 TESTS_LIST suite_files/test_suite_ --numeric-suffixes=1 -a 2
-   for i in $(ls suite_files/); do
-       wc -l "suite_files/$i"
-       cat <<< $(tr '\n' ' ' < suite_files/$i) > suite_files/$i
-       cat suite_files/"$i"
-   done
-}
-
 # The function merges all test reports (XML) files from each node into one report.
 # Takes a single argument - the WORKFLOW_ID (kind,gke,eks, aks etc.)
 merge_xml_test_reports() {
@@ -338,12 +375,8 @@ merge_xml_test_reports() {
   local files_by_edition=()
   local edition
   for file in $(ls ${GITHUB_WORKSPACE}/allure-results/$WORKFLOW_ID/test_report_*); do
-      if [[ $WORKFLOW_ID == "multi" ]]; then
-         edition=$(basename "$file" | awk -F "_" '{print $3"_"$4"_"$5}')
-      else
          edition=$(basename "$file" | awk -F "_" '{print $3}')
-      fi
-         files_by_edition+=("$edition $file")
+         files_by_edition+=("$edition")
   done
   groups=$(printf "%s\n" "${files_by_edition[@]}" | awk '{print $1}' | sort -u)
 
@@ -357,9 +390,12 @@ merge_xml_test_reports() {
           # insert extracted test cases into parent_test_report_file
           printf '%s\n' '0?<\/testcase>?a' $TEST_CASES . x | ex $PARENT_TEST_REPORT_FILE
       done
-      #remove 'SynchronizedBeforeSuite' and 'AfterSuite' xml tags from the final report
+      #remove 'SynchronizedBeforeSuite' and 'AfterSuite' and other unnecessary xml tags from the final report
       cat <<<$(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
       cat <<<$(xmlstarlet ed -d '//testcase[@name="[AfterSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
+      cat <<<$(xmlstarlet ed -d '//system-out' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+      sed -i 's/system-err/system-out/g' $PARENT_TEST_REPORT_FILE
+      sed -i '/^.*END STEP:.*$/d; /Exit \[It\]/d; /AfterEach/d; /Aftereach/d' $PARENT_TEST_REPORT_FILE
 
       # for each test name verify status
       for TEST_NAME in $(xmlstarlet sel -t -v "//testcase/@name" $PARENT_TEST_REPORT_FILE); do
@@ -397,28 +433,24 @@ update_test_files()
       local WORKFLOW_ID=$1
       local CLUSTER_NAME=$2
       local REPOSITORY_OWNER=$3
-      cd allure-history/$WORKFLOW_ID/${GITHUB_RUN_NUMBER}/data/test-cases
-      local GRAFANA_BASE_URL="https://hazelcastoperator.grafana.net"
       local BEGIN_TIME=$(date +%s000 -d "- 3 hours")
       local END_TIME=$(date +%s000 -d "+ 1 hours")
+      cd allure-history/$WORKFLOW_ID/${GITHUB_RUN_NUMBER}/data/test-cases
+      local GRAFANA_BASE_URL="https://hazelcastoperator.grafana.net"
       for i in $(ls); do
-          cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not))))
-                               |.testStage.steps[].name |= sub("&{Text:";"")
-                               |.testStage.steps[].name |= sub("}";"")
-                               |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
-                               |.testStage.steps[].name |= sub(" Duration.*";"")
-                               |.testStage.steps[].time.duration |= sub(".*Duration:";"")
-                               |.testStage.steps[].time.duration |= (if contains("CR_ID") then . elif contains("ms") then split("ms") | .[0]|tonumber elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
+          cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | startswith("STEP:")|not) and (.name | contains("CR_ID") | not)))
+                               |.testStage.steps[].name |= (sub("STEP: "; "") | sub(" - /home.*$"; "")
+                               | if . == "" then . else ((.[0:1] | ascii_upcase) + .[1:]) end)
                                |.testStage.steps[]+={status: "passed"}
                                |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
                                |to_entries
                                |walk(if type == "object" and (.value | select(contains("hazelcast-platform-operator/hazelcast-platform-operator"))) then . else . end)
                                |del(.[].key)
-                               |.[].value|=sub("\\t";"")
-                               |.[].value|=sub("\\+0.*";"")
                                |.[].value|=sub(" ";"")
                                |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/'${REPOSITORY_OWNER}'/hazelcast-platform-operator/blob/main")
                                |.[].value|= sub(".go:";".go#L")
+                               |.[].value|=sub("In\\[It\\] at: ";"")
+                               |.[].value|= sub(" @.*$"; "")
                                |unique
                                |to_entries[]
                                |.+={name: ("ERROR_LINE"+ "_" + (.key|tonumber+1|tostring))}
@@ -427,14 +459,14 @@ update_test_files()
                                |.+={type: "issue"}]}
                                |.testStage.steps[-1]+={status: "failed"} else . end)' $i) > $i
 
-         local NUMBER_OF_TEST_RUNS=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))] | length' $i)
+         local NUMBER_OF_TEST_RUNS=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("Setting the label and CR with name"))))] | length' $i)
          if [[ ${NUMBER_OF_TEST_RUNS} -gt 1 ]]; then
-               local START_INDEX_OF_LAST_RETRY=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))][-1].key-1' $i)
+               local START_INDEX_OF_LAST_RETRY=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("Setting the label and CR with name"))))][-1].key' $i)
                cat <<< $(jq -e 'del(.testStage.steps[0:'${START_INDEX_OF_LAST_RETRY}'])' $i) > $i
          fi
          local TEST_STATUS=$(jq -r '.status' $i)
          if [[ ${TEST_STATUS} != "skipped" ]]; then
-            cat <<< $(jq -e '.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")}|del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))' $i) > $i
+            cat <<< $(jq -e '.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")| sub(" .*$"; "")}|del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))' $i) > $i
             local CR_ID=$(jq -r '.extra.tags.tag' $i)
             local LINK=$(echo $GRAFANA_BASE_URL\/d\/-Lz9w3p4z\/all-logs\?orgId=1\&var-cluster="$CLUSTER_NAME"\&var-cr_id="$CR_ID"\&var-text=\&from="$BEGIN_TIME"\&to="$END_TIME")
             cat <<< $(jq -e '.links|= [{"name":"LOGS","url":"'"$LINK"'",type: "tms"}] + .' $i) > $i
@@ -547,7 +579,6 @@ update_status_badges()
 
 # It cleans up resources (all, PVCs and their bounded PVs) in the given namespace.
 cleanup_namespace(){
-
   # number of all resources excepting `kubernetes` svc
   number_of_all_resources() {
     kubectl get all --namespace="$1" -o json | \
@@ -592,5 +623,30 @@ cleanup_namespace(){
     echo "kubectl delete PV $pvList"
     kubectl delete pv $pvList || true
   fi
+}
 
+wait_condition_pod_ready() {
+  namespace="$1"
+  pod_label="$2"
+  try="$3"
+  duration="$4"
+
+  echo "namespace: $namespace, pod label: $pod_label"
+
+  for ((i=1; i<=$try; i++)); do
+    exit_status=0
+    kubectl wait --for=condition=ready pod -n $namespace -l $pod_label --timeout 3s || exit_status=$?
+
+    # If exit status is 0, break out of the loop
+    if [ $exit_status -eq 0 ]; then
+        echo "The pods labeled with '$pod_label' in '$namespace' namespace are ready"
+        return 0
+    fi
+
+    sleep "$duration"
+  done
+
+  # If the loop completes without finding a successful exit status, return a non-zero exit status
+  echo "The pods labeled with '$pod_label' in '$namespace' namespace are not ready yet"
+  return 1
 }
