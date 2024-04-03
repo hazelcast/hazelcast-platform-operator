@@ -65,7 +65,7 @@ func ValidateExistingJobName(jj *JetJob, jjList *JetJobList) error {
 }
 
 func ValidateJetConfiguration(h *Hazelcast) error {
-	v := NewHazelcastValidator(h)
+	v := newHazelcastValidator(h)
 	if !h.Spec.JetEngineConfiguration.IsEnabled() {
 		v.Required(Path("spec", "jet", "enabled"), "jet engine must be enabled")
 	}

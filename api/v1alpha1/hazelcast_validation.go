@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
@@ -34,12 +35,12 @@ type hazelcastValidator struct {
 	fieldValidator
 }
 
-func NewHazelcastValidator(o client.Object) hazelcastValidator {
+func newHazelcastValidator(o client.Object) hazelcastValidator {
 	return hazelcastValidator{NewFieldValidator(o)}
 }
 
 func ValidateHazelcastSpec(h *Hazelcast) error {
-	v := NewHazelcastValidator(h)
+	v := newHazelcastValidator(h)
 	v.validateSpecCurrent(h)
 	v.validateSpecUpdate(h)
 	return v.Err()
@@ -75,6 +76,10 @@ func (v *hazelcastValidator) validateSpecUpdate(h *Hazelcast) {
 	}
 
 	v.validateNotUpdatableHazelcastFields(&h.Spec, &parsed)
+
+	if h.Spec.CPSubsystem.IsEnabled() && isScaledNotPaused(&h.Spec, &parsed) && !isRevertedToOldSize(h) {
+		v.Forbidden(Path("scpe", "clusterSize"), "")
+	}
 }
 
 func (v *hazelcastValidator) validateMetadata(h *Hazelcast) {
@@ -366,6 +371,7 @@ func (v *hazelcastValidator) validateNotUpdatableHazelcastFields(current *Hazelc
 
 	v.validateNotUpdatableHzPersistenceFields(current.Persistence, last.Persistence)
 	v.validateNotUpdatableSQLFields(current.SQL, last.SQL)
+	v.validateNotUpdatableCPFields(current.CPSubsystem, last.CPSubsystem)
 }
 
 func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistenceConfiguration) {
@@ -386,6 +392,24 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 	}
 	if !reflect.DeepEqual(current.Restore, last.Restore) {
 		v.Forbidden(Path("spec", "persistence", "restore"), "field cannot be updated")
+	}
+}
+
+func (v *hazelcastValidator) validateNotUpdatableCPFields(current, last *CPSubsystem) {
+	if current == nil && last == nil {
+		return
+	}
+
+	if current == nil && last != nil {
+		v.Forbidden(Path("spec", "cpSubsystem"), "field cannot be enabled after creation")
+		return
+	}
+	if current != nil && last == nil {
+		v.Forbidden(Path("spec", "cpSubsystem"), "field cannot be disabled after creation")
+		return
+	}
+	if !reflect.DeepEqual(current.PVC, last.PVC) {
+		v.Forbidden(Path("spec", "cpSubsystem", "pvc"), "field cannot be updated")
 	}
 }
 
@@ -490,7 +514,7 @@ func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
 		memberSize = *h.Spec.ClusterSize
 	}
 
-	if memberSize < 3 {
+	if memberSize < 3 && memberSize != 0 {
 		v.Invalid(Path("spec", "clusterSize"), h.Spec.ClusterSize, "cluster with CP Subsystem enabled cannot have less than 3 members")
 	}
 
@@ -529,4 +553,15 @@ func (v *hazelcastValidator) validateSessionTTLSeconds(cp *CPSubsystem) {
 	if ttl > autoremoval {
 		v.Invalid(Path("spec", "cpSubsystem", "sessionTTLSeconds"), ttl, "must be smaller than or equal to missingCpMemberAutoRemovalSeconds")
 	}
+}
+
+func isScaledNotPaused(current *HazelcastSpec, last *HazelcastSpec) bool {
+	newSize := pointer.Int32Deref(current.ClusterSize, 3)
+	oldSize := pointer.Int32Deref(last.ClusterSize, 3)
+	return newSize != 0 && oldSize != 0 && newSize != oldSize
+}
+
+func isRevertedToOldSize(h *Hazelcast) bool {
+	newSize := pointer.Int32Deref(h.Spec.ClusterSize, 3)
+	return newSize == h.Status.ClusterSize
 }
