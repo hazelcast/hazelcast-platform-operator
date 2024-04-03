@@ -208,7 +208,7 @@ var (
 			},
 			Spec: hz.Spec,
 		}
-		hzRestore.Spec.Persistence.Restore = &restoreConfig
+		hzRestore.Spec.Persistence.Restore = restoreConfig
 		return hzRestore
 	}
 
@@ -370,7 +370,7 @@ var (
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
-					Restore: &hazelcastcomv1alpha1.RestoreConfiguration{
+					Restore: hazelcastcomv1alpha1.RestoreConfiguration{
 						HotBackupResourceName: hbn,
 					},
 				},

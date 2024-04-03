@@ -111,7 +111,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 
 		By("creating new Hazelcast cluster from the existing backup")
 		hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
@@ -215,7 +215,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 		}
-		hazelcast.Spec.Persistence.Restore = &hazelcastcomv1alpha1.RestoreConfiguration{
+		hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
 			HotBackupResourceName: hotBackup.Name,
 		}
 		t := Now()
