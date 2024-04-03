@@ -787,6 +787,7 @@ func assertWanSyncStatus(wr *hazelcastcomv1alpha1.WanSync, st hazelcastcomv1alph
 			if err != nil {
 				return ""
 			}
+			Expect(checkWan.Status.Status).ShouldNot(Equal(hazelcastcomv1alpha1.WanSyncFailed))
 			return checkWan.Status.Status
 		}, 5*Minute, interval).Should(Equal(st))
 	})
@@ -1137,9 +1138,8 @@ func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bo
 	}
 }
 
-func createWanResources(ctx context.Context, hzMapResources map[string][]string, ns string, labels map[string]string) (map[string]*hazelcastcomv1alpha1.Hazelcast, map[string]*hazelcastcomv1alpha1.Map) {
+func createWanResources(ctx context.Context, hzMapResources map[string][]string, ns string, labels map[string]string, mtFn ...func(p *hazelcastcomv1alpha1.Map)) (map[string]*hazelcastcomv1alpha1.Hazelcast, map[string]*hazelcastcomv1alpha1.Map) {
 	hzCrs := map[string]*hazelcastcomv1alpha1.Hazelcast{}
-
 	for hzCrName := range hzMapResources {
 		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzCrName, Namespace: ns}, ee, labels)
 		hz.Spec.ClusterName = hzCrName
@@ -1147,30 +1147,28 @@ func createWanResources(ctx context.Context, hzMapResources map[string][]string,
 		hzCrs[hzCrName] = hz
 		CreateHazelcastCRWithoutCheck(hz)
 	}
-
 	for _, hz := range hzCrs {
 		evaluateReadyMembers(types.NamespacedName{Name: hz.Name, Namespace: ns})
 	}
 
 	mapCrs := map[string]*hazelcastcomv1alpha1.Map{}
-
 	for hzCrName, mapCrNames := range hzMapResources {
 		for _, mapCrName := range mapCrNames {
 			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: mapCrName, Namespace: ns}, hzCrName, labels)
+			for _, f := range mtFn {
+				f(m)
+			}
 			mapCrs[mapCrName] = m
 			Expect(k8sClient.Create(ctx, m)).Should(Succeed())
 		}
 	}
-
 	for i := range mapCrs {
 		mapCrs[i] = assertMapStatus(mapCrs[i], hazelcastcomv1alpha1.MapSuccess)
 	}
-
 	return hzCrs, mapCrs
-
 }
 
-func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazelcastcomv1alpha1.Hazelcast, resources []hazelcastcomv1alpha1.ResourceSpec, mapCount int, labels map[string]string) *hazelcastcomv1alpha1.WanReplication {
+func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazelcastcomv1alpha1.Hazelcast, resources []hazelcastcomv1alpha1.ResourceSpec, mapCount int, labels map[string]string, mtFn ...func(*hazelcastcomv1alpha1.WanReplication)) *hazelcastcomv1alpha1.WanReplication {
 	wan := hazelcastconfig.WanReplication(
 		lk,
 		target.Spec.ClusterName,
@@ -1178,6 +1176,9 @@ func createWanConfig(ctx context.Context, lk types.NamespacedName, target *hazel
 		resources,
 		labels,
 	)
+	for _, f := range mtFn {
+		f(wan)
+	}
 	Expect(k8sClient.Create(ctx, wan)).Should(Succeed())
 	wan = assertWanStatus(wan, hazelcastcomv1alpha1.WanStatusSuccess)
 	wan = assertWanStatusMapCount(wan, mapCount)

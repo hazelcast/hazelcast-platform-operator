@@ -272,8 +272,9 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 	mapInput.InMemoryFormat = string(ms.InMemoryFormat)
 	if ms.MerkleTree != nil {
 		mapInput.MerkleTreeConfig = codecTypes.MerkleTreeConfig{
-			Enabled: true,
-			Depth:   ms.MerkleTree.Depth,
+			Enabled:    true,
+			Depth:      ms.MerkleTree.Depth,
+			EnabledSet: true,
 		}
 	}
 

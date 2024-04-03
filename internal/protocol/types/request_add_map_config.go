@@ -51,7 +51,7 @@ type AddMapConfigInput struct {
 	// nullable
 	EventJournalConfig EventJournalConfig
 	// nullable
-	MerkleTreeConfig      MerkleTreeConfig
+	MerkleTreeConfig      MerkleTreeConfig `xml:"merkle-tree"`
 	MetadataPolicy        int32
 	PerEntryStatsEnabled  bool
 	TieredStoreConfig     TieredStoreConfig `xml:"tiered-store"`
