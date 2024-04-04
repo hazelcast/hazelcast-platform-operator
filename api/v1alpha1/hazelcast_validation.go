@@ -78,7 +78,7 @@ func (v *hazelcastValidator) validateSpecUpdate(h *Hazelcast) {
 	v.validateNotUpdatableHazelcastFields(&h.Spec, &parsed)
 
 	if h.Spec.CPSubsystem.IsEnabled() && isScaledNotPaused(&h.Spec, &parsed) && !isRevertedToOldSize(h) {
-		v.Forbidden(Path("scpe", "clusterSize"), "")
+		v.Forbidden(Path("spec", "clusterSize"), "dynamic scaling not permitted when CP is enabled")
 	}
 }
 
