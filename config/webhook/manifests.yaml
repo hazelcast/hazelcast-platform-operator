@@ -12,7 +12,7 @@ webhooks:
       namespace: system
       path: /mutate-hazelcast-com-v1alpha1-hazelcast
   failurePolicy: Ignore
-  name: vhazelcast.kb.io
+  name: mhazelcast.kb.io
   rules:
   - apiGroups:
     - hazelcast.com
@@ -32,7 +32,7 @@ webhooks:
       namespace: system
       path: /mutate-hazelcast-com-v1alpha1-managementcenter
   failurePolicy: Ignore
-  name: vmanagementcenter.kb.io
+  name: mmanagementcenter.kb.io
   rules:
   - apiGroups:
     - hazelcast.com
