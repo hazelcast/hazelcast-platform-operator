@@ -1,0 +1,12 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: UserCodeNamespace
+metadata:
+  labels:
+    app.kubernetes.io/name: usercodenamespace
+    app.kubernetes.io/instance: usercodenamespace-sample
+    app.kubernetes.io/part-of: hazelcast-platform-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: hazelcast-platform-operator
+  name: usercodenamespace-sample
+spec:
+  # TODO(user): Add fields here
