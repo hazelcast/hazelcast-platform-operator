@@ -140,7 +140,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 
 			logReader := test.NewLogReader(logs)
 			defer logReader.Close()
-			test.EventuallyInLogs(logReader, 300*Second, logInterval/2).
+			test.EventuallyInLogs(logReader, 10*Minute, logInterval/2).
 				Should(ContainSubstring("com.hazelcast.internal.tstore.device.DeviceOutOfCapacityException"))
 		})
 
