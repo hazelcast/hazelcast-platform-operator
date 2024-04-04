@@ -219,12 +219,12 @@ type CPSubsystem struct {
 	GroupSize *int32 `json:"groupSize,omitempty"`
 
 	// SessionTTLSeconds is the duration for a CP session to be kept alive after the last received heartbeat.
-	// Must be greater than or equal to SessionTTLSeconds.
+	// Must be greater than or equal to SessionHeartbeatIntervalSeconds and smaller than or equal to MissingCpMemberAutoRemovalSeconds.
 	// +optional
 	SessionTTLSeconds *int32 `json:"sessionTTLSeconds,omitempty"`
 
 	// SessionHeartbeatIntervalSeconds Interval in seconds for the periodically committed CP session heartbeats.
-	// Must be greater than or equal to SessionTTLSeconds.
+	// Must be smaller than SessionTTLSeconds.
 	// +optional
 	SessionHeartbeatIntervalSeconds *int32 `json:"sessionHeartbeatIntervalSeconds,omitempty"`
 
@@ -236,6 +236,7 @@ type CPSubsystem struct {
 	FailOnIndeterminateOperationState *bool `json:"failOnIndeterminateOperationState,omitempty"`
 
 	// DataLoadTimeoutSeconds is the timeout duration in seconds for CP members to restore their persisted data from disk
+	// +kubebuilder:validation:Minimum:=1
 	// +optional
 	DataLoadTimeoutSeconds *int32 `json:"dataLoadTimeoutSeconds,omitempty"`
 
