@@ -219,8 +219,11 @@ jobs:
         id: setup-envs
         run: |
           if [[ ${{ github.event_name == 'schedule' }} == true ]]; then
-              echo "RELEASE_VERSION=1.0.0" >> $GITHUB_ENV
-              echo "RELEASE_VERSION=1.0.0" >> $GITHUB_OUTPUT
+              STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$STABLE_VERSION"
+              ((MINOR++))
+              echo "RELEASE_VERSION=$MAJOR.$MINOR.$PATCH" >> $GITHUB_ENV
+              echo "RELEASE_VERSION=$MAJOR.$MINOR.$PATCH" >> $GITHUB_OUTPUT
           elif [[ ${{ github.event_name == 'workflow_dispatch' }} == true ]]; then
               echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_ENV
               echo "RELEASE_VERSION=${{ github.event.inputs.RELEASE_VERSION }}" >> $GITHUB_OUTPUT
@@ -426,7 +429,7 @@ jobs:
 
       - name: Create Bundle Index
         run: |
-          opm index add --bundles ${BUNDLE_IMAGE} --tag ${PFLT_INDEXIMAGE}
+          opm index add --mode=replaces --bundles ${BUNDLE_IMAGE} --tag ${PFLT_INDEXIMAGE}
           podman push ${PFLT_INDEXIMAGE}
 
   test_operator:
