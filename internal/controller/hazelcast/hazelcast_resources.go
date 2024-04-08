@@ -1970,7 +1970,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 				MatchLabels: util.Labels(h),
 			},
 			ServiceName:         h.Name,
-			PodManagementPolicy: appsv1.ParallelPodManagement,
+			PodManagementPolicy: appsv1.OrderedReadyPodManagement,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labels(h),
