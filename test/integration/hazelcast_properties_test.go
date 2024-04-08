@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v3"
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"gopkg.in/yaml.v3"
 )
 
 var _ = Describe("Hazelcast Properties", func() {
@@ -53,7 +54,7 @@ var _ = Describe("Hazelcast Properties", func() {
 			}, timeout, interval).Should(Equal(map[string]string{
 				"hazelcast.cluster.version.auto.upgrade.enabled": "true",
 				"hazelcast.graceful.shutdown.max.wait":           "300",
-				"hazelcast.persistence.auto.cluster.state":       "true",
+				"hazelcast.persistence.auto.cluster.state":       "false",
 			}))
 		})
 
@@ -64,7 +65,7 @@ var _ = Describe("Hazelcast Properties", func() {
 			}
 			hz.Spec.Properties = map[string]string{
 				"hazelcast.cluster.version.auto.upgrade.enabled": "false",
-				"hazelcast.persistence.auto.cluster.state":       "false",
+				"hazelcast.persistence.auto.cluster.state":       "true",
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
@@ -81,7 +82,7 @@ var _ = Describe("Hazelcast Properties", func() {
 				return a.Hazelcast.Properties
 			}, timeout, interval).Should(Equal(map[string]string{
 				"hazelcast.cluster.version.auto.upgrade.enabled": "true",
-				"hazelcast.persistence.auto.cluster.state":       "true",
+				"hazelcast.persistence.auto.cluster.state":       "false",
 			}))
 		})
 	})
