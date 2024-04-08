@@ -514,6 +514,10 @@ type ExecutorServiceConfiguration struct {
 	// +kubebuilder:default:=0
 	// +optional
 	QueueCapacity int32 `json:"queueCapacity"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 type DurableExecutorServiceConfiguration struct {
@@ -538,6 +542,10 @@ type DurableExecutorServiceConfiguration struct {
 	// +kubebuilder:default:=100
 	// +optional
 	Capacity int32 `json:"capacity,omitempty"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 type ScheduledExecutorServiceConfiguration struct {
@@ -567,6 +575,10 @@ type ScheduledExecutorServiceConfiguration struct {
 	// +kubebuilder:default:=PER_NODE
 	// +optional
 	CapacityPolicy string `json:"capacityPolicy,omitempty"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 // CapacityPolicyType represents the active policy types for the capacity setting

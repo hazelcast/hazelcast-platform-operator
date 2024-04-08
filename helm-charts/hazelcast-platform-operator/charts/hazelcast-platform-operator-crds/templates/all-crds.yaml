@@ -109,6 +109,9 @@ spec:
                 default: false
                 description: When enabled, cache data will be persisted.
                 type: boolean
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                type: string
               valueType:
                 description: Class name of the value type
                 type: string
@@ -631,6 +634,10 @@ spec:
                       format: int32
                       minimum: 1
                       type: integer
+                    userCodeNamespace:
+                      description: Name of the User Code Namespace applied to this
+                        instance
+                      type: string
                   type: object
                 type: array
               executorServices:
@@ -652,6 +659,10 @@ spec:
                       description: Task queue capacity of the executor.
                       format: int32
                       type: integer
+                    userCodeNamespace:
+                      description: Name of the User Code Namespace applied to this
+                        instance
+                      type: string
                   type: object
                 type: array
               exposeExternally:
@@ -1177,6 +1188,10 @@ spec:
                       format: int32
                       minimum: 1
                       type: integer
+                    userCodeNamespace:
+                      description: Name of the User Code Namespace applied to this
+                        instance
+                      type: string
                   type: object
                 type: array
               scheduling:
@@ -4846,6 +4861,9 @@ spec:
                   updated for this time are evicted automatically. It can be updated.
                 format: int32
                 type: integer
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                type: string
             required:
             - hazelcastResourceName
             type: object
@@ -4968,6 +4986,9 @@ spec:
                 description: Name of the data structure config to be created. If empty,
                   CR name will be used. It cannot be updated after the config is created
                   successfully.
+                type: string
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
                 type: string
             required:
             - hazelcastResourceName
@@ -5102,6 +5123,9 @@ spec:
                   provided, the Queue becomes Priority Queue. You can learn more at
                   https://docs.hazelcast.com/hazelcast/latest/data-structures/priority-queue.
                 type: string
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                type: string
             required:
             - hazelcastResourceName
             type: object
@@ -5214,6 +5238,9 @@ spec:
                 description: Name of the ReplicatedMap config to be created. If empty,
                   CR name will be used.
                 type: string
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                type: string
             required:
             - hazelcastResourceName
             type: object
@@ -5320,6 +5347,9 @@ spec:
               name:
                 description: Name of the topic config to be created. If empty, CR
                   name will be used.
+                type: string
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
                 type: string
             required:
             - hazelcastResourceName

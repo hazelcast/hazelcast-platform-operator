@@ -115,6 +115,7 @@ func fillCacheConfigInput(cacheInput *codecTypes.CacheConfigInput, c *hazelcastv
 		cacheInput.EventJournalConfig.Capacity = c.Spec.EventJournal.Capacity
 		cacheInput.EventJournalConfig.TimeToLiveSeconds = c.Spec.EventJournal.TimeToLiveSeconds
 	}
+	cacheInput.UserCodeNamespace = c.Spec.UserCodeNamespace
 }
 
 func (r *CacheReconciler) validateCacheConfigPersistence(ctx context.Context, c *hazelcastv1alpha1.Cache) (bool, error) {

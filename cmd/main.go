@@ -285,15 +285,20 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "WanSync")
 		os.Exit(1)
 	}
-
-	setupWithWebhookOrDie(mgr)
-	if err = (&hazelcast.UserCodeNamespaceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	if err = hazelcast.NewUserCodeNamespaceReconciler(
+		mgr.GetClient(),
+		controllerLogger.WithName("UserCodeNamespace"),
+		mgr.GetScheme(),
+		phoneHomeTrigger,
+		cr,
+		mtlsRegistry,
+	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "UserCodeNamespace")
 		os.Exit(1)
 	}
+
+	setupWithWebhookOrDie(mgr)
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

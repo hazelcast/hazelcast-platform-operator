@@ -128,6 +128,7 @@ func fillQueueConfigInput(queueInput *codecTypes.QueueConfigInput, q *hazelcastv
 	queueInput.EmptyQueueTtl = *qs.EmptyQueueTtlSeconds
 	queueInput.MaxSize = qs.MaxSize
 	queueInput.PriorityComparatorClassName = qs.PriorityComparatorClassName
+	queueInput.UserCodeNamespace = qs.UserCodeNamespace
 }
 
 // SetupWithManager sets up the controller with the Manager.

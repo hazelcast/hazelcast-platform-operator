@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -61,9 +62,9 @@ func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.C
 
 	EncodeString(clientMessage, c.Name)
 	EncodeNullableForEvictionConfigHolder(clientMessage, c.EvictionConfig)
-	EncodeString(clientMessage, string(c.CacheDeserializedValues))
+	EncodeString(clientMessage, c.CacheDeserializedValues)
 	EncodeString(clientMessage, c.MergePolicy)
-	EncodeString(clientMessage, string(c.InMemoryFormat))
+	EncodeString(clientMessage, c.InMemoryFormat)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.ListenerConfigs)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.PartitionLostListenerConfigs)
 	EncodeNullableForString(clientMessage, c.SplitBrainProtectionName)
@@ -80,6 +81,8 @@ func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.C
 	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)
 	EncodeDataPersistenceConfig(clientMessage, c.DataPersistenceConfig)
 	EncodeTieredStoreConfig(clientMessage, c.TieredStoreConfig)
+	//clientMessage.AddFrame(proto.NullFrame.Copy()) TODO WHY?
+	EncodeNullableForString(clientMessage, c.UserCodeNamespace)
 
 	return clientMessage
 }

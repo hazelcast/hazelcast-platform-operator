@@ -56,6 +56,8 @@ type AddMapConfigInput struct {
 	PerEntryStatsEnabled  bool
 	TieredStoreConfig     TieredStoreConfig `xml:"tiered-store"`
 	DataPersistenceConfig DataPersistenceConfig
+	// nullable
+	UserCodeNamespace string
 }
 
 // Default values are explicitly written for all fields that are not nullable

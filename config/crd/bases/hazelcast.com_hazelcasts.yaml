@@ -256,6 +256,10 @@ spec:
                       format: int32
                       minimum: 1
                       type: integer
+                    userCodeNamespace:
+                      description: Name of the User Code Namespace applied to this
+                        instance
+                      type: string
                   type: object
                 type: array
               executorServices:
@@ -277,6 +281,10 @@ spec:
                       description: Task queue capacity of the executor.
                       format: int32
                       type: integer
+                    userCodeNamespace:
+                      description: Name of the User Code Namespace applied to this
+                        instance
+                      type: string
                   type: object
                 type: array
               exposeExternally:
@@ -802,6 +810,10 @@ spec:
                       format: int32
                       minimum: 1
                       type: integer
+                    userCodeNamespace:
+                      description: Name of the User Code Namespace applied to this
+                        instance
+                      type: string
                   type: object
                 type: array
               scheduling:

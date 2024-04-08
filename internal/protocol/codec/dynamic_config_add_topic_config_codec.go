@@ -50,6 +50,7 @@ func EncodeDynamicConfigAddTopicConfigRequest(t *types.TopicConfig) *proto.Clien
 
 	EncodeString(clientMessage, t.Name)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, t.ListenerConfigs)
+	EncodeNullableForString(clientMessage, t.UserCodeNamespace)
 
 	return clientMessage
 }

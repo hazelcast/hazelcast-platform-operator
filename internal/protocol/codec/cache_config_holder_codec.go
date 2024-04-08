@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -65,6 +66,7 @@ func EncodeCacheConfigHolder(clientMessage *proto.ClientMessage, cacheConfigHold
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, cacheConfigHolder.CachePartitionLostListenerConfigs)
 	EncodeNullableForMerkleTreeConfig(clientMessage, cacheConfigHolder.MerkleTreeConfig)
 	EncodeDataPersistenceConfig(clientMessage, cacheConfigHolder.DataPersistenceConfig)
+	EncodeNullableForString(clientMessage, cacheConfigHolder.UserCodeNamespace)
 
 	clientMessage.AddFrame(proto.EndFrame.Copy())
 }

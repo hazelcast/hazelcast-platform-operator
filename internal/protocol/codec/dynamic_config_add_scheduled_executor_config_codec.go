@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -54,6 +55,7 @@ func EncodeDynamicConfigAddScheduledExecutorConfigRequest(es *types.ScheduledExe
 	EncodeString(clientMessage, es.Name)
 	EncodeNullableForString(clientMessage, es.SplitBrainProtectionName)
 	EncodeString(clientMessage, es.MergePolicy)
+	EncodeNullableForString(clientMessage, es.UserCodeNamespace)
 
 	return clientMessage
 }
