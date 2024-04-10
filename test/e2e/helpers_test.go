@@ -742,6 +742,23 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 	return checkMap
 }
 
+func assertUserCodeNamespaceStatus(m *hazelcastcomv1alpha1.UserCodeNamespace, st hazelcastcomv1alpha1.UserCodeNamespaceState) *hazelcastcomv1alpha1.UserCodeNamespace {
+	checkUCN := &hazelcastcomv1alpha1.UserCodeNamespace{}
+	By("waiting for UserCodeNamespace CR status", func() {
+		Eventually(func() hazelcastcomv1alpha1.UserCodeNamespaceState {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      m.Name,
+				Namespace: m.Namespace,
+			}, checkUCN)
+			if err != nil {
+				return ""
+			}
+			return checkUCN.Status.State
+		}, 40*Second, interval).Should(Equal(st))
+	})
+	return checkUCN
+}
+
 func assertWanStatus(wr *hazelcastcomv1alpha1.WanReplication, st hazelcastcomv1alpha1.WanStatus) *hazelcastcomv1alpha1.WanReplication {
 	checkWan := &hazelcastcomv1alpha1.WanReplication{}
 	By("waiting for WAN CR status", func() {

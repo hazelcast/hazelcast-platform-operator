@@ -943,6 +943,17 @@ var (
 			},
 		}
 	}
+
+	UserCodeNamespace = func(ucns hazelcastcomv1alpha1.UserCodeNamespaceSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastcomv1alpha1.UserCodeNamespace {
+		return &hazelcastcomv1alpha1.UserCodeNamespace{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: ucns,
+		}
+	}
 )
 
 func repo(ee bool) string {
