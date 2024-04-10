@@ -98,6 +98,7 @@ type PhoneHomeData struct {
 	CronHotBackupCount            int                    `json:"chbc"`
 	TopicCount                    int                    `json:"tc"`
 	HighAvailabilityMode          []string               `json:"ha"`
+	Resources                     []Resources            `json:"res"`
 	NativeMemoryCount             int                    `json:"nmc"`
 	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
 	AdvancedNetwork               AdvancedNetwork        `json:"an"`
@@ -192,6 +193,11 @@ type TieredStorage struct {
 	MapCount int `json:"mc"`
 }
 
+type Resources struct {
+	LimitMemory string `json:"lmem"`
+	LimitCPU    string `json:"lcpu"`
+}
+
 func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:           opInfo.UID,
@@ -234,6 +240,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	customConfigCount := 0
 	clusterUUIDs := []string{}
 	highAvailabilityModes := []string{}
+	resources := []Resources{}
 	nativeMemoryCount := 0
 	sqlCount := 0
 
@@ -279,6 +286,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
+		resources = append(resources, newResources(hz))
 
 		cid, ok := ClusterUUID(hzClientRegistry, hz.Name, hz.Namespace)
 		if ok {
@@ -291,6 +299,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.ExecutorServiceCount = executorServiceCount
 	phm.ClusterUUIDs = clusterUUIDs
 	phm.HighAvailabilityMode = highAvailabilityModes
+	phm.Resources = resources
 	phm.NativeMemoryCount = nativeMemoryCount
 	phm.SerializationCount = serializationCount
 	phm.CustomConfigCount = customConfigCount
@@ -402,6 +411,16 @@ func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration)
 	if len(jc.Args) > 0 {
 		j.Count += 1
 		return
+	}
+}
+
+func newResources(hz hazelcastv1alpha1.Hazelcast) Resources {
+	if hz.Spec.Resources == nil {
+		return Resources{}
+	}
+	return Resources{
+		LimitMemory: hz.Spec.Resources.Limits.Memory().String(),
+		LimitCPU:    hz.Spec.Resources.Limits.Cpu().String(),
 	}
 }
 
