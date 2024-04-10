@@ -1515,7 +1515,7 @@ func fillHazelcastConfigWithUserCodeNamespaces(cfg *config.Hazelcast, h *hazelca
 		cfg.UserCodeNamespaces.Namespaces[u.Name] = []config.UserCodeNamespaceResource{{
 			ID:           "bundle",
 			ResourceType: string(jarsInZip),
-			URL:          "file://" + filepath.Join(n.UserCodeBucketPath, u.Name+".zip"),
+			URL:          "file://" + filepath.Join(n.UCNBucketPath, u.Name+".zip"),
 		}}
 	}
 }
@@ -2537,6 +2537,13 @@ func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFil
 	}
 }
 
+func ucnBucketAgentVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.UCNVolumeName,
+		MountPath: n.UCNBucketPath,
+	}
+}
+
 func ucdBucketAgentVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UserCodeBucketVolumeName,
@@ -2600,6 +2607,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 			},
 		},
 		emptyDirVolume(n.UserCodeBucketVolumeName),
+		emptyDirVolume(n.UCNVolumeName),
 		emptyDirVolume(n.UserCodeURLVolumeName),
 		emptyDirVolume(n.JetJobJarsVolumeName),
 		emptyDirVolume(n.TmpDirVolName),
@@ -2676,6 +2684,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.Vo
 		},
 		jetJobJarsVolumeMount(),
 		ucdBucketAgentVolumeMount(),
+		ucnBucketAgentVolumeMount(),
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
@@ -2693,6 +2702,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 			MountPath: n.HazelcastMountPath,
 		},
 		ucdBucketAgentVolumeMount(),
+		ucnBucketAgentVolumeMount(),
 		ucdURLAgentVolumeMount(),
 		jetJobJarsVolumeMount(),
 		// /tmp dir is overriden with emptyDir because Hazelcast fails to start with

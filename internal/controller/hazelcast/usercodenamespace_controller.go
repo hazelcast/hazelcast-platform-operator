@@ -158,7 +158,7 @@ func (r *UserCodeNamespaceReconciler) downloadBundle(ctx context.Context, ucn *h
 			_, err = bs.Download(groupCtx, rest.BundleReq{
 				SecretName: ucn.Spec.BucketConfiguration.SecretName,
 				URL:        ucn.Spec.BucketConfiguration.BucketURI,
-				DestDir:    filepath.Join(n.UserCodeBucketPath, ucn.Name+".zip"),
+				DestDir:    filepath.Join(n.UCNBucketPath, ucn.Name+".zip"),
 			})
 			if err != nil {
 				logger.Error(err, "unable to download Jar file")

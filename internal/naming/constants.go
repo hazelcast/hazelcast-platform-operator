@@ -60,6 +60,7 @@ const (
 	PVCName                     = "persistence"
 	CPPersistenceVolumeName     = "cp-subsystem-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
+	UCNVolumeName               = "user-code-namespace"
 	JetJobJarsVolumeName        = "jet-job-jars-bucket"
 	JetConfigMapNamePrefix      = "jet-cm-"
 	UserCodeURLVolumeName       = "user-code-url"

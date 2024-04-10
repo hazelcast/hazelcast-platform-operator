@@ -35,7 +35,7 @@ func (h UsercodeNamespaceService) Apply(ctx context.Context, name string) error 
 		Resources: []types.ResourceDefinition{{
 			ID:           filename,
 			ResourceType: int32(jarsInZip),
-			ResourceURL:  "file://" + filepath.Join(n.UserCodeBucketPath, filename),
+			ResourceURL:  "file://" + filepath.Join(n.UCNBucketPath, filename),
 		}},
 	})
 	for _, m := range h.client.OrderedMembers() {
