@@ -33,6 +33,9 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 	})
 
 	It("verify addition of entry listeners in Hazelcast map using UserCodeNamespace", Tag(Kind|Any), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
 		setLabelAndCRName("ucn-1")
 
 		h := hazelcastconfig.Default(hzLookupKey, ee, labels)
