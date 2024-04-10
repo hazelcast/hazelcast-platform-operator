@@ -188,6 +188,9 @@ type HazelcastSpec struct {
 	// CPSubsystem is the configuration of the Hazelcast CP Subsystem.
 	// +optional
 	CPSubsystem *CPSubsystem `json:"cpSubsystem,omitempty"`
+
+	// +optional
+	UserCodeNamespaces *UserCodeNamespacesConfig `json:"userCodeNamespaces,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -210,6 +213,13 @@ const (
 	// LittleEndian uses the kittle-endian byte order.
 	LittleEndian ByteOrder = "LittleEndian"
 )
+
+func (ucn *UserCodeNamespacesConfig) IsEnables() bool {
+	return ucn != nil
+}
+
+type UserCodeNamespacesConfig struct {
+}
 
 // CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
 type CPSubsystem struct {

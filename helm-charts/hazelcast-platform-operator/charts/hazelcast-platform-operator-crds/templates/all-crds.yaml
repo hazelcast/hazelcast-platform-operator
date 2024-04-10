@@ -2515,6 +2515,8 @@ spec:
                       the user code.
                     type: string
                 type: object
+              userCodeNamespaces:
+                type: object
               version:
                 default: 5.4.0-SNAPSHOT
                 description: Version of Hazelcast Platform.
@@ -5404,7 +5406,12 @@ spec:
     singular: usercodenamespace
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Status of the User Code Namespace
+      jsonPath: .status.state
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: UserCodeNamespace is the Schema for the usercodenamespaces API

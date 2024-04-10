@@ -88,6 +88,7 @@ const (
 	UserCodeURLPath       = "/opt/hazelcast/userCode/urls"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
+	UCNBucketPath         = "/opt/hazelcast/ucn/bucket"
 )
 
 // Annotations

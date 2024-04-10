@@ -20,16 +20,29 @@ func NewUsercodeNamespaceService(client Client) *UsercodeNamespaceService {
 	}
 }
 
+type ucnResourceType int32
+
+const (
+	class ucnResourceType = iota + 3
+	jar
+	jarsInZip
+)
+
 func (h UsercodeNamespaceService) Apply(ctx context.Context, name string) error {
 	filename := name + ".zip"
 	request := codec.EncodeDynamicConfigAddUserCodeNamespaceConfigRequest(&types.UserCodeNamespaceConfig{
 		Name: name,
 		Resources: []types.ResourceDefinition{{
 			ID:           filename,
-			ResourceType: 5, // JARS_IN_ZIP
+			ResourceType: int32(jarsInZip),
 			ResourceURL:  "file://" + filepath.Join(n.UserCodeBucketPath, filename),
 		}},
 	})
-	_, err := h.client.InvokeOnRandomTarget(ctx, request, nil)
-	return err
+	for _, m := range h.client.OrderedMembers() {
+		_, err := h.client.InvokeOnMember(ctx, request, m.UUID, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

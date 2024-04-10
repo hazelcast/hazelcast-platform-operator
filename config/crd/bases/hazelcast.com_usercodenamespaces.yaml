@@ -14,7 +14,12 @@ spec:
     singular: usercodenamespace
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Status of the User Code Namespace
+      jsonPath: .status.state
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: UserCodeNamespace is the Schema for the usercodenamespaces API

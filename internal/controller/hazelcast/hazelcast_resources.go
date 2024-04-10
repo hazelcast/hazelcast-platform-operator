@@ -958,7 +958,7 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	if err != nil {
 		return nil, err
 	}
-	fillHazelcastConfigWithUserCodeNamespaces(&cfg, ucn)
+	fillHazelcastConfigWithUserCodeNamespaces(&cfg, h, ucn)
 
 	dataStructures := []client.ObjectList{
 		&hazelcastv1alpha1.MultiMapList{},
@@ -1503,8 +1503,8 @@ const (
 	classFile                 = "CLASS"
 )
 
-func fillHazelcastConfigWithUserCodeNamespaces(cfg *config.Hazelcast, ucn []hazelcastv1alpha1.UserCodeNamespace) {
-	if len(ucn) == 0 {
+func fillHazelcastConfigWithUserCodeNamespaces(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ucn []hazelcastv1alpha1.UserCodeNamespace) {
+	if !h.Spec.UserCodeNamespaces.IsEnables() {
 		return
 	}
 	cfg.UserCodeNamespaces = config.UserCodeNamespaces{

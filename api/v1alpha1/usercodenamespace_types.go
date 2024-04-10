@@ -21,12 +21,9 @@ type UserCodeNamespaceSpec struct {
 type UserCodeNamespaceState string
 
 const (
-	UserCodeNamespaceUnknown    UserCodeNamespaceState = "Unknown"
-	UserCodeNamespacePending    UserCodeNamespaceState = "Pending"
-	UserCodeNamespaceNotStarted UserCodeNamespaceState = "NotStarted"
-	UserCodeNamespaceInProgress UserCodeNamespaceState = "InProgress"
-	UserCodeNamespaceFailure    UserCodeNamespaceState = "Failure"
-	UserCodeNamespaceSuccess    UserCodeNamespaceState = "Success"
+	UserCodeNamespacePending UserCodeNamespaceState = "Pending"
+	UserCodeNamespaceFailure UserCodeNamespaceState = "Failure"
+	UserCodeNamespaceSuccess UserCodeNamespaceState = "Success"
 )
 
 // UserCodeNamespaceStatus defines the observed state of UserCodeNamespace
@@ -39,6 +36,7 @@ type UserCodeNamespaceStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Status of the User Code Namespace"
 
 // UserCodeNamespace is the Schema for the usercodenamespaces API
 type UserCodeNamespace struct {

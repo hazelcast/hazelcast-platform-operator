@@ -114,8 +114,7 @@ func (r *UserCodeNamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if err := r.Update(ctx, controller.InsertLastSuccessfullyAppliedSpec(ucn.Spec, ucn)); err != nil {
 		return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 	}
-
-	return ctrl.Result{}, nil
+	return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamespaceSuccessStatus())
 }
 
 // SetupWithManager sets up the controller with the Manager.

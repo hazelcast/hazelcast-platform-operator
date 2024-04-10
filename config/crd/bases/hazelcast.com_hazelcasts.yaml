@@ -2137,6 +2137,8 @@ spec:
                       the user code.
                     type: string
                 type: object
+              userCodeNamespaces:
+                type: object
               version:
                 default: 5.4.0-SNAPSHOT
                 description: Version of Hazelcast Platform.

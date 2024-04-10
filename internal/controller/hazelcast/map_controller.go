@@ -218,6 +218,7 @@ func (r *MapReconciler) ReconcileMapConfig(
 			false,
 			m.Spec.Eviction.MaxSize,
 			hazelcastv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy],
+			defaultWanReplicationRefCodec(hz, m),
 		)
 	} else {
 		mapInput := codecTypes.DefaultAddMapConfigInput()

@@ -75,13 +75,13 @@ func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.C
 	EncodeNullableListMultiFrameForAttributeConfig(clientMessage, c.AttributeConfigs)
 	EncodeNullableListMultiFrameForQueryCacheConfigHolder(clientMessage, c.QueryCacheConfigs)
 	EncodeNullableForString(clientMessage, c.PartitioningStrategyClassName)
-	EncodeNullable(clientMessage, c.PartitioningStrategyImplementation, EncodeData)
+	EncodeNullableData(clientMessage, c.PartitioningStrategyImplementation)
 	EncodeNullableForHotRestartConfig(clientMessage, c.HotRestartConfig)
 	EncodeNullableForEventJournalConfig(clientMessage, c.EventJournalConfig)
 	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)
 	EncodeDataPersistenceConfig(clientMessage, c.DataPersistenceConfig)
 	EncodeTieredStoreConfig(clientMessage, c.TieredStoreConfig)
-	//clientMessage.AddFrame(proto.NullFrame.Copy()) TODO WHY?
+	clientMessage.AddFrame(proto.NullFrame.Copy())
 	EncodeNullableForString(clientMessage, c.UserCodeNamespace)
 
 	return clientMessage

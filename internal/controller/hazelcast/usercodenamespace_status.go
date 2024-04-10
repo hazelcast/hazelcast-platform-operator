@@ -27,6 +27,12 @@ func userCodeNamepsacePendingStatus() userCodeNamepsaceOptionsBuilder {
 	}
 }
 
+func userCodeNamespaceSuccessStatus() userCodeNamepsaceOptionsBuilder {
+	return userCodeNamepsaceOptionsBuilder{
+		state: hazelcastv1alpha1.UserCodeNamespaceSuccess,
+	}
+}
+
 func updateUserCodeNamepsaceStatus(ctx context.Context, c client.Client, usn *hazelcastv1alpha1.UserCodeNamespace, options userCodeNamepsaceOptionsBuilder) (ctrl.Result, error) {
 	usn.Status.State = options.state
 	usn.Status.Message = options.message
