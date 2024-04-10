@@ -5403,6 +5403,8 @@ spec:
     kind: UserCodeNamespace
     listKind: UserCodeNamespaceList
     plural: usercodenamespaces
+    shortNames:
+    - ucn
     singular: usercodenamespace
   scope: Namespaced
   versions:

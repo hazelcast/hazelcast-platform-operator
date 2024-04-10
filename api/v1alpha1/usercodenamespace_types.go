@@ -37,6 +37,7 @@ type UserCodeNamespaceStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Status of the User Code Namespace"
+// +kubebuilder:resource:shortName=ucn
 
 // UserCodeNamespace is the Schema for the usercodenamespaces API
 type UserCodeNamespace struct {
