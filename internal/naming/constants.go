@@ -42,7 +42,7 @@ const (
 
 	OperatorName         = "hazelcast-platform-operator"
 	Hazelcast            = "hazelcast"
-	HazelcastPortName    = "hazelcast-port"
+	HazelcastPortName    = "hazelcast"
 	HazelcastStorageName = Hazelcast + "-storage"
 	HazelcastMountPath   = "/data/hazelcast"
 	TmpDirVolName        = "tmp-vol"
