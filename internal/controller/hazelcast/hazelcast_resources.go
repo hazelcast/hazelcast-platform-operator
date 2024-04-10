@@ -1499,8 +1499,8 @@ type ucnResourceType string
 
 const (
 	jarsInZip ucnResourceType = "JARS_IN_ZIP"
-	jarFile                   = "JAR"
-	classFile                 = "CLASS"
+	jarFile   ucnResourceType = "JAR"
+	classFile ucnResourceType = "CLASS"
 )
 
 func fillHazelcastConfigWithUserCodeNamespaces(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ucn []hazelcastv1alpha1.UserCodeNamespace) {
