@@ -317,6 +317,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-hazelcast-com-v1alpha1-usercodenamespace
+  failurePolicy: Fail
+  name: vusercodenamespace.kb.io
+  rules:
+  - apiGroups:
+    - hazelcast.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - usercodenamespaces
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-hazelcast-com-v1alpha1-wanreplication
   failurePolicy: Ignore
   name: vwanreplication.kb.io

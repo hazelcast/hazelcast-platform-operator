@@ -70,6 +70,7 @@ spec:
                 type: string
               userCodeNamespace:
                 description: Name of the User Code Namespace applied to this instance
+                minLength: 1
                 type: string
             required:
             - hazelcastResourceName

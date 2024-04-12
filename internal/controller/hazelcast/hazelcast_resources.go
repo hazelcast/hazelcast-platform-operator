@@ -1504,7 +1504,7 @@ const (
 )
 
 func fillHazelcastConfigWithUserCodeNamespaces(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ucn []hazelcastv1alpha1.UserCodeNamespace) {
-	if !h.Spec.UserCodeNamespaces.IsEnables() {
+	if !h.Spec.UserCodeNamespaces.IsEnabled() {
 		return
 	}
 	cfg.UserCodeNamespaces = config.UserCodeNamespaces{
@@ -2090,6 +2090,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	if h.Spec.IsTieredStorageEnabled() {
 		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, localDevicePersistentVolumeClaim(h)...)
 	}
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, ucnPersistentVolumeClaim(h))
+	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
@@ -2190,6 +2193,26 @@ func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1
 		})
 	}
 	return pvcs
+}
+
+func ucnPersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) v1.PersistentVolumeClaim {
+	ucn := h.Spec.UserCodeNamespaces
+	return v1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.UCNVolumeName,
+			Namespace: h.Namespace,
+			Labels:    labels(h),
+		},
+		Spec: v1.PersistentVolumeClaimSpec{
+			AccessModes: ucn.PVC.AccessModes,
+			Resources: v1.ResourceRequirements{
+				Requests: v1.ResourceList{
+					corev1.ResourceStorage: *ucn.PVC.RequestStorage,
+				},
+			},
+			StorageClassName: ucn.PVC.StorageClassName,
+		},
+	}
 }
 
 func localDevicePersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
@@ -2537,7 +2560,7 @@ func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFil
 	}
 }
 
-func ucnBucketAgentVolumeMount() v1.VolumeMount {
+func ucnBucketVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UCNVolumeName,
 		MountPath: n.UCNBucketPath,
@@ -2607,7 +2630,6 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 			},
 		},
 		emptyDirVolume(n.UserCodeBucketVolumeName),
-		emptyDirVolume(n.UCNVolumeName),
 		emptyDirVolume(n.UserCodeURLVolumeName),
 		emptyDirVolume(n.JetJobJarsVolumeName),
 		emptyDirVolume(n.TmpDirVolName),
@@ -2621,6 +2643,10 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
 		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
 	}
+	//
+	//if h.Spec.UserCodeNamespaces.IsEnabled() {
+	//	vols = append(vols, emptyDirVolume(n.UCNVolumeName))
+	//}
 
 	return vols
 }
@@ -2684,7 +2710,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.Vo
 		},
 		jetJobJarsVolumeMount(),
 		ucdBucketAgentVolumeMount(),
-		ucnBucketAgentVolumeMount(),
+		ucnBucketVolumeMount(),
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
@@ -2702,7 +2728,6 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 			MountPath: n.HazelcastMountPath,
 		},
 		ucdBucketAgentVolumeMount(),
-		ucnBucketAgentVolumeMount(),
 		ucdURLAgentVolumeMount(),
 		jetJobJarsVolumeMount(),
 		// /tmp dir is overriden with emptyDir because Hazelcast fails to start with
@@ -2711,11 +2736,16 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 		// /tmp dir is also needed for Jet Job submission and UCD from client/CLC.
 		tmpDirVolumeMount(),
 	}
+
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      pvcName,
 			MountPath: n.PersistenceMountPath,
 		})
+	}
+
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		mounts = append(mounts, ucnBucketVolumeMount())
 	}
 
 	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {

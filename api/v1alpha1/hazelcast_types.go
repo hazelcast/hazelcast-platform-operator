@@ -214,11 +214,14 @@ const (
 	LittleEndian ByteOrder = "LittleEndian"
 )
 
-func (ucn *UserCodeNamespacesConfig) IsEnables() bool {
+func (ucn *UserCodeNamespacesConfig) IsEnabled() bool {
 	return ucn != nil
 }
 
 type UserCodeNamespacesConfig struct {
+
+	// +required
+	PVC PvcConfiguration `json:"pvc"`
 }
 
 // CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
@@ -526,6 +529,7 @@ type ExecutorServiceConfiguration struct {
 	QueueCapacity int32 `json:"queueCapacity"`
 
 	// Name of the User Code Namespace applied to this instance
+	// +kubebuilder:validation:MinLength:=1
 	// +optional
 	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
@@ -554,6 +558,7 @@ type DurableExecutorServiceConfiguration struct {
 	Capacity int32 `json:"capacity,omitempty"`
 
 	// Name of the User Code Namespace applied to this instance
+	// +kubebuilder:validation:MinLength:=1
 	// +optional
 	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
@@ -587,6 +592,7 @@ type ScheduledExecutorServiceConfiguration struct {
 	CapacityPolicy string `json:"capacityPolicy,omitempty"`
 
 	// Name of the User Code Namespace applied to this instance
+	// +kubebuilder:validation:MinLength:=1
 	// +optional
 	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }

@@ -259,6 +259,7 @@ spec:
                     userCodeNamespace:
                       description: Name of the User Code Namespace applied to this
                         instance
+                      minLength: 1
                       type: string
                   type: object
                 type: array
@@ -284,6 +285,7 @@ spec:
                     userCodeNamespace:
                       description: Name of the User Code Namespace applied to this
                         instance
+                      minLength: 1
                       type: string
                   type: object
                 type: array
@@ -813,6 +815,7 @@ spec:
                     userCodeNamespace:
                       description: Name of the User Code Namespace applied to this
                         instance
+                      minLength: 1
                       type: string
                   type: object
                 type: array
@@ -2138,6 +2141,30 @@ spec:
                     type: string
                 type: object
               userCodeNamespaces:
+                properties:
+                  pvc:
+                    properties:
+                      accessModes:
+                        description: 'AccessModes contains the actual access modes
+                          of the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
+                        items:
+                          type: string
+                        type: array
+                      requestStorage:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        default: 8Gi
+                        description: A description of the PVC request capacity.
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      storageClassName:
+                        description: Name of StorageClass which this persistent volume
+                          belongs to.
+                        type: string
+                    type: object
+                required:
+                - pvc
                 type: object
               version:
                 default: 5.4.0-SNAPSHOT

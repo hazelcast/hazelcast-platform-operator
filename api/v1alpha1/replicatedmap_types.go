@@ -30,6 +30,7 @@ type ReplicatedMapSpec struct {
 	HazelcastResourceName string `json:"hazelcastResourceName"`
 
 	// Name of the User Code Namespace applied to this instance
+	// +kubebuilder:validation:MinLength:=1
 	// +optional
 	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }

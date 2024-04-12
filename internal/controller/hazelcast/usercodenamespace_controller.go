@@ -59,7 +59,7 @@ func (r *UserCodeNamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			logger.V(util.DebugLevel).Info("Could not find UserCodeNamespace, it is probably already deleted")
 			return ctrl.Result{}, nil
 		}
-		return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn,
+		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn,
 			userCodeNamepsaceFailedStatus(fmt.Errorf("could not get UserCodeNamespace: %w", err)))
 	}
 
@@ -74,7 +74,7 @@ func (r *UserCodeNamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if ucn.GetDeletionTimestamp() != nil {
 		err := r.executeFinalizer(ctx, ucn, logger)
 		if err != nil {
-			return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
+			return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
@@ -82,29 +82,43 @@ func (r *UserCodeNamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	if !controller.IsApplied(ucn.ObjectMeta) {
 		if err := r.Update(ctx, controller.InsertLastAppliedSpec(ucn.Spec, ucn)); err != nil {
-			return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
+			return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 		} else {
-			return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamepsacePendingStatus())
+			return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsacePendingStatus())
 		}
 	}
 
+	h := &hazelcastv1alpha1.Hazelcast{}
+	err := r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: ucn.Spec.HazelcastResourceName}, h)
+	if err != nil {
+		err = fmt.Errorf("could not create/update User Code Deployemnt config: Hazelcast resource not found: %w", err)
+		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
+	}
+	if h.Status.Phase != hazelcastv1alpha1.Running {
+		err = kerrors.NewServiceUnavailable("Hazelcast CR is not ready")
+		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
+	}
+	if err = hazelcastv1alpha1.ValidateUCNSpec(ucn, h); err != nil {
+		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
+	}
+
 	c, err := r.clientRegistry.GetOrCreate(ctx, types.NamespacedName{
-		Namespace: ucn.Namespace,
-		Name:      ucn.Spec.HazelcastResourceName,
+		Namespace: h.Namespace,
+		Name:      h.Name,
 	})
 	if err != nil {
 		logger.Error(err, "Get Hazelcast Client failed")
-		return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
+		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 	}
 
 	if err := r.downloadBundle(ctx, ucn, c, logger); err != nil {
 		logger.Error(err, "Error downloading Jar for UserCodeNamespace")
-		return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
+		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 	}
 
 	if err := r.applyConfig(ctx, ucn, c, logger); err != nil {
 		logger.Error(err, "Error applying dynamic config for UserCodeNamespace")
-		return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
+		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 	}
 
 	if util.IsPhoneHomeEnabled() && !controller.IsSuccessfullyApplied(ucn) {
@@ -112,9 +126,9 @@ func (r *UserCodeNamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	if err := r.Update(ctx, controller.InsertLastSuccessfullyAppliedSpec(ucn.Spec, ucn)); err != nil {
-		return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
+		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 	}
-	return updateUserCodeNamepsaceStatus(ctx, r.Client, ucn, userCodeNamespaceSuccessStatus())
+	return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamespaceSuccessStatus())
 }
 
 // SetupWithManager sets up the controller with the Manager.

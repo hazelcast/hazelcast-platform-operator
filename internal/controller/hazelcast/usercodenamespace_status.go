@@ -33,11 +33,11 @@ func userCodeNamespaceSuccessStatus() userCodeNamepsaceOptionsBuilder {
 	}
 }
 
-func updateUserCodeNamepsaceStatus(ctx context.Context, c client.Client, usn *hazelcastv1alpha1.UserCodeNamespace, options userCodeNamepsaceOptionsBuilder) (ctrl.Result, error) {
-	usn.Status.State = options.state
-	usn.Status.Message = options.message
+func updateUserCodeNamespaceStatus(ctx context.Context, c client.Client, ucn *hazelcastv1alpha1.UserCodeNamespace, options userCodeNamepsaceOptionsBuilder) (ctrl.Result, error) {
+	ucn.Status.State = options.state
+	ucn.Status.Message = options.message
 
-	err := c.Status().Update(ctx, usn)
+	err := c.Status().Update(ctx, ucn)
 	if options.state == hazelcastv1alpha1.UserCodeNamespacePending {
 		return ctrl.Result{Requeue: true}, nil
 	}
