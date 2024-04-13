@@ -2710,7 +2710,9 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.Vo
 		},
 		jetJobJarsVolumeMount(),
 		ucdBucketAgentVolumeMount(),
-		ucnBucketVolumeMount(),
+	}
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		vm = append(vm, ucnBucketVolumeMount())
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
