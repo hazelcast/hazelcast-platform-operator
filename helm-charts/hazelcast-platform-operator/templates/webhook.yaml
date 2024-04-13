@@ -201,7 +201,7 @@ webhooks:
       service:
         name: {{ $fullname }}
         namespace: {{ .Release.Namespace }}
-        path: /validate-hazelcast-com-v1alpha1-topic
+        path: /validate-hazelcast-com-v1alpha1-usercodenamespace
     failurePolicy: Fail
     name: vusercodenamespace.kb.io
     rules:
