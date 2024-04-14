@@ -219,9 +219,11 @@ func (ucn *UserCodeNamespacesConfig) IsEnabled() bool {
 }
 
 type UserCodeNamespacesConfig struct {
-
 	// +required
 	PVC PvcConfiguration `json:"pvc"`
+
+	// +optional
+	ClassFilter *JavaFilterConfig `json:"classFilter,omitempty"`
 }
 
 // CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
@@ -307,11 +309,11 @@ type SerializationConfig struct {
 
 	// Blacklist and whitelist for deserialized classes when Java serialization is used.
 	// +optional
-	JavaSerializationFilter *JavaSerializationFilter `json:"javaSerializationFilter,omitempty"`
+	JavaSerializationFilter *JavaFilterConfig `json:"javaSerializationFilter,omitempty"`
 }
 
 // +kubebuilder:validation:MinProperties:=1
-type JavaSerializationFilter struct {
+type JavaFilterConfig struct {
 
 	// Java deserialization protection Blacklist.
 	// +optional

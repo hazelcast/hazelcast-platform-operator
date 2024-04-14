@@ -1511,6 +1511,12 @@ func fillHazelcastConfigWithUserCodeNamespaces(cfg *config.Hazelcast, h *hazelca
 		Enabled:    pointer.Bool(true),
 		Namespaces: make(map[string][]config.UserCodeNamespaceResource, len(ucn)),
 	}
+	if h.Spec.UserCodeNamespaces.ClassFilter != nil {
+		cfg.UserCodeNamespaces.ClassFilter = &config.JavaFilterConfig{
+			Blacklist: filterList(h.Spec.UserCodeNamespaces.ClassFilter.Blacklist),
+			Whitelist: filterList(h.Spec.UserCodeNamespaces.ClassFilter.Whitelist),
+		}
+	}
 	for _, u := range ucn {
 		cfg.UserCodeNamespaces.Namespaces[u.Name] = []config.UserCodeNamespaceResource{{
 			ID:           "bundle",
@@ -1654,7 +1660,7 @@ func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1a
 		}
 	}
 	if s.JavaSerializationFilter != nil {
-		cfg.Serialization.JavaSerializationFilter = &config.JavaSerializationFilter{
+		cfg.Serialization.JavaSerializationFilter = &config.JavaFilterConfig{
 			Blacklist: filterList(s.JavaSerializationFilter.Blacklist),
 			Whitelist: filterList(s.JavaSerializationFilter.Whitelist),
 		}

@@ -407,19 +407,19 @@ type SSLProperties struct {
 }
 
 type Serialization struct {
-	PortableVersion            int32                    `yaml:"portable-version"`
-	UseNativeByteOrder         bool                     `yaml:"use-native-byte-order"`
-	EnableCompression          bool                     `yaml:"enable-compression"`
-	EnableSharedObject         bool                     `yaml:"enable-shared-object"`
-	OverrideDefaultSerializers bool                     `yaml:"allow-override-default-serializers"`
-	AllowUnsafe                bool                     `yaml:"allow-unsafe"`
-	ByteOrder                  string                   `yaml:"byte-order"`
-	DataSerializableFactories  []ClassFactories         `yaml:"data-serializable-factories,omitempty"`
-	PortableFactories          []ClassFactories         `yaml:"portable-factories,omitempty"`
-	GlobalSerializer           *GlobalSerializer        `yaml:"global-serializer,omitempty"`
-	Serializers                []Serializer             `yaml:"serializers,omitempty"`
-	JavaSerializationFilter    *JavaSerializationFilter `yaml:"java-serialization-filter,omitempty"`
-	CompactSerialization       *CompactSerialization    `yaml:"compact-serialization,omitempty"`
+	PortableVersion            int32                 `yaml:"portable-version"`
+	UseNativeByteOrder         bool                  `yaml:"use-native-byte-order"`
+	EnableCompression          bool                  `yaml:"enable-compression"`
+	EnableSharedObject         bool                  `yaml:"enable-shared-object"`
+	OverrideDefaultSerializers bool                  `yaml:"allow-override-default-serializers"`
+	AllowUnsafe                bool                  `yaml:"allow-unsafe"`
+	ByteOrder                  string                `yaml:"byte-order"`
+	DataSerializableFactories  []ClassFactories      `yaml:"data-serializable-factories,omitempty"`
+	PortableFactories          []ClassFactories      `yaml:"portable-factories,omitempty"`
+	GlobalSerializer           *GlobalSerializer     `yaml:"global-serializer,omitempty"`
+	Serializers                []Serializer          `yaml:"serializers,omitempty"`
+	JavaSerializationFilter    *JavaFilterConfig     `yaml:"java-serialization-filter,omitempty"`
+	CompactSerialization       *CompactSerialization `yaml:"compact-serialization,omitempty"`
 }
 
 type CompactSerialization struct {
@@ -427,7 +427,7 @@ type CompactSerialization struct {
 	Classes     []string `yaml:"classes,omitempty"`
 }
 
-type JavaSerializationFilter struct {
+type JavaFilterConfig struct {
 	DefaultsDisable bool        `yaml:"defaults-disabled"`
 	Blacklist       *FilterList `yaml:"blacklist,omitempty"`
 	Whitelist       *FilterList `yaml:"whitelist,omitempty"`
@@ -480,8 +480,9 @@ type CPSubsystem struct {
 }
 
 type UserCodeNamespaces struct {
-	Enabled    *bool                                  `yaml:"enabled,omitempty"`
-	Namespaces map[string][]UserCodeNamespaceResource `yaml:",inline"`
+	Enabled     *bool                                  `yaml:"enabled,omitempty"`
+	ClassFilter *JavaFilterConfig                      `yaml:"class-filter,omitempty"`
+	Namespaces  map[string][]UserCodeNamespaceResource `yaml:",inline"`
 }
 
 type UserCodeNamespaceResource struct {

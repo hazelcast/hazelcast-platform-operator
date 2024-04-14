@@ -2521,6 +2521,50 @@ spec:
                 type: object
               userCodeNamespaces:
                 properties:
+                  classFilter:
+                    minProperties: 1
+                    properties:
+                      blacklist:
+                        description: Java deserialization protection Blacklist.
+                        minProperties: 1
+                        properties:
+                          classes:
+                            description: List of class names to be filtered.
+                            items:
+                              type: string
+                            type: array
+                          packages:
+                            description: List of packages to be filtered
+                            items:
+                              type: string
+                            type: array
+                          prefixes:
+                            description: List of prefixes to be filtered.
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      whitelist:
+                        description: Java deserialization protection Whitelist.
+                        minProperties: 1
+                        properties:
+                          classes:
+                            description: List of class names to be filtered.
+                            items:
+                              type: string
+                            type: array
+                          packages:
+                            description: List of packages to be filtered
+                            items:
+                              type: string
+                            type: array
+                          prefixes:
+                            description: List of prefixes to be filtered.
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                    type: object
                   pvc:
                     properties:
                       accessModes:
