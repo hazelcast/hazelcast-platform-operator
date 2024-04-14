@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
@@ -39,7 +40,12 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		setLabelAndCRName("ucn-1")
 
 		h := hazelcastconfig.Default(hzLookupKey, ee, labels)
-		h.Spec.UserCodeNamespaces = &hazelcastcomv1alpha1.UserCodeNamespacesConfig{}
+		h.Spec.UserCodeNamespaces = &hazelcastcomv1alpha1.UserCodeNamespacesConfig{
+			PVC: hazelcastcomv1alpha1.PvcConfiguration{
+				AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				RequestStorage: &[]resource.Quantity{resource.MustParse("1Gi")}[0],
+			},
+		}
 		CreateHazelcastCR(h)
 
 		By("create UserCodeNamespace")
