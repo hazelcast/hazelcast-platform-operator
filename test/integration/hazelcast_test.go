@@ -2471,7 +2471,7 @@ var _ = Describe("Hazelcast CR", func() {
 				return a.Hazelcast.CPSubsystem
 			}, timeout, interval).Should(Equal(config.CPSubsystem{
 				CPMemberCount:      5,
-				GroupSize:          pointer.Int32(3),
+				GroupSize:          pointer.Int32(5),
 				BaseDir:            n.CPBaseDir,
 				PersistenceEnabled: true,
 			}))
@@ -2510,7 +2510,7 @@ var _ = Describe("Hazelcast CR", func() {
 				return a.Hazelcast.CPSubsystem
 			}, timeout, interval).Should(Equal(config.CPSubsystem{
 				CPMemberCount:      5,
-				GroupSize:          pointer.Int32(3),
+				GroupSize:          pointer.Int32(5),
 				BaseDir:            n.PersistenceMountPath + n.CPDirSuffix,
 				PersistenceEnabled: true,
 			}))
@@ -2578,7 +2578,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Spec:       spec,
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("cluster with CP Subsystem enabled cannot have less than 3 members")))
+				Should(MatchError(ContainSubstring("cluster with CP Subsystem enabled can have 3, 5, or 7 members")))
 		})
 	})
 })
