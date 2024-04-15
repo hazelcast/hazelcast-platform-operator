@@ -213,11 +213,6 @@ const (
 
 // CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
 type CPSubsystem struct {
-	// GroupSize is the number of CP members to participate in each CP group.
-	// Allowed values are 3, 5, and 7.
-	// +optional
-	GroupSize *int32 `json:"groupSize,omitempty"`
-
 	// SessionTTLSeconds is the duration for a CP session to be kept alive after the last received heartbeat.
 	// Must be greater than or equal to SessionHeartbeatIntervalSeconds and smaller than or equal to MissingCpMemberAutoRemovalSeconds.
 	// +optional

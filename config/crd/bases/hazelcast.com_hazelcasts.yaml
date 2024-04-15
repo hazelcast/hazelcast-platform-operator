@@ -181,11 +181,6 @@ spec:
                       CP Subsystem operations use at-least-once and at-most-once execution
                       guarantees.
                     type: boolean
-                  groupSize:
-                    description: GroupSize is the number of CP members to participate
-                      in each CP group. Allowed values are 3, 5, and 7.
-                    format: int32
-                    type: integer
                   missingCpMemberAutoRemovalSeconds:
                     description: MissingCpMemberAutoRemovalSeconds is the duration
                       in seconds to wait before automatically removing a missing CP
