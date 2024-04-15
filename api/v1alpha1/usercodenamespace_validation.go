@@ -12,14 +12,6 @@ func NewUCNValidator(o client.Object) userCodeNamespaceValidator {
 	return userCodeNamespaceValidator{}
 }
 
-func ValidateUCNSpecCreate(u *UserCodeNamespace) error {
-	return nil
-}
-
-func ValidateUCNSpecUpdate(u *UserCodeNamespace) error {
-	return nil
-}
-
 func ValidateUCNSpec(u *UserCodeNamespace, h *Hazelcast) error {
 	v := NewUCNValidator(u)
 	v.validateUCNEnabled(h)

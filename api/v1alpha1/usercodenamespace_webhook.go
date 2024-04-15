@@ -24,13 +24,13 @@ var _ webhook.Validator = &UserCodeNamespace{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *UserCodeNamespace) ValidateCreate() (admission.Warnings, error) {
 	usercodenamespacelog.Info("validate create", "name", r.Name)
-	return admission.Warnings{}, ValidateUCNSpecCreate(r)
+	return admission.Warnings{}, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *UserCodeNamespace) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	usercodenamespacelog.Info("validate update", "name", r.Name)
-	return admission.Warnings{}, ValidateUCNSpecUpdate(r)
+	return admission.Warnings{}, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

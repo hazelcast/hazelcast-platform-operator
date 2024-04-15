@@ -189,6 +189,7 @@ type HazelcastSpec struct {
 	// +optional
 	CPSubsystem *CPSubsystem `json:"cpSubsystem,omitempty"`
 
+	// UserCodeNamespaces provide a container for Java classpath resources, such as user code and accompanying artifacts like property files
 	// +optional
 	UserCodeNamespaces *UserCodeNamespacesConfig `json:"userCodeNamespaces,omitempty"`
 }
@@ -222,6 +223,7 @@ type UserCodeNamespacesConfig struct {
 	// +required
 	PVC PvcConfiguration `json:"pvc"`
 
+	// Blacklist and whitelist for classes when User Code Namespaces is used.
 	// +optional
 	ClassFilter *JavaFilterConfig `json:"classFilter,omitempty"`
 }

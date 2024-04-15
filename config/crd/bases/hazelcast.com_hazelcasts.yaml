@@ -2141,8 +2141,13 @@ spec:
                     type: string
                 type: object
               userCodeNamespaces:
+                description: UserCodeNamespaces provide a container for Java classpath
+                  resources, such as user code and accompanying artifacts like property
+                  files
                 properties:
                   classFilter:
+                    description: Blacklist and whitelist for classes when User Code
+                      Namespaces is used.
                     minProperties: 1
                     properties:
                       blacklist:
