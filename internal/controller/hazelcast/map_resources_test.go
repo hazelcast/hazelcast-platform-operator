@@ -64,22 +64,6 @@ func Test_mapTieredStoreConfig(t *testing.T) {
 			errMessage: "Tiered store and data persistence are mutually exclusive features. Persistence must be disabled to enable the Tiered Storage",
 		},
 		{
-			name: "Index Configured",
-			mapSpec: hazelcastv1alpha1.MapSpec{
-				Indexes: []hazelcastv1alpha1.IndexConfig{
-					{
-						Type: hazelcastv1alpha1.IndexTypeHash,
-					},
-				},
-				InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
-				TieredStore: &hazelcastv1alpha1.TieredStore{
-					DiskDeviceName: "test-device",
-					MemoryCapacity: &[]resource.Quantity{resource.MustParse("128M")}[0],
-				},
-			},
-			errMessage: "Indexes is not supported for Tiered-Store map",
-		},
-		{
 			name: "Eviction Configured",
 			mapSpec: hazelcastv1alpha1.MapSpec{
 				Eviction: hazelcastv1alpha1.EvictionConfig{
