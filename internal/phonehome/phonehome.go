@@ -194,8 +194,8 @@ type TieredStorage struct {
 }
 
 type Resources struct {
-	LimitMemory string `json:"lmem"`
-	LimitCPU    string `json:"lcpu"`
+	LimitMemory int64 `json:"lmem"`
+	LimitCPU    int64 `json:"lcpu"`
 }
 
 func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
@@ -419,8 +419,8 @@ func newResources(hz hazelcastv1alpha1.Hazelcast) Resources {
 		return Resources{}
 	}
 	return Resources{
-		LimitMemory: hz.Spec.Resources.Limits.Memory().String(),
-		LimitCPU:    hz.Spec.Resources.Limits.Cpu().String(),
+		LimitMemory: hz.Spec.Resources.Limits.Memory().Value(),
+		LimitCPU:    hz.Spec.Resources.Limits.Cpu().MilliValue(),
 	}
 }
 
