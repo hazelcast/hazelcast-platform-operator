@@ -504,12 +504,7 @@ func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
 	}
 
 	cp := h.Spec.CPSubsystem
-	var memberSize int32
-	memberSize = 3
-	if h.Spec.ClusterSize != nil {
-		memberSize = *h.Spec.ClusterSize
-	}
-
+	memberSize := pointer.Int32Deref(h.Spec.ClusterSize, 3)
 	if memberSize < 3 && memberSize != 0 {
 		v.Invalid(Path("spec", "clusterSize"), h.Spec.ClusterSize, "cluster with CP Subsystem enabled cannot have less than 3 members")
 	}
@@ -531,22 +526,13 @@ func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
 }
 
 func (v *hazelcastValidator) validateSessionTTLSeconds(cp *CPSubsystem) {
-	ttl := int32(300)
-	heartbeat := int32(5)
-	autoremoval := int32(14400)
-	if cp.SessionTTLSeconds != nil {
-		ttl = *cp.SessionTTLSeconds
-	}
-	if cp.SessionHeartbeatIntervalSeconds != nil {
-		heartbeat = *cp.SessionHeartbeatIntervalSeconds
-	}
-	if cp.MissingCpMemberAutoRemovalSeconds != nil {
-		autoremoval = *cp.MissingCpMemberAutoRemovalSeconds
-	}
+	ttl := pointer.Int32Deref(cp.SessionTTLSeconds, 300)
+	heartbeat := pointer.Int32Deref(cp.SessionHeartbeatIntervalSeconds, 5)
+	autoremoval := pointer.Int32Deref(cp.MissingCpMemberAutoRemovalSeconds, 14400)
 	if ttl <= heartbeat {
 		v.Invalid(Path("spec", "cpSubsystem", "sessionTTLSeconds"), ttl, "must be greater than sessionHeartbeatIntervalSeconds")
 	}
-	if ttl > autoremoval {
+	if autoremoval != 0 && ttl > autoremoval {
 		v.Invalid(Path("spec", "cpSubsystem", "sessionTTLSeconds"), ttl, "must be smaller than or equal to missingCpMemberAutoRemovalSeconds")
 	}
 }
