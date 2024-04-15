@@ -7,7 +7,6 @@ spec:
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
   licenseKeySecretName: hazelcast-license-key
   cpSubsystem:
-    memberCount: 3
     pvc:
       accessModes: [ "ReadWriteOnce" ]
       requestStorage: 8Gi
