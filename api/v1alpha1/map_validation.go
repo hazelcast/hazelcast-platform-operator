@@ -107,9 +107,6 @@ func (v *mapValidator) validateMapTieredStore(m *Map, h *Hazelcast) {
 	if m.Spec.InMemoryFormat != InMemoryFormatNative {
 		v.Invalid(Path("spec", "inMemoryFormat"), m.Spec.InMemoryFormat, "In-memory format of the map must be NATIVE to enable the Tiered Storage")
 	}
-	if len(m.Spec.Indexes) != 0 {
-		v.Invalid(Path("spec", "indexes"), m.Spec.Indexes, "Indexes is not supported for Tiered-Store map")
-	}
 	if !(m.Spec.Eviction.EvictionPolicy == "" || m.Spec.Eviction.EvictionPolicy == EvictionPolicyNone) {
 		v.Invalid(Path("spec", "eviction", "evictionPolicy"), m.Spec.Eviction.EvictionPolicy, "Eviction is not supported for Tiered-Store map")
 	}
