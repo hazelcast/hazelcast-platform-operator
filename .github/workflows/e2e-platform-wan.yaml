@@ -294,7 +294,7 @@ jobs:
 
       - name: Run Wan Test
         run: |-
-          make test-e2e NAMESPACE=src-ns RELEASE_NAME=src-ns E2E_TEST_LABELS=platform_wan REPORT_SUFFIX=ee_01 WORKFLOW_ID=wan HZ_VERSION=5.4.0-BETA-2
+          make test-e2e NAMESPACE=src-ns RELEASE_NAME=src-ns E2E_TEST_LABELS=platform_wan REPORT_SUFFIX=ee_01 WORKFLOW_ID=wan
 
       - name: Upload Test Report
         if: always()
