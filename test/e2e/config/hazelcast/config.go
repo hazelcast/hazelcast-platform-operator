@@ -170,7 +170,7 @@ var (
 		return hazelcastcomv1alpha1.HazelcastSpec{
 			ClusterSize:          pointer.Int32(clusterSize),
 			Repository:           repo(true),
-			Version:              "5.4.0-SNAPSHOT",
+			Version:              "5.4.0",
 			LicenseKeySecretName: licenseKey(true),
 			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
@@ -186,7 +186,7 @@ var (
 		return hazelcastcomv1alpha1.HazelcastSpec{
 			ClusterSize:          pointer.Int32(clusterSize),
 			Repository:           repo(true),
-			Version:              "5.4.0-SNAPSHOT",
+			Version:              "5.4.0",
 			LicenseKeySecretName: licenseKey(true),
 			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
