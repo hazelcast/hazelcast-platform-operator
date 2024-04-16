@@ -15,7 +15,7 @@ get_image()
     fi
 
     local FILTER="filter=deleted==false;${PUBLISHED_FILTER};repositories.tags.name==${VERSION}"
-    local INCLUDE="include=total,data.repositories.tags.name,data.scan_status,data._id"
+    local INCLUDE="include=total,data.repositories.tags.name,data._id,data.container_grades.status"
 
     local RESPONSE=$( \
         curl --silent \
