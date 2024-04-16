@@ -278,7 +278,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
-	FContext("with ExposeExternally configuration", func() {
+	Context("with ExposeExternally configuration", func() {
 		It("should create Hazelcast cluster exposed for unisocket client", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
