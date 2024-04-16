@@ -101,7 +101,11 @@ func (v *hazelcastValidator) validateExposeExternally(h *Hazelcast) {
 	}
 
 	if ee.Type == ExposeExternallyTypeUnisocket && ee.MemberAccess != "" {
-		v.Forbidden(Path("spec", "exposeExternally", "memberAccess"), "can't be set when exposeExternally.type is set to \"Unisocket\"")
+		v.Forbidden(Path("spec", "exposeExternally", "memberAccess"), fmt.Sprintf("can't be set when exposeExternally.type is set to %q", ExposeExternallyTypeUnisocket))
+	}
+
+	if ee.Type == ExposeExternallyTypeUnisocket && ee.DiscoveryServiceType == corev1.ServiceTypeClusterIP {
+		v.Forbidden(Path("spec", "exposeExternally"), fmt.Sprintf("can't be %q when exposeExternally.type is set to %q", corev1.ServiceTypeClusterIP, ExposeExternallyTypeUnisocket))
 	}
 
 	if ee.Type == ExposeExternallyTypeSmart && ee.MemberAccess == MemberAccessNodePortExternalIP {
@@ -111,10 +115,10 @@ func (v *hazelcastValidator) validateExposeExternally(h *Hazelcast) {
 	}
 
 	supportedTypes := map[corev1.ServiceType]bool{
+		corev1.ServiceTypeClusterIP:    true,
 		corev1.ServiceTypeNodePort:     true,
 		corev1.ServiceTypeLoadBalancer: true,
 	}
-
 	if ok := supportedTypes[ee.DiscoveryServiceType]; !ok {
 		v.Invalid(Path("spec", "exposeExternally", "discoveryServiceType"), ee.DiscoveryServiceType, "service type not supported")
 	}

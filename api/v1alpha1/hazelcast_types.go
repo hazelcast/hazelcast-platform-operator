@@ -862,6 +862,7 @@ type ExposeExternallyConfiguration struct {
 	Type ExposeExternallyType `json:"type,omitempty"`
 
 	// Type of the service used to discover Hazelcast cluster.
+	// LoadBalancer (default), NodePort, and ClusterIP (headless) types are supported.
 	// +kubebuilder:default:="LoadBalancer"
 	// +optional
 	DiscoveryServiceType corev1.ServiceType `json:"discoveryServiceType,omitempty"`
@@ -924,8 +925,8 @@ func (c *ExposeExternallyConfiguration) DiscoveryK8ServiceType() corev1.ServiceT
 	}
 
 	switch c.DiscoveryServiceType {
-	case corev1.ServiceTypeNodePort:
-		return corev1.ServiceTypeNodePort
+	case corev1.ServiceTypeClusterIP, corev1.ServiceTypeNodePort, corev1.ServiceTypeLoadBalancer:
+		return c.DiscoveryServiceType
 	default:
 		return corev1.ServiceTypeLoadBalancer
 	}
