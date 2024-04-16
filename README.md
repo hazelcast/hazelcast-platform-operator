@@ -42,6 +42,9 @@ Hazelcast Platform Operator supports the features below:
   clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/latest/clients/java#java-client-operation-modes))
 * Backup Hazelcast persistence data to cloud storage with the possibility of scheduling it and restoring the data accordingly
 * WAN Replication feature when you need to synchronize multiple Hazelcast clusters, which are connected by WANs
+* Full and Delta WAN Sync support
+* Tiered Storage support for Hazelcast and Map CRs
+* CP Subsystem configuration support for Hazelcast CR
 * User Code Deployment feature, which allows you to deploy custom and domain classes from cloud storages and URLs to Hazelcast members
 * Support the configuration of advanced networking options
 * Support Multi-namespace configuration
