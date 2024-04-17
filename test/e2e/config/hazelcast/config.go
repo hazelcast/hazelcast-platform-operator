@@ -142,6 +142,28 @@ var (
 		}
 	}
 
+	ExposeExternallySmartLoadBalancerWithClusterIpDiscovery = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastcomv1alpha1.Hazelcast {
+		return &hazelcastcomv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastcomv1alpha1.HazelcastSpec{
+				ClusterSize:          &[]int32{3}[0],
+				Repository:           repo(ee),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(ee),
+				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+				ExposeExternally: &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+					DiscoveryServiceType: corev1.ServiceTypeClusterIP,
+					MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+				},
+			},
+		}
+	}
+
 	HazelcastPersistencePVC = func(lk types.NamespacedName, clusterSize int32, labels map[string]string) *hazelcastcomv1alpha1.Hazelcast {
 		return &hazelcastcomv1alpha1.Hazelcast{
 			ObjectMeta: v1.ObjectMeta{

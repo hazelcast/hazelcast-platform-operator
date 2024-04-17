@@ -460,7 +460,7 @@ var _ = Describe("Hazelcast CR", func() {
 			Expect(discoveryService.Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
 		})
 
-		It("should fail to set discovery service type to ClusterIP when memberAccess is Unisocket", func() {
+		It("should fail to set discoveryServiceType to ClusterIP when memberAccess is Unisocket", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,

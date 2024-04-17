@@ -3,14 +3,17 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	. "time"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	hzCluster "github.com/hazelcast/hazelcast-go-client/cluster"
+	hzclienttypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -60,7 +63,9 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			evaluateReadyMembers(hzLookupKey)
 			members := getHazelcastMembers(ctx, hazelcast)
 			clientHz := GetHzClient(ctx, hzLookupKey, false)
-			defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
+			defer func(){
+				Expect(clientHz.Shutdown(ctx)).To(BeNil())
+			}()
 			internalClient := hzClient.NewClientInternal(clientHz)
 			clientMembers := internalClient.OrderedMembers()
 			By("matching HZ members with client members and comparing their public IPs")
@@ -84,7 +89,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 					clientPublicAddress := clientPublicAddresses[0]
 					Expect(externalAddress).Should(Equal(clientPublicAddress))
 
-					By(fmt.Sprintf("checking if connected to the member %q", clientMember.UUID.String()))
+					By(fmt.Sprintf("checking if the client connected to the member %q", clientMember.UUID.String()))
 					connected := internalClient.ConnectedToMember(clientMember.UUID)
 					Expect(connected).Should(BeTrue())
 					break
@@ -111,7 +116,9 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 
 			members := getHazelcastMembers(ctx, hazelcast)
 			clientHz := GetHzClient(ctx, hzLookupKey, false)
-			defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
+			defer func(){
+				Expect(clientHz.Shutdown(ctx)).To(BeNil())
+			}()
 			internalClient := hzClient.NewClientInternal(clientHz)
 			clientMembers := internalClient.OrderedMembers()
 
@@ -144,7 +151,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 						}, 3*Minute, interval).Should(BeTrue())
 					}
 
-					By(fmt.Sprintf("checking if connected to the member %q", clientMember.UUID.String()))
+					By(fmt.Sprintf("checking if the client connected to the member %q", clientMember.UUID.String()))
 					connected := internalClient.ConnectedToMember(clientMember.UUID)
 					Expect(connected).Should(BeTrue())
 
@@ -160,6 +167,83 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			err := FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
 			Expect(err).To(BeNil())
 			WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
+
+			assertExternalAddressesNotEmpty()
+		})
+
+		FIt("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer with ClusterIP service discovery", Tag(Any), func() {
+			setLabelAndCRName("hee-4")
+			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancerWithClusterIpDiscovery(hzLookupKey, ee, labels)
+			CreateHazelcastCR(hazelcast)
+			evaluateReadyMembers(hzLookupKey)
+
+			members := getHazelcastMembers(ctx, hazelcast)
+			memberSvcNn := types.NamespacedName{
+				Name:      fmt.Sprintf("%s-0", hzLookupKey.Name),
+				Namespace: hzLookupKey.Namespace,
+			}
+			clientHz := HazelcastClientFromLBService(ctx, hzLookupKey, memberSvcNn, false)
+			defer func(){
+				Expect(clientHz.Shutdown(ctx)).To(BeNil())
+			}()
+			internalClient := hzClient.NewClientInternal(clientHz)
+			clientMembers := internalClient.OrderedMembers()
+
+			By("matching HZ members with client members and comparing their public IPs")
+
+			for _, member := range members {
+				matched := false
+				for _, clientMember := range clientMembers {
+					if member.Uid != clientMember.UUID.String() {
+						continue
+					}
+					matched = true
+					service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
+					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
+					Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
+					svcLoadBalancerIngress := service.Status.LoadBalancer.Ingress[0]
+					clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
+					Expect(clientPublicAddresses).Should(HaveLen(1))
+					clientPublicIp := clientPublicAddresses[0][:strings.IndexByte(clientPublicAddresses[0], ':')]
+					if svcLoadBalancerIngress.IP != "" {
+						Expect(svcLoadBalancerIngress.IP).Should(Equal(clientPublicIp))
+					} else {
+						hostname := svcLoadBalancerIngress.Hostname
+						Eventually(func() bool {
+							matched, err := DnsLookupAddressMatched(ctx, hostname, clientPublicIp)
+							if err != nil {
+								return false
+							}
+							return matched
+						}, 3*Minute, interval).Should(BeTrue())
+					}
+
+					By(fmt.Sprintf("checking if the client connected to the member %q", clientMember.UUID.String()))
+					connected := internalClient.ConnectedToMember(clientMember.UUID)
+					Expect(connected).Should(BeTrue())
+
+					break
+				}
+				if !matched {
+					Fail(fmt.Sprintf("member UID '%s' is not matched with client members UUIDs", member.Uid))
+				}
+			}
+
+			hzMapName := "map"
+			entryCount := 100
+			timeout := 5 * Minute
+			timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+
+			hzMap, err := clientHz.GetMap(timeoutCtx, hzMapName)
+			Expect(err).NotTo(HaveOccurred())
+			entries := make([]hzclienttypes.Entry, 0, entryCount)
+			for i := 0; i < entryCount; i++ {
+				entries = append(entries, hzclienttypes.NewEntry(strconv.Itoa(i), strconv.Itoa(i)))
+			}
+			Expect(hzMap.PutAll(timeoutCtx, entries...)).NotTo(HaveOccurred())
+
+			CheckMapSize(timeoutCtx, clientHz, hzMapName, entryCount, timeout)
 
 			assertExternalAddressesNotEmpty()
 		})
