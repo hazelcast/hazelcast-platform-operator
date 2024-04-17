@@ -171,7 +171,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			assertExternalAddressesNotEmpty()
 		})
 
-		FIt("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer with ClusterIP service discovery", Tag(Any), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer with ClusterIP service discovery", Tag(Any), func() {
 			setLabelAndCRName("hee-4")
 			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancerWithClusterIpDiscovery(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
