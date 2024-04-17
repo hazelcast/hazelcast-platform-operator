@@ -63,7 +63,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			evaluateReadyMembers(hzLookupKey)
 			members := getHazelcastMembers(ctx, hazelcast)
 			clientHz := GetHzClient(ctx, hzLookupKey, false)
-			defer func(){
+			defer func() {
 				Expect(clientHz.Shutdown(ctx)).To(BeNil())
 			}()
 			internalClient := hzClient.NewClientInternal(clientHz)
@@ -116,7 +116,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 
 			members := getHazelcastMembers(ctx, hazelcast)
 			clientHz := GetHzClient(ctx, hzLookupKey, false)
-			defer func(){
+			defer func() {
 				Expect(clientHz.Shutdown(ctx)).To(BeNil())
 			}()
 			internalClient := hzClient.NewClientInternal(clientHz)
@@ -183,7 +183,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 				Namespace: hzLookupKey.Namespace,
 			}
 			clientHz := HazelcastClientFromLBService(ctx, hzLookupKey, memberSvcNn, false)
-			defer func(){
+			defer func() {
 				Expect(clientHz.Shutdown(ctx)).To(BeNil())
 			}()
 			internalClient := hzClient.NewClientInternal(clientHz)
