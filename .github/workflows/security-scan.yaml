@@ -1,0 +1,40 @@
+name: Vulnerability Scanner
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *"
+
+jobs:
+  operator-scan:
+    name: Operator Scan
+    runs-on: "ubuntu-latest"
+    strategy:
+      matrix:
+        include:
+          - category: operator-image-scan
+            scan-type: image
+            image-ref: docker.io/hazelcast/hazelcast-platform-operator:latest-snapshot
+          - category: operator-repo-scan
+            scan-type: repo
+            image-ref: ''
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Run Operator Repo Vulnerability Scanner
+        uses: aquasecurity/trivy-action@0.19.0
+        with:
+          scan-type: '${{ matrix.scan-type }}'
+          image-ref: '${{ matrix.image-ref }}'
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          format: 'sarif'
+          output: '${{ matrix.category }}.sarif'
+          severity: 'CRITICAL,HIGH'
+          
+      - name: Upload Trivy Scan Results to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          category: ${{ matrix.category }}
+          sarif_file: '${{ matrix.category }}.sarif'
