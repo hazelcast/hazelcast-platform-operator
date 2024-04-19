@@ -90,8 +90,9 @@ const (
 	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
 )
 
-// Annotations
-const HazelcastCustomConfigOverwrite = "hazelcast.com/custom-config-overwrite"
+const HazelcastCustomConfigOverwriteAnnotation = "hazelcast.com/custom-config-overwrite"
+
+const HazelcastCustomConfigKey = "hazelcast"
 
 // Hazelcast default configurations
 const (

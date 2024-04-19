@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -129,8 +130,19 @@ func (v *hazelcastValidator) validateCustomConfig(h *Hazelcast) {
 		var cm corev1.ConfigMap
 		err := kubeclient.Get(context.Background(), cmName, &cm)
 		if kerrors.IsNotFound(err) {
-			// we care only about not found error
 			v.NotFound(Path("spec", "customConfigCmName"), "ConfigMap for Hazelcast custom configs not found")
+			return
+		}
+
+		// skip if the validation if the error is not nil
+		if err != nil {
+			return
+		}
+
+		if config, ok := cm.Data[n.HazelcastCustomConfigKey]; !ok {
+			v.NotFound(Path("spec", "customConfigCmName"), fmt.Sprintf("ConfigMap for Hazelcast custom configs must contain '%s' key", n.HazelcastCustomConfigKey))
+		} else if err := yaml.Unmarshal([]byte(config), make(map[string]interface{})); err != nil {
+			v.NotFound(Path("spec", "customConfigCmName"), "ConfigMap for Hazelcast custom configs is not a valid yaml")
 		}
 	}
 }
