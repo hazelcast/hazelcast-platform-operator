@@ -220,6 +220,7 @@ jobs:
         run: |
           status=$(helm status hazelcast-platform-operator-crds -n default --output json | jq -r '.info.status')
           if [[ "$status" != "pending-upgrade" ]]; then
+            sleep 3
             make install-crds
           fi
           oc new-project $NAMESPACE
