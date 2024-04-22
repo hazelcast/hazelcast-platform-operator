@@ -459,7 +459,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		It("should replicate data for maps with TS and non TS storage in active-passive WAN replication mode", Serial, Tag(EE|AnyCloud), func() {
 			SwitchContext(context1)
 			setupEnv()
-			setLabelAndCRName("hpts-1")
+			setLabelAndCRName("hpwts-1")
 
 			deviceName := "test-device"
 			var nativeMemorySizeInMb = 1536 // 1.5Gi
@@ -488,7 +488,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			hazelcastSource.Spec.NativeMemory = &hazelcastcomv1alpha1.NativeMemoryConfiguration{
 				Size: []resource.Quantity{resource.MustParse(nativeMemorySize)}[0],
 			}
-
+			hazelcastSource.Spec.ClusterName = "source"
 			CreateHazelcastCR(hazelcastSource)
 			evaluateReadyMembers(sourceLookupKey)
 
@@ -603,6 +603,16 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			setupEnv()
 			createWanSync(ctx, sourceLookupKey, wanSrc.Name, 2, labels)
 
+			SwitchContext(context2)
+			setupEnv()
+			By("checking TS map size after 2-nd fill")
+			WaitForMapSize(ctx, targetLookupKey, tsMap.MapName(), expectedMapSize*2, 15*Minute)
+
+			By("checking non-TS map size after 2-nd fill")
+			WaitForMapSize(ctx, targetLookupKey, nonTsMap.MapName(), expectedMapSize*2, 15*Minute)
+
+			SwitchContext(context1)
+			setupEnv()
 			By("3-rd fill of the non TS Map for the source cluster")
 			FillMapBySizeInMb(ctx, nonTsMap.MapName(), mapSizeInMb, mapSizeInMb*3, hazelcastSource)
 
