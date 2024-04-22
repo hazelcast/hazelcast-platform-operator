@@ -279,7 +279,7 @@ jobs:
 
   report-generation:
     needs: ["prepare-env", "eks-e2e-tests"]
-    if: always() && (needs.eks-e2e-tests.result == 'success' || needs.eks-e2e-tests.result == 'failure')
+    if: always() && (needs.eks-e2e-tests.result == 'success' || needs.eks-e2e-tests.result == 'failure') && github.event_name != 'workflow_dispatch'
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
