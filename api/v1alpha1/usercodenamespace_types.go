@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // UserCodeNamespaceSpec defines the desired state of UserCodeNamespace
@@ -57,6 +58,14 @@ type UserCodeNamespaceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []UserCodeNamespace `json:"items"`
+}
+
+func (ucnl *UserCodeNamespaceList) GetItems() []client.Object {
+	l := make([]client.Object, 0, len(ucnl.Items))
+	for _, item := range ucnl.Items {
+		l = append(l, client.Object(&item))
+	}
+	return l
 }
 
 func init() {
