@@ -33,6 +33,24 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
+	fillMapWithEntries := func(entryCount int, h *hazelcastcomv1alpha1.Hazelcast, m *hazelcastcomv1alpha1.Map) []hzTypes.Entry {
+		cl := newHazelcastClientPortForward(context.Background(), h, localPort)
+		defer func() {
+			Expect(cl.Shutdown(context.Background())).Should(Succeed())
+		}()
+		mp, err := cl.GetMap(context.Background(), m.MapName())
+		Expect(err).To(BeNil())
+
+		entries := make([]hzTypes.Entry, entryCount)
+		for i := 0; i < entryCount; i++ {
+			entries[i] = hzTypes.NewEntry(strconv.Itoa(i), "val")
+		}
+		err = mp.PutAll(context.Background(), entries...)
+		Expect(err).To(BeNil())
+		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
+		return entries
+	}
+
 	It("verify addition of entry listeners in Hazelcast map using UserCodeNamespace", Tag(Kind|Any), func() {
 		if !ee {
 			Skip("This test will only run in EE configuration")
@@ -77,21 +95,7 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		defer closeChannel(stopChan)
 
 		By("filling the map with entries")
-		entryCount := 5
-		cl := newHazelcastClientPortForward(context.Background(), h, localPort)
-		defer func() {
-			Expect(cl.Shutdown(context.Background())).Should(Succeed())
-		}()
-		mp, err := cl.GetMap(context.Background(), m.MapName())
-		Expect(err).To(BeNil())
-
-		entries := make([]hzTypes.Entry, entryCount)
-		for i := 0; i < entryCount; i++ {
-			entries[i] = hzTypes.NewEntry(strconv.Itoa(i), "val")
-		}
-		err = mp.PutAll(context.Background(), entries...)
-		Expect(err).To(BeNil())
-		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
+		entries := fillMapWithEntries(5, h, m)
 
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
@@ -162,21 +166,7 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		defer closeChannel(stopChan)
 
 		By("filling the map with entries")
-		entryCount := 5
-		cl := newHazelcastClientPortForward(context.Background(), h, localPort)
-		defer func() {
-			Expect(cl.Shutdown(context.Background())).Should(Succeed())
-		}()
-		mp, err := cl.GetMap(context.Background(), m.MapName())
-		Expect(err).To(BeNil())
-
-		entries := make([]hzTypes.Entry, entryCount)
-		for i := 0; i < entryCount; i++ {
-			entries[i] = hzTypes.NewEntry(strconv.Itoa(i), "val")
-		}
-		err = mp.PutAll(context.Background(), entries...)
-		Expect(err).To(BeNil())
-		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
+		entries := fillMapWithEntries(5, h, m)
 
 		By("checking the logs")
 		logs := InitLogs(t, hzLookupKey)
