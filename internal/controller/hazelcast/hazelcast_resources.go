@@ -97,13 +97,14 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
 
 	dependentCRs := map[string]client.ObjectList{
-		"Map":           &hazelcastv1alpha1.MapList{},
-		"MultiMap":      &hazelcastv1alpha1.MultiMapList{},
-		"Topic":         &hazelcastv1alpha1.TopicList{},
-		"ReplicatedMap": &hazelcastv1alpha1.ReplicatedMapList{},
-		"Queue":         &hazelcastv1alpha1.QueueList{},
-		"Cache":         &hazelcastv1alpha1.CacheList{},
-		"JetJob":        &hazelcastv1alpha1.JetJobList{},
+		"Map":               &hazelcastv1alpha1.MapList{},
+		"MultiMap":          &hazelcastv1alpha1.MultiMapList{},
+		"Topic":             &hazelcastv1alpha1.TopicList{},
+		"ReplicatedMap":     &hazelcastv1alpha1.ReplicatedMapList{},
+		"Queue":             &hazelcastv1alpha1.QueueList{},
+		"Cache":             &hazelcastv1alpha1.CacheList{},
+		"JetJob":            &hazelcastv1alpha1.JetJobList{},
+		"UserCodeNamespace": &hazelcastv1alpha1.UserCodeNamespaceList{},
 	}
 
 	for crKind, crList := range dependentCRs {
