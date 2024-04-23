@@ -16,6 +16,8 @@ import (
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	"github.com/hazelcast/platform-operator-agent/init/compound"
+	"github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
 	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
@@ -847,6 +849,67 @@ func hazelcastEndpointFromService(nn types.NamespacedName, hz *hazelcastv1alpha1
 	}
 }
 
+func (r *HazelcastReconciler) reconcileAgentConfig(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !h.Spec.UserCodeNamespaces.IsEnabled() {
+		return nil
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metadata(h),
+		Data:       make(map[string]string),
+	}
+	cm.Name = cm.Name + n.AgentSuffix
+	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on ConfigMap: %w", err)
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
+			cfg, err := agentConfig(ctx, r.Client, h, logger)
+			if err != nil {
+				return err
+			}
+			cm.Data[n.AgentConfigFile] = string(cfg)
+			return nil
+		})
+		if result != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Secret", h.Name, "result", result)
+		}
+		return err
+	})
+}
+
+func filterUCNs(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.UserCodeNamespace, error) {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	ucnList := &hazelcastv1alpha1.UserCodeNamespaceList{}
+
+	if err := c.List(ctx, ucnList, fieldMatcher, nsMatcher); err != nil {
+		return nil, err
+	}
+
+	l := make([]hazelcastv1alpha1.UserCodeNamespace, 0)
+
+	for _, ucn := range ucnList.Items {
+		switch ucn.Status.State {
+		case hazelcastv1alpha1.UserCodeNamespaceSuccess:
+			l = append(l, ucn)
+		case hazelcastv1alpha1.UserCodeNamespaceFailure, hazelcastv1alpha1.UserCodeNamespacePending:
+			if spec, ok := ucn.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
+				ucns := &hazelcastv1alpha1.UserCodeNamespaceSpec{}
+				err := json.Unmarshal([]byte(spec), ucns)
+				if err != nil {
+					continue
+				}
+				ucn.Spec = *ucns
+				l = append(l, ucn)
+			}
+		default:
+		}
+	}
+	return l, nil
+}
+
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	scrt := &corev1.Secret{
 		ObjectMeta: metadata(h),
@@ -902,6 +965,33 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 		return nil
 	})
 	return err
+}
+
+func agentConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
+	ns, err := filterUCNs(ctx, c, h)
+	if err != nil {
+		return nil, err
+	}
+
+	cfgW := compound.ConfigWrapper{}
+	if len(ns) != 0 {
+		buckets := make([]downloadbucket.Cmd, 0)
+		for _, ucn := range ns {
+			buckets = append(buckets, downloadbucket.Cmd{
+				BucketURI:   ucn.Spec.BucketConfiguration.BucketURI,
+				SecretName:  ucn.Spec.BucketConfiguration.SecretName,
+				Destination: filepath.Join(n.UCNBucketPath, ucn.Name+".zip"),
+			})
+		}
+		cfgW.InitContainer = &compound.Config{
+			Download: &compound.Download{
+				Bundle: &compound.Bundle{
+					Buckets: buckets,
+				},
+			},
+		}
+	}
+	return yaml.Marshal(cfgW)
 }
 
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
@@ -2096,9 +2186,6 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	if h.Spec.IsTieredStorageEnabled() {
 		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, localDevicePersistentVolumeClaim(h)...)
 	}
-	if h.Spec.UserCodeNamespaces.IsEnabled() {
-		sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, ucnPersistentVolumeClaim(h))
-	}
 
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
@@ -2199,26 +2286,6 @@ func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1
 		})
 	}
 	return pvcs
-}
-
-func ucnPersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) v1.PersistentVolumeClaim {
-	ucn := h.Spec.UserCodeNamespaces
-	return v1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.UCNVolumeName,
-			Namespace: h.Namespace,
-			Labels:    labels(h),
-		},
-		Spec: v1.PersistentVolumeClaimSpec{
-			AccessModes: ucn.PVC.AccessModes,
-			Resources: v1.ResourceRequirements{
-				Requests: v1.ResourceList{
-					corev1.ResourceStorage: *ucn.PVC.RequestStorage,
-				},
-			},
-			StorageClassName: ucn.PVC.StorageClassName,
-		},
-	}
 }
 
 func localDevicePersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
@@ -2377,6 +2444,10 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	if h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
 		containers = append(containers, urlDownloadContainer(
 			n.JetUrlAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
+	}
+
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		containers = append(containers, ucnDownloadContainer(n.InitAgent, h.AgentDockerImage(), ucnBucketVolumeMount()))
 	}
 
 	if !h.Spec.Persistence.IsRestoreEnabled() {
@@ -2594,6 +2665,25 @@ func tmpDirVolumeMount() v1.VolumeMount {
 	}
 }
 
+func ucnDownloadContainer(name, image string, vm v1.VolumeMount) v1.Container {
+	return v1.Container{
+		Name:            name,
+		Args:            []string{"execute-multiple-commands"},
+		Image:           image,
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Env: []v1.EnvVar{
+			{
+				Name:  "CONFIG_FILE",
+				Value: n.AgentConfigDir + n.AgentConfigFile,
+			},
+		},
+		VolumeMounts:             []v1.VolumeMount{vm, {Name: n.AgentConfigMap, MountPath: n.AgentConfigDir}},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
+		SecurityContext:          containerSecurityContext(),
+	}
+}
+
 func urlDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
 	return v1.Container{
 		Name:            name,
@@ -2649,10 +2739,20 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
 		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
 	}
-	//
-	//if h.Spec.UserCodeNamespaces.IsEnabled() {
-	//	vols = append(vols, emptyDirVolume(n.UCNVolumeName))
-	//}
+
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		vols = append(vols, emptyDirVolume(n.UCNVolumeName), corev1.Volume{
+			Name: n.AgentConfigMap,
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: h.Name + n.AgentSuffix,
+					},
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		})
+	}
 
 	return vols
 }

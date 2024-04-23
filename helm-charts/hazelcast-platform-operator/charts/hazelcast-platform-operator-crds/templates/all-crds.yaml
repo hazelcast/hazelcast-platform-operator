@@ -467,12 +467,12 @@ spec:
                 type: object
               agent:
                 default:
-                  repository: docker.io/hazelcast/platform-operator-agent
+                  repository: docker.io/sbishyr/operator-agent-comp
                   version: 0.1.26
                 description: B&R Agent configurations
                 properties:
                   repository:
-                    default: docker.io/hazelcast/platform-operator-agent
+                    default: docker.io/sbishyr/operator-agent-comp
                     description: Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
                     type: string
                   resources:
@@ -2570,29 +2570,6 @@ spec:
                             type: array
                         type: object
                     type: object
-                  pvc:
-                    properties:
-                      accessModes:
-                        description: 'AccessModes contains the actual access modes
-                          of the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
-                        items:
-                          type: string
-                        type: array
-                      requestStorage:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        default: 8Gi
-                        description: A description of the PVC request capacity.
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      storageClassName:
-                        description: Name of StorageClass which this persistent volume
-                          belongs to.
-                        type: string
-                    type: object
-                required:
-                - pvc
                 type: object
               version:
                 default: 5.4.0-SNAPSHOT

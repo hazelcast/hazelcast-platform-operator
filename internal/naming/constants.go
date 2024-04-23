@@ -81,6 +81,11 @@ const (
 	UserCodeURLAgent    = "ucd-url-agent"
 	JetBucketAgent      = "jet-bucket-agent"
 	JetUrlAgent         = "jet-url-agent"
+	InitAgent           = "init-agent"
+	AgentSuffix         = "-agent"
+	AgentConfigMap      = "agent-config-volume"
+	AgentConfigDir      = "/opt/data/config/"
+	AgentConfigFile     = "config.yaml"
 
 	MTLSCertSecretName = "hazelcast-agent-cert"
 	MTLSCertPath       = "/var/run/secrets/hazelcast"

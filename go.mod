@@ -153,3 +153,5 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 )
+
+replace github.com/hazelcast/platform-operator-agent v0.1.26 => github.com/hazelcast/platform-operator-agent v0.0.0-20240422174356-c8b7eb7c0f0a

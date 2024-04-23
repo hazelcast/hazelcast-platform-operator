@@ -198,6 +198,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
+	err = r.reconcileAgentConfig(ctx, h, logger)
+	if err != nil {
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+	}
+
 	err = r.reconcileMTLSSecret(ctx, h)
 	if err != nil {
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
@@ -357,6 +362,27 @@ func (r *HazelcastReconciler) mapUpdates(_ context.Context, m client.Object) []r
 	}
 }
 
+func (r *HazelcastReconciler) ucnUpdates(_ context.Context, m client.Object) []reconcile.Request {
+	mp, ok := m.(*hazelcastv1alpha1.UserCodeNamespace)
+	if !ok {
+		return []reconcile.Request{}
+	}
+
+	if mp.Status.State == hazelcastv1alpha1.UserCodeNamespacePending {
+		return []reconcile.Request{}
+	}
+	name := mp.Spec.HazelcastResourceName
+
+	return []reconcile.Request{
+		{
+			NamespacedName: types.NamespacedName{
+				Name:      name,
+				Namespace: mp.GetNamespace(),
+			},
+		},
+	}
+}
+
 func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
 	if pod.Labels[n.ApplicationManagedByLabel] == n.OperatorName && pod.Labels[n.ApplicationNameLabel] == n.Hazelcast {
 		return pod.Labels[n.ApplicationInstanceNameLabel], true
@@ -464,7 +490,8 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		WatchesRawSource(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Watches(&corev1.Pod{}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).
-		Watches(&hazelcastv1alpha1.Map{}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates))
+		Watches(&hazelcastv1alpha1.Map{}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates)).
+		Watches(&hazelcastv1alpha1.UserCodeNamespace{}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates))
 
 	if util.NodeDiscoveryEnabled() {
 		controller.

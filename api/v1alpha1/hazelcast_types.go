@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.26"}
+	// +kubebuilder:default:={repository: "docker.io/sbishyr/operator-agent-comp", version: "0.1.26"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -220,9 +220,6 @@ func (ucn *UserCodeNamespacesConfig) IsEnabled() bool {
 }
 
 type UserCodeNamespacesConfig struct {
-	// +required
-	PVC PvcConfiguration `json:"pvc"`
-
 	// Blacklist and whitelist for classes when User Code Namespaces is used.
 	// +optional
 	ClassFilter *JavaFilterConfig `json:"classFilter,omitempty"`
@@ -686,7 +683,7 @@ func (c *UserCodeDeploymentConfig) IsRemoteURLsEnabled() bool {
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
-	// +kubebuilder:default:="docker.io/hazelcast/platform-operator-agent"
+	// +kubebuilder:default:="docker.io/sbishyr/operator-agent-comp"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
