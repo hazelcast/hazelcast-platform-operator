@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.4.0-SNAPSHOT"
+	// +kubebuilder:default:="5.4.0"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -227,18 +227,13 @@ type UserCodeNamespacesConfig struct {
 
 // CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
 type CPSubsystem struct {
-	// GroupSize is the number of CP members to participate in each CP group.
-	// Allowed values are 3, 5, and 7.
-	// +optional
-	GroupSize *int32 `json:"groupSize,omitempty"`
-
 	// SessionTTLSeconds is the duration for a CP session to be kept alive after the last received heartbeat.
-	// Must be greater than or equal to SessionTTLSeconds.
+	// Must be greater than or equal to SessionHeartbeatIntervalSeconds and smaller than or equal to MissingCpMemberAutoRemovalSeconds.
 	// +optional
 	SessionTTLSeconds *int32 `json:"sessionTTLSeconds,omitempty"`
 
 	// SessionHeartbeatIntervalSeconds Interval in seconds for the periodically committed CP session heartbeats.
-	// Must be greater than or equal to SessionTTLSeconds.
+	// Must be smaller than SessionTTLSeconds.
 	// +optional
 	SessionHeartbeatIntervalSeconds *int32 `json:"sessionHeartbeatIntervalSeconds,omitempty"`
 
@@ -250,6 +245,7 @@ type CPSubsystem struct {
 	FailOnIndeterminateOperationState *bool `json:"failOnIndeterminateOperationState,omitempty"`
 
 	// DataLoadTimeoutSeconds is the timeout duration in seconds for CP members to restore their persisted data from disk
+	// +kubebuilder:validation:Minimum:=1
 	// +optional
 	DataLoadTimeoutSeconds *int32 `json:"dataLoadTimeoutSeconds,omitempty"`
 

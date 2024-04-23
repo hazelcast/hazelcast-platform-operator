@@ -76,7 +76,6 @@ func main() {
 }
 
 func mapInjector(ctx context.Context, m *hazelcast.Map, key, value string) {
-	log.Printf("Key: %s is putting into map.", key)
 	_, err := m.Put(ctx, key, value)
 	if err != nil {
 		log.Fatal(err)

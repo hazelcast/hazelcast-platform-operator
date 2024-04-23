@@ -16,7 +16,7 @@ type ManagementCenterSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Management Center.
-	// +kubebuilder:default:="5.3.3"
+	// +kubebuilder:default:="5.4.0"
 	// +optional
 	Version string `json:"version,omitempty"`
 

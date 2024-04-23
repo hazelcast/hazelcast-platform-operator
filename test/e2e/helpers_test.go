@@ -1385,3 +1385,17 @@ func GetPodLogs(ctx context.Context, pod types.NamespacedName, podLogOptions *co
 	}
 	return podLogs
 }
+
+func CheckPodStatus(pod types.NamespacedName, status corev1.PodPhase) {
+	clientSet := getKubernetesClientSet()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	Eventually(func() corev1.PodPhase {
+		pod, err := clientSet.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+		if err != nil {
+			panic(err)
+		}
+		return pod.Status.Phase
+	}, 10*Minute, interval).Should(Equal(status))
+}

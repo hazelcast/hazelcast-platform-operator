@@ -7,6 +7,8 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -22,59 +24,110 @@ func Test_mapTieredStoreConfig(t *testing.T) {
 	nn, h, m := defaultCRsMap()
 	h.Spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
 		AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
+		Size:          []resource.Quantity{resource.MustParse("512M")}[0],
+	}
+	h.Spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{
+		{
+			Name: "test-device",
+			PVC: &hazelcastv1alpha1.PvcConfiguration{
+				AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				RequestStorage: &[]resource.Quantity{resource.MustParse("256M")}[0],
+			},
+		},
 	}
 
 	tests := []struct {
-		name        string
-		localDevice hazelcastv1alpha1.LocalDeviceConfig
-		mapSpec     hazelcastv1alpha1.MapSpec
-		errMessage  string
+		name       string
+		mapSpec    hazelcastv1alpha1.MapSpec
+		errMessage string
 	}{
 		{
-			name:        "Wrong InMemoryFormat",
-			localDevice: hazelcastv1alpha1.LocalDeviceConfig{Name: "test-device"},
+			name: "Wrong InMemoryFormat",
 			mapSpec: hazelcastv1alpha1.MapSpec{
 				TieredStore: &hazelcastv1alpha1.TieredStore{
 					DiskDeviceName: "test-device",
+					MemoryCapacity: &[]resource.Quantity{resource.MustParse("128M")}[0],
 				},
 			},
 			errMessage: "In-memory format of the map must be NATIVE to enable the Tiered Storage",
 		},
 		{
-			name:        "Index Configured",
-			localDevice: hazelcastv1alpha1.LocalDeviceConfig{Name: "test-device"},
+			name: "Persistence Enabled",
 			mapSpec: hazelcastv1alpha1.MapSpec{
-				Indexes: []hazelcastv1alpha1.IndexConfig{
-					{
-						Type: hazelcastv1alpha1.IndexTypeHash,
-					},
-				},
-				InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+				PersistenceEnabled: true,
+				InMemoryFormat:     hazelcastv1alpha1.InMemoryFormatNative,
 				TieredStore: &hazelcastv1alpha1.TieredStore{
 					DiskDeviceName: "test-device",
+					MemoryCapacity: &[]resource.Quantity{resource.MustParse("128M")}[0],
 				},
 			},
-			errMessage: "Indexes can not be created on maps that have Tiered Storage enabled",
+			errMessage: "Tiered store and data persistence are mutually exclusive features. Persistence must be disabled to enable the Tiered Storage",
 		},
 		{
-			name:        "LocalDevice does not exist",
-			localDevice: hazelcastv1alpha1.LocalDeviceConfig{Name: "test-device-2"},
+			name: "Eviction Configured",
+			mapSpec: hazelcastv1alpha1.MapSpec{
+				Eviction: hazelcastv1alpha1.EvictionConfig{
+					EvictionPolicy: "LRU",
+				},
+				InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+				TieredStore: &hazelcastv1alpha1.TieredStore{
+					DiskDeviceName: "test-device",
+					MemoryCapacity: &[]resource.Quantity{resource.MustParse("128M")}[0],
+				},
+			},
+			errMessage: "Eviction is not supported for Tiered-Store map",
+		},
+		{
+			name: "TTL Configured",
+			mapSpec: hazelcastv1alpha1.MapSpec{
+				TimeToLiveSeconds: int32(100),
+				InMemoryFormat:    hazelcastv1alpha1.InMemoryFormatNative,
+				TieredStore: &hazelcastv1alpha1.TieredStore{
+					DiskDeviceName: "test-device",
+					MemoryCapacity: &[]resource.Quantity{resource.MustParse("128M")}[0],
+				},
+			},
+			errMessage: "TTL expiry is not supported for Tiered-Store map",
+		},
+		{
+			name: "MaxIdle Configured",
+			mapSpec: hazelcastv1alpha1.MapSpec{
+				MaxIdleSeconds: int32(100),
+				InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+				TieredStore: &hazelcastv1alpha1.TieredStore{
+					DiskDeviceName: "test-device",
+					MemoryCapacity: &[]resource.Quantity{resource.MustParse("128M")}[0],
+				},
+			},
+			errMessage: "MaxIdle expiry is not supported for Tiered-Store map",
+		},
+		{
+			name: "LocalDevice does not exist",
+			mapSpec: hazelcastv1alpha1.MapSpec{
+				InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
+				TieredStore: &hazelcastv1alpha1.TieredStore{
+					DiskDeviceName: "missing-device",
+					MemoryCapacity: &[]resource.Quantity{resource.MustParse("128M")}[0],
+				},
+			},
+			errMessage: "device with the name missing-device does not exist",
+		},
+		{
+			name: "Memory tier is bigger than Disk tier",
 			mapSpec: hazelcastv1alpha1.MapSpec{
 				InMemoryFormat: hazelcastv1alpha1.InMemoryFormatNative,
 				TieredStore: &hazelcastv1alpha1.TieredStore{
 					DiskDeviceName: "test-device",
+					MemoryCapacity: &[]resource.Quantity{resource.MustParse("512M")}[0],
 				},
 			},
-			errMessage: "device with the name test-device does not exist",
+			errMessage: "Tiered Storage in-memory tier must be smaller than the disk tier",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			RegisterFailHandler(fail(t))
-			h.Spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{
-				test.localDevice,
-			}
 			hs, _ := json.Marshal(h.Spec)
 			h.ObjectMeta.Annotations = map[string]string{
 				n.LastSuccessfulSpecAnnotation: string(hs),

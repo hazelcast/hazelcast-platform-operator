@@ -42,7 +42,7 @@ const (
 
 	OperatorName         = "hazelcast-platform-operator"
 	Hazelcast            = "hazelcast"
-	HazelcastPortName    = "hazelcast-port"
+	HazelcastPortName    = "hazelcast"
 	HazelcastStorageName = Hazelcast + "-storage"
 	HazelcastMountPath   = "/data/hazelcast"
 	TmpDirVolName        = "tmp-vol"
@@ -113,7 +113,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.4.0-SNAPSHOT"
+	HazelcastVersion = "5.4.0"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
@@ -123,7 +123,7 @@ const (
 	// MCRepo image repository for Management Center
 	MCRepo = "docker.io/hazelcast/management-center"
 	// MCVersion version of Management Center image
-	MCVersion = "5.3.3"
+	MCVersion = "5.4.0"
 	// MCImagePullPolicy pull policy for Management Center image
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )

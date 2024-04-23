@@ -1376,7 +1376,7 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			CPMemberCount:                     *h.Spec.ClusterSize,
 			PersistenceEnabled:                true,
 			BaseDir:                           n.CPBaseDir,
-			GroupSize:                         h.Spec.CPSubsystem.GroupSize,
+			GroupSize:                         h.Spec.ClusterSize,
 			SessionTimeToLiveSeconds:          h.Spec.CPSubsystem.SessionTTLSeconds,
 			SessionHeartbeatIntervalSeconds:   h.Spec.CPSubsystem.SessionHeartbeatIntervalSeconds,
 			MissingCpMemberAutoRemovalSeconds: h.Spec.CPSubsystem.MissingCpMemberAutoRemovalSeconds,

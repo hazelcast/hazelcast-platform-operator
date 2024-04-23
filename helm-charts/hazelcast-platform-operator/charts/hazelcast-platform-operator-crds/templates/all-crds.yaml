@@ -553,17 +553,13 @@ spec:
                       seconds for CP members to restore their persisted data from
                       disk
                     format: int32
+                    minimum: 1
                     type: integer
                   failOnIndeterminateOperationState:
                     description: FailOnIndeterminateOperationState indicated whether
                       CP Subsystem operations use at-least-once and at-most-once execution
                       guarantees.
                     type: boolean
-                  groupSize:
-                    description: GroupSize is the number of CP members to participate
-                      in each CP group. Allowed values are 3, 5, and 7.
-                    format: int32
-                    type: integer
                   missingCpMemberAutoRemovalSeconds:
                     description: MissingCpMemberAutoRemovalSeconds is the duration
                       in seconds to wait before automatically removing a missing CP
@@ -595,13 +591,14 @@ spec:
                   sessionHeartbeatIntervalSeconds:
                     description: SessionHeartbeatIntervalSeconds Interval in seconds
                       for the periodically committed CP session heartbeats. Must be
-                      greater than or equal to SessionTTLSeconds.
+                      smaller than SessionTTLSeconds.
                     format: int32
                     type: integer
                   sessionTTLSeconds:
                     description: SessionTTLSeconds is the duration for a CP session
                       to be kept alive after the last received heartbeat. Must be
-                      greater than or equal to SessionTTLSeconds.
+                      greater than or equal to SessionHeartbeatIntervalSeconds and
+                      smaller than or equal to MissingCpMemberAutoRemovalSeconds.
                     format: int32
                     type: integer
                 type: object
@@ -2572,7 +2569,7 @@ spec:
                     type: object
                 type: object
               version:
-                default: 5.4.0-SNAPSHOT
+                default: 5.4.0
                 description: Version of Hazelcast Platform.
                 type: string
             type: object
@@ -4493,7 +4490,7 @@ spec:
                     type: object
                 type: object
               version:
-                default: 5.3.3
+                default: 5.4.0
                 description: Version of Management Center.
                 type: string
             type: object
