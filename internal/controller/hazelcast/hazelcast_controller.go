@@ -491,7 +491,7 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WatchesRawSource(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Watches(&corev1.Pod{}, handler.EnqueueRequestsFromMapFunc(r.podUpdates)).
 		Watches(&hazelcastv1alpha1.Map{}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates)).
-		Watches(&hazelcastv1alpha1.UserCodeNamespace{}, handler.EnqueueRequestsFromMapFunc(r.mapUpdates))
+		Watches(&hazelcastv1alpha1.UserCodeNamespace{}, handler.EnqueueRequestsFromMapFunc(r.ucnUpdates))
 
 	if util.NodeDiscoveryEnabled() {
 		controller.
