@@ -113,7 +113,7 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		if !ee {
 			Skip("This test will only run in EE configuration")
 		}
-		setLabelAndCRName("ucn-1")
+		setLabelAndCRName("ucn-2")
 
 		h := hazelcastconfig.Default(hzLookupKey, ee, labels)
 		h.Spec.UserCodeNamespaces = &hazelcastcomv1alpha1.UserCodeNamespacesConfig{}
@@ -144,6 +144,66 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 			return hazelcast
 		})
 		evaluateReadyMembers(hzLookupKey)
+
+		By("creating map with Map with entry listener")
+		ms := hazelcastcomv1alpha1.MapSpec{
+			DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
+				HazelcastResourceName: hzLookupKey.Name,
+				UserCodeNamespace:     ucn.Name,
+			},
+			EntryListeners: []hazelcastcomv1alpha1.EntryListenerConfiguration{
+				{
+					ClassName: "org.example.SampleEntryListener",
+				},
+			},
+		}
+		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
+		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		t := Now()
+
+		By("port-forwarding to Hazelcast master pod")
+		stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+
+		By("filling the map with entries")
+		entries := fillMapWithEntries(5, h, m)
+
+		By("checking the logs")
+		logs := InitLogs(t, hzLookupKey)
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		var logEl []interface{}
+		for _, e := range entries {
+			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
+		}
+		test.EventuallyInLogsUnordered(logReader, 10*Second, logInterval).Should(ContainElements(logEl...))
+	})
+
+	It("verify added UCN added before the HZ cluster creation is successful", Tag(Kind|Any), func() {
+		if !ee {
+			Skip("This test will only run in EE configuration")
+		}
+		setLabelAndCRName("ucn-3")
+
+		By("create UserCodeNamespace")
+		ucns := hazelcastcomv1alpha1.UserCodeNamespaceSpec{
+			HazelcastResourceName: hzLookupKey.Name,
+			BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
+				SecretName: "br-secret-gcp",
+				BucketURI:  "gs://operator-user-code/entryListener",
+			},
+		}
+		ucn := hazelcastconfig.UserCodeNamespace(ucns, mapLookupKey, labels)
+		Expect(k8sClient.Create(context.Background(), ucn)).Should(Succeed())
+		assertUserCodeNamespaceStatus(ucn, hazelcastcomv1alpha1.UserCodeNamespaceFailure)
+
+		By("create Hazelcast")
+		h := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		h.Spec.UserCodeNamespaces = &hazelcastcomv1alpha1.UserCodeNamespacesConfig{}
+		CreateHazelcastCR(h)
+
+		assertUserCodeNamespaceStatus(ucn, hazelcastcomv1alpha1.UserCodeNamespaceSuccess)
 
 		By("creating map with Map with entry listener")
 		ms := hazelcastcomv1alpha1.MapSpec{
