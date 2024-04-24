@@ -879,38 +879,6 @@ func (r *HazelcastReconciler) reconcileAgentConfig(ctx context.Context, h *hazel
 	})
 }
 
-func filterUCNs(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.UserCodeNamespace, error) {
-	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
-	nsMatcher := client.InNamespace(h.Namespace)
-
-	ucnList := &hazelcastv1alpha1.UserCodeNamespaceList{}
-
-	if err := c.List(ctx, ucnList, fieldMatcher, nsMatcher); err != nil {
-		return nil, err
-	}
-
-	l := make([]hazelcastv1alpha1.UserCodeNamespace, 0)
-
-	for _, ucn := range ucnList.Items {
-		switch ucn.Status.State {
-		case hazelcastv1alpha1.UserCodeNamespaceSuccess:
-			l = append(l, ucn)
-		case hazelcastv1alpha1.UserCodeNamespaceFailure, hazelcastv1alpha1.UserCodeNamespacePending:
-			if spec, ok := ucn.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
-				ucns := &hazelcastv1alpha1.UserCodeNamespaceSpec{}
-				err := json.Unmarshal([]byte(spec), ucns)
-				if err != nil {
-					continue
-				}
-				ucn.Spec = *ucns
-				l = append(l, ucn)
-			}
-		default:
-		}
-	}
-	return l, nil
-}
-
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	scrt := &corev1.Secret{
 		ObjectMeta: metadata(h),
@@ -969,7 +937,7 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 }
 
 func agentConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
-	ns, err := filterUCNs(ctx, c, h)
+	ns, err := filterUserCodeNamespaces(ctx, c, h)
 	if err != nil {
 		return nil, err
 	}
@@ -1576,14 +1544,35 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, h *haz
 }
 
 func filterUserCodeNamespaces(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.UserCodeNamespace, error) {
-	var list hazelcastv1alpha1.UserCodeNamespaceList
-	if err := c.List(ctx, &list,
-		client.InNamespace(h.Namespace),
-		client.MatchingFields{"hazelcastResourceName": h.Name},
-	); err != nil {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	ucnList := &hazelcastv1alpha1.UserCodeNamespaceList{}
+
+	if err := c.List(ctx, ucnList, fieldMatcher, nsMatcher); err != nil {
 		return nil, err
 	}
-	return list.Items, nil
+
+	l := make([]hazelcastv1alpha1.UserCodeNamespace, 0)
+
+	for _, ucn := range ucnList.Items {
+		switch ucn.Status.State {
+		case hazelcastv1alpha1.UserCodeNamespaceSuccess:
+			l = append(l, ucn)
+		case hazelcastv1alpha1.UserCodeNamespaceFailure, hazelcastv1alpha1.UserCodeNamespacePending:
+			if spec, ok := ucn.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
+				ucns := &hazelcastv1alpha1.UserCodeNamespaceSpec{}
+				err := json.Unmarshal([]byte(spec), ucns)
+				if err != nil {
+					continue
+				}
+				ucn.Spec = *ucns
+				l = append(l, ucn)
+			}
+		default:
+		}
+	}
+	return l, nil
 }
 
 type ucnResourceType string

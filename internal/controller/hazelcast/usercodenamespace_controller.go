@@ -13,8 +13,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/controller"
@@ -131,13 +136,6 @@ func (r *UserCodeNamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamespaceSuccessStatus())
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *UserCodeNamespaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&hazelcastv1alpha1.UserCodeNamespace{}).
-		Complete(r)
-}
-
 func (r *UserCodeNamespaceReconciler) executeFinalizer(ctx context.Context, ucn *hazelcastv1alpha1.UserCodeNamespace, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(ucn, n.Finalizer) {
 		return nil
@@ -187,4 +185,42 @@ func (r *UserCodeNamespaceReconciler) applyConfig(ctx context.Context, ucn *haze
 	logger.Info("Applying UserCodeNamespace config")
 	service := hzclient.NewUsercodeNamespaceService(client)
 	return service.Apply(ctx, ucn.Name)
+}
+
+func (r *UserCodeNamespaceReconciler) hzUpdates(ctx context.Context, hz client.Object) []reconcile.Request {
+	h, ok := hz.(*hazelcastv1alpha1.Hazelcast)
+	if !ok {
+		return []reconcile.Request{}
+	}
+	if h.Status.Phase != hazelcastv1alpha1.Running {
+		return []reconcile.Request{}
+	}
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+	ucnList := &hazelcastv1alpha1.UserCodeNamespaceList{}
+	if err := r.Client.List(ctx, ucnList, fieldMatcher, nsMatcher); err != nil || len(ucnList.Items) == 0 {
+		return []reconcile.Request{}
+	}
+	res := make([]reconcile.Request, 0)
+	for _, ucn := range ucnList.Items {
+		if ucn.Status.State != hazelcastv1alpha1.UserCodeNamespaceSuccess {
+			res = append(res, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: ucn.Name, Namespace: ucn.Namespace},
+			})
+		}
+	}
+	return res
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *UserCodeNamespaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&hazelcastv1alpha1.UserCodeNamespace{}).
+		Watches(&hazelcastv1alpha1.Hazelcast{}, handler.EnqueueRequestsFromMapFunc(r.hzUpdates),
+			builder.WithPredicates(predicate.Funcs{
+				// No actions are expected on Hazelcast CR deletion
+				DeleteFunc: func(event event.DeleteEvent) bool {
+					return false
+				}})).
+		Complete(r)
 }
