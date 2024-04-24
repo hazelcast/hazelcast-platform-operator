@@ -34,7 +34,14 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	fillMapWithEntries := func(entryCount int, h *hazelcastcomv1alpha1.Hazelcast, m *hazelcastcomv1alpha1.Map) []hzTypes.Entry {
+	assertMapEntryListener := func(h *hazelcastcomv1alpha1.Hazelcast, m *hazelcastcomv1alpha1.Map) {
+		t := Now()
+		By("port-forwarding to Hazelcast master pod")
+		stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+
+		By("filling the map with entries")
+		entryCount := 5
 		cl := newHazelcastClientPortForward(context.Background(), h, localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
@@ -49,7 +56,16 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		err = mp.PutAll(context.Background(), entries...)
 		Expect(err).To(BeNil())
 		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
-		return entries
+
+		By("checking the logs")
+		logs := InitLogs(t, hzLookupKey)
+		logReader := test.NewLogReader(logs)
+		defer logReader.Close()
+		var logEl []interface{}
+		for _, e := range entries {
+			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
+		}
+		test.EventuallyInLogsUnordered(logReader, 10*Second, logInterval).Should(ContainElements(logEl...))
 	}
 
 	It("verify addition of entry listeners in Hazelcast map using UserCodeNamespace", Tag(Kind|Any), func() {
@@ -89,24 +105,8 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		t := Now()
 
-		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-
-		By("filling the map with entries")
-		entries := fillMapWithEntries(5, h, m)
-
-		By("checking the logs")
-		logs := InitLogs(t, hzLookupKey)
-		logReader := test.NewLogReader(logs)
-		defer logReader.Close()
-		var logEl []interface{}
-		for _, e := range entries {
-			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
-		}
-		test.EventuallyInLogsUnordered(logReader, 10*Second, logInterval).Should(ContainElements(logEl...))
+		assertMapEntryListener(h, m)
 	})
 
 	It("verify added UCN works after cluster pause", Tag(Kind|Any), func() {
@@ -160,24 +160,8 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		t := Now()
 
-		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-
-		By("filling the map with entries")
-		entries := fillMapWithEntries(5, h, m)
-
-		By("checking the logs")
-		logs := InitLogs(t, hzLookupKey)
-		logReader := test.NewLogReader(logs)
-		defer logReader.Close()
-		var logEl []interface{}
-		for _, e := range entries {
-			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
-		}
-		test.EventuallyInLogsUnordered(logReader, 10*Second, logInterval).Should(ContainElements(logEl...))
+		assertMapEntryListener(h, m)
 	})
 
 	It("verify added UCN added before the HZ cluster creation is successful", Tag(Kind|Any), func() {
@@ -220,23 +204,7 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"),
 		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		t := Now()
 
-		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(h.Name+"-0", h.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-
-		By("filling the map with entries")
-		entries := fillMapWithEntries(5, h, m)
-
-		By("checking the logs")
-		logs := InitLogs(t, hzLookupKey)
-		logReader := test.NewLogReader(logs)
-		defer logReader.Close()
-		var logEl []interface{}
-		for _, e := range entries {
-			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
-		}
-		test.EventuallyInLogsUnordered(logReader, 10*Second, logInterval).Should(ContainElements(logEl...))
+		assertMapEntryListener(h, m)
 	})
 })

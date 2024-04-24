@@ -103,6 +103,7 @@ func (r *UserCodeNamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		err = kerrors.NewServiceUnavailable("Hazelcast CR is not ready")
 		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 	}
+
 	if err = hazelcastv1alpha1.ValidateUCNSpec(ucn, h); err != nil {
 		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 	}

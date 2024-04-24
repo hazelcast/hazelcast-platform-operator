@@ -8,17 +8,17 @@ type userCodeNamespaceValidator struct {
 	fieldValidator
 }
 
-func NewUCNValidator(o client.Object) userCodeNamespaceValidator {
-	return userCodeNamespaceValidator{}
+func newUCNValidator(o client.Object) userCodeNamespaceValidator {
+	return userCodeNamespaceValidator{NewFieldValidator(o)}
 }
 
 func ValidateUCNSpec(u *UserCodeNamespace, h *Hazelcast) error {
-	v := NewUCNValidator(u)
+	v := newUCNValidator(u)
 	v.validateUCNEnabled(h)
 	return v.Err()
 }
 
-func (v userCodeNamespaceValidator) validateUCNEnabled(h *Hazelcast) {
+func (v *userCodeNamespaceValidator) validateUCNEnabled(h *Hazelcast) {
 	if !h.Spec.UserCodeNamespaces.IsEnabled() {
 		v.Required(Path("spec", "userCodeNamespace"), "should be enabled in Hazelcast")
 	}
