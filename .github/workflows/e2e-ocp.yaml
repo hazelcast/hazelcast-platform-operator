@@ -216,9 +216,13 @@ jobs:
           username: _json_key
           password: ${{ env.GKE_SA_KEY }}
 
-      - name: Deploy Hazelcast-Platform-Operator to OCP
+      - name: Install CRD's
+        if: matrix.edition == 'os'
         run: |
           make install-crds
+
+      - name: Deploy Hazelcast-Platform-Operator to OCP
+        run: |
           oc new-project $NAMESPACE
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
           make install-operator IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
