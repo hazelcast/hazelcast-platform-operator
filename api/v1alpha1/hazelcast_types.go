@@ -55,7 +55,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.4.0-SNAPSHOT"
+	// +kubebuilder:default:="5.4.0"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.24"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.26"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -213,11 +213,6 @@ const (
 
 // CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
 type CPSubsystem struct {
-	// GroupSize is the number of CP members to participate in each CP group.
-	// Allowed values are 3, 5, and 7.
-	// +optional
-	GroupSize *int32 `json:"groupSize,omitempty"`
-
 	// SessionTTLSeconds is the duration for a CP session to be kept alive after the last received heartbeat.
 	// Must be greater than or equal to SessionHeartbeatIntervalSeconds and smaller than or equal to MissingCpMemberAutoRemovalSeconds.
 	// +optional
@@ -660,7 +655,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.24"
+	// +kubebuilder:default:="0.1.26"
 	// +optional
 	Version string `json:"version,omitempty"`
 

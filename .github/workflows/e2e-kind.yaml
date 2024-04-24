@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.2.0
+        uses: docker/setup-buildx-action@v3.3.0
         with:
           install: true
 
@@ -243,11 +243,3 @@ jobs:
           *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
           make test-e2e REPORT_SUFFIX=${{ matrix.edition }}_${{ inputs.k8s-cluster-version }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr
-
-      - name: Upload Test Report
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-report-kind
-          path: allure-results/pr/
-          retention-days: 5
