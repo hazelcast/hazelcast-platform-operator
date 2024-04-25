@@ -29,7 +29,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 		s := FetchConfigSecret(h)
 		expectedMap := make(map[string]interface{})
 		Expect(yaml.Unmarshal(s.Data["hazelcast.yaml"], expectedMap)).Should(Succeed())
-		return expectedMap["hazelcast"].(map[string]interface{})
+		return expectedMap[n.HazelcastCustomConfigKey].(map[string]interface{})
 	}
 
 	BeforeEach(func() {
@@ -59,7 +59,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			out, err := yaml.Marshal(customConfig)
 			Expect(err).To(BeNil())
 			cm.Data = make(map[string]string)
-			cm.Data["hazelcast"] = string(out)
+			cm.Data[n.HazelcastCustomConfigKey] = string(out)
 			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -92,7 +92,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			out, err := yaml.Marshal(customConfig)
 			Expect(err).To(BeNil())
 			cm.Data = make(map[string]string)
-			cm.Data["hazelcast"] = string(out)
+			cm.Data[n.HazelcastCustomConfigKey] = string(out)
 			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.UserCodeDeployment = &hazelcastv1alpha1.UserCodeDeploymentConfig{
@@ -124,7 +124,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			out, err := yaml.Marshal(customConfig)
 			Expect(err).To(BeNil())
 			cm.Data = make(map[string]string)
-			cm.Data["hazelcast"] = string(out)
+			cm.Data[n.HazelcastCustomConfigKey] = string(out)
 			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -141,6 +141,47 @@ var _ = Describe("Hazelcast Config Secret", func() {
 				HaveKey("client-server-socket-endpoint-config"),
 				HaveKey("member-server-socket-endpoint-config"),
 				HaveKey("rest-server-socket-endpoint-config")))
+		})
+
+		It("should fail if the config map does not exist", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+			}
+			hz.Spec.CustomConfigCmName = "cm"
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("ConfigMap for Hazelcast custom configs not found")))
+		})
+
+		It("should fail if the config map does not contain the expected key", func() {
+			cm := &v1.ConfigMap{
+				ObjectMeta: randomObjectMeta(namespace),
+			}
+			cm.Data = make(map[string]string)
+			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+			}
+			hz.Spec.CustomConfigCmName = cm.Name
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("ConfigMap for Hazelcast custom configs must contain 'hazelcast' key")))
+		})
+
+		It("should fail if the value in the config map is not a valid yaml", func() {
+			cm := &v1.ConfigMap{
+				ObjectMeta: randomObjectMeta(namespace),
+			}
+			cm.Data = make(map[string]string)
+			cm.Data[n.HazelcastCustomConfigKey] = "it: is: invalid: yaml"
+			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+			}
+			hz.Spec.CustomConfigCmName = cm.Name
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("ConfigMap for Hazelcast custom configs is not a valid yaml")))
 		})
 	})
 })

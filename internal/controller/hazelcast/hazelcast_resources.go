@@ -989,11 +989,11 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		}
 		var overwrite bool
 		annotations := cfgCm.GetAnnotations()
-		if v := annotations[n.HazelcastCustomConfigOverwrite]; v == "true" {
+		if v := annotations[n.HazelcastCustomConfigOverwriteAnnotation]; v == "true" {
 			overwrite = true
 		}
 		cfgMap := make(map[string]interface{})
-		if err = yaml.Unmarshal([]byte(cfgCm.Data["hazelcast"]), cfgMap); err != nil {
+		if err = yaml.Unmarshal([]byte(cfgCm.Data[n.HazelcastCustomConfigKey]), cfgMap); err != nil {
 			return nil, err
 		}
 		cfgMap, err = mergeConfig(cfgMap, &cfg, logger, overwrite)
