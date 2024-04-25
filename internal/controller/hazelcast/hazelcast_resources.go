@@ -49,15 +49,21 @@ import (
 const (
 	// hzLicenseKey License key for Hazelcast cluster
 	hzLicenseKey = "HZ_LICENSEKEY"
-	// javaOpts java options for Hazelcast
-	javaOpts = "JAVA_OPTS"
+	// JavaOpts java options for Hazelcast
+	JavaOpts = "JAVA_OPTS"
 )
 
+// DefaultProperties are not overridable by the user
 var DefaultProperties = map[string]string{
 	"hazelcast.cluster.version.auto.upgrade.enabled": "true",
 	// https://docs.hazelcast.com/hazelcast/5.3/kubernetes/kubernetes-auto-discovery#configuration
 	// We added the following properties to here with their default values, because DefaultProperties cannot be overridden
 	"hazelcast.persistence.auto.cluster.state": "true",
+}
+
+// DefaultJavaOptions are overridable by the user
+var DefaultJavaOptions = map[string]string{
+	"-Dhazelcast.stale.join.prevention.duration.seconds": "5",
 }
 
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -2776,7 +2782,7 @@ func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
-			Name:  javaOpts,
+			Name:  JavaOpts,
 			Value: javaOPTS(h),
 		},
 		{
@@ -2840,10 +2846,17 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 		b.WriteString(" -XX:MaxRAMPercentage=" + v)
 	}
 
-	if args := h.Spec.JVM.GetArgs(); len(args) > 0 {
-		for _, a := range args {
-			b.WriteString(fmt.Sprintf(" %s", a))
+	args := h.Spec.JVM.GetArgs()
+	if len(args) != 0 {
+		args = mergeJVMArgs(args)
+	} else {
+		for k, v := range DefaultJavaOptions {
+			args = append(args, fmt.Sprintf("%s=%s", k, v))
 		}
+	}
+
+	for _, a := range args {
+		b.WriteString(fmt.Sprintf(" %s", a))
 	}
 
 	jvmGC := h.Spec.JVM.GCConfig()
@@ -2864,6 +2877,22 @@ func javaOPTS(h *hazelcastv1alpha1.Hazelcast) string {
 	}
 
 	return b.String()
+}
+
+func mergeJVMArgs(args []string) []string {
+	configuredArgs := make(map[string]struct{})
+	for _, a := range args {
+		jvmOptionKeyValue := strings.Split(a, "=")
+		configuredArgs[strings.TrimSpace(jvmOptionKeyValue[0])] = struct{}{}
+	}
+
+	for k, v := range DefaultJavaOptions {
+		_, ok := configuredArgs[k]
+		if !ok {
+			args = append(args, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+	return args
 }
 
 func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
