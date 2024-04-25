@@ -1102,7 +1102,7 @@ var _ = Describe("Hazelcast CR", func() {
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
 				}
-				
+
 				create(hz)
 				assertHzStatusIsPending(hz)
 				ss := getStatefulSet(hz)
