@@ -8,7 +8,6 @@ metadata:
     containerImage: REPLACE_IMG
     createdAt: REPLACE_DATE
     description: Install Hazelcast clusters in Kubernetes environments.
-    support: Hazelcast, Inc
     features.operators.openshift.io/disconnected: "false"
     features.operators.openshift.io/fips-compliant: "false"
     features.operators.openshift.io/proxy-aware: "false"
@@ -16,6 +15,8 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
+    repository: https://github.com/hazelcast/hazelcast-platform-operator/
+    support: Hazelcast, Inc
   name: hazelcast-platform-operator.v5.0.0
   namespace: placeholder
 spec:
@@ -92,6 +93,11 @@ spec:
       kind: WanReplication
       name: wanreplications.hazelcast.com
       version: v1alpha1
+    - description: WanSync is the Schema for the wansyncs API
+      displayName: Wan Sync
+      kind: WanSync
+      name: wansyncs.hazelcast.com
+      version: v1alpha1
   description: |
     # Hazelcast Platform Operator #
 
@@ -145,7 +151,6 @@ spec:
     strategy: ""
   installModes:
   - supported: true
-
     type: OwnNamespace
   - supported: true
     type: SingleNamespace
