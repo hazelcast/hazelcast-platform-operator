@@ -163,7 +163,7 @@ func (r *UserCodeNamespaceReconciler) downloadBundle(ctx context.Context, ucn *h
 			if err != nil {
 				return err
 			}
-			bs, err := rest.NewBundleService("https://"+host+":8443", mtlsClient)
+			bs, err := rest.NewBundleService(hzclient.AgentUrl(host), mtlsClient)
 			if err != nil {
 				logger.Error(err, "unable to create BundleService")
 				return err
