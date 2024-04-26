@@ -278,7 +278,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 			phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
 		}
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
-		phm.UserCodeDeployment.addUsageMetrics(hz.Spec.UserCodeDeployment)
+		phm.UserCodeDeployment.addUsageMetrics(hz.Spec.DeprecatedUserCodeDeployment)
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
 		phm.TLS.addUsageMetrics(hz.Spec.TLS)

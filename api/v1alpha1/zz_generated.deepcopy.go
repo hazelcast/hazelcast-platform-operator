@@ -869,8 +869,8 @@ func (in *HazelcastSpec) DeepCopyInto(out *HazelcastSpec) {
 		*out = new(JetEngineConfiguration)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.UserCodeDeployment != nil {
-		in, out := &in.UserCodeDeployment, &out.UserCodeDeployment
+	if in.DeprecatedUserCodeDeployment != nil {
+		in, out := &in.DeprecatedUserCodeDeployment, &out.DeprecatedUserCodeDeployment
 		*out = new(UserCodeDeploymentConfig)
 		(*in).DeepCopyInto(*out)
 	}

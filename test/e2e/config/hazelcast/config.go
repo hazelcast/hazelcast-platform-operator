@@ -224,7 +224,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				UserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
+				DeprecatedUserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastcomv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
 							SecretName: s,
@@ -390,7 +390,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				UserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
+				DeprecatedUserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastcomv1alpha1.RemoteFileConfiguration{
 						RemoteURLs: urls,
 					},

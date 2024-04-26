@@ -1153,9 +1153,9 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		},
 	}
 
-	if h.Spec.UserCodeDeployment != nil {
+	if h.Spec.DeprecatedUserCodeDeployment != nil {
 		cfg.UserCodeDeployment = config.UserCodeDeployment{
-			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
+			Enabled: h.Spec.DeprecatedUserCodeDeployment.ClientEnabled,
 		}
 	}
 
@@ -2414,16 +2414,16 @@ func containerSecurityContext() *v1.SecurityContext {
 func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, conf *config.HazelcastWrapper, pvcName string) ([]v1.Container, error) {
 	var containers []corev1.Container
 
-	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
+	if h.Spec.DeprecatedUserCodeDeployment.IsBucketEnabled() {
 		containers = append(containers, bucketDownloadContainer(
-			n.UserCodeBucketAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
-			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
+			n.UserCodeBucketAgent+h.Spec.DeprecatedUserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
 	}
 
-	if h.Spec.UserCodeDeployment.IsRemoteURLsEnabled() {
+	if h.Spec.DeprecatedUserCodeDeployment.IsRemoteURLsEnabled() {
 		containers = append(containers, urlDownloadContainer(
-			n.UserCodeURLAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
-			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
+			n.UserCodeURLAgent+h.Spec.DeprecatedUserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
 	}
 
 	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
@@ -2722,8 +2722,8 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		tlsVolume(h),
 	}
 
-	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		vols = append(vols, configMapVolumes(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration)...)
+	if h.Spec.DeprecatedUserCodeDeployment.IsConfigMapEnabled() {
+		vols = append(vols, configMapVolumes(ucdConfigMapName(h), h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration)...)
 	}
 
 	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
@@ -2776,7 +2776,7 @@ func jetConfigMapName(cm string) string {
 
 func ucdConfigMapName(h *hazelcastv1alpha1.Hazelcast) ConfigMapVolumeName {
 	return func(cm string) string {
-		return n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence
+		return n.UserCodeConfigMapNamePrefix + cm + h.Spec.DeprecatedUserCodeDeployment.TriggerSequence
 	}
 }
 
@@ -2857,9 +2857,9 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 		mounts = append(mounts, localDeviceVolumeMounts(h)...)
 	}
 
-	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
+	if h.Spec.DeprecatedUserCodeDeployment.IsConfigMapEnabled() {
 		mounts = append(mounts,
-			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
+			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
 	}
 
 	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
@@ -3073,8 +3073,8 @@ func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 		path.Join(n.UserCodeBucketPath, "*"),
 		path.Join(n.UserCodeURLPath, "*")}
 
-	if h.Spec.UserCodeDeployment != nil {
-		for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
+	if h.Spec.DeprecatedUserCodeDeployment != nil {
+		for _, cm := range h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
 			b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
 		}
 	}

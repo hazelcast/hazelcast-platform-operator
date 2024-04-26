@@ -108,7 +108,7 @@ type HazelcastSpec struct {
 
 	// User Codes to Download into CLASSPATH
 	// +optional
-	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
+	DeprecatedUserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
 
 	// Java Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/executor-service
 	// +optional
