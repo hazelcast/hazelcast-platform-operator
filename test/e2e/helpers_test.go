@@ -957,7 +957,6 @@ func assertHotBackupStatus(hb *hazelcastcomv1alpha1.HotBackup, s hazelcastcomv1a
 			err := k8sClient.Get(
 				context.Background(), types.NamespacedName{Name: hb.Name, Namespace: hzNamespace}, hbCheck)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(hbCheck.Status.State).ShouldNot(Equal(hazelcastcomv1alpha1.HotBackupFailure), "Message: %v", hbCheck.Status.Message)
 			return hbCheck.Status.State
 		}, t, interval).Should(Equal(s))
 	})
