@@ -539,13 +539,14 @@ func nodePublicAddress(addresses []v1.NodeAddress) string {
 func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	// prepare a map of node addresses for fast lookup
 	var nodes corev1.NodeList
-	if err := r.Client.List(ctx, &nodes); err != nil {
-		return err
-	}
-
 	nodeAddress := make(map[string]string, len(nodes.Items))
-	for _, node := range nodes.Items {
-		nodeAddress[node.Name] = nodePublicAddress(node.Status.Addresses)
+	if util.NodeDiscoveryEnabled() {
+		if err := r.Client.List(ctx, &nodes); err != nil {
+			return err
+		}
+		for _, node := range nodes.Items {
+			nodeAddress[node.Name] = nodePublicAddress(node.Status.Addresses)
+		}
 	}
 
 	svcList, err := util.ListRelatedServices(ctx, r.Client, h)
