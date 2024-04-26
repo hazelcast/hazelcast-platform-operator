@@ -2790,7 +2790,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		},
 		{
 			Name:  "LOGGING_PATTERN",
-			Value: `{"time":"%date{ISO8601}", "logger": "%logger{36}", "level": "%level", "msg": "%enc{%m %xEx}{JSON}"}%n`,
+			Value: `{"time":"%date{ISO8601}", "level": "%level", "threadName": "%threadName", "logger": "%logger{36}", "msg": "%enc{%m %xEx}{JSON}"}%n`,
 		},
 		{
 			Name:  "LOGGING_LEVEL",
