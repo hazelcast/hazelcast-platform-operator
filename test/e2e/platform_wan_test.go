@@ -103,16 +103,16 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
-	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Tag(EE|AnyCloud), func() {
+	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Serial, Tag(EE|AnyCloud), func() {
 		SwitchContext(context1)
 		setupEnv()
+		setLabelAndCRName("hpwan-2")
 		var mapSizeInMb = 1024
 		/**
 		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
 		*/
 		expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
 		expectedSrcMapSize := int(float64(mapSizeInMb*2) * 128)
-		setLabelAndCRName("hpwan-2")
 
 		By("creating source Hazelcast cluster")
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
@@ -236,7 +236,6 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 	})
 
 	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(EE|AnyCloud), func() {
-		setLabelAndCRName("hpwan-3")
 		var mapSizeInMb = 1024
 		/**
 		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
@@ -246,6 +245,8 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		By("creating source Hazelcast cluster")
 		SwitchContext(context1)
 		setupEnv()
+		setLabelAndCRName("hpwan-3")
+
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
@@ -313,11 +314,11 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
 		expectedSrcMapSize := int(float64(mapSizeInMb*2) * 128)
 
-		setLabelAndCRName("hpwan-4")
-
 		By("creating source Hazelcast cluster")
 		SwitchContext(context1)
 		setupEnv()
+		setLabelAndCRName("hpwan-4")
+
 		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
@@ -455,18 +456,187 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 	})
 
 	Context("Data Sync between separate clusters", func() {
-		It("shouldn't fail in active-passive mode across separate clusters", Serial, Tag(EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
+		It("should replicate data for maps with TS and non TS storage in active-passive WAN replication mode", Serial, Tag(EE|AnyCloud), func() {
+			SwitchContext(context1)
+			setupEnv()
+			setLabelAndCRName("hpwts-1")
+
+			deviceName := "test-device"
+			var nativeMemorySizeInMb = 1536 // 1.5Gi
+			var mapMemory = 32
+			var mapSizeInMb = 128
+			var totalMemorySizeInMb = 2048 // 2 Gi
+			var diskSizeInMb = 2048 * 2
+			var expectedMapSize = int(float64(mapSizeInMb) * 128)
+			ctx := context.Background()
+
+			By("creating source Hazelcast cluster")
+			totalMemorySize := strconv.Itoa(totalMemorySizeInMb) + "Mi"
+			nativeMemorySize := strconv.Itoa(nativeMemorySizeInMb) + "Mi"
+			mapMemoryCapacitySize := strconv.Itoa(mapMemory) + "Mi"
+			diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
+			hazelcastSource := hazelcastconfig.HazelcastTieredStorage(sourceLookupKey, deviceName, labels)
+			hazelcastSource.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
+				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 			}
+			hazelcastSource.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
+			hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceMemory: resource.MustParse(totalMemorySize)},
+			}
+			hazelcastSource.Spec.NativeMemory = &hazelcastcomv1alpha1.NativeMemoryConfiguration{
+				Size: []resource.Quantity{resource.MustParse(nativeMemorySize)}[0],
+			}
+			hazelcastSource.Spec.ClusterName = "source"
+			CreateHazelcastCR(hazelcastSource)
+			evaluateReadyMembers(sourceLookupKey)
+
+			By("creating the TS map for source Hazelcast cluster")
+			tsMap := hazelcastconfig.DefaultTieredStoreMap(sourceLookupKey, hazelcastSource.Name, deviceName, labels)
+			tsMap.Spec.Name = "ts-map"
+			tsMap.Spec.TieredStore.MemoryCapacity = &[]resource.Quantity{resource.MustParse(mapMemoryCapacitySize)}[0]
+			Expect(k8sClient.Create(context.Background(), tsMap)).Should(Succeed())
+			assertMapStatus(tsMap, hazelcastcomv1alpha1.MapSuccess)
+
+			By("creating the non-TS map for source Hazelcast cluster")
+			nonTsMap := hazelcastconfig.DefaultMap(sourceLookupKey2, hazelcastSource.Name, labels)
+			nonTsMap.Spec.Name = "non-ts-map"
+			Expect(k8sClient.Create(context.Background(), nonTsMap)).Should(Succeed())
+			nonTsMap = assertMapStatus(nonTsMap, hazelcastcomv1alpha1.MapSuccess)
+
+			By("creating target Hazelcast cluster")
+			SwitchContext(context2)
+			setupEnv()
+			hazelcastTarget := hazelcastconfig.HazelcastTieredStorage(targetLookupKey, deviceName, labels)
+			hazelcastTarget.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
+				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+			}
+			hazelcastTarget.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
+			hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceMemory: resource.MustParse(totalMemorySize)},
+			}
+			hazelcastTarget.Spec.NativeMemory = &hazelcastcomv1alpha1.NativeMemoryConfiguration{
+				Size: []resource.Quantity{resource.MustParse(nativeMemorySize)}[0],
+			}
+			hazelcastTarget.Spec.ClusterName = "target"
+			CreateHazelcastCR(hazelcastTarget)
+			evaluateReadyMembers(targetLookupKey)
+			targetAddress := waitForLBAddress(targetLookupKey)
+
+			By("creating WAN configuration for source Hazelcast cluster")
+			SwitchContext(context1)
+			setupEnv()
+			wanSrc := hazelcastconfig.CustomWanReplication(
+				sourceLookupKey,
+				hazelcastTarget.Spec.ClusterName,
+				targetAddress,
+				labels,
+			)
+			wanSrc.Spec.Resources = []hazelcastcomv1alpha1.ResourceSpec{{
+				Name: nonTsMap.Name,
+				Kind: hazelcastcomv1alpha1.ResourceKindMap,
+			},
+				{
+					Name: tsMap.Name,
+					Kind: hazelcastcomv1alpha1.ResourceKindMap,
+				}}
+
+			Expect(k8sClient.Create(context.Background(), wanSrc)).Should(Succeed())
+
+			Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
+				wanSrc := &hazelcastcomv1alpha1.WanReplication{}
+				err := k8sClient.Get(context.Background(), sourceLookupKey, wanSrc)
+				if err != nil {
+					return hazelcastcomv1alpha1.WanStatusFailed, err
+				}
+				return wanSrc.Status.Status, nil
+			}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
+
+			By("1-st fill of the the TS Map and source cluster")
+			FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
+
+			By("1-st fill of the the non-TS Map and source cluster")
+			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcastSource)
+
+			SwitchContext(context2)
+			setupEnv()
+			By("checking the target TS map size after the 1-st fill")
+			WaitForMapSize(ctx, targetLookupKey, tsMap.MapName(), expectedMapSize, 15*Minute)
+
+			By("checking the target non-TS map size after the 1-st fill")
+			WaitForMapSize(ctx, targetLookupKey, nonTsMap.MapName(), expectedMapSize, 15*Minute)
+
+			By("update to wrong Hazelcast image")
+			UpdateHazelcastCR(hazelcastTarget, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+				hazelcast.Spec.Repository = "docker.io/hazelcast/hazelcast-enterprise-wrong"
+				return hazelcast
+			})
+			DeletePod(hazelcastTarget.Name+"-0", 0, targetLookupKey)
+			DeletePod(hazelcastTarget.Name+"-1", 0, targetLookupKey)
+			DeletePod(hazelcastTarget.Name+"-2", 0, targetLookupKey)
+
+			By("2-nd fill of the TS Map for the source cluster")
+			SwitchContext(context1)
+			setupEnv()
+			FillMapBySizeInMb(ctx, nonTsMap.MapName(), mapSizeInMb, mapSizeInMb*2, hazelcastSource)
+
+			By("2-nd fill of the TS Map for the source cluster")
+			FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb*2, hazelcastSource)
+
+			By("update to correct Hazelcast image")
+			SwitchContext(context2)
+			setupEnv()
+			UpdateHazelcastCR(hazelcastTarget, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+				hazelcast.Spec.Repository = "docker.io/hazelcast/hazelcast-enterprise"
+				return hazelcast
+			})
+			DeletePod(hazelcastTarget.Name+"-0", 0, targetLookupKey)
+			DeletePod(hazelcastTarget.Name+"-1", 0, targetLookupKey)
+			DeletePod(hazelcastTarget.Name+"-2", 0, targetLookupKey)
+			evaluateReadyMembers(targetLookupKey)
+
+			By("trigger WAN sync")
+			SwitchContext(context1)
+			setupEnv()
+			createWanSync(ctx, sourceLookupKey, wanSrc.Name, 2, labels)
+
+			SwitchContext(context2)
+			setupEnv()
+			By("checking TS map size after 2-nd fill")
+			WaitForMapSize(ctx, targetLookupKey, tsMap.MapName(), expectedMapSize*2, 15*Minute)
+
+			By("checking non-TS map size after 2-nd fill")
+			WaitForMapSize(ctx, targetLookupKey, nonTsMap.MapName(), expectedMapSize*2, 15*Minute)
+
+			SwitchContext(context1)
+			setupEnv()
+			By("3-rd fill of the non TS Map for the source cluster")
+			FillMapBySizeInMb(ctx, nonTsMap.MapName(), mapSizeInMb, mapSizeInMb*3, hazelcastSource)
+
+			By("3-rd fill of the TS Map for the source cluster")
+			FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb*3, hazelcastSource)
+
+			SwitchContext(context2)
+			setupEnv()
+			By("checking the overall target TS map size")
+			WaitForMapSize(ctx, targetLookupKey, tsMap.MapName(), expectedMapSize*3, 15*Minute)
+
+			By("checking the overall target non-TS map size")
+			WaitForMapSize(ctx, targetLookupKey, nonTsMap.MapName(), expectedMapSize*3, 15*Minute)
+		})
+
+		It("shouldn't fail in active-passive mode across separate clusters", Serial, Tag(EE|AnyCloud), func() {
 			var mapSizeInMb = 5000
 			expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
-
-			setLabelAndCRName("hpwans-6")
 
 			By("creating source Hazelcast cluster")
 			SwitchContext(context1)
 			setupEnv()
+			setLabelAndCRName("hpwans-6")
+
 			hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 			hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
@@ -583,18 +753,15 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		})
 
 		It("shouldn't fail due to split brain in active-passive mode across separate clusters", Serial, Tag(EE|AnyCloud), func() {
-			if !ee {
-				Skip("This test will only run in EE configuration")
-			}
 			var mapSizeInMb = 1024
 			duration := "3m"
 			expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
 
-			setLabelAndCRName("hpwans-7")
-
 			By("creating source Hazelcast cluster")
 			SwitchContext(context1)
 			setupEnv()
+			setLabelAndCRName("hpwans-7")
+
 			hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
 			hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
@@ -740,172 +907,5 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.MapName(), expectedTrgMapSize, 15*Minute)
 		})
 
-		It("should replicate data for maps with TS and non TS storage in active-passive WAN replication mode", Tag(EE|AnyCloud), func() {
-			setLabelAndCRName("hpts-1")
-			SwitchContext(context1)
-			setupEnv()
-
-			deviceName := "test-device"
-			var nativeMemorySizeInMb = 1536  // 1.5Gi
-			var totalMemorySizeInMb = 2150   // 2 Gi
-			var nonTsMapFirstInputSize = 50  // 50 Mi
-			var nonTsMapSecondInputSize = 50 // 50 Mi
-			var nonTsMapThirdInputSize = 50  // 50 Mi
-			var tsMapFirstInputSize = 50     // 50 mi
-			var tsMapSecondInputSize = 1900  // 1900 mi
-			var tsMapThirdInputSize = 50     // 50 mi
-			var diskSizeInMb = (tsMapFirstInputSize + tsMapSecondInputSize + tsMapThirdInputSize) * 2
-			var expectedNonTsMapSize = int(float64(nonTsMapFirstInputSize+nonTsMapSecondInputSize+nonTsMapThirdInputSize) * 128)
-			var expectedTsMapSize = int(float64(tsMapFirstInputSize+tsMapSecondInputSize+tsMapThirdInputSize) * 128)
-
-			totalMemorySize := strconv.Itoa(totalMemorySizeInMb) + "Mi"
-			nativeMemorySize := strconv.Itoa(nativeMemorySizeInMb) + "Mi"
-			diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
-			hazelcastSource := hazelcastconfig.HazelcastTieredStorage(sourceLookupKey, deviceName, labels)
-			hazelcastSource.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-				Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
-				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			}
-			hazelcastSource.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
-			hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
-				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceMemory: resource.MustParse(totalMemorySize)},
-			}
-			hazelcastSource.Spec.NativeMemory = &hazelcastcomv1alpha1.NativeMemoryConfiguration{
-				Size: []resource.Quantity{resource.MustParse(nativeMemorySize)}[0],
-			}
-			hazelcastSource.Spec.ClusterName = "source"
-
-			CreateHazelcastCR(hazelcastSource)
-			evaluateReadyMembers(sourceLookupKey)
-
-			By("creating the non-TS map for source Hazelcast cluster")
-			nonTsMap := hazelcastconfig.DefaultMap(sourceLookupKey, hazelcastSource.Name, labels)
-			nonTsMap.Spec.Name = "wanmap1"
-			Expect(k8sClient.Create(context.Background(), nonTsMap)).Should(Succeed())
-			nonTsMap = assertMapStatus(nonTsMap, hazelcastcomv1alpha1.MapSuccess)
-
-			By("creating the TS map for source Hazelcast cluster")
-			tsMap := hazelcastconfig.DefaultTieredStoreMap(mapLookupKey, hazelcastSource.Name, deviceName, labels)
-			tsMap.Spec.Name = "wanmap2"
-			tsMap.Spec.TieredStore.MemoryCapacity = &[]resource.Quantity{resource.MustParse(nativeMemorySize)}[0]
-			Expect(k8sClient.Create(context.Background(), tsMap)).Should(Succeed())
-			assertMapStatus(tsMap, hazelcastcomv1alpha1.MapSuccess)
-
-			By("creating target Hazelcast cluster")
-			SwitchContext(context2)
-			setupEnv()
-			hazelcastTarget := hazelcastconfig.HazelcastTieredStorage(targetLookupKey, deviceName, labels)
-			hazelcastTarget.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-				Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
-				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			}
-			hazelcastTarget.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
-			hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
-				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceMemory: resource.MustParse(totalMemorySize)},
-			}
-			hazelcastTarget.Spec.NativeMemory = &hazelcastcomv1alpha1.NativeMemoryConfiguration{
-				Size: []resource.Quantity{resource.MustParse(nativeMemorySize)}[0],
-			}
-			hazelcastTarget.Spec.ClusterName = "target"
-			CreateHazelcastCR(hazelcastTarget)
-			evaluateReadyMembers(targetLookupKey)
-			targetAddress := waitForLBAddress(targetLookupKey)
-
-			By("creating WAN configuration for source Hazelcast cluster")
-			SwitchContext(context1)
-			setupEnv()
-			wanSrc := hazelcastconfig.CustomWanReplication(
-				sourceLookupKey,
-				hazelcastTarget.Spec.ClusterName,
-				targetAddress,
-				labels,
-			)
-			wanSrc.Spec.Resources = []hazelcastcomv1alpha1.ResourceSpec{{
-				Name: nonTsMap.Name,
-				Kind: hazelcastcomv1alpha1.ResourceKindMap,
-			},
-				{
-					Name: tsMap.Name,
-					Kind: hazelcastcomv1alpha1.ResourceKindMap,
-				}}
-			Expect(k8sClient.Create(context.Background(), wanSrc)).Should(Succeed())
-
-			Eventually(func() (hazelcastcomv1alpha1.WanStatus, error) {
-				wanSrc := &hazelcastcomv1alpha1.WanReplication{}
-				err := k8sClient.Get(context.Background(), sourceLookupKey, wanSrc)
-				if err != nil {
-					return hazelcastcomv1alpha1.WanStatusFailed, err
-				}
-				return wanSrc.Status.Status, nil
-			}, 30*Second, interval).Should(Equal(hazelcastcomv1alpha1.WanStatusSuccess))
-
-			By("filling the non TS Map")
-			SwitchContext(context1)
-			setupEnv()
-			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), nonTsMapFirstInputSize, nonTsMapFirstInputSize, hazelcastSource)
-
-			By("filling the TS Map")
-			FillMapBySizeInMb(context.Background(), tsMap.MapName(), tsMapFirstInputSize, tsMapFirstInputSize, hazelcastSource)
-
-			By("update to wrong Hazelcast image")
-			SwitchContext(context2)
-			setupEnv()
-			UpdateHazelcastCR(hazelcastTarget, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
-				hazelcast.Spec.Repository = "docker.io/hazelcast/hazelcast-enterprise2"
-				return hazelcast
-			})
-			DeletePod(hazelcastTarget.Name+"-0", 0, targetLookupKey)
-			DeletePod(hazelcastTarget.Name+"-1", 0, targetLookupKey)
-			DeletePod(hazelcastTarget.Name+"-2", 0, targetLookupKey)
-
-			By("add more data to the non TS Map")
-			SwitchContext(context1)
-			setupEnv()
-			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), nonTsMapSecondInputSize, nonTsMapFirstInputSize+nonTsMapSecondInputSize, hazelcastSource)
-
-			By("add more data to the TS Map")
-			FillMapBySizeInMb(context.Background(), tsMap.MapName(), tsMapSecondInputSize, tsMapFirstInputSize+tsMapSecondInputSize, hazelcastSource)
-
-			By("update to correct Hazelcast image")
-			SwitchContext(context2)
-			setupEnv()
-			UpdateHazelcastCR(hazelcastTarget, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
-				hazelcast.Spec.Repository = "docker.io/hazelcast/hazelcast-enterprise"
-				return hazelcast
-			})
-			DeletePod(hazelcastTarget.Name+"-0", 0, targetLookupKey)
-			DeletePod(hazelcastTarget.Name+"-1", 0, targetLookupKey)
-			DeletePod(hazelcastTarget.Name+"-2", 0, targetLookupKey)
-
-			By("checking HZ status after update")
-			Eventually(func() hazelcastcomv1alpha1.Phase {
-				err := k8sClient.Get(context.Background(), targetLookupKey, hazelcastTarget)
-				Expect(err).ToNot(HaveOccurred())
-				return hazelcastTarget.Status.Phase
-			}, 5*Minute, interval).ShouldNot(Equal(hazelcastcomv1alpha1.Pending))
-
-			By("trigger WAN sync")
-			SwitchContext(context1)
-			setupEnv()
-			createWanSync(context.Background(), sourceLookupKey, wanSrc.Name, 2, labels)
-
-			By("add more data to the non TS Map")
-			SwitchContext(context1)
-			setupEnv()
-			FillMapBySizeInMb(context.Background(), nonTsMap.MapName(), nonTsMapThirdInputSize, nonTsMapFirstInputSize+nonTsMapSecondInputSize+nonTsMapThirdInputSize, hazelcastSource)
-
-			By("add more data to the TS Map")
-			FillMapBySizeInMb(context.Background(), tsMap.MapName(), tsMapThirdInputSize, tsMapFirstInputSize+tsMapSecondInputSize+tsMapThirdInputSize, hazelcastSource)
-
-			By("checking the target non-TS map size")
-			SwitchContext(context2)
-			setupEnv()
-			WaitForMapSize(context.Background(), targetLookupKey, nonTsMap.MapName(), expectedNonTsMapSize, 10*Minute)
-
-			By("checking the target TS map size")
-			WaitForMapSize(context.Background(), targetLookupKey, tsMap.MapName(), expectedTsMapSize, 10*Minute)
-		})
 	})
 })
