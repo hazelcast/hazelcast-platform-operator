@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/hazelcast/hazelcast-go-client v1.4.1
-	github.com/hazelcast/platform-operator-agent v0.1.26
+	github.com/hazelcast/platform-operator-agent v0.1.27
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
 	github.com/openshift/api v0.0.0-20220715133027-dab5b363ebd1
@@ -153,5 +153,3 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 )
-
-replace github.com/hazelcast/platform-operator-agent v0.1.26 => github.com/hazelcast/platform-operator-agent v0.0.0-20240422174356-c8b7eb7c0f0a
