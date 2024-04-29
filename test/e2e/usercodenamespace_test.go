@@ -17,7 +17,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast User Code Deployment", Group("user_code_namespace"), func() {
+var _ = Describe("Hazelcast User Code Namespace", Group("user_code_namespace"), func() {
 	localPort := strconv.Itoa(8800 + GinkgoParallelProcess())
 
 	AfterEach(func() {
