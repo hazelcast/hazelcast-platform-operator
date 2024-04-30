@@ -50,7 +50,7 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Group("replicatedmap"), func(
 	})
 
 	Context("Updating ReplicatedMap configurations", func() {
-		It("verifies that ReplicatedMap Config updates are prohibited", Tag(Kind|Any), func() {
+		It("verifies that ReplicatedMap Config updates are prohibited", Label("cluster_scope"), Tag(Kind|Any), func() {
 			setLabelAndCRName("hrm-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

@@ -46,7 +46,7 @@ var _ = Describe("Hazelcast Topic Config", Group("topic"), func() {
 	})
 
 	Context("Updating Topic configurations", func() {
-		It("verifies that Topic Config updates are prohibited", Tag(Kind|Any), func() {
+		It("verifies that Topic Config updates are prohibited", Label("cluster_scope"), Tag(Kind|Any), func() {
 			setLabelAndCRName("ht-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
