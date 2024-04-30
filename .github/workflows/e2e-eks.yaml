@@ -59,6 +59,26 @@ jobs:
             --cluster "${CLUSTER_NAME}" \
             --region=${AWS_REGION}
 
+      - name: Create IAM Service Account
+        run: |
+          ROLE_NAME="cn-test-iam-service-account-${{ github.run_number }}"
+
+          eksctl create iamserviceaccount \
+            --name aws-iam-sa \
+            --namespace test-operator-os \
+            --cluster ${CLUSTER_NAME} \
+            --role-name ${ROLE_NAME}-os \
+            --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
+            --approve
+
+          eksctl create iamserviceaccount \
+            --name aws-iam-sa \
+            --namespace test-operator-ee \
+            --cluster ${CLUSTER_NAME} \
+            --role-name ${ROLE_NAME}-ee \
+            --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
+            --approve
+
   grafana-setup:
     needs: [prepare-env]
     uses: ./.github/workflows/grafana-agent.yaml
@@ -321,7 +341,7 @@ jobs:
 
       - name: Delete EKS cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME=${{ needs.prepare-env.outputs.CLUSTER_NAME }}
           source .github/scripts/utils.sh
           wait_for_eks_stack_deleted eksctl-$CLUSTER_NAME $DELETE_EKS_STACK_TIMEOUT_IN_MINS
           clean_open_id_connect_providers ${{ env.AWS_REGION }} $CLUSTER_NAME
