@@ -218,6 +218,7 @@ func (r *MapReconciler) ReconcileMapConfig(
 			false,
 			m.Spec.Eviction.MaxSize,
 			hazelcastv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy],
+			defaultWanReplicationRefCodec(hz, m),
 		)
 	} else {
 		mapInput := codecTypes.DefaultAddMapConfigInput()
@@ -270,6 +271,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
 	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)
 	mapInput.InMemoryFormat = string(ms.InMemoryFormat)
+	mapInput.UserCodeNamespace = ms.UserCodeNamespace
 	if ms.MerkleTree != nil {
 		mapInput.MerkleTreeConfig = codecTypes.MerkleTreeConfig{
 			Enabled:    true,

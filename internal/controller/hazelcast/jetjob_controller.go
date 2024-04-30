@@ -240,7 +240,7 @@ func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alp
 			if err != nil {
 				return err
 			}
-			fds, err := rest.NewFileDownloadService("https://"+host+":8443", mtlsClient)
+			fds, err := rest.NewFileDownloadService(hzclient.AgentUrl(host), mtlsClient)
 			if err != nil {
 				logger.Error(err, "unable to create NewFileDownloadService")
 				return err

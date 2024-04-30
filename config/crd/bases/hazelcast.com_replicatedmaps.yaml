@@ -73,6 +73,10 @@ spec:
                 description: Name of the ReplicatedMap config to be created. If empty,
                   CR name will be used.
                 type: string
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                minLength: 1
+                type: string
             required:
             - hazelcastResourceName
             type: object

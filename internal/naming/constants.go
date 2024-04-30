@@ -60,6 +60,7 @@ const (
 	PVCName                     = "persistence"
 	CPPersistenceVolumeName     = "cp-subsystem-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
+	UCNVolumeName               = "user-code-namespace"
 	JetJobJarsVolumeName        = "jet-job-jars-bucket"
 	JetConfigMapNamePrefix      = "jet-cm-"
 	UserCodeURLVolumeName       = "user-code-url"
@@ -80,6 +81,11 @@ const (
 	UserCodeURLAgent    = "ucd-url-agent"
 	JetBucketAgent      = "jet-bucket-agent"
 	JetUrlAgent         = "jet-url-agent"
+	InitAgent           = "init-agent"
+	AgentSuffix         = "-agent"
+	AgentConfigMap      = "agent-config-volume"
+	AgentConfigDir      = "/opt/data/config/"
+	AgentConfigFile     = "config.yaml"
 
 	MTLSCertSecretName = "hazelcast-agent-cert"
 	MTLSCertPath       = "/var/run/secrets/hazelcast"
@@ -88,6 +94,7 @@ const (
 	UserCodeURLPath       = "/opt/hazelcast/userCode/urls"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
+	UCNBucketPath         = "/opt/hazelcast/ucn/bucket"
 )
 
 const HazelcastCustomConfigOverwriteAnnotation = "hazelcast.com/custom-config-overwrite"

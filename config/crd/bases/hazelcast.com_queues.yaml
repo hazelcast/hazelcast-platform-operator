@@ -94,6 +94,10 @@ spec:
                   provided, the Queue becomes Priority Queue. You can learn more at
                   https://docs.hazelcast.com/hazelcast/latest/data-structures/priority-queue.
                 type: string
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                minLength: 1
+                type: string
             required:
             - hazelcastResourceName
             type: object

@@ -111,6 +111,7 @@ func fillMultiMapConfigInput(multiMapInput *codecTypes.MultiMapConfig, mm *hazel
 	multiMapInput.AsyncBackupCount = mms.AsyncBackupCount
 	multiMapInput.Binary = mms.Binary
 	multiMapInput.CollectionType = string(mms.CollectionType)
+	multiMapInput.UserCodeNamespace = mms.UserCodeNamespace
 }
 
 func (r *MultiMapReconciler) validateMultiMapConfigPersistence(ctx context.Context, mm *hazelcastv1alpha1.MultiMap) (bool, error) {

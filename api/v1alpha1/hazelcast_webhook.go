@@ -70,8 +70,8 @@ func (r *Hazelcast) defaultOptionalToNil() {
 	if r.Spec.Agent.Resources != nil && reflect.DeepEqual(*r.Spec.Agent.Resources, corev1.ResourceRequirements{}) {
 		r.Spec.Agent.Resources = nil
 	}
-	if r.Spec.UserCodeDeployment != nil && reflect.DeepEqual(*r.Spec.UserCodeDeployment, UserCodeDeploymentConfig{}) {
-		r.Spec.UserCodeDeployment = nil
+	if r.Spec.DeprecatedUserCodeDeployment != nil && reflect.DeepEqual(*r.Spec.DeprecatedUserCodeDeployment, UserCodeDeploymentConfig{}) {
+		r.Spec.DeprecatedUserCodeDeployment = nil
 	}
 	if r.Spec.AdvancedNetwork != nil && reflect.DeepEqual(*r.Spec.AdvancedNetwork, AdvancedNetwork{}) {
 		r.Spec.AdvancedNetwork = nil

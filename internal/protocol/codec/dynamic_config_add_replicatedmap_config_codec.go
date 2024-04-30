@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -52,6 +53,7 @@ func EncodeDynamicConfigAddReplicatedMapConfigRequest(c *types.ReplicatedMapConf
 	EncodeString(clientMessage, c.MergePolicy)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.ListenerConfigs)
 	EncodeNullableForString(clientMessage, c.SplitBrainProtectionName)
+	EncodeNullableForString(clientMessage, c.UserCodeNamespace)
 
 	return clientMessage
 }

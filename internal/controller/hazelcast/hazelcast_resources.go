@@ -9,12 +9,15 @@ import (
 	"hash/crc32"
 	"net"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	"github.com/hazelcast/platform-operator-agent/init/compound"
+	"github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
 	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
@@ -94,13 +97,14 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
 
 	dependentCRs := map[string]client.ObjectList{
-		"Map":           &hazelcastv1alpha1.MapList{},
-		"MultiMap":      &hazelcastv1alpha1.MultiMapList{},
-		"Topic":         &hazelcastv1alpha1.TopicList{},
-		"ReplicatedMap": &hazelcastv1alpha1.ReplicatedMapList{},
-		"Queue":         &hazelcastv1alpha1.QueueList{},
-		"Cache":         &hazelcastv1alpha1.CacheList{},
-		"JetJob":        &hazelcastv1alpha1.JetJobList{},
+		"Map":               &hazelcastv1alpha1.MapList{},
+		"MultiMap":          &hazelcastv1alpha1.MultiMapList{},
+		"Topic":             &hazelcastv1alpha1.TopicList{},
+		"ReplicatedMap":     &hazelcastv1alpha1.ReplicatedMapList{},
+		"Queue":             &hazelcastv1alpha1.QueueList{},
+		"Cache":             &hazelcastv1alpha1.CacheList{},
+		"JetJob":            &hazelcastv1alpha1.JetJobList{},
+		"UserCodeNamespace": &hazelcastv1alpha1.UserCodeNamespaceList{},
 	}
 
 	for crKind, crList := range dependentCRs {
@@ -847,6 +851,35 @@ func hazelcastEndpointFromService(nn types.NamespacedName, hz *hazelcastv1alpha1
 	}
 }
 
+func (r *HazelcastReconciler) reconcileAgentConfig(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !h.Spec.UserCodeNamespaces.IsEnabled() {
+		return nil
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metadata(h),
+		Data:       make(map[string]string),
+	}
+	cm.Name = cm.Name + n.AgentSuffix
+	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on ConfigMap: %w", err)
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
+			cfg, err := agentConfig(ctx, r.Client, h, logger)
+			if err != nil {
+				return err
+			}
+			cm.Data[n.AgentConfigFile] = string(cfg)
+			return nil
+		})
+		if result != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Secret", h.Name, "result", result)
+		}
+		return err
+	})
+}
+
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	scrt := &corev1.Secret{
 		ObjectMeta: metadata(h),
@@ -904,6 +937,33 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 	return err
 }
 
+func agentConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
+	ns, err := filterUserCodeNamespaces(ctx, c, h)
+	if err != nil {
+		return nil, err
+	}
+
+	cfgW := compound.ConfigWrapper{}
+	if len(ns) != 0 {
+		buckets := make([]downloadbucket.Cmd, 0)
+		for _, ucn := range ns {
+			buckets = append(buckets, downloadbucket.Cmd{
+				BucketURI:   ucn.Spec.BucketConfiguration.BucketURI,
+				SecretName:  ucn.Spec.BucketConfiguration.SecretName,
+				Destination: filepath.Join(n.UCNBucketPath, ucn.Name+".zip"),
+			})
+		}
+		cfgW.InitContainer = &compound.Config{
+			Download: &compound.Download{
+				Bundle: &compound.Bundle{
+					Buckets: buckets,
+				},
+			},
+		}
+	}
+	return yaml.Marshal(cfgW)
+}
+
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
 	cfg := hazelcastBasicConfig(h)
 
@@ -953,6 +1013,12 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 		return nil, err
 	}
 	fillHazelcastConfigWithWanReplications(&cfg, wrl)
+
+	ucn, err := filterUserCodeNamespaces(ctx, c, h)
+	if err != nil {
+		return nil, err
+	}
+	fillHazelcastConfigWithUserCodeNamespaces(&cfg, h, ucn)
 
 	dataStructures := []client.ObjectList{
 		&hazelcastv1alpha1.MultiMapList{},
@@ -1088,9 +1154,9 @@ func hazelcastBasicConfig(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		},
 	}
 
-	if h.Spec.UserCodeDeployment != nil {
+	if h.Spec.DeprecatedUserCodeDeployment != nil {
 		cfg.UserCodeDeployment = config.UserCodeDeployment{
-			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
+			Enabled: h.Spec.DeprecatedUserCodeDeployment.ClientEnabled,
 		}
 	}
 
@@ -1478,6 +1544,69 @@ func filterPersistedWanReplications(ctx context.Context, c client.Client, h *haz
 	return l, nil
 }
 
+func filterUserCodeNamespaces(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) ([]hazelcastv1alpha1.UserCodeNamespace, error) {
+	fieldMatcher := client.MatchingFields{"hazelcastResourceName": h.Name}
+	nsMatcher := client.InNamespace(h.Namespace)
+
+	ucnList := &hazelcastv1alpha1.UserCodeNamespaceList{}
+
+	if err := c.List(ctx, ucnList, fieldMatcher, nsMatcher); err != nil {
+		return nil, err
+	}
+
+	l := make([]hazelcastv1alpha1.UserCodeNamespace, 0)
+
+	for _, ucn := range ucnList.Items {
+		switch ucn.Status.State {
+		case hazelcastv1alpha1.UserCodeNamespaceSuccess:
+			l = append(l, ucn)
+		case hazelcastv1alpha1.UserCodeNamespaceFailure, hazelcastv1alpha1.UserCodeNamespacePending:
+			if spec, ok := ucn.Annotations[n.LastSuccessfulSpecAnnotation]; ok {
+				ucns := &hazelcastv1alpha1.UserCodeNamespaceSpec{}
+				err := json.Unmarshal([]byte(spec), ucns)
+				if err != nil {
+					continue
+				}
+				ucn.Spec = *ucns
+				l = append(l, ucn)
+			}
+		default:
+		}
+	}
+	return l, nil
+}
+
+type ucnResourceType string
+
+const (
+	jarsInZip ucnResourceType = "JARS_IN_ZIP"
+	jarFile   ucnResourceType = "JAR"
+	classFile ucnResourceType = "CLASS"
+)
+
+func fillHazelcastConfigWithUserCodeNamespaces(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast, ucn []hazelcastv1alpha1.UserCodeNamespace) {
+	if !h.Spec.UserCodeNamespaces.IsEnabled() {
+		return
+	}
+	cfg.UserCodeNamespaces = config.UserCodeNamespaces{
+		Enabled:    pointer.Bool(true),
+		Namespaces: make(map[string][]config.UserCodeNamespaceResource, len(ucn)),
+	}
+	if h.Spec.UserCodeNamespaces.ClassFilter != nil {
+		cfg.UserCodeNamespaces.ClassFilter = &config.JavaFilterConfig{
+			Blacklist: filterList(h.Spec.UserCodeNamespaces.ClassFilter.Blacklist),
+			Whitelist: filterList(h.Spec.UserCodeNamespaces.ClassFilter.Whitelist),
+		}
+	}
+	for _, u := range ucn {
+		cfg.UserCodeNamespaces.Namespaces[u.Name] = []config.UserCodeNamespaceResource{{
+			ID:           "bundle",
+			ResourceType: string(jarsInZip),
+			URL:          "file://" + filepath.Join(n.UCNBucketPath, u.Name+".zip"),
+		}}
+	}
+}
+
 func fillHazelcastConfigWithProperties(cfg *config.Hazelcast, h *hazelcastv1alpha1.Hazelcast) {
 	cfg.Properties = h.Spec.Properties
 }
@@ -1612,7 +1741,7 @@ func fillHazelcastConfigWithSerialization(cfg *config.Hazelcast, h *hazelcastv1a
 		}
 	}
 	if s.JavaSerializationFilter != nil {
-		cfg.Serialization.JavaSerializationFilter = &config.JavaSerializationFilter{
+		cfg.Serialization.JavaSerializationFilter = &config.JavaFilterConfig{
 			Blacklist: filterList(s.JavaSerializationFilter.Blacklist),
 			Whitelist: filterList(s.JavaSerializationFilter.Whitelist),
 		}
@@ -1686,6 +1815,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			MaxSizePolicy:  string(ms.Eviction.MaxSizePolicy),
 			EvictionPolicy: string(ms.Eviction.EvictionPolicy),
 		},
+		UserCodeNamespace: ms.UserCodeNamespace,
 	}
 
 	if util.IsEnterprise(hz.Spec.Repository) {
@@ -1816,15 +1946,29 @@ func copyMapIndexes(idx []hazelcastv1alpha1.IndexConfig) []config.MapIndex {
 }
 
 func createExecutorServiceConfig(es *hazelcastv1alpha1.ExecutorServiceConfiguration) config.ExecutorService {
-	return config.ExecutorService{PoolSize: es.PoolSize, QueueCapacity: es.QueueCapacity}
+	return config.ExecutorService{
+		PoolSize:          es.PoolSize,
+		QueueCapacity:     es.QueueCapacity,
+		UserCodeNamespace: es.UserCodeNamespace,
+	}
 }
 
 func createDurableExecutorServiceConfig(des *hazelcastv1alpha1.DurableExecutorServiceConfiguration) config.DurableExecutorService {
-	return config.DurableExecutorService{PoolSize: des.PoolSize, Durability: des.Durability, Capacity: des.Capacity}
+	return config.DurableExecutorService{PoolSize: des.PoolSize,
+		Durability:        des.Durability,
+		Capacity:          des.Capacity,
+		UserCodeNamespace: des.UserCodeNamespace,
+	}
 }
 
 func createScheduledExecutorServiceConfig(ses *hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) config.ScheduledExecutorService {
-	return config.ScheduledExecutorService{PoolSize: ses.PoolSize, Durability: ses.Durability, Capacity: ses.Capacity, CapacityPolicy: ses.CapacityPolicy}
+	return config.ScheduledExecutorService{
+		PoolSize:          ses.PoolSize,
+		Durability:        ses.Durability,
+		Capacity:          ses.Capacity,
+		CapacityPolicy:    ses.CapacityPolicy,
+		UserCodeNamespace: ses.UserCodeNamespace,
+	}
 }
 
 func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
@@ -1839,6 +1983,7 @@ func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
 			ClassName: n.DefaultMultiMapMergePolicy,
 			BatchSize: n.DefaultMultiMapMergeBatchSize,
 		},
+		UserCodeNamespace: mm.Spec.UserCodeNamespace,
 	}
 }
 
@@ -1855,6 +2000,7 @@ func createQueueConfig(q *hazelcastv1alpha1.Queue) config.Queue {
 			ClassName: n.DefaultQueueMergePolicy,
 			BatchSize: n.DefaultQueueMergeBatchSize,
 		},
+		UserCodeNamespace: q.Spec.UserCodeNamespace,
 	}
 }
 
@@ -1876,6 +2022,7 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 			Enabled: cs.PersistenceEnabled,
 			Fsync:   false,
 		},
+		UserCodeNamespace: c.Spec.UserCodeNamespace,
 	}
 	if cs.KeyType != "" {
 		cache.KeyType = config.ClassType{
@@ -1902,6 +2049,7 @@ func createTopicConfig(t *hazelcastv1alpha1.Topic) config.Topic {
 		GlobalOrderingEnabled: ts.GlobalOrderingEnabled,
 		MultiThreadingEnabled: ts.MultiThreadingEnabled,
 		StatisticsEnabled:     n.DefaultTopicStatisticsEnabled,
+		UserCodeNamespace:     t.Spec.UserCodeNamespace,
 	}
 }
 
@@ -1915,6 +2063,7 @@ func createReplicatedMapConfig(rm *hazelcastv1alpha1.ReplicatedMap) config.Repli
 			ClassName: n.DefaultReplicatedMapMergePolicy,
 			BatchSize: n.DefaultReplicatedMapMergeBatchSize,
 		},
+		UserCodeNamespace: rm.Spec.UserCodeNamespace,
 	}
 }
 
@@ -2266,16 +2415,16 @@ func containerSecurityContext() *v1.SecurityContext {
 func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, conf *config.HazelcastWrapper, pvcName string) ([]v1.Container, error) {
 	var containers []corev1.Container
 
-	if h.Spec.UserCodeDeployment.IsBucketEnabled() {
+	if h.Spec.DeprecatedUserCodeDeployment.IsBucketEnabled() {
 		containers = append(containers, bucketDownloadContainer(
-			n.UserCodeBucketAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
-			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
+			n.UserCodeBucketAgent+h.Spec.DeprecatedUserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
 	}
 
-	if h.Spec.UserCodeDeployment.IsRemoteURLsEnabled() {
+	if h.Spec.DeprecatedUserCodeDeployment.IsRemoteURLsEnabled() {
 		containers = append(containers, urlDownloadContainer(
-			n.UserCodeURLAgent+h.Spec.UserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
-			h.Spec.UserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
+			n.UserCodeURLAgent+h.Spec.DeprecatedUserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
+			h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
 	}
 
 	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
@@ -2286,6 +2435,10 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	if h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
 		containers = append(containers, urlDownloadContainer(
 			n.JetUrlAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
+	}
+
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		containers = append(containers, ucnDownloadContainer(n.InitAgent, h.AgentDockerImage(), ucnBucketVolumeMount()))
 	}
 
 	if !h.Spec.Persistence.IsRestoreEnabled() {
@@ -2475,6 +2628,13 @@ func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFil
 	}
 }
 
+func ucnBucketVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.UCNVolumeName,
+		MountPath: n.UCNBucketPath,
+	}
+}
+
 func ucdBucketAgentVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UserCodeBucketVolumeName,
@@ -2493,6 +2653,25 @@ func tmpDirVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.TmpDirVolName,
 		MountPath: "/tmp",
+	}
+}
+
+func ucnDownloadContainer(name, image string, vm v1.VolumeMount) v1.Container {
+	return v1.Container{
+		Name:            name,
+		Args:            []string{"execute-multiple-commands"},
+		Image:           image,
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Env: []v1.EnvVar{
+			{
+				Name:  "CONFIG_FILE",
+				Value: n.AgentConfigDir + n.AgentConfigFile,
+			},
+		},
+		VolumeMounts:             []v1.VolumeMount{vm, {Name: n.AgentConfigMap, MountPath: n.AgentConfigDir}},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: "File",
+		SecurityContext:          containerSecurityContext(),
 	}
 }
 
@@ -2544,12 +2723,26 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		tlsVolume(h),
 	}
 
-	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
-		vols = append(vols, configMapVolumes(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration)...)
+	if h.Spec.DeprecatedUserCodeDeployment.IsConfigMapEnabled() {
+		vols = append(vols, configMapVolumes(ucdConfigMapName(h), h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration)...)
 	}
 
 	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
 		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
+	}
+
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		vols = append(vols, emptyDirVolume(n.UCNVolumeName), corev1.Volume{
+			Name: n.AgentConfigMap,
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: h.Name + n.AgentSuffix,
+					},
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		})
 	}
 
 	return vols
@@ -2584,7 +2777,7 @@ func jetConfigMapName(cm string) string {
 
 func ucdConfigMapName(h *hazelcastv1alpha1.Hazelcast) ConfigMapVolumeName {
 	return func(cm string) string {
-		return n.UserCodeConfigMapNamePrefix + cm + h.Spec.UserCodeDeployment.TriggerSequence
+		return n.UserCodeConfigMapNamePrefix + cm + h.Spec.DeprecatedUserCodeDeployment.TriggerSequence
 	}
 }
 
@@ -2613,6 +2806,10 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.Vo
 			MountPath: n.MTLSCertPath,
 		},
 		jetJobJarsVolumeMount(),
+		ucdBucketAgentVolumeMount(),
+	}
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		vm = append(vm, ucnBucketVolumeMount())
 	}
 	if h.Spec.Persistence.IsEnabled() {
 		vm = append(vm, v1.VolumeMount{
@@ -2638,11 +2835,16 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 		// /tmp dir is also needed for Jet Job submission and UCD from client/CLC.
 		tmpDirVolumeMount(),
 	}
+
 	if h.Spec.Persistence.IsEnabled() {
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      pvcName,
 			MountPath: n.PersistenceMountPath,
 		})
+	}
+
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		mounts = append(mounts, ucnBucketVolumeMount())
 	}
 
 	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
@@ -2656,9 +2858,9 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 		mounts = append(mounts, localDeviceVolumeMounts(h)...)
 	}
 
-	if h.Spec.UserCodeDeployment.IsConfigMapEnabled() {
+	if h.Spec.DeprecatedUserCodeDeployment.IsConfigMapEnabled() {
 		mounts = append(mounts,
-			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.UserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
+			configMapVolumeMounts(ucdConfigMapName(h), h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration, n.UserCodeConfigMapPath)...)
 	}
 
 	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
@@ -2872,8 +3074,8 @@ func javaClassPath(h *hazelcastv1alpha1.Hazelcast) string {
 		path.Join(n.UserCodeBucketPath, "*"),
 		path.Join(n.UserCodeURLPath, "*")}
 
-	if h.Spec.UserCodeDeployment != nil {
-		for _, cm := range h.Spec.UserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
+	if h.Spec.DeprecatedUserCodeDeployment != nil {
+		for _, cm := range h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration.ConfigMaps {
 			b = append(b, path.Join(n.UserCodeConfigMapPath, cm, "*"))
 		}
 	}
@@ -3110,6 +3312,7 @@ func fillAddExecutorServiceInput(esInput *codecTypes.ExecutorServiceConfig, es h
 	esInput.Name = es.Name
 	esInput.PoolSize = es.PoolSize
 	esInput.QueueCapacity = es.QueueCapacity
+	esInput.UserCodeNamespace = es.UserCodeNamespace
 }
 
 func fillAddDurableExecutorServiceInput(esInput *codecTypes.DurableExecutorServiceConfig, es hazelcastv1alpha1.DurableExecutorServiceConfiguration) {
@@ -3117,6 +3320,7 @@ func fillAddDurableExecutorServiceInput(esInput *codecTypes.DurableExecutorServi
 	esInput.PoolSize = es.PoolSize
 	esInput.Capacity = es.Capacity
 	esInput.Durability = es.Durability
+	esInput.UserCodeNamespace = es.UserCodeNamespace
 }
 
 func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorServiceConfig, es hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) {
@@ -3125,4 +3329,5 @@ func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorS
 	esInput.Capacity = es.Capacity
 	esInput.CapacityPolicy = es.CapacityPolicy
 	esInput.Durability = es.Durability
+	esInput.UserCodeNamespace = es.UserCodeNamespace
 }

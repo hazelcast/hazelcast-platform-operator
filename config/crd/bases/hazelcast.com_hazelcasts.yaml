@@ -89,7 +89,7 @@ spec:
               agent:
                 default:
                   repository: docker.io/hazelcast/platform-operator-agent
-                  version: 0.1.26
+                  version: 0.1.27
                 description: B&R Agent configurations
                 properties:
                   repository:
@@ -146,7 +146,7 @@ spec:
                         type: object
                     type: object
                   version:
-                    default: 0.1.26
+                    default: 0.1.27
                     description: Version of Hazelcast Platform Operator Agent.
                     type: string
                 type: object
@@ -253,6 +253,11 @@ spec:
                       format: int32
                       minimum: 1
                       type: integer
+                    userCodeNamespace:
+                      description: Name of the User Code Namespace applied to this
+                        instance
+                      minLength: 1
+                      type: string
                   type: object
                 type: array
               executorServices:
@@ -274,6 +279,11 @@ spec:
                       description: Task queue capacity of the executor.
                       format: int32
                       type: integer
+                    userCodeNamespace:
+                      description: Name of the User Code Namespace applied to this
+                        instance
+                      minLength: 1
+                      type: string
                   type: object
                 type: array
               exposeExternally:
@@ -799,6 +809,11 @@ spec:
                       format: int32
                       minimum: 1
                       type: integer
+                    userCodeNamespace:
+                      description: Name of the User Code Namespace applied to this
+                        instance
+                      minLength: 1
+                      type: string
                   type: object
                 type: array
               scheduling:
@@ -2121,6 +2136,58 @@ spec:
                     description: A string for triggering a rolling restart for re-downloading
                       the user code.
                     type: string
+                type: object
+              userCodeNamespaces:
+                description: UserCodeNamespaces provide a container for Java classpath
+                  resources, such as user code and accompanying artifacts like property
+                  files
+                properties:
+                  classFilter:
+                    description: Blacklist and whitelist for classes when User Code
+                      Namespaces is used.
+                    minProperties: 1
+                    properties:
+                      blacklist:
+                        description: Java deserialization protection Blacklist.
+                        minProperties: 1
+                        properties:
+                          classes:
+                            description: List of class names to be filtered.
+                            items:
+                              type: string
+                            type: array
+                          packages:
+                            description: List of packages to be filtered
+                            items:
+                              type: string
+                            type: array
+                          prefixes:
+                            description: List of prefixes to be filtered.
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      whitelist:
+                        description: Java deserialization protection Whitelist.
+                        minProperties: 1
+                        properties:
+                          classes:
+                            description: List of class names to be filtered.
+                            items:
+                              type: string
+                            type: array
+                          packages:
+                            description: List of packages to be filtered
+                            items:
+                              type: string
+                            type: array
+                          prefixes:
+                            description: List of prefixes to be filtered.
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                    type: object
                 type: object
               version:
                 default: 5.4.0

@@ -109,6 +109,7 @@ func fillReplicatedConfigInput(replicatedMapInput *codecTypes.ReplicatedMapConfi
 	rms := rm.Spec
 	replicatedMapInput.InMemoryFormat = string(rms.InMemoryFormat)
 	replicatedMapInput.AsyncFillup = *rms.AsyncFillup
+	replicatedMapInput.UserCodeNamespace = rms.UserCodeNamespace
 }
 
 func (r *ReplicatedMapReconciler) validateReplicatedMapConfigPersistence(ctx context.Context, rm *hazelcastv1alpha1.ReplicatedMap) (bool, error) {

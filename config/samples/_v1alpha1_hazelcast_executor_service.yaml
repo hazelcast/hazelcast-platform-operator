@@ -9,6 +9,7 @@ spec:
       bucketURI: "gs://operator-custom-class/executorService"
   executorServices:
     - name: service1
+      userCodeNamespace: my-ucn-is-not-here
   durableExecutorServices:
     - name: service2
   scheduledExecutorServices:

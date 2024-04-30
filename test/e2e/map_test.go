@@ -5,16 +5,18 @@ import (
 	"strconv"
 	. "time"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"k8s.io/apimachinery/pkg/types"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
-	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
+	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
+
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
+	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
 var _ = Describe("Hazelcast Map - ", Group("map"), func() {

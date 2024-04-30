@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.26"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.27"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -108,7 +108,7 @@ type HazelcastSpec struct {
 
 	// User Codes to Download into CLASSPATH
 	// +optional
-	UserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
+	DeprecatedUserCodeDeployment *UserCodeDeploymentConfig `json:"userCodeDeployment,omitempty"`
 
 	// Java Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/executor-service
 	// +optional
@@ -188,6 +188,10 @@ type HazelcastSpec struct {
 	// CPSubsystem is the configuration of the Hazelcast CP Subsystem.
 	// +optional
 	CPSubsystem *CPSubsystem `json:"cpSubsystem,omitempty"`
+
+	// UserCodeNamespaces provide a container for Java classpath resources, such as user code and accompanying artifacts like property files
+	// +optional
+	UserCodeNamespaces *UserCodeNamespacesConfig `json:"userCodeNamespaces,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -210,6 +214,16 @@ const (
 	// LittleEndian uses the kittle-endian byte order.
 	LittleEndian ByteOrder = "LittleEndian"
 )
+
+func (ucn *UserCodeNamespacesConfig) IsEnabled() bool {
+	return ucn != nil
+}
+
+type UserCodeNamespacesConfig struct {
+	// Blacklist and whitelist for classes when User Code Namespaces is used.
+	// +optional
+	ClassFilter *JavaFilterConfig `json:"classFilter,omitempty"`
+}
 
 // CPSubsystem contains the configuration of a component of a Hazelcast that builds a strongly consistent layer for a set of distributed data structures
 type CPSubsystem struct {
@@ -290,11 +304,11 @@ type SerializationConfig struct {
 
 	// Blacklist and whitelist for deserialized classes when Java serialization is used.
 	// +optional
-	JavaSerializationFilter *JavaSerializationFilter `json:"javaSerializationFilter,omitempty"`
+	JavaSerializationFilter *JavaFilterConfig `json:"javaSerializationFilter,omitempty"`
 }
 
 // +kubebuilder:validation:MinProperties:=1
-type JavaSerializationFilter struct {
+type JavaFilterConfig struct {
 
 	// Java deserialization protection Blacklist.
 	// +optional
@@ -510,6 +524,11 @@ type ExecutorServiceConfiguration struct {
 	// +kubebuilder:default:=0
 	// +optional
 	QueueCapacity int32 `json:"queueCapacity"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +kubebuilder:validation:MinLength:=1
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 type DurableExecutorServiceConfiguration struct {
@@ -534,6 +553,11 @@ type DurableExecutorServiceConfiguration struct {
 	// +kubebuilder:default:=100
 	// +optional
 	Capacity int32 `json:"capacity,omitempty"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +kubebuilder:validation:MinLength:=1
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 type ScheduledExecutorServiceConfiguration struct {
@@ -563,6 +587,11 @@ type ScheduledExecutorServiceConfiguration struct {
 	// +kubebuilder:default:=PER_NODE
 	// +optional
 	CapacityPolicy string `json:"capacityPolicy,omitempty"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +kubebuilder:validation:MinLength:=1
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 // CapacityPolicyType represents the active policy types for the capacity setting
@@ -655,7 +684,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.26"
+	// +kubebuilder:default:="0.1.27"
 	// +optional
 	Version string `json:"version,omitempty"`
 

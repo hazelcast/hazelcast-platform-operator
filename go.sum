@@ -421,8 +421,8 @@ github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hazelcast/hazelcast-go-client v1.4.1 h1:BSpJqqjbACI4MugfWXGxk+JdZR3JRELx0n769pa85kA=
 github.com/hazelcast/hazelcast-go-client v1.4.1/go.mod h1:PJ38lqXJ18S0YpkrRznPDlUH8GnnMAQCx3jpQtBPZ6Q=
-github.com/hazelcast/platform-operator-agent v0.1.20 h1:/tU4SsihHh1mCz4VGuihYt6v9F0PrWVZBoiIxYogu44=
-github.com/hazelcast/platform-operator-agent v0.1.20/go.mod h1:2ZOXva174+fjjkSYHEP31arfxcMKijLqGU6IEtsJTtM=
+github.com/hazelcast/platform-operator-agent v0.1.27 h1:OsY2VCeuv8aDgziwqMLn4O3RoTi6xvUWoGSMu3YRYhE=
+github.com/hazelcast/platform-operator-agent v0.1.27/go.mod h1:8IU2n8EdJ9iWfVQligjd8H6UIs4yZ/xOKdX7xxNAjsU=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=

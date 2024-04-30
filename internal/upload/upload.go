@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hazelcast/platform-operator-agent/sidecar"
 
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/rest"
 )
 
@@ -40,7 +41,7 @@ func NewUpload(config *Config) (*Upload, error) {
 	if err != nil {
 		return nil, err
 	}
-	s, err := rest.NewUploadService("https://"+host+":8443", config.MTLSClient)
+	s, err := rest.NewUploadService(hzclient.AgentUrl(host), config.MTLSClient)
 	if err != nil {
 		return nil, err
 	}

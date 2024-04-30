@@ -28,6 +28,7 @@ type Hazelcast struct {
 	SQL                      SQL                                 `yaml:"sql,omitempty"`
 	LocalDevice              map[string]LocalDevice              `yaml:"local-device,omitempty"`
 	CPSubsystem              CPSubsystem                         `yaml:"cp-subsystem,omitempty"`
+	UserCodeNamespaces       UserCodeNamespaces                  `yaml:"user-code-namespaces,omitempty"`
 }
 
 type ManagementCenterConfig struct {
@@ -167,6 +168,7 @@ type Map struct {
 	EventJournal            EventJournal                       `yaml:"event-journal,omitempty"`
 	TieredStore             TieredStore                        `yaml:"tiered-store,omitempty"`
 	MerkleTree              MerkleTree                         `yaml:"merkle-tree,omitempty"`
+	UserCodeNamespace       string                             `yaml:"user-code-namespace,omitempty"`
 }
 
 type MerkleTree struct {
@@ -215,21 +217,24 @@ type WanReplicationReference struct {
 }
 
 type ExecutorService struct {
-	PoolSize      int32 `yaml:"pool-size"`
-	QueueCapacity int32 `yaml:"queue-capacity"`
+	PoolSize          int32  `yaml:"pool-size"`
+	QueueCapacity     int32  `yaml:"queue-capacity"`
+	UserCodeNamespace string `yaml:"user-code-namespace,omitempty"`
 }
 
 type DurableExecutorService struct {
-	PoolSize   int32 `yaml:"pool-size"`
-	Durability int32 `yaml:"durability"`
-	Capacity   int32 `yaml:"capacity"`
+	PoolSize          int32  `yaml:"pool-size"`
+	Durability        int32  `yaml:"durability"`
+	Capacity          int32  `yaml:"capacity"`
+	UserCodeNamespace string `yaml:"user-code-namespace,omitempty"`
 }
 
 type ScheduledExecutorService struct {
-	PoolSize       int32  `yaml:"pool-size"`
-	Durability     int32  `yaml:"durability"`
-	Capacity       int32  `yaml:"capacity"`
-	CapacityPolicy string `yaml:"capacity-policy"`
+	PoolSize          int32  `yaml:"pool-size"`
+	Durability        int32  `yaml:"durability"`
+	Capacity          int32  `yaml:"capacity"`
+	CapacityPolicy    string `yaml:"capacity-policy"`
+	UserCodeNamespace string `yaml:"user-code-namespace,omitempty"`
 }
 
 type MapStoreConfig struct {
@@ -283,6 +288,7 @@ type Topic struct {
 	MultiThreadingEnabled bool     `yaml:"multi-threading-enabled"`
 	StatisticsEnabled     bool     `yaml:"statistics-enabled"`
 	MessageListeners      []string `yaml:"message-listeners,omitempty"`
+	UserCodeNamespace     string   `yaml:"user-code-namespace,omitempty"`
 }
 
 type UserCodeDeployment struct {
@@ -301,6 +307,7 @@ type MultiMap struct {
 	CollectionType    string      `yaml:"value-collection-type"`
 	StatisticsEnabled bool        `yaml:"statistics-enabled"`
 	MergePolicy       MergePolicy `yaml:"merge-policy"`
+	UserCodeNamespace string      `yaml:"user-code-namespace,omitempty"`
 }
 
 type Queue struct {
@@ -311,6 +318,7 @@ type Queue struct {
 	StatisticsEnabled       bool        `yaml:"statistics-enabled"`
 	MergePolicy             MergePolicy `yaml:"merge-policy"`
 	PriorityComparatorClass string      `yaml:"priority-comparator-class-name"`
+	UserCodeNamespace       string      `yaml:"user-code-namespace,omitempty"`
 }
 
 type Cache struct {
@@ -326,6 +334,7 @@ type Cache struct {
 	InMemoryFormat    string          `yaml:"in-memory-format"`
 	DataPersistence   DataPersistence `yaml:"data-persistence,omitempty"`
 	EventJournal      EventJournal    `yaml:"event-journal,omitempty"`
+	UserCodeNamespace string          `yaml:"user-code-namespace,omitempty"`
 }
 
 type ClassType struct {
@@ -342,6 +351,7 @@ type ReplicatedMap struct {
 	AsyncFillup       bool        `yaml:"async-fillup"`
 	StatisticsEnabled bool        `yaml:"statistics-enabled"`
 	MergePolicy       MergePolicy `yaml:"merge-policy"`
+	UserCodeNamespace string      `yaml:"user-code-namespace,omitempty"`
 }
 
 type WanReplicationConfig struct {
@@ -397,19 +407,19 @@ type SSLProperties struct {
 }
 
 type Serialization struct {
-	PortableVersion            int32                    `yaml:"portable-version"`
-	UseNativeByteOrder         bool                     `yaml:"use-native-byte-order"`
-	EnableCompression          bool                     `yaml:"enable-compression"`
-	EnableSharedObject         bool                     `yaml:"enable-shared-object"`
-	OverrideDefaultSerializers bool                     `yaml:"allow-override-default-serializers"`
-	AllowUnsafe                bool                     `yaml:"allow-unsafe"`
-	ByteOrder                  string                   `yaml:"byte-order"`
-	DataSerializableFactories  []ClassFactories         `yaml:"data-serializable-factories,omitempty"`
-	PortableFactories          []ClassFactories         `yaml:"portable-factories,omitempty"`
-	GlobalSerializer           *GlobalSerializer        `yaml:"global-serializer,omitempty"`
-	Serializers                []Serializer             `yaml:"serializers,omitempty"`
-	JavaSerializationFilter    *JavaSerializationFilter `yaml:"java-serialization-filter,omitempty"`
-	CompactSerialization       *CompactSerialization    `yaml:"compact-serialization,omitempty"`
+	PortableVersion            int32                 `yaml:"portable-version"`
+	UseNativeByteOrder         bool                  `yaml:"use-native-byte-order"`
+	EnableCompression          bool                  `yaml:"enable-compression"`
+	EnableSharedObject         bool                  `yaml:"enable-shared-object"`
+	OverrideDefaultSerializers bool                  `yaml:"allow-override-default-serializers"`
+	AllowUnsafe                bool                  `yaml:"allow-unsafe"`
+	ByteOrder                  string                `yaml:"byte-order"`
+	DataSerializableFactories  []ClassFactories      `yaml:"data-serializable-factories,omitempty"`
+	PortableFactories          []ClassFactories      `yaml:"portable-factories,omitempty"`
+	GlobalSerializer           *GlobalSerializer     `yaml:"global-serializer,omitempty"`
+	Serializers                []Serializer          `yaml:"serializers,omitempty"`
+	JavaSerializationFilter    *JavaFilterConfig     `yaml:"java-serialization-filter,omitempty"`
+	CompactSerialization       *CompactSerialization `yaml:"compact-serialization,omitempty"`
 }
 
 type CompactSerialization struct {
@@ -417,7 +427,7 @@ type CompactSerialization struct {
 	Classes     []string `yaml:"classes,omitempty"`
 }
 
-type JavaSerializationFilter struct {
+type JavaFilterConfig struct {
 	DefaultsDisable bool        `yaml:"defaults-disabled"`
 	Blacklist       *FilterList `yaml:"blacklist,omitempty"`
 	Whitelist       *FilterList `yaml:"whitelist,omitempty"`
@@ -467,4 +477,16 @@ type CPSubsystem struct {
 	MissingCpMemberAutoRemovalSeconds *int32 `yaml:"missing-cp-member-auto-removal-seconds,omitempty"`
 	FailOnIndeterminateOperationState *bool  `yaml:"fail-on-indeterminate-operation-state,omitempty"`
 	DataLoadTimeoutSeconds            *int32 `yaml:"data-load-timeout-seconds,omitempty"`
+}
+
+type UserCodeNamespaces struct {
+	Enabled     *bool                                  `yaml:"enabled,omitempty"`
+	ClassFilter *JavaFilterConfig                      `yaml:"class-filter,omitempty"`
+	Namespaces  map[string][]UserCodeNamespaceResource `yaml:",inline"`
+}
+
+type UserCodeNamespaceResource struct {
+	ID           string `yaml:"id,omitempty"`
+	ResourceType string `yaml:"resource-type,omitempty"`
+	URL          string `yaml:"url,omitempty"`
 }

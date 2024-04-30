@@ -1262,7 +1262,7 @@ var _ = Describe("Hazelcast CR", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
+						DeprecatedUserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
 							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 								ConfigMaps: cms,
 							},

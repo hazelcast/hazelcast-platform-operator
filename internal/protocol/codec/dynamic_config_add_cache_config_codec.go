@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -77,6 +78,7 @@ func EncodeDynamicConfigAddCacheConfigRequest(c *types.CacheConfigInput) *proto.
 	EncodeNullableForHotRestartConfig(clientMessage, c.HotRestartConfig)
 	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)
 	EncodeDataPersistenceConfig(clientMessage, c.DataPersistenceConfig)
+	EncodeNullableForString(clientMessage, c.UserCodeNamespace)
 
 	return clientMessage
 }

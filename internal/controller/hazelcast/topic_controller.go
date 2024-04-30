@@ -109,6 +109,7 @@ func fillTopicConfigInput(topicInput *codecTypes.TopicConfig, t *hazelcastv1alph
 	ts := t.Spec
 	topicInput.GlobalOrderingEnabled = ts.GlobalOrderingEnabled
 	topicInput.MultiThreadingEnabled = ts.MultiThreadingEnabled
+	topicInput.UserCodeNamespace = ts.UserCodeNamespace
 }
 
 func (r *TopicReconciler) validateTopicConfigPersistence(ctx context.Context, t *hazelcastv1alpha1.Topic) (bool, error) {

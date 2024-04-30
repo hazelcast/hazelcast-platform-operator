@@ -224,7 +224,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				UserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
+				DeprecatedUserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastcomv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
 							SecretName: s,
@@ -390,7 +390,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				UserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
+				DeprecatedUserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastcomv1alpha1.RemoteFileConfiguration{
 						RemoteURLs: urls,
 					},
@@ -940,6 +940,17 @@ var (
 					},
 				},
 			},
+		}
+	}
+
+	UserCodeNamespace = func(ucns hazelcastcomv1alpha1.UserCodeNamespaceSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastcomv1alpha1.UserCodeNamespace {
+		return &hazelcastcomv1alpha1.UserCodeNamespace{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: ucns,
 		}
 	}
 )

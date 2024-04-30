@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008-2022, Hazelcast, Inc. All Rights Reserved.
+* Copyright (c) 2008-2024, Hazelcast, Inc. All Rights Reserved.
 *
 * Licensed under the Apache License, Version 2.0 (the "License")
 * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
 const (
@@ -35,7 +37,7 @@ const (
 
 // Updates the config of a map on the member it's called on.
 
-func EncodeMCUpdateMapConfigRequest(mapName string, timeToLiveSeconds int32, maxIdleSeconds int32, evictionPolicy int32, readBackupData bool, maxSize int32, maxSizePolicy int32) *proto.ClientMessage {
+func EncodeMCUpdateMapConfigRequest(mapName string, timeToLiveSeconds int32, maxIdleSeconds int32, evictionPolicy int32, readBackupData bool, maxSize int32, maxSizePolicy int32, wrr types.WanReplicationRef) *proto.ClientMessage {
 	clientMessage := proto.NewClientMessageForEncode()
 	clientMessage.SetRetryable(false)
 
@@ -51,6 +53,7 @@ func EncodeMCUpdateMapConfigRequest(mapName string, timeToLiveSeconds int32, max
 	clientMessage.SetPartitionId(-1)
 
 	EncodeString(clientMessage, mapName)
+	EncodeNullableForWanReplicationRef(clientMessage, wrr)
 
 	return clientMessage
 }

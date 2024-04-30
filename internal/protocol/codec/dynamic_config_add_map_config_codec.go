@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -61,9 +62,9 @@ func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.C
 
 	EncodeString(clientMessage, c.Name)
 	EncodeNullableForEvictionConfigHolder(clientMessage, c.EvictionConfig)
-	EncodeString(clientMessage, string(c.CacheDeserializedValues))
+	EncodeString(clientMessage, c.CacheDeserializedValues)
 	EncodeString(clientMessage, c.MergePolicy)
-	EncodeString(clientMessage, string(c.InMemoryFormat))
+	EncodeString(clientMessage, c.InMemoryFormat)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.ListenerConfigs)
 	EncodeNullableListMultiFrameForListenerConfigHolder(clientMessage, c.PartitionLostListenerConfigs)
 	EncodeNullableForString(clientMessage, c.SplitBrainProtectionName)
@@ -74,12 +75,14 @@ func EncodeDynamicConfigAddMapConfigRequest(c *types.AddMapConfigInput) *proto.C
 	EncodeNullableListMultiFrameForAttributeConfig(clientMessage, c.AttributeConfigs)
 	EncodeNullableListMultiFrameForQueryCacheConfigHolder(clientMessage, c.QueryCacheConfigs)
 	EncodeNullableForString(clientMessage, c.PartitioningStrategyClassName)
-	EncodeNullable(clientMessage, c.PartitioningStrategyImplementation, EncodeData)
+	EncodeNullableData(clientMessage, c.PartitioningStrategyImplementation)
 	EncodeNullableForHotRestartConfig(clientMessage, c.HotRestartConfig)
 	EncodeNullableForEventJournalConfig(clientMessage, c.EventJournalConfig)
 	EncodeNullableForMerkleTreeConfig(clientMessage, c.MerkleTreeConfig)
 	EncodeDataPersistenceConfig(clientMessage, c.DataPersistenceConfig)
 	EncodeTieredStoreConfig(clientMessage, c.TieredStoreConfig)
+	clientMessage.AddFrame(proto.NullFrame.Copy())
+	EncodeNullableForString(clientMessage, c.UserCodeNamespace)
 
 	return clientMessage
 }

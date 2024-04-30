@@ -87,6 +87,10 @@ spec:
                   CR name will be used. It cannot be updated after the config is created
                   successfully.
                 type: string
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                minLength: 1
+                type: string
             required:
             - hazelcastResourceName
             type: object
