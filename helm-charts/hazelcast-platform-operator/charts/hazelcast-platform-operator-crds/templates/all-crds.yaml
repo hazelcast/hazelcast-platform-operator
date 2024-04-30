@@ -672,6 +672,8 @@ spec:
                   discoveryServiceType:
                     default: LoadBalancer
                     description: Type of the service used to discover Hazelcast cluster.
+                      LoadBalancer (default), NodePort, and ClusterIP (headless) types
+                      are supported.
                     type: string
                   memberAccess:
                     description: 'How each member is accessed from the external client.

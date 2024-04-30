@@ -202,11 +202,15 @@ func DeletePod(podName string, gracePeriod int64, lk types.NamespacedName) {
 }
 
 func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *hzClient.Client {
+	return HazelcastClientFromLBService(ctx, lk, lk, unisocket)
+}
+
+func HazelcastClientFromLBService(ctx context.Context, hzNn types.NamespacedName, svcNn types.NamespacedName, unisocket bool) *hzClient.Client {
 	clientWithConfig := &hzClient.Client{}
 	By("starting new Hazelcast client", func() {
 		s := &corev1.Service{}
 		Eventually(func() bool {
-			err := k8sClient.Get(context.Background(), lk, s)
+			err := k8sClient.Get(context.Background(), svcNn, s)
 			Expect(err).ToNot(HaveOccurred())
 			return len(s.Status.LoadBalancer.Ingress) > 0
 		}, 3*Minute, interval).Should(BeTrue())
@@ -217,7 +221,7 @@ func GetHzClient(ctx context.Context, lk types.NamespacedName, unisocket bool) *
 		Expect(addr).Should(Not(BeEmpty()))
 
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
-		Expect(k8sClient.Get(context.Background(), lk, hz)).Should(Succeed())
+		Expect(k8sClient.Get(context.Background(), hzNn, hz)).Should(Succeed())
 		clusterName := "dev"
 		if len(hz.Spec.ClusterName) > 0 {
 			clusterName = hz.Spec.ClusterName
@@ -419,31 +423,32 @@ func ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps int, sizePerMap int, mapN
 }
 
 func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, expectedMapSize int, timeout time.Duration) {
-	fmt.Printf("Waiting for the '%s' map to be of size '%d' using lookup name '%s'\n", mapName, expectedMapSize, lk.Name)
 	if timeout == 0 {
 		timeout = 15 * time.Minute
-		log.Printf("No timeout specified, defaulting to %v\n", timeout)
 	}
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	clientHz := GetHzClient(ctxWithTimeout, lk, true)
 
 	defer func() {
-		log.Println("Shutting down Hazelcast client")
 		if err := clientHz.Shutdown(ctxWithTimeout); err != nil {
 			log.Printf("Error while shutting down Hazelcast client: %v\n", err)
 			Expect(err).ToNot(HaveOccurred())
 		}
 	}()
 
-	hzMap, err := clientHz.GetMap(ctxWithTimeout, mapName)
+	CheckMapSize(ctxWithTimeout, clientHz, mapName, expectedMapSize, timeout)
+}
+
+func CheckMapSize(ctx context.Context, clientHz *hzClient.Client, mapName string, expectedMapSize int, timeout time.Duration) {
+	hzMap, err := clientHz.GetMap(ctx, mapName)
 	if err != nil {
 		log.Printf("Failed to get map '%s': %v\n", mapName, err)
 		Expect(err).ToNot(HaveOccurred())
 	}
 
 	Eventually(func() (int, error) {
-		mapSize, err := hzMap.Size(ctxWithTimeout)
+		mapSize, err := hzMap.Size(ctx)
 		if err != nil {
 			log.Printf("Error getting size of map '%s': %v\n", mapName, err)
 			return 0, err
@@ -451,8 +456,6 @@ func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string
 		log.Printf("Current size of map '%s': %d\n", mapName, mapSize)
 		return mapSize, nil
 	}, timeout, time.Minute).Should(Equal(expectedMapSize))
-
-	log.Printf("Map '%s' reached expected size '%d'\n", mapName, expectedMapSize)
 }
 
 func LabelPods(namespace string, podLabels []PodLabel) error {

@@ -65,6 +65,13 @@ var _ = Describe("Hazelcast CR", func() {
 		return serviceList
 	}
 
+	fetchDiscoveryService := func(hz *hazelcastv1alpha1.Hazelcast) *corev1.Service {
+		service := corev1.Service{}
+		err := k8sClient.Get(context.Background(), lookupKey(hz), &service)
+		Expect(err).Should(Not(HaveOccurred()))
+		return &service
+	}
+
 	type UpdateFn func(*hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast
 
 	setClusterSize := func(size int32) UpdateFn {
@@ -429,6 +436,43 @@ var _ = Describe("Hazelcast CR", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), hz)).
 				Should(MatchError(ContainSubstring("Forbidden: can't be set when exposeExternally.type is set to \"Unisocket\"")))
+		})
+
+		It("should successfully set discoveryServiceType to ClusterIP when memberAccess is Smart", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+				DiscoveryServiceType: corev1.ServiceTypeClusterIP,
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			create(hz)
+			fetchedCR := assertHzStatusIsPending(hz)
+			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeSmart))
+			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeClusterIP))
+
+			By("checking discovery services")
+			discoveryService := fetchDiscoveryService(hz)
+			Expect(discoveryService.Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
+		})
+
+		It("should fail to set discoveryServiceType to ClusterIP when memberAccess is Unisocket", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+				DiscoveryServiceType: corev1.ServiceTypeClusterIP,
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("Forbidden: can't be \"ClusterIP\" when exposeExternally.type is set to \"Unisocket\"")))
 		})
 	})
 
