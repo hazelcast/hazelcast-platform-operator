@@ -1,0 +1,8 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: HazelcastEndpoint
+metadata:
+  name: hazelcastendpoint-sample
+spec:
+  hazelcastResourceName: hazelcast
+  type: Discovery
+  port: 5701
