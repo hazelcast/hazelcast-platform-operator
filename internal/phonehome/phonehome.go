@@ -648,7 +648,7 @@ func (phm *PhoneHomeData) fillSnapshotMetrics(cl client.Client) {
 	if err != nil || jjsl.Items == nil {
 		return
 	}
-	phm.UserCodeNamespaces.Count = len(jjsl.Items)
+	phm.JetJobSnapshotCount = len(jjsl.Items)
 }
 
 func (phm *PhoneHomeData) fillUCNMetrics(cl client.Client) {
@@ -657,7 +657,7 @@ func (phm *PhoneHomeData) fillUCNMetrics(cl client.Client) {
 	if err != nil || ucnl.Items == nil {
 		return
 	}
-	phm.JetJobSnapshotCount = len(ucnl.Items)
+	phm.UserCodeNamespaces.Count = len(ucnl.Items)
 }
 
 func (phm *PhoneHomeData) fillTieredStorageMetrics(cl client.Client) {
