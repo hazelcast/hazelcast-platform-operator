@@ -110,6 +110,11 @@ type PhoneHomeData struct {
 	SQLCount                      int                    `json:"sc"`
 	TieredStorage                 TieredStorage          `json:"ts"`
 	CPSubsystem                   CPSubsystem            `json:"cp"`
+	UserCodeNamespaces            UserCodeNamespaces     `json:"ucn"`
+}
+
+type UserCodeNamespaces struct {
+	Count int `json:"c"`
 }
 
 type CPSubsystem struct {
@@ -223,6 +228,7 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillJetMetrics(cl)
 	phd.fillSnapshotMetrics(cl)
 	phd.fillTieredStorageMetrics(cl)
+	phd.fillUCNMetrics(cl)
 	return phd
 }
 
@@ -643,6 +649,15 @@ func (phm *PhoneHomeData) fillSnapshotMetrics(cl client.Client) {
 		return
 	}
 	phm.JetJobSnapshotCount = len(jjsl.Items)
+}
+
+func (phm *PhoneHomeData) fillUCNMetrics(cl client.Client) {
+	ucnl := &hazelcastv1alpha1.UserCodeNamespaceList{}
+	err := cl.List(context.Background(), ucnl, listOptions()...)
+	if err != nil || ucnl.Items == nil {
+		return
+	}
+	phm.UserCodeNamespaces.Count = len(ucnl.Items)
 }
 
 func (phm *PhoneHomeData) fillTieredStorageMetrics(cl client.Client) {
