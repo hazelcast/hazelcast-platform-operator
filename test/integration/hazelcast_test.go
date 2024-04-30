@@ -1061,6 +1061,74 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
+		When("JVM arg is not configured", func() {
+			It("should set the default values for JAVA_OPTS", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				assertHzStatusIsPending(hz)
+				ss := getStatefulSet(hz)
+
+				By("Checking if Hazelcast Container has the correct JAVA_OPTS")
+				b := strings.Builder{}
+				for k, v := range hazelcast.DefaultJavaOptions {
+					b.WriteString(fmt.Sprintf(" %s=%s", k, v))
+				}
+				expectedJavaOpts := b.String()
+				javaOpts := ""
+				for _, env := range ss.Spec.Template.Spec.Containers[0].Env {
+					if env.Name == hazelcast.JavaOpts {
+						javaOpts = env.Value
+					}
+				}
+				Expect(javaOpts).To(ContainSubstring(expectedJavaOpts))
+			})
+		})
+
+		When("JVM args is configured", func() {
+			It("should override the default values for JAVA_OPTS", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+
+				configuredDefaults := map[string]struct{}{"-Dhazelcast.stale.join.prevention.duration.seconds": {}}
+				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+					Args: []string{"-XX:MaxGCPauseMillis=200", "-Dhazelcast.stale.join.prevention.duration.seconds=40"},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				assertHzStatusIsPending(hz)
+				ss := getStatefulSet(hz)
+
+				By("Checking if Hazelcast Container has the correct JAVA_OPTS")
+				b := strings.Builder{}
+				for _, arg := range spec.JVM.Args {
+					b.WriteString(fmt.Sprintf(" %s", arg))
+				}
+				for k, v := range hazelcast.DefaultJavaOptions {
+					_, ok := configuredDefaults[k]
+					if !ok {
+						b.WriteString(fmt.Sprintf(" %s=%s", k, v))
+					}
+				}
+				expectedJavaOpts := b.String()
+				javaOpts := ""
+				for _, env := range ss.Spec.Template.Spec.Containers[0].Env {
+					if env.Name == hazelcast.JavaOpts {
+						javaOpts = env.Value
+					}
+				}
+
+				Expect(javaOpts).To(ContainSubstring(expectedJavaOpts))
+			})
+		})
 	})
 
 	Context("with Resources parameters", func() {
