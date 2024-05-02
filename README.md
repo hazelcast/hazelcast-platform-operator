@@ -46,6 +46,7 @@ Hazelcast Platform Operator supports the features below:
 * Tiered Storage support for Hazelcast and Map CRs
 * CP Subsystem configuration support for Hazelcast CR
 * User Code Deployment feature, which allows you to deploy custom and domain classes from cloud storages and URLs to Hazelcast members
+* The User Code Namespaces feature allows you to deploy custom and domain classes at runtime without a members restart
 * Support the configuration of advanced networking options
 * Support Multi-namespace configuration
 * ExecutorService and EntryProcessor support
