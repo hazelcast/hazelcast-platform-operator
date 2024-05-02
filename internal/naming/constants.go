@@ -124,7 +124,7 @@ const (
 	// MCRepo image repository for Management Center
 	MCRepo = "docker.io/hazelcast/management-center"
 	// MCVersion version of Management Center image
-	MCVersion = "5.4.0"
+	MCVersion = "5.4.1"
 	// MCImagePullPolicy pull policy for Management Center image
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )
