@@ -299,10 +299,6 @@ func main() {
 
 	setupWithWebhookOrDie(mgr)
 
-	if err = (&hazelcastcomv1alpha1.UserCodeNamespace{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "UserCodeNamespace")
-		os.Exit(1)
-	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -394,6 +390,10 @@ func setupWithWebhookOrDie(mgr ctrl.Manager) {
 	}
 	if err := (&hazelcastcomv1alpha1.WanSync{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "WanSync")
+		os.Exit(1)
+	}
+	if err := (&hazelcastcomv1alpha1.UserCodeNamespace{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "UserCodeNamespace")
 		os.Exit(1)
 	}
 }
