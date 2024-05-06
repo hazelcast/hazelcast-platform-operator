@@ -3,7 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"strings"
+	"net"
 	. "time"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
@@ -116,7 +116,6 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			clientMembers := internalClient.OrderedMembers()
 
 			By("matching HZ members with client members and comparing their public IPs")
-
 			for _, member := range members {
 				matched := false
 				for _, clientMember := range clientMembers {
@@ -130,23 +129,27 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 					svcLoadBalancerIngress := service.Status.LoadBalancer.Ingress[0]
 					clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
 					Expect(clientPublicAddresses).Should(HaveLen(1))
-					clientPublicIp := clientPublicAddresses[0][:strings.IndexByte(clientPublicAddresses[0], ':')]
+
+					clientPublicIp, _, err := net.SplitHostPort(clientPublicAddresses[0])
+					Expect(err).ToNot(HaveOccurred())
 					if svcLoadBalancerIngress.IP != "" {
 						Expect(svcLoadBalancerIngress.IP).Should(Equal(clientPublicIp))
-					} else {
-						hostname := svcLoadBalancerIngress.Hostname
+					} else if svcLoadBalancerIngress.Hostname != "" {
 						Eventually(func() bool {
-							matched, err := DnsLookupAddressMatched(ctx, hostname, clientPublicIp)
+							matched, err := DnsLookupAddressMatched(ctx, svcLoadBalancerIngress.Hostname, clientPublicIp)
 							if err != nil {
 								return false
 							}
 							return matched
 						}, 3*Minute, interval).Should(BeTrue())
+					} else {
+						Fail("expected LoadBalancer IP or Hostname to be non-empty")
 					}
 
-					By(fmt.Sprintf("checking if connected to the member %q", clientMember.UUID.String()))
-					connected := internalClient.ConnectedToMember(clientMember.UUID)
-					Expect(connected).Should(BeTrue())
+					By(fmt.Sprintf("checking if the client connected to the member %q", clientMember.UUID.String()))
+					Eventually(func() bool {
+						return internalClient.ConnectedToMember(clientMember.UUID)
+					}, Minute, interval).Should(BeTrue())
 
 					break
 				}
