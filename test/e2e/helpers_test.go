@@ -419,7 +419,7 @@ func ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps int, sizePerMap int, mapN
 }
 
 func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, expectedMapSize int, timeout time.Duration) {
-	fmt.Printf("Waiting for the '%s' map to be of size '%d' using lookup name '%s'\n", mapName, expectedMapSize, lk.Name)
+	By(fmt.Sprintf("Waiting for the '%s' map to be of size '%d' using lookup name '%s'\n", mapName, expectedMapSize, lk.Name))
 	if timeout == 0 {
 		timeout = 15 * time.Minute
 		log.Printf("No timeout specified, defaulting to %v\n", timeout)
