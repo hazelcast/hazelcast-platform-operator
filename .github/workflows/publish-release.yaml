@@ -226,6 +226,7 @@ jobs:
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title \
           "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+          gh pr comment ${{ github.event.pull_request.number }} --body "/hold"
 
   operatorhub_release:
     name: Create a PR in
@@ -237,9 +238,6 @@ jobs:
         include:
           - repo-name: community-operators
             repo-owner: k8s-operatorhub
-
-          - repo-name: community-operators-prod
-            repo-owner: redhat-openshift-ecosystem
     env:
       REPO_NAME: ${{ matrix.repo-name }}
       REPO_OWNER: ${{ matrix.repo-owner }}
@@ -311,6 +309,7 @@ jobs:
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" \
             --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+          gh pr comment ${{ github.event.pull_request.number }} --body "/hold"
 
   helm_chart_release:
     name: Publish Helm Chart
