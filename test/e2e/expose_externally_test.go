@@ -110,7 +110,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			WaitForMapSize(ctx, hzLookupKey, "map", 100, Minute)
 		})
 
-		FIt("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag(Any), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag(Any), func() {
 			setLabelAndCRName("hee-3")
 			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
