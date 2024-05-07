@@ -63,8 +63,8 @@ jobs:
             "password": "${{ env.DOCKERHUB_PASSWORD }}"
           }'| jq -r '.token')
 
-          CURRENT_LATEST_TAG=$(curl --fail -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
-          -H "Authorization: Bearer $token" | jq -r  '.results[] | select(any(.tags[]; .tag == "latest" and .is_current == true)) | .tags[] | select(.is_current == true and .tag != "latest" and (.tag | test("\\d+\\.\\d+\\.\\d+")))| .tag')
+          CURRENT_LATEST_TAG=$(curl -s "https://hub.docker.com/v2/repositories/hazelcast/hazelcast-platform-operator/tags/?page_size=100" \
+          -H "Authorization: Bearer $token" | jq -r '[.results[] | select(.name | test("\\d+\\.\\d+\\.\\d+")) | {name, last_updated}] | sort_by(.last_updated) | last.name')
           echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
           echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_OUTPUT
 
@@ -226,6 +226,10 @@ jobs:
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title \
           "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+          if ! gh pr view ${{ github.event.pull_request.number }} &> /dev/null; then
+              echo "Pull request ${{ github.event.pull_request.number }} not found, retrying in 10 seconds..."
+              sleep 10
+          fi
           gh pr comment ${{ github.event.pull_request.number }} --body "/hold"
 
   operatorhub_release:
@@ -248,16 +252,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Red Hat Bundle
-        run: |
-          IMAGE_NAME_DIGEST=docker.io/hazelcast/${OPERATOR_NAME}@${IMAGE_DIGEST}
-          make bundle IMG=${IMAGE_NAME_DIGEST} VERSION=${RELEASE_VERSION}
-          cat >> ./bundle/metadata/annotations.yaml <<EOF
-            # OpenShift annotations.
-            com.redhat.openshift.versions: v4.8
-            operators.operatorframework.io.bundle.channel.default.v1: alpha
-          EOF
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
@@ -271,10 +265,24 @@ jobs:
           secret-ids: |
             DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
+      - name: Build Red Hat Bundle
+        run: |
+          IMAGE_NAME_DIGEST=docker.io/hazelcast/${OPERATOR_NAME}@${IMAGE_DIGEST}
+          make bundle IMG=${IMAGE_NAME_DIGEST} VERSION=${RELEASE_VERSION}
+          cat >> ./bundle/metadata/annotations.yaml <<EOF
+            # OpenShift annotations.
+            com.redhat.openshift.versions: v4.8
+            operators.operatorframework.io.bundle.channel.default.v1: alpha
+          EOF
+
+      - name: Validate Bundle for OCP
+        run: |
+          make bundle-ocp-validate
+
       - name: Checkout to devOpsHelm/${{ env.REPO_NAME }}
         uses: actions/checkout@v4
         with:
-          repository: devopsHelm/${{ env.REPO_NAME }}
+          repository: devOpsHelm/${{ env.REPO_NAME }}
           path: ${{ env.REPO_NAME }}
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
@@ -307,8 +315,12 @@ jobs:
         working-directory: ${{ env.REPO_NAME }}
         run: |
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          gh pr create --title "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" \
-            --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+          gh pr create --title \
+          "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+          if ! gh pr view ${{ github.event.pull_request.number }} &> /dev/null; then
+              echo "Pull request ${{ github.event.pull_request.number }} not found, retrying in 10 seconds..."
+              sleep 10
+          fi
           gh pr comment ${{ github.event.pull_request.number }} --body "/hold"
 
   helm_chart_release:
@@ -497,6 +509,7 @@ jobs:
             PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
 
       - name: Removing Published Docker Image
+        if: always() && ${{ ! (contains(needs.publish_docker_image.result, 'skipped')) }}
         run: |
           auth_token=$(curl --fail -L -s -X POST 'https://hub.docker.com/v2/users/login' \
           -H 'Content-Type: application/json' \
@@ -504,45 +517,37 @@ jobs:
             "username": "${{ env.DOCKERHUB_USERNAME }}",
             "password": "${{ env.DOCKERHUB_PASSWORD }}"
           }'| jq -r '.token')
-
-          curl --fail -L -s -X POST 'https://hub.docker.com/v2/namespaces/hazelcast/delete-images' \
-          -H "Authorization: Bearer $auth_token" \
-          -H 'Content-Type: application/json' \
-          --data-raw '{
-              "manifests": [
-                  {
-                      "repository": "${{ env.OPERATOR_NAME }}",
-                      "digest": "${{ env.IMAGE_DIGEST }}"
-                  }
-              ],
-              "ignore_warnings": [
-                  {
-                      "repository": "${{ env.OPERATOR_NAME }}",
-                      "digest": "${{ env.IMAGE_DIGEST }}",
-                      "warning": "is_active"
-                  },
-                  {
-                      "repository": "${{ env.OPERATOR_NAME }}",
-                      "digest": "${{ env.IMAGE_DIGEST }}",
-                      "warning": "current_tag",
-                      "tags": [
-                          "${{ env.RELEASE_VERSION }}",
-                          "latest"
-                      ]
-                  }
-              ]
-          }'
+          
+           curl "https://hub.docker.com/v2/repositories/hazelcast/hazelcast-platform-operator/tags/${{ env.RELEASE_VERSION }}/" -X DELETE -H "Authorization: JWT ${auth_token}"
+           curl "https://hub.docker.com/v2/repositories/hazelcast/hazelcast-platform-operator/tags/latest/" -X DELETE -H "Authorization: JWT ${auth_token}"
 
       - name: Login to Docker Hub
+        if: always() && ${{ ! (contains(needs.publish_docker_image.result, 'skipped')) }}
         uses: docker/login-action@v3
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
 
       - name: Making Previous Docker Image Tag As 'latest'
+        if: always() && ${{ ! (contains(needs.publish_docker_image.result, 'skipped')) }}
         run: |
           docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
           make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
+
+      - name: Delete Published and Certified Opehshift Image
+        if: always() && ${{ ! (contains(needs.publish_image_to_redhat.result, 'skipped')) }}
+        run: |
+          source .github/scripts/utils.sh
+          delete_container_image "${{ env.PREFLIGHT_PROJECT_ID }}" "${RELEASE_VERSION}" "${{ env.PFLT_PYXIS_API_TOKEN }}" "5"
+
+      - name: Close PR's in 'certified-operators, community-operators and community-operators-prod' Repo's
+        if: always()
+        run: |
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          for REPO in "redhat-openshift-ecosystem/certified-operators" "k8s-operatorhub/community-operators" "redhat-openshift-ecosystem/community-operators-prod"; do   
+            PR_NUMBER=$(gh pr list --repo $REPO --search "operator ${{ env.OPERATOR_NAME }} (${BUNDLE_RELEASE_VERSION})" --json number | jq -r '.[].number')
+            gh pr close $PR_NUMBER --repo $REPO --delete-branch 2>/dev/null
+          done
 
       - name: Removing Release Notes and Tag in 'Hazelcast Operator' Repo
         if: always()
@@ -551,12 +556,14 @@ jobs:
           gh release delete v${RELEASE_VERSION} --cleanup-tag --yes
 
       - name: Checkout to 'Hazelcast Charts' Repo
+        if: always() && ${{ ! (contains(needs.helm_chart_release.result, 'skipped')) }}
         uses: actions/checkout@v4
         with:
           repository: hazelcast/charts
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Deleting Branch and Tag in 'Hazelcast Charts' Repo
+        if: always() && ${{ ! (contains(needs.helm_chart_release.result, 'skipped')) }}
         run: |
           set +e
           TAG_VERSION=v${RELEASE_VERSION}-operator
@@ -565,28 +572,18 @@ jobs:
           set -e
 
       - name: Download a Backup of the Helm Chart Index
+        if: always() && ${{ ! (contains(needs.helm_chart_release.result, 'skipped')) }}
         uses: actions/download-artifact@v3
         with:
           name: index.yaml
           path: ./index.yaml
 
       - name: Restore the Helm Chart Index
+        if: always() && ${{ ! (contains(needs.helm_chart_release.result, 'skipped')) }}
         run: |
           aws s3 rm s3://hazelcast-charts/hazelcast-platform-operator-${RELEASE_VERSION}.tgz
           aws s3 rm s3://hazelcast-charts/hazelcast-platform-operator-crds-${RELEASE_VERSION}.tgz
           aws s3 cp ./index.yaml s3://hazelcast-charts
-
-      - name: Close PR's in 'certified-operators, community-operators and community-operators-prod' Repo's
-        run: |
-          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          for REPO in "redhat-openshift-ecosystem/certified-operators" "k8s-operatorhub/community-operators" "redhat-openshift-ecosystem/community-operators-prod"; do   
-            PR_NUMBER=$(gh pr list --repo $REPO --search "operator ${{ env.OPERATOR_NAME }} (${BUNDLE_RELEASE_VERSION})" --json number | jq -r '.[].number')
-            gh pr close $PR_NUMBER --repo $REPO --delete-branch 2>/dev/null
-          done
-
-      - name: Delete Published and Certified Opehshift Image
-        run: |
-          delete_container_image "${{ env.PREFLIGHT_PROJECT_ID }}" "${RELEASE_VERSION}" "${{ env.PFLT_PYXIS_API_TOKEN }}" "5"
 
   slack_notify:
     name: Slack Notify
