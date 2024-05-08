@@ -82,6 +82,7 @@ const (
 	JetBucketAgent      = "jet-bucket-agent"
 	JetUrlAgent         = "jet-url-agent"
 	InitAgent           = "init-agent"
+	EnvVarSetterAgent   = "env-var-agent"
 	AgentSuffix         = "-agent"
 	AgentConfigMap      = "agent-config-volume"
 	AgentConfigDir      = "/opt/data/config/"

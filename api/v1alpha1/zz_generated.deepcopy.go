@@ -838,6 +838,11 @@ func (in *HazelcastSpec) DeepCopyInto(out *HazelcastSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.LiteMemberCount != nil {
+		in, out := &in.LiteMemberCount, &out.LiteMemberCount
+		*out = new(int32)
+		**out = **in
+	}
 	if in.ImagePullSecrets != nil {
 		in, out := &in.ImagePullSecrets, &out.ImagePullSecrets
 		*out = make([]v1.LocalObjectReference, len(*in))
