@@ -481,7 +481,7 @@ jobs:
   revert_changes:
     name: Revert Release Changes
     needs: ['publish_docker_image', 'publish_image_to_redhat', 'helm_chart_release']
-    if: always() && (needs.publish_docker_image.result == 'failure' || needs.publish_image_to_redhat.result == 'failure' || needs.operatorhub_release.result == 'failure' || needs.helm_chart_release.result == 'failure')
+    if: false
     runs-on: ubuntu-latest
     env:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
