@@ -2428,8 +2428,8 @@ func containerSecurityContext() *v1.SecurityContext {
 func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, conf *config.HazelcastWrapper, pvcName string) ([]v1.Container, error) {
 	var containers []corev1.Container
 
-	if *h.Spec.LiteMemberCount > 0 {
-		containers = append(containers, envVarSetterContainer(n.EnvVarSetterAgent, h.AgentDockerImage(), tmpDirVolumeMount()))
+	if h.Spec.LiteMemberCount != nil && *h.Spec.LiteMemberCount > 0 {
+		containers = append(containers, multipleCmdExecutorContainer(n.EnvVarSetterAgent, h.AgentDockerImage(), tmpDirVolumeMount()))
 	}
 
 	if h.Spec.DeprecatedUserCodeDeployment.IsBucketEnabled() {
@@ -2455,7 +2455,7 @@ func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl clie
 	}
 
 	if h.Spec.UserCodeNamespaces.IsEnabled() {
-		containers = append(containers, ucnDownloadContainer(n.InitAgent, h.AgentDockerImage(), ucnBucketVolumeMount()))
+		containers = append(containers, multipleCmdExecutorContainer(n.InitAgent, h.AgentDockerImage(), ucnBucketVolumeMount()))
 	}
 
 	if !h.Spec.Persistence.IsRestoreEnabled() {
@@ -2673,31 +2673,12 @@ func tmpDirVolumeMount() v1.VolumeMount {
 	}
 }
 
-func ucnDownloadContainer(name, image string, vm v1.VolumeMount) v1.Container {
+func multipleCmdExecutorContainer(name, image string, vm v1.VolumeMount) v1.Container {
 	return v1.Container{
 		Name:            name,
 		Args:            []string{"execute-multiple-commands"},
 		Image:           image,
 		ImagePullPolicy: corev1.PullIfNotPresent,
-		Env: []v1.EnvVar{
-			{
-				Name:  "CONFIG_FILE",
-				Value: n.AgentConfigDir + n.AgentConfigFile,
-			},
-		},
-		VolumeMounts:             []v1.VolumeMount{vm, {Name: n.AgentConfigMap, MountPath: n.AgentConfigDir}},
-		TerminationMessagePath:   "/dev/termination-log",
-		TerminationMessagePolicy: "File",
-		SecurityContext:          containerSecurityContext(),
-	}
-}
-
-func envVarSetterContainer(name, image string, vm v1.VolumeMount) v1.Container {
-	return v1.Container{
-		Name:            name,
-		Args:            []string{"execute-multiple-commands"},
-		Image:           image,
-		ImagePullPolicy: corev1.PullAlways,
 		Env: []v1.EnvVar{
 			{
 				Name:  "CONFIG_FILE",
@@ -2767,8 +2748,12 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
 	}
 
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		vols = append(vols, emptyDirVolume(n.UCNVolumeName))
+	}
+
 	if h.Spec.UserCodeNamespaces.IsEnabled() || (h.Spec.LiteMemberCount != nil && *h.Spec.LiteMemberCount > 0) {
-		vols = append(vols, emptyDirVolume(n.UCNVolumeName), corev1.Volume{
+		vols = append(vols, corev1.Volume{
 			Name: n.AgentConfigMap,
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
