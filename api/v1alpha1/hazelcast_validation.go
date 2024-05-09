@@ -380,7 +380,7 @@ func (v *hazelcastValidator) validateNotUpdatableHazelcastFields(current *Hazelc
 		v.Forbidden(Path("spec", "highAvailabilityMode"), "field cannot be updated")
 	}
 
-	if *current.LiteMemberCount != *last.LiteMemberCount {
+	if last.LiteMemberCount != nil && current.LiteMemberCount != nil && *current.LiteMemberCount != *last.LiteMemberCount {
 		v.Forbidden(Path("spec", "liteMemberCount"), "field cannot be updated")
 	}
 
