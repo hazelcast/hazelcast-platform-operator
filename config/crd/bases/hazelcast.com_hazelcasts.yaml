@@ -499,6 +499,11 @@ spec:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
                 type: string
+              liteMemberCount:
+                description: Number of Hazelcast lite members in the cluster.
+                format: int32
+                minimum: 0
+                type: integer
               localDevices:
                 description: Hazelcast LocalDevice configuration
                 items:

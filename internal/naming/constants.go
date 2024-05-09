@@ -83,7 +83,9 @@ const (
 	JetUrlAgent         = "jet-url-agent"
 	InitAgent           = "init-agent"
 	AgentSuffix         = "-agent"
+	LiteSuffix          = "-lite"
 	AgentConfigMap      = "agent-config-volume"
+	LiteConfigMap       = "lite-config-volume"
 	AgentConfigDir      = "/opt/data/config/"
 	AgentConfigFile     = "config.yaml"
 
@@ -95,6 +97,7 @@ const (
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
 	UCNBucketPath         = "/opt/hazelcast/ucn/bucket"
+	LiteConfigPath        = "/opt/hazelcast/liteConfig"
 )
 
 const HazelcastCustomConfigOverwriteAnnotation = "hazelcast.com/custom-config-overwrite"

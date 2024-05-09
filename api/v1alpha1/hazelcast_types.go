@@ -49,6 +49,11 @@ type HazelcastSpec struct {
 	// +optional
 	ClusterSize *int32 `json:"clusterSize,omitempty"`
 
+	// Number of Hazelcast lite members in the cluster.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	LiteMemberCount *int32 `json:"liteMemberCount,omitempty"`
+
 	// Repository to pull the Hazelcast Platform image from.
 	// +kubebuilder:default:="docker.io/hazelcast/hazelcast"
 	// +optional
