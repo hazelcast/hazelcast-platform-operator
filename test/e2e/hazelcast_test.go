@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	. "time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -98,6 +99,26 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(member.Ip).Should(Equal(pod.Status.PodIP))
 			}
+		})
+
+		When("lite member count is given correctly", func() {
+			It("should create the given number of lite members", Tag(Kind|Any), func() {
+				setLabelAndCRName("h-5")
+				hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+				hazelcast.Spec.LiteMemberCount = &[]int32{1}[0]
+				CreateHazelcastCR(hazelcast)
+				evaluateReadyMembers(hzLookupKey)
+
+				hz := &hazelcastcomv1alpha1.Hazelcast{}
+				err := k8sClient.Get(context.Background(), hzLookupKey, hz)
+				Expect(err).ToNot(HaveOccurred())
+				By("checking if there are given number of lite members created")
+				for _, member := range hz.Status.Members {
+					if strings.Contains(member.PodName, "-0") {
+						Expect(member.Lite).Should(BeTrue())
+					}
+				}
+			})
 		})
 	})
 
