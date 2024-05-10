@@ -407,6 +407,7 @@ jobs:
           --body ""
 
   validate-release:
+    if: always()
     name: Approve/Reject release?
     needs: ['publish_docker_image', 'publish_image_to_redhat', 'helm_chart_release']
     runs-on: ubuntu-latest
@@ -417,7 +418,7 @@ jobs:
   revert_changes:
     name: Revert Release Changes
     needs: validate-release
-    if: needs.validate-release.result == 'failure'
+    if: always() && needs.validate-release.result == 'failure'
     runs-on: ubuntu-latest
     env:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
