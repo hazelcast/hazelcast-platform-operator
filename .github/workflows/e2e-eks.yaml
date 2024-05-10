@@ -321,10 +321,12 @@ jobs:
 
       - name: Delete EKS cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          source .github/scripts/utils.sh
-          wait_for_eks_stack_deleted eksctl-$CLUSTER_NAME $DELETE_EKS_STACK_TIMEOUT_IN_MINS
-          clean_open_id_connect_providers ${{ env.AWS_REGION }} $CLUSTER_NAME
+          CLUSTER_NAME=${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+          REGION=${{ env.AWS_REGION }}
+          eksctl delete cluster \
+            --region=${REGION} \
+            --name=${CLUSTER_NAME} \
+            --wait
 
   slack_notify:
     name: Slack Notify

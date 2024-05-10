@@ -186,57 +186,6 @@ delete_container_image()
     --compressed
 }
 
-# The function waits until all EKS stacks will be deleted. Takes 2 arguments - cluster name and timeout.
-wait_for_eks_stack_deleted()
-{
-    local CLUSTER_NAME=$1
-    local TIMEOUT_IN_MINS=$2
-    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
-    LIST_OF_STACKS=$(aws cloudformation describe-stacks --no-paginate --query \
-          'Stacks[?StackName!=`null`]|[?contains(StackName, `'$CLUSTER_NAME'-nodegroup`) == `true` || contains(StackName, `'$CLUSTER_NAME'-addon`) == `true` || contains(StackName, `'$CLUSTER_NAME'-cluster`) == `true`].StackName' | jq -r '.[]')
-    for STACK_NAME in $LIST_OF_STACKS; do
-           aws cloudformation delete-stack \
-           --stack-name $STACK_NAME \
-           --cli-read-timeout 900 \
-           --cli-connect-timeout 900
-        for i in `seq 1 ${NOF_RETRIES}`; do
-            STACK_STATUS=$(aws cloudformation list-stacks \
-            --stack-status-filter DELETE_COMPLETE \
-            --no-paginate \
-            --query 'StackSummaries[?StackName!=`null`]|[?contains(StackName, `'$STACK_NAME'`) == `true`].StackName' | jq -r '.|length')
-            if [[ $STACK_STATUS -eq 1 ]]; then
-                echo "Stack '$STACK_NAME' is deleted"
-                break
-            else
-                echo "Stack '$STACK_NAME' is still being deleting, waiting..."
-            fi
-            if [[ $i == $NOF_RETRIES ]]; then
-                echo "Timeout! Stack deleting could not be finished"
-                return 42
-            fi
-            sleep 20
-        done
-    done
-}
-
-# The function delete/dissociate the identity provider
-clean_open_id_connect_providers()
-{
-    local AWS_REGION=$1
-    local CLUSTER_NAME=$2
-    LIST_ARNS=$(aws iam list-open-id-connect-providers | jq -r '[.OpenIDConnectProviderList[] | select( .Arn | contains("'${AWS_REGION}'"))]')
-    TOTAL_ARNS=$(echo $LIST_ARNS | jq -r 'length')
-    for ((i=0;i<$TOTAL_ARNS;i++));
-        do
-        PROVIDER_ARN=$(echo $LIST_ARNS | jq -r '.['$i'].Arn')
-        size=$(aws iam list-open-id-connect-provider-tags --open-id-connect-provider-arn $PROVIDER_ARN | jq -e '[(.Tags[]| select(.Key=="alpha.eksctl.io/cluster-name" and (.Value | contains("'$CLUSTER_NAME'")))|.Value)]|length')
-            if [[ $size -eq 1 ]];then
-                echo "Deleting open-id-connect-provider with ARN '$PROVIDER_ARN' and cluster name: '$CLUSTER_NAME'"
-                aws iam delete-open-id-connect-provider --open-id-connect-provider-arn $PROVIDER_ARN
-            fi
-    done
-}
-
 # The function waits until all Elastic Load Balancers attached to EC2 instances (under the current Kubernetes context) are deleted. Takes a single argument - timeout.
 wait_for_elb_deleted()
 {
