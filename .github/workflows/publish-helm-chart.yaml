@@ -11,8 +11,6 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VERSION }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
