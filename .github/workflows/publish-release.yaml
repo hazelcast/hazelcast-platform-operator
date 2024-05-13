@@ -325,61 +325,6 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout to 'Hazelcast Charts' Repository
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/charts
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-
-      - name: Create Release Branch
-        run: |
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
-          git checkout -b $RELEASE_VERSION
-          git push -u origin $RELEASE_VERSION
-
-      - name: Checkout to Hazelcast Platform Repository
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/hazelcast-platform-operator
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-          ref: ${{ inputs.RELEASE_VERSION }}
-
-      - name: Commit And Push Changes To 'Hazelcast Charts' Repository
-        run: |
-          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
-          git subtree add --prefix=charts https://github.com/hazelcast/charts.git $RELEASE_VERSION --squash
-          git rm -r charts/stable/hazelcast-platform-operator/*
-          cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
-          git add charts/
-          git commit --signoff -m "Update Operator Chart to $RELEASE_VERSION"
-          git subtree push --prefix=charts https://github.com/hazelcast/charts.git $RELEASE_VERSION
-
-      - name: Checkout to 'Hazelcast Charts' Repository
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/charts
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-          ref: ${{ inputs.RELEASE_VERSION }}
-
-      - name: Create a New Tag in 'Hazelcast Charts' Repository
-        run: |
-          TAG_VERSION=v${RELEASE_VERSION}-operator
-          git tag ${TAG_VERSION}
-          git push origin ${TAG_VERSION}
-          
-          #remove branch
-          git push origin --delete $RELEASE_VERSION
-
-      - name: Checkout 'main' Branch
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/hazelcast-platform-operator
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-          ref: main
-
       - name: Update Chart Version in Main Branch
         working-directory: helm-charts/hazelcast-platform-operator
         run: |
@@ -490,22 +435,6 @@ jobs:
         run: |
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh release delete v${RELEASE_VERSION} --cleanup-tag --yes
-
-      - name: Checkout to 'Hazelcast Charts' Repo
-        if: always() && !contains(needs.helm_chart_release.result, 'skipped')
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/charts
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-
-      - name: Deleting Branch and Tag in 'Hazelcast Charts' Repo
-        if: always() && !contains(needs.helm_chart_release.result, 'skipped')
-        run: |
-          set +e
-          TAG_VERSION=v${RELEASE_VERSION}-operator
-          git push origin --delete ${RELEASE_VERSION}
-          git push origin --delete ${TAG_VERSION}
-          set -e
 
       - name: Download a Backup of the Helm Chart Index
         if: always() && ${{ ! (contains(needs.helm_chart_release.result, 'skipped')) }}
