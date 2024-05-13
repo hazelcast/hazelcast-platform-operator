@@ -2204,7 +2204,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	if h.Spec.LiteMemberCount != nil && *h.Spec.LiteMemberCount > 0 {
-		sts.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "export HZ_LITEMEMBER_ENABLED=$(printenv $(POD_NAME)-lite)  && bin/hz start"}
+		sts.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "export HZ_LITEMEMBER_ENABLED=$$(printenv $(POD_NAME)-lite)  && bin/hz start"}
 	}
 
 	pvcName := n.PVCName
