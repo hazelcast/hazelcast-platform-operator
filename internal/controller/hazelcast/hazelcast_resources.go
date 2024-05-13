@@ -2204,7 +2204,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	}
 
 	if h.Spec.LiteMemberCount != nil && *h.Spec.LiteMemberCount > 0 {
-		sts.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "export HZ_LITEMEMBER_ENABLED=$(printenv $(printenv MY_POD_NAME)-lite)  && bin/hz start"}
+		sts.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "export HZ_LITEMEMBER_ENABLED=$(printenv $(POD_NAME)-lite)  && bin/hz start"}
 	}
 
 	pvcName := n.PVCName
@@ -3069,7 +3069,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Value: javaClassPath(h),
 		},
 		{
-			Name: "MY_POD_NAME",
+			Name: "POD_NAME",
 			ValueFrom: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
 					FieldPath: "metadata.name",
