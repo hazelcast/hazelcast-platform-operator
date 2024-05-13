@@ -360,7 +360,7 @@ jobs:
     steps:
       - run: ""
 
-  merge-pr:
+  merge_pr:
     name: Merge all PR's
     needs: validate_release
     if: always() && needs.validate_release.result == 'success'
@@ -440,8 +440,8 @@ jobs:
 
   revert_changes:
     name: Revert Release Changes
-    needs: validate-release
-    if: always() && needs.validate-release.result == 'failure'
+    needs: validate_release
+    if: always() && needs.validate_release.result == 'failure'
     runs-on: ubuntu-latest
     env:
       CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
@@ -538,8 +538,8 @@ jobs:
 
   slack_notify:
     name: Slack Notify
-    needs: ['publish_docker_image', 'publish_image_to_redhat', 'operator_bundle_release', 'redhat_certified_operator_release', 'helm_chart_release']
-    if: needs.operator_bundle_release.result != 'success' && needs.redhat_certified_operator_release.result != 'success' && needs.helm_chart_release.result != 'success'
+    needs: ['publish_docker_image', 'publish_image_to_redhat', 'operator_bundle_release', 'helm_chart_release', "validate_release", "merge_pr"]
+    if: needs.publish_docker_image.result != 'success' && needs.publish_image_to_redhat.result != 'success' && needs.operator_bundle_release.result != 'success'  && needs.helm_chart_release.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
