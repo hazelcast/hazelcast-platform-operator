@@ -409,6 +409,10 @@ spec:
       name: Message
       priority: 1
       type: string
+    - description: Current numbers of lite members
+      jsonPath: .status.liteMemberCount
+      name: Lite Member Count
+      type: integer
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -2594,6 +2598,10 @@ spec:
                       in the format <ready>/<desired>
                     type: string
                 type: object
+              liteMemberCount:
+                description: Number of Hazelcast lite members in the cluster.
+                format: int32
+                type: integer
               members:
                 description: Status of Hazelcast members
                 items:

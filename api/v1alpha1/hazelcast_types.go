@@ -1248,6 +1248,10 @@ type HazelcastStatus struct {
 	// +optional
 	ClusterSize int32 `json:"clusterSize"`
 
+	// Number of Hazelcast lite members in the cluster.
+	// +optional
+	LiteMemberCount int32 `json:"liteMemberCount"`
+
 	// Selector is a label selector used by HorizontalPodAutoscaler to autoscale Hazelcast resource.
 	// +optional
 	Selector string `json:"selector"`
@@ -1377,6 +1381,7 @@ type HazelcastClusterStatus struct {
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
 // +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
 // +kubebuilder:printcolumn:name="Message",type="string",priority=1,JSONPath=".status.message",description="Message for the current Hazelcast Config"
+// +kubebuilder:printcolumn:name="Lite Member Count",type="integer",JSONPath=".status.liteMemberCount",description="Current numbers of lite members"
 // +kubebuilder:resource:shortName=hz
 type Hazelcast struct {
 	metav1.TypeMeta `json:",inline"`
