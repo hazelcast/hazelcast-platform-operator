@@ -910,7 +910,7 @@ func (r *HazelcastReconciler) reconcileLiteMemberCount(ctx context.Context, h *h
 			return nil
 		})
 		if result != controllerutil.OperationResultNone {
-			logger.Info("Operation result", "Secret", h.Name, "result", result)
+			logger.Info("Operation result", "ConfigMap", h.Name, "result", result)
 		}
 		return err
 	})
