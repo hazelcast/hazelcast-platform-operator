@@ -51,7 +51,7 @@ var _ = Describe("Hazelcast MultiMap Config", Group("multimap"), func() {
 	})
 
 	Context("Updating MultiMap configurations", func() {
-		It("verifies that MultiMap Config updates are prohibited", Tag(Kind|Any), func() {
+		It("verifies that MultiMap Config updates are prohibited", Label("cluster_scope"), Tag(Kind|Any), func() {
 			setLabelAndCRName("mm-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
