@@ -206,6 +206,10 @@ func (s *HazelcastSpec) GetLicenseKeySecretName() string {
 	return s.LicenseKeySecretName
 }
 
+func (s *HazelcastSpec) IsLiteMemberEnabled() bool {
+	return s.LiteMemberCount != nil && *s.LiteMemberCount > 0
+}
+
 // +kubebuilder:validation:Enum=Native;BigEndian;LittleEndian
 type ByteOrder string
 

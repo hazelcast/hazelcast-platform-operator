@@ -887,7 +887,7 @@ func (r *HazelcastReconciler) reconcileAgentConfig(ctx context.Context, h *hazel
 }
 
 func (r *HazelcastReconciler) reconcileLiteMemberCount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !(h.Spec.LiteMemberCount != nil && *h.Spec.LiteMemberCount > 0) {
+	if !h.Spec.IsLiteMemberEnabled() {
 		return nil
 	}
 	cm := &corev1.ConfigMap{
@@ -2203,7 +2203,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
-	if h.Spec.LiteMemberCount != nil && *h.Spec.LiteMemberCount > 0 {
+	if h.Spec.IsLiteMemberEnabled() {
 		sts.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "export HZ_LITEMEMBER_ENABLED=$$(printenv $(POD_NAME)-lite)  && bin/hz start"}
 	}
 
@@ -2793,7 +2793,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		})
 	}
 
-	if h.Spec.LiteMemberCount != nil && *h.Spec.LiteMemberCount > 0 {
+	if h.Spec.IsLiteMemberEnabled() {
 		vols = append(vols, corev1.Volume{
 			Name: n.LiteConfigMap,
 			VolumeSource: v1.VolumeSource{
@@ -2905,7 +2905,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 		})
 	}
 
-	if h.Spec.LiteMemberCount != nil && *h.Spec.LiteMemberCount > 0 {
+	if h.Spec.IsLiteMemberEnabled() {
 		mounts = append(mounts, liteVolumeMount())
 	}
 
@@ -3097,7 +3097,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 
 func envFrom(h *hazelcastv1alpha1.Hazelcast) []v1.EnvFromSource {
 	var envs []v1.EnvFromSource
-	if h.Spec.LiteMemberCount != nil && *h.Spec.LiteMemberCount > 0 {
+	if h.Spec.IsLiteMemberEnabled() {
 		envs = append(envs, v1.EnvFromSource{
 			ConfigMapRef: &v1.ConfigMapEnvSource{
 				LocalObjectReference: v1.LocalObjectReference{
