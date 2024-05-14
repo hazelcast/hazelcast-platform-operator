@@ -897,7 +897,7 @@ func (r *HazelcastReconciler) reconcileLiteMemberCount(ctx context.Context, h *h
 	cm.Name = cm.Name + n.LiteSuffix
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
 	if err != nil {
-		return fmt.Errorf("failed to set owner reference on ConfigMap: %w", err)
+		return fmt.Errorf("failed to set owner reference on LiteConfigMap: %w", err)
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
