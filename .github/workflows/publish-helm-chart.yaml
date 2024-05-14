@@ -1,4 +1,4 @@
-name: Publish Hazelcast-Platform-Operator Helm chart
+name: Publish Helm chart
 
 on:
   workflow_dispatch:
