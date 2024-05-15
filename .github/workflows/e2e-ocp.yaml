@@ -217,9 +217,13 @@ jobs:
           password: ${{ env.GKE_SA_KEY }}
 
       - name: Install CRD's
-        if: matrix.edition == 'os'
-        run: |
-          make install-crds
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 1
+          max_attempts: 2
+          retry_on: error
+          command: |
+            make install-crds
 
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
