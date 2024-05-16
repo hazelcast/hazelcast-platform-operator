@@ -425,14 +425,14 @@ jobs:
             fi
 
       - name: Checkout to hazelcast/hazelcast-platform-operator
-        if: always() && matrix.repo-name == "hazelcast-platform-operator"
+        if: always() && matrix.repo-name == 'hazelcast-platform-operator'
         uses: actions/checkout@v4
         with:
           repository: ${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Merge Helm Chart PR
-        if: always() && matrix.repo-name == "hazelcast-platform-operator"
+        if: always() && matrix.repo-name == 'hazelcast-platform-operator'
         run: |
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           HELM_CHART_PR_NUMBER=$(gh pr list --repo hazelcast/hazelcast-platform-operator --search "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" --json number | jq -r '.[].number')
