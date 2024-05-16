@@ -3,14 +3,18 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
+	proto "github.com/hazelcast/hazelcast-go-client"
+	clientTypes "github.com/hazelcast/hazelcast-go-client/types"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -137,7 +141,7 @@ func Test_mapTieredStoreConfig(t *testing.T) {
 			r := mapReconcilerWithCRs(&fakeHzClientRegistry{}, h, m)
 			_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 			if err == nil {
-				t.Errorf("Error expecting Reconcile to return error")
+				t.Errorf("Expecting Reconcile to return error")
 			}
 
 			Eventually(func() hazelcastv1alpha1.MapConfigState {
@@ -147,7 +151,38 @@ func Test_mapTieredStoreConfig(t *testing.T) {
 			Expect(m.Status.Message).Should(ContainSubstring(test.errMessage))
 		})
 	}
+}
 
+func Test_mapConfigFailedToApply(t *testing.T) {
+	RegisterFailHandler(fail(t))
+	nn, h, m := defaultCRsMap()
+	hs, _ := json.Marshal(h.Spec)
+	h.ObjectMeta.Annotations = map[string]string{
+		n.LastSuccessfulSpecAnnotation: string(hs),
+	}
+	clReg := &fakeHzClientRegistry{}
+	fakeHzClient, _, _ := defaultFakeClientAndService()
+	fakeHzClient.tInvokeOnMember = func(ctx context.Context, req *proto.ClientMessage, uuid clientTypes.UUID, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
+		return nil, fmt.Errorf("error sending map config")
+	}
+	clReg.Set(nn, &fakeHzClient)
+	k8sCl := fakeK8sClient(h, m)
+	r := NewMapReconciler(
+		k8sCl,
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		nil,
+		clReg,
+	)
+
+	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
+	if err == nil {
+		t.Errorf("Expecting Reconcile to return error")
+	}
+
+	mp := &hazelcastv1alpha1.Map{}
+	Expect(k8sCl.Get(context.TODO(), nn, mp, nil)).To(Succeed())
+	Expect(mp.Status.State).To(Equal(hazelcastv1alpha1.MapFailed))
+	Expect(mp.Status.Message).To(ContainSubstring("error creating/updating the Map config"))
 }
 
 func defaultCRsMap() (types.NamespacedName, *hazelcastv1alpha1.Hazelcast, *hazelcastv1alpha1.Map) {
@@ -176,6 +211,7 @@ func defaultCRsMap() (types.NamespacedName, *hazelcastv1alpha1.Hazelcast, *hazel
 		},
 		Spec: hazelcastv1alpha1.MapSpec{
 			DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+				BackupCount:           pointer.Int32(2),
 				HazelcastResourceName: nn.Name,
 			},
 		},
