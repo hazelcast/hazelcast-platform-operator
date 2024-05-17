@@ -111,6 +111,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			clusterSize := int32(1)
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 			hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
+			hazelcast.Spec.LiteMemberCount = &[]int32{0}[0]
 
 			By("creating HotBackup CR")
 			hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
@@ -141,6 +142,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 				MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 			}
+			hazelcast.Spec.LiteMemberCount = &[]int32{0}[0]
 			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
