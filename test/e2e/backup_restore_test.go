@@ -216,6 +216,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			By("creating cluster with external backup enabled")
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.LiteMemberCount = &[]int32{0}[0]
 
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
