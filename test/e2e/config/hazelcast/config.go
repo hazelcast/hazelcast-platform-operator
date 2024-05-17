@@ -151,6 +151,7 @@ var (
 			},
 			Spec: hazelcastcomv1alpha1.HazelcastSpec{
 				ClusterSize:          pointer.Int32(clusterSize),
+				LiteMemberCount:      pointer.Int32(1),
 				Repository:           repo(true),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(true),

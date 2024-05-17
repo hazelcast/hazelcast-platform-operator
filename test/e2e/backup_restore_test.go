@@ -51,6 +51,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 		By("creating cluster from backup")
 		restoredHz := hazelcastconfig.HazelcastRestore(hazelcast, restoreConfig(hotBackup, useBucketConfig))
+		restoredHz.Spec.LiteMemberCount = &[]int32{1}[0]
 		CreateHazelcastCR(restoredHz)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -660,6 +661,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				},
 			}
 			restoredHz := hazelcastconfig.HazelcastRestore(hazelcast, fromLocal)
+			restoredHz.Spec.LiteMemberCount = &[]int32{1}[0]
 			CreateHazelcastCR(restoredHz)
 			evaluateReadyMembers(hzLookupKey)
 
