@@ -487,7 +487,7 @@ jobs:
         run: |
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           CURRENT_LATEST_TAG=$(gh api -H "Accept: application/vnd.github+json" \
-          /repos/hazelcast/hazelcast-platform-operator/environments/prod/variables/RELEASE | jq -r '.value')
+          /repos/hazelcast/hazelcast-platform-operator/environments/prod/variables/CURRENT_LATEST_TAG | jq -r '.value')
           docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
           make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
 
