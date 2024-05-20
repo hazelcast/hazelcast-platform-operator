@@ -10,7 +10,7 @@ env:
   OPERATOR_NAME: "hazelcast-platform-operator"
   RELEASE_VERSION: ${{ inputs.RELEASE_VERSION }}
   PUBLISH_TIMEOUT_IN_MINS: "60"
-  GRADE_CHECK_TIMEOUT_IN_MINS: "10"
+  GRADE_CHECK_TIMEOUT_IN_MINS: "20"
   AWS_REGION: us-east-1
 
 jobs:
