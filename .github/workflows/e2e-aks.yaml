@@ -43,7 +43,7 @@ jobs:
         with:
           azcliversion: 2.31.0
           inlineScript: |
-            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+            CLUSTER_NAME="operator-e2e-test-aks-${GITHUB_SHA::8}-${{ github.run_number }}"
             echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
             NRG=$(az aks create \
               --resource-group=${AZURE_RESOURCE_GROUP} \
