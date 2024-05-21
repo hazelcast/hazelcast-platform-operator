@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-	"reflect"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -206,9 +205,20 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	wrs := &hazelcastv1alpha1.WanReplicationList{}
-	wrs.Items = []hazelcastv1alpha1.WanReplication{
-		{
+	objects := []client.Object{
+		hz,
+		&hazelcastv1alpha1.Map{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "map",
+				Namespace: "default",
+			},
+			Spec: hazelcastv1alpha1.MapSpec{
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hz.Name,
+				},
+			},
+		},
+		&hazelcastv1alpha1.WanReplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "wan-1",
 				Namespace: "default",
@@ -232,7 +242,7 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 				},
 			},
 		},
-		{
+		&hazelcastv1alpha1.WanReplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "wan-2",
 				Namespace: "default",
@@ -257,22 +267,7 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 			},
 		},
 	}
-	objects := []client.Object{
-		hz,
-		&hazelcastv1alpha1.Map{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "map",
-				Namespace: "default",
-			},
-			Spec: hazelcastv1alpha1.MapSpec{
-				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-					HazelcastResourceName: hz.Name,
-				},
-			},
-		},
-	}
-	c := &mockK8sClient{Client: fakeK8sClient(objects...)}
-	c.list = wrs
+	c := fakeK8sClient(objects...)
 
 	bytes, err := hazelcastConfig(context.TODO(), c, hz, logr.Discard())
 	if err != nil {
@@ -455,21 +450,6 @@ func Test_configBaseDirShouldNotChangeWhenExists(t *testing.T) {
 		Name:  "RESTORE_DESTINATION",
 		Value: n.PersistenceMountPath,
 	})))
-}
-
-// Client used to mock List() method for the WanReplicationList CR
-// Needed since the List() method uses the indexed filed "hazelcastResourceName" not available in the fakeClient.
-type mockK8sClient struct {
-	client.Client
-	list *hazelcastv1alpha1.WanReplicationList
-}
-
-func (c *mockK8sClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-	if list == nil || reflect.TypeOf(list) != reflect.TypeOf(c.list) {
-		return c.Client.List(ctx, list, opts...)
-	}
-	list.(*hazelcastv1alpha1.WanReplicationList).Items = c.list.Items
-	return nil
 }
 
 type listKeys func(h config.Hazelcast) []string
