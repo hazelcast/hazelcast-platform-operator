@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -19,6 +20,10 @@ import (
 )
 
 var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_externally"), func() {
+	if isIstioSetup() {
+		Skip("skipping suites in Istio setup")
+	}
+
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -233,4 +238,19 @@ func clientConnectedToAllMembers(ctx context.Context, lk types.NamespacedName) b
 		}
 	}
 	return true
+}
+
+// checks if the istio system namespace exists and injection label is set in the test namespace
+func isIstioSetup() bool {
+	err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "istio-system"}, &corev1.Namespace{})
+	if kerrors.IsNotFound(err) {
+		return false
+	}
+	Expect(err).NotTo(HaveOccurred())
+
+	namespace := &corev1.Namespace{}
+	err = k8sClient.Get(context.Background(), client.ObjectKey{Name: hzNamespace}, namespace)
+	Expect(err).NotTo(HaveOccurred())
+	val, ok := namespace.Labels["istio-injection"]
+	return ok && val == "enabled"
 }
