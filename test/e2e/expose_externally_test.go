@@ -41,11 +41,16 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 		}, 2*Minute, interval).Should(Not(BeEmpty()))
 	}
 
-	Context("Cluster connectivity", func() {
+	skipIfIstioSetup := func() {
 		if isIstioSetup() {
 			Skip("skipping suites in Istio setup")
 		}
+	}
+
+	Context("Cluster connectivity", func() {
 		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag(Kind|Any), func() {
+			skipIfIstioSetup()
+
 			setLabelAndCRName("hee-1")
 			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -60,6 +65,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 		})
 
 		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag(AnyLicense|AWS|GCP|AZURE), func() {
+			skipIfIstioSetup()
+
 			setLabelAndCRName("hee-2")
 			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -115,6 +122,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 		})
 
 		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag(Any), func() {
+			skipIfIstioSetup()
+
 			setLabelAndCRName("hee-3")
 			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
