@@ -20,10 +20,6 @@ import (
 )
 
 var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_externally"), func() {
-	if isIstioSetup() {
-		Skip("skipping suites in Istio setup")
-	}
-
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -46,6 +42,9 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 	}
 
 	Context("Cluster connectivity", func() {
+		if isIstioSetup() {
+			Skip("skipping suites in Istio setup")
+		}
 		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag(Kind|Any), func() {
 			setLabelAndCRName("hee-1")
 			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
