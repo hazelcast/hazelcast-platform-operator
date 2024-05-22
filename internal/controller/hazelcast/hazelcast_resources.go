@@ -943,7 +943,9 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 }
 
 func initContainerConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
-	cfgW := compound.ConfigWrapper{}
+	cfgW := compound.ConfigWrapper{
+		InitContainer: &compound.Config{},
+	}
 
 	// UCN
 	if h.Spec.UserCodeNamespaces.IsEnabled() {
@@ -975,39 +977,52 @@ func initContainerConfig(ctx context.Context, c client.Client, h *hazelcastv1alp
 	ucn := h.Spec.DeprecatedUserCodeDeployment
 
 	if h.Spec.DeprecatedUserCodeDeployment.IsBucketEnabled() {
-		cfgW.InitContainer.Download.Buckets = append(cfgW.InitContainer.Download.Buckets,
-			downloadbucket.Cmd{
-				Destination: n.UserCodeBucketPath,
-				SecretName:  ucn.BucketConfiguration.GetSecretName(),
-				BucketURI:   ucn.BucketConfiguration.BucketURI,
-			})
+		cfgW.InitContainer.Download = &compound.Download{
+			Buckets: []downloadbucket.Cmd{
+				{
+					Destination: n.UserCodeBucketPath,
+					SecretName:  ucn.BucketConfiguration.GetSecretName(),
+					BucketURI:   ucn.BucketConfiguration.BucketURI,
+				},
+			},
+		}
 	}
 
 	if h.Spec.DeprecatedUserCodeDeployment.IsRemoteURLsEnabled() {
-		cfgW.InitContainer.Download.URLs = append(cfgW.InitContainer.Download.URLs,
-			downloadurl.Cmd{
-				Destination: n.UserCodeBucketPath,
-				URLs:        strings.Join(ucn.RemoteURLs, ","),
-			})
+		cfgW.InitContainer.Download = &compound.Download{
+			URLs: []downloadurl.Cmd{
+				{
+					Destination: n.UserCodeBucketPath,
+					URLs:        strings.Join(ucn.RemoteURLs, ","),
+				},
+			},
+		}
 	}
 
 	// JET
 	jet := h.Spec.JetEngineConfiguration
 
 	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
-		cfgW.InitContainer.Download.Buckets = append(cfgW.InitContainer.Download.Buckets, downloadbucket.Cmd{
-			Destination: n.JetJobJarsPath,
-			SecretName:  jet.BucketConfiguration.GetSecretName(),
-			BucketURI:   jet.BucketConfiguration.BucketURI,
-		})
+		cfgW.InitContainer.Download = &compound.Download{
+			Buckets: []downloadbucket.Cmd{
+				{
+					Destination: n.JetJobJarsPath,
+					SecretName:  jet.BucketConfiguration.GetSecretName(),
+					BucketURI:   jet.BucketConfiguration.BucketURI,
+				},
+			},
+		}
 	}
 
 	if h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
-		cfgW.InitContainer.Download.URLs = append(cfgW.InitContainer.Download.URLs,
-			downloadurl.Cmd{
-				Destination: n.JetJobJarsPath,
-				URLs:        strings.Join(jet.RemoteURLs, ","),
-			})
+		cfgW.InitContainer.Download = &compound.Download{
+			URLs: []downloadurl.Cmd{
+				{
+					Destination: n.JetJobJarsPath,
+					URLs:        strings.Join(jet.RemoteURLs, ","),
+				},
+			},
+		}
 	}
 
 	// Persistence Restore
