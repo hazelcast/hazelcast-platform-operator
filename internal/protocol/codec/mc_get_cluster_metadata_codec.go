@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	types "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -60,4 +61,22 @@ func DecodeMCGetClusterMetadataResponse(clientMessage *proto.ClientMessage) type
 		MemberVersion: memberVersion,
 		JetVersion:    jetVersion,
 	}
+}
+
+func EncodeMCGetClusterMetadataResponse(clusterMetadata types.ClusterMetadata) *proto.ClientMessage {
+	clientMessage := proto.NewClientMessageForEncode()
+	clientMessage.SetRetryable(true)
+
+	initialFrame := proto.NewFrameWith(make([]byte, MCGetClusterMetadataResponseClusterTimeOffset+proto.LongSizeInBytes), proto.UnfragmentedMessage)
+
+	clientMessage.AddFrame(initialFrame)
+	clientMessage.SetMessageType(MCGetClusterMetadataCodecResponseMessageType)
+	clientMessage.SetPartitionId(-1)
+
+	EncodeByte(initialFrame.Content, MCGetClusterMetadataResponseCurrentStateOffset, byte(clusterMetadata.CurrentState))
+	EncodeLong(initialFrame.Content, MCGetClusterMetadataResponseClusterTimeOffset, clusterMetadata.ClusterTime)
+	EncodeString(clientMessage, clusterMetadata.MemberVersion)
+	EncodeString(clientMessage, clusterMetadata.JetVersion)
+
+	return clientMessage
 }
