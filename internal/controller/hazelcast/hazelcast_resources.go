@@ -1043,9 +1043,9 @@ func initContainerConfig(ctx context.Context, c client.Client, h *hazelcastv1alp
 			return nil, err
 		}
 	} else if h.Spec.Persistence.RestoreFromLocalBackup() {
-		restoreLocalInitContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, hzConf.Hazelcast.Persistence.BaseDir)
+		r = restoreLocalInitContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, hzConf.Hazelcast.Persistence.BaseDir)
 	} else {
-		restoreInitContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
+		r = restoreInitContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
 			h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, hzConf.Hazelcast.Persistence.BaseDir)
 	}
 	cfgW.InitContainer.Restore = &r
@@ -2371,7 +2371,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		if err != nil {
 			return err
 		}
-		sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, ic)
+		sts.Spec.Template.Spec.InitContainers = []v1.Container{ic}
 
 		sts.Spec.Template.Spec.Volumes = volumes(h)
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h, pvcName)
@@ -2565,9 +2565,9 @@ func containerSecurityContext() *v1.SecurityContext {
 
 func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container, error) {
 	c := corev1.Container{
-		Name:    n.InitContainer,
-		Image:   h.AgentDockerImage(),
-		Command: []string{"execute-multiple-commands"},
+		Name:  n.InitContainer,
+		Image: h.AgentDockerImage(),
+		Args:  []string{"execute-multiple-commands"},
 		Env: []v1.EnvVar{
 			{
 				Name:  "CONFIG_FILE",
@@ -2578,6 +2578,16 @@ func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container
 		TerminationMessagePolicy: "File",
 		SecurityContext:          containerSecurityContext(),
 		ImagePullPolicy:          corev1.PullIfNotPresent,
+		VolumeMounts: []v1.VolumeMount{
+			{
+				Name:      pvcName,
+				MountPath: n.PersistenceMountPath,
+			},
+			{
+				Name:      n.AgentConfigMap,
+				MountPath: n.AgentConfigDir,
+			},
+		},
 	}
 
 	if h.Spec.DeprecatedUserCodeDeployment.IsBucketEnabled() ||
@@ -2594,12 +2604,6 @@ func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container
 		c.VolumeMounts = append(c.VolumeMounts, ucnBucketVolumeMount())
 	}
 
-	if h.Spec.Persistence.IsRestoreEnabled() {
-		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
-			Name:      pvcName,
-			MountPath: n.PersistenceMountPath,
-		})
-	}
 	return c, nil
 }
 
@@ -2649,6 +2653,17 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 				},
 			},
 		},
+		{
+			Name: n.AgentConfigMap,
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: h.Name + n.InitSuffix,
+					},
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		},
 		emptyDirVolume(n.UserCodeBucketVolumeName),
 		emptyDirVolume(n.UserCodeURLVolumeName),
 		emptyDirVolume(n.JetJobJarsVolumeName),
@@ -2662,20 +2677,6 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 
 	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
 		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
-	}
-
-	if h.Spec.UserCodeNamespaces.IsEnabled() {
-		vols = append(vols, emptyDirVolume(n.UCNVolumeName), corev1.Volume{
-			Name: n.AgentConfigMap,
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: h.Name + n.InitSuffix,
-					},
-					DefaultMode: pointer.Int32(420),
-				},
-			},
-		})
 	}
 
 	return vols
