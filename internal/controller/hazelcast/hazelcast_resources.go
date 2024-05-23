@@ -2571,7 +2571,7 @@ func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container
 		Env: []v1.EnvVar{
 			{
 				Name:  "CONFIG_FILE",
-				Value: n.AgentConfigDir + n.InitConfigFile,
+				Value: n.InitConfigDir + n.InitConfigFile,
 			},
 		},
 		TerminationMessagePath:   "/dev/termination-log",
@@ -2579,13 +2579,10 @@ func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container
 		SecurityContext:          containerSecurityContext(),
 		ImagePullPolicy:          corev1.PullIfNotPresent,
 		VolumeMounts: []v1.VolumeMount{
+
 			{
-				Name:      pvcName,
-				MountPath: n.PersistenceMountPath,
-			},
-			{
-				Name:      n.AgentConfigMap,
-				MountPath: n.AgentConfigDir,
+				Name:      n.InitConfigMap,
+				MountPath: n.InitConfigDir,
 			},
 		},
 	}
@@ -2604,7 +2601,18 @@ func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container
 		c.VolumeMounts = append(c.VolumeMounts, ucnBucketVolumeMount())
 	}
 
+	if h.Spec.Persistence.IsEnabled() {
+		c.VolumeMounts = append(c.VolumeMounts, persistenceVolumeMount(pvcName))
+	}
+
 	return c, nil
+}
+
+func persistenceVolumeMount(pvcName string) v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      pvcName,
+		MountPath: n.PersistenceMountPath,
+	}
 }
 
 func ucnBucketVolumeMount() v1.VolumeMount {
@@ -2654,7 +2662,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 			},
 		},
 		{
-			Name: n.AgentConfigMap,
+			Name: n.InitConfigMap,
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -2746,10 +2754,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.Vo
 		vm = append(vm, ucnBucketVolumeMount())
 	}
 	if h.Spec.Persistence.IsEnabled() {
-		vm = append(vm, v1.VolumeMount{
-			Name:      pvcName,
-			MountPath: n.PersistenceMountPath,
-		})
+		vm = append(vm, persistenceVolumeMount(pvcName))
 	}
 	return vm
 }
