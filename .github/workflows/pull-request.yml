@@ -111,6 +111,28 @@ jobs:
       - name: Run integration tests (EE)
         run: make GO_TEST_FLAGS="-ee=true" test-it
 
+  check_breaking_changes:
+    name: Check breaking changes
+    runs-on: ubuntu-latest
+    permissions: {}
+    if: ( !cancelled() && github.event_name == 'pull_request' )
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Check breaking changes between stable and latest-snapshot version
+        working-directory: tools/version-diff-tool
+        run: |
+          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && helm repo update
+          STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.available_versions | map(select(.version | contains("snapshot") | not)) | .[0].version')
+          LATEST_SNAPSHOT=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+          RESULT=$(go run main.go -base $STABLE_VERSION -revision $LATEST_SNAPSHOT -ignore request-property-max-set,request-property-min-set)
+          echo "$RESULT" | grep -q "0 breaking changes" || { echo "$RESULT"; exit 1; }
+
   get-image:
     name: Get Image
     runs-on: ubuntu-latest
