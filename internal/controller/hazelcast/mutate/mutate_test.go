@@ -7,7 +7,7 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 )
 
-func Test_HazelcastSpec_SetDefauktValues(t *testing.T) {
+func Test_HazelcastSpec_SetDefaultValues(t *testing.T) {
 	h := &hazelcastv1alpha1.Hazelcast{
 		Spec: hazelcastv1alpha1.HazelcastSpec{
 			Repository:                 n.HazelcastRepo,
