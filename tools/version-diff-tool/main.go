@@ -22,39 +22,75 @@ import (
 )
 
 type CRD struct {
-	APIVersion string `yaml:"apiVersion"`
-	Kind       string `yaml:"kind"`
-	Metadata   struct {
-		Name string `yaml:"name"`
-	} `yaml:"metadata"`
-	Spec struct {
-		Names struct {
-			Kind string `yaml:"kind"`
-		} `yaml:"names"`
-		Versions []struct {
-			Schema struct {
-				OpenAPIV3Schema struct {
-					Properties map[string]struct {
-						Description string                 `yaml:"description,omitempty"`
-						Properties  map[string]interface{} `yaml:"properties"`
-						Required    []string               `yaml:"required,omitempty"`
-						Type        string                 `yaml:"type"`
-					} `yaml:"properties"`
-				} `yaml:"openAPIV3Schema"`
-			} `yaml:"schema"`
-		} `yaml:"versions"`
-	} `yaml:"spec"`
+	APIVersion string   `yaml:"apiVersion"`
+	Kind       string   `yaml:"kind"`
+	Metadata   Metadata `yaml:"metadata"`
+	Spec       Spec     `yaml:"spec"`
+}
+
+type Metadata struct {
+	Name string `yaml:"name"`
+}
+
+type Spec struct {
+	Names    Names     `yaml:"names"`
+	Versions []Version `yaml:"versions"`
+}
+
+type Names struct {
+	Kind string `yaml:"kind"`
+}
+
+type Version struct {
+	Schema struct {
+		OpenAPIV3Schema OpenAPIV3Schema `yaml:"openAPIV3Schema"`
+	} `yaml:"schema"`
+}
+
+type OpenAPIV3Schema struct {
+	Properties map[string]Property `yaml:"properties"`
+}
+
+type Property struct {
+	Description string                 `yaml:"description,omitempty"`
+	Properties  map[string]interface{} `yaml:"properties"`
+	Required    []string               `yaml:"required,omitempty"`
+	Type        string                 `yaml:"type"`
+}
+
+type Content struct {
+	Schema Schema `yaml:"schema"`
+}
+
+type Schema struct {
+	Description string                 `yaml:"description"`
+	Type        string                 `yaml:"type"`
+	Required    []string               `yaml:"required"`
+	Properties  map[string]interface{} `yaml:"properties"`
+}
+
+type Path struct {
+	Post Post `yaml:"post"`
+}
+
+type Post struct {
+	RequestBody RequestBody `yaml:"requestBody"`
+}
+
+type RequestBody struct {
+	Required bool               `yaml:"required"`
+	Content  map[string]Content `yaml:"content"`
 }
 
 func createOpenAPISpec(crds []CRD) map[string]interface{} {
 	paths := make(map[string]interface{})
 	for _, crd := range crds {
 		path := fmt.Sprintf("%s.%s", strings.ToLower(crd.Spec.Names.Kind), "hazelcast.com")
-		schema := map[string]interface{}{
-			"description": crd.Metadata.Name,
-			"type":        "object",
-			"required":    []string{"spec"},
-			"properties": map[string]interface{}{
+		schema := Schema{
+			Description: crd.Metadata.Name,
+			Type:        "object",
+			Required:    []string{"spec"},
+			Properties: map[string]interface{}{
 				"apiVersion": map[string]interface{}{"type": "string"},
 				"kind":       map[string]interface{}{"type": "string"},
 				"metadata":   map[string]interface{}{"type": "object"},
@@ -63,13 +99,13 @@ func createOpenAPISpec(crds []CRD) map[string]interface{} {
 			},
 		}
 
-		paths[path] = map[string]interface{}{
-			"post": map[string]interface{}{
-				"requestBody": map[string]interface{}{
-					"required": true,
-					"content": map[string]interface{}{
-						"application/json": map[string]interface{}{
-							"schema": schema,
+		paths[path] = Path{
+			Post: Post{
+				RequestBody: RequestBody{
+					Required: true,
+					Content: map[string]Content{
+						"application/json": {
+							Schema: schema,
 						},
 					},
 				},
@@ -97,13 +133,13 @@ func addRepo(settings *cli.EnvSettings, repoName, repoURL string) error {
 func generateCRDFile(version string) (string, error) {
 	settings := cli.New()
 	actionConfig := new(action.Configuration)
-	if err := actionConfig.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), nil); err != nil {
+	if err := actionConfig.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		return "", fmt.Errorf("failed to initialize Helm action configuration: %v", err)
 	}
 
-	repoName := "hazelcast"
-	repoURL := "https://hazelcast-charts.s3.amazonaws.com"
-	crdChartName := "hazelcast-platform-operator-crds"
+	const repoName = "hazelcast"
+	const repoURL = "https://hazelcast-charts.s3.amazonaws.com"
+	const crdChartName = "hazelcast-platform-operator-crds"
 	fullChartName := fmt.Sprintf("%s/%s", repoName, crdChartName)
 
 	if err := addRepo(settings, repoName, repoURL); err != nil {
@@ -224,6 +260,9 @@ func main() {
 	if *base == "" || *revision == "" {
 		log.Fatal("both versions (-base, -revision) must be provided")
 	}
+	if *base <= "5.5" || *revision <= "5.5" {
+		log.Fatalf("version %s is not supported for backward compatibility check. Starting from version 5.6, Helm charts are used for setup instead of bundle files. This tool supports only Helm chart setup.", *base)
+	}
 	var ignoreList []string
 	if *ignoreMessages != "" {
 		ignoreList = strings.Split(*ignoreMessages, ",")
@@ -243,16 +282,13 @@ func main() {
 
 	wg.Wait()
 
-	diffRes, operationsSources, err := diff.GetPathsDiff(diff.NewConfig(),
-		[]*load.SpecInfo{baseSpec},
-		[]*load.SpecInfo{revisionSpec},
-	)
+	diffRes, operationsSources, err := diff.GetPathsDiff(diff.NewConfig(), []*load.SpecInfo{baseSpec}, []*load.SpecInfo{revisionSpec})
 	if err != nil {
 		log.Fatalf("diff failed with %v", err)
 	}
 
 	errs := checker.CheckBackwardCompatibility(checker.GetDefaultChecks(), diffRes, operationsSources)
-	if len(errs) > 0 || len(errs) == 0 {
+	if len(errs) >= 0 {
 		var formattedOutput string
 		localization := checker.NewDefaultLocalizer()
 		infoMessage := fmt.Sprintf("Comparing CRD files: %s and %s\n", *base, *revision)
