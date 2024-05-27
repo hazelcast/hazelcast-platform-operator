@@ -5,6 +5,7 @@ go 1.22.3
 require (
 	github.com/getkin/kin-openapi v0.124.0
 	github.com/tufin/oasdiff v1.10.16
+	golang.org/x/mod v0.17.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.15.0
 )

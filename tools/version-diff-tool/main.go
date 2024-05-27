@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"golang.org/x/mod/semver"
 	"log"
 	"os"
 	"regexp"
@@ -130,7 +131,7 @@ func addRepo(settings *cli.EnvSettings, repoName, repoURL string) error {
 	return nil
 }
 
-func generateCRDFile(version string) (string, error) {
+func generateCRDFile(version, repoUrl string) (string, error) {
 	settings := cli.New()
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
@@ -138,14 +139,14 @@ func generateCRDFile(version string) (string, error) {
 	}
 
 	const repoName = "hazelcast"
-	const repoURL = "https://hazelcast-charts.s3.amazonaws.com"
 	const crdChartName = "hazelcast-platform-operator-crds"
-	fullChartName := fmt.Sprintf("%s/%s", repoName, crdChartName)
-
-	if err := addRepo(settings, repoName, repoURL); err != nil {
-		return "", err
+	fullChartName := repoUrl
+	if strings.HasPrefix(repoUrl, "https://") {
+		fullChartName = fmt.Sprintf("%s/%s", repoName, crdChartName)
+		if err := addRepo(settings, repoName, repoUrl); err != nil {
+			return "", err
+		}
 	}
-
 	client := action.NewInstall(actionConfig)
 	client.DryRun = true
 	client.ReleaseName = repoName
@@ -228,11 +229,11 @@ blockLoop:
 	return strings.Join(filteredBlocks, "\n\n")
 }
 
-func generateAndExtractCRDs(version string, outputFile string, wg *sync.WaitGroup, specInfo **load.SpecInfo, apiLoader *openapi3.Loader) {
+func generateAndExtractCRDs(version, outputFile, repoURL string, wg *sync.WaitGroup, specInfo **load.SpecInfo, apiLoader *openapi3.Loader) {
 	defer wg.Done()
-	rawCrdFile, err := generateCRDFile(version)
+	rawCrdFile, err := generateCRDFile(version, repoURL)
 	if err != nil {
-		log.Fatalf("failed to generate CRD file for version %s: %v", version, err)
+		log.Fatalf("failed to generate CRD file for version %s and repo %s: %v", version, repoURL, err)
 	}
 
 	crds, err := extractCRDs(rawCrdFile)
@@ -255,14 +256,22 @@ func main() {
 	base := flag.String("base", "", "Version of the first CRD to compare")
 	revision := flag.String("revision", "", "Version of the second CRD to compare")
 	ignoreMessages := flag.String("ignore", "", "Comma-separated list of messages https://github.com/Tufin/oasdiff/blob/main/checker/localizations_src/en/messages.yaml to ignore in the output")
+	baseRepoURL := flag.String("base-repo-url", "https://hazelcast-charts.s3.amazonaws.com", "URL of the base Helm chart repository")
+	revisionRepoURL := flag.String("revision-repo-url", "https://hazelcast-charts.s3.amazonaws.com", "URL of the revision Helm chart repository")
 	flag.Parse()
 
-	if *base == "" || *revision == "" {
+	if *base == "" && *revision == "" {
 		log.Fatal("both versions (-base, -revision) must be provided")
 	}
-	if *base <= "5.5" || *revision <= "5.5" {
-		log.Fatalf("version %s is not supported for backward compatibility check. Starting from version 5.6, Helm charts are used for setup instead of bundle files. This tool supports only Helm chart setup.", *base)
+
+	if *base != "" && semver.Compare(fmt.Sprintf("v%s", *base), "v5.5") <= 0 {
+		log.Fatalf("base version %s is not supported for backward compatibility check. Versions must be greater than 5.5. Starting from version 5.6, Helm charts are used for setup instead of bundle files. This tool supports only Helm chart setup.", *base)
 	}
+
+	if *revision != "" && *revision != "latest-snapshot" && semver.Compare(fmt.Sprintf("v%s", *revision), "v5.5") <= 0 {
+		log.Fatalf("revision version %s is not supported for backward compatibility check. Versions must be greater than 5.5 unless it is 'latest-snapshot'. Starting from version 5.6, Helm charts are used for setup instead of bundle files. This tool supports only Helm chart setup.", *revision)
+	}
+
 	var ignoreList []string
 	if *ignoreMessages != "" {
 		ignoreList = strings.Split(*ignoreMessages, ",")
@@ -277,8 +286,8 @@ func main() {
 
 	wg.Add(2)
 
-	go generateAndExtractCRDs(*base, baseFile, &wg, &baseSpec, apiLoader)
-	go generateAndExtractCRDs(*revision, revisionFile, &wg, &revisionSpec, apiLoader)
+	go generateAndExtractCRDs(*base, baseFile, *baseRepoURL, &wg, &baseSpec, apiLoader)
+	go generateAndExtractCRDs(*revision, revisionFile, *revisionRepoURL, &wg, &revisionSpec, apiLoader)
 
 	wg.Wait()
 
