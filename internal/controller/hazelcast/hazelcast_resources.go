@@ -2573,6 +2573,15 @@ func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container
 				Name:  "CONFIG_FILE",
 				Value: n.InitConfigDir + n.InitConfigFile,
 			},
+			{
+				Name: "HOSTNAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						APIVersion: "v1",
+						FieldPath:  "metadata.name",
+					},
+				},
+			},
 		},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
