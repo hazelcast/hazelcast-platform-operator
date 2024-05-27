@@ -2688,6 +2688,10 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		tlsVolume(h),
 	}
 
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		vols = append(vols, emptyDirVolume(n.UCNVolumeName))
+	}
+
 	if h.Spec.DeprecatedUserCodeDeployment.IsConfigMapEnabled() {
 		vols = append(vols, configMapVolumes(ucdConfigMapName(h), h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration)...)
 	}
