@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/kutluhanhazelcast/platform-operator-agent", version: "kutlu15"}
+	// +kubebuilder:default:={repository: "docker.io/kutluhanhazelcast/platform-operator-agent", version: "kutlu16"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -684,7 +684,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="kutlu15"
+	// +kubebuilder:default:="kutlu16"
 	// +optional
 	Version string `json:"version,omitempty"`
 
