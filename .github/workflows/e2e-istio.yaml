@@ -169,6 +169,7 @@ jobs:
         uses: "google-github-actions/auth@v2.1.2"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
+          use_auth_provider: true
 
       - name: Get GH Public IP
         id: ip
