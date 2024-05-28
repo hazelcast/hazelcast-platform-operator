@@ -2,12 +2,15 @@ package hazelcast
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sync"
+	"testing"
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
@@ -135,6 +138,19 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 		Build()
 }
 
+func fakeMtlsHttpServer(url string, tlsCfg *tls.Config, handler http.HandlerFunc) (*httptest.Server, error) {
+	l, err := net.Listen("tcp", url)
+	if err != nil {
+		return nil, err
+	}
+	ts := httptest.NewUnstartedServer(handler)
+	_ = ts.Listener.Close()
+	ts.Listener = l
+	ts.TLS = tlsCfg
+	ts.StartTLS()
+	return ts, nil
+}
+
 func fakeHttpServer(url string, handler http.HandlerFunc) (*httptest.Server, error) {
 	l, err := net.Listen("tcp", url)
 	if err != nil {
@@ -186,6 +202,10 @@ func (hr *fakeHttpClientRegistry) Create(_ context.Context, _ client.Client, ns 
 		return v.(*http.Client), nil
 	}
 	return nil, errors.New("no client found")
+}
+
+func (hr *fakeHttpClientRegistry) GetOrCreate(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error) {
+	return hr.Create(ctx, kubeClient, ns)
 }
 
 func (hr *fakeHttpClientRegistry) Get(ns string) (*http.Client, bool) {
@@ -314,4 +334,16 @@ func (ss *fakeHzStatusService) GetTimedMemberState(_ context.Context, uuid hztyp
 }
 
 func (ss *fakeHzStatusService) Stop() {
+}
+
+func fail(t *testing.T) func(message string, callerSkip ...int) {
+	return func(message string, callerSkip ...int) {
+		if len(callerSkip) > 0 {
+			_, file, line, _ := runtime.Caller(callerSkip[0])
+			lineInfo := fmt.Sprintf("%s:%d", file, line)
+			t.Errorf("%s\n%s", lineInfo, message)
+		} else {
+			t.Error(message)
+		}
+	}
 }

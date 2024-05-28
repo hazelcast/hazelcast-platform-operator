@@ -13,6 +13,7 @@ import (
 
 type HttpClientRegistry interface {
 	Create(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error)
+	GetOrCreate(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error)
 	Get(ns string) (*http.Client, bool)
 	Delete(ns string)
 }
@@ -37,6 +38,14 @@ func (cr *httpClientRegistry) Create(ctx context.Context, kubeClient client.Clie
 	}
 	cr.clients.Store(nn, c)
 	return c, nil
+}
+
+func (cr *httpClientRegistry) GetOrCreate(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error) {
+	nn := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}
+	if v, ok := cr.clients.Load(nn); ok {
+		return v.(*http.Client), nil
+	}
+	return cr.Create(ctx, kubeClient, ns)
 }
 
 func (cr *httpClientRegistry) Get(ns string) (*http.Client, bool) {

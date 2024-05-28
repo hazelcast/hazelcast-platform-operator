@@ -2,7 +2,6 @@ package hazelcast
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"path/filepath"
@@ -40,7 +39,7 @@ type UserCodeNamespaceReconciler struct {
 	mtlsClientRegistry mtls.HttpClientRegistry
 }
 
-func NewUserCodeNamespaceReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cr *hzclient.HazelcastClientRegistry, mcr mtls.HttpClientRegistry) *UserCodeNamespaceReconciler {
+func NewUserCodeNamespaceReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, pht chan struct{}, cr hzclient.ClientRegistry, mcr mtls.HttpClientRegistry) *UserCodeNamespaceReconciler {
 	return &UserCodeNamespaceReconciler{
 		Client:             c,
 		Logger:             log,
@@ -152,9 +151,9 @@ func (r *UserCodeNamespaceReconciler) executeFinalizer(ctx context.Context, ucn 
 func (r *UserCodeNamespaceReconciler) downloadBundle(ctx context.Context, ucn *hazelcastv1alpha1.UserCodeNamespace, client hzclient.Client, logger logr.Logger) error {
 	logger.Info("Downloading UserCodeNamespace bundle")
 	g, groupCtx := errgroup.WithContext(ctx)
-	mtlsClient, ok := r.mtlsClientRegistry.Get(ucn.Namespace)
-	if !ok {
-		return errors.New("failed to get MTLS client")
+	mtlsClient, err := r.mtlsClientRegistry.GetOrCreate(ctx, r.Client, ucn.Namespace)
+	if err != nil {
+		return err
 	}
 	for _, m := range client.OrderedMembers() {
 		m := m

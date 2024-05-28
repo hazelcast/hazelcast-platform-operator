@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -331,9 +330,9 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			memberAddresses = append(memberAddresses, v.Address)
 		}
 
-		mtlsClient, ok := r.mtlsClientRegistry.Get(req.Namespace)
-		if !ok {
-			return errors.New("failed to get MTLS client")
+		mtlsClient, err := r.mtlsClientRegistry.GetOrCreate(ctx, r.Client, req.Namespace)
+		if err != nil {
+			return err
 		}
 		for _, memberAddress := range memberAddresses {
 			p, err := dialer.NewDialer(&dialer.Config{
