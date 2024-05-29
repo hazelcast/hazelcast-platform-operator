@@ -1131,7 +1131,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
-	FContext("with env variables", func() {
+	Context("with env variables", func() {
 		When("configured", func() {
 			It("should set them correctly", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
