@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -16,6 +17,7 @@ import (
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
+	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -26,6 +28,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -149,6 +152,29 @@ func fakeMtlsHttpServer(url string, tlsCfg *tls.Config, handler http.HandlerFunc
 	ts.TLS = tlsCfg
 	ts.StartTLS()
 	return ts, nil
+}
+
+func setupTlsConfig(k8sClient client.Client, namespace string) *tls.Config {
+	certNn := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: namespace}
+	_, err := mtls.NewClient(context.Background(), k8sClient, certNn)
+	Expect(err).To(BeNil())
+	certSecret := &corev1.Secret{}
+	Expect(k8sClient.Get(context.TODO(), certNn, certSecret)).Should(Succeed())
+
+	ca, cert, key := certSecret.Data[mtls.TLSCAKey], certSecret.Data[corev1.TLSCertKey], certSecret.Data[corev1.TLSPrivateKeyKey]
+	pool := x509.NewCertPool()
+	Expect(pool.AppendCertsFromPEM(ca)).To(BeTrue())
+
+	pair, err := tls.X509KeyPair(cert, key)
+	Expect(err).Should(BeNil())
+
+	tlsConf := &tls.Config{
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    pool,
+		Certificates: []tls.Certificate{pair},
+	}
+
+	return tlsConf
 }
 
 func fakeHttpServer(url string, handler http.HandlerFunc) (*httptest.Server, error) {

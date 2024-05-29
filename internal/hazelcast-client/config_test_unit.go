@@ -21,7 +21,7 @@ import (
 
 const (
 	localUrl  = "127.0.0.1:8000"
-	AgentPort = 8080
+	AgentPort = 8443
 )
 
 func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, cert *tls.Certificate, logger hzlogger.Logger) hazelcast.Config {
@@ -57,5 +57,5 @@ func HazelcastUrl(_ *hazelcastv1alpha1.Hazelcast) string {
 }
 
 func AgentUrl(host string) string {
-	return fmt.Sprintf("http://%s:%d", host, AgentPort)
+	return fmt.Sprintf("https://%s:%d", host, AgentPort)
 }

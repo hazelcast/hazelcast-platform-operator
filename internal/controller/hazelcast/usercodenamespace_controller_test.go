@@ -3,14 +3,12 @@ package hazelcast
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
 
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -32,12 +30,8 @@ func Test_UcnReconciler_mtlsClientShouldBeRecreated(t *testing.T) {
 	}
 	k8sClient := fakeK8sClient(h, ucn)
 
-	certNn := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: nn.Namespace}
-	_, err := mtls.NewClient(context.Background(), k8sClient, certNn)
-	Expect(err).To(BeNil())
-	certSecret := &v1.Secret{}
-	Expect(k8sClient.Get(context.TODO(), certNn, certSecret)).Should(Succeed())
-	defer ucnFakeMTLSHttpServer(certSecret.Data[mtls.TLSCAKey], certSecret.Data[v1.TLSCertKey], certSecret.Data[v1.TLSPrivateKeyKey])()
+	tlsConfig := setupTlsConfig(k8sClient, nn.Namespace)
+	defer ucnFakeMTLSHttpServer(tlsConfig)()
 
 	fakeHzClient, _, _ := defaultFakeClientAndService()
 	cr := &fakeHzClientRegistry{}
@@ -49,7 +43,7 @@ func Test_UcnReconciler_mtlsClientShouldBeRecreated(t *testing.T) {
 		nil, nil,
 		cr,
 		mtls.NewHttpClientRegistry())
-	_, err = r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: nn})
+	_, err := r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 	Expect(k8sClient.Get(context.TODO(), nn, ucn)).Should(Succeed())
 	Expect(ucn.Status.State).Should(Equal(hazelcastv1alpha1.UserCodeNamespaceSuccess))
@@ -97,18 +91,10 @@ func defaultCrsUCN() (types.NamespacedName, *hazelcastv1alpha1.Hazelcast, *hazel
 	return nn, h, ucn
 }
 
-func ucnFakeMTLSHttpServer(ca, cert, key []byte) func() {
-	pool := x509.NewCertPool()
-	Expect(pool.AppendCertsFromPEM(ca)).To(BeTrue())
+func ucnFakeMTLSHttpServer(tlsConfig *tls.Config) func() {
 
-	pair, err := tls.X509KeyPair(cert, key)
-	Expect(err).Should(BeNil())
 	ts, err := fakeMtlsHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort),
-		&tls.Config{
-			ClientAuth:   tls.RequireAndVerifyClientCert,
-			ClientCAs:    pool,
-			Certificates: []tls.Certificate{pair},
-		},
+		tlsConfig,
 		func(writer http.ResponseWriter, request *http.Request) {
 			writer.WriteHeader(200)
 			_, _ = writer.Write([]byte{})
