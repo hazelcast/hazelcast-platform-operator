@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
+	proto "github.com/hazelcast/hazelcast-go-client"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +21,8 @@ import (
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	hztypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -574,4 +577,40 @@ func TestDeepMerge(t *testing.T) {
 			t.Errorf("deepMerge(%v, %v) mismatch (-want, +got):\n%s", tc.dst, tc.src, diff)
 		}
 	}
+}
+
+func Test_EnsureClusterActive_ShouldChangeState(t *testing.T) {
+	RegisterFailHandler(fail(t))
+	r := HazelcastReconciler{}
+	c := &fakeHzClient{}
+	clusterState := hztypes.ClusterStateNoMigration
+	c.tInvokeOnRandomTarget = func(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
+		if req.Type() == codec.MCGetClusterMetadataCodecRequestMessageType {
+			return codec.EncodeMCGetClusterMetadataResponse(hztypes.ClusterMetadata{
+				CurrentState: clusterState,
+			}), nil
+		}
+		if req.Type() == codec.MCChangeClusterStateCodecRequestMessageType {
+			clusterState = codec.DecodeMCChangeClusterStateRequest(req)
+			return nil, nil
+		}
+		return nil, fmt.Errorf("unexpected message type")
+	}
+	h := &hazelcastv1alpha1.Hazelcast{
+		Spec: hazelcastv1alpha1.HazelcastSpec{
+			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				Restore: hazelcastv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: "my-hb-name",
+				},
+			},
+		},
+		Status: hazelcastv1alpha1.HazelcastStatus{
+			Restore: hazelcastv1alpha1.RestoreStatus{
+				State: hazelcastv1alpha1.RestoreSucceeded,
+			},
+			Phase: hazelcastv1alpha1.Running,
+		},
+	}
+	Expect(r.ensureClusterActive(context.TODO(), c, h)).Should(Succeed())
+	Expect(clusterState).To(Equal(hztypes.ClusterStateActive))
 }
