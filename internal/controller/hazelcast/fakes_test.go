@@ -177,28 +177,16 @@ func setupTlsConfig(k8sClient client.Client, namespace string) *tls.Config {
 	return tlsConf
 }
 
-func fakeHttpServer(url string, handler http.HandlerFunc) (*httptest.Server, error) {
-	l, err := net.Listen("tcp", url)
-	if err != nil {
-		return nil, err
-	}
-	ts := httptest.NewUnstartedServer(handler)
-	_ = ts.Listener.Close()
-	ts.Listener = l
-	ts.Start()
-	return ts, nil
-}
-
 type fakeHzClientRegistry struct {
 	Clients sync.Map
 }
 
 func (cr *fakeHzClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (hzclient.Client, error) {
-	client, ok := cr.Get(nn)
+	c, ok := cr.Get(nn)
 	if !ok {
-		return client, fmt.Errorf("fake client was not set before test")
+		return c, fmt.Errorf("fake client was not set before test")
 	}
-	return client, nil
+	return c, nil
 }
 
 func (cr *fakeHzClientRegistry) Set(ns types.NamespacedName, cl hzclient.Client) {
