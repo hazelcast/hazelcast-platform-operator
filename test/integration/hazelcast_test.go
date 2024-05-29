@@ -1131,6 +1131,38 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
+	FContext("with env variables", func() {
+		When("configured", func() {
+			It("should set them correctly", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.Env = []corev1.EnvVar{
+					{
+						Name:  "ENV",
+						Value: "VAL",
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				fetchedCR := assertHzStatusIsPending(hz)
+
+				Expect(fetchedCR.Spec.Env[0].Name).Should(Equal("ENV"))
+				Expect(fetchedCR.Spec.Env[0].Value).Should(Equal("VAL"))
+
+				ss := getStatefulSet(hz)
+
+				var envs []string
+				for _, e := range ss.Spec.Template.Spec.Containers[0].Env {
+					envs = append(envs, e.Name)
+				}
+				Expect(envs).Should(ContainElement("ENV"))
+			})
+		})
+	})
+
 	Context("with Resources parameters", func() {
 		When("resources are given", func() {
 			It("should be set to Containers' spec", func() {
