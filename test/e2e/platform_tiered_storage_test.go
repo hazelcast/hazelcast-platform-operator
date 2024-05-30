@@ -3,13 +3,15 @@ package e2e
 import (
 	"context"
 	"fmt"
-	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	"github.com/hazelcast/hazelcast-platform-operator/test"
+	"strconv"
+	. "time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-	"strconv"
-	. "time"
+
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -87,7 +89,6 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			var mapSizeInMb = 3000         // 3 Gi
 			var totalMemorySizeInMb = 2048 // 2 Gi
 			var diskSizeInMb = 1000
-			ctx := context.Background()
 
 			totalMemorySize := strconv.Itoa(totalMemorySizeInMb) + "Mi"
 			nativeMemorySize := strconv.Itoa(nativeMemorySizeInMb) + "Mi"
@@ -95,10 +96,6 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
 			hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, labels)
 			hazelcast.Spec.ClusterSize = pointer.Int32(2)
-			hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			}
 			hazelcast.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
 			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
@@ -119,11 +116,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 
 			fmt.Printf("filling the map '%s' with '%d' MB data\n", tsMap.MapName(), mapSizeInMb)
 			hzAddress := hzclient.HazelcastUrl(hazelcast)
-			clientHz := GetHzClient(ctx, types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}, true)
-			defer func() {
-				err := clientHz.Shutdown(ctx)
-				Expect(err).ToNot(HaveOccurred())
-			}()
+
 			t := Now()
 			mapLoaderPod := createMapLoaderPod(hzAddress, hazelcast.Spec.ClusterName, mapSizeInMb, tsMap.MapName(), types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace})
 			defer DeletePod(mapLoaderPod.Name, 10, types.NamespacedName{Namespace: hazelcast.Namespace})
