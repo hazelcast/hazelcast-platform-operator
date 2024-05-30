@@ -354,7 +354,7 @@ jobs:
           eksctl delete cluster \
             --region=${REGION} \
             --name=${CLUSTER_NAME} \
-            --waitw
+            --wait
 
   slack_notify:
     name: Slack Notify
