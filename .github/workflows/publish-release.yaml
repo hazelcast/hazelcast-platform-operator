@@ -10,7 +10,7 @@ env:
   OPERATOR_NAME: "hazelcast-platform-operator"
   RELEASE_VERSION: ${{ inputs.RELEASE_VERSION }}
   PUBLISH_TIMEOUT_IN_MINS: "60"
-  GRADE_CHECK_TIMEOUT_IN_MINS: "10"
+  GRADE_CHECK_TIMEOUT_IN_MINS: "20"
   AWS_REGION: us-east-1
 
 jobs:
@@ -21,7 +21,6 @@ jobs:
       RELEASE_VERSION: ${{ steps.set-outputs.outputs.RELEASE_VERSION }}
       IMAGE_NAME: ${{ steps.set-outputs.outputs.IMAGE_NAME }}
       IMAGE_DIGEST: ${{ steps.push-operator-image.outputs.IMAGE_DIGEST }}
-      CURRENT_LATEST_TAG: ${{ steps.get-current-latest-tag.outputs.CURRENT_LATEST_TAG }}
       BUNDLE_RELEASE_VERSION: ${{ steps.set-outputs.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Configure AWS Credentials
@@ -37,6 +36,7 @@ jobs:
           secret-ids: |
             DOCKERHUB_USERNAME,CN/DOCKERHUB_USERNAME
             DOCKERHUB_PASSWORD,CN/DOCKERHUB_PASSWORD
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,6 +56,7 @@ jobs:
       - name: Get the Current Latest Tag
         id: get-current-latest-tag
         run: |
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           token=$(curl --fail -L -s -X POST 'https://hub.docker.com/v2/users/login' \
           -H 'Content-Type: application/json' \
           --data-raw '{
@@ -65,8 +66,9 @@ jobs:
 
           CURRENT_LATEST_TAG=$(curl -s "https://hub.docker.com/v2/repositories/hazelcast/hazelcast-platform-operator/tags/?page_size=100" \
           -H "Authorization: Bearer $token" | jq -r '[.results[] | select(.name | test("\\d+\\.\\d+\\.\\d+")) | {name, last_updated}] | sort_by(.last_updated) | last.name')
-          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
-          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_OUTPUT
+          gh api --method PATCH -H "Accept: application/vnd.github+json" \
+           /repos/hazelcast/hazelcast-platform-operator/environments/prod/variables/CURRENT_LATEST_TAG \
+             -f "name=CURRENT_LATEST_TAG" -f "value=$CURRENT_LATEST_TAG"
 
       - name: Build Operator Image
         run: |
@@ -309,14 +311,14 @@ jobs:
 
       - name: Install and Verify Hazelcast Operator Image Tag
         run: |
-          LATEST_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+          LATEST_STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.available_versions | map(select(.version | contains("snapshot") | not)) | .[0].version')
           helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
           helm repo update && \
-          helm install operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          helm install operator hazelcast/hazelcast-platform-operator --version=$LATEST_STABLE_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
           kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
           kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=180s
           INSTALLED_VERSION=$(kubectl get deployment operator-hazelcast-platform-operator -o=jsonpath="{.spec.template.spec.containers[*].image}" | awk -F ':' '{print $2}')
-          if [[ ${LATEST_VERSION} == ${INSTALLED_VERSION} ]]; then
+          if [[ ${LATEST_STABLE_VERSION} == ${INSTALLED_VERSION} ]]; then
             echo "The latest operator image is successfully installed."
           else
             echo "The latest operator image tag doesn't equal the installed image tag."
@@ -383,7 +385,6 @@ jobs:
     env:
       REPO_NAME: ${{ matrix.repo-name }}
       REPO_OWNER: ${{ matrix.repo-owner }}
-      REPLACED_VERSION: ${{ needs.helm_chart_release.outputs.REPLACED_VERSION }}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -411,6 +412,7 @@ jobs:
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
+          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
           BRANCH_NAME=${OPERATOR_NAME}-${BUNDLE_RELEASE_VERSION}-${{ github.run_id }}
           PR_NUMBER=$(gh pr list --repo ${{ env.REPO_OWNER }}/${{ env.REPO_NAME }} --search "operator ${{ env.OPERATOR_NAME }} (${BUNDLE_RELEASE_VERSION})" --json number | jq -r '.[].number')
           if [ "${{ env.REPO_NAME }}" == "certified-operators" ]; then
@@ -435,6 +437,7 @@ jobs:
         if: always() && matrix.repo-name == 'hazelcast-platform-operator'
         run: |
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          REPLACED_VERSION=$(echo "$RELEASE_VERSION" | awk -F'.' '{print $1"."$2+1".0"}')
           HELM_CHART_PR_NUMBER=$(gh pr list --repo hazelcast/hazelcast-platform-operator --search "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" --json number | jq -r '.[].number')
           gh pr merge $HELM_CHART_PR_NUMBER --admin 
 
@@ -443,10 +446,6 @@ jobs:
     needs: validate_release
     if: always() && needs.validate_release.result == 'failure'
     runs-on: ubuntu-latest
-    env:
-      CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
-      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
-      REPLACED_VERSION: ${{ needs.helm_chart_release.outputs.REPLACED_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -491,6 +490,9 @@ jobs:
       - name: Making Previous Docker Image Tag As 'latest'
         if: always() && !contains(needs.publish_docker_image.result, 'skipped')
         run: |
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          CURRENT_LATEST_TAG=$(gh api -H "Accept: application/vnd.github+json" \
+          /repos/hazelcast/hazelcast-platform-operator/environments/prod/variables/CURRENT_LATEST_TAG | jq -r '.value')
           docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
           make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
 
@@ -503,6 +505,7 @@ jobs:
       - name: Close PR's in 'certified-operators, community-operators and community-operators-prod' Repo's
         if: always()
         run: |
+          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           for REPO in "redhat-openshift-ecosystem/certified-operators" "k8s-operatorhub/community-operators" "redhat-openshift-ecosystem/community-operators-prod"; do   
             PR_NUMBER=$(gh pr list --repo $REPO --search "operator ${{ env.OPERATOR_NAME }} (${BUNDLE_RELEASE_VERSION})" --json number | jq -r '.[].number')
@@ -513,6 +516,7 @@ jobs:
         if: always() && !contains(needs.helm_chart_release.result, 'skipped')
         run: |
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          REPLACED_VERSION=$(echo "$RELEASE_VERSION" | awk -F'.' '{print $1"."$2+1".0"}')
           HELM_CHART_PR_NUMBER=$(gh pr list --repo hazelcast/hazelcast-platform-operator --search "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" --json number | jq -r '.[].number')
           gh pr close $HELM_CHART_PR_NUMBER --repo hazelcast/hazelcast-platform-operator --delete-branch 2>/dev/null
 
@@ -523,18 +527,17 @@ jobs:
           gh release delete v${RELEASE_VERSION} --cleanup-tag --yes
 
       - name: Download a Backup of the Helm Chart Index
-        if: always() && ${{ ! (contains(needs.helm_chart_release.result, 'skipped')) }}
+        if: always() && !contains(needs.helm_chart_release.result, 'skipped')
         uses: actions/download-artifact@v3
         with:
           name: index.yaml
-          path: ./index.yaml
 
       - name: Restore the Helm Chart Index
         if: always() && !contains(needs.helm_chart_release.result, 'skipped')
         run: |
           aws s3 rm s3://hazelcast-charts/hazelcast-platform-operator-${RELEASE_VERSION}.tgz
           aws s3 rm s3://hazelcast-charts/hazelcast-platform-operator-crds-${RELEASE_VERSION}.tgz
-          aws s3 cp ./index.yaml s3://hazelcast-charts
+          aws s3 cp $GITHUB_WORKSPACE/index.yaml s3://hazelcast-charts
 
   slack_notify:
     name: Slack Notify
