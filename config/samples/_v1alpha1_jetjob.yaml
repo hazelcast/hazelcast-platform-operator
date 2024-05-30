@@ -5,27 +5,19 @@ metadata:
 spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
+  licenseKeySecretName: hazelcast-license-key
   jet:
     enabled: true
     resourceUploadEnabled: true
     bucketConfig:
       bucketURI: "gs://operator-user-code/jetJobs"
       secretName: br-secret-gcp
-  version: '5.4.0'
-  licenseKeySecretName: hazelcast-license-key
 ---
 apiVersion: hazelcast.com/v1alpha1
 kind: JetJob
 metadata:
-  labels:
-    app.kubernetes.io/name: jetjob
-    app.kubernetes.io/instance: jetjob-sample
-    app.kubernetes.io/part-of: hazelcast-platform-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: hazelcast-platform-operator
   name: jet-job-sample
 spec:
-  name: my-test-jet-job
   hazelcastResourceName: hazelcast
   state: Running
   jarName: jet-pipeline-1.0.2.jar
@@ -33,15 +25,8 @@ spec:
 apiVersion: hazelcast.com/v1alpha1
 kind: JetJob
 metadata:
-  labels:
-    app.kubernetes.io/name: jetjob
-    app.kubernetes.io/instance: jetjob-sample
-    app.kubernetes.io/part-of: hazelcast-platform-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: hazelcast-platform-operator
   name: jet-job-longrun
 spec:
-  name: jet-job-longrun
   hazelcastResourceName: hazelcast
   state: Running
   jarName: jet-pipeline-longrun-2.0.0.jar

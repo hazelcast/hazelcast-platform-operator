@@ -97,11 +97,14 @@ export PHONE_HOME_ENABLED ?= false
 export DEVELOPER_MODE_ENABLED ?= true
 INSTALL_CRDS ?= false
 DEBUG_ENABLED ?= false
+CREATE_CLUSTER_SCOPE_RESOURCES ?= true
+WEBHOOK_ENABLED ?= true
+ENABLED_HZ_NODE_DISCOVERY ?=true
 
 RELEASE_NAME ?= v1
 CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
 export DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
-STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespaces='{$(WATCHED_NAMESPACES)}',debug.enabled=$(DEBUG_ENABLED)
+STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespaces='{$(WATCHED_NAMESPACES)}',debug.enabled=$(DEBUG_ENABLED),createClusterScopedResources=$(CREATE_CLUSTER_SCOPE_RESOURCES),webhook.enabled=$(WEBHOOK_ENABLED),enableHazelcastNodeDiscovery=$(ENABLED_HZ_NODE_DISCOVERY)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -234,6 +237,10 @@ endif
 
 ifeq ($(WORKFLOW_ID),cluster_scope)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && kind
+endif
+
+ifeq ($(WORKFLOW_ID),restricted)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && !cluster_scope
 endif
 
 test-e2e-split-kind: generate ginkgo ## Run end-to-end tests on Kind

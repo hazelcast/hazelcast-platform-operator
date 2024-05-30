@@ -51,7 +51,7 @@ var _ = Describe("Hazelcast Queue Config", Group("queue"), func() {
 	})
 
 	Context("Updating Queue configurations", func() {
-		It("verifies that Queue Config updates are prohibited", Tag(Kind|Any), func() {
+		It("verifies that Queue Config updates are prohibited", Label("cluster_scope"), Tag(Kind|Any), func() {
 			setLabelAndCRName("hq-2")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

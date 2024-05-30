@@ -105,17 +105,14 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 			},
 			Spec: hazelcastSpec,
 		}
-		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
-			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
-		}
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		clientHz := GetHzClient(ctx, hzLookupKey, true)
-		cli := hzClient.NewClientInternal(clientHz)
+		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
+		cli := hzClient.NewClientInternal(cl)
 
 		rg := createCPGroup(ctx, cli)
 
@@ -161,17 +158,14 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 			},
 			Spec: spec,
 		}
-		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
-			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
-		}
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		clientHz := GetHzClient(ctx, hzLookupKey, true)
-		cli := hzClient.NewClientInternal(clientHz)
+		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
+		cli := hzClient.NewClientInternal(cl)
 
 		validateCPMap(ctx, cli, cpMapName, randString(5), randString(5))
 	})
@@ -200,18 +194,16 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 		By("creating cluster from backup")
 		restoredHz := hazelcastconfig.HazelcastRestore(initialCluster, restoreConfig(hotBackup, false))
 		restoredHz.Spec.CPSubsystem = hazelcastconfig.CPSubsystemPersistence(3).CPSubsystem
-		restoredHz.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
-			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
-			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
-		}
 		CreateHazelcastCR(restoredHz)
 		evaluateReadyMembers(hzLookupKey)
 		waitForMapSizePortForward(context.Background(), restoredHz, localPort, m.MapName(), 10, 1*Minute)
 
+		stopChan := portForwardPod(restoredHz.Name+"-0", restoredHz.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+		cl := newHazelcastClientPortForward(context.Background(), restoredHz, localPort)
+		cli := hzClient.NewClientInternal(cl)
+
 		cpMapName := "my-cp-map"
-		clientHz := GetHzClient(ctx, hzLookupKey, true)
-		cli := hzClient.NewClientInternal(clientHz)
 		validateCPMap(ctx, cli, cpMapName, randString(5), randString(5))
 	})
 

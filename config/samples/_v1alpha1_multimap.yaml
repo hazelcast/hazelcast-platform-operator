@@ -4,7 +4,6 @@ metadata:
   name: multimap-sample
 spec:
   hazelcastResourceName: hazelcast
-  name: multi-map
   collectionType: LIST
   binary: true
   backupCount: 3

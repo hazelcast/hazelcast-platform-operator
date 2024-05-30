@@ -137,8 +137,8 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	ms, err := r.ReconcileMapConfig(ctx, m, h, cl, createdBefore)
 	if err != nil {
-		return updateMapStatus(ctx, r.Client, m, recoptions.RetryAfter(retryAfterForMap),
-			withMapState(hazelcastv1alpha1.MapPending),
+		return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+			withMapState(hazelcastv1alpha1.MapFailed),
 			withMapMessage(err.Error()),
 			withMapMemberStatuses(ms))
 	}

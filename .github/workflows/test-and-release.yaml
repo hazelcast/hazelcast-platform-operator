@@ -50,7 +50,7 @@ jobs:
           EOT
 
       - name: Create Kind Cluster
-        uses: helm/kind-action@v1.9.0
+        uses: helm/kind-action@v1.10.0
         with:
           config: ./kind-config.yaml
           cluster_name: ${{ env.CLUSTER_NAME }}
@@ -99,10 +99,8 @@ jobs:
 
       - name: Deploy and Run Migration test
         run: |
-          STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$STABLE_VERSION"
-          ((MINOR++))
-          LATEST_VERSION="$MAJOR.$MINOR.$PATCH-snapshot"
+          LATEST_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+          STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.available_versions | map(select(.version | contains("snapshot") | not)) | .[0].version')
           
           kubectl create secret generic hazelcast-license-key --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
           helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
@@ -548,7 +546,6 @@ jobs:
       - name: Delete Bundle Artifact
         uses: geekyeggo/delete-artifact@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           name: |
             bundle-artifacts
 

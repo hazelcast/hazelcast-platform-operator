@@ -5,6 +5,7 @@ resources:
 - _v1alpha1_map.yaml
 - _v1alpha1_wanreplication.yaml
 - _v1alpha1_multimap.yaml
+- _v1alpha1_hotbackup.yaml
 - _v1alpha1_cronhotbackup.yaml
 - _v1alpha1_topic.yaml
 - _v1alpha1_replicatedmap.yaml
@@ -12,6 +13,7 @@ resources:
 - _v1alpha1_cache.yaml
 - _v1alpha1_jetjob.yaml
 - _v1alpha1_jetjobsnapshot.yaml
+- _v1alpha1_hazelcastendpoint.yaml
 - _v1alpha1_wansync.yaml
 - _v1alpha1_usercodenamespace.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

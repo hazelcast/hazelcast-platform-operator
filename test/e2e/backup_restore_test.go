@@ -611,7 +611,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 				hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 				hazelcast.Spec.ClusterSize = &[]int32{2}[0]
-				hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
+				hazelcast.Spec.Persistence.DataRecoveryTimeout = 300
 				hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = dataPolicy
 				hazelcast.Spec.Persistence.StartupAction = action
 				hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{

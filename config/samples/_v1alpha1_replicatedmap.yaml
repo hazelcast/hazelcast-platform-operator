@@ -4,6 +4,5 @@ metadata:
   name: replicatedmap-sample
 spec:
   hazelcastResourceName: hazelcast
-  name: replicated-map
   inMemoryFormat: OBJECT
   asyncFillup: true

@@ -260,7 +260,7 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 
 		})
 
-		It("maintains last applied Map Config upon update failure", Tag(Kind|Any), func() {
+		It("maintains last applied Map Config upon update failure", Label("cluster_scope"), Tag(Kind|Any), func() {
 			setLabelAndCRName("hm-7")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)

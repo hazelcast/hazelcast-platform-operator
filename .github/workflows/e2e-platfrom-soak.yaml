@@ -33,7 +33,7 @@ jobs:
       - name: Create EKS cluster
         id: create-cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-e2e-test-soak-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           eksctl create cluster --name "${CLUSTER_NAME}" \
             --region=${AWS_REGION} \
@@ -164,7 +164,7 @@ jobs:
 
       - name: Update kubeconfig
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-e2e-test-soak-${GITHUB_SHA::8}-${{ github.run_number }}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
       - name: Authenticate to GAR
@@ -252,10 +252,12 @@ jobs:
 
       - name: Delete EKS cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          source .github/scripts/utils.sh
-          wait_for_eks_stack_deleted eksctl-$CLUSTER_NAME $DELETE_EKS_STACK_TIMEOUT_IN_MINS
-          clean_open_id_connect_providers ${{ env.AWS_REGION }} $CLUSTER_NAME
+          CLUSTER_NAME=${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+          REGION=${{ env.AWS_REGION }}
+          eksctl delete cluster \
+            --region=${REGION} \
+            --name=${CLUSTER_NAME} \
+            --wait
 
   slack_notify:
     name: Slack Notify

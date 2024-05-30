@@ -3,6 +3,5 @@ kind: JetJobSnapshot
 metadata:
   name: jetjobsnapshot-sample
 spec:
-  name: snapshot
   cancelJob: false
   jetJobResourceName: jet-job

@@ -1,31 +1,33 @@
-name: (E2E) Kind Tests
+name: (E2E) Restricted Setup Tests
 
 on:
   workflow_dispatch:
-  workflow_call:
-    inputs:
-      k8s-cluster-version:
-        description: "kubernetes cluster version"
-        required: false
-        type: string
-        default: "1.29"
+  schedule:
+    - cron: "0 9 * * *"
 
 env:
-  GO_VERSION: "1.21.0"
+  GO_VERSION: '1.21.0'
+  GOBIN: ${{ github.workspace }}/bin
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
   AWS_REGION: us-east-1
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   get-image:
     name: Get Image
     runs-on: ubuntu-latest
+    permissions: {}
     timeout-minutes: 10
     outputs:
       IMG: ${{ steps.get-image-tag.outputs.IMG }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Set Up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v3.3.0
@@ -56,7 +58,6 @@ jobs:
         id: get-image-tag
         run: |
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
-
       - name: Build Image
         uses: docker/build-push-action@v5.3.0
         with:
@@ -74,19 +75,23 @@ jobs:
   kind-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-latest
-    needs: [get-image]
+    needs: get-image
     strategy:
       fail-fast: false
       matrix:
-        edition: ["os", "ee"]
+        node_number:
+          [ "01", "02", "03", "04", "05", "06", "07", "08", "09", "10" ]
     env:
-      NAMESPACE: kind-test-operator-${{ matrix.edition }}
-      RELEASE_NAME: kind-${{ matrix.edition }}
+      NAMESPACE: kind-test-operator-ee
+      WATCHED_NS: ns-1
+      RELEASE_NAME: hp-ee-${{ github.run_id }}
       CLUSTER_NAME: kind
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{steps.decide-ref.outputs.ref}}
 
       - uses: actions/setup-go@v5
         with:
@@ -94,25 +99,15 @@ jobs:
 
       - name: Create Kind Config
         run: |
-          kind_node_image_tag=$(curl 'https://hub.docker.com/v2/namespaces/kindest/repositories/node/tags?page_size=1000' \
-            | jq -r '.results[] | select(.name | startswith("v${{ inputs.k8s-cluster-version }}") and test("^[^\\-]+$")) | .name' \
-            | sort -V \
-            | tail -n 1)
-          echo "Kind node image: kindest/node:${kind_node_image_tag}"
           cat <<EOT >> ./kind-config.yaml
           kind: Cluster
           apiVersion: kind.x-k8s.io/v1alpha4
           nodes:
           - role: control-plane
-            image: kindest/node:${kind_node_image_tag}
           - role: worker
-            image: kindest/node:${kind_node_image_tag}
           - role: worker
-            image: kindest/node:${kind_node_image_tag}
           - role: worker
-            image: kindest/node:${kind_node_image_tag}
           EOT
-
       - name: Create Kind Cluster
         uses: helm/kind-action@v1.10.0
         with:
@@ -130,7 +125,6 @@ jobs:
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
-            GKE_SA_KEY,CN/GKE_SA_KEY
             GRAFANA_REMOTE_WRITE_URL,CN/GRAFANA_REMOTE_WRITE_URL
             GRAFANA_PROM_REMOTE_WRITE_URL,CN/GRAFANA_PROM_REMOTE_WRITE_URL
             GRAFANA_PROM_USERNAME,CN/GRAFANA_PROM_USERNAME
@@ -139,6 +133,7 @@ jobs:
             LOKI_PASSWORD,CN/GRAFANA_LOKI_PASSWORD
             HZ_LICENSE_KEY,CN/HZ_LICENSE_KEY
             AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
+            GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Install Grafana Agent
         env:
@@ -171,49 +166,54 @@ jobs:
             HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
             HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
             IP_RANGE=$HOST_MIN-$HOST_MAX
-
+            
             cat <<EOF | kubectl apply -f -
             apiVersion: metallb.io/v1beta1
             kind: IPAddressPool
             metadata:
-                name: kind-pool
-                namespace: metallb-system
+              name: kind-pool
+              namespace: metallb-system
             spec:
-                addresses:
-                - $IP_RANGE
+              addresses:
+              - $IP_RANGE
             ---
             apiVersion: metallb.io/v1beta1
             kind: L2Advertisement
             metadata:
-                name: l2
-                namespace: metallb-system
+              name: l2
+              namespace: metallb-system
             spec:
-                ipAddressPools:
-                - kind-pool
+              ipAddressPools:
+              - kind-pool
             EOF
 
+      - name: Create Namespaces
+        run: |
+          kubectl create namespace ${{ env.WATCHED_NS }}
+
       - name: Create Secrets
-        if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
-              --namespace ${{ env.NAMESPACE }} \
-              --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
-
+           --namespace ${{ env.NAMESPACE }} \
+           --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+          
+          kubectl create secret generic hazelcast-license-key \
+           --namespace ${{ env.WATCHED_NS }} \
+           --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
+          
           kubectl create secret generic br-secret-s3 \
-          --namespace ${{ env.NAMESPACE }} \
+          --namespace ${{ env.WATCHED_NS }} \
           --from-literal=region=us-east-1 \
           --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
           --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
+          
           kubectl create secret generic br-secret-az \
-          --namespace ${{ env.NAMESPACE }} \
+          --namespace ${{ env.WATCHED_NS }} \
           --from-literal=storage-account=operatortest \
           --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
-
-      - name: Create Secret For Both OS and EE Tests
-        run: |
+          
           kubectl create secret generic br-secret-gcp \
-          --namespace ${{ env.NAMESPACE }} \
+          --namespace ${{ env.WATCHED_NS }} \
           --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
 
       - name: Authenticate to GAR
@@ -231,15 +231,27 @@ jobs:
       - name: Deploy Operator to Kind Cluster
         run: |
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE RELEASE_NAME=$RELEASE_NAME
+          make deploy IMG=$IMG RELEASE_NAME=$RELEASE_NAME NAMESPACE=${{ env.NAMESPACE }} WATCHED_NAMESPACES=${{ env.WATCHED_NS }} CREATE_CLUSTER_SCOPE_RESOURCES=false ENABLED_HZ_NODE_DISCOVERY=false WEBHOOK_ENABLED=false ENABLED_HZ_NODE_DISCOVERY=false 
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Run Tests
         id: e2e-test
         run: |
-          case ${{ matrix.edition }} in
-          os) GO_TEST_FLAGS=-ee=false;;
-          ee) GO_TEST_FLAGS=-ee=true;;
-          *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
-          make test-e2e REPORT_SUFFIX=${{ matrix.edition }}_${{ inputs.k8s-cluster-version }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr
+          make test-e2e-split-kind REPORT_SUFFIX=ee_${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${{ env.WATCHED_NS }} WATCHED_NAMESPACES=${{ env.WATCHED_NS }} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=restricted SHARD_ID="${{ matrix.node_number }}"
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report-restricted
+          path: allure-results/restricted
+          retention-days: 5
+
+  report-generation:
+    needs: ["kind-e2e-tests"]
+    if: always() && (needs.kind-e2e-tests.result == 'success' || needs.kind-e2e-tests.result == 'failure')
+    uses: ./.github/workflows/generate-test-report.yaml
+    secrets: inherit
+    with:
+      WORKFLOW_ID: restricted
+      CLUSTER_NAME: kind

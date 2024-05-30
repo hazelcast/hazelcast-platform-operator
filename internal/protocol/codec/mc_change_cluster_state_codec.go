@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -42,4 +43,11 @@ func EncodeMCChangeClusterStateRequest(newState types.ClusterState) *proto.Clien
 	clientMessage.SetPartitionId(-1)
 
 	return clientMessage
+}
+
+func DecodeMCChangeClusterStateRequest(clientMessage *proto.ClientMessage) types.ClusterState {
+	frameIterator := clientMessage.FrameIterator()
+	initialFrame := frameIterator.Next()
+	currentState := DecodeByte(initialFrame.Content, MCChangeClusterStateCodecRequestNewStateOffset)
+	return types.ClusterState(currentState)
 }

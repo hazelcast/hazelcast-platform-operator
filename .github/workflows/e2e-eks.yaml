@@ -34,7 +34,7 @@ jobs:
       - name: Create EKS cluster
         id: create-cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-e2e-test-eks-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           eksctl create cluster \
@@ -207,7 +207,7 @@ jobs:
 
       - name: Update kubeconfig
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-e2e-test-eks-${GITHUB_SHA::8}-${{ github.run_number }}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
       - name: Authenticate to GAR
@@ -217,9 +217,18 @@ jobs:
           username: _json_key
           password: ${{ env.GKE_SA_KEY }}
 
+      - name: Install CRD's
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 1
+          max_attempts: 2
+          retry_on: error
+          command: |
+            make install-crds
+
       - name: Deploy Operator to EKS
         run: |
-          make install-crds
+          kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
@@ -341,9 +350,11 @@ jobs:
       - name: Delete EKS cluster
         run: |-
           CLUSTER_NAME=${{ needs.prepare-env.outputs.CLUSTER_NAME }}
-          source .github/scripts/utils.sh
-          wait_for_eks_stack_deleted eksctl-$CLUSTER_NAME $DELETE_EKS_STACK_TIMEOUT_IN_MINS
-          clean_open_id_connect_providers ${{ env.AWS_REGION }} $CLUSTER_NAME
+          REGION=${{ env.AWS_REGION }}
+          eksctl delete cluster \
+            --region=${REGION} \
+            --name=${CLUSTER_NAME} \
+            --waitw
 
   slack_notify:
     name: Slack Notify
