@@ -36,14 +36,14 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.2"
+        uses: 'google-github-actions/auth@v2.1.3'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
       - name: Create GKE cluster
         id: set-cluster-name
         run: |-
-          CLUSTER_NAME="operator-istio-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-istio-e2e-test-istio-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           gcloud container clusters create ${CLUSTER_NAME} \
             --zone=${{ env.GKE_ZONE }} \
@@ -166,7 +166,7 @@ jobs:
             AZURE_STORAGE_KEY,CN/AZURE_STORAGE_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.2"
+        uses: "google-github-actions/auth@v2.1.3"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
@@ -319,7 +319,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: "google-github-actions/auth@v2.1.2"
+        uses: "google-github-actions/auth@v2.1.3"
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 
