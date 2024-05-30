@@ -190,17 +190,12 @@ jobs:
             --source-ranges=$NEW_SOURCE_RANGES \
             --project ${{ env.GCP_PROJECT_ID }}
 
-      - uses: "google-github-actions/setup-gcloud@v2"
-        with:
-          install_components: "gke-gcloud-auth-plugin"
-
       - name: Connect to the GKE cluster
         uses: "google-github-actions/get-gke-credentials@v2"
         with:
           cluster_name: ${{ env.CLUSTER_NAME }}
           project_id: ${{ env.GCP_PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
-          use_auth_provider: true
 
       - name: Deploy Istio to GKE
         if: matrix.edition == 'ee'
