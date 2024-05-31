@@ -59,6 +59,26 @@ jobs:
             --cluster "${CLUSTER_NAME}" \
             --region=${AWS_REGION}
 
+      - name: Create IAM Service Account
+        run: |
+          ROLE_NAME="cn-test-iam-service-account-${{ github.run_number }}"
+
+          eksctl create iamserviceaccount \
+            --name aws-iam-sa \
+            --namespace test-operator-os \
+            --cluster ${CLUSTER_NAME} \
+            --role-name ${ROLE_NAME}-os \
+            --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
+            --approve
+
+          eksctl create iamserviceaccount \
+            --name aws-iam-sa \
+            --namespace test-operator-ee \
+            --cluster ${CLUSTER_NAME} \
+            --role-name ${ROLE_NAME}-ee \
+            --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
+            --approve
+
   grafana-setup:
     needs: [prepare-env]
     uses: ./.github/workflows/grafana-agent.yaml
