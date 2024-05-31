@@ -231,6 +231,10 @@ ifeq ($(WORKFLOW_ID),ocp)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && ocp
 endif
 
+ifeq ($(WORKFLOW_ID),istio)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && gcp
+endif
+
 ifeq ($(WORKFLOW_ID),pr)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && kind
 endif

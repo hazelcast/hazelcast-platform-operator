@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -40,8 +41,16 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 		}, 2*Minute, interval).Should(Not(BeEmpty()))
 	}
 
+	skipIfIstioSetup := func() {
+		if isIstioSetup() {
+			Skip("skipping suites in Istio setup")
+		}
+	}
+
 	Context("Cluster connectivity", func() {
 		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag(Kind|Any), func() {
+			skipIfIstioSetup()
+
 			setLabelAndCRName("hee-1")
 			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -56,6 +65,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 		})
 
 		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag(AnyLicense|AWS|GCP|AZURE), func() {
+			skipIfIstioSetup()
+
 			setLabelAndCRName("hee-2")
 			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -111,6 +122,8 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 		})
 
 		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag(Any), func() {
+			skipIfIstioSetup()
+
 			setLabelAndCRName("hee-3")
 			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
@@ -233,4 +246,19 @@ func clientConnectedToAllMembers(ctx context.Context, lk types.NamespacedName) b
 		}
 	}
 	return true
+}
+
+// checks if the istio system namespace exists and injection label is set in the test namespace
+func isIstioSetup() bool {
+	err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "istio-system"}, &corev1.Namespace{})
+	if kerrors.IsNotFound(err) {
+		return false
+	}
+	Expect(err).NotTo(HaveOccurred())
+
+	namespace := &corev1.Namespace{}
+	err = k8sClient.Get(context.Background(), client.ObjectKey{Name: hzNamespace}, namespace)
+	Expect(err).NotTo(HaveOccurred())
+	val, ok := namespace.Labels["istio-injection"]
+	return ok && val == "enabled"
 }
