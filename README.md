@@ -32,7 +32,7 @@ Here is a short video to deploy a simple Hazelcast Platform cluster and Manageme
 
 Hazelcast Platform Operator supports the features below:
 
-* Custom resource for Hazelcast Platform (Open Source & Enterprise) and Management Center
+* Custom resource for Hazelcast Platform (Enterprise) and Management Center
 * Observe status of Hazelcast clusters and Management Center instances
 * High Availability Mode configuration to create clusters that are resilient to node and zone failures
 * Support for TLS connections between members using self-signed certificates

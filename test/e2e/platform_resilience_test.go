@@ -84,7 +84,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should kill the pod randomly and preserve the data after restore", Tag(Any), Serial, func() {
+	It("should kill the pod randomly and preserve the data after restore", Tag(AnyCloud), Serial, func() {
 		setLabelAndCRName("hr-3")
 		duration := "30s"
 		mapSizeInMb := 500
@@ -164,7 +164,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		}
 	})
 
-	It("should check a split-brain protection in the Hazelcast cluster", Tag(Any), Serial, func() {
+	It("should check a split-brain protection in the Hazelcast cluster", Tag(AnyCloud), Serial, func() {
 		setLabelAndCRName("hr-4")
 		duration := "100s"
 		splitBrainConfName := "splitBrainProtectionRuleWithFourMembers"
@@ -201,7 +201,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
 
 		By("creating Hazelcast cluster")
-		hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 		hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 			Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 			DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
@@ -283,7 +283,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		Expect(err).Should(MatchError(MatchRegexp("Split brain protection exception: " + splitBrainConfName + " has failed!")))
 	})
 
-	It("should not lose any data from tiered store during a split-brain scenario", Tag(EE|AnyCloud), Serial, func() {
+	It("should not lose any data from tiered store during a split-brain scenario", Tag(AnyCloud), Serial, func() {
 		setLabelAndCRName("sbts-1")
 		duration := "100s"
 		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
@@ -408,7 +408,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), int(float64(mapSizeInMb+48)*128), 10*Minute)
 	})
 
-	It("should have no data lose after zone outage", Tag(Any), Serial, func() {
+	It("should have no data lose after zone outage", Tag(AnyCloud), Serial, func() {
 		setLabelAndCRName("hr-2")
 
 		ctx := context.Background()
@@ -417,7 +417,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		hzClusterSize := numberOfNodes
 
 		By(fmt.Sprintf("creating %d sized cluster with zone-level high availability", hzClusterSize))
-		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, ee, int32(hzClusterSize), "ZONE", labels)
+		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, int32(hzClusterSize), "ZONE", labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -462,7 +462,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
-	It("should have no data lose after node outage", Tag(Any), Serial, func() {
+	It("should have no data lose after node outage", Tag(AnyCloud), Serial, func() {
 		setLabelAndCRName("hr-1")
 
 		ctx := context.Background()
@@ -471,7 +471,7 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		hzClusterSize := numberOfNodes * 3
 
 		By(fmt.Sprintf("creating %d sized cluster with node-level high availability", hzClusterSize))
-		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, ee, int32(hzClusterSize), "NODE", labels)
+		hazelcast := hazelcastconfig.HighAvailability(hzLookupKey, int32(hzClusterSize), "NODE", labels)
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -517,15 +517,15 @@ var _ = Describe("Platform Resilience Tests", Label("resilience"), func() {
 		WaitForMapSize(ctx, hzLookupKey, mapName, mapSize, Minute)
 	})
 
-	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Serial, Tag(Any), func() {
+	It("should be able to reconnect to Hazelcast cluster upon restart even when Hazelcast cluster is marked to be deleted", Serial, Tag(AnyCloud), func() {
 		By("clone existing operator")
 		setLabelAndCRName("res-1")
-		hazelcastSource := hazelcastconfig.Default(hzSrcLookupKey, ee, labels)
+		hazelcastSource := hazelcastconfig.Default(hzSrcLookupKey, labels)
 		hazelcastSource.Spec.ClusterName = "source"
 		CreateHazelcastCR(hazelcastSource)
 
 		By("creating target Hazelcast cluster")
-		hazelcastTarget := hazelcastconfig.Default(hzTrgLookupKey, ee, labels)
+		hazelcastTarget := hazelcastconfig.Default(hzTrgLookupKey, labels)
 		hazelcastTarget.Spec.ClusterName = "target"
 		CreateHazelcastCR(hazelcastTarget)
 

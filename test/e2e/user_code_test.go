@@ -43,9 +43,9 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code"), func() {
 			By("creating the Hazelcast CR")
 			var hazelcast *hazelcastcomv1alpha1.Hazelcast
 			if secretName != "" {
-				hazelcast = hazelcastconfig.UserCodeBucket(hzLookupKey, ee, secretName, url, labels)
+				hazelcast = hazelcastconfig.UserCodeBucket(hzLookupKey, secretName, url, labels)
 			} else {
-				hazelcast = hazelcastconfig.UserCodeURL(hzLookupKey, ee, []string{url}, labels)
+				hazelcast = hazelcastconfig.UserCodeURL(hzLookupKey, []string{url}, labels)
 			}
 			CreateHazelcastCR(hazelcast)
 
@@ -104,11 +104,11 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code"), func() {
 			test.EventuallyInLogs(logReader, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
 
 		},
-		Entry("using user code from bucket", Tag(Any), "br-secret-gcp", "gs://operator-user-code/mapStore"),
-		Entry("using user code from remote url", Tag(Any), "", "https://storage.googleapis.com/operator-user-code-urls-public/mapStore_mapstore-1.0.0.jar"),
+		Entry("using user code from bucket", Tag(AnyCloud), "br-secret-gcp", "gs://operator-user-code/mapStore"),
+		Entry("using user code from remote url", Tag(AnyCloud), "", "https://storage.googleapis.com/operator-user-code-urls-public/mapStore_mapstore-1.0.0.jar"),
 	)
 
-	It("test for adding and verifying executor services initially and dynamically in Hazelcast CR", Tag(Kind|Any), func() {
+	It("test for adding and verifying executor services initially and dynamically in Hazelcast CR", Tag(Kind|AnyCloud), func() {
 		setLabelAndCRName("huc-2")
 
 		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
@@ -138,7 +138,7 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code"), func() {
 		sampleExecutorServices := map[string]interface{}{"es": executorServices, "des": durableExecutorServices, "ses": scheduledExecutorServices}
 
 		By("creating the Hazelcast CR")
-		hazelcast := hazelcastconfig.ExecutorService(hzLookupKey, ee, sampleExecutorServices, labels)
+		hazelcast := hazelcastconfig.ExecutorService(hzLookupKey, sampleExecutorServices, labels)
 		CreateHazelcastCR(hazelcast)
 
 		By("port-forwarding to Hazelcast master pod")
@@ -178,10 +178,10 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code"), func() {
 		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
-	It("verify addition of entry listeners in Hazelcast map using user code from secret bucket", Tag(Kind|Any), func() {
+	It("verify addition of entry listeners in Hazelcast map using user code from secret bucket", Tag(Kind|AnyCloud), func() {
 		setLabelAndCRName("huc-3")
 
-		h := hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)
+		h := hazelcastconfig.UserCodeBucket(hzLookupKey, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)
 		CreateHazelcastCR(h)
 
 		By("creating map with Map with entry listener")
@@ -201,12 +201,12 @@ var _ = Describe("Hazelcast User Code Deployment", Group("user_code"), func() {
 		t := Now()
 
 		By("port-forwarding to Hazelcast master pod")
-		stopChan := portForwardPod(hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels).Name+"-0", hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/mapStore", labels).Namespace, localPort+":5701")
+		stopChan := portForwardPod(hazelcastconfig.UserCodeBucket(hzLookupKey, "br-secret-gcp", "gs://operator-user-code/entryListener", labels).Name+"-0", hazelcastconfig.UserCodeBucket(hzLookupKey, "br-secret-gcp", "gs://operator-user-code/mapStore", labels).Namespace, localPort+":5701")
 		defer closeChannel(stopChan)
 
 		By("filling the map with entries")
 		entryCount := 5
-		cl := newHazelcastClientPortForward(context.Background(), hazelcastconfig.UserCodeBucket(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels), localPort)
+		cl := newHazelcastClientPortForward(context.Background(), hazelcastconfig.UserCodeBucket(hzLookupKey, "br-secret-gcp", "gs://operator-user-code/entryListener", labels), localPort)
 		defer func() {
 			Expect(cl.Shutdown(context.Background())).Should(Succeed())
 		}()

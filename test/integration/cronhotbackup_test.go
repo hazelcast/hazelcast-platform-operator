@@ -30,11 +30,9 @@ var _ = Describe("CronHotBackup CR", func() {
 	}
 
 	BeforeEach(func() {
-		if ee {
-			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
-			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
-			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
-		}
+		By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+		licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+		assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
 	})
 
 	AfterEach(func() {

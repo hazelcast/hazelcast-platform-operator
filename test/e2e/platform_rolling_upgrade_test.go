@@ -31,7 +31,7 @@ var _ = Describe("Platform Rolling UpgradeTests", Label("rolling_upgrade"), func
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should upgrade HZ version after pause/resume with 7999 partition count", Serial, Tag(EE|AnyCloud), func() {
+	It("should upgrade HZ version after pause/resume with 7999 partition count", Serial, Tag(AnyCloud), func() {
 		setLabelAndCRName("hra-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
@@ -55,7 +55,7 @@ var _ = Describe("Platform Rolling UpgradeTests", Label("rolling_upgrade"), func
 			})
 		}
 
-		mc := mcconfig.Default(mcLookupKey, ee, labels)
+		mc := mcconfig.Default(mcLookupKey, labels)
 		mc.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse("1Gi")},

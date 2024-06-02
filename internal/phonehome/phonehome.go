@@ -257,11 +257,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	}
 
 	for _, hz := range hzl.Items {
-		if util.IsEnterprise(hz.Spec.Repository) {
-			createdEnterpriseClusterCount += 1
-		} else {
-			createdClusterCount += 1
-		}
+		createdEnterpriseClusterCount += 1
 
 		if hz.Spec.NativeMemory.IsEnabled() {
 			nativeMemoryCount++

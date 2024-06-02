@@ -1824,9 +1824,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		UserCodeNamespace: ms.UserCodeNamespace,
 	}
 
-	if util.IsEnterprise(hz.Spec.Repository) {
-		mc.WanReplicationReference = wanReplicationRef(defaultWanReplicationRefCodec(hz, m))
-	}
+	mc.WanReplicationReference = wanReplicationRef(defaultWanReplicationRefCodec(m))
 
 	if ms.MapStore != nil {
 		msp, err := getMapStoreProperties(ctx, c, ms.MapStore.PropertiesSecretName, hz.Namespace)
@@ -2902,7 +2900,6 @@ func configMapVolumeMounts(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.Rem
 // the persistence is enabled and if the Hazelcast is not yet running
 func (r *HazelcastReconciler) persistenceStartupAction(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !h.Spec.Persistence.IsEnabled() ||
-		!util.IsEnterprise(h.Spec.Repository) ||
 		h.Spec.Persistence.StartupAction == "" ||
 		h.Status.Phase == hazelcastv1alpha1.Running {
 		return nil

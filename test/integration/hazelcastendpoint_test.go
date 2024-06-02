@@ -141,11 +141,9 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 	}
 
 	BeforeEach(func() {
-		if ee {
-			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
-			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
-			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
-		}
+		By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+		licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+		assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
 	})
 
 	AfterEach(func() {
@@ -156,7 +154,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 		It("should not create HazelcastEndpoints", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			By("creating the Hazelcast CR with specs successfully")
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
@@ -171,7 +169,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Unisocket and LoadBalancer", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 				}
 				hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
@@ -192,7 +190,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Unisocket and NodePort", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 				}
 				hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
@@ -213,7 +211,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Smart", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 				}
 				hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -235,7 +233,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			It("should create HazelcastEndpoint with Discovery and Member type when per member is exposed using LoadBalancer", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 				}
 				hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -257,7 +255,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			It("should create HazelcastEndpoint with Discovery and Member type when per member is exposed using NodePort", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 				}
 				hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -281,7 +279,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 			It("should create HazelcastEndpoint with WAN type", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 				}
 
 				hz.Spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
@@ -324,7 +322,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 		It("should delete the leftover resources", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -356,7 +354,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 		It("should fail", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			hz.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,

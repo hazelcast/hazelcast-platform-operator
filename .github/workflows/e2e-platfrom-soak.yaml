@@ -61,7 +61,7 @@ jobs:
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
-      namespaces: "test-operator-os, test-operator-ee"
+      namespaces: "test-operator-ee"
 
   get-image:
     name: Get Image
@@ -123,13 +123,9 @@ jobs:
     defaults:
       run:
         shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        edition: ["ee"]
     env:
-      NAMESPACE: test-operator-${{ matrix.edition }}
-      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
+      NAMESPACE: test-operator
+      RELEASE_NAME: hp-${{ github.run_id }}
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Checkout
@@ -185,7 +181,6 @@ jobs:
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secrets
-        if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
             --namespace ${NAMESPACE} --from-literal=license-key=${{ env.HZ_LICENSE_KEY }}
@@ -193,11 +188,6 @@ jobs:
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
         run: |
-          case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
           git config user.email "devopshelm@hazelcast.com"
           git config user.name "devOpsHelm"
           
@@ -225,7 +215,7 @@ jobs:
     with:
       cluster_name: ${{ needs.prepare-env.outputs.CLUSTER_NAME }}
       cluster_type: eks
-      namespaces: "test-operator-os,test-operator-ee,grafana"
+      namespaces: "test-operator-ee,grafana"
 
   delete-cluster:
     name: Delete EKS cluster

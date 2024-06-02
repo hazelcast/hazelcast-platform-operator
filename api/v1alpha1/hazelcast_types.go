@@ -73,7 +73,7 @@ type HazelcastSpec struct {
 	DeprecatedLicenseKeySecret string `json:"licenseKeySecret,omitempty"`
 
 	// Name of the secret with Hazelcast Enterprise License Key.
-	// +optional
+	// +required
 	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
 
 	// Configuration to expose Hazelcast cluster to external clients.

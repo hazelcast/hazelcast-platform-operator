@@ -215,8 +215,6 @@ jobs:
             --from-literal=storage-account=operatortest \
             --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
 
-      - name: Create Secret For Both OS and EE Tests
-        run: |
           kubectl create secret generic br-secret-gcp \
           --namespace ${{ env.NAMESPACE }} \
           --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
@@ -243,9 +241,9 @@ jobs:
         id: e2e-test
         run: |
           if [ -n "${{ matrix.testSuiteLabel }}" ]; then
-            make test-e2e E2E_TEST_LABELS=${{ matrix.testSuiteLabel }} GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
+            make test-e2e E2E_TEST_LABELS=${{ matrix.testSuiteLabel }} RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
           else
-            make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_02 WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
+            make test-e2e RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_02 WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
           fi
 
       - name: Upload Test Report

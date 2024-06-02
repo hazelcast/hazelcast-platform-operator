@@ -61,7 +61,7 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	DescribeTable("should store data in CP Map", Tag(EE|AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
+	DescribeTable("should store data in CP Map", Tag(AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
 		setLabelAndCRName("cp-1")
 		ctx := context.Background()
 		cpMapName := "my-map"
@@ -92,7 +92,7 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 		Entry("with Persistence PVC", hazelcastconfig.CPSubsystemPersistence(3)),
 	)
 
-	DescribeTable("should store data in CP Map with cluster pause", Tag(EE|AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
+	DescribeTable("should store data in CP Map with cluster pause", Tag(AnyCloud), func(hazelcastSpec hazelcastcomv1alpha1.HazelcastSpec) {
 		setLabelAndCRName("cp-2")
 		ctx := context.Background()
 		cpMapName := "my-map"
@@ -140,7 +140,7 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 		Entry("with Persistence PVC", hazelcastconfig.CPSubsystemPersistence(3)),
 	)
 
-	It("should start CP with Persistence and different PVCs", Tag(EE|AnyCloud), func() {
+	It("should start CP with Persistence and different PVCs", Tag(AnyCloud), func() {
 		setLabelAndCRName("cp-3")
 		ctx := context.Background()
 		cpMapName := "my-map"
@@ -170,7 +170,7 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 		validateCPMap(ctx, cli, cpMapName, randString(5), randString(5))
 	})
 
-	It("Should work on cluster restored from HotBackup", Tag(EE|AnyCloud), func() {
+	It("Should work on cluster restored from HotBackup", Tag(AnyCloud), func() {
 		setLabelAndCRName("cp-3")
 		ctx := context.Background()
 		initialCluster := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, 3, labels)

@@ -146,10 +146,6 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
-    strategy:
-      fail-fast: false
-      matrix:
-        edition: ["os", "ee"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -160,12 +156,7 @@ jobs:
 
       - name: Run integration tests
         run: |
-          case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS='-ee=false';;
-            ee) GO_TEST_FLAGS='-ee=true';;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
-          make GO_TEST_FLAGS=${GO_TEST_FLAGS} test-it
+          make test-it
 
   slack_notify:
     name: Slack Notify
