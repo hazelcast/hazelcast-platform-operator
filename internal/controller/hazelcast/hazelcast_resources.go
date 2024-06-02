@@ -3024,9 +3024,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			})
 	}
 
-	if len(h.Spec.Env) > 0 {
-		envs = append(envs, h.Spec.Env...)
-	}
+	envs = append(envs, h.Spec.Env...)
 
 	return envs
 }

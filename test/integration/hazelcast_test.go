@@ -1161,6 +1161,25 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(envs).Should(ContainElement("ENV"))
 			})
 		})
+		When("it is configured with env vars starting with HZ_", func() {
+			It("should not set them", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.Env = []corev1.EnvVar{
+					{
+						Name:  "HZ_ENV",
+						Value: "VAL",
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				err := k8sClient.Create(context.Background(), hz)
+				Expect(err).ShouldNot(BeNil())
+				Expect(err.Error()).Should(ContainSubstring("Environment variables cannot start with 'HZ_'. Use customConfigCmName to configure Hazelcast."))
+			})
+		})
 	})
 
 	Context("with Resources parameters", func() {

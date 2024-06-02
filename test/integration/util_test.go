@@ -150,6 +150,15 @@ func assertHzStatusIsPending(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1
 	return hz
 }
 
+func assertHzStatusIsFailed(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+	By("ensuring that the status is failed")
+	Eventually(func() hazelcastv1alpha1.Phase {
+		hz = fetchHz(hz)
+		return hz.Status.Phase
+	}, timeout, interval).Should(Equal(hazelcastv1alpha1.Failed))
+	return hz
+}
+
 func fetchHz(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 	By("fetching Hazelcast CR")
 	fetchedCR := &hazelcastv1alpha1.Hazelcast{}
