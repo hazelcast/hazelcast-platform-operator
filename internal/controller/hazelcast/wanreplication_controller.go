@@ -699,7 +699,6 @@ func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				},
 				UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-					// to run handler 'wanRequestsForSuccessfulMap' function after the map is ready
 					oldMap, ok := updateEvent.ObjectOld.(*hazelcastv1alpha1.Map)
 					if !ok {
 						return false
@@ -708,6 +707,7 @@ func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					if !ok {
 						return false
 					}
+					// run the handler function once after the map is ready
 					return oldMap.Status.State != hazelcastv1alpha1.MapSuccess && newMap.Status.State == hazelcastv1alpha1.MapSuccess
 				},
 				DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
@@ -729,39 +729,40 @@ func (r *WanReplicationReconciler) wanRequestsForSuccessfulMap(ctx context.Conte
 	}
 
 	wanList := hazelcastv1alpha1.WanReplicationList{}
-	nsMatcher := client.InNamespace(hzMap.Namespace)
-	err := r.List(ctx, &wanList, nsMatcher)
+	err := r.List(ctx, &wanList, client.InNamespace(hzMap.Namespace))
 	if err != nil {
 		return []reconcile.Request{}
 	}
-	var requests []reconcile.Request
+
+	var requestedWans = make(map[string]hazelcastv1alpha1.WanReplication)
 	for _, wan := range wanList.Items {
-	wanResourcesLoop:
 		for _, wanResource := range wan.Spec.Resources {
 			switch wanResource.Kind {
 			case hazelcastv1alpha1.ResourceKindMap:
 				if wanResource.Name == hzMap.Name {
-					requests = append(requests, reconcile.Request{
-						NamespacedName: types.NamespacedName{
-							Name:      wan.Name,
-							Namespace: wan.Namespace,
-						},
-					})
-					break wanResourcesLoop
+					requestedWans[wan.Name] = wan
 				}
 			case hazelcastv1alpha1.ResourceKindHZ:
 				if wanResource.Name == hzMap.Spec.HazelcastResourceName {
-					requests = append(requests, reconcile.Request{
-						NamespacedName: types.NamespacedName{
-							Name:      wan.Name,
-							Namespace: wan.Namespace,
-						},
-					})
-					break wanResourcesLoop
+					requestedWans[wan.Name] = wan
 				}
+			}
+			if _, ok := requestedWans[wan.Name]; ok {
+				break
 			}
 		}
 	}
+
+	requests := make([]reconcile.Request, 0, len(requestedWans))
+	for _, wan := range requestedWans {
+		requests = append(requests, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      wan.Name,
+				Namespace: wan.Namespace,
+			},
+		})
+	}
+
 	return requests
 }
 
