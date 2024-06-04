@@ -121,7 +121,7 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 		}).
 		WithIndex(&hazelcastv1alpha1.WanReplication{}, "hazelcastResourceName", func(o client.Object) []string {
 			wr := o.(*hazelcastv1alpha1.WanReplication)
-			hzResources := []string{}
+			var hzResources []string
 			for k := range wr.Status.WanReplicationMapsStatus {
 				hzName, _ := splitWanMapKey(k)
 				hzResources = append(hzResources, hzName)

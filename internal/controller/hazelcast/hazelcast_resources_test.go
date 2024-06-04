@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-	"reflect"
 	"testing"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
+	proto "github.com/hazelcast/hazelcast-go-client"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -20,6 +20,8 @@ import (
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
+	hztypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -205,9 +207,20 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	wrs := &hazelcastv1alpha1.WanReplicationList{}
-	wrs.Items = []hazelcastv1alpha1.WanReplication{
-		{
+	objects := []client.Object{
+		hz,
+		&hazelcastv1alpha1.Map{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "map",
+				Namespace: "default",
+			},
+			Spec: hazelcastv1alpha1.MapSpec{
+				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hz.Name,
+				},
+			},
+		},
+		&hazelcastv1alpha1.WanReplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "wan-1",
 				Namespace: "default",
@@ -231,7 +244,7 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 				},
 			},
 		},
-		{
+		&hazelcastv1alpha1.WanReplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "wan-2",
 				Namespace: "default",
@@ -256,22 +269,7 @@ func Test_hazelcastConfigMultipleWanCRs(t *testing.T) {
 			},
 		},
 	}
-	objects := []client.Object{
-		hz,
-		&hazelcastv1alpha1.Map{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "map",
-				Namespace: "default",
-			},
-			Spec: hazelcastv1alpha1.MapSpec{
-				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
-					HazelcastResourceName: hz.Name,
-				},
-			},
-		},
-	}
-	c := &mockK8sClient{Client: fakeK8sClient(objects...)}
-	c.list = wrs
+	c := fakeK8sClient(objects...)
 
 	bytes, err := hazelcastConfig(context.TODO(), c, hz, logr.Discard())
 	if err != nil {
@@ -440,21 +438,6 @@ func Test_configBaseDirShouldNotChangeWhenExists(t *testing.T) {
 	Expect(actualConf.Hazelcast.Persistence.BackupDir).Should(Equal(path.Join(n.PersistenceMountPath, "hot-backup")))
 }
 
-// Client used to mock List() method for the WanReplicationList CR
-// Needed since the List() method uses the indexed filed "hazelcastResourceName" not available in the fakeClient.
-type mockK8sClient struct {
-	client.Client
-	list *hazelcastv1alpha1.WanReplicationList
-}
-
-func (c *mockK8sClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-	if list == nil || reflect.TypeOf(list) != reflect.TypeOf(c.list) {
-		return c.Client.List(ctx, list, opts...)
-	}
-	list.(*hazelcastv1alpha1.WanReplicationList).Items = c.list.Items
-	return nil
-}
-
 type listKeys func(h config.Hazelcast) []string
 
 func getKeys[C config.Cache | config.ReplicatedMap |
@@ -577,4 +560,40 @@ func TestDeepMerge(t *testing.T) {
 			t.Errorf("deepMerge(%v, %v) mismatch (-want, +got):\n%s", tc.dst, tc.src, diff)
 		}
 	}
+}
+
+func Test_EnsureClusterActive_ShouldChangeState(t *testing.T) {
+	RegisterFailHandler(fail(t))
+	r := HazelcastReconciler{}
+	c := &fakeHzClient{}
+	clusterState := hztypes.ClusterStateNoMigration
+	c.tInvokeOnRandomTarget = func(ctx context.Context, req *proto.ClientMessage, opts *proto.InvokeOptions) (*proto.ClientMessage, error) {
+		if req.Type() == codec.MCGetClusterMetadataCodecRequestMessageType {
+			return codec.EncodeMCGetClusterMetadataResponse(hztypes.ClusterMetadata{
+				CurrentState: clusterState,
+			}), nil
+		}
+		if req.Type() == codec.MCChangeClusterStateCodecRequestMessageType {
+			clusterState = codec.DecodeMCChangeClusterStateRequest(req)
+			return nil, nil
+		}
+		return nil, fmt.Errorf("unexpected message type")
+	}
+	h := &hazelcastv1alpha1.Hazelcast{
+		Spec: hazelcastv1alpha1.HazelcastSpec{
+			Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				Restore: hazelcastv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: "my-hb-name",
+				},
+			},
+		},
+		Status: hazelcastv1alpha1.HazelcastStatus{
+			Restore: hazelcastv1alpha1.RestoreStatus{
+				State: hazelcastv1alpha1.RestoreSucceeded,
+			},
+			Phase: hazelcastv1alpha1.Running,
+		},
+	}
+	Expect(r.ensureClusterActive(context.TODO(), c, h)).Should(Succeed())
+	Expect(clusterState).To(Equal(hztypes.ClusterStateActive))
 }

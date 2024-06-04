@@ -34,7 +34,7 @@ jobs:
       - name: Create EKS cluster
         id: create-cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-e2e-test-eks-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           eksctl create cluster \
@@ -58,6 +58,26 @@ jobs:
             --name aws-ebs-csi-driver \
             --cluster "${CLUSTER_NAME}" \
             --region=${AWS_REGION}
+
+      - name: Create IAM Service Account
+        run: |
+          ROLE_NAME="cn-test-iam-service-account-${{ github.run_number }}"
+
+          eksctl create iamserviceaccount \
+            --name aws-iam-sa \
+            --namespace test-operator-os \
+            --cluster ${CLUSTER_NAME} \
+            --role-name ${ROLE_NAME}-os \
+            --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
+            --approve
+
+          eksctl create iamserviceaccount \
+            --name aws-iam-sa \
+            --namespace test-operator-ee \
+            --cluster ${CLUSTER_NAME} \
+            --role-name ${ROLE_NAME}-ee \
+            --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
+            --approve
 
   grafana-setup:
     needs: [prepare-env]
@@ -187,7 +207,7 @@ jobs:
 
       - name: Update kubeconfig
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-e2e-test-eks-${GITHUB_SHA::8}-${{ github.run_number }}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
       - name: Authenticate to GAR
