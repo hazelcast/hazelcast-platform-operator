@@ -40,10 +40,6 @@ func NewWanSyncReconciler(c client.Client, log logr.Logger, scheme *runtime.Sche
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wansyncs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wansyncs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=wansyncs/finalizers,verbs=update
-
 func (r *WanSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.WithValues("name", req.Name, "namespace", req.NamespacedName)
 

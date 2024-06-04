@@ -46,10 +46,6 @@ func NewJetJobSnapshotReconciler(c client.Client, log logr.Logger, scheme *runti
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=jetjobsnapshots,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=jetjobsnapshots/status,verbs=get;update;patch,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=jetjobsnapshots/finalizers,verbs=update,namespace=watched
-
 func (r *JetJobSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.log.WithValues("hazelcast-jet-job-snapshot", req.NamespacedName)
 

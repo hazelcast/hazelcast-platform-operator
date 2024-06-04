@@ -56,29 +56,6 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 	}
 }
 
-// Role related to CRs
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=watched
-// ClusterRole inherited from permissions Hazelcast needs for node,zone discovery
-//+kubebuilder:rbac:groups="",resources=nodes,verbs=get
-// Role inherited from permissions Hazelcast needs for discovery
-//+kubebuilder:rbac:groups="",resources=endpoints;pods;services,verbs=get;list,namespace=watched
-// Role inherited from permissions Hazelcast needs for persistence
-//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=watch;list,namespace=watched
-// ClusterRole related to Reconcile() to be able to give Hazelcast ClusterRole permissions
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-// Role related to Reconcile() to be able to give Hazelcast Role permissions
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-// Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;secrets;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;update;watch;get;list,namespace=watched
-// Role related to Reconcile() HazelcastEndpoint
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/status,verbs=get;update;patch,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/finalizers,verbs=update,namespace=watched
-
 func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast", req.NamespacedName)
 
