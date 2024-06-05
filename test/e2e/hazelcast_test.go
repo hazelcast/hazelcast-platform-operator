@@ -197,7 +197,7 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 		})
 	})
 
-	FContext("OS cluster creation", func() {
+	Context("OS cluster creation", func() {
 		It("should delete the cluster if it is not enterprise", Tag(Kind|Any), func() {
 			setLabelAndCRName("h-9")
 			hazelcast := hazelcastconfig.Default(hzLookupKey, false, labels)
