@@ -267,7 +267,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// Failover is an enterprise feature.
 		// This mechanism is a workaround to understand if the cluster is EE, if not we are deleting it.
 		// https://docs.hazelcast.com/tutorials/failover-clients-with-hazelcast-cloud
-		if errs.As(err, &hzerrors.ErrIllegalState) {
+		if errs.Is(err, hzerrors.ErrIllegalState) {
 			err2 := r.Client.Delete(ctx, &statefulSet)
 			if err2 != nil {
 				return ctrl.Result{}, err
