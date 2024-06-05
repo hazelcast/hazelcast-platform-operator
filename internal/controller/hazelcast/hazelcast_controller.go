@@ -2,10 +2,12 @@ package hazelcast
 
 import (
 	"context"
+	errs "errors"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/hazelcast/hazelcast-go-client/hzerrors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -30,6 +32,8 @@ import (
 
 // retryAfter is the time in seconds to requeue for the Pending phase
 const retryAfter = 10 * time.Second
+
+const osErrMsg = "Hazelcast Platform Operator cannot be used to create open source clusters"
 
 // HazelcastReconciler reconciles a Hazelcast object
 type HazelcastReconciler struct {
@@ -107,6 +111,10 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return r.update(ctx, h, recoptions.Error(err), withHzPhase(hazelcastv1alpha1.Terminating), withHzMessage(err.Error()))
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
+		return ctrl.Result{}, nil
+	}
+
+	if h.Status.Message == osErrMsg {
 		return ctrl.Result{}, nil
 	}
 
@@ -255,6 +263,17 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	cl, err := r.clientRegistry.GetOrCreate(ctx, req.NamespacedName)
 	if err != nil {
+		// It returns an ErrIllegalState when client failover is not supported.
+		// Failover is an enterprise feature.
+		// This mechanism is a workaround to understand if the cluster is EE, if not we are deleting it.
+		// https://docs.hazelcast.com/tutorials/failover-clients-with-hazelcast-cloud
+		if errs.As(err, &hzerrors.ErrIllegalState) {
+			err2 := r.Client.Delete(ctx, &statefulSet)
+			if err2 != nil {
+				return ctrl.Result{}, err
+			}
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(osErrMsg))
+		}
 		return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
 			withHzPhase(hazelcastv1alpha1.Pending),
 			withHzMessage(err.Error()),

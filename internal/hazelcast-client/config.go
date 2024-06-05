@@ -24,23 +24,39 @@ const (
 
 func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, cert *tls.Certificate, logger hzlogger.Logger) hazelcast.Config {
 	config := hazelcast.Config{
+		// normally we should not configure failover.
+		// It is a workaround to understand if the created cluster is enterprise, because it is only supported by enterprise.
+		// This is why our primary cluster config and failover cluster config is the same.
+		Failover: cluster.FailoverConfig{
+			Configs: []cluster.Config{
+				clusterConfig(h, pool, cert),
+			},
+			TryCount: 1,
+			Enabled:  true,
+		},
 		Logger: hzlogger.Config{
 			CustomLogger: logger,
 		},
-		Cluster: cluster.Config{
-			ConnectionStrategy: cluster.ConnectionStrategyConfig{
-				Timeout:       hztypes.Duration(120 * time.Second),
-				ReconnectMode: cluster.ReconnectModeOn,
-				Retry: cluster.ConnectionRetryConfig{
-					InitialBackoff: hztypes.Duration(20 * time.Millisecond),
-					MaxBackoff:     hztypes.Duration(30 * time.Second),
-					Multiplier:     1.05,
-					Jitter:         0.05,
-				},
+		Cluster: clusterConfig(h, pool, cert),
+	}
+
+	return config
+}
+
+func clusterConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, cert *tls.Certificate) cluster.Config {
+	cc := cluster.Config{
+		ConnectionStrategy: cluster.ConnectionStrategyConfig{
+			Timeout:       hztypes.Duration(120 * time.Second),
+			ReconnectMode: cluster.ReconnectModeOn,
+			Retry: cluster.ConnectionRetryConfig{
+				InitialBackoff: hztypes.Duration(20 * time.Millisecond),
+				MaxBackoff:     hztypes.Duration(30 * time.Second),
+				Multiplier:     1.05,
+				Jitter:         0.05,
 			},
 		},
 	}
-	cc := &config.Cluster
+
 	cc.Name = h.Spec.ClusterName
 	cc.Network.SetAddresses(HazelcastUrl(h))
 	if pool != nil {
@@ -54,7 +70,8 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, cert *tls.
 		}
 		cc.Network.SSL.SetTLSConfig(&tlsConfig)
 	}
-	return config
+
+	return cc
 }
 
 func RestUrl(h *hazelcastv1alpha1.Hazelcast) string {
