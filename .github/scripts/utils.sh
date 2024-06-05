@@ -225,7 +225,6 @@ post_test_result()
     # Define an associative array to map report names to suite IDs
     declare -A suite_ids=(
         ["test_report_ee_01.xml"]="c27ecdc7f61258eff0f1de9e8de22e20"
-        ["test_report_os_01.xml"]="5d60bbdb1d132c4d168b7ea248b808b2"
     )
 
     # Initialize the table header
