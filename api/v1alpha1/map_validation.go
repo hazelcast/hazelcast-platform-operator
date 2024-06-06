@@ -174,9 +174,7 @@ func (v *mapValidator) validateNotUpdatableMapFields(current *MapSpec, last *Map
 		v.Forbidden(Path("spec", "asyncBackupCount"), "field cannot be updated")
 	}
 	if !indexConfigSliceEquals(current.Indexes, last.Indexes) {
-		c, _ := json.Marshal(current.Indexes)
-		l, _ := json.Marshal(last.Indexes)
-		v.Forbidden(Path("spec", "indexes"), fmt.Sprintf("field cannot be updated. current:\n%s\nlast:\n%s\n", string(c), string(l)))
+		v.Forbidden(Path("spec", "indexes"), fmt.Sprintf("field cannot be updated."))
 	}
 	if current.PersistenceEnabled != last.PersistenceEnabled {
 		v.Forbidden(Path("spec", "persistenceEnabled"), "field cannot be updated")
