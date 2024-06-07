@@ -117,16 +117,11 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	cl, err := getHazelcastClient(ctx, r.clientRegistry, m.Spec.HazelcastResourceName, m.Namespace)
 	if err != nil {
-		if errors.IsInternalError(err) {
-			return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
-				withMapFailedState(err.Error()))
-		}
-		return updateMapStatus(ctx, r.Client, m, recoptions.RetryAfter(retryAfterForMap),
-			withMapState(hazelcastv1alpha1.MapPending),
-			withMapMessage(err.Error()))
+		return updateMapStatus(ctx, r.Client, m, recoptions.Error(err),
+			withMapFailedState(err.Error()))
 	}
 
-	if m.Status.State != hazelcastv1alpha1.MapPersisting {
+	if m.Status.State == "" {
 		requeue, err := updateMapStatus(ctx, r.Client, m, recoptions.Empty(),
 			withMapState(hazelcastv1alpha1.MapPending),
 			withMapMessage("Applying new map configuration."))
