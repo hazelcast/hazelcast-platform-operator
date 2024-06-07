@@ -45,8 +45,6 @@ func NewMapReconciler(c client.Client, log logr.Logger, pht chan struct{}, cs hz
 	}
 }
 
-const retryAfterForMap = 5 * time.Second
-
 //+kubebuilder:rbac:groups=hazelcast.com,resources=maps,verbs=get;list;watch;create;update;patch;delete,namespace=watched
 //+kubebuilder:rbac:groups=hazelcast.com,resources=maps/status,verbs=get;update;patch,namespace=watched
 //+kubebuilder:rbac:groups=hazelcast.com,resources=maps/finalizers,verbs=update,namespace=watched
