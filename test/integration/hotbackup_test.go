@@ -17,11 +17,9 @@ var _ = Describe("HotBackup CR", func() {
 	const namespace = "default"
 
 	BeforeEach(func() {
-		if ee {
-			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
-			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
-			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
-		}
+		By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+		licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+		assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
 	})
 
 	AfterEach(func() {
@@ -56,7 +54,7 @@ var _ = Describe("HotBackup CR", func() {
 			By("creating HotBackup CR successfully")
 			Expect(k8sClient.Create(context.Background(), hb)).Should(Succeed())
 
-			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

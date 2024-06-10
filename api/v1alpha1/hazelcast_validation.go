@@ -200,14 +200,6 @@ func (v *hazelcastValidator) validateTLS(h *Hazelcast) {
 	}
 }
 
-func checkEnterprise(repo string) bool {
-	path := strings.Split(repo, "/")
-	if len(path) == 0 {
-		return false
-	}
-	return strings.HasSuffix(path[len(path)-1], "-enterprise")
-}
-
 func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 	p := h.Spec.Persistence
 	if !p.IsEnabled() {

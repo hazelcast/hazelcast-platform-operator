@@ -158,19 +158,11 @@ func fetchHz(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 }
 
 func defaultHazelcastSpecValues() *test.HazelcastSpecValues {
-	licenseKey := ""
-	repository := n.HazelcastRepo
-
-	if ee {
-		licenseKey = n.LicenseKeySecret
-		repository = n.HazelcastEERepo
-	}
-
 	return &test.HazelcastSpecValues{
 		ClusterSize:     n.DefaultClusterSize,
-		Repository:      repository,
+		Repository:      n.HazelcastEERepo,
 		Version:         n.HazelcastVersion,
-		LicenseKey:      licenseKey,
+		LicenseKey:      n.LicenseKeySecret,
 		ImagePullPolicy: n.HazelcastImagePullPolicy,
 	}
 }
