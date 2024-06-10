@@ -1132,7 +1132,7 @@ var _ = Describe("Hazelcast CR", func() {
 	Context("with env variables", func() {
 		When("configured", func() {
 			It("should set them correctly", func() {
-				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 				spec.Env = []corev1.EnvVar{
 					{
 						Name:  "ENV",
@@ -1161,7 +1161,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 		When("it is configured with env vars starting with HZ_", func() {
 			It("should not set them", func() {
-				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 				spec.Env = []corev1.EnvVar{
 					{
 						Name:  "HZ_ENV",
