@@ -50,7 +50,7 @@ type HazelcastSpec struct {
 	ClusterSize *int32 `json:"clusterSize,omitempty"`
 
 	// Repository to pull the Hazelcast Platform image from.
-	// +kubebuilder:default:="docker.io/hazelcast/hazelcast"
+	// +kubebuilder:default:="docker.io/hazelcast/hazelcast-enterprise"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
@@ -1385,7 +1385,6 @@ type Hazelcast struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Initial values will be filled with its fields' default values.
-	// +kubebuilder:default:={"repository" : "docker.io/hazelcast/hazelcast-enterprise", "licenseKeySecretName": "hazelcast-license-key"}
 	// +optional
 	Spec HazelcastSpec `json:"spec,omitempty"`
 
