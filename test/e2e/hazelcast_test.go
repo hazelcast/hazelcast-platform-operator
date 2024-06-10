@@ -198,9 +198,9 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 	})
 
 	Context("OS cluster creation", func() {
-		It("should delete the cluster if it is not enterprise", Tag(Kind|Any), func() {
+		It("should delete the cluster if it is not enterprise", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("h-9")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, false, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 
 			hz := &hazelcastcomv1alpha1.Hazelcast{}

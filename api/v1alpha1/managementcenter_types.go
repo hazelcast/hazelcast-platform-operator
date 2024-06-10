@@ -342,7 +342,6 @@ type ManagementCenter struct {
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Initial values will be filled with its fields' default values.
 	// +optional
 	Spec ManagementCenterSpec `json:"spec,omitempty"`
 
