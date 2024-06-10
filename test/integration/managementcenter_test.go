@@ -141,7 +141,8 @@ var _ = Describe("ManagementCenter CR", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
-						HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
+						LicenseKeySecretName: n.LicenseKeySecret,
+						HazelcastClusters:    []hazelcastv1alpha1.HazelcastClusterConfig{},
 					},
 				}
 				Create(mc)
@@ -334,6 +335,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
+						LicenseKeySecretName: n.LicenseKeySecret,
 						Persistence: &hazelcastv1alpha1.MCPersistenceConfiguration{
 							Enabled:                 pointer.Bool(true),
 							ExistingVolumeClaimName: "ClaimName",
@@ -373,7 +375,8 @@ var _ = Describe("ManagementCenter CR", func() {
 				mc := &hazelcastv1alpha1.ManagementCenter{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.ManagementCenterSpec{
-						ImagePullSecrets: pullSecrets,
+						LicenseKeySecretName: n.LicenseKeySecret,
+						ImagePullSecrets:     pullSecrets,
 					},
 				}
 				Create(mc)
@@ -703,7 +706,7 @@ var _ = Describe("ManagementCenter CR", func() {
 				{Name: "secret2"},
 			},
 
-			LicenseKeySecretName: "",
+			LicenseKeySecretName: "key-secret-2",
 			HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{
 				{Name: "dev", Address: "cluster-address"},
 			},
@@ -798,6 +801,7 @@ var _ = Describe("ManagementCenter CR", func() {
 			mc := &hazelcastv1alpha1.ManagementCenter{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.ManagementCenterSpec{
+					LicenseKeySecretName: n.LicenseKeySecret,
 					JVM: &hazelcastv1alpha1.MCJVMConfiguration{
 						Args: jvmArgs,
 					},

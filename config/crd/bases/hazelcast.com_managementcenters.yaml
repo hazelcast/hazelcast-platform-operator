@@ -48,9 +48,7 @@ spec:
           metadata:
             type: object
           spec:
-            default:
-              repository: docker.io/hazelcast/management-center
-            description: Initial values will be filled with its fields' default values.
+            description: ManagementCenterSpec defines the desired state of ManagementCenter.
             properties:
               annotations:
                 additionalProperties:
@@ -182,6 +180,7 @@ spec:
               licenseKeySecretName:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
+                minLength: 1
                 type: string
               persistence:
                 default:
@@ -1447,6 +1446,8 @@ spec:
                 default: 5.4.1
                 description: Version of Management Center.
                 type: string
+            required:
+            - licenseKeySecretName
             type: object
           status:
             description: ManagementCenterStatus defines the observed state of ManagementCenter.

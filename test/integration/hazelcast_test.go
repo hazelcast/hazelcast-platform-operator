@@ -210,6 +210,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Repository:      n.HazelcastEERepo,
 				Version:         n.HazelcastVersion,
 				ImagePullPolicy: n.HazelcastImagePullPolicy,
+				LicenseKey:      n.LicenseKeySecret,
 			}
 
 			It("should create CR with default values", func() {
@@ -580,7 +581,8 @@ var _ = Describe("Hazelcast CR", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						ImagePullSecrets: pullSecrets,
+						LicenseKeySecretName: n.LicenseKeySecret,
+						ImagePullSecrets:     pullSecrets,
 					},
 				}
 				create(hz)
@@ -1274,7 +1276,7 @@ var _ = Describe("Hazelcast CR", func() {
 			ImagePullPolicy:      corev1.PullAlways,
 			ImagePullSecrets:     nil,
 			ExposeExternally:     nil,
-			LicenseKeySecretName: "key-secret-2",
+			LicenseKeySecretName: "key-secret",
 		}
 
 		secondSpec := hazelcastv1alpha1.HazelcastSpec{
@@ -1289,7 +1291,7 @@ var _ = Describe("Hazelcast CR", func() {
 			ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type: hazelcastv1alpha1.ExposeExternallyTypeSmart,
 			},
-			LicenseKeySecretName: "key-secret",
+			LicenseKeySecretName: "license-key",
 			Scheduling: &hazelcastv1alpha1.SchedulingConfiguration{
 				Affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
@@ -1326,6 +1328,10 @@ var _ = Describe("Hazelcast CR", func() {
 				create(hz)
 				hz = assertHzStatusIsPending(hz)
 				hz.Spec = secondSpec
+
+				licenseSecret = CreateLicenseKeySecret(hz.Spec.GetLicenseKeySecretName(), hz.Namespace)
+				assertExists(lookupKey(licenseSecret), licenseSecret)
+
 				update(hz)
 				ss := getStatefulSet(hz)
 
@@ -1384,6 +1390,7 @@ var _ = Describe("Hazelcast CR", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
+						LicenseKeySecretName: n.LicenseKeySecret,
 						DeprecatedUserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
 							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 								ConfigMaps: cms,
