@@ -843,11 +843,6 @@ func (in *HazelcastSpec) DeepCopyInto(out *HazelcastSpec) {
 		*out = make([]v1.LocalObjectReference, len(*in))
 		copy(*out, *in)
 	}
-	if in.LicenseKeySecretName != nil {
-		in, out := &in.LicenseKeySecretName, &out.LicenseKeySecretName
-		*out = new(string)
-		**out = **in
-	}
 	if in.ExposeExternally != nil {
 		in, out := &in.ExposeExternally, &out.ExposeExternally
 		*out = new(ExposeExternallyConfiguration)

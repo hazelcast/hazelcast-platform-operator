@@ -963,13 +963,11 @@ func repo(ee bool) string {
 	}
 }
 
-func licenseKey(ee bool) *string {
-	e := naming.LicenseKeySecret
-	os := ""
+func licenseKey(ee bool) string {
 	if ee {
-		return &e
+		return naming.LicenseKeySecret
 	} else {
-		return &os
+		return ""
 	}
 }
 

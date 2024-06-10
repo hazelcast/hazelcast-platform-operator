@@ -73,8 +73,9 @@ type HazelcastSpec struct {
 	DeprecatedLicenseKeySecret string `json:"licenseKeySecret,omitempty"`
 
 	// Name of the secret with Hazelcast Enterprise License Key.
+	// +kubebuilder:validation:MinLength:=1
 	// +required
-	LicenseKeySecretName *string `json:"licenseKeySecretName"`
+	LicenseKeySecretName string `json:"licenseKeySecretName"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
 	// +optional
@@ -200,10 +201,10 @@ type HazelcastSpec struct {
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
-	if s.LicenseKeySecretName == nil {
+	if s.LicenseKeySecretName == "" {
 		return s.DeprecatedLicenseKeySecret
 	}
-	return *s.LicenseKeySecretName
+	return s.LicenseKeySecretName
 }
 
 // +kubebuilder:validation:Enum=Native;BigEndian;LittleEndian

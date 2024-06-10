@@ -148,11 +148,6 @@ func (v *hazelcastValidator) validateCustomConfig(h *Hazelcast) {
 }
 
 func (v *hazelcastValidator) validateLicense(h *Hazelcast) {
-	if checkEnterprise(h.Spec.Repository) && len(h.Spec.GetLicenseKeySecretName()) == 0 {
-		v.Required(Path("spec", "licenseKeySecretName"), "must be set when Hazelcast Enterprise is deployed")
-		return
-	}
-
 	// make sure secret exists
 	if h.Spec.GetLicenseKeySecretName() != "" {
 		secretName := types.NamespacedName{
